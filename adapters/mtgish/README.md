@@ -7,7 +7,7 @@ independent of the schema implementation currently used by the frontend.
 - `reference.json` pins optional validation data and the producer that emitted it.
 - `../../src/model.rs` is the frontend's single model import boundary.
 
-The current reference uses schema 189 and can be validated against the current
+The current reference uses schema 190 and can be validated against the current
 model without translation. A local IR schema and a Rust upstream-to-local
 translator have not yet been extracted. Keeping this explicit avoids treating
 reference corrections as schema migrations.
