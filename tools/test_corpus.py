@@ -17,7 +17,8 @@ class CorpusTests(unittest.TestCase):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         self.root = Path(directory.name)
-        for target, value in (('WORK', self.root/'work'), ('MANIFEST', self.root/'work/inputs.json')):
+        for target, value in (('WORK', self.root/'work'), ('MANIFEST', self.root/'work/inputs.json'),
+                              ('ISSUES', self.root/'issues.md')):
             patcher = patch.object(corpus, target, value)
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -67,6 +68,13 @@ class CorpusTests(unittest.TestCase):
         self.assertFalse(lost['passed'])
         self.assertEqual((lost['lost_matches'], lost['lost_parses'], lost['limits']),
                          (['A'], ['A'], ['A']))
+        documented = corpus.compare(before, [row('A', 'different'), row('B', 'different'),
+                                             row('C', 'refused')], frozenset({'A'}))
+        self.assertTrue(documented['passed'])
+        self.assertEqual(documented['documented_losses'], ['A'])
+        refused = corpus.compare(before, [row('A', 'refused', 0), row('B', 'different'),
+                                          row('C', 'refused')], frozenset({'A'}))
+        self.assertFalse(refused['passed'])
         with self.assertRaisesRegex(ValueError, 'order or population'):
             corpus.compare(before, before[::-1])
 

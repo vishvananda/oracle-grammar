@@ -24,6 +24,7 @@ import pin
 
 WORK = dev.ROOT/'.cache/corpus'
 MANIFEST = WORK/'inputs.json'
+ISSUES = dev.ROOT/'adapters/mtgish/reference-issues.md'
 INPUTS = ('allowed', 'oracle', 'reference', 'baseline')
 TRANSFORM = 1  # Bump when the allowed-population filter changes.
 
@@ -104,8 +105,17 @@ def summary(values):
             'readings': sum(row.get('readings') or 0 for row in values)}
 
 
-def compare(before, after):
-    """Classify changed occurrences; any lost match, lost parse or limit refusal fails."""
+def documented():
+    """Faces with a recorded reference issue: each `### Name` heading of the issue log."""
+    if not ISSUES.exists():
+        return frozenset()
+    return frozenset(line[4:].strip() for line in ISSUES.read_text().splitlines()
+                     if line.startswith('### '))
+
+
+def compare(before, after, issues=frozenset()):
+    """Classify changed occurrences. A lost parse, a limit refusal or a lost match fails,
+    unless the lost match is a still-recognized face with a recorded reference issue."""
     if [r['name'] for r in before] != [r['name'] for r in after]:
         raise ValueError('baseline and current face order or population differ')
     if any(a.get('text') != b.get('text') for a, b in zip(before, after)):
@@ -123,7 +133,10 @@ def compare(before, after):
               'reading_counts': names(lambda c: c['before_readings'] != c['after_readings']),
               'limits': [r['name'] for r in after if str(r.get('why', '')).startswith('Limit')],
               'changed': changed}
-    report['passed'] = not (report['lost_matches'] or report['lost_parses'] or report['limits'])
+    report['documented_losses'] = [name for name in report['lost_matches']
+                                   if name in issues and name not in report['lost_parses']]
+    unexplained = [name for name in report['lost_matches'] if name not in report['documented_losses']]
+    report['passed'] = not (unexplained or report['lost_parses'] or report['limits'])
     return report
 
 
@@ -172,13 +185,13 @@ def score(args):
                           f'--totals={out/"totals.json"}', *flags], stdout=log)
     before = cohort(rows(resolve(data['baseline'])), cards)
     write_rows(out/'before.jsonl', before)
-    report = compare(before, rows(out/'rows.jsonl'))
+    report = compare(before, rows(out/'rows.jsonl'), documented())
     report.update(slice=args.name, baseline_sha256=data['baseline']['sha256'],
                   rows_sha256=pin.digest(out/'rows.jsonl'))
     write(out/'changes.json', report)
     print(json.dumps({'before': report['before'], 'after': report['after']}))
-    for field in ('gained_matches', 'lost_matches', 'lost_parses', 'new_parses',
-                  'reading_counts', 'limits'):
+    for field in ('gained_matches', 'lost_matches', 'documented_losses', 'lost_parses',
+                  'new_parses', 'reading_counts', 'limits'):
         if report[field]:
             print(f'{field} ({len(report[field])}): ' + '; '.join(report[field][:12]))
     if not report['passed']:
