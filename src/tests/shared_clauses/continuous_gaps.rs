@@ -360,3 +360,25 @@ fn a_block_requirement_never_names_its_own_blocker() {
     );
     printed(&readings[0]);
 }
+
+#[test]
+fn protection_from_controlled_objects_is_protection_from_permanents() {
+    for (text, kind) in [
+        (
+            "Protection from creatures your opponents control",
+            "Permanent",
+        ),
+        (
+            "Protection from permanents with corruption counters on them",
+            "Permanent",
+        ),
+        ("Protection from creatures", "Any"),
+    ] {
+        let readings = engine().parse("Context example", text).unwrap().readings;
+        assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
+        let mut protections = Vec::new();
+        visit(&readings[0], "Protection", &mut protections);
+        assert_eq!(protections[0]["Objects"]["kind"], kind, "{text}");
+        printed(&readings[0]);
+    }
+}

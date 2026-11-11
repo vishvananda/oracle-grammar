@@ -42,7 +42,7 @@ mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{
     blocks_itself, cancels_before_choice, condition_placement, has_cost_as_action,
-    single_holder_affected,
+    protection_domain_mismatch, single_holder_affected,
 };
 mod coin_protocol;
 mod holder;
@@ -276,6 +276,9 @@ pub fn bind_ability(ability: &mut Value, card_name: &str) -> Result<(), String> 
     }
     if blocks_itself(ability) {
         return Err("a creature cannot be required to block itself".into());
+    }
+    if protection_domain_mismatch(ability) {
+        return Err("protection names the domain its quality proves".into());
     }
     variables::bind(ability)?;
     exile_followups::lower(ability)?;

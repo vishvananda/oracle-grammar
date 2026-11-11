@@ -138,6 +138,43 @@ pub(super) fn blocks_itself(value: &Value) -> bool {
     }
 }
 
+/// Protection from objects described by a controller or counters is protection
+/// from permanents; any other described quality names objects in every zone.
+pub(super) fn protection_domain_mismatch(value: &Value) -> bool {
+    fn top(filter: &Value) -> Vec<&Value> {
+        match filter["kind"].as_str() {
+            Some("AllOf") => filter["args"]
+                .as_array()
+                .map(|parts| parts.iter().collect()),
+            _ => None,
+        }
+        .unwrap_or_else(|| vec![filter])
+    }
+    match value {
+        Value::Object(object) => {
+            let objects = &value["args"]["Objects"];
+            let wrong = value["kind"] == "Protection" && {
+                let parts = top(&objects["filter"]);
+                let has = |kinds: &[&str]| {
+                    parts.iter().any(|part| {
+                        part["kind"]
+                            .as_str()
+                            .is_some_and(|kind| kinds.contains(&kind))
+                    })
+                };
+                match objects["kind"].as_str() {
+                    Some("Any") => has(&["ControlledBy", "Counters"]),
+                    Some("Permanent") => !has(&["ControlledBy", "Counters", "State", "Condition"]),
+                    _ => false,
+                }
+            };
+            wrong || object.values().any(protection_domain_mismatch)
+        }
+        Value::Array(items) => items.iter().any(protection_domain_mismatch),
+        _ => false,
+    }
+}
+
 /// A simple self-payment uses its native cost part. A different player's action
 /// remains PlayerAction: replacing it with Draw/Discard would change who acts.
 /// References must be bound before comparing the deciding and performing players.
