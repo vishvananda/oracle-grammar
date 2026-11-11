@@ -288,3 +288,30 @@ fn searched_land_animates_after_entry_and_shuffle_with_edited_stats() {
     let text = printed_types(&frame, &["Sorcery"]).to_lowercase();
     assert!(text.contains("2/3") && text.contains("shuffle"), "{text}");
 }
+
+#[test]
+fn a_cast_spell_keeps_a_temporary_grant_only_as_a_spell_change() {
+    let only = |text: &str| {
+        let readings = engine().parse("Context example", text).unwrap().readings;
+        assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
+        readings[0].clone()
+    };
+    let found = |frame: &Value, kind: &str| {
+        let mut found = Vec::new();
+        visit(frame, kind, &mut found);
+        found
+    };
+    let frame = only("Whenever you cast a creature spell, it gains haste until end of turn.");
+    let changes = found(&frame, "ChangeSpell");
+    assert_eq!(changes.len(), 1, "{frame:#?}");
+    assert_eq!(
+        changes[0]["changes"],
+        json!([{"kind":"Continuing","args":{"changes":[{"kind":"GrantKeyword","args":{"kind":"Haste"}}],"until":"EndOfTurn"}}])
+    );
+    assert!(found(&frame, "CreateContinuousEffect").is_empty());
+    printed(&frame);
+    let frame = only("Whenever a creature you control enters, it gains haste until end of turn.");
+    assert!(found(&frame, "ChangeSpell").is_empty(), "{frame:#?}");
+    assert_eq!(found(&frame, "CreateContinuousEffect").len(), 1);
+    printed(&frame);
+}

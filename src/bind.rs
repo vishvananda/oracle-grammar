@@ -272,7 +272,7 @@ pub fn bind_ability(ability: &mut Value, card_name: &str) -> Result<(), String> 
     selections::bind(ability)?;
     coin_protocol::lower(ability)?;
     crate::functions::definitions::resolve(ability)?;
-    Ok(())
+    spell_focus::check_spell_grants(ability)
 }
 
 fn replace_all(value: &mut Value, old: &Value, new: &Value) {

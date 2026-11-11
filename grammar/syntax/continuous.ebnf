@@ -2,10 +2,15 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | copied_base_stats
+continuous_snapshot ::= continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats
 
 /* @sem Operation::@implicit_return_grant(Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$changes, duration:$duration, evaluation:Snapshot}) */
 continuous_snapshot_plain ::= affected changes ("↓")? duration
+
+/* A cast spell keeps a temporary grant as the permanent it becomes. The binder
+   admits this form, and refuses the continuous effect, only for that spell. */
+/* @sem Operation::ChangeSpell{subject:One($it_ref), changes:[Continuing{changes:$changes, until:$duration}]} */
+continuous_spell_grant ::= it_ref changes duration
 
 /* The explicit object is introduced once. Its following empty expression
    reads that established object, after contextual target filters are bound. */

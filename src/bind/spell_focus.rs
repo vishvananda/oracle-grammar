@@ -95,6 +95,87 @@ pub(super) fn facts(event: &Value) -> Facts {
     visit(event, 0, &mut 4096).unwrap_or_default()
 }
 
+/// A cast spell's temporary grant follows it onto the battlefield only as a
+/// spell change; a continuous effect on the spell itself ends with the spell.
+/// A `Continuing` spell change in turn names that cast spell or a target that
+/// can be on the stack.
+pub(super) fn check_spell_grants(ability: &Value) -> Result<(), String> {
+    struct Walk {
+        work: usize,
+        stack_slots: Vec<u64>,
+    }
+    fn fields<'a>(
+        node: &'a Value,
+        depth: usize,
+        walk: &mut Walk,
+    ) -> Result<Vec<&'a Value>, String> {
+        if depth > 256 || walk.work == 0 {
+            return Err("ability exceeds the spell-grant check bounds".into());
+        }
+        walk.work -= 1;
+        Ok(match node {
+            Value::Array(items) => items.iter().collect(),
+            Value::Object(fields) => fields.values().collect(),
+            _ => Vec::new(),
+        })
+    }
+    fn slots(node: &Value, depth: usize, walk: &mut Walk) -> Result<(), String> {
+        let zones = &node["kind"]["Object"]["zones"];
+        if let (Some(slot), Some(zones)) = (node["slot"].as_u64(), zones.as_array())
+            && zones.iter().any(|zone| zone == "Stack")
+        {
+            walk.stack_slots.push(slot);
+        }
+        for child in fields(node, depth, walk)? {
+            slots(child, depth + 1, walk)?;
+        }
+        Ok(())
+    }
+    fn visit(node: &Value, spell: bool, depth: usize, walk: &mut Walk) -> Result<(), String> {
+        let subject = serde_json::json!({"kind": "EventSubject"});
+        let spell = match (node.get("event"), node.get("body")) {
+            (Some(event), Some(_)) => facts(event).subject,
+            _ => spell,
+        };
+        let args = &node["args"];
+        match node["kind"].as_str() {
+            Some("CreateContinuousEffect")
+                if spell
+                    && args["affected"]["Objects"]
+                        == serde_json::json!({"kind": "One", "args": subject}) =>
+            {
+                return Err("a cast spell's own changes are spell changes".into());
+            }
+            Some("ChangeSpell") if continuing(&args["changes"]) => {
+                let named = &args["subject"]["One"];
+                let target = named["kind"] == "Target"
+                    && named["args"]["slot"]
+                        .as_u64()
+                        .is_some_and(|slot| walk.stack_slots.contains(&slot));
+                if !named.is_null() && !target && !(spell && *named == subject) {
+                    return Err("a continuing spell change names a spell".into());
+                }
+            }
+            _ => {}
+        }
+        for child in fields(node, depth, walk)? {
+            visit(child, spell, depth + 1, walk)?;
+        }
+        Ok(())
+    }
+    fn continuing(changes: &Value) -> bool {
+        changes
+            .as_array()
+            .is_some_and(|changes| changes.iter().any(|c| c["kind"] == "Continuing"))
+    }
+    let mut walk = Walk {
+        work: 1 << 20,
+        stack_slots: Vec::new(),
+    };
+    slots(ability, 0, &mut walk)?;
+    visit(ability, false, 0, &mut walk)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
