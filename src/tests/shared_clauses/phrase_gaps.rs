@@ -234,3 +234,23 @@ fn an_infinity_ability_exists_only_while_harnessed() {
     assert!(then.get("Turn").is_some(), "{then:#?}");
     printed_types(&readings[0], &["Artifact"]);
 }
+
+#[test]
+fn an_optional_reveal_before_a_reflexive_trigger_is_an_action() {
+    let text = "You may reveal a Giant card from your hand. When you do, this enchantment deals 2 damage to any target.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    let actions = readings
+        .iter()
+        .find(|reading| {
+            let mut found = Vec::new();
+            visit(reading, "Reveal", &mut found);
+            found
+                .iter()
+                .any(|reveal| reveal["objects"]["kind"] == "Selected")
+        })
+        .expect("an optional reveal action");
+    let mut optional = Vec::new();
+    visit(actions, "Optional", &mut optional);
+    assert_eq!(optional.len(), 1);
+    printed_types(actions, &["Enchantment"]);
+}
