@@ -91,6 +91,14 @@ class BuildInputTests(unittest.TestCase):
             config.write_text(config.read_text().replace('jobs = 2', 'jobs = 2\ntarget-dir = "custom-target"'))
             self.assertNotIn('CARGO_TARGET_DIR', dev.build_environment())
 
+    def test_quick_builds_and_tests_compile_incrementally_unless_overridden(self):
+        clean = {k: v for k, v in os.environ.items() if k != 'CARGO_INCREMENTAL'}
+        with patch.dict(os.environ, {**clean, 'CARGO_TARGET_DIR': '/tmp/explicit-target'}, clear=True):
+            self.assertEqual(dev.build_environment()['CARGO_INCREMENTAL'], '1')
+            self.assertNotIn('CARGO_INCREMENTAL', dev.build_environment(incremental=False))
+            with patch.dict(os.environ, {'CARGO_INCREMENTAL': '0'}):
+                self.assertEqual(dev.build_environment()['CARGO_INCREMENTAL'], '0')
+
     def test_documented_test_entrypoint_displays_cargo_help(self):
         result = subprocess.run([sys.executable, str(dev.ROOT/'tools/dev.py'), 'test', '--help'],
                                 cwd=dev.ROOT, env={**os.environ, 'CARGO_TERM_COLOR': 'never'},

@@ -52,8 +52,11 @@ def compiler():
 
 
 
-def build_environment():
+def build_environment(incremental=True):
+    """Reuse the remembered cache; quick builds and tests recompile the frontend incrementally."""
     environment = dict(os.environ)
+    if incremental:
+        environment.setdefault('CARGO_INCREMENTAL', '1')
     config = tomllib.loads((ROOT/'.cargo/config.toml').read_text())
     if 'CARGO_TARGET_DIR' in environment or 'target-dir' in config.get('build', {}):
         return environment
@@ -90,7 +93,7 @@ def build(optimized=False):
     if optimized:
         command += ['--config', 'profile.release.package.oracle-ir-grammar.opt-level=3']
     started = time.monotonic()
-    environment = build_environment()
+    environment = build_environment(incremental=not optimized)
     process = subprocess.Popen(command, cwd=ROOT, env=environment, text=True, stdout=subprocess.PIPE)
     paths = {}
     for line in process.stdout:
