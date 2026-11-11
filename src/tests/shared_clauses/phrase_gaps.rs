@@ -168,3 +168,24 @@ fn copied_target_and_counter_source_remain_independent_when_printed() {
         "{text}"
     );
 }
+
+#[test]
+fn a_wrapped_damage_event_names_its_source_as_the_event_subject() {
+    for text in [
+        "Whenever a creature deals damage to one or more players for the first time each turn, put a +1/+1 counter on it.",
+        "Whenever a creature deals combat damage to a player for the first time each turn, put a +1/+1 counter on it.",
+        "Whenever a creature deals combat damage to a player, put a +1/+1 counter on it.",
+    ] {
+        let parsed = engine().parse("Context example", text).unwrap();
+        assert!(!parsed.readings.is_empty(), "{text}");
+        for reading in &parsed.readings {
+            let mut recipients = Vec::new();
+            visit(reading, "Objects", &mut recipients);
+            assert_eq!(
+                recipients,
+                vec![json!({"kind":"One","args":{"kind":"EventSubject"}})],
+                "{text}"
+            );
+        }
+    }
+}

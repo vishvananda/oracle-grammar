@@ -224,11 +224,20 @@ fn pair_other_filter(event: &Value) -> Option<&Value> {
 }
 
 /// What a trigger's event makes available to `it`, `that creature` and `that player`.
-fn event_referents(event: &Value, scope: &mut Scope) {
+/// Canonical form surfaces a damage event's own role as EventSubject only
+/// through `Filtered`; under any other wrapper that role is spelled directly.
+fn event_referents(event: &Value, scope: &mut Scope, surfaced: bool) {
     if let Some(inner) = inner(event) {
-        event_referents(inner, scope);
+        event_referents(inner, scope, surfaced && event.get("Filtered").is_some());
         return;
     }
+    let role = |name: &str| {
+        if surfaced {
+            json!({"kind": "Damage", "args": name})
+        } else {
+            json!({"kind": "EventSubject"})
+        }
+    };
     let subject = json!({"kind":"EventSubject"});
     let spell = super::spell_focus::facts(event);
     // Chapters, state checks and ordinary turn events introduce no new object.
@@ -253,14 +262,15 @@ fn event_referents(event: &Value, scope: &mut Scope) {
     scope.event_quantity = event_quantity(event);
     let damage = &event["Damage"];
     if damage["subject"] == "Source" {
-        scope.objects.push(json!({"kind":"Damage","args":"Source"}));
+        scope.objects.push(role("Source"));
     }
     if damage["recipients"].get("Objects").is_some() {
-        let recipient = json!({"kind": "Damage", "args": "Recipient"});
         if damage["subject"] == "Recipient" {
-            scope.objects.push(recipient);
+            scope.objects.push(role("Recipient"));
         } else {
-            scope.others.push(recipient);
+            scope
+                .others
+                .push(json!({"kind": "Damage", "args": "Recipient"}));
         }
     }
     if event["Pair"]["event"] == "BecomesBlockedBy" {
@@ -343,7 +353,7 @@ pub(super) fn scope_for(ability: &Value, card_name: &str, holders: u16) -> Scope
         ..Scope::default()
     };
     if triggered {
-        event_referents(&ability["args"]["event"], &mut scope);
+        event_referents(&ability["args"]["event"], &mut scope, true);
         if holders > 0 && !scope.leaving && holder::self_event(&ability["args"]["event"], holders) {
             scope.objects.push(json!({"kind": "Source"}));
         }
