@@ -40,7 +40,9 @@ pub(crate) mod member_focus;
 mod presentation;
 mod qualified;
 pub(crate) use filters::operand as filter_operand;
-use guards::{cancels_before_choice, condition_placement, has_cost_as_action};
+use guards::{
+    cancels_before_choice, condition_placement, has_cost_as_action, single_holder_affected,
+};
 mod coin_protocol;
 mod holder;
 mod move_after;
@@ -267,6 +269,9 @@ pub fn bind_ability(ability: &mut Value, card_name: &str) -> Result<(), String> 
     }
     if cancels_before_choice(ability) {
         return Err("a declined replacement keeps its event".into());
+    }
+    if single_holder_affected(ability) {
+        return Err("a single holder's pump names that holder".into());
     }
     variables::bind(ability)?;
     exile_followups::lower(ability)?;

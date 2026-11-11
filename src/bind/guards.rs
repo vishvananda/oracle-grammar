@@ -92,6 +92,30 @@ pub(super) fn cancels_before_choice(value: &Value) -> bool {
     }
 }
 
+/// A printed static ability on one fixed object names that object in its pump
+/// amounts; `Affected` is the per-object form for a population. Token and
+/// granted statics are not held to this form.
+pub(super) fn single_holder_affected(ability: &Value) -> bool {
+    let args = &ability["args"];
+    let affected = json!({"kind": "Affected"});
+    ability["kind"] == "Static"
+        && args["affected"]["Objects"]["kind"] == "One"
+        && args["changes"].as_array().is_some_and(|changes| {
+            changes
+                .iter()
+                .any(|change| change["kind"] == "Pump" && mentions(change, &affected))
+        })
+}
+
+fn mentions(value: &Value, wanted: &Value) -> bool {
+    value == wanted
+        || match value {
+            Value::Object(fields) => fields.values().any(|v| mentions(v, wanted)),
+            Value::Array(items) => items.iter().any(|v| mentions(v, wanted)),
+            _ => false,
+        }
+}
+
 /// A simple self-payment uses its native cost part. A different player's action
 /// remains PlayerAction: replacing it with Draw/Discard would change who acts.
 /// References must be bound before comparing the deciding and performing players.

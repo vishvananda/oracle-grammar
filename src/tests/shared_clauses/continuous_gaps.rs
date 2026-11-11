@@ -334,3 +334,15 @@ fn a_granted_self_trigger_reads_it_as_its_event_subject() {
         printed_types(&readings[0], &["Enchantment"]);
     }
 }
+
+#[test]
+fn a_single_holder_pump_names_its_holder() {
+    let text = "Enchanted creature gets +1/+1 for each of its colors.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{readings:#?}");
+    let pump = &readings[0][0]["args"]["changes"][0]["args"];
+    let holder = json!({"kind":"AttachedTo","args":{"kind":"Source"}});
+    assert_eq!(pump["power"]["args"]["object"], holder);
+    assert_eq!(pump["toughness"]["args"]["object"], holder);
+    printed_types(&readings[0], &["Enchantment"]);
+}
