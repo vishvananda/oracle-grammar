@@ -128,8 +128,9 @@ The reference does this in 38 faces with "that creature" after a control change,
 
 ## Players named as Acting outside a player loop
 
-"You" and "your" name `AbilityController` (4 controls), and a per-opponent amount
-loops over the opponents (9 controls).
+"You" and "your" name `AbilityController` (4 controls), a per-opponent amount
+loops over the opponents (9 controls), and "their hand" after "target player"
+names the target (2 controls).
 
 ### Ebonblade Reaper
 
@@ -142,6 +143,14 @@ loops over the opponents (9 controls).
 - At `[0].args.body.instructions[0]`: reference one `DealDamage` whose amount
   reads the `Acting` player's hand, expected `ForEachPlayer` over
   `OpponentsOf(AbilityController)` with `Bound(0)` as recipient and hand owner.
+- Status: open.
+
+### Skybreen
+
+- At `[2].args.body.instructions[0].args.operation.args.amount.args.args.scope.Players.players.args`:
+  reference `{"kind":"Acting"}`, expected
+  `{"kind":"Target","args":{"slot":0,"index":0}}`, as in Balor and
+  Laquatus's Creativity.
 - Status: open.
 
 ## Other single-face convention outliers
@@ -244,3 +253,161 @@ loops over the opponents (9 controls).
   expected `{"kind":"One","args":{"kind":"Result","args":{"result":0,"phase":"After","index":0}}}`,
   as in 16 of 18 "exile the top card ... you may play that card" controls.
 - Status: open.
+
+### Forbidden Crypt
+
+- At `[0].args.body.instructions[1].args.operation.args.cost.parts[0].Move.selections[0].objects.args.filter`:
+  reference `InZone(Players{zone:Graveyard, players:One(AbilityController)})`,
+  which repeats the selection's own graveyard scope, expected `{"kind":"Any"}`,
+  as in Recall and Travel Through Caradhras.
+- Status: open.
+
+### Veteran Ghoulcaller
+
+- At `[1].args.body.instructions[0].args.operation.args.card`: reference
+  `DuplicateLastKnown(EventSubject)`, expected `Duplicate(One(EventSubject))`,
+  as in 8 "conjure a duplicate of that card" controls such as Kithkin Brinefarer.
+- The event's `OwnedBy(One(AbilityController))` follows the reference's
+  convention; the grammar's `InZone` there is a grammar issue.
+- Status: open.
+
+### Deathbringer Regent
+
+- At `[1].args.intervening_if`: reference
+  `ObjectMatches{object:Source, filter:AllOf([Condition(Compare(CountObjects(Difference(creatures, Candidate)) >= 5)), Cast ...])}`,
+  expected `AllOf([ObjectMatches(Source, cast from hand), Compare(...)])` whose
+  count excludes the source with `Not(SameObject(Source))`, as in 6 "other
+  creatures" count controls and the split "if you cast it and ..." of
+  Inquisitor Captain.
+- Status: open.
+
+### Goblin Snowman
+
+- At `[0].args.body.instructions`: reference two `CreateReplacement` effects for
+  "dealt to" and "dealt by", expected one `CreateReplacement` whose event is
+  `Either` of the two damage branches, as in 23 "dealt to and dealt by"
+  controls such as Elvish Scout and Maze of Ith.
+- The grammar also returns both `Either` branch orders here; that is a grammar
+  issue.
+- Status: open.
+
+## Both readings wrong
+
+The reference and the grammar both differ from the card's meaning here.
+
+### Vampiric Embrace
+
+- At `[2].args.body.instructions[0].args.operation.args.placements[0].recipients.args.args`:
+  reference `{"kind":"EventSubject"}` (the dying creature), expected
+  `AttachedTo(Source)`, the enchanted creature, as in 12 "put a +1/+1 counter on
+  <the damage dealer>" controls such as Sengir Vampire. The grammar currently
+  names the dying card in its graveyard.
+- Status: open.
+
+### Alora, Cheerful Scout
+
+- At `[0].args.body.instructions[1].args.operation.args.body.instructions[1].args.then.instructions[0].args.operation`:
+  reference `EffectOn` with a `PerpetualEffect` term on `Recorded{result:0}`,
+  expected `CreatePerpetualEffect` with `Pump(+1/+1)` on the card the delayed
+  trigger returned, as in 78 controls such as Candela, Aegis of Adagia. The
+  grammar currently names the stale target.
+- Status: open.
+
+## Same wording encoded more than one way
+
+These are not single errors. The reference encodes the same wording in more
+than one way, and one encoding should be chosen everywhere. Groups use `####`
+headings and faces appear only in bullets, so these entries never excuse a lost
+match. Faces the grammar currently scores as different are marked
+*(different)*.
+
+#### Self references inside a reflexive "When you do" body
+
+- `Source`: Electro, Assaulting Battery *(different)* ("he deals X damage"),
+  Passenger Ferry *(different)* ("another target attacking creature"),
+  Resplendent Marshal *(different)*, and 30 matched faces.
+- `EventSubject`: Sparktongue Dragon ("it deals 3 damage"), Cyclops
+  Superconductor, Ambergris, Agent of Balance ("another target creature") and
+  Leyline Tyrant ("it deals that much damage").
+- Direct counterparts: Passenger Ferry and Ambergris (attack trigger,
+  "another target"); Electro and Leyline Tyrant (leave or die, "When you do,
+  it/he deals").
+
+#### "You may <action>." followed by sentences that depend on it
+
+- `Optional` around the action and its follow-ups: 8 matched faces, such as
+  Hellkite Courser, Pawn of Ulamog and Yedora, Grave Gardener; also Planebound
+  Accomplice and Surprise Deployment.
+- `PayCost{optional:true}` with the follow-ups under `If PaymentChosen`:
+  Through the Breach, Swift Warkite, Vizier of Deferment, Purphoros,
+  Bronze-Blooded, Dawn of the Dead *(different)*, Mirror Mockery *(different)*,
+  Wandering Graybeard *(different)* and Ilharg, the Raze-Boar *(different)*.
+
+#### Random return from a graveyard to a hand
+
+- "Return <a card> at random from your graveyard to your hand" uses
+  `WithSelections{chooser:Chance}` in triggered abilities (Ghoulraiser,
+  Woodland Sleuth, Viconia, Drow Apostate, Nephalia) and
+  `ChooseObjects{constraints:[AtRandom]}` in spells and activated abilities
+  (Fossil Find, Make a Wish, The Deck of Many Things, Haunted Fengraf
+  *(different)*).
+
+#### A targeted object's pronoun inside a delayed trigger
+
+- `EventSubject`: Delif's Cone, Niko Aris, Barreling Attack and 8 more.
+- `Target`: Delif's Cube *(different)*, Long River Lurker *(different)*,
+  Okoye, Mighty and Adored, Arcbond and 1 more. Delif's Cone and Delif's Cube
+  have near-identical wording.
+
+#### "Another" in a compound "enters or attacks" self-trigger
+
+- `EventSubject`: Sephiroth, Fabled SOLDIER, Picard, Steadfast Captain,
+  Shredder, Unrelenting, Korvold, Fae-Cursed King *(different)* and 2 more.
+- `Source`: Hei Bai, Spirit of Balance, with the same wording as Sephiroth.
+
+#### "If it's a <type> card" after a one-card exile
+
+- `Compare(CountObjects(Matching(Transition{result:0, phase:Before}, type)) > 0)`:
+  Audacious Swap, Kianne, Dean of Substance, Omen Machine *(different)*.
+- `ObjectMatches(Result{result:0, phase:After, index:0}, type)`: Bruse Tarl,
+  Roving Rancher, Deadbridge Chant, Search for Survivors.
+
+#### "Untap those creatures" after a per-opponent control change
+
+- `Targets(0)`: Hideous Taskmaster. `Affected(0)`: In the Darkness Bind Them,
+  with the same two sentences.
+
+#### A type added to a returned creature
+
+- Arrival-state `Changes` on the `Move`: Path of the Schemer, Spawning Pod.
+- A `CreateContinuousEffect` on the moved result after the `Move`: Lorcan,
+  Warlock Collector, Ashiok, Nightmare Weaver, Portal to Phyrexia *(different)*.
+
+#### A property of a single result
+
+- `ObjectProperty(Result{..., index:0})` in 32 controls such as Seek, and
+  `Aggregate` sum over the result in 28, such as Daredevil, Fearless Fighter
+  and Satya, Aetherflux Genius *(different)*.
+
+#### The last-known state of a sacrificed fixed object
+
+- `EventSubject` or `Source`: Foot Chopper, Riders of the Mark. `Recorded`:
+  Ravenous Slime. `Transition{phase:Before}`: Myriad Construct *(different)*.
+
+#### "This card" after the card exiled itself
+
+- `InZone(Source, Exile)`, `InZone(Transition, Exile)` and
+  `InZone(CostObjects, Exile)` each appear (Lucius the Eternal, Liliana,
+  Heretical Healer, Reborn Hero, Lamplight Phoenix *(different)*).
+
+#### The subject of a block-pair event on one card
+
+- No Quarter *(different)* names the event subject `BlockPair(Attacker)` in
+  "becomes blocked by a creature with lesser power" and `EventSubject` in the
+  mirrored "blocks a creature with lesser power".
+
+#### Operand order of "N life more than your starting life total"
+
+- `Add([N, StartingLife])` in conditions (Chalice of Life, Doctor Strange,
+  Surgeon, Leyline of Hope) and `Add([StartingLife, N])` in activation
+  restrictions (Speaker of the Heavens, Ayli, Eternal Pilgrim *(different)*).
