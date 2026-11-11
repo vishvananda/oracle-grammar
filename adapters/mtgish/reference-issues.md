@@ -1,92 +1,101 @@
 # Reference issues
 
-Confirmed disagreements where the pinned MTGish reference, not the grammar, is
-wrong. Gold is never edited locally. Each `###` heading names one face; corpus
-comparisons accept a lost match only for a face listed here that still parses.
-After an upstream fix, advance `reference.json`, re-prepare the inputs and
-recount. Paths are IR paths inside the face's ability list.
+Disagreements between the pinned MTGish reference and the grammar. Gold is
+never edited locally. Each `###` heading names one face whose reference encoding
+is still disputed; corpus comparisons accept a lost match only for a face listed
+under a `###` heading that still parses. Resolved and reference-retained faces
+have no `###` heading, so they never excuse a lost match. After an upstream fix,
+advance `reference.json`, re-prepare the inputs and recount. Paths are IR paths
+inside the face's ability list.
 
-Revision for every entry unless noted: `1cd0b57efcf32b842557a9bb74b985df98da3daa`.
+Entries were reported against `1cd0b57efcf32b842557a9bb74b985df98da3daa`.
+Upstream reviewed them in `docs/reference-decisions-20261111.md`; the current
+reference is `7228b84b2b9398976246b595098f7f5e5fb4fc88` (schema 190). Paths
+and statuses refer to that revision unless noted.
 
-## Dropped "and only as a sorcery" activation limit
+## Resolved upstream
 
-"Activate only if <condition> and only as a sorcery." sets both the condition and
-the sorcery-speed limit (CR 602.5d). The reference keeps the condition but sets
-`sorcery: false` for two faces, while Uchbenbak, the Great Mistake encodes the
-same sentence with `sorcery: true`.
+Each named face matches at `7228b84`.
 
-### Balustrade Wurm
+- Balustrade Wurm, Resurrected Cultist: "and only as a sorcery" keeps
+  `sorcery: true`.
+- Barrage of Boulders, Determined, Draconic Intervention: plain spell paragraphs
+  form one `Spell` body. Suffocation and Temporal Firestorm (which the grammar
+  refuses) moved to the same form.
+- Demonlord of Ashmouth: the sacrifice cost chooses exactly one creature.
+- Maskwood Nexus: every creature type is `Set(All)`.
+- Phyrexian Totem: adjacent type additions put Artifact before Creature.
+- Foreboding Steamboat: "put a card exiled with it into its owner's graveyard"
+  is the typed `ExiledToGraveyard` cost part. The Eldrazi processors (Mind
+  Raker, Murk Strider, Ruin Processor, Ulamog's Reclaimer, Wasteland Strangler)
+  share that cost.
+- Vampiric Embrace: `WithOtherObject` captures `AttachedTo(Source)` when the
+  trigger matches, and the counter goes on `EventOther`.
+- Alora, Cheerful Scout: the perpetual effect is applied to
+  `CostObjects{payment:Resolution(0), component:[0], view:Performed, phase:After}`
+  under the payment guard.
 
-- At `[3].args.ability.args.limits.sorcery`: reference `false`, expected `true`.
+## Perpetual effect after an ordinary return to hand
+
+The producer's normal form puts `CreatePerpetualEffect` on the whole
+`Transition{result, phase:After}` of the return (Giant Regrowth, Nightclub
+Bouncer, Skyline Savior, Talion's Throneguard). Three faces whose Source names
+the card `TheCardPutInHandThisWay` instead of `TheCardReturnedToHandThisWay`
+keep the scalar `One(Result{..., index:0})`. The producer's put-in-hand branch
+needs a recorded return, and these Source actions do not record one. Candela,
+Aegis of Adagia has the same encoding and still matches through the grammar's
+general scalar reading.
+
+### Paths of Tuinvale
+
+- At `[0].args.announcement.modes.options[0].body.instructions[1].args.operation.args.objects`
+  and `options[1]`: reference `One(Result{result:0, phase:After, index:0})`
+  and `result:1`, expected `Transition{result:0, phase:After}` and `result:1`.
 - Status: open.
 
-### Resurrected Cultist
+### Veko, Death's Doorkeeper
 
-- At `[0].args.ability.args.limits.sorcery`: reference `false`, expected `true`.
+- At `[1].args.body.instructions[1].args.operation.args.objects`: reference
+  `One(Result{result:0, phase:After, index:0})`, expected
+  `Transition{result:0, phase:After}`.
 - Status: open.
 
-## Spell lines split into separate Spell abilities
+## Retained upstream pending a witness
 
-A spell's instruction lines form one `Spell` ability, read in order. Control
-populations for these three shapes keep one `Spell` in 254, 111 and 19 matched
-faces; the reference splits the lines into separate `Spell` abilities only here.
-
-### Barrage of Boulders
-
-- At the ability list: reference two `Spell` abilities (damage, then the
-  Ferocious restriction), expected one `Spell` holding both instructions.
-- Status: open.
-
-### Determined
-
-- At the ability list: reference two `Spell` abilities (`EffectOn` can't be
-  countered, then `Draw`), expected one `Spell` holding both instructions.
-- Status: open.
-
-### Draconic Intervention
-
-- At the ability list after `[0]` (`Casting`): reference separate `Spell`
-  abilities for the damage paragraph and "Exile Draconic Intervention.",
-  expected one `Spell` holding the damage, its replacement and the exile.
-- Status: open.
-
-## Self references inside the source's own trigger
-
-When an ability triggers on its source, "another", "other" and "it" in that
-ability name `Source`. The reference does this in 92 faces with "another" in an
-intervening if, 79 with a granted self-trigger's "it gets", 11 with an ETB
-replacement count and 4 with a compound self/other trigger. It writes
-`EventSubject` only in these faces.
+Upstream kept these encodings and named the test that would justify a change.
+Each entry stays open until that witness is supplied or the dispute is dropped.
 
 ### Waterspout Warden
 
 - At `[0].args.intervening_if.args.left.args.event.ZoneChange.objects.args[2].args.args`:
   reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
+- Witness: the history reader keeps the outer event frame; show that
+  `EventSubject` rebinds to the queried history event.
 - Status: open.
 
 ### Veteran's Armaments
 
 - At `[0].args.changes[0].args.args.body.instructions[0].args.operation.args.affected.Objects.args`:
   reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
+- Witness: show that `Source` names the equipped holder in the granted
+  attack/block frame.
 - Status: open.
 
 ### Storm Entity
 
 - At `[1].args.body.instructions[0].args.operation.args.change.AddCounters.amount.args.event.Spell.spells.args.args`:
   reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
+- Witness: the entry replacement's subject is the entering source; show where
+  it differs from `Source`.
 - Status: open.
 
 ### Graven Dominator
 
 - At `[2].args.body.instructions[0].args.operation.args.affected.Objects.args.filter.args[1].args.args`:
   reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
+- Witness: review each `AnyOf` branch (source entry, haunted creature death)
+  and its source incarnation separately.
 - Status: open.
-
-## Targeted objects named through another receipt
-
-A later "that creature", "it" or "its" for a single target names the target.
-The reference does this in 38 faces with "that creature" after a control change,
-5 with "its mana value" and 2 with "their hand".
 
 ### In Thrall to the Pit
 
@@ -94,13 +103,8 @@ The reference does this in 38 faces with "that creature" after a control change,
   change as result `0` and names the creature `Recorded{result:0}` for untap,
   haste and the delayed sacrifice, expected `Target{slot:0, index:0}` with no
   recorded result.
-- Status: open.
-
-### Karn's Touch
-
-- At `[0].args.body.instructions[0].args.operation.args.changes[1].args.power.args.object`
-  and `.toughness.args.object`: reference `{"kind":"Affected"}`, expected
-  `{"kind":"Target","args":{"slot":0,"index":0}}`.
+- Witness: a failed control change or moved target showing that `Recorded`
+  names something other than the target.
 - Status: open.
 
 ### Liliana, Death Mage
@@ -108,6 +112,7 @@ The reference does this in 38 faces with "that creature" after a control change,
 - At `[2].args.body.instructions[0].args.operation.args.amount.args[1].args.args.scope.Players.players.args`:
   reference `{"kind":"Prior","args":"That"}`, expected
   `{"kind":"Target","args":{"slot":0,"index":0}}`, as in 22 of 24 controls.
+- Witness: verify the per-recipient reading of `Prior(That)`.
 - Status: open.
 
 ### Cryptic Coat
@@ -116,26 +121,7 @@ The reference does this in 38 faces with "that creature" after a control change,
   `{"kind":"Recorded","args":{"result":0,"by":null}}`, expected
   `{"kind":"Result","args":{"result":0,"phase":"After","index":0}}`, as in 12
   cloak and manifest controls.
-- Status: open.
-
-### Draining Whelk
-
-- At `[2].args.body.instructions[1].args.operation.args.placements[0].amount`:
-  reference `Earlier{what:Countered, measure:Of(ManaValue)}`, expected
-  `ObjectProperty{object:Target{slot:0, index:0}, property:ManaValue,
-  information:CurrentOrLastKnown}`, as in 12 countered-spell controls.
-- Status: open.
-
-## Players named as Acting outside a player loop
-
-"You" and "your" name `AbilityController` (4 controls), a per-opponent amount
-loops over the opponents (9 controls), and "their hand" after "target player"
-names the target (2 controls).
-
-### Ebonblade Reaper
-
-- At `[0].args.body.instructions[0].args.operation.args.amount.args.numerator.args.player`:
-  reference `{"kind":"Acting"}`, expected `{"kind":"AbilityController"}`.
+- Witness: a before/after mismatch between `Recorded` and the cloaked result.
 - Status: open.
 
 ### Know Naught but Fire
@@ -143,6 +129,7 @@ names the target (2 controls).
 - At `[0].args.body.instructions[0]`: reference one `DealDamage` whose amount
   reads the `Acting` player's hand, expected `ForEachPlayer` over
   `OpponentsOf(AbilityController)` with `Bound(0)` as recipient and hand owner.
+- Witness: show that the implicit per-recipient row misreads the hand count.
 - Status: open.
 
 ### Skybreen
@@ -151,35 +138,7 @@ names the target (2 controls).
   reference `{"kind":"Acting"}`, expected
   `{"kind":"Target","args":{"slot":0,"index":0}}`, as in Balor and
   Laquatus's Creativity.
-- Status: open.
-
-## Other single-face convention outliers
-
-### Demonlord of Ashmouth
-
-- At `[1].args.body.instructions[0].args.operation.args.cost.parts[0].Sacrifice.choose`:
-  reference `null`, expected `{"Exactly":{"kind":"Constant","args":1}}`, as in
-  25 "unless you sacrifice" controls.
-- Status: open.
-
-### Maskwood Nexus
-
-- At `[2].args.changes[0].args.mode`: reference `"Add"`, expected `"Set"`, as in
-  99 every-creature-type controls.
-- Status: open.
-
-### Phyrexian Totem
-
-- At `[1].args.body.instructions[0].args.operation.args.changes[3].args` and
-  `[4].args`: reference `"Creature"` then `"Artifact"`, expected `"Artifact"`
-  then `"Creature"` in text order, as in 188 controls.
-- Status: open.
-
-### Worzel, the Protector
-
-- At `[1].args.body.instructions[1].args.operation.args.objects.args.filter.args[1].args`:
-  reference adds `CardType(Land)` to `[Supertype(Basic), Subtype(Plains)]`,
-  expected the two qualities only, as in 29 "basic <land type> card" controls.
+- Witness: verify the per-recipient reading of `Acting`.
 - Status: open.
 
 ### Bloodroot Apothecary
@@ -187,14 +146,7 @@ names the target (2 controls).
 - At `[2].args.event.Player.objects.args`: reference adds
   `Not(SameObject(Source))`, expected `[Not(CardType(Creature)), Token]` with
   no source exclusion, as in 6 controls.
-- Status: open.
-
-### Vulshok Factory
-
-- At `[1].args.body.instructions[0].args.operation.args.tokens[0].recipe.Defined.power_toughness[0]`
-  and `[1]` `.args.recipients.args.args`: reference
-  `Query{objects:CostObjects{payment:Activation, ...}}`, expected
-  `{"kind":"Source"}`, as in 32 "charge counters on <this>" controls.
+- Witness: a legal state where an opponent's sacrifice includes the source.
 - Status: open.
 
 ### Ward of Piety
@@ -203,6 +155,7 @@ names the target (2 controls).
   `RedirectSomeDamage([Constant(1), Targets(0)])` with limit `NextOccurrence`,
   expected `RedirectDamage(Targets(0))` with limit `TotalDamage(Constant(1))`,
   as in 16 "the next N damage" controls.
+- Witness: a counterexample for N = 1, where the two forms may coincide.
 - Status: open.
 
 ### Dream Thief
@@ -211,6 +164,8 @@ names the target (2 controls).
   `ObjectMatches{object:Source, filter:Condition(PlayerDid ...)}`, expected
   `Compare` over `EventHistory` of blue spells you cast this turn other than
   this one, as in 12 controls.
+- Witness: show the history predicate or own-spell exclusion is wrong, not
+  only the wrapper.
 - Status: open.
 
 ### Hit
@@ -219,56 +174,8 @@ names the target (2 controls).
   `If PaymentChosen` and `CostObjects`, expected a `Sacrifice` effect followed by
   damage equal to the sacrificed permanent's mana value through
   `Transition{result:0, phase:Before}`, as in 5 controls.
-- Status: open.
-
-### Alliance of Arms
-
-- At `[0].args.body.instructions[1].args.operation.args.tokens[0].amount`:
-  reference `PerformedTotal(0)`, expected `Performed(0)`, as in the other 3
-  join-forces controls.
-- Status: open.
-
-### Nemesis Mask
-
-- At `[0]`: reference affects all creatures with
-  `RequireCombat{action:Block(SameObject(AttachedTo(Source))), amount:AtLeast(1)}`,
-  expected `affected:One(AttachedTo(Source))` with
-  `RequireCombat{action:BeBlocked(CardType(Creature)), amount:Each}`, as in 19
-  "all creatures able to block <it> do so" controls.
-- Status: open.
-
-### Foreboding Steamboat
-
-- At `[1].args.body.instructions[0].args.operation.args.cost.parts[0]`:
-  reference expands "put a card exiled with it into its owner's graveyard" to a
-  `PlayerAction` that chooses and moves the card (result `1`), expected the
-  `ExiledToGraveyard` cost part over cards exiled with the source (result `0`),
-  as in 10 controls for the same action.
-- Status: open.
-
-### Molly Hayes, Runaway
-
-- At `[0].args.body.instructions[2].args.operation.args.changes[0].args.PlayPermission.cards`:
-  reference `{"kind":"Transition","args":{"result":0,"phase":"After"}}`,
-  expected `{"kind":"One","args":{"kind":"Result","args":{"result":0,"phase":"After","index":0}}}`,
-  as in 16 of 18 "exile the top card ... you may play that card" controls.
-- Status: open.
-
-### Forbidden Crypt
-
-- At `[0].args.body.instructions[1].args.operation.args.cost.parts[0].Move.selections[0].objects.args.filter`:
-  reference `InZone(Players{zone:Graveyard, players:One(AbilityController)})`,
-  which repeats the selection's own graveyard scope, expected `{"kind":"Any"}`,
-  as in Recall and Travel Through Caradhras.
-- Status: open.
-
-### Veteran Ghoulcaller
-
-- At `[1].args.body.instructions[0].args.operation.args.card`: reference
-  `DuplicateLastKnown(EventSubject)`, expected `Duplicate(One(EventSubject))`,
-  as in 8 "conjure a duplicate of that card" controls such as Kithkin Brinefarer.
-- The event's `OwnedBy(One(AbilityController))` follows the reference's
-  convention; the grammar's `InZone` there is a grammar issue.
+- Witness: a failed-payment or replacement case where the mandatory payment
+  differs from an explicit sacrifice.
 - Status: open.
 
 ### Deathbringer Regent
@@ -279,6 +186,7 @@ names the target (2 controls).
   count excludes the source with `Not(SameObject(Source))`, as in 6 "other
   creatures" count controls and the split "if you cast it and ..." of
   Inquisitor Captain.
+- Witness: a binding counterexample for `Candidate` inside the conjunction.
 - Status: open.
 
 ### Goblin Snowman
@@ -289,29 +197,52 @@ names the target (2 controls).
   controls such as Elvish Scout and Maze of Ith.
 - The grammar also returns both `Either` branch orders here; that is a grammar
   issue.
+- Witness: a damage or replacement interaction where the two effects differ
+  from one.
 - Status: open.
 
-## Both readings wrong
+## Retained by the reference
 
-The reference and the grammar both differ from the card's meaning here.
+Upstream judged these encodings correct, equivalent or required by the model
+contract. They are grammar work items, not reference issues.
 
-### Vampiric Embrace
+#### Karn's Touch
 
-- At `[2].args.body.instructions[0].args.operation.args.placements[0].recipients.args.args`:
-  reference `{"kind":"EventSubject"}` (the dying creature), expected
-  `AttachedTo(Source)`, the enchanted creature, as in 12 "put a +1/+1 counter on
-  <the damage dealer>" controls such as Sengir Vampire. The grammar currently
-  names the dying card in its graveyard.
-- Status: open.
+- `Affected` names the object whose characteristics are evaluated; the
+  grammar's `Target` at the power and toughness objects should follow it.
 
-### Alora, Cheerful Scout
+#### Draining Whelk
 
-- At `[0].args.body.instructions[1].args.operation.args.body.instructions[1].args.then.instructions[0].args.operation`:
-  reference `EffectOn` with a `PerpetualEffect` term on `Recorded{result:0}`,
-  expected `CreatePerpetualEffect` with `Pump(+1/+1)` on the card the delayed
-  trigger returned, as in 78 controls such as Candela, Aegis of Adagia. The
-  grammar currently names the stale target.
-- Status: open.
+- `Earlier{what:Countered, measure:Of(ManaValue)}` reads the saved target even
+  if countering fails, which matches the Time Spiral Remastered release notes.
+
+#### Ebonblade Reaper
+
+- `Acting` resolves to the controller in the first life loss and to the damaged
+  player in the second.
+
+#### Vulshok Factory
+
+- `Query{objects:CostObjects{payment:Activation, ...}}` with
+  `CurrentOrLastKnown` keeps the sacrificed source's counters.
+
+#### Alliance of Arms
+
+- `PerformedTotal(0)` is the total over every player's payment; `Performed`
+  would be one player's amount.
+
+#### Veteran Ghoulcaller
+
+- `DuplicateLastKnown(EventSubject)` keeps the departed card's definition and
+  perpetual changes. The event's `OwnedBy(One(AbilityController))` follows the
+  reference; the grammar's `InZone` there is a grammar issue.
+
+#### Worzel, the Protector, Nemesis Mask, Molly Hayes, Runaway, Forbidden Crypt
+
+- Redundant or equivalent forms: Worzel's `CardType(Land)` beside a basic
+  Plains, Nemesis Mask's dual combat requirements, Molly Hayes's
+  `Transition{result:0, phase:After}` for a one-card exile, and Forbidden
+  Crypt's repeated graveyard scope.
 
 ## Same wording encoded more than one way
 
@@ -319,7 +250,8 @@ These are not single errors. The reference encodes the same wording in more
 than one way, and one encoding should be chosen everywhere. Groups use `####`
 headings and faces appear only in bullets, so these entries never excuse a lost
 match. Faces the grammar currently scores as different are marked
-*(different)*.
+*(different)*. Upstream kept every group at `7228b84`; each one's review
+requirement comes before any normal form is chosen.
 
 #### Self references inside a reflexive "When you do" body
 
@@ -332,6 +264,8 @@ match. Faces the grammar currently scores as different are marked
 - Direct counterparts: Passenger Ferry and Ambergris (attack trigger,
   "another target"); Electro and Leyline Tyrant (leave or die, "When you do,
   it/he deals").
+- Review: keep creator, source, granted holder and reflexive subject distinct;
+  use `Source` only where the event frame proves it is the same holder.
 
 #### "You may <action>." followed by sentences that depend on it
 
@@ -342,6 +276,8 @@ match. Faces the grammar currently scores as different are marked
   Through the Breach, Swift Warkite, Vizier of Deferment, Purphoros,
   Bronze-Blooded, Dawn of the Dead *(different)*, Mirror Mockery *(different)*,
   Wandering Graybeard *(different)* and Ilharg, the Raze-Boar *(different)*.
+- Review: the guarded payment form for Dawn, Mirror and Ilharg was kept on
+  purpose; frequency alone does not reopen it.
 
 #### Random return from a graveyard to a hand
 
@@ -351,6 +287,7 @@ match. Faces the grammar currently scores as different are marked
   `ChooseObjects{constraints:[AtRandom]}` in spells and activated abilities
   (Fossil Find, Make a Wish, The Deck of Many Things, Haunted Fengraf
   *(different)*).
+- Review: compare cardinality, batch and population before choosing one form.
 
 #### A targeted object's pronoun inside a delayed trigger
 
@@ -358,12 +295,15 @@ match. Faces the grammar currently scores as different are marked
 - `Target`: Delif's Cube *(different)*, Long River Lurker *(different)*,
   Okoye, Mighty and Adored, Arcbond and 1 more. Delif's Cone and Delif's Cube
   have near-identical wording.
+- Review: a delayed turn event has no object subject; show whether
+  `EventSubject` captures the outer trigger, and keep the target's identity.
 
 #### "Another" in a compound "enters or attacks" self-trigger
 
 - `EventSubject`: Sephiroth, Fabled SOLDIER, Picard, Steadfast Captain,
   Shredder, Unrelenting, Korvold, Fae-Cursed King *(different)* and 2 more.
 - `Source`: Hei Bai, Spirit of Balance, with the same wording as Sephiroth.
+- Review: check both event branches and any granted holder before unifying.
 
 #### "If it's a <type> card" after a one-card exile
 
@@ -371,43 +311,66 @@ match. Faces the grammar currently scores as different are marked
   Audacious Swap, Kianne, Dean of Substance, Omen Machine *(different)*.
 - `ObjectMatches(Result{result:0, phase:After, index:0}, type)`: Bruse Tarl,
   Roving Rancher, Deadbridge Chant, Search for Survivors.
+- Review: Before and After views can differ under replacements; the printed
+  sentence and actual receipt decide the view.
 
 #### "Untap those creatures" after a per-opponent control change
 
 - `Targets(0)`: Hideous Taskmaster. `Affected(0)`: In the Darkness Bind Them,
   with the same two sentences.
+- Review: a failed control change must show whether the receipt names the
+  attempted or the successful objects.
 
 #### A type added to a returned creature
 
 - Arrival-state `Changes` on the `Move`: Path of the Schemer, Spawning Pod.
 - A `CreateContinuousEffect` on the moved result after the `Move`: Lorcan,
   Warlock Collector, Ashiok, Nightmare Weaver, Portal to Phyrexia *(different)*.
+- Review: arrival changes set entry characteristics and later effects do not;
+  review wording and entry replacements per card.
 
 #### A property of a single result
 
 - `ObjectProperty(Result{..., index:0})` in 32 controls such as Seek, and
   `Aggregate` sum over the result in 28, such as Daredevil, Fearless Fighter
   and Satya, Aetherflux Genius *(different)*.
+- Review: unify only for a proven zero-or-one set with the same empty case.
 
 #### The last-known state of a sacrificed fixed object
 
 - `EventSubject` or `Source`: Foot Chopper, Riders of the Mark. `Recorded`:
   Ravenous Slime. `Transition{phase:Before}`: Myriad Construct *(different)*.
+- Review: these coincide only with the exact original incarnation and an
+  explicit last-known view.
 
 #### "This card" after the card exiled itself
 
 - `InZone(Source, Exile)`, `InZone(Transition, Exile)` and
   `InZone(CostObjects, Exile)` each appear (Lucius the Eternal, Liliana,
   Heretical Healer, Reborn Hero, Lamplight Phoenix *(different)*).
+- Review: keep the post-cost or post-exile incarnation and its expected zone;
+  Kogla shows a generic `Source` can be wrong.
 
 #### The subject of a block-pair event on one card
 
 - No Quarter *(different)* names the event subject `BlockPair(Attacker)` in
   "becomes blocked by a creature with lesser power" and `EventSubject` in the
   mirrored "blocks a creature with lesser power".
+- Review: attacker and blocker roles bind per event; mirrored clauses may need
+  different references.
 
 #### Operand order of "N life more than your starting life total"
 
 - `Add([N, StartingLife])` in conditions (Chalice of Life, Doctor Strange,
   Surgeon, Leyline of Hope) and `Add([StartingLife, N])` in activation
   restrictions (Speaker of the Heavens, Ayli, Eternal Pilgrim *(different)*).
+- Review: a normal-form choice under identical arithmetic, not a rules defect.
+
+#### A perpetual effect on a creature that just died
+
+- `EventSubject`: Forgeborn Phoenix ("whenever ... creature dies, it
+  perpetually gains").
+- `Query(InZone(One(EventDestination), Graveyard))`: Consumed by History
+  *(different)*, with the same wording.
+- `Source`: Hook Horror (its own "it perpetually gets"), whose later "that
+  card's toughness" and "return it" use the `Query`.
