@@ -41,7 +41,8 @@ mod presentation;
 mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{
-    cancels_before_choice, condition_placement, has_cost_as_action, single_holder_affected,
+    blocks_itself, cancels_before_choice, condition_placement, has_cost_as_action,
+    single_holder_affected,
 };
 mod coin_protocol;
 mod holder;
@@ -272,6 +273,9 @@ pub fn bind_ability(ability: &mut Value, card_name: &str) -> Result<(), String> 
     }
     if single_holder_affected(ability) {
         return Err("a single holder's pump names that holder".into());
+    }
+    if blocks_itself(ability) {
+        return Err("a creature cannot be required to block itself".into());
     }
     variables::bind(ability)?;
     exile_followups::lower(ability)?;

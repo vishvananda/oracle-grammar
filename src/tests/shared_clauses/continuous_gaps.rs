@@ -346,3 +346,17 @@ fn a_single_holder_pump_names_its_holder() {
     assert_eq!(pump["toughness"]["args"]["object"], holder);
     printed_types(&readings[0], &["Enchantment"]);
 }
+
+#[test]
+fn a_block_requirement_never_names_its_own_blocker() {
+    let text = "Whenever this creature attacks, target creature defending player controls blocks it this combat if able.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{readings:#?}");
+    let mut effects = Vec::new();
+    visit(&readings[0], "CreateContinuousEffect", &mut effects);
+    assert_eq!(
+        effects[0]["changes"][0]["args"]["RequireCombat"]["action"]["Block"],
+        json!({"kind":"SameObject","args":{"kind":"Source"}})
+    );
+    printed(&readings[0]);
+}

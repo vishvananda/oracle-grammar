@@ -116,6 +116,28 @@ fn mentions(value: &Value, wanted: &Value) -> bool {
         }
 }
 
+/// A creature cannot be required to block itself (CR 509.1a), so the object
+/// a block requirement names is never the object the requirement affects.
+pub(super) fn blocks_itself(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => {
+            let args = &value["args"];
+            let affected = &args["affected"]["Objects"];
+            let own = value["kind"] == "CreateContinuousEffect"
+                && affected["kind"] == "One"
+                && args["changes"].as_array().is_some_and(|changes| {
+                    changes.iter().any(|change| {
+                        change["args"]["RequireCombat"]["action"]["Block"]
+                            == json!({"kind": "SameObject", "args": affected["args"]})
+                    })
+                });
+            own || object.values().any(blocks_itself)
+        }
+        Value::Array(items) => items.iter().any(blocks_itself),
+        _ => false,
+    }
+}
+
 /// A simple self-payment uses its native cost part. A different player's action
 /// remains PlayerAction: replacing it with Draw/Discard would change who acts.
 /// References must be bound before comparing the deciding and performing players.
