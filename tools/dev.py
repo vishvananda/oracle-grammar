@@ -154,7 +154,7 @@ def modules(root=ROOT):
             for name in sorted(set(declared) | current.keys())]
 
 
-def run(action, args):
+def run(action, args, stdout=None):
     binary = {'family': 'family-check', 'families': 'family-check'}.get(action, action)
     ready(binary)
     if action == 'families':
@@ -163,7 +163,8 @@ def run(action, args):
         args = [*json.loads((ROOT/'tests/families.json').read_text()), '--compositional']
     environment = {**os.environ, 'ORACLE_GRAMMAR_DIR': str(ROOT/'grammar')}
     overrides = [] if action == 'validate-readings' else modules()
-    subprocess.run([str(WORK/binary), *args, *overrides], cwd=ROOT, env=environment, check=True)
+    subprocess.run([str(WORK/binary), *args, *overrides], cwd=ROOT, env=environment, check=True,
+                   stdout=stdout)
 
 
 

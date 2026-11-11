@@ -65,6 +65,11 @@ compile the frontend incrementally; `build --optimized` does not.
 `ORACLE_GRAMMAR_THREADS` raises the default of two worker threads for families,
 inspection and scoring.
 
+`tools/corpus.py` scores cohorts of an explicit unsealed population against a
+baseline. Its inputs and their SHA-256 checksums are named in the ignored local
+manifest `.cache/corpus/inputs.json`; `slice`, `score`, `audit`, `queue` and
+`accept` compare by occurrence and refuse lost matches, lost parses or limits.
+
 ## Layout
 
 - `grammar/`: Oracle terminals, phrase composition and inverse semantics.
