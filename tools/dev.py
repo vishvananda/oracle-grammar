@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import time
+import tomllib
 
 import pin
 
@@ -50,6 +51,21 @@ def compiler():
     return {'environment': environment, 'versions': versions}
 
 
+
+def build_environment():
+    environment = dict(os.environ)
+    config = tomllib.loads((ROOT/'.cargo/config.toml').read_text())
+    if 'CARGO_TARGET_DIR' not in environment and 'target-dir' not in config.get('build', {}):
+        try:
+            previous = json.loads((WORK/'build.json').read_text())
+            target = previous.get('target_directory')
+            if target and Path(target).is_absolute():
+                environment['CARGO_TARGET_DIR'] = target
+        except (OSError, ValueError):
+            pass
+    return environment
+
+
 def build(optimized=False):
     pin.check_model()
     profile = 'optimized' if optimized else 'quick'
@@ -70,7 +86,8 @@ def build(optimized=False):
     if optimized:
         command += ['--config', 'profile.release.package.oracle-ir-grammar.opt-level=3']
     started = time.monotonic()
-    process = subprocess.Popen(command, cwd=ROOT, text=True, stdout=subprocess.PIPE)
+    environment = build_environment()
+    process = subprocess.Popen(command, cwd=ROOT, env=environment, text=True, stdout=subprocess.PIPE)
     paths = {}
     for line in process.stdout:
         event = json.loads(line)
@@ -89,10 +106,16 @@ def build(optimized=False):
     for name, path in paths.items():
         shutil.copy2(path, WORK/name)
         hashes[name] = pin.digest(WORK/name)
+    metadata = json.loads(subprocess.check_output(
+        ['cargo', 'metadata', '--locked', '--offline', '--no-deps', '--format-version=1'],
+        cwd=ROOT, env=environment, text=True))
     manifest = {'source_sha256': before, 'compiler': inputs, 'binaries': hashes,
+                'target_directory': metadata['target_directory'],
                 'profile': profile,
                 'build_seconds': time.monotonic()-started}
-    (WORK/'build.json').write_text(json.dumps(manifest, indent=2)+'\n')
+    pending = WORK/'build.json.next'
+    pending.write_text(json.dumps(manifest, indent=2)+'\n')
+    pending.replace(WORK/'build.json')
     print(json.dumps(manifest, indent=2))
 
 
@@ -136,16 +159,25 @@ def run(action, args):
     subprocess.run([str(WORK/binary), *args, *overrides], cwd=ROOT, env=environment, check=True)
 
 
+
+def test(args):
+    pin.check_model()
+    command = ['cargo', 'test', '--locked', '--release', '--lib', '--features', 'cli', *args]
+    subprocess.run(command, cwd=ROOT, env=build_environment(), check=True)
+
+
 def main():
     args = sys.argv[1:]
     if args in (['build'], ['build', '--optimized']):
         with lock():
             build('--optimized' in args)
+    elif args and args[0] == 'test':
+        test(args[1:])
     elif args and args[0] in ('family', 'families', 'probe', 'inspect', 'score', 'validate-readings'):
         with lock(shared=True):
             run(args[0], args[1:])
     else:
-        raise ValueError('usage: dev.py build [--optimized] | family <file>... [--compositional] | families | probe <name> <text> | inspect <request> | score ... | validate-readings ...')
+        raise ValueError('usage: dev.py build [--optimized] | test [filter] | family <file>... [--compositional] | families | probe <name> <text> | inspect <request> | score ... | validate-readings ...')
 
 
 if __name__ == '__main__':

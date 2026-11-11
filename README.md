@@ -25,7 +25,7 @@ Rust 1.98.0 and Python 3.11 or newer are required. Dependencies use public HTTPS
 there are no submodules or required corpus downloads.
 
 ```sh
-cargo quicktest
+python3 tools/dev.py test
 cargo run --locked --release --features cli --bin probe -- Example 'Draw a card.'
 cargo run --locked --release --features cli --bin grammar-export > /tmp/oracle.ebnf
 ```
@@ -39,10 +39,10 @@ python3 tools/dev.py family families/revealed-followups.json --compositional
 python3 tools/dev.py families
 ```
 
-`cargo quicktest` runs the full unit suite in the same release profile and CLI
+`python3 tools/dev.py test` (run from the repository root) runs the full unit suite in the same release profile and CLI
 feature configuration as the helpers. Filters stay cheap, for example
-`cargo quicktest tests::revealed_followups` or
-`cargo quicktest bind::optional_entered_card`. Plain `cargo test --locked` also
+`python3 tools/dev.py test tests::revealed_followups` or
+`python3 tools/dev.py test bind::optional_entered_card`. Plain `cargo test --locked` also
 works when a development-profile run is needed.
 
 Syntax EBNF edits are loaded from disk on each invocation. Rust, lexical EBNF,
@@ -55,7 +55,11 @@ A warm `build` reuses verified helpers without invoking Cargo; each run verifies
 the selected executable. Read-only helper runs share a lock and may run in
 parallel; builds use an exclusive lock.
 Generated files and build receipts stay under ignored `.cache/` and `target/`.
-`CARGO_TARGET_DIR` can select a shared local build cache.
+`CARGO_TARGET_DIR` can select a shared local build cache. The helper remembers
+its last build target directory for later rebuilds; an explicit environment or
+repository Cargo setting takes precedence. The test preset uses that same target
+selection, so omitting a one-command environment setting does not create a
+second dependency cache.
 
 ## Layout
 
@@ -86,7 +90,7 @@ bundled in this repository.
 
 ```sh
 cargo fmt --check
-cargo quicktest
+python3 tools/dev.py test
 cargo clippy --locked --all-targets --all-features -- -D warnings
 python3 -m unittest discover -s tools -p 'test_*.py'
 python3 tools/pin.py check

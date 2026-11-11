@@ -1,6 +1,8 @@
 """Protect the fast loop: syntax/reference changes do not invalidate binaries."""
 from pathlib import Path
 import shutil
+import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -67,6 +69,38 @@ class BuildInputTests(unittest.TestCase):
              patch.object(dev.subprocess, 'Popen', side_effect=AssertionError('unexpected Cargo call')), \
              patch('builtins.print'):
             dev.build()
+
+    def test_rebuild_remembers_target_and_respects_explicit_overrides(self):
+        work = self.root/'work'
+        work.mkdir()
+        target = str(self.root/'shared-target')
+        (work/'build.json').write_text(json.dumps({'target_directory': target}))
+        clean = {k: v for k, v in os.environ.items() if k != 'CARGO_TARGET_DIR'}
+        with patch.object(dev, 'ROOT', self.root), patch.object(dev, 'WORK', work), \
+             patch.dict(os.environ, clean, clear=True):
+            self.assertEqual(dev.build_environment()['CARGO_TARGET_DIR'], target)
+            with patch.dict(os.environ, {'CARGO_TARGET_DIR': '/tmp/explicit-target'}):
+                self.assertEqual(dev.build_environment()['CARGO_TARGET_DIR'], '/tmp/explicit-target')
+            config = self.root/'.cargo/config.toml'
+            config.write_text(config.read_text().replace('jobs = 2', 'jobs = 2\ntarget-dir = "custom-target"'))
+            self.assertNotIn('CARGO_TARGET_DIR', dev.build_environment())
+
+    def test_documented_test_entrypoint_displays_cargo_help(self):
+        result = subprocess.run([sys.executable, str(dev.ROOT/'tools/dev.py'), 'test', '--help'],
+                                cwd=dev.ROOT, capture_output=True, text=True, check=True, timeout=15)
+        self.assertIn('Usage: cargo test', result.stdout)
+
+    def test_test_preset_forwards_filter_and_cache_environment(self):
+        environment = {'CARGO_TARGET_DIR': '/tmp/remembered-target'}
+        with patch.object(dev, 'build_environment', return_value=environment), \
+             patch.object(dev.subprocess, 'run') as run:
+            dev.test(['tests::revealed_followups'])
+        command = run.call_args.args[0]
+        self.assertEqual(command[:2], ['cargo', 'test'])
+        self.assertIn('--release', command)
+        self.assertIn('--lib', command)
+        self.assertEqual(command[-1], 'tests::revealed_followups')
+        self.assertEqual(run.call_args.kwargs['env'], environment)
 
     def test_readers_share_the_lock_and_block_a_build(self):
         code = ("import sys; from pathlib import Path; "
