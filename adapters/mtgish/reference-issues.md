@@ -88,6 +88,30 @@ instruction, so each player gets only their own payment instead of the total.
   `Performed(0)` in `Mill{players:All}`, expected `PerformedTotal(0)`.
 - Status: open.
 
+## A draw "except the first one they draw in each of their draw steps" read as a draw-step window
+
+The trigger fires on every draw except a player's first draw in their own draw
+step, so it fires on draws in any other step or turn. `Filtered{NthEachTurn{…,
+NotEqual 1}, Window(DrawStep)}` fires only during a draw step, and only after
+that turn's first draw. Orcish Bowmasters reads the trigger as
+`Filtered{Player{DrawsCard, …}, Not(FirstDrawInOwnDrawStep(EventSubject))}`,
+and the replacement wording uses `DrawExceptFirstInDrawStep`. The grammar now
+reads the trigger as Orcish Bowmasters does, so Orcish Bowmasters matches.
+
+### Leela, Sevateem Warrior
+
+- At `[0].args.event.Filtered`: reference `NthEachTurn` over
+  `Player{DrawsCard, OpponentsOf(AbilityController)}` with `NotEqual 1` and
+  `Window(DrawStep)`, expected `Player{DrawsCard, OpponentsOf(AbilityController)}`
+  with `Not(FirstDrawInOwnDrawStep(EventSubject))`.
+- Status: open.
+
+### Xyris, the Writhing Storm
+
+- At `[1].args.event.Filtered`: same reference and expected forms as Leela,
+  Sevateem Warrior.
+- Status: open.
+
 ## Retained upstream pending a witness
 
 Upstream kept these encodings and named the test that would justify a change.
