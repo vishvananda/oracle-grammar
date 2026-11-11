@@ -109,3 +109,18 @@ fn entry_subtypes_are_applied_on_arrival_and_becomes_is_later() {
         printed_types(&frame, &["Sorcery"]);
     }
 }
+
+#[test]
+fn every_creature_type_defines_only_its_own_holder() {
+    let frame = parsed("This creature is every creature type.");
+    let static_ = definition(&frame);
+    assert!(static_["kind"].get("CharacteristicDefining").is_some());
+    assert_eq!(
+        static_["changes"],
+        json!([{"kind":"CreatureTypes","args":{"mode":"Set","types":"All"}}])
+    );
+    printed(&frame);
+    let frame = parsed("Equipped creature is every creature type.");
+    assert_eq!(definition(&frame)["kind"], "Ordinary");
+    printed(&frame);
+}

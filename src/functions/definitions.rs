@@ -1,17 +1,18 @@
-//! Explicit defining-stat words retain their declaration context until binding.
+//! Explicit defining power/toughness and creature-type words retain their
+//! declaration context until binding (CR604.3).
 use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
 
 const MARK: &str = "$stat_definition";
 
-fn stats(changes: &Value) -> bool {
+fn definable(changes: &Value) -> bool {
     changes.as_array().is_some_and(|items| {
         !items.is_empty()
             && items.len() <= 8
             && items.iter().all(|c| {
                 matches!(
                     c["kind"].as_str(),
-                    Some("SetPower" | "SetToughness" | "SetBasePowerToughness")
+                    Some("SetPower" | "SetToughness" | "SetBasePowerToughness" | "CreatureTypes")
                 )
             })
     })
@@ -21,13 +22,17 @@ pub(crate) fn mark(name: &str, value: &Value) -> Result<Value, String> {
     super::branch_bounds(value)?;
     let mut value = value.clone();
     if name == "defining_static" {
-        if value["kind"] != "Static" || !stats(&value["args"]["changes"]) {
-            return Err("a defining static needs explicit power/toughness setters".into());
+        if value["kind"] != "Static" || !definable(&value["args"]["changes"]) {
+            return Err(
+                "a defining static needs explicit power/toughness or creature-type setters".into(),
+            );
         }
         value[MARK] = json!(true);
     } else {
-        if !stats(&value) {
-            return Err("defining changes need explicit power/toughness setters".into());
+        if !definable(&value) {
+            return Err(
+                "defining changes need explicit power/toughness or creature-type setters".into(),
+            );
         }
         for change in value.as_array_mut().expect("checked list") {
             change[MARK] = json!(true);
@@ -47,13 +52,13 @@ pub(crate) fn unify<'p, 'v>(
         return Vec::new();
     }
     if name == "defining_changes" {
-        return if stats(value) {
+        return if definable(value) {
             inner.unify(value, bindings)
         } else {
             Vec::new()
         };
     }
-    if value["kind"] != "Static" || !stats(&value["args"]["changes"]) {
+    if value["kind"] != "Static" || !definable(&value["args"]["changes"]) {
         return Vec::new();
     }
     let mut prototype = value.clone();
@@ -123,7 +128,7 @@ fn walk(value: &mut Value, context: Context, depth: usize, work: &mut usize) -> 
         value["args"]["kind"] = if own
             && context.intrinsic
             && !context.conditional
-            && stats(&value["args"]["changes"])
+            && definable(&value["args"]["changes"])
         {
             json!({"CharacteristicDefining":{"keyword":null,"contributes_to_color_identity":true}})
         } else {
