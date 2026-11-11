@@ -41,7 +41,7 @@ class PinTests(unittest.TestCase):
 
     def test_rejects_lock_identity_drift(self):
         path = self.root/'Cargo.lock'
-        path.write_text(path.read_text().replace('#a2914e01da6515e3bbd855a4b5c5282b0bfe4d8b', '#'+('b'*40)))
+        path.write_text(path.read_text().replace('#7228b84b2b9398976246b595098f7f5e5fb4fc88', '#'+('b'*40)))
         with self.assertRaisesRegex(ValueError, 'Cargo.lock differs'):
             pin.check_model(self.root)
 
