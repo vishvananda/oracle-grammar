@@ -59,7 +59,8 @@ Generated files and build receipts stay under ignored `.cache/` and `target/`.
 its last build target directory for later rebuilds; an explicit environment or
 repository Cargo setting takes precedence. The test preset uses that same target
 selection, so omitting a one-command environment setting does not create a
-second dependency cache.
+second dependency cache. A remembered directory that no longer exists is refused
+until `CARGO_TARGET_DIR` selects one.
 
 ## Layout
 

@@ -73,14 +73,20 @@ class BuildInputTests(unittest.TestCase):
     def test_rebuild_remembers_target_and_respects_explicit_overrides(self):
         work = self.root/'work'
         work.mkdir()
-        target = str(self.root/'shared-target')
-        (work/'build.json').write_text(json.dumps({'target_directory': target}))
+        target = self.root/'shared-target'
+        target.mkdir()
+        (work/'build.json').write_text(json.dumps({'target_directory': str(target)}))
         clean = {k: v for k, v in os.environ.items() if k != 'CARGO_TARGET_DIR'}
         with patch.object(dev, 'ROOT', self.root), patch.object(dev, 'WORK', work), \
              patch.dict(os.environ, clean, clear=True):
-            self.assertEqual(dev.build_environment()['CARGO_TARGET_DIR'], target)
+            self.assertEqual(dev.build_environment()['CARGO_TARGET_DIR'], str(target))
             with patch.dict(os.environ, {'CARGO_TARGET_DIR': '/tmp/explicit-target'}):
                 self.assertEqual(dev.build_environment()['CARGO_TARGET_DIR'], '/tmp/explicit-target')
+            target.rmdir()
+            with self.assertRaisesRegex(ValueError, 'target directory is missing'):
+                dev.build_environment()
+            with patch.dict(os.environ, {'CARGO_TARGET_DIR': str(self.root/'new-target')}):
+                self.assertEqual(dev.build_environment()['CARGO_TARGET_DIR'], str(self.root/'new-target'))
             config = self.root/'.cargo/config.toml'
             config.write_text(config.read_text().replace('jobs = 2', 'jobs = 2\ntarget-dir = "custom-target"'))
             self.assertNotIn('CARGO_TARGET_DIR', dev.build_environment())

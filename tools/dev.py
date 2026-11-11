@@ -55,14 +55,18 @@ def compiler():
 def build_environment():
     environment = dict(os.environ)
     config = tomllib.loads((ROOT/'.cargo/config.toml').read_text())
-    if 'CARGO_TARGET_DIR' not in environment and 'target-dir' not in config.get('build', {}):
-        try:
-            previous = json.loads((WORK/'build.json').read_text())
-            target = previous.get('target_directory')
-            if target and Path(target).is_absolute():
-                environment['CARGO_TARGET_DIR'] = target
-        except (OSError, ValueError):
-            pass
+    if 'CARGO_TARGET_DIR' in environment or 'target-dir' in config.get('build', {}):
+        return environment
+    try:
+        target = json.loads((WORK/'build.json').read_text()).get('target_directory')
+    except (OSError, ValueError):
+        return environment
+    if target and Path(target).is_absolute():
+        # A moved checkout must not silently start a cold dependency cache.
+        if not Path(target).is_dir():
+            raise ValueError(f'remembered Cargo target directory is missing: {target}; '
+                             'set CARGO_TARGET_DIR to the cache to use')
+        environment['CARGO_TARGET_DIR'] = target
     return environment
 
 
