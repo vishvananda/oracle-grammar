@@ -147,8 +147,8 @@ repeat_payment_one ::= repeat_payment_symbol
 repeat_payment_more ::= repeat_payment_symbol repeat_payment_symbols
 repeat_payment_symbol ::= mana_colorless | mana_generic | mana_white | mana_blue | mana_black | mana_red | mana_green | mana_snow | mana_hybrid
 
-/* The source card can function in either named zone. Cast permissions keep a
-   separate from-zone rule; an activation shares its unchanged source identity. */
+/* The source card can function in either named zone; each zone holds its own
+   copy of the ability, with its own from-zone rule. */
 /* @sem Ability::[Scoped{zones:[Graveyard], ability:@scope(Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($source_zone_card), from:Graveyard, action:$source_zone_play_action, filter:Any})]})}, Scoped{zones:[Exile], ability:@scope(Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($source_zone_card), from:Exile, action:$source_zone_play_action, filter:Any})]})}] */
 line_source_zone_permission ::= "you" "may" source_zone_play_action source_zone_card source_zone_alternatives "."
 /* @sem ObjectRef::Source */
@@ -162,8 +162,10 @@ source_zone_play_action ::= source_zone_cast | source_zone_play
 source_zone_alternatives ::= "from" "your" "graveyard" "or" "from" "exile"
 
 /* Scoped governs activation, not a later source-zone recheck. The native move
-   verb rejects stale old objects (CR400.7); this is not a return of a new card. */
-/* @sem Ability::Scoped{zones:[Graveyard, Exile], ability:@scope(Ability::Activated{origin:Ordinary, cost:$source_zone_return_cost, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One($source_zone_card), destination:Battlefield{controller:Player(AbilityController), arrival:$source_zone_return_entry}, qualifiers:[]}}]}})} */
+   verb rejects stale old objects (CR400.7); this is not a return of a new card.
+   As with cast permissions, each named zone holds its own copy of the ability;
+   the exiled copy moves the card from exile. */
+/* @sem Ability::[Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$source_zone_return_cost, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One($source_zone_card), destination:Battlefield{controller:Player(AbilityController), arrival:$source_zone_return_entry}, qualifiers:[]}}]}})}, Scoped{zones:[Exile], ability:@scope(Ability::Activated{origin:Ordinary, cost:$source_zone_return_cost, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One($source_zone_card), zone:Exile}, destination:Battlefield{controller:Player(AbilityController), arrival:$source_zone_return_entry}, qualifiers:[]}}]}})}] */
 source_zone_return_ability ::= source_zone_return_cost ":" "return" source_zone_card source_zone_alternatives "to" "the" "battlefield" source_zone_return_entry "."
 /* @sem BattlefieldArrival::BattlefieldArrival{tapped:true, counters:[], states:[]} */
 source_zone_return_tapped ::= "tapped"

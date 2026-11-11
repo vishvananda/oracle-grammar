@@ -6,7 +6,7 @@
     "Artifact"
   ],
   "native_source": {
-    "schema_version": 187,
+    "schema_version": 190,
     "name": "The Soul Stone",
     "characteristics": {
       "supertypes": [
@@ -207,22 +207,31 @@
         }
       },
       {
-        "kind": "Triggered",
+        "kind": "Conditional",
         "args": {
-          "event": {
-            "Filtered": {
-              "event": {
-                "Turn": {
-                  "point": "UpkeepBegins",
-                  "players": {
-                    "kind": "One",
-                    "args": {
-                      "kind": "AbilityController"
-                    }
+          "condition": {
+            "kind": "AllOf",
+            "args": [
+              {
+                "kind": "ObjectMatches",
+                "args": {
+                  "object": {
+                    "kind": "Source"
+                  },
+                  "filter": {
+                    "kind": "AnyOf",
+                    "args": [
+                      {
+                        "kind": "InZone",
+                        "args": {
+                          "Shared": "Battlefield"
+                        }
+                      }
+                    ]
                   }
                 }
               },
-              "condition": {
+              {
                 "kind": "ObjectMatches",
                 "args": {
                   "object": {
@@ -234,103 +243,122 @@
                   }
                 }
               }
-            }
+            ]
           },
-          "intervening_if": null,
-          "limits": {
-            "per_turn": null,
-            "total": null
-          },
-          "announcement": {
-            "targets": [
-              {
-                "slot": 0,
-                "kind": {
-                  "Object": {
-                    "kind": "Card",
-                    "zones": [
-                      "Graveyard"
-                    ]
-                  }
-                },
-                "count": {
-                  "Exactly": {
-                    "kind": "Constant",
-                    "args": 1
-                  }
-                },
-                "filter": {
-                  "kind": "AllOf",
-                  "args": [
-                    {
-                      "kind": "CardType",
-                      "args": "Creature"
-                    },
-                    {
-                      "kind": "InZone",
+          "then": [
+            {
+              "kind": "Triggered",
+              "args": {
+                "event": {
+                  "Turn": {
+                    "point": "UpkeepBegins",
+                    "players": {
+                      "kind": "One",
                       "args": {
-                        "Players": {
-                          "zone": "Graveyard",
-                          "players": {
-                            "kind": "One",
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "intervening_if": null,
+                "limits": {
+                  "per_turn": null,
+                  "total": null
+                },
+                "announcement": {
+                  "targets": [
+                    {
+                      "slot": 0,
+                      "kind": {
+                        "Object": {
+                          "kind": "Card",
+                          "zones": [
+                            "Graveyard"
+                          ]
+                        }
+                      },
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "filter": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          },
+                          {
+                            "kind": "InZone",
                             "args": {
-                              "kind": "AbilityController"
+                              "Players": {
+                                "zone": "Graveyard",
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
                             }
+                          }
+                        ]
+                      },
+                      "players": null,
+                      "distribute": null,
+                      "constraints": [],
+                      "chooser": null
+                    }
+                  ],
+                  "modes": null
+                },
+                "body": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 0,
+                        "operation": {
+                          "kind": "Move",
+                          "args": {
+                            "objects": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            },
+                            "destination": {
+                              "Battlefield": {
+                                "controller": {
+                                  "Player": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "arrival": {
+                                  "controller": null,
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            },
+                            "qualifiers": []
                           }
                         }
                       }
                     }
                   ]
-                },
-                "players": null,
-                "distribute": null,
-                "constraints": [],
-                "chooser": null
-              }
-            ],
-            "modes": null
-          },
-          "body": {
-            "instructions": [
-              {
-                "kind": "Effect",
-                "args": {
-                  "result": 0,
-                  "operation": {
-                    "kind": "Move",
-                    "args": {
-                      "objects": {
-                        "kind": "One",
-                        "args": {
-                          "kind": "Target",
-                          "args": {
-                            "slot": 0,
-                            "index": 0
-                          }
-                        }
-                      },
-                      "destination": {
-                        "Battlefield": {
-                          "controller": {
-                            "Player": {
-                              "kind": "AbilityController"
-                            }
-                          },
-                          "arrival": {
-                            "controller": null,
-                            "tapped": false,
-                            "counters": [],
-                            "states": []
-                          }
-                        }
-                      },
-                      "qualifiers": []
-                    }
-                  }
                 }
               }
-            ]
-          }
+            }
+          ],
+          "otherwise": []
         }
       }
     ]
@@ -510,22 +538,12 @@
       }
     },
     {
-      "kind": "Triggered",
+      "kind": "Conditional",
       "args": {
-        "event": {
-          "Filtered": {
-            "event": {
-              "Turn": {
-                "point": "UpkeepBegins",
-                "players": {
-                  "kind": "One",
-                  "args": {
-                    "kind": "AbilityController"
-                  }
-                }
-              }
-            },
-            "condition": {
+        "condition": {
+          "kind": "AllOf",
+          "args": [
+            {
               "kind": "ObjectMatches",
               "args": {
                 "object": {
@@ -536,104 +554,137 @@
                   "args": "Harnessed"
                 }
               }
-            }
-          }
-        },
-        "intervening_if": null,
-        "limits": {
-          "per_turn": null,
-          "total": null
-        },
-        "announcement": {
-          "targets": [
+            },
             {
-              "slot": 0,
-              "kind": {
-                "Object": {
-                  "kind": "Card",
-                  "zones": [
-                    "Graveyard"
-                  ]
-                }
-              },
-              "count": {
-                "Exactly": {
-                  "kind": "Constant",
-                  "args": 1
-                }
-              },
-              "filter": {
-                "kind": "AllOf",
-                "args": [
-                  {
-                    "kind": "CardType",
-                    "args": "Creature"
-                  },
-                  {
-                    "kind": "InZone",
-                    "args": {
-                      "Players": {
-                        "zone": "Graveyard",
-                        "players": {
-                          "kind": "One",
-                          "args": {
-                            "kind": "AbilityController"
-                          }
-                        }
-                      }
-                    }
-                  }
-                ]
-              },
-              "players": null,
-              "distribute": null,
-              "constraints": [],
-              "chooser": null
-            }
-          ],
-          "modes": null
-        },
-        "body": {
-          "instructions": [
-            {
-              "kind": "Effect",
+              "kind": "ObjectMatches",
               "args": {
-                "result": 0,
-                "operation": {
-                  "kind": "Move",
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "InZone",
                   "args": {
-                    "objects": {
-                      "kind": "One",
-                      "args": {
-                        "kind": "Target",
-                        "args": {
-                          "slot": 0,
-                          "index": 0
-                        }
-                      }
-                    },
-                    "destination": {
-                      "Battlefield": {
-                        "controller": {
-                          "Player": {
-                            "kind": "AbilityController"
-                          }
-                        },
-                        "arrival": {
-                          "controller": null,
-                          "tapped": false,
-                          "counters": [],
-                          "states": []
-                        }
-                      }
-                    },
-                    "qualifiers": []
+                    "Shared": "Battlefield"
                   }
                 }
               }
             }
           ]
-        }
+        },
+        "then": [
+          {
+            "kind": "Triggered",
+            "args": {
+              "event": {
+                "Turn": {
+                  "point": "UpkeepBegins",
+                  "players": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                }
+              },
+              "intervening_if": null,
+              "limits": {
+                "per_turn": null,
+                "total": null
+              },
+              "announcement": {
+                "targets": [
+                  {
+                    "slot": 0,
+                    "kind": {
+                      "Object": {
+                        "kind": "Card",
+                        "zones": [
+                          "Graveyard"
+                        ]
+                      }
+                    },
+                    "count": {
+                      "Exactly": {
+                        "kind": "Constant",
+                        "args": 1
+                      }
+                    },
+                    "filter": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        {
+                          "kind": "InZone",
+                          "args": {
+                            "Players": {
+                              "zone": "Graveyard",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "players": null,
+                    "distribute": null,
+                    "constraints": [],
+                    "chooser": null
+                  }
+                ],
+                "modes": null
+              },
+              "body": {
+                "instructions": [
+                  {
+                    "kind": "Effect",
+                    "args": {
+                      "result": 0,
+                      "operation": {
+                        "kind": "Move",
+                        "args": {
+                          "objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          },
+                          "destination": {
+                            "Battlefield": {
+                              "controller": {
+                                "Player": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "arrival": {
+                                "controller": null,
+                                "tapped": false,
+                                "counters": [],
+                                "states": []
+                              }
+                            }
+                          },
+                          "qualifiers": []
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "otherwise": []
       }
     }
   ],
@@ -816,22 +867,12 @@
         }
       },
       {
-        "kind": "Triggered",
+        "kind": "Conditional",
         "args": {
-          "event": {
-            "Filtered": {
-              "event": {
-                "Turn": {
-                  "point": "EndStepBegins",
-                  "players": {
-                    "kind": "One",
-                    "args": {
-                      "kind": "AbilityController"
-                    }
-                  }
-                }
-              },
-              "condition": {
+          "condition": {
+            "kind": "AllOf",
+            "args": [
+              {
                 "kind": "ObjectMatches",
                 "args": {
                   "object": {
@@ -842,104 +883,137 @@
                     "args": "Harnessed"
                   }
                 }
-              }
-            }
-          },
-          "intervening_if": null,
-          "limits": {
-            "per_turn": null,
-            "total": null
-          },
-          "announcement": {
-            "targets": [
+              },
               {
-                "slot": 0,
-                "kind": {
-                  "Object": {
-                    "kind": "Card",
-                    "zones": [
-                      "Graveyard"
-                    ]
-                  }
-                },
-                "count": {
-                  "Exactly": {
-                    "kind": "Constant",
-                    "args": 1
-                  }
-                },
-                "filter": {
-                  "kind": "AllOf",
-                  "args": [
-                    {
-                      "kind": "CardType",
-                      "args": "Artifact"
-                    },
-                    {
-                      "kind": "InZone",
-                      "args": {
-                        "Players": {
-                          "zone": "Graveyard",
-                          "players": {
-                            "kind": "One",
-                            "args": {
-                              "kind": "AbilityController"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  ]
-                },
-                "players": null,
-                "distribute": null,
-                "constraints": [],
-                "chooser": null
-              }
-            ],
-            "modes": null
-          },
-          "body": {
-            "instructions": [
-              {
-                "kind": "Effect",
+                "kind": "ObjectMatches",
                 "args": {
-                  "result": 0,
-                  "operation": {
-                    "kind": "Move",
+                  "object": {
+                    "kind": "Source"
+                  },
+                  "filter": {
+                    "kind": "InZone",
                     "args": {
-                      "objects": {
-                        "kind": "One",
-                        "args": {
-                          "kind": "Target",
-                          "args": {
-                            "slot": 0,
-                            "index": 0
-                          }
-                        }
-                      },
-                      "destination": {
-                        "Battlefield": {
-                          "controller": {
-                            "Player": {
-                              "kind": "AbilityController"
-                            }
-                          },
-                          "arrival": {
-                            "controller": null,
-                            "tapped": false,
-                            "counters": [],
-                            "states": []
-                          }
-                        }
-                      },
-                      "qualifiers": []
+                      "Shared": "Battlefield"
                     }
                   }
                 }
               }
             ]
-          }
+          },
+          "then": [
+            {
+              "kind": "Triggered",
+              "args": {
+                "event": {
+                  "Turn": {
+                    "point": "EndStepBegins",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                },
+                "intervening_if": null,
+                "limits": {
+                  "per_turn": null,
+                  "total": null
+                },
+                "announcement": {
+                  "targets": [
+                    {
+                      "slot": 0,
+                      "kind": {
+                        "Object": {
+                          "kind": "Card",
+                          "zones": [
+                            "Graveyard"
+                          ]
+                        }
+                      },
+                      "count": {
+                        "Exactly": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      },
+                      "filter": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Artifact"
+                          },
+                          {
+                            "kind": "InZone",
+                            "args": {
+                              "Players": {
+                                "zone": "Graveyard",
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      },
+                      "players": null,
+                      "distribute": null,
+                      "constraints": [],
+                      "chooser": null
+                    }
+                  ],
+                  "modes": null
+                },
+                "body": {
+                  "instructions": [
+                    {
+                      "kind": "Effect",
+                      "args": {
+                        "result": 0,
+                        "operation": {
+                          "kind": "Move",
+                          "args": {
+                            "objects": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            },
+                            "destination": {
+                              "Battlefield": {
+                                "controller": {
+                                  "Player": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "arrival": {
+                                  "controller": null,
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            },
+                            "qualifiers": []
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ],
+          "otherwise": []
         }
       }
     ],

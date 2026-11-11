@@ -55,7 +55,7 @@ fn infinity_is_a_mark_and_does_not_become_a_numeric_expression() {
 }
 
 #[test]
-fn complete_real_infinity_original_is_sole_native_with_event_time_gate() {
+fn complete_real_infinity_original_is_sole_native_while_harnessed() {
     let data = fixture();
     let name = data["name"].as_str().unwrap();
     let source = data["text"].as_str().unwrap();
@@ -63,14 +63,19 @@ fn complete_real_infinity_original_is_sole_native_with_event_time_gate() {
     assert_eq!(expected, canonical_abilities(&data["expected"]).unwrap());
     let parsed = engine().parse(name, source).unwrap();
     assert_eq!(parsed.readings, vec![expected.clone()]);
-    let trigger = expected.as_array().unwrap().last().unwrap();
+    let conditional = expected.as_array().unwrap().last().unwrap();
+    assert_eq!(conditional["kind"], "Conditional");
+    assert!(
+        conditional["args"]["condition"]["args"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!({"kind":"ObjectMatches","args":{
+                "object":{"kind":"Source"},"filter":{"kind":"State","args":"Harnessed"}}}))
+    );
+    let trigger = &conditional["args"]["then"][0];
     assert_eq!(trigger["kind"], "Triggered");
     assert_eq!(trigger["args"]["intervening_if"], Value::Null);
-    assert_eq!(
-        trigger["args"]["event"]["Filtered"]["condition"],
-        serde_json::json!({"kind":"ObjectMatches","args":{
-            "object":{"kind":"Source"},"filter":{"kind":"State","args":"Harnessed"}}})
-    );
+    assert!(trigger["args"]["event"].get("Turn").is_some());
     checked_print(name, source, &expected, &["Artifact".into()]);
 }
 
@@ -82,8 +87,8 @@ fn header_removal_changes_meaning_and_edited_operands_print_current_values() {
     let expected = canonical_abilities(&data["expected"]).unwrap();
     let removed = source.replace("∞ — ", "");
     let mut plain = data["expected"].clone();
-    let trigger = plain.as_array_mut().unwrap().last_mut().unwrap();
-    trigger["args"]["event"] = trigger["args"]["event"]["Filtered"]["event"].clone();
+    let ability = plain.as_array_mut().unwrap().last_mut().unwrap();
+    *ability = ability["args"]["then"][0].clone();
     let plain = canonical_abilities(&plain).unwrap();
     assert_ne!(plain, expected);
     assert_eq!(
@@ -144,11 +149,12 @@ fn granted_gate_watches_holder_while_named_harness_object_watches_giver() {
     );
     let emission = &value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"];
     assert_eq!(emission["source"]["kind"], "Source");
-    let inner = &emission["changes"][0]["args"]["args"];
+    let conditional = &emission["changes"][0]["args"]["args"];
     assert_eq!(
-        inner["event"]["Filtered"]["condition"]["args"]["object"]["kind"],
+        conditional["condition"]["args"][0]["args"]["object"]["kind"],
         "Source"
     );
+    let inner = &conditional["then"][0]["args"];
     assert_eq!(
         inner["body"]["instructions"][0]["args"]["operation"]["args"]["action"]["Harness"]["object"]
             ["kind"],

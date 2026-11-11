@@ -206,3 +206,31 @@ fn a_declined_draw_replacement_keeps_the_draw() {
     assert_eq!(draw["kind"], "Draw");
     printed_types(&readings[0], &["Enchantment"]);
 }
+
+#[test]
+fn a_return_from_two_zones_is_one_ability_per_zone() {
+    let text =
+        "{2}{G}: Return this card from your graveyard or from exile to the battlefield tapped.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{readings:#?}");
+    let abilities = readings[0].as_array().unwrap();
+    assert_eq!(abilities.len(), 2);
+    assert_eq!(abilities[0]["args"]["zones"], json!(["Graveyard"]));
+    assert_eq!(abilities[1]["args"]["zones"], json!(["Exile"]));
+    let moved = &abilities[1]["args"]["ability"]["args"]["body"]["instructions"][0]["args"]["operation"]
+        ["args"]["objects"];
+    assert_eq!(moved["kind"], "InZone");
+    printed(&readings[0]);
+}
+
+#[test]
+fn an_infinity_ability_exists_only_while_harnessed() {
+    let text = "∞ — At the beginning of your upkeep, return target creature card from your graveyard to the battlefield.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{readings:#?}");
+    let ability = &readings[0][0];
+    assert_eq!(ability["kind"], "Conditional");
+    let then = &ability["args"]["then"][0]["args"]["event"];
+    assert!(then.get("Turn").is_some(), "{then:#?}");
+    printed_types(&readings[0], &["Artifact"]);
+}
