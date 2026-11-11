@@ -112,6 +112,25 @@ reads the trigger as Orcish Bowmasters does, so Orcish Bowmasters matches.
   Sevateem Warrior.
 - Status: open.
 
+## "Sacrifice another creature or a token" split into two sacrifices
+
+"Sacrifice <A> or <B>" sacrifices one permanent that is either. Gut, True Soul
+Zealot and the Wyll of the Blade, Elder and Fey Pact faces read "sacrifice
+another creature or an artifact" as one `Sacrifice` over
+`AnyOf([AllOf([Creature, Not(SameObject(Source))]), CardType(Artifact)])`.
+Old Man Willow alone reads the same disjunction as a choice among separate
+sacrifices.
+
+### Old Man Willow
+
+- At `[1].args.body.instructions[0]`: reference `ChooseOne` whose options are a
+  `Sacrifice` of another creature, a `Sacrifice` of a token and an empty
+  option, with the reflexive trigger repeated in both sacrifices; expected
+  `Optional` over one `Sacrifice` of
+  `AnyOf([AllOf([Creature, Not(SameObject(Source))]), Token])`, followed by the
+  reflexive trigger.
+- Status: open.
+
 ## Retained upstream pending a witness
 
 Upstream kept these encodings and named the test that would justify a change.
