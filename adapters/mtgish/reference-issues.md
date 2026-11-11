@@ -60,6 +60,34 @@ general scalar reading.
   `Transition{result:0, phase:After}`.
 - Status: open.
 
+## "The total amount of mana paid this way" read per player
+
+`Expr::PerformedTotal` adds up every run of a `ForEachPlayer`; `Performed` read
+by a later instruction over the players is each player's own amount. Upstream
+retained Alliance of Arms's `PerformedTotal` on that contract, and the grammar
+now reads the sentence that way, so Alliance of Arms matches. Three faces with
+the same join-forces sentence read `Performed(0)` from a per-player
+instruction, so each player gets only their own payment instead of the total.
+
+### Collective Voyage
+
+- At `[0].args.body.instructions[1].args.body.instructions[0].args.operation.args.choices[0].count.UpTo`:
+  reference `Performed(0)` inside the per-player search, expected
+  `PerformedTotal(0)`.
+- Status: open.
+
+### Minds Aglow
+
+- At `[0].args.body.instructions[1].args.operation.args.amount`: reference
+  `Performed(0)` in `Draw{players:All}`, expected `PerformedTotal(0)`.
+- Status: open.
+
+### Shared Trauma
+
+- At `[0].args.body.instructions[1].args.operation.args.amount`: reference
+  `Performed(0)` in `Mill{players:All}`, expected `PerformedTotal(0)`.
+- Status: open.
+
 ## Retained upstream pending a witness
 
 Upstream kept these encodings and named the test that would justify a change.
@@ -203,39 +231,41 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
 
 ## Retained by the reference
 
-Upstream judged these encodings correct, equivalent or required by the model
-contract. They are grammar work items, not reference issues.
+Upstream judged these encodings correct or equivalent and kept them. Each face
+is the only one with its encoding: matched faces with the same wording use the
+grammar's encoding, so the grammar keeps that encoding. These faces stay
+different until upstream unifies the wording. They are not reference errors,
+and the grammar adds no alias for them.
 
 #### Karn's Touch
 
-- `Affected` names the object whose characteristics are evaluated; the
-  grammar's `Target` at the power and toughness objects should follow it.
+- `Affected` names the object whose characteristics are evaluated. Karn,
+  Silver Golem, Sydri, Galvanic Genius and Toymaker have the same sentence with
+  `Target`.
 
 #### Draining Whelk
 
 - `Earlier{what:Countered, measure:Of(ManaValue)}` reads the saved target even
   if countering fails, which matches the Time Spiral Remastered release notes.
+  12 countered-spell controls read `ObjectProperty` of the target.
 
 #### Ebonblade Reaper
 
 - `Acting` resolves to the controller in the first life loss and to the damaged
-  player in the second.
+  player in the second. 4 controls name `AbilityController`.
 
 #### Vulshok Factory
 
 - `Query{objects:CostObjects{payment:Activation, ...}}` with
-  `CurrentOrLastKnown` keeps the sacrificed source's counters.
-
-#### Alliance of Arms
-
-- `PerformedTotal(0)` is the total over every player's payment; `Performed`
-  would be one player's amount.
+  `CurrentOrLastKnown` keeps the sacrificed source's counters. 37 faces that
+  sacrifice themselves and count their own counters read `Source`.
 
 #### Veteran Ghoulcaller
 
 - `DuplicateLastKnown(EventSubject)` keeps the departed card's definition and
-  perpetual changes. The event's `OwnedBy(One(AbilityController))` follows the
-  reference; the grammar's `InZone` there is a grammar issue.
+  perpetual changes. Kithkin Brinefarer has the same sentence with
+  `Duplicate(One(EventSubject))`. The event's `OwnedBy(One(AbilityController))`
+  follows the reference; the grammar's `InZone` there is a grammar issue.
 
 #### Worzel, the Protector, Nemesis Mask, Molly Hayes, Runaway, Forbidden Crypt
 
