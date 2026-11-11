@@ -75,6 +75,11 @@ pub(super) fn marker(
         *node = paid_source(component);
         return Ok(true);
     }
+    if name == "sacrificed_object" {
+        let reference = named(root, path, scope)?;
+        *at_path(root, path).ok_or("sacrificed object path")? = reference;
+        return Ok(true);
+    }
     if name != "sacrificed_result" {
         return Ok(false);
     }
@@ -189,6 +194,24 @@ pub(super) fn reference(
         .ok_or("sacrifice reference path")?;
     }
     Ok(reference)
+}
+
+/// "The sacrificed <noun>" names the one object of the current resolution
+/// sacrifice; a paid sacrifice exists only in its positive PaymentChosen branch.
+fn named(root: &Value, path: &[Step], scope: &Scope) -> Result<Value, String> {
+    let info = scope
+        .sacrificed_result
+        .as_ref()
+        .ok_or("no resolution sacrifice to name")?;
+    if let Some((result, _)) = &info.resolution
+        && !super::resolution_receipts::paid_guard(root, path, result.0)
+    {
+        return Err("the sacrificed object is named outside its paid branch".into());
+    }
+    if !info.single {
+        return Err("a plural sacrifice result does not establish one object".into());
+    }
+    Ok(info.reference())
 }
 
 /// A deferred where-capture may freeze only this proved immutable paid view.

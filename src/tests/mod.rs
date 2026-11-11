@@ -796,3 +796,6 @@ mod scoped_heads;
 
 #[path = "shared_clauses/revealed_followups.rs"]
 mod revealed_followups;
+
+#[path = "shared_clauses/sacrificed_receipts.rs"]
+mod sacrificed_receipts;

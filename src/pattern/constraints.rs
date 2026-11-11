@@ -65,6 +65,16 @@ pub(super) fn refers_to(name: &str, value: &Value) -> bool {
                 )
         }
         "named_source" => matches!(kind, "Source" | "GrantingObject"),
+        "sacrificed_object" => {
+            let objects = &value["args"]["objects"];
+            kind == "Query"
+                && value["args"]["index"] == 0
+                && objects["args"]["phase"] == "Before"
+                && (objects["kind"] == "Transition"
+                    || objects["kind"] == "CostObjects"
+                        && objects["args"]["view"] == "Inputs"
+                        && objects["args"]["payment"].get("Resolution").is_some())
+        }
         "defending" => kind == "DefendingPlayerOf",
         "other_party" => matches!(kind, "AbilityController" | "EventSubject"),
         "that_opponent" | "that_player_literal" => {
