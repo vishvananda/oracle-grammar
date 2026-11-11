@@ -227,3 +227,20 @@ loops over the opponents (9 controls).
   `RequireCombat{action:BeBlocked(CardType(Creature)), amount:Each}`, as in 19
   "all creatures able to block <it> do so" controls.
 - Status: open.
+
+### Foreboding Steamboat
+
+- At `[1].args.body.instructions[0].args.operation.args.cost.parts[0]`:
+  reference expands "put a card exiled with it into its owner's graveyard" to a
+  `PlayerAction` that chooses and moves the card (result `1`), expected the
+  `ExiledToGraveyard` cost part over cards exiled with the source (result `0`),
+  as in 10 controls for the same action.
+- Status: open.
+
+### Molly Hayes, Runaway
+
+- At `[0].args.body.instructions[2].args.operation.args.changes[0].args.PlayPermission.cards`:
+  reference `{"kind":"Transition","args":{"result":0,"phase":"After"}}`,
+  expected `{"kind":"One","args":{"kind":"Result","args":{"result":0,"phase":"After","index":0}}}`,
+  as in 16 of 18 "exile the top card ... you may play that card" controls.
+- Status: open.
