@@ -68,6 +68,30 @@ pub(super) fn condition_placement(value: &mut Value) -> Result<(), String> {
     walk(value, true)
 }
 
+/// Rule 614.1a: "you may <action> instead" replaces the event only when the
+/// action is chosen. A replacement that cancels its event before an optional
+/// action would lose the event even when the action is declined.
+pub(super) fn cancels_before_choice(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => {
+            let cancel = json!({"kind": "ModifyEvent", "args": {"change": "Cancel"}});
+            let lost = value["kind"] == "Replacement"
+                && value["args"]["body"]["instructions"]
+                    .as_array()
+                    .is_some_and(|items| {
+                        items.windows(2).any(|pair| {
+                            pair[0]["kind"] == "Effect"
+                                && pair[0]["args"]["operation"] == cancel
+                                && pair[1]["kind"] == "Optional"
+                        })
+                    });
+            lost || object.values().any(cancels_before_choice)
+        }
+        Value::Array(items) => items.iter().any(cancels_before_choice),
+        _ => false,
+    }
+}
+
 /// A simple self-payment uses its native cost part. A different player's action
 /// remains PlayerAction: replacing it with Draw/Discard would change who acts.
 /// References must be bound before comparing the deciding and performing players.

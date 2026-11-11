@@ -189,3 +189,20 @@ fn a_wrapped_damage_event_names_its_source_as_the_event_subject() {
         }
     }
 }
+
+#[test]
+fn a_declined_draw_replacement_keeps_the_draw() {
+    let text = "If you would draw a card, you may put a study counter on this enchantment instead.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{readings:#?}");
+    let mut optional = Vec::new();
+    visit(&readings[0], "Optional", &mut optional);
+    assert!(optional.is_empty(), "{readings:#?}");
+    let mut choices = Vec::new();
+    visit(&readings[0], "ChooseAction", &mut choices);
+    let options = choices[0]["options"].as_array().unwrap();
+    assert_eq!(options.len(), 2);
+    let draw = &options[1]["args"]["instructions"][1]["args"]["operation"];
+    assert_eq!(draw["kind"], "Draw");
+    printed_types(&readings[0], &["Enchantment"]);
+}

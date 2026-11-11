@@ -1,7 +1,7 @@
 /* Replacement effects, prevention and delayed triggers. */
 
 replacement_clause ::= replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_counters_add | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_all_combat | replacement_prevent | replacement_prevent_some | replacement_prevent_all_but
-    | replacement_double_damage | replacement_draw_instead
+    | replacement_double_damage | replacement_draw_instead | replacement_draw_may_instead
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -75,6 +75,11 @@ draw_event ::= "you" "would" "draw" "a" "card"
 
 /* @sem Ability::Replacement{active:Battlefield, event:$draw_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:Cancel}}, ...$instructions]}} */
 replacement_draw_instead ::= "if" draw_event "," instructions "instead" "."
+
+/* Declining the optional action keeps the draw (CR 614.1a): the choice is
+   between the action and the draw itself, each in place of the event. */
+/* @sem Ability::Replacement{active:Battlefield, event:$draw_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:Cancel}}, Instruction::Effect{result:@next, operation:Operation::ChooseAction{actor:One(PlayerRef::AbilityController), options:[Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:Cancel}}, ...$instructions]}, Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:Cancel}}, Instruction::Effect{result:@next, operation:Operation::Draw{players:One(PlayerRef::AbilityController), amount:Constant(1)}}]}]}}]}} */
+replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
 prevent_clause ::= prevent_distributed_targets | prevent_bidirectional_combat | prevent_next | prevent_all | prevent_all_combat | prevent_radiance
