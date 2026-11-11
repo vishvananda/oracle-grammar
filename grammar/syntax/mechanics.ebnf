@@ -1,0 +1,535 @@
+/* Mechanics the IR holds as one ability, set out over several lines. */
+line_mechanic ::= line_prototype | line_spree | line_tiered
+
+/* These are native mechanics. Reminder sentences explain them without creating
+   more effects, events, targets or binding scopes. */
+/* @sem Ability::Mechanic{mechanic:Ingest} */
+mechanic_ingest ::= "ingest"
+/* @sem Ability::Mechanic{mechanic:Convoke} */
+mechanic_convoke ::= "convoke"
+/* @sem Ability::Mechanic{mechanic:Delve} */
+mechanic_delve ::= "delve"
+
+/* Native mechanics participate in keyword lists while retaining Ability::Mechanic,
+   rather than becoming a Keyword or a generated trigger. */
+/* @sem Ability::Mechanic{mechanic:Banding} */
+mechanic_banding ::= "banding"
+
+/* @sem Ability::Mechanic{mechanic:$numbered_keyword_name, amount:$number_digits} */
+mechanic_numbered_keyword ::= numbered_keyword_name number_digits
+
+numbered_keyword_name ::= mechanic_bushido_name | mechanic_toxic_name | mechanic_annihilator_name | mechanic_hideaway_name
+/* @sem Mechanic::Bushido */
+mechanic_bushido_name ::= "bushido"
+/* @sem Mechanic::Toxic */
+mechanic_toxic_name ::= "toxic"
+/* @sem Mechanic::Annihilator */
+mechanic_annihilator_name ::= "annihilator"
+/* @sem Mechanic::Hideaway */
+mechanic_hideaway_name ::= "hideaway"
+
+/* @sem Ability::WithPresentation{reminder:true, ability:$mechanic_reminded_text} */
+reminded_mechanic ::= mechanic_reminded_text
+
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$mechanic_reminded_text} */
+labelled_mechanic_reminder ::= ability_label "—" mechanic_reminded_text
+
+mechanic_reminded_text ::= ingest_reminded_text | convoke_reminded_text | delve_reminded_text
+
+/* @sem $mechanic_ingest */
+ingest_reminded_text ::= mechanic_ingest "(" "whenever" reminder_subject "deals" "combat" "damage" "to" "a" "player" "," "that" "player" "exiles" "the" "top" "card" "of" "their" "library" "." ")"
+
+/* @sem $mechanic_convoke */
+convoke_reminded_text ::= mechanic_convoke "(" "your" "creatures" "can" "help" "cast" "this" "spell" "." "each" "creature" "you" "tap" "while" "casting" "this" "spell" "pays" "for" "{" "1" "}" "or" "one" "mana" "of" "that" "creature's" "color" "." ")"
+
+/* @sem $mechanic_delve */
+delve_reminded_text ::= mechanic_delve "(" "each" "card" "you" "exile" "from" "your" "graveyard" "while" "casting" "this" "spell" "pays" "for" "{" "1" "}" "." ")"
+
+/* Suspend's explanation repeats its native mechanic operands. It is presentation
+   on that ability, not another ability or an unparsed text fragment. */
+/* @sem Ability::Mechanic{mechanic:Suspend, cost:$cost, amount:$value} */
+mechanic_suspend ::= "suspend" value ("―" | "—") cost
+
+/* @sem Ability::WithPresentation{reminder:true, ability:$suspend_reminded_text} */
+reminded_suspend ::= suspend_reminded_text
+
+/* A label and a reminder share one native presentation wrapper. */
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$suspend_reminded_text} */
+labelled_suspend_reminder ::= ability_label "—" suspend_reminded_text
+
+/* @sem Ability::@agree($mechanic_suspend, $suspend_reminder) */
+suspend_reminded_text ::= mechanic_suspend "(" suspend_reminder ")"
+
+/* @sem Ability::Mechanic{mechanic:Suspend, cost:$cost, amount:$suspend_time_counters} */
+suspend_reminder ::= "rather" "than" "cast" "this" "card" "from" "your" "hand" "," ("you" "may")? "pay" cost "and" "exile" "it" "with" suspend_time_counters "on" "it" "."
+    "at" "the" "beginning" "of" "your" "upkeep" "," "remove" "a" "time" "counter" "."
+    "when" "the" "last" "is" "removed" "," "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "." ("it" "has" "haste" ".")?
+
+suspend_time_counters ::= suspend_time_one | suspend_time_many
+
+/* @sem Expr::Constant(1) */
+suspend_time_one ::= "a" "time" "counter"
+
+/* @sem $count */
+suspend_time_many ::= count "time" "counters"
+
+/* @sem Ability::[Ability::Prototype{mana:$mana_symbols, power:$number, toughness:$number_2}] */
+line_prototype ::= "prototype" mana_symbols "—" NUMBER "/" NUMBER
+
+/* A stage owner consumes the complete remaining card body. Prefix abilities
+   stay outside; stage suffixes cannot escape as ordinary top-level lines. */
+stage_owning_abilities ::= line_level_up | line_class
+
+/* Level up: its cost, then one stage to a range of levels. */
+/* @sem Ability::[Ability::CounterStages{counter:Named(LevelCounter), level_up:$cost, stages:$level_stages}] */
+line_level_up ::= "level" "up" cost NEWLINE level_stages
+
+level_stages ::= level_stages_one | level_stages_more
+
+/* @sem CounterStage::[$level_stage] */
+level_stages_one ::= level_stage
+
+/* @sem CounterStage::[$level_stage, ...$level_stages] */
+level_stages_more ::= level_stage NEWLINE level_stages
+
+level_stage ::= level_range | level_range_abilities | level_from | level_from_abilities
+
+/* @sem CounterStage::CounterStage{minimum:$number, maximum:$number_2, power_toughness:[$number_3, $number_4], animates:false, abilities:[]} */
+level_range ::= "LEVEL" NUMBER "‑" NUMBER NEWLINE NUMBER "/" NUMBER
+
+/* @sem CounterStage::CounterStage{minimum:$number, maximum:$number_2, power_toughness:[$number_3, $number_4], animates:false, abilities:$stage_abilities} */
+level_range_abilities ::= "LEVEL" NUMBER "‑" NUMBER NEWLINE NUMBER "/" NUMBER NEWLINE stage_abilities
+
+/* @sem CounterStage::CounterStage{minimum:$number, power_toughness:[$number_2, $number_3], animates:false, abilities:[]} */
+level_from ::= "LEVEL" NUMBER "⁺" NEWLINE NUMBER "/" NUMBER
+
+/* @sem CounterStage::CounterStage{minimum:$number, power_toughness:[$number_2, $number_3], animates:false, abilities:$stage_abilities} */
+level_from_abilities ::= "LEVEL" NUMBER "⁺" NEWLINE NUMBER "/" NUMBER NEWLINE stage_abilities
+
+/* Spree: each mode adds its cost. */
+/* @sem Ability::[Ability::Spree{modes:$spree_modes}] */
+line_spree ::= "spree" NEWLINE spree_modes
+
+spree_modes ::= spree_modes_one | spree_modes_more
+
+/* @sem SpreeMode::[$spree_mode] */
+spree_modes_one ::= spree_mode
+
+/* @sem SpreeMode::[$spree_mode, ...$spree_modes] */
+spree_modes_more ::= spree_mode NEWLINE spree_modes
+
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:$program}}) */
+spree_mode ::= "+" cost "—" program "."
+
+/* Tiered: one mode, by name, adding its cost. The names mean nothing to the rules. */
+/* @sem Ability::[Ability::Tiered{modes:$tier_modes}] */
+line_tiered ::= "tiered" NEWLINE tier_modes
+
+tier_modes ::= tier_modes_one | tier_modes_more
+
+/* @sem SpreeMode::[$tier_mode] */
+tier_modes_one ::= tier_mode
+
+/* @sem SpreeMode::[$tier_mode, ...$tier_modes] */
+tier_modes_more ::= tier_mode NEWLINE tier_modes
+
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:$program}}) */
+tier_mode ::= "•" tier_name "—" cost "—" program "."
+
+/* @sem () */
+tier_name ::= tier_word | tier_word tier_name
+
+/* @sem () */
+tier_word ::= WORD
+
+/* Backup owns every following ability in this card body. It is reached from
+   abilities, not line, so a trailing line cannot escape the granted set. */
+backup_abilities ::= line_backup | line_backup_pair | line_backup_triple
+/* @sem Ability::[Ability::Backup{amount:$number, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
+line_backup ::= "backup" NUMBER NEWLINE backup_stage_abilities
+
+/* Each printed Backup instance shares the non-Backup abilities below it. */
+/* @sem Ability::[Backup{amount:$number, abilities:$backup_stage_abilities}, Backup{amount:$number_2, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
+line_backup_pair ::= "backup" NUMBER "," "backup" NUMBER NEWLINE backup_stage_abilities
+/* @sem Ability::[Backup{amount:$number, abilities:$backup_stage_abilities}, Backup{amount:$number_2, abilities:$backup_stage_abilities}, Backup{amount:$number_3, abilities:$backup_stage_abilities}, ...$backup_stage_abilities] */
+line_backup_triple ::= "backup" NUMBER "," "backup" NUMBER "," "backup" NUMBER NEWLINE backup_stage_abilities
+
+/* A Class: each level after the first has a cost and its lines. */
+/* @sem Ability::[Ability::Class{levels:@class_levels($class_levels)}] */
+line_class ::= class_levels
+
+class_levels ::= class_levels_one | class_levels_more
+
+/* @sem Vec<(i64,ClassLevel)>::[$class_level] */
+class_levels_one ::= class_level
+
+/* @sem Vec<(i64,ClassLevel)>::[$class_level, ...$class_levels] */
+class_levels_more ::= class_level NEWLINE class_levels
+
+/* @sem (i64,ClassLevel)::[$number, ClassLevel{cost:$cost, abilities:$stage_abilities}] */
+class_level ::= cost ":" "level" NUMBER NEWLINE stage_abilities
+
+/* The lines inside a stage, each with its own targets. */
+stage_abilities ::= stage_line | stage_keyword | stage_abilities_more | stage_keyword_more
+
+/* @sem Ability::[@scope($ability)] */
+stage_line ::= ability
+
+/* @sem Ability::[@scope($keyword_ability)] */
+stage_keyword ::= keyword_ability
+
+/* @sem Ability::[...$stage_line, ...$stage_abilities] */
+stage_abilities_more ::= stage_line NEWLINE stage_abilities
+
+/* @sem Ability::[...$stage_keyword, ...$stage_abilities] */
+stage_keyword_more ::= stage_keyword NEWLINE stage_abilities
+
+/* Companion states a deck-building requirement; its prefix carries rules. */
+/* @sem Ability::Companion($companion_requirement) */
+mechanic_companion ::= "companion" "—" companion_requirement "."
+
+companion_requirement ::= companion_all_cards | companion_no_repeated_symbol
+    | companion_each_filter | companion_each_group | companion_deck_size
+
+/* @sem Operand::Term{family:Companion, form:AllCardsPassFilter, operands:[Filter($companion_all_filter)]} */
+companion_all_cards ::= "your" "starting" "deck" "contains" "only" companion_all_filter
+
+companion_all_filter ::= companion_cards_except | companion_cards_one
+/* The two populations are a union, despite Oracle spelling the list with and. */
+/* @sem ObjectFilter::AnyOf([$companion_card_type, $companion_cards_one]) */
+companion_cards_except ::= companion_cards_one "and" companion_card_type "cards"
+companion_cards_one ::= companion_cards_parity | companion_cards_value
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:SameParity, value:$companion_parity}} */
+companion_cards_parity ::= "cards" "with" companion_parity "mana" "values"
+/* @sem Expr::Constant(0) */
+companion_even ::= "even"
+/* @sem Expr::Constant(1) */
+companion_odd ::= "odd"
+companion_parity ::= companion_even | companion_odd
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:$bound, value:$number}} */
+companion_cards_value ::= "cards" "with" "mana" "value" number "or" bound
+
+/* @sem Operand::Term{family:Companion, form:NoCardPassesFilter, operands:[Filter(State(RepeatedManaSymbol))]} */
+companion_no_repeated_symbol ::= "no" "card" "in" "your" "starting" "deck" "has" "more" "than" "one" "of" "the" "same" "mana" "symbol" "in" "its" "mana" "cost"
+
+/* @sem Operand::Term{family:Companion, form:EachCardPassesFilter, operands:[Filter($companion_type), Filter($companion_predicate)]} */
+companion_each_filter ::= "each" companion_type "card" "in" "your" "starting" "deck" companion_predicate
+companion_predicate ::= companion_is_type | companion_has_value | companion_has_activated
+/* @sem $companion_type_filter */
+companion_is_type ::= "is" ("a" | "an") companion_type_filter "card"
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:$bound, value:$number}} */
+companion_has_value ::= "has" "mana" "value" number "or" bound
+/* @sem ObjectFilter::HasActivatedAbility(Any) */
+companion_has_activated ::= "has" "an" "activated" "ability"
+
+/* @sem Operand::Term{family:Companion, form:EachCardPassesGroupFilter, operands:[Filter($companion_type), $companion_group]} */
+companion_each_group ::= "each" companion_type "card" "in" "your" "starting" "deck" companion_group
+/* @sem Operand::Term{family:GroupFilter, form:DifferentNames} */
+companion_different_names ::= "has" "a" "different" "name"
+/* @sem Operand::Term{family:GroupFilter, form:ShareACardType} */
+companion_shared_type ::= "shares" "a" "card" "type"
+companion_group ::= companion_different_names | companion_shared_type
+
+/* @sem Operand::Term{family:Companion, form:IncreaseStartingDeckSize, operands:[Number($number)]} */
+companion_deck_size ::= "your" "starting" "deck" "contains" "at" "least" number "cards" "more" "than" "the" "minimum" "deck" "size"
+
+/* In a deck, permanent must exclude instant and sorcery cards. A battlefield
+   noun's Any would lose that restriction, so card populations own this domain. */
+/* @sem ObjectFilter::AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]) */
+companion_permanent ::= "permanent"
+companion_card_type ::= noun_creature | noun_artifact | noun_battle | noun_enchantment | noun_land | noun_planeswalker
+companion_type ::= companion_permanent | companion_card_type | adjective_nontype | subtype | companion_folded_type
+
+companion_type_filter ::= companion_type_list | companion_type_pair | companion_type
+/* @sem ObjectFilter::AnyOf([$companion_type, $companion_type_2]) */
+companion_type_pair ::= companion_type "or" companion_type
+/* @sem ObjectFilter::AnyOf([...$companion_type_commas, $companion_type]) */
+companion_type_list ::= companion_type_commas "or" companion_type
+companion_type_commas ::= companion_type_comma_more | companion_type_comma_last
+/* @sem ObjectFilter::[$companion_type, ...$companion_type_commas] */
+companion_type_comma_more ::= companion_type "," companion_type_commas
+/* @sem ObjectFilter::[$companion_type] */
+companion_type_comma_last ::= companion_type ","
+
+/* The tokenizer preserves inner capitals after commas as an explicit mark
+   when a lowercase spelling is already grammar vocabulary. */
+companion_folded_type ::= companion_folded_elemental | companion_folded_dinosaur | companion_folded_cat
+/* @sem ObjectFilter::Subtype(Elemental) */
+companion_folded_elemental ::= "↑" "elemental"
+/* @sem ObjectFilter::Subtype(Dinosaur) */
+companion_folded_dinosaur ::= "↑" "dinosaur"
+/* @sem ObjectFilter::Subtype(Cat) */
+companion_folded_cat ::= "↑" "cat"
+
+/* Rulebreaker is a conditional deck-construction rule, not a flavor label. */
+/* @sem $rulebreaker_requirement */
+mechanic_rulebreaker ::= "rulebreaker" "—" rulebreaker_requirement "."
+
+rulebreaker_requirement ::= rulebreaker_lands | rulebreaker_identity | rulebreaker_one_color | rulebreaker_no_maximum
+
+/* Any land includes basic lands; narrower populations spell out their exception. */
+/* @sem Ability::[CommanderDeckRule(Term{family:DeckConstruction, form:CanHaveAnyCards, operands:[Filter(CardType(Land))]})] */
+rulebreaker_lands ::= "a" "deck" "with" "this" "commander" "can" "have" "any" "land" "cards"
+
+/* @sem Ability::[CommanderDeckRule(Term{family:DeckConstruction, form:CanHaveAnyCards, operands:[Filter($rulebreaker_cards)]}), CommanderDeckRule(Term{family:DeckConstruction, form:CanHaveAnyBasicLandCards})] */
+rulebreaker_identity ::= "a" "deck" "with" "this" "commander" "can" "have" rulebreaker_cards "of" "any" "color" "identity" "and" "any" "basic" "land" "cards"
+
+/* @sem Ability::[CommanderDeckRule(Term{family:DeckConstruction, form:CanHaveAnyCardsWithOneSingleAdditionalColor, operands:[Filter($rulebreaker_cards)]}), CommanderDeckRule(Term{family:DeckConstruction, form:CanHaveAnyBasicLandCards})] */
+rulebreaker_one_color ::= "if" self_named "is" "your" "commander" "," "the" "color" "identity" "of" rulebreaker_cards "in" "your" "deck" "can" "include" "one" "color" "of" "your" "choice" "not" "in" "your" "commander's" "color" "identity" "," "and" "your" "deck" "can" "have" "any" "basic" "land" "cards"
+
+/* @sem Ability::[CommanderDeckRule(Term{family:DeckConstruction, form:HasNoMaximumDeckSize})] */
+rulebreaker_no_maximum ::= "a" "deck" "with" "this" "commander" "has" "no" "maximum" "deck" "size"
+
+rulebreaker_cards ::= rulebreaker_cards_plain | rulebreaker_cards_bound | rulebreaker_cards_join
+/* @sem $card_filter */
+rulebreaker_cards_plain ::= card_filter "cards"
+/* @sem @and($card_filter, ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:$bound, value:$number}}) */
+rulebreaker_cards_bound ::= card_filter "cards" "with" "mana" "value" number "or" bound
+/* And here joins permitted populations, rather than requiring both properties. */
+/* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
+rulebreaker_cards_join ::= card_filter "and" card_filter "cards"
+
+/* The native bare mechanics also compose in keyword lists. Repetitions remain
+   separate ability instances, including cascade and myriad. */
+mechanic_bare ::= bare_decayed | bare_storm | bare_exalted | bare_cascade | bare_rebound | bare_persist | bare_soulbond | bare_station | bare_evolve | bare_exploit | bare_ascend | bare_improvise | bare_undying | bare_split_second | bare_job_select | bare_mentor | bare_myriad | bare_living_weapon | bare_bargain | bare_double_team | bare_retrace | bare_enlist | bare_extort | bare_sunburst | bare_hidden_agenda | bare_assist | bare_unleash | bare_umbra_armor | bare_ravenous | bare_battle_cry | bare_melee | bare_conspire | bare_training | bare_riot | bare_phasing | bare_jump_start | bare_haunt | bare_dethrone | bare_provoke | bare_compleated | bare_demonstrate | bare_undaunted | bare_gravestorm | bare_bloodthirst_x | bare_vanishing | bare_start_your_engines | bare_for_mirrodin | bare_nightbound | bare_daybound | bare_fuse | bare_aftermath | bare_living_metal | bare_read_ahead
+
+/* @sem Ability::Mechanic{mechanic:Storm} */
+bare_storm ::= "storm"
+
+/* @sem Ability::Mechanic{mechanic:Exalted} */
+bare_exalted ::= "exalted"
+
+/* @sem Ability::Mechanic{mechanic:Cascade} */
+bare_cascade ::= "cascade"
+
+/* @sem Ability::Mechanic{mechanic:Rebound} */
+bare_rebound ::= "rebound"
+
+/* @sem Ability::Mechanic{mechanic:Persist} */
+bare_persist ::= "persist"
+
+/* @sem Ability::Mechanic{mechanic:Soulbond} */
+bare_soulbond ::= "soulbond"
+
+/* @sem Ability::Mechanic{mechanic:Station} */
+bare_station ::= "station"
+
+/* @sem Ability::Mechanic{mechanic:Evolve} */
+bare_evolve ::= "evolve"
+
+/* @sem Ability::Mechanic{mechanic:Exploit} */
+bare_exploit ::= "exploit"
+
+/* @sem Ability::Mechanic{mechanic:Ascend} */
+bare_ascend ::= "ascend"
+
+/* @sem Ability::Mechanic{mechanic:Improvise} */
+bare_improvise ::= "improvise"
+
+/* @sem Ability::Mechanic{mechanic:Undying} */
+bare_undying ::= "undying"
+
+/* @sem Ability::Mechanic{mechanic:SplitSecond} */
+bare_split_second ::= "split" "second"
+
+/* @sem Ability::Mechanic{mechanic:JobSelect} */
+bare_job_select ::= "job" "select"
+
+/* @sem Ability::Mechanic{mechanic:Mentor} */
+bare_mentor ::= "mentor"
+
+/* @sem Ability::Mechanic{mechanic:Myriad} */
+bare_myriad ::= "myriad"
+
+/* @sem Ability::Mechanic{mechanic:LivingWeapon} */
+bare_living_weapon ::= "living" "weapon"
+
+/* @sem Ability::Mechanic{mechanic:Bargain} */
+bare_bargain ::= "bargain"
+
+/* @sem Ability::Mechanic{mechanic:DoubleTeam} */
+bare_double_team ::= "double" "team"
+
+/* @sem Ability::Mechanic{mechanic:Retrace} */
+bare_retrace ::= "retrace"
+
+/* @sem Ability::Mechanic{mechanic:Enlist} */
+bare_enlist ::= "enlist"
+
+/* @sem Ability::Mechanic{mechanic:Extort} */
+bare_extort ::= "extort"
+
+/* @sem Ability::Mechanic{mechanic:Sunburst} */
+bare_sunburst ::= "sunburst"
+
+/* @sem Ability::Mechanic{mechanic:HiddenAgenda} */
+bare_hidden_agenda ::= "hidden" "agenda"
+
+/* @sem Ability::Mechanic{mechanic:Assist} */
+bare_assist ::= "assist"
+
+/* @sem Ability::Mechanic{mechanic:Unleash} */
+bare_unleash ::= "unleash"
+
+/* @sem Ability::Mechanic{mechanic:UmbraArmor} */
+bare_umbra_armor ::= "umbra" "armor"
+
+/* @sem Ability::Mechanic{mechanic:Ravenous} */
+bare_ravenous ::= "ravenous"
+
+/* @sem Ability::Mechanic{mechanic:BattleCry} */
+bare_battle_cry ::= "battle" "cry"
+
+/* @sem Ability::Mechanic{mechanic:Melee} */
+bare_melee ::= "melee"
+
+/* @sem Ability::Mechanic{mechanic:Conspire} */
+bare_conspire ::= "conspire"
+
+/* @sem Ability::Mechanic{mechanic:Training} */
+bare_training ::= "training"
+
+/* @sem Ability::Mechanic{mechanic:Riot} */
+bare_riot ::= "riot"
+
+/* @sem Ability::Mechanic{mechanic:Phasing} */
+bare_phasing ::= "phasing"
+
+/* @sem Ability::Mechanic{mechanic:JumpStart} */
+bare_jump_start ::= "jump-start"
+
+/* @sem Ability::Mechanic{mechanic:Haunt} */
+bare_haunt ::= "haunt"
+
+/* @sem Ability::Mechanic{mechanic:Dethrone} */
+bare_dethrone ::= "dethrone"
+
+/* @sem Ability::Mechanic{mechanic:Provoke} */
+bare_provoke ::= "provoke"
+
+/* @sem Ability::Mechanic{mechanic:Compleated} */
+bare_compleated ::= "compleated"
+
+/* @sem Ability::Mechanic{mechanic:Demonstrate} */
+bare_demonstrate ::= "demonstrate"
+
+/* @sem Ability::Mechanic{mechanic:Undaunted} */
+bare_undaunted ::= "undaunted"
+
+/* @sem Ability::Mechanic{mechanic:Gravestorm} */
+bare_gravestorm ::= "gravestorm"
+
+/* @sem Ability::Mechanic{mechanic:BloodthirstX} */
+bare_bloodthirst_x ::= "bloodthirst" "X"
+
+/* @sem Ability::Mechanic{mechanic:Vanishing} */
+bare_vanishing ::= "vanishing"
+
+/* @sem Ability::Mechanic{mechanic:StartYourEngines} */
+bare_start_your_engines ::= "start" "your" "engines" "!"
+
+/* @sem Ability::Mechanic{mechanic:ForMirrodin} */
+bare_for_mirrodin ::= "for" "Mirrodin" "!"
+
+/* @sem Ability::Mechanic{mechanic:Nightbound} */
+bare_nightbound ::= "nightbound"
+
+/* @sem Ability::Mechanic{mechanic:Daybound} */
+bare_daybound ::= "daybound"
+
+/* @sem Ability::Mechanic{mechanic:Fuse} */
+bare_fuse ::= "fuse"
+
+/* @sem Ability::Mechanic{mechanic:Aftermath} */
+bare_aftermath ::= "aftermath"
+
+/* @sem Ability::Mechanic{mechanic:LivingMetal} */
+bare_living_metal ::= "living" "metal"
+
+/* @sem Ability::Mechanic{mechanic:ReadAhead} */
+bare_read_ahead ::= "read" "ahead"
+
+/* @sem Ability::Mechanic{mechanic:Decayed} */
+bare_decayed ::= "decayed"
+
+/* A permanent or suspended card is an implied target-domain choice inside one
+   printed mode. Each alternative owns its target scope and target kind. */
+
+/* @sem @scope(Mode::Mode{announcement:_{targets:[], modes:_{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_head}), index:0})), kind:$counter_kind, amount:Count(Exactly($value))}]}}]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:State(Suspended)}), index:0})), kind:$counter_kind, amount:Count(Exactly($value))}]}}]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied}}, body:_{}, weight:1}) */
+suspended_counter_remove_mode ::= "•" "remove" value counter_kind "counters" "from" "target" filter_head "or" "suspended" "card" "."
+
+/* @sem @scope(Mode::Mode{announcement:_{targets:[], modes:_{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($suspended_counter_put_domain, ObjectFilter::@agree(ObjectFilter::Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)}), ObjectFilter::Counters(_{kind:$counter_kind_2, comparison:Greater, value:Constant(0)})))}), index:0})), kind:$counter_kind, amount:$value}]}}]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:State(Suspended)}), index:0})), kind:$counter_kind, amount:$value}]}}]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied}}, body:_{}, weight:1}) */
+suspended_counter_put_mode ::= "•" "put" value counter_kind "counters" "on" "target" suspended_counter_put_domain "with" "a" counter_kind "counter" "on" "it" "or" "suspended" "card" "."
+
+suspended_counter_put_domain ::= suspended_counter_permanent | noun_artifact | noun_battle | noun_creature | noun_enchantment | noun_land | noun_planeswalker
+/* Permanent/Battlefield is already the target domain. Typeless permanents
+   remain eligible when they have the printed counter. */
+/* @sem ObjectFilter::Any */
+suspended_counter_permanent ::= "permanent"
+
+/* The attack declaration offers exert and links this spell-shaped trigger.
+   Its targets belong to the linked ability, never to a resolution payment.
+   Targetless Program operands keep their established independent production. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One($exert_attack_source)), changes:[Rule(MayExert(Ability(@scope(Ability::Spell{announcement:@announcement, body:$exert_targeted_program}))))]} */
+exert_targeted_ability ::= "you" "may" "exert" exert_attack_source "as" exert_attack_pronoun "attacks" "." "when" "you" "do" "," exert_targeted_program
+/* @sem ObjectRef::Source */
+exert_attack_source ::= "this" "creature" | self_named
+/* @sem () */
+exert_attack_pronoun ::= "it" | "he" | "she"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$exert_targeted_operation}]} */
+exert_targeted_program ::= exert_targeted_operation "."
+exert_targeted_operation ::= exert_targeted_rule | exert_targeted_change | exert_targeted_damage | exert_targeted_return
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
+exert_targeted_rule ::= target_object rule_changes duration
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:$changes, duration:$duration, evaluation:Snapshot} */
+exert_targeted_change ::= target_object changes duration
+/* @sem Operation::DealDamage{source:Source, recipients:Objects(One($target_object)), amount:$value, preventable:true} */
+exert_targeted_damage ::= exert_attack_pronoun "deals" value "damage" "to" target_object
+/* @sem Operation::Move{objects:One($target_card), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+exert_targeted_return ::= "return" target_card "to" "the" "battlefield"
+
+/* Overload replaces the one printed target domain with its corresponding
+   battlefield collection. Both branches own their announcement and Pump operands.
+   This bounded form does not rewrite arbitrary programs or reference scopes. */
+/* @sem Ability::CostBranch{keyword:Overload, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_phrase}), index:0})), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}]}})} */
+spell_overload_pump ::= "target" filter_phrase "gets" signed "/" signed duration "." NEWLINE "Overload" cost
+
+/* Backup's comma lists stay local to its closed all-following-abilities body.
+   Level/Class stage boundaries retain their previous grammar. */
+backup_stage_abilities ::= backup_stage_keywords | stage_line | stage_keyword
+    | backup_stage_lines_more | backup_stage_keyword_more
+/* @sem Ability::[...$stage_line, ...$backup_stage_abilities] */
+backup_stage_lines_more ::= stage_line NEWLINE backup_stage_abilities
+/* @sem Ability::[...$stage_keyword, ...$backup_stage_abilities] */
+backup_stage_keyword_more ::= stage_keyword NEWLINE backup_stage_abilities
+/* @sem Ability::[...$stage_keyword, ...$backup_stage_keyword_tail] */
+backup_stage_keywords ::= stage_keyword "," backup_stage_keyword_tail
+backup_stage_keyword_tail ::= stage_keyword | backup_stage_keywords | backup_stage_keyword_following
+/* @sem Ability::[...$stage_keyword, ...$backup_stage_abilities] */
+backup_stage_keyword_following ::= stage_keyword NEWLINE backup_stage_abilities
+
+/* A commander deck-building action occurs before play, separately from the
+   source's continuing color property. Neither is an in-game ChooseValue effect. */
+/* @sem Ability::[$commander_pregame_rule, $commander_color_property] */
+line_commander_pregame ::= commander_pregame_rule commander_color_property
+
+/* @sem Ability::CommanderDeckRule($commander_pregame_action) */
+commander_pregame_rule ::= "if" self_text "is" "your" "commander" "," commander_pregame_action "before" "the" "game" "begins" "."
+
+/* @sem Operand::Term{family:DeckBuildingAction, form:ChooseAColor, operands:[Term{family:ChoosableColor, form:AnyColor}]} */
+commander_pregame_action ::= "choose" "a" "color"
+
+/* Chosen color remains the native ordinary all-zone property. A literal
+   source color is a characteristic-defining ability, with its own native shape. */
+commander_color_property ::= commander_chosen_property | commander_defined_property
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(AnyZone(SameObject(Source))), changes:[ChosenColor{mode:Set}]} */
+commander_chosen_property ::= self_text "is" "the" "chosen" "color" "."
+/* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:$cross_colors} */
+commander_defined_property ::= self_text "is" cross_colors "."
+
+/* Crew collects other untapped controlled creatures whose total power meets
+   the threshold. @and preserves the canonical filter order in both directions. */
+/* @sem Ability::Activated{origin:Crew, cost:Cost::Cost{parts:[Constrained{part:ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(SameObject(Source)), ObjectFilter::Not(Tapped))}, choose:AnyNumber}], tapped:true}, constraints:[TotalProperty{property:Power, comparison:GreaterOrEqual, amount:$number}]}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:EndOfTurn, evaluation:Snapshot}}]}} */
+crew_ability ::= "crew" number

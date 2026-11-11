@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.98.0
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check
+      - run: python3 tools/pin.py check
+      - run: python3 tools/hygiene.py
+      - run: python3 -m unittest discover -s tools -p 'test_*.py'
+      - run: cargo test --locked
+      - run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - run: cargo build --locked --features cli --bin family-check
+      - name: Compositional phrase families
+        run: |
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          families = json.loads(Path('tests/families.json').read_text())
+          subprocess.run(['target/debug/family-check', *families, '--compositional'], check=True)
+          PY

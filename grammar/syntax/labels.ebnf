@@ -1,0 +1,683 @@
+/* Ability words carry presentation, without adding a binding or holder scope.
+   Mechanical prefixes and chapter numbers retain their own productions. */
+
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:$ability} */
+labelled_ability ::= ability_label "—" ability
+
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:$token_ability_sentence} */
+token_labelled_sentence ::= ability_label "—" token_ability_sentence
+
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:$keyword_ability} */
+token_labelled_keyword ::= ability_label "—" keyword_ability
+
+/* A second paragraph replaces one action at resolution, retaining any condition
+   on the original action in the otherwise branch. Selection/zone-change steps
+   within a longer search program need their own composition. */
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:Spell{announcement:@announcement, body:Program{instructions:[If{condition:$condition, then:Program{instructions:$spell_override_action}, otherwise:Program{instructions:$spell_override_initial}}]}}} */
+labelled_spell_override ::= spell_override_initial "." NEWLINE ability_label "—" spell_override_action "instead" "if" condition "."
+
+spell_override_initial ::= spell_override_action | spell_override_initial_if
+
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$spell_override_action}, otherwise:Program{}}] */
+spell_override_initial_if ::= spell_override_action "if" condition
+
+spell_override_action ::= spell_override_you | spell_override_imperative | clause_operation | spell_override_third | spell_override_they
+
+/* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verbs_base_one) */
+spell_override_you ::= "you" verbs_base_one
+
+/* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verbs_base_one) */
+spell_override_imperative ::= verbs_base_one
+
+/* @sem @apply($players_singular, $verbs_third_one) */
+spell_override_third ::= players_singular verbs_third_one
+
+/* @sem @apply(PlayerSet::One(@that_player), $verbs_base_one) */
+spell_override_they ::= "they" verbs_base_one
+
+ability_label ::= label_landfall | label_threshold | label_delirium | label_domain
+    | label_raid | label_heroic | label_constellation | label_metalcraft | label_magecraft
+    | label_morbid | label_corrupted | label_hellbent | label_alliance | label_enrage
+    | label_battalion | label_ferocious | label_strive | label_pack_tactics
+    | label_descend_four | label_descend_eight
+    | label_adamant | label_addendum | label_bloodrush | label_celebration
+    | label_channel | label_chroma | label_cohort | label_converge
+    | label_councils_dilemma | label_coven | label_disappear | label_eerie
+    | label_eminence | label_fateful_hour | label_fathomless_descent | label_flurry
+    | label_formidable | label_grandeur | label_imprint | label_infusion
+    | label_inspired | label_join_forces | label_kinship | label_lieutenant
+    | label_opus | label_paradox | label_parley | label_radiance
+    | label_rally | label_renew | label_repartee | label_revolt
+    | label_secret_council | label_spell_mastery | label_survival | label_sweep
+    | label_tempting_offer | label_undergrowth | label_valiant | label_vivid
+    | label_void | label_will_of_the_council | label_will_of_the_planeswalkers
+
+/* @sem String::'Landfall' */
+label_landfall ::= "landfall"
+/* @sem String::'Threshold' */
+label_threshold ::= "threshold"
+/* @sem String::'Delirium' */
+label_delirium ::= "delirium"
+/* @sem String::'Domain' */
+label_domain ::= "domain"
+/* @sem String::'Raid' */
+label_raid ::= "raid"
+/* @sem String::'Heroic' */
+label_heroic ::= "heroic"
+/* @sem String::'Constellation' */
+label_constellation ::= "constellation"
+/* @sem String::'Metalcraft' */
+label_metalcraft ::= "metalcraft"
+/* @sem String::'Magecraft' */
+label_magecraft ::= "magecraft"
+/* @sem String::'Morbid' */
+label_morbid ::= "morbid"
+/* @sem String::'Corrupted' */
+label_corrupted ::= "corrupted"
+/* @sem String::'Hellbent' */
+label_hellbent ::= "hellbent"
+/* @sem String::'Alliance' */
+label_alliance ::= "alliance"
+/* @sem String::'Enrage' */
+label_enrage ::= "enrage"
+/* @sem String::'Battalion' */
+label_battalion ::= "battalion"
+/* @sem String::'Ferocious' */
+label_ferocious ::= "ferocious"
+/* @sem String::'Strive' */
+label_strive ::= "strive"
+/* @sem String::'Pack tactics' */
+label_pack_tactics ::= "pack" "tactics"
+/* @sem String::'Descend 4' */
+label_descend_four ::= "descend" "4"
+/* @sem String::'Descend 8' */
+label_descend_eight ::= "descend" "8"
+
+/* Removable ability words: CR 207.2c, effective 2026-09-25.
+   https://media.wizards.com/2026/downloads/MagicCompRules%2020260925.txt
+   Unknown flavor labels stay visible; a dash alone proves no presentation role. */
+/* @sem String::'Adamant' */
+label_adamant ::= "adamant"
+/* @sem String::'Addendum' */
+label_addendum ::= "addendum"
+/* @sem String::'Bloodrush' */
+label_bloodrush ::= "bloodrush"
+/* @sem String::'Celebration' */
+label_celebration ::= "celebration"
+/* @sem String::'Channel' */
+label_channel ::= "channel"
+/* @sem String::'Chroma' */
+label_chroma ::= "chroma"
+/* @sem String::'Cohort' */
+label_cohort ::= "cohort"
+/* @sem String::'Converge' */
+label_converge ::= "converge"
+/* @sem String::'Council''s dilemma' */
+label_councils_dilemma ::= "council's" "dilemma"
+/* @sem String::'Coven' */
+label_coven ::= "coven"
+/* @sem String::'Disappear' */
+label_disappear ::= "disappear"
+/* @sem String::'Eerie' */
+label_eerie ::= "eerie"
+/* @sem String::'Eminence' */
+label_eminence ::= "eminence"
+/* @sem String::'Fateful hour' */
+label_fateful_hour ::= "fateful" "hour"
+/* @sem String::'Fathomless descent' */
+label_fathomless_descent ::= "fathomless" "descent"
+/* @sem String::'Flurry' */
+label_flurry ::= "flurry"
+/* @sem String::'Formidable' */
+label_formidable ::= "formidable"
+/* @sem String::'Grandeur' */
+label_grandeur ::= "grandeur"
+/* @sem String::'Imprint' */
+label_imprint ::= "imprint"
+/* @sem String::'Infusion' */
+label_infusion ::= "infusion"
+/* @sem String::'Inspired' */
+label_inspired ::= "inspired"
+/* @sem String::'Join forces' */
+label_join_forces ::= "join" "forces"
+/* @sem String::'Kinship' */
+label_kinship ::= "kinship"
+/* @sem String::'Lieutenant' */
+label_lieutenant ::= "lieutenant"
+/* @sem String::'Opus' */
+label_opus ::= "opus"
+/* @sem String::'Paradox' */
+label_paradox ::= "paradox"
+/* @sem String::'Parley' */
+label_parley ::= "parley"
+/* @sem String::'Radiance' */
+label_radiance ::= "radiance"
+/* @sem String::'Rally' */
+label_rally ::= "rally"
+/* @sem String::'Renew' */
+label_renew ::= "renew"
+/* @sem String::'Repartee' */
+label_repartee ::= "repartee"
+/* @sem String::'Revolt' */
+label_revolt ::= "revolt"
+/* @sem String::'Secret council' */
+label_secret_council ::= "secret" "council"
+/* @sem String::'Spell mastery' */
+label_spell_mastery ::= "spell" "mastery"
+/* @sem String::'Survival' */
+label_survival ::= "survival"
+/* @sem String::'Sweep' */
+label_sweep ::= "sweep"
+/* @sem String::'Tempting offer' */
+label_tempting_offer ::= "tempting" "offer"
+/* @sem String::'Undergrowth' */
+label_undergrowth ::= "undergrowth"
+/* @sem String::'Valiant' */
+label_valiant ::= "valiant"
+/* @sem String::'Vivid' */
+label_vivid ::= "vivid"
+/* @sem String::'Void' */
+label_void ::= "void"
+/* @sem String::'Will of the council' */
+label_will_of_the_council ::= "will" "of" "the" "council"
+
+/* A cosmetic ability word, per the March of the Machine release notes:
+   https://magic.wizards.com/en/news/feature/march-of-the-machine-release-notes
+   The following vote, planeswalk and chaos instructions retain their meaning. */
+/* @sem String::'Will of the Planeswalkers' */
+label_will_of_the_planeswalkers ::= "will" "of" "the" "planeswalkers"
+
+/* CR 702.178: this prefix grants an ability only at max speed. It carries
+   meaning, and the granted ability keeps any explicit operating zones. */
+/* @sem Condition::PlayerState{player:AbilityController, state:MaxSpeed} */
+max_speed_prefix ::= "max" "speed" "—"
+/* @sem Ability::@conditional_ability($max_speed_prefix, $ability) */
+max_speed_ability ::= max_speed_prefix ability
+/* @sem Ability::@conditional_ability($max_speed_prefix, $token_ability_sentence) */
+max_speed_sentence ::= max_speed_prefix token_ability_sentence
+
+/* Flavor words with no rules meaning (CR 207.2d). Seeded only from headings
+   observed on explicitly unsealed faces and listed in the pinned MTGish
+   FlavorWord catalogue. Mechanical and unknown prefixes are never inferred
+   from dash syntax. This catalogue classifies rules-text omission only;
+   exact flavor-heading parsing/printing remains a separate presentation gate. */
+rules_flavor_label ::= flavor_group_0 | flavor_group_1 | flavor_group_2 | flavor_group_3 | flavor_group_4 | flavor_group_5 | flavor_group_6 | flavor_group_7 | flavor_group_8 | flavor_group_9 | flavor_group_10 | flavor_group_11 | flavor_group_12 | flavor_group_13 | flavor_group_14 | flavor_group_15 | flavor_group_16 | flavor_group_17 | flavor_group_18 | flavor_group_19 | flavor_group_20 | flavor_group_21 | flavor_group_22 | flavor_group_23 | flavor_group_24 | flavor_group_25 | flavor_group_26 | flavor_group_27
+flavor_group_0 ::= flavor_word_0 | flavor_word_1 | flavor_word_2 | flavor_word_3 | flavor_word_4 | flavor_word_5 | flavor_word_6 | flavor_word_7 | flavor_word_8 | flavor_word_9 | flavor_word_10 | flavor_word_11 | flavor_word_12 | flavor_word_13 | flavor_word_14 | flavor_word_15
+/* @sem String::'... Catch' */ flavor_word_0 ::= "... catch"
+/* @sem String::'10,000 Needles' */ flavor_word_1 ::= "10,000 needles"
+/* @sem String::'A Test of Your Reflexes!' */ flavor_word_2 ::= "a test of your reflexes!"
+/* @sem String::'A Thousand Souls Die Every Day' */ flavor_word_3 ::= "a thousand souls die every day"
+/* @sem String::'Aberrant Tinkering' */ flavor_word_4 ::= "aberrant tinkering"
+/* @sem String::'Abraxas' */ flavor_word_5 ::= "abraxas"
+/* @sem String::'Acid Breath' */ flavor_word_6 ::= "acid breath"
+/* @sem String::'Advanced Species' */ flavor_word_7 ::= "advanced species"
+/* @sem String::'Aegis of the Emperor' */ flavor_word_8 ::= "aegis of the emperor"
+/* @sem String::'Affirmative' */ flavor_word_9 ::= "affirmative"
+/* @sem String::'Allies' */ flavor_word_10 ::= "allies"
+/* @sem String::'Allons-y!' */ flavor_word_11 ::= "allons-y!"
+/* @sem String::'Allure of Slaanesh' */ flavor_word_12 ::= "allure of slaanesh"
+/* @sem String::'Alluring Eyes' */ flavor_word_13 ::= "alluring eyes"
+/* @sem String::'Angelo Cannon' */ flavor_word_14 ::= "angelo cannon"
+/* @sem String::'Animal May-Ham' */ flavor_word_15 ::= "animal may-ham"
+flavor_group_1 ::= flavor_word_16 | flavor_word_17 | flavor_word_18 | flavor_word_19 | flavor_word_20 | flavor_word_21 | flavor_word_22 | flavor_word_23 | flavor_word_24 | flavor_word_25 | flavor_word_26 | flavor_word_27 | flavor_word_28 | flavor_word_29 | flavor_word_30 | flavor_word_31
+/* @sem String::'Animate Chains' */ flavor_word_16 ::= "animate chains"
+/* @sem String::'Animate Walking Statue' */ flavor_word_17 ::= "animate walking statue"
+/* @sem String::'Arcane Life-support' */ flavor_word_18 ::= "arcane life-support"
+/* @sem String::'Architect of Deception' */ flavor_word_19 ::= "architect of deception"
+/* @sem String::'Armour of Shrieking Souls' */ flavor_word_20 ::= "armour of shrieking souls"
+/* @sem String::'Astral Projection' */ flavor_word_21 ::= "astral projection"
+/* @sem String::'Atomic Transmutation' */ flavor_word_22 ::= "atomic transmutation"
+/* @sem String::'Avalanche!' */ flavor_word_23 ::= "avalanche!"
+/* @sem String::'Avoidance' */ flavor_word_24 ::= "avoidance"
+/* @sem String::'Bad Breath' */ flavor_word_25 ::= "bad breath"
+/* @sem String::'Bad Wolf' */ flavor_word_26 ::= "bad wolf"
+/* @sem String::'Battle Cannon' */ flavor_word_27 ::= "battle cannon"
+/* @sem String::'Beacon of Hope' */ flavor_word_28 ::= "beacon of hope"
+/* @sem String::'Bear Form' */ flavor_word_29 ::= "bear form"
+/* @sem String::'Bear Witness' */ flavor_word_30 ::= "bear witness"
+/* @sem String::'Benediction of the Omnissiah' */ flavor_word_31 ::= "benediction of the omnissiah"
+flavor_group_2 ::= flavor_word_32 | flavor_word_33 | flavor_word_34 | flavor_word_35 | flavor_word_36 | flavor_word_37 | flavor_word_38 | flavor_word_39 | flavor_word_40 | flavor_word_41 | flavor_word_42 | flavor_word_43 | flavor_word_44 | flavor_word_45 | flavor_word_46 | flavor_word_47
+/* @sem String::'Berserk' */ flavor_word_32 ::= "berserk"
+/* @sem String::'Berzerker' */ flavor_word_33 ::= "berzerker"
+/* @sem String::'Betrayal' */ flavor_word_34 ::= "betrayal"
+/* @sem String::'Bewitching Whispers' */ flavor_word_35 ::= "bewitching whispers"
+/* @sem String::'Bigby''s Hand' */ flavor_word_36 ::= "bigby's hand"
+/* @sem String::'Binding Contract' */ flavor_word_37 ::= "binding contract"
+/* @sem String::'Bio-plasmic Barrage' */ flavor_word_38 ::= "bio-plasmic barrage"
+/* @sem String::'Bio-Plasmic Scream' */ flavor_word_39 ::= "bio-plasmic scream"
+/* @sem String::'Blade of Magnus' */ flavor_word_40 ::= "blade of magnus"
+/* @sem String::'Blessing of Light' */ flavor_word_41 ::= "blessing of light"
+/* @sem String::'Blind Betrayal' */ flavor_word_42 ::= "blind betrayal"
+/* @sem String::'Blitzball Captain' */ flavor_word_43 ::= "blitzball captain"
+/* @sem String::'Blood Chalice' */ flavor_word_44 ::= "blood chalice"
+/* @sem String::'Blood Drain' */ flavor_word_45 ::= "blood drain"
+/* @sem String::'Blow Up' */ flavor_word_46 ::= "blow up"
+/* @sem String::'Blue Magic' */ flavor_word_47 ::= "blue magic"
+flavor_group_3 ::= flavor_word_48 | flavor_word_49 | flavor_word_50 | flavor_word_51 | flavor_word_52 | flavor_word_53 | flavor_word_54 | flavor_word_55 | flavor_word_56 | flavor_word_57 | flavor_word_58 | flavor_word_59 | flavor_word_60 | flavor_word_61 | flavor_word_62 | flavor_word_63
+/* @sem String::'Body Thief' */ flavor_word_48 ::= "body thief"
+/* @sem String::'Body-print' */ flavor_word_49 ::= "body-print"
+/* @sem String::'Brand-new Sky' */ flavor_word_50 ::= "brand-new sky"
+/* @sem String::'Brave Heart' */ flavor_word_51 ::= "brave heart"
+/* @sem String::'Bring it Down!' */ flavor_word_52 ::= "bring it down!"
+/* @sem String::'Brood Telepathy' */ flavor_word_53 ::= "brood telepathy"
+/* @sem String::'Burning Chains' */ flavor_word_54 ::= "burning chains"
+/* @sem String::'Byzantium Radiation' */ flavor_word_55 ::= "byzantium radiation"
+/* @sem String::'Calim''s Breath' */ flavor_word_56 ::= "calim's breath"
+/* @sem String::'Camouflage' */ flavor_word_57 ::= "camouflage"
+/* @sem String::'Ceaseless Tempest' */ flavor_word_58 ::= "ceaseless tempest"
+/* @sem String::'Ceremorphosis' */ flavor_word_59 ::= "ceremorphosis"
+/* @sem String::'Chainsword' */ flavor_word_60 ::= "chainsword"
+/* @sem String::'Chaos' */ flavor_word_61 ::= "chaos"
+/* @sem String::'Chaos Control' */ flavor_word_62 ::= "chaos control"
+/* @sem String::'Chaosbringer' */ flavor_word_63 ::= "chaosbringer"
+flavor_group_4 ::= flavor_word_64 | flavor_word_65 | flavor_word_66 | flavor_word_67 | flavor_word_68 | flavor_word_69 | flavor_word_70 | flavor_word_71 | flavor_word_72 | flavor_word_73 | flavor_word_74 | flavor_word_75 | flavor_word_76 | flavor_word_77 | flavor_word_78 | flavor_word_79
+/* @sem String::'Cheer' */ flavor_word_64 ::= "cheer"
+/* @sem String::'Chef''s Knife' */ flavor_word_65 ::= "chef's knife"
+/* @sem String::'Children of the Cult' */ flavor_word_66 ::= "children of the cult"
+/* @sem String::'Circle of Death' */ flavor_word_67 ::= "circle of death"
+/* @sem String::'Climb Over' */ flavor_word_68 ::= "climb over"
+/* @sem String::'Cold Breath' */ flavor_word_69 ::= "cold breath"
+/* @sem String::'Combat Inspiration' */ flavor_word_70 ::= "combat inspiration"
+/* @sem String::'Come Fly With Me' */ flavor_word_71 ::= "come fly with me"
+/* @sem String::'Command Protocols' */ flavor_word_72 ::= "command protocols"
+/* @sem String::'Command Section' */ flavor_word_73 ::= "command section"
+/* @sem String::'Concealed Position' */ flavor_word_74 ::= "concealed position"
+/* @sem String::'Cone of Cold' */ flavor_word_75 ::= "cone of cold"
+/* @sem String::'Confounding Clouds' */ flavor_word_76 ::= "confounding clouds"
+/* @sem String::'Conjure Elemental' */ flavor_word_77 ::= "conjure elemental"
+/* @sem String::'Consume Anomaly' */ flavor_word_78 ::= "consume anomaly"
+/* @sem String::'Coruscating Flames' */ flavor_word_79 ::= "coruscating flames"
+flavor_group_5 ::= flavor_word_80 | flavor_word_81 | flavor_word_82 | flavor_word_83 | flavor_word_84 | flavor_word_85 | flavor_word_86 | flavor_word_87 | flavor_word_88 | flavor_word_89 | flavor_word_90 | flavor_word_91 | flavor_word_92 | flavor_word_93 | flavor_word_94 | flavor_word_95
+/* @sem String::'Cosmo Memory' */ flavor_word_80 ::= "cosmo memory"
+/* @sem String::'Crash Landing' */ flavor_word_81 ::= "crash landing"
+/* @sem String::'Create Undead' */ flavor_word_82 ::= "create undead"
+/* @sem String::'Crown of Madness' */ flavor_word_83 ::= "crown of madness"
+/* @sem String::'Cunning Action' */ flavor_word_84 ::= "cunning action"
+/* @sem String::'Curse of the Walking Pox' */ flavor_word_85 ::= "curse of the walking pox"
+/* @sem String::'Daemon Sword' */ flavor_word_86 ::= "daemon sword"
+/* @sem String::'Dance' */ flavor_word_87 ::= "dance"
+/* @sem String::'Dark One''s Own Luck' */ flavor_word_88 ::= "dark one's own luck"
+/* @sem String::'Darkforce Inversion' */ flavor_word_89 ::= "darkforce inversion"
+/* @sem String::'Darkness' */ flavor_word_90 ::= "darkness"
+/* @sem String::'Deal with the Black Guardian' */ flavor_word_91 ::= "deal with the black guardian"
+/* @sem String::'Death Frenzy' */ flavor_word_92 ::= "death frenzy"
+/* @sem String::'Death Sickle' */ flavor_word_93 ::= "death sickle"
+/* @sem String::'Decimate' */ flavor_word_94 ::= "decimate"
+/* @sem String::'Devastating Charge' */ flavor_word_95 ::= "devastating charge"
+flavor_group_6 ::= flavor_word_96 | flavor_word_97 | flavor_word_98 | flavor_word_99 | flavor_word_100 | flavor_word_101 | flavor_word_102 | flavor_word_103 | flavor_word_104 | flavor_word_105 | flavor_word_106 | flavor_word_107 | flavor_word_108 | flavor_word_109 | flavor_word_110 | flavor_word_111
+/* @sem String::'Devour Intellect' */ flavor_word_96 ::= "devour intellect"
+/* @sem String::'Devourer of Souls' */ flavor_word_97 ::= "devourer of souls"
+/* @sem String::'Devouring Monster' */ flavor_word_98 ::= "devouring monster"
+/* @sem String::'Diana' */ flavor_word_99 ::= "diana"
+/* @sem String::'Dinosaur Formula' */ flavor_word_100 ::= "dinosaur formula"
+/* @sem String::'Displacement' */ flavor_word_101 ::= "displacement"
+/* @sem String::'Dissolve' */ flavor_word_102 ::= "dissolve"
+/* @sem String::'Distract the Horde' */ flavor_word_103 ::= "distract the horde"
+/* @sem String::'Divine Intervention' */ flavor_word_104 ::= "divine intervention"
+/* @sem String::'Dominate Monster' */ flavor_word_105 ::= "dominate monster"
+/* @sem String::'Double Overdrive' */ flavor_word_106 ::= "double overdrive"
+/* @sem String::'Drag Below' */ flavor_word_107 ::= "drag below"
+/* @sem String::'Dragonfire Dive' */ flavor_word_108 ::= "dragonfire dive"
+/* @sem String::'Drain Life' */ flavor_word_109 ::= "drain life"
+/* @sem String::'Draw Arcanum' */ flavor_word_110 ::= "draw arcanum"
+/* @sem String::'Dualcast' */ flavor_word_111 ::= "dualcast"
+flavor_group_7 ::= flavor_word_112 | flavor_word_113 | flavor_word_114 | flavor_word_115 | flavor_word_116 | flavor_word_117 | flavor_word_118 | flavor_word_119 | flavor_word_120 | flavor_word_121 | flavor_word_122 | flavor_word_123 | flavor_word_124 | flavor_word_125 | flavor_word_126 | flavor_word_127
+/* @sem String::'Dynastic Advisor' */ flavor_word_112 ::= "dynastic advisor"
+/* @sem String::'Dynastic Codes' */ flavor_word_113 ::= "dynastic codes"
+/* @sem String::'Dynastic Command Node' */ flavor_word_114 ::= "dynastic command node"
+/* @sem String::'Echo of the First Murder' */ flavor_word_115 ::= "echo of the first murder"
+/* @sem String::'Echo of the Lost' */ flavor_word_116 ::= "echo of the lost"
+/* @sem String::'ED-E My Love' */ flavor_word_117 ::= "ed-e my love"
+/* @sem String::'Elite Troops' */ flavor_word_118 ::= "elite troops"
+/* @sem String::'Endless Swarm' */ flavor_word_119 ::= "endless swarm"
+/* @sem String::'Endurant' */ flavor_word_120 ::= "endurant"
+/* @sem String::'Engulf' */ flavor_word_121 ::= "engulf"
+/* @sem String::'Enmitic Exterminator' */ flavor_word_122 ::= "enmitic exterminator"
+/* @sem String::'Enthralling Performance' */ flavor_word_123 ::= "enthralling performance"
+/* @sem String::'Eternity Gate' */ flavor_word_124 ::= "eternity gate"
+/* @sem String::'Eukrasia' */ flavor_word_125 ::= "eukrasia"
+/* @sem String::'Exile Cannon' */ flavor_word_126 ::= "exile cannon"
+/* @sem String::'Exterminate!' */ flavor_word_127 ::= "exterminate!"
+flavor_group_8 ::= flavor_word_128 | flavor_word_129 | flavor_word_130 | flavor_word_131 | flavor_word_132 | flavor_word_133 | flavor_word_134 | flavor_word_135 | flavor_word_136 | flavor_word_137 | flavor_word_138 | flavor_word_139 | flavor_word_140 | flavor_word_141 | flavor_word_142 | flavor_word_143
+/* @sem String::'Fabricator Claw Array' */ flavor_word_128 ::= "fabricator claw array"
+/* @sem String::'Fallen Warrior' */ flavor_word_129 ::= "fallen warrior"
+/* @sem String::'Fast Healing' */ flavor_word_130 ::= "fast healing"
+/* @sem String::'Fateful Bite' */ flavor_word_131 ::= "fateful bite"
+/* @sem String::'Fear Gas' */ flavor_word_132 ::= "fear gas"
+/* @sem String::'Federation' */ flavor_word_133 ::= "federation"
+/* @sem String::'Feeder Mandibles' */ flavor_word_134 ::= "feeder mandibles"
+/* @sem String::'Field Reprogramming' */ flavor_word_135 ::= "field reprogramming"
+/* @sem String::'Find New Host' */ flavor_word_136 ::= "find new host"
+/* @sem String::'Fire Breath' */ flavor_word_137 ::= "fire breath"
+/* @sem String::'Fire Cross' */ flavor_word_138 ::= "fire cross"
+/* @sem String::'Fire of Tzeentch' */ flavor_word_139 ::= "fire of tzeentch"
+/* @sem String::'First Contact' */ flavor_word_140 ::= "first contact"
+/* @sem String::'Flare Star' */ flavor_word_141 ::= "flare star"
+/* @sem String::'Flesh Flayer' */ flavor_word_142 ::= "flesh flayer"
+/* @sem String::'Flesh Hooks' */ flavor_word_143 ::= "flesh hooks"
+flavor_group_9 ::= flavor_word_144 | flavor_word_145 | flavor_word_146 | flavor_word_147 | flavor_word_148 | flavor_word_149 | flavor_word_150 | flavor_word_151 | flavor_word_152 | flavor_word_153 | flavor_word_154 | flavor_word_155 | flavor_word_156 | flavor_word_157 | flavor_word_158 | flavor_word_159
+/* @sem String::'Flurry of Blows' */ flavor_word_144 ::= "flurry of blows"
+/* @sem String::'Focus Beam' */ flavor_word_145 ::= "focus beam"
+/* @sem String::'For Auld Lang Syne' */ flavor_word_146 ::= "for auld lang syne"
+/* @sem String::'Frenzied Metabolism' */ flavor_word_147 ::= "frenzied metabolism"
+/* @sem String::'Frenzied Rampage' */ flavor_word_148 ::= "frenzied rampage"
+/* @sem String::'From the Future' */ flavor_word_149 ::= "from the future"
+/* @sem String::'Full Party' */ flavor_word_150 ::= "full party"
+/* @sem String::'Gae Bolg' */ flavor_word_151 ::= "gae bolg"
+/* @sem String::'Gathered Swarm' */ flavor_word_152 ::= "gathered swarm"
+/* @sem String::'Gatling Blaster' */ flavor_word_153 ::= "gatling blaster"
+/* @sem String::'Genestealer''s Kiss' */ flavor_word_154 ::= "genestealer's kiss"
+/* @sem String::'Genius Industrialist' */ flavor_word_155 ::= "genius industrialist"
+/* @sem String::'Genomic Enhancement' */ flavor_word_156 ::= "genomic enhancement"
+/* @sem String::'Gift of Tiamat' */ flavor_word_157 ::= "gift of tiamat"
+/* @sem String::'Glory of Battle' */ flavor_word_158 ::= "glory of battle"
+/* @sem String::'Go for the Goal!' */ flavor_word_159 ::= "go for the goal!"
+flavor_group_10 ::= flavor_word_160 | flavor_word_161 | flavor_word_162 | flavor_word_163 | flavor_word_164 | flavor_word_165 | flavor_word_166 | flavor_word_167 | flavor_word_168 | flavor_word_169 | flavor_word_170 | flavor_word_171 | flavor_word_172 | flavor_word_173 | flavor_word_174 | flavor_word_175
+/* @sem String::'Goblin Formula' */ flavor_word_160 ::= "goblin formula"
+/* @sem String::'Golden Rule' */ flavor_word_161 ::= "golden rule"
+/* @sem String::'GOOOOAAAALLL!' */ flavor_word_162 ::= "gooooaaaalll!"
+/* @sem String::'Gotta Go Fast' */ flavor_word_163 ::= "gotta go fast"
+/* @sem String::'Grand Strategist' */ flavor_word_164 ::= "grand strategist"
+/* @sem String::'Grand Summon' */ flavor_word_165 ::= "grand summon"
+/* @sem String::'Grant an Advantage' */ flavor_word_166 ::= "grant an advantage"
+/* @sem String::'Grav-cannon' */ flavor_word_167 ::= "grav-cannon"
+/* @sem String::'Grenades!' */ flavor_word_168 ::= "grenades!"
+/* @sem String::'Guardian Protocols' */ flavor_word_169 ::= "guardian protocols"
+/* @sem String::'Gust of Wind' */ flavor_word_170 ::= "gust of wind"
+/* @sem String::'Hagneia' */ flavor_word_171 ::= "hagneia"
+/* @sem String::'Harbinger of Despair' */ flavor_word_172 ::= "harbinger of despair"
+/* @sem String::'Healing Tears' */ flavor_word_173 ::= "healing tears"
+/* @sem String::'Heavy Power Hammer' */ flavor_word_174 ::= "heavy power hammer"
+/* @sem String::'Heavy Rock Cutter' */ flavor_word_175 ::= "heavy rock cutter"
+flavor_group_11 ::= flavor_word_176 | flavor_word_177 | flavor_word_178 | flavor_word_179 | flavor_word_180 | flavor_word_181 | flavor_word_182 | flavor_word_183 | flavor_word_184 | flavor_word_185 | flavor_word_186 | flavor_word_187 | flavor_word_188 | flavor_word_189 | flavor_word_190 | flavor_word_191
+/* @sem String::'Hero''s Sundering' */ flavor_word_176 ::= "hero's sundering"
+/* @sem String::'History Teacher' */ flavor_word_177 ::= "history teacher"
+/* @sem String::'Hive Mind' */ flavor_word_178 ::= "hive mind"
+/* @sem String::'Homunculus Servant' */ flavor_word_179 ::= "homunculus servant"
+/* @sem String::'Horrific Symbiosis' */ flavor_word_180 ::= "horrific symbiosis"
+/* @sem String::'How Civil of You' */ flavor_word_181 ::= "how civil of you"
+/* @sem String::'Hunt for Heresy' */ flavor_word_182 ::= "hunt for heresy"
+/* @sem String::'Hunters for Hire' */ flavor_word_183 ::= "hunters for hire"
+/* @sem String::'Hyperphase Threshers' */ flavor_word_184 ::= "hyperphase threshers"
+/* @sem String::'Hypertoxic Miasma' */ flavor_word_185 ::= "hypertoxic miasma"
+/* @sem String::'I''ve Come Up with a New Recipe!' */ flavor_word_186 ::= "i've come up with a new recipe!"
+/* @sem String::'I. AM. TALKING!' */ flavor_word_187 ::= "i. am. talking!"
+/* @sem String::'Immune' */ flavor_word_188 ::= "immune"
+/* @sem String::'Impossible Girl' */ flavor_word_189 ::= "impossible girl"
+/* @sem String::'In You, All Things Are Possible' */ flavor_word_190 ::= "in you, all things are possible"
+/* @sem String::'Infesting Spores' */ flavor_word_191 ::= "infesting spores"
+flavor_group_12 ::= flavor_word_192 | flavor_word_193 | flavor_word_194 | flavor_word_195 | flavor_word_196 | flavor_word_197 | flavor_word_198 | flavor_word_199 | flavor_word_200 | flavor_word_201 | flavor_word_202 | flavor_word_203 | flavor_word_204 | flavor_word_205 | flavor_word_206 | flavor_word_207
+/* @sem String::'Inquisition Agents' */ flavor_word_192 ::= "inquisition agents"
+/* @sem String::'Insatiable Hunger' */ flavor_word_193 ::= "insatiable hunger"
+/* @sem String::'Into the TARDIS' */ flavor_word_194 ::= "into the tardis"
+/* @sem String::'Invasion Beams' */ flavor_word_195 ::= "invasion beams"
+/* @sem String::'Invoke Duplicity' */ flavor_word_196 ::= "invoke duplicity"
+/* @sem String::'Jenova Cells' */ flavor_word_197 ::= "jenova cells"
+/* @sem String::'Jump' */ flavor_word_198 ::= "jump"
+/* @sem String::'Keen Senses' */ flavor_word_199 ::= "keen senses"
+/* @sem String::'Keen Sight' */ flavor_word_200 ::= "keen sight"
+/* @sem String::'Krishna' */ flavor_word_201 ::= "krishna"
+/* @sem String::'Leading from the Front' */ flavor_word_202 ::= "leading from the front"
+/* @sem String::'Leap of Faith' */ flavor_word_203 ::= "leap of faith"
+/* @sem String::'Leap Strike' */ flavor_word_204 ::= "leap strike"
+/* @sem String::'Lethal Voice' */ flavor_word_205 ::= "lethal voice"
+/* @sem String::'Life Drain' */ flavor_word_206 ::= "life drain"
+/* @sem String::'Light Party' */ flavor_word_207 ::= "light party"
+flavor_group_13 ::= flavor_word_208 | flavor_word_209 | flavor_word_210 | flavor_word_211 | flavor_word_212 | flavor_word_213 | flavor_word_214 | flavor_word_215 | flavor_word_216 | flavor_word_217 | flavor_word_218 | flavor_word_219 | flavor_word_220 | flavor_word_221 | flavor_word_222 | flavor_word_223
+/* @sem String::'Lightbringer and Hero''s Shield' */ flavor_word_208 ::= "lightbringer and hero's shield"
+/* @sem String::'Lightning Breath' */ flavor_word_209 ::= "lightning breath"
+/* @sem String::'Lizard Formula' */ flavor_word_210 ::= "lizard formula"
+/* @sem String::'Locus of Slaanesh' */ flavor_word_211 ::= "locus of slaanesh"
+/* @sem String::'Look to the Stars' */ flavor_word_212 ::= "look to the stars"
+/* @sem String::'Lord of Chaos' */ flavor_word_213 ::= "lord of chaos"
+/* @sem String::'Lord of the Pyrrhian Legions' */ flavor_word_214 ::= "lord of the pyrrhian legions"
+/* @sem String::'Lord of Torment' */ flavor_word_215 ::= "lord of torment"
+/* @sem String::'Loud Ruckus' */ flavor_word_216 ::= "loud ruckus"
+/* @sem String::'Low Gravity' */ flavor_word_217 ::= "low gravity"
+/* @sem String::'Lucky Slots' */ flavor_word_218 ::= "lucky slots"
+/* @sem String::'Lure the Unwary' */ flavor_word_219 ::= "lure the unwary"
+/* @sem String::'Machina' */ flavor_word_220 ::= "machina"
+/* @sem String::'Mage Hand' */ flavor_word_221 ::= "mage hand"
+/* @sem String::'Magical Tinkering' */ flavor_word_222 ::= "magical tinkering"
+/* @sem String::'Make Them Pay' */ flavor_word_223 ::= "make them pay"
+flavor_group_14 ::= flavor_word_224 | flavor_word_225 | flavor_word_226 | flavor_word_227 | flavor_word_228 | flavor_word_229 | flavor_word_230 | flavor_word_231 | flavor_word_232 | flavor_word_233 | flavor_word_234 | flavor_word_235 | flavor_word_236 | flavor_word_237 | flavor_word_238 | flavor_word_239
+/* @sem String::'Mama''s Coming' */ flavor_word_224 ::= "mama's coming"
+/* @sem String::'Mantle of Inspiration' */ flavor_word_225 ::= "mantle of inspiration"
+/* @sem String::'Mark of Chaos Ascendant' */ flavor_word_226 ::= "mark of chaos ascendant"
+/* @sem String::'Martyrdom' */ flavor_word_227 ::= "martyrdom"
+/* @sem String::'Master of Machines' */ flavor_word_228 ::= "master of machines"
+/* @sem String::'Matter Absorption' */ flavor_word_229 ::= "matter absorption"
+/* @sem String::'Medicus Ministorum' */ flavor_word_230 ::= "medicus ministorum"
+/* @sem String::'Meet in Reverse' */ flavor_word_231 ::= "meet in reverse"
+/* @sem String::'Midnight Entity' */ flavor_word_232 ::= "midnight entity"
+/* @sem String::'Mind Swap' */ flavor_word_233 ::= "mind swap"
+/* @sem String::'Mine Vibranium' */ flavor_word_234 ::= "mine vibranium"
+/* @sem String::'Mold Earth' */ flavor_word_235 ::= "mold earth"
+/* @sem String::'Mold Harvest' */ flavor_word_236 ::= "mold harvest"
+/* @sem String::'Molting Exoskeleton' */ flavor_word_237 ::= "molting exoskeleton"
+/* @sem String::'Mug' */ flavor_word_238 ::= "mug"
+/* @sem String::'Multi-threat Eliminator' */ flavor_word_239 ::= "multi-threat eliminator"
+flavor_group_15 ::= flavor_word_240 | flavor_word_241 | flavor_word_242 | flavor_word_243 | flavor_word_244 | flavor_word_245 | flavor_word_246 | flavor_word_247 | flavor_word_248 | flavor_word_249 | flavor_word_250 | flavor_word_251 | flavor_word_252 | flavor_word_253 | flavor_word_254 | flavor_word_255
+/* @sem String::'Murasame' */ flavor_word_240 ::= "murasame"
+/* @sem String::'Mutsunokami' */ flavor_word_241 ::= "mutsunokami"
+/* @sem String::'My First Friend' */ flavor_word_242 ::= "my first friend"
+/* @sem String::'My Will Be Done' */ flavor_word_243 ::= "my will be done"
+/* @sem String::'Mystic Arcanum' */ flavor_word_244 ::= "mystic arcanum"
+/* @sem String::'Natural Recovery' */ flavor_word_245 ::= "natural recovery"
+/* @sem String::'Natural Shelter' */ flavor_word_246 ::= "natural shelter"
+/* @sem String::'Negative' */ flavor_word_247 ::= "negative"
+/* @sem String::'Negative Energy Cone' */ flavor_word_248 ::= "negative energy cone"
+/* @sem String::'Neurotraumal Rod' */ flavor_word_249 ::= "neurotraumal rod"
+/* @sem String::'Nitro-9' */ flavor_word_250 ::= "nitro-9"
+/* @sem String::'No Mercy' */ flavor_word_251 ::= "no mercy"
+/* @sem String::'Nosh' */ flavor_word_252 ::= "nosh"
+/* @sem String::'One for My Baby' */ flavor_word_253 ::= "one for my baby"
+/* @sem String::'Origami-Fu' */ flavor_word_254 ::= "origami-fu"
+/* @sem String::'Pact Boon' */ flavor_word_255 ::= "pact boon"
+flavor_group_16 ::= flavor_word_256 | flavor_word_257 | flavor_word_258 | flavor_word_259 | flavor_word_260 | flavor_word_261 | flavor_word_262 | flavor_word_263 | flavor_word_264 | flavor_word_265 | flavor_word_266 | flavor_word_267 | flavor_word_268 | flavor_word_269 | flavor_word_270 | flavor_word_271
+/* @sem String::'Parade!' */ flavor_word_256 ::= "parade!"
+/* @sem String::'Parallel Universe' */ flavor_word_257 ::= "parallel universe"
+/* @sem String::'Particle Beam' */ flavor_word_258 ::= "particle beam"
+/* @sem String::'Pavitr''s Sevā' */ flavor_word_259 ::= "pavitr's sevā"
+/* @sem String::'Peaceful Coexistence' */ flavor_word_260 ::= "peaceful coexistence"
+/* @sem String::'Perfect Illumination' */ flavor_word_261 ::= "perfect illumination"
+/* @sem String::'Perseus''s Bow' */ flavor_word_262 ::= "perseus's bow"
+/* @sem String::'Phaeron' */ flavor_word_263 ::= "phaeron"
+/* @sem String::'Phalanx Commander' */ flavor_word_264 ::= "phalanx commander"
+/* @sem String::'Pheromone Trail' */ flavor_word_265 ::= "pheromone trail"
+/* @sem String::'Plasma Incinerator' */ flavor_word_266 ::= "plasma incinerator"
+/* @sem String::'Play Arcanum' */ flavor_word_267 ::= "play arcanum"
+/* @sem String::'Poison Breath' */ flavor_word_268 ::= "poison breath"
+/* @sem String::'Polymorphine' */ flavor_word_269 ::= "polymorphine"
+/* @sem String::'Praesidium Protectiva' */ flavor_word_270 ::= "praesidium protectiva"
+/* @sem String::'Praise Him' */ flavor_word_271 ::= "praise him"
+flavor_group_17 ::= flavor_word_272 | flavor_word_273 | flavor_word_274 | flavor_word_275 | flavor_word_276 | flavor_word_277 | flavor_word_278 | flavor_word_279 | flavor_word_280 | flavor_word_281 | flavor_word_282 | flavor_word_283 | flavor_word_284 | flavor_word_285 | flavor_word_286 | flavor_word_287
+/* @sem String::'Pray' */ flavor_word_272 ::= "pray"
+/* @sem String::'Primarch of the Death Guard' */ flavor_word_273 ::= "primarch of the death guard"
+/* @sem String::'Prince of Chaos' */ flavor_word_274 ::= "prince of chaos"
+/* @sem String::'Prismatic Gallery' */ flavor_word_275 ::= "prismatic gallery"
+/* @sem String::'Probing Telepathy' */ flavor_word_276 ::= "probing telepathy"
+/* @sem String::'Proclamator Hailer' */ flavor_word_277 ::= "proclamator hailer"
+/* @sem String::'Project Image' */ flavor_word_278 ::= "project image"
+/* @sem String::'Protect' */ flavor_word_279 ::= "protect"
+/* @sem String::'Protection Fighting Style' */ flavor_word_280 ::= "protection fighting style"
+/* @sem String::'Protector' */ flavor_word_281 ::= "protector"
+/* @sem String::'Psionic Adept' */ flavor_word_282 ::= "psionic adept"
+/* @sem String::'Psionic Spells' */ flavor_word_283 ::= "psionic spells"
+/* @sem String::'Psychic Abomination' */ flavor_word_284 ::= "psychic abomination"
+/* @sem String::'Psychic Blades' */ flavor_word_285 ::= "psychic blades"
+/* @sem String::'Psychic Defense' */ flavor_word_286 ::= "psychic defense"
+/* @sem String::'Psychic Stimulus' */ flavor_word_287 ::= "psychic stimulus"
+flavor_group_18 ::= flavor_word_288 | flavor_word_289 | flavor_word_290 | flavor_word_291 | flavor_word_292 | flavor_word_293 | flavor_word_294 | flavor_word_295 | flavor_word_296 | flavor_word_297 | flavor_word_298 | flavor_word_299 | flavor_word_300 | flavor_word_301 | flavor_word_302 | flavor_word_303
+/* @sem String::'Rage' */ flavor_word_288 ::= "rage"
+/* @sem String::'Rage Beyond Death' */ flavor_word_289 ::= "rage beyond death"
+/* @sem String::'Raise' */ flavor_word_290 ::= "raise"
+/* @sem String::'Rapacious Hunger' */ flavor_word_291 ::= "rapacious hunger"
+/* @sem String::'Rapid Regeneration' */ flavor_word_292 ::= "rapid regeneration"
+/* @sem String::'Rapid-fire Battle Cannon' */ flavor_word_293 ::= "rapid-fire battle cannon"
+/* @sem String::'Rappel Down' */ flavor_word_294 ::= "rappel down"
+/* @sem String::'Rat Tail' */ flavor_word_295 ::= "rat tail"
+/* @sem String::'Reckless Behavior' */ flavor_word_296 ::= "reckless behavior"
+/* @sem String::'Red-Eye' */ flavor_word_297 ::= "red-eye"
+/* @sem String::'Rejuvenation' */ flavor_word_298 ::= "rejuvenation"
+/* @sem String::'Relentless March' */ flavor_word_299 ::= "relentless march"
+/* @sem String::'Repair Barge' */ flavor_word_300 ::= "repair barge"
+/* @sem String::'Reverberating Summons' */ flavor_word_301 ::= "reverberating summons"
+/* @sem String::'Rites of Banishment' */ flavor_word_302 ::= "rites of banishment"
+/* @sem String::'Rogue Trader' */ flavor_word_303 ::= "rogue trader"
+flavor_group_19 ::= flavor_word_304 | flavor_word_305 | flavor_word_306 | flavor_word_307 | flavor_word_308 | flavor_word_309 | flavor_word_310 | flavor_word_311 | flavor_word_312 | flavor_word_313 | flavor_word_314 | flavor_word_315 | flavor_word_316 | flavor_word_317 | flavor_word_318 | flavor_word_319
+/* @sem String::'Ronso Rage' */ flavor_word_304 ::= "ronso rage"
+/* @sem String::'Rope Dart' */ flavor_word_305 ::= "rope dart"
+/* @sem String::'Rosarius' */ flavor_word_306 ::= "rosarius"
+/* @sem String::'Rot Fly' */ flavor_word_307 ::= "rot fly"
+/* @sem String::'Rough Divide' */ flavor_word_308 ::= "rough divide"
+/* @sem String::'Royal Guard' */ flavor_word_309 ::= "royal guard"
+/* @sem String::'Ruinous Ascension' */ flavor_word_310 ::= "ruinous ascension"
+/* @sem String::'Sage Project' */ flavor_word_311 ::= "sage project"
+/* @sem String::'Sanctified Rules of Combat' */ flavor_word_312 ::= "sanctified rules of combat"
+/* @sem String::'Sarcophagus' */ flavor_word_313 ::= "sarcophagus"
+/* @sem String::'Scavenge the Dead' */ flavor_word_314 ::= "scavenge the dead"
+/* @sem String::'Science Teacher' */ flavor_word_315 ::= "science teacher"
+/* @sem String::'Scions'' Secretary' */ flavor_word_316 ::= "scions' secretary"
+/* @sem String::'Scorching Ray' */ flavor_word_317 ::= "scorching ray"
+/* @sem String::'Search the Room' */ flavor_word_318 ::= "search the room"
+/* @sem String::'Secrets of the Soul' */ flavor_word_319 ::= "secrets of the soul"
+flavor_group_20 ::= flavor_word_320 | flavor_word_321 | flavor_word_322 | flavor_word_323 | flavor_word_324 | flavor_word_325 | flavor_word_326 | flavor_word_327 | flavor_word_328 | flavor_word_329 | flavor_word_330 | flavor_word_331 | flavor_word_332 | flavor_word_333 | flavor_word_334 | flavor_word_335
+/* @sem String::'Selfie Shot' */ flavor_word_320 ::= "selfie shot"
+/* @sem String::'Sensational Save' */ flavor_word_321 ::= "sensational save"
+/* @sem String::'Sense the Good' */ flavor_word_322 ::= "sense the good"
+/* @sem String::'Share' */ flavor_word_323 ::= "share"
+/* @sem String::'Share Intelligence' */ flavor_word_324 ::= "share intelligence"
+/* @sem String::'Shieldwall' */ flavor_word_325 ::= "shieldwall"
+/* @sem String::'Shiva''s Aid' */ flavor_word_326 ::= "shiva's aid"
+/* @sem String::'Shooting Star' */ flavor_word_327 ::= "shooting star"
+/* @sem String::'Shrieking Gargoyles' */ flavor_word_328 ::= "shrieking gargoyles"
+/* @sem String::'Siege Monster' */ flavor_word_329 ::= "siege monster"
+/* @sem String::'Sigil of Corruption' */ flavor_word_330 ::= "sigil of corruption"
+/* @sem String::'Sixty-Six Seconds' */ flavor_word_331 ::= "sixty-six seconds"
+/* @sem String::'Sketch and Lore' */ flavor_word_332 ::= "sketch and lore"
+/* @sem String::'Skilled Outrider' */ flavor_word_333 ::= "skilled outrider"
+/* @sem String::'Skyswarm' */ flavor_word_334 ::= "skyswarm"
+/* @sem String::'Sleight of Hand' */ flavor_word_335 ::= "sleight of hand"
+flavor_group_21 ::= flavor_word_336 | flavor_word_337 | flavor_word_338 | flavor_word_339 | flavor_word_340 | flavor_word_341 | flavor_word_342 | flavor_word_343 | flavor_word_344 | flavor_word_345 | flavor_word_346 | flavor_word_347 | flavor_word_348 | flavor_word_349 | flavor_word_350 | flavor_word_351
+/* @sem String::'Smear Campaign' */ flavor_word_336 ::= "smear campaign"
+/* @sem String::'Sneak Attack' */ flavor_word_337 ::= "sneak attack"
+/* @sem String::'Sokratic Dialogue' */ flavor_word_338 ::= "sokratic dialogue"
+/* @sem String::'Song of the Ood' */ flavor_word_339 ::= "song of the ood"
+/* @sem String::'Sonic Blast' */ flavor_word_340 ::= "sonic blast"
+/* @sem String::'Sonic Blaster' */ flavor_word_341 ::= "sonic blaster"
+/* @sem String::'Sonic Booster' */ flavor_word_342 ::= "sonic booster"
+/* @sem String::'Sorcerous Elixir' */ flavor_word_343 ::= "sorcerous elixir"
+/* @sem String::'Sorcerous Inspiration' */ flavor_word_344 ::= "sorcerous inspiration"
+/* @sem String::'Spawn Termagants' */ flavor_word_345 ::= "spawn termagants"
+/* @sem String::'Spear of the Void Dragon' */ flavor_word_346 ::= "spear of the void dragon"
+/* @sem String::'Spiked Retribution' */ flavor_word_347 ::= "spiked retribution"
+/* @sem String::'Spirit of the Whalaqee' */ flavor_word_348 ::= "spirit of the whalaqee"
+/* @sem String::'Spiritual Leader' */ flavor_word_349 ::= "spiritual leader"
+/* @sem String::'Split' */ flavor_word_350 ::= "split"
+/* @sem String::'Spoilers' */ flavor_word_351 ::= "spoilers"
+flavor_group_22 ::= flavor_word_352 | flavor_word_353 | flavor_word_354 | flavor_word_355 | flavor_word_356 | flavor_word_357 | flavor_word_358 | flavor_word_359 | flavor_word_360 | flavor_word_361 | flavor_word_362 | flavor_word_363 | flavor_word_364 | flavor_word_365 | flavor_word_366 | flavor_word_367
+/* @sem String::'Spore Chimney' */ flavor_word_352 ::= "spore chimney"
+/* @sem String::'Stagger' */ flavor_word_353 ::= "stagger"
+/* @sem String::'Starfall' */ flavor_word_354 ::= "starfall"
+/* @sem String::'Starscourge' */ flavor_word_355 ::= "starscourge"
+/* @sem String::'Steal' */ flavor_word_356 ::= "steal"
+/* @sem String::'Still Point in Time' */ flavor_word_357 ::= "still point in time"
+/* @sem String::'Stowage' */ flavor_word_358 ::= "stowage"
+/* @sem String::'Strange new worlds' */ flavor_word_359 ::= "strange new worlds"
+/* @sem String::'Strategic Coordinator' */ flavor_word_360 ::= "strategic coordinator"
+/* @sem String::'Stunning Strike' */ flavor_word_361 ::= "stunning strike"
+/* @sem String::'Subterranean Assault' */ flavor_word_362 ::= "subterranean assault"
+/* @sem String::'Summary Execution' */ flavor_word_363 ::= "summary execution"
+/* @sem String::'Summon' */ flavor_word_364 ::= "summon"
+/* @sem String::'Super Nova' */ flavor_word_365 ::= "super nova"
+/* @sem String::'Suppressing Fire' */ flavor_word_366 ::= "suppressing fire"
+/* @sem String::'Survey the Realm' */ flavor_word_367 ::= "survey the realm"
+flavor_group_23 ::= flavor_word_368 | flavor_word_369 | flavor_word_370 | flavor_word_371 | flavor_word_372 | flavor_word_373 | flavor_word_374 | flavor_word_375 | flavor_word_376 | flavor_word_377 | flavor_word_378 | flavor_word_379 | flavor_word_380 | flavor_word_381 | flavor_word_382 | flavor_word_383
+/* @sem String::'Suspended Animation' */ flavor_word_368 ::= "suspended animation"
+/* @sem String::'Symphony of Pain' */ flavor_word_369 ::= "symphony of pain"
+/* @sem String::'Synapse Creature' */ flavor_word_370 ::= "synapse creature"
+/* @sem String::'Synaptic Disintegrator' */ flavor_word_371 ::= "synaptic disintegrator"
+/* @sem String::'Tail Spikes' */ flavor_word_372 ::= "tail spikes"
+/* @sem String::'Targeting Relay' */ flavor_word_373 ::= "targeting relay"
+/* @sem String::'Team TARDIS' */ flavor_word_374 ::= "team tardis"
+/* @sem String::'Teleport' */ flavor_word_375 ::= "teleport"
+/* @sem String::'Temporal Foresight' */ flavor_word_376 ::= "temporal foresight"
+/* @sem String::'Terror from the Deep' */ flavor_word_377 ::= "terror from the deep"
+/* @sem String::'The Allagan Eye' */ flavor_word_378 ::= "the allagan eye"
+/* @sem String::'The Betrayer' */ flavor_word_379 ::= "the betrayer"
+/* @sem String::'The Last Centurion' */ flavor_word_380 ::= "the last centurion"
+/* @sem String::'The Minstrel''s Ballad' */ flavor_word_381 ::= "the minstrel's ballad"
+/* @sem String::'The Most Important Punch in History' */ flavor_word_382 ::= "the most important punch in history"
+/* @sem String::'The Nuka-Cola Challenge' */ flavor_word_383 ::= "the nuka-cola challenge"
+flavor_group_24 ::= flavor_word_384 | flavor_word_385 | flavor_word_386 | flavor_word_387 | flavor_word_388 | flavor_word_389 | flavor_word_390 | flavor_word_391 | flavor_word_392 | flavor_word_393 | flavor_word_394 | flavor_word_395 | flavor_word_396 | flavor_word_397 | flavor_word_398 | flavor_word_399
+/* @sem String::'The Reunion' */ flavor_word_384 ::= "the reunion"
+/* @sem String::'The Seven-fold Chant' */ flavor_word_385 ::= "the seven-fold chant"
+/* @sem String::'The Will of the Hive Mind' */ flavor_word_386 ::= "the will of the hive mind"
+/* @sem String::'Those Who Came Before' */ flavor_word_387 ::= "those who came before"
+/* @sem String::'Three Autostubs' */ flavor_word_388 ::= "three autostubs"
+/* @sem String::'Throw' */ flavor_word_389 ::= "throw"
+/* @sem String::'Throw ...' */ flavor_word_390 ::= "throw ..."
+/* @sem String::'Throw Wide the Gates' */ flavor_word_391 ::= "throw wide the gates"
+/* @sem String::'Tie Up' */ flavor_word_392 ::= "tie up"
+/* @sem String::'Time Compression' */ flavor_word_393 ::= "time compression"
+/* @sem String::'Time Lord''s Prerogative' */ flavor_word_394 ::= "time lord's prerogative"
+/* @sem String::'Timey-Wimey' */ flavor_word_395 ::= "timey-wimey"
+/* @sem String::'Titanic' */ flavor_word_396 ::= "titanic"
+/* @sem String::'Tools' */ flavor_word_397 ::= "tools"
+/* @sem String::'Top of the Food Chain' */ flavor_word_398 ::= "top of the food chain"
+/* @sem String::'Toxic Spores' */ flavor_word_399 ::= "toxic spores"
+flavor_group_25 ::= flavor_word_400 | flavor_word_401 | flavor_word_402 | flavor_word_403 | flavor_word_404 | flavor_word_405 | flavor_word_406 | flavor_word_407 | flavor_word_408 | flavor_word_409 | flavor_word_410 | flavor_word_411 | flavor_word_412 | flavor_word_413 | flavor_word_414 | flavor_word_415
+/* @sem String::'Trace Aether' */ flavor_word_400 ::= "trace aether"
+/* @sem String::'Tragic Backstory' */ flavor_word_401 ::= "tragic backstory"
+/* @sem String::'Trance' */ flavor_word_402 ::= "trance"
+/* @sem String::'Transdimensional Scout' */ flavor_word_403 ::= "transdimensional scout"
+/* @sem String::'Translocation Protocols' */ flavor_word_404 ::= "translocation protocols"
+/* @sem String::'Treasure Hunter' */ flavor_word_405 ::= "treasure hunter"
+/* @sem String::'Tunnel Snakes Rule!' */ flavor_word_406 ::= "tunnel snakes rule!"
+/* @sem String::'Two-Headed Coin' */ flavor_word_407 ::= "two-headed coin"
+/* @sem String::'Ultima Founding' */ flavor_word_408 ::= "ultima founding"
+/* @sem String::'Ultimate Sacrifice' */ flavor_word_409 ::= "ultimate sacrifice"
+/* @sem String::'Undying Vengeance' */ flavor_word_410 ::= "undying vengeance"
+/* @sem String::'Unearthly Power' */ flavor_word_411 ::= "unearthly power"
+/* @sem String::'Unlock Ability' */ flavor_word_412 ::= "unlock ability"
+/* @sem String::'Unquestionable Wisdom' */ flavor_word_413 ::= "unquestionable wisdom"
+/* @sem String::'Unreliable Visions' */ flavor_word_414 ::= "unreliable visions"
+/* @sem String::'Unrivaled Lethality' */ flavor_word_415 ::= "unrivaled lethality"
+flavor_group_26 ::= flavor_word_416 | flavor_word_417 | flavor_word_418 | flavor_word_419 | flavor_word_420 | flavor_word_421 | flavor_word_422 | flavor_word_423 | flavor_word_424 | flavor_word_425 | flavor_word_426 | flavor_word_427 | flavor_word_428 | flavor_word_429 | flavor_word_430 | flavor_word_431
+/* @sem String::'Vanguard Species' */ flavor_word_416 ::= "vanguard species"
+/* @sem String::'Veil of Time' */ flavor_word_417 ::= "veil of time"
+/* @sem String::'Venom Blast' */ flavor_word_418 ::= "venom blast"
+/* @sem String::'Vibro-Shock Gauntlets' */ flavor_word_419 ::= "vibro-shock gauntlets"
+/* @sem String::'Vicious Mockery' */ flavor_word_420 ::= "vicious mockery"
+/* @sem String::'Void Shields' */ flavor_word_421 ::= "void shields"
+/* @sem String::'Warp Blast' */ flavor_word_422 ::= "warp blast"
+/* @sem String::'Warp Vortex' */ flavor_word_423 ::= "warp vortex"
+/* @sem String::'Warp-Strike' */ flavor_word_424 ::= "warp-strike"
+/* @sem String::'Water Always Wins' */ flavor_word_425 ::= "water always wins"
+/* @sem String::'Wave Cannon' */ flavor_word_426 ::= "wave cannon"
+/* @sem String::'Web Support' */ flavor_word_427 ::= "web support"
+/* @sem String::'Weird Insight' */ flavor_word_428 ::= "weird insight"
+/* @sem String::'Whirlwind' */ flavor_word_429 ::= "whirlwind"
+/* @sem String::'Whispers of the Grave' */ flavor_word_430 ::= "whispers of the grave"
+/* @sem String::'Wild Card' */ flavor_word_431 ::= "wild card"
+flavor_group_27 ::= flavor_word_432 | flavor_word_433 | flavor_word_434 | flavor_word_435 | flavor_word_436 | flavor_word_437 | flavor_word_438
+/* @sem String::'Wild Magic Surge' */ flavor_word_432 ::= "wild magic surge"
+/* @sem String::'Wild Shape' */ flavor_word_433 ::= "wild shape"
+/* @sem String::'Wind Walk' */ flavor_word_434 ::= "wind walk"
+/* @sem String::'Woman Who Walked the Earth' */ flavor_word_435 ::= "woman who walked the earth"
+/* @sem String::'Would You Like A...?' */ flavor_word_436 ::= "would you like a...?"
+/* @sem String::'Wraith Form' */ flavor_word_437 ::= "wraith form"
+/* @sem String::'Xenos Cunning' */ flavor_word_438 ::= "xenos cunning"
+
+/* Modal flavor words have no rules meaning (CR 207.2d; AFR release notes).
+   This explicit catalogue is consumed in the grammar, never stripped from input.
+   Only bullet modes accept these labels; mechanical/unknown prefixes refuse. */
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:$program_sentence, weight:1}) */
+mode_flavor_labelled ::= "•" ("Antimagic" "Cone" | "fear" "Ray"
+    | "intimidate" "Them" | "Fend" "Them" "Off" | "Sort" "Inventory"
+    | "Pick" "a" "Perk" | "Check" "Map" | "Combine" "Powers" "!" | "defense" "!" | "fight" "!") "—" program_sentence
+
+/* A meaningful heading governs both independently stated static grants. */
+/* @sem Ability::[Conditional{condition:$max_speed_prefix, then:[Static{kind:Ordinary, affected:Objects($affected), changes:$static_changes}], otherwise:[]}, Conditional{condition:$max_speed_prefix, then:[Static{kind:Ordinary, affected:Objects($affected_2), changes:$static_changes_2}], otherwise:[]}] */
+line_max_speed_static_pair ::= max_speed_prefix affected static_changes "and" affected static_changes "."

@@ -1,0 +1,118 @@
+/* Action reminders describe existing native actions. The enclosing ability
+   carries one presentation flag; explanation words create no extra program. */
+/* @sem Ability::WithPresentation{reminder:true, ability:$action_reminder_ability} */
+reminded_action_ability ::= action_reminder_ability
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$action_reminder_ability} */
+labelled_action_reminder ::= ability_label "—" action_reminder_ability
+
+action_reminder_ability ::= reminder_spell | reminder_activated | reminder_activated_limited | reminder_activated_trailing
+    | reminder_triggered | reminder_triggered_if | reminder_triggered_once
+    | reminder_turn | reminder_turn_if | reminder_spell_modal | reminder_activated_modal
+    | reminder_triggered_modal | reminder_turn_modal | reminder_loyalty
+
+/* @sem Ability::Spell{announcement:@announcement, body:$reminder_program_sentence} */
+reminder_spell ::= reminder_program_sentence
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_activated ::= cost ":" reminder_program_sentence
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_activated_limited ::= cost ":" reminder_program_sentence activation_limits "."
+/* A trailing explanation can follow an activation restriction. Its action
+   operand is still explicit, so it cannot attach to an unrelated program. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$proliferate_action}]}} */
+reminder_activated_trailing ::= cost ":" proliferate_action "." activation_limits "." "(" proliferate_explanation "." ")"
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Loyalty($loyalty)]}, limits:_{sorcery:true}, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_loyalty ::= "[" loyalty "]" ":" reminder_program_sentence
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_triggered ::= event_clause "," reminder_program_sentence
+/* @sem Ability::Triggered{event:$event_clause, intervening_if:$condition, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_triggered_if ::= event_clause "," "if" condition "," reminder_program_sentence
+/* @sem Ability::Triggered{event:$event_clause, limits:_{per_turn:1}, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_triggered_once ::= event_clause "," reminder_program_sentence "this" "ability" "triggers" "only" "once" "each" "turn" "."
+/* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_turn ::= "at" turn_event "," reminder_program_sentence
+/* @sem Ability::Triggered{event:$turn_event, intervening_if:$condition, limits:_{}, announcement:@announcement, body:$reminder_program_sentence} */
+reminder_turn_if ::= "at" turn_event "," "if" condition "," reminder_program_sentence
+
+/* Each program contains at least one closed reminder, including in a mode.
+   Ordinary clauses on either side retain their order, definitions and targets. */
+/* @sem Program::Program{instructions:$reminder_instructions} */
+reminder_program_sentence ::= reminder_instructions
+reminder_instructions ::= reminder_closed | reminder_before | reminder_closed_before
+    | reminder_after_plain | reminder_after_reminder | reminder_open_then_plain | reminder_open_then_reminder
+reminder_before ::= reminder_before_period | reminder_before_then
+/* @sem Instruction::[...$clause, ...$reminder_instructions] */
+reminder_before_period ::= clause sequencer reminder_instructions
+/* @sem Vec<Instruction>::@then_sequence($clause_before_then, $reminder_instructions) */
+reminder_before_then ::= clause_before_then "," "then" reminder_instructions
+/* @sem Instruction::[...$clause_closed, ...$reminder_instructions] */
+reminder_closed_before ::= clause_closed "." NEWLINE? reminder_instructions
+/* @sem Instruction::[...$reminder_closed, ...$instructions] */
+reminder_after_plain ::= reminder_closed NEWLINE? instructions "."
+/* @sem Instruction::[...$reminder_closed, ...$reminder_instructions] */
+reminder_after_reminder ::= reminder_closed NEWLINE? reminder_instructions
+
+/* @sem Instruction::[...$reminder_open, ...$instructions] */
+reminder_open_then_plain ::= reminder_open (sequencer | "," "then") instructions "."
+/* @sem Instruction::[...$reminder_open, ...$reminder_instructions] */
+reminder_open_then_reminder ::= reminder_open (sequencer | "," "then") reminder_instructions
+/* @sem $reminder_open */
+reminder_open_closed ::= reminder_open "."
+
+reminder_closed ::= reminder_open_closed | proliferate_reminded | proliferate_twice_reminded | proliferate_pair_reminded
+    | reminder_if | reminder_optional | reminder_paid
+/* @sem Instruction::[@leading_if(Instruction::If{condition:$condition, then:_{instructions:$reminder_closed}, otherwise:_{}})] */
+reminder_if ::= "if" condition "," reminder_closed
+/* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:$reminder_closed}}] */
+reminder_optional ::= "you" "may" reminder_closed
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:_{instructions:$reminder_closed}, otherwise:_{}}] */
+reminder_paid ::= "you" "may" payment "." "if" "you" "do" "," reminder_closed
+
+/* A single application uses the native absent amount. Explicit repeated
+   applications retain an amount, rather than expanding the explanation. */
+proliferate_action ::= proliferate_once_action | proliferate_twice_action | proliferate_count_action
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Proliferate{}} */
+proliferate_once_action ::= "proliferate"
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Proliferate{times:Constant(2)}} */
+proliferate_twice_action ::= "proliferate" "twice" | "proliferate" "," "then" "proliferate" "again"
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Proliferate{times:$number}} */
+proliferate_count_action ::= "proliferate" number "times"
+/* @sem Instruction::[Effect{result:@next, operation:$proliferate_action}] */
+proliferate_reminded ::= proliferate_action "." "(" proliferate_explanation "." ")"
+/* @sem Instruction::[Effect{result:@next, operation:$proliferate_twice_action}] */
+proliferate_twice_reminded ::= proliferate_twice_action "." "(" proliferate_explanation "." "then" "do" "it" "again" "." ")"
+/* Explicitly repeating the instruction also retains the native two-effect
+   reading. The counted native form above remains a distinct reading. */
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Proliferate{}}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Proliferate{}}}] */
+proliferate_pair_reminded ::= "proliferate" "," "then" "proliferate" "again" "." "(" proliferate_explanation "." ("then" "do" "it" "again" ".")? ")"
+/* @sem () */
+proliferate_explanation ::= ("to" "proliferate" ",")? "choose" "any" "number" "of" "permanents" "and/or" "players" "," "then" "give" "each" "another" "counter" "of" "each" "kind" "already" "there"
+
+/* The mode list has at least one reminder-bearing mode. Plain modes keep their
+   own scopes; the presentation belongs to the complete modal ability. */
+/* @sem Ability::Spell{announcement:_{modes:$reminder_mode_selection}, body:_{}} */
+reminder_spell_modal ::= reminder_mode_selection
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:_{modes:$reminder_mode_selection}, body:_{}} */
+reminder_activated_modal ::= cost ":" reminder_mode_selection
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:_{modes:$reminder_mode_selection}, body:_{}} */
+reminder_triggered_modal ::= event_clause "," reminder_mode_selection
+/* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:_{modes:$reminder_mode_selection}, body:_{}} */
+reminder_turn_modal ::= "at" turn_event "," reminder_mode_selection
+reminder_mode_selection ::= reminder_choose_number | reminder_choose_both | reminder_choose_more
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:$number_words, maximum:$number_words}, options:$reminder_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+reminder_choose_number ::= "choose" number_words "—" NEWLINE reminder_modes
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(2)}, options:$reminder_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+reminder_choose_both ::= "choose" "one" "or" "both" "—" NEWLINE reminder_modes
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:@length($reminder_modes)}, options:$reminder_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+reminder_choose_more ::= "choose" "one" "or" "more" "—" NEWLINE reminder_modes
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:$reminder_program_sentence, weight:1}) */
+reminder_mode ::= "•" reminder_program_sentence
+reminder_modes ::= reminder_mode_one | reminder_modes_before | reminder_modes_after | reminder_modes_multiple
+/* @sem Mode::[$reminder_mode] */
+reminder_mode_one ::= reminder_mode
+/* @sem Mode::[$mode, ...$reminder_modes] */
+reminder_modes_before ::= mode NEWLINE reminder_modes
+/* @sem Mode::[$reminder_mode, ...$modes] */
+reminder_modes_after ::= reminder_mode NEWLINE modes
+/* @sem Mode::[$reminder_mode, ...$reminder_modes] */
+reminder_modes_multiple ::= reminder_mode NEWLINE reminder_modes
+

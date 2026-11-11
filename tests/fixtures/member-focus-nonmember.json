@@ -1,0 +1,818 @@
+[
+  {
+    "name": "Goblin Bomb",
+    "text": "At the beginning of your upkeep, you may flip a coin. If you win the flip, put a fuse counter on this enchantment. If you lose the flip, remove a fuse counter from this enchantment.\nRemove five fuse counters from this enchantment and sacrifice it: It deals 20 damage to target player or planeswalker.",
+    "native_reference": [
+      {
+        "kind": "Triggered",
+        "args": {
+          "event": {
+            "Turn": {
+              "point": "UpkeepBegins",
+              "players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            }
+          },
+          "intervening_if": null,
+          "limits": {
+            "per_turn": null,
+            "total": null
+          },
+          "announcement": {
+            "targets": [],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Optional",
+                "args": {
+                  "decider": {
+                    "kind": "AbilityController"
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Group",
+                        "args": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "FlipCoin",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "protocol": "Called"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "kind": "If",
+                              "args": {
+                                "condition": {
+                                  "kind": "CoinFlip",
+                                  "args": {
+                                    "result": 0,
+                                    "outcome": "Won"
+                                  }
+                                },
+                                "then": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 1,
+                                        "operation": {
+                                          "kind": "PutCounters",
+                                          "args": {
+                                            "placements": [
+                                              {
+                                                "recipients": {
+                                                  "kind": "Objects",
+                                                  "args": {
+                                                    "kind": "One",
+                                                    "args": {
+                                                      "kind": "Source"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": {
+                                                  "Named": "FuseCounter"
+                                                },
+                                                "amount": {
+                                                  "kind": "Constant",
+                                                  "args": 1
+                                                },
+                                                "selection": null
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "otherwise": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 2,
+                                        "operation": {
+                                          "kind": "RemoveCounters",
+                                          "args": {
+                                            "removals": [
+                                              {
+                                                "player": {
+                                                  "kind": "AbilityController"
+                                                },
+                                                "recipients": {
+                                                  "kind": "Objects",
+                                                  "args": {
+                                                    "kind": "One",
+                                                    "args": {
+                                                      "kind": "Source"
+                                                    }
+                                                  }
+                                                },
+                                                "kind": {
+                                                  "Named": "FuseCounter"
+                                                },
+                                                "amount": {
+                                                  "Count": {
+                                                    "Exactly": {
+                                                      "kind": "Constant",
+                                                      "args": 1
+                                                    }
+                                                  }
+                                                },
+                                                "selection": null
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "Activated",
+        "args": {
+          "origin": "Ordinary",
+          "cost": {
+            "parts": [
+              {
+                "RemoveCounters": {
+                  "removals": [
+                    {
+                      "player": {
+                        "kind": "AbilityController"
+                      },
+                      "recipients": {
+                        "kind": "Objects",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        }
+                      },
+                      "kind": {
+                        "Named": "FuseCounter"
+                      },
+                      "amount": {
+                        "Count": {
+                          "Exactly": {
+                            "kind": "Constant",
+                            "args": 5
+                          }
+                        }
+                      },
+                      "selection": null
+                    }
+                  ]
+                }
+              },
+              {
+                "Sacrifice": {
+                  "objects": {
+                    "kind": "One",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  },
+                  "choose": null
+                }
+              }
+            ]
+          },
+          "limits": {
+            "once": false,
+            "once_each_turn": false,
+            "sorcery": false,
+            "condition": null,
+            "activators": null,
+            "keyword": null,
+            "modifiers": []
+          },
+          "announcement": {
+            "targets": [
+              {
+                "slot": 0,
+                "kind": "DamageRecipient",
+                "count": {
+                  "Exactly": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                },
+                "filter": {
+                  "kind": "CardType",
+                  "args": "Planeswalker"
+                },
+                "players": {
+                  "kind": "All"
+                },
+                "distribute": null,
+                "constraints": [],
+                "chooser": null
+              }
+            ],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "DealDamage",
+                    "args": {
+                      "source": {
+                        "kind": "Source"
+                      },
+                      "recipients": {
+                        "kind": "Targets",
+                        "args": 0
+                      },
+                      "amount": {
+                        "kind": "Constant",
+                        "args": 20
+                      },
+                      "preventable": true
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "expected_readings": [
+      [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "FlipCoin",
+                              "args": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "protocol": "Called"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "If",
+                          "args": {
+                            "condition": {
+                              "kind": "CoinFlip",
+                              "args": {
+                                "result": 0,
+                                "outcome": "Won"
+                              }
+                            },
+                            "then": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 4294967295,
+                                    "operation": {
+                                      "kind": "PutCounters",
+                                      "args": {
+                                        "placements": [
+                                          {
+                                            "recipients": {
+                                              "kind": "Objects",
+                                              "args": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Source"
+                                                }
+                                              }
+                                            },
+                                            "kind": {
+                                              "Named": "FuseCounter"
+                                            },
+                                            "amount": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            },
+                                            "selection": null
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "otherwise": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 4294967294,
+                                    "operation": {
+                                      "kind": "RemoveCounters",
+                                      "args": {
+                                        "removals": [
+                                          {
+                                            "player": {
+                                              "kind": "AbilityController"
+                                            },
+                                            "recipients": {
+                                              "kind": "Objects",
+                                              "args": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Source"
+                                                }
+                                              }
+                                            },
+                                            "kind": {
+                                              "Named": "FuseCounter"
+                                            },
+                                            "amount": {
+                                              "Count": {
+                                                "Exactly": {
+                                                  "kind": "Constant",
+                                                  "args": 1
+                                                }
+                                              }
+                                            },
+                                            "selection": null
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "RemoveCounters": {
+                    "removals": [
+                      {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "Named": "FuseCounter"
+                        },
+                        "amount": {
+                          "Count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        },
+                        "selection": null
+                      }
+                    ]
+                  }
+                },
+                {
+                  "Sacrifice": {
+                    "objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "choose": null
+                  }
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "DamageRecipient",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Planeswalker"
+                  },
+                  "players": {
+                    "kind": "All"
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4294967295,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 20
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "FlipCoin",
+                              "args": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "protocol": "Called"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "If",
+                          "args": {
+                            "condition": {
+                              "kind": "CoinFlip",
+                              "args": {
+                                "result": 0,
+                                "outcome": "Won"
+                              }
+                            },
+                            "then": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 4294967295,
+                                    "operation": {
+                                      "kind": "PutCounters",
+                                      "args": {
+                                        "placements": [
+                                          {
+                                            "recipients": {
+                                              "kind": "Objects",
+                                              "args": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Source"
+                                                }
+                                              }
+                                            },
+                                            "kind": {
+                                              "Named": "FuseCounter"
+                                            },
+                                            "amount": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            },
+                                            "selection": null
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            "otherwise": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 4294967294,
+                                    "operation": {
+                                      "kind": "RemoveCounters",
+                                      "args": {
+                                        "removals": [
+                                          {
+                                            "player": {
+                                              "kind": "AbilityController"
+                                            },
+                                            "recipients": {
+                                              "kind": "Objects",
+                                              "args": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Source"
+                                                }
+                                              }
+                                            },
+                                            "kind": {
+                                              "Named": "FuseCounter"
+                                            },
+                                            "amount": {
+                                              "Count": {
+                                                "Exactly": {
+                                                  "kind": "Constant",
+                                                  "args": 1
+                                                }
+                                              }
+                                            },
+                                            "selection": null
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "RemoveCounters": {
+                    "removals": [
+                      {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "kind": {
+                          "Named": "FuseCounter"
+                        },
+                        "amount": {
+                          "Count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        },
+                        "selection": null
+                      }
+                    ]
+                  }
+                },
+                {
+                  "Sacrifice": {
+                    "objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "choose": null
+                  }
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "DamageRecipient",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Planeswalker"
+                  },
+                  "players": {
+                    "kind": "All"
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4294967295,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Query",
+                          "args": {
+                            "objects": {
+                              "kind": "CostObjects",
+                              "args": {
+                                "payment": "Activation",
+                                "component": [
+                                  1
+                                ],
+                                "view": "Inputs",
+                                "phase": "Before"
+                              }
+                            },
+                            "index": 0
+                          }
+                        },
+                        "recipients": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 20
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    ]
+  }
+]

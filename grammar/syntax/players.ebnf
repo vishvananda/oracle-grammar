@@ -1,0 +1,210 @@
+/* Player keywords are player rules, not object characteristics. Their affected
+   player set remains live for the duration of a continuous effect. */
+continuous_players ::= continuous_players_last | continuous_players_first
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_keyword_gain), changes:$player_keyword_changes, duration:$duration, evaluation:LiveObjects} */
+continuous_players_last ::= player_keyword_gain player_keyword_changes duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_keyword_gain), changes:$player_keyword_changes, duration:$duration, evaluation:LiveObjects} */
+continuous_players_first ::= duration "," player_keyword_gain player_keyword_changes
+
+player_keyword_gain ::= player_keyword_you_gain | player_keyword_other_gains | player_keyword_many_gain
+
+/* @sem PlayerSet::One(PlayerRef::AbilityController) */
+player_keyword_you_gain ::= "you" ("gain" | "have")
+
+/* @sem $players_singular */
+player_keyword_other_gains ::= players_singular ("gains" | "has")
+
+/* @sem $player_keyword_many */
+player_keyword_many_gain ::= player_keyword_many ("gain" | "have")
+
+player_keyword_many ::= player_keyword_all | player_keyword_opponents
+
+/* @sem PlayerSet::All */
+player_keyword_all ::= "players" | "all" "players"
+
+/* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
+player_keyword_opponents ::= "your" "opponents" | "all" "opponents"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Players($player_keyword_have), changes:$player_keyword_changes} */
+static_player_keywords ::= player_keyword_have player_keyword_changes "."
+
+/* @sem Ability::Conditional{condition:$condition, then:[Ability::Static{kind:Ordinary, affected:Players($player_keyword_have), changes:$player_keyword_changes}]} */
+static_player_keywords_if ::= player_keyword_have player_keyword_changes "as" "long" "as" condition "."
+
+player_keyword_have ::= player_keyword_you_have | player_keyword_many_have
+
+/* @sem PlayerSet::One(PlayerRef::AbilityController) */
+player_keyword_you_have ::= "you" "have"
+
+/* @sem $player_keyword_many */
+player_keyword_many_have ::= player_keyword_many "have"
+
+player_keyword_changes ::= player_keyword_change | player_keyword_changes_and | player_keyword_changes_comma
+
+/* @sem Change::[Change::PlayerRule(GrantKeyword($player_keyword))] */
+player_keyword_change ::= player_keyword
+
+/* @sem Change::[...$player_keyword_change, ...$player_keyword_changes] */
+player_keyword_changes_and ::= player_keyword_change "and" player_keyword_changes
+
+/* @sem Change::[...$player_keyword_change, ...$player_keyword_changes] */
+player_keyword_changes_comma ::= player_keyword_change "," "and"? player_keyword_changes
+
+player_keyword ::= player_hexproof | player_shroud | player_protection | player_hexproof_from | player_protection_each
+
+/* Player prohibitions are rules on players, independently of object keywords. */
+player_rule_subject ::= player_rule_you | player_keyword_many | players_singular
+
+/* @sem PlayerSet::One(PlayerRef::AbilityController) */
+player_rule_you ::= "you"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Players($player_rule_subject), changes:$player_prohibitions} */
+player_rule_ability ::= player_rule_subject "can't" player_prohibitions
+
+/* @sem $player_rule_ability */
+static_player_prohibition ::= player_rule_ability "."
+
+/* Distinct subjects remain distinct native static abilities. */
+/* @sem Ability::[$player_rule_ability, ...$player_rule_list] */
+line_player_prohibitions ::= player_rule_ability "and" player_rule_list "."
+
+player_rule_list ::= player_rule_one | player_rule_more
+/* @sem Ability::[$player_rule_ability] */
+player_rule_one ::= player_rule_ability
+/* @sem Ability::[$player_rule_ability, ...$player_rule_list] */
+player_rule_more ::= player_rule_ability "and" player_rule_list
+
+player_prohibitions ::= player_prohibition | player_prohibitions_more | zone_cast_prohibitions
+/* @sem Change::[Change::PlayerRule(Prohibit($player_prohibited_action))] */
+player_prohibition ::= player_prohibited_action
+/* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
+player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
+
+continuous_player_prohibition ::= continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
+continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
+continuous_player_prohibition_first ::= duration "," player_rule_subject "can't" player_prohibitions
+
+/* Repeating the same universal subject/deadline continues its rule list. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(All), changes:[...$all_player_rule_turn, ...$all_player_rule_list_turn], duration:EndOfTurn, evaluation:LiveObjects} */
+continuous_all_player_rules_turn ::= all_player_rule_turn "and" all_player_rule_list_turn
+
+/* @sem $player_prohibitions */
+all_player_rule_turn ::= "players" "can't" player_prohibitions "this" "turn"
+
+all_player_rule_list_turn ::= all_player_rule_turn | all_player_rule_more_turn
+/* @sem Change::[...$all_player_rule_turn, ...$all_player_rule_list_turn] */
+all_player_rule_more_turn ::= all_player_rule_turn "and" all_player_rule_list_turn
+
+player_prohibited_action ::= player_prohibit_typed_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard
+/* @sem PlayerAction::Draw */
+player_prohibit_draw ::= "draw" "cards"
+/* @sem PlayerAction::GainLife */
+player_prohibit_gain_life ::= "gain" "life"
+/* @sem PlayerAction::LoseLife */
+player_prohibit_lose_life ::= "lose" "life"
+/* @sem PlayerAction::WinGame */
+player_prohibit_win ::= "win" "the" "game"
+/* @sem PlayerAction::LoseGame{} */
+player_prohibit_lose ::= "lose" "the" "game"
+/* @sem PlayerAction::SearchLibraries */
+player_prohibit_search ::= "search" "libraries"
+/* @sem PlayerAction::DiscardCards */
+player_prohibit_discard ::= "discard" "cards"
+
+/* @sem PlayerKeyword::Hexproof */
+player_hexproof ::= "hexproof"
+
+/* @sem PlayerKeyword::Shroud */
+player_shroud ::= "shroud"
+
+/* @sem PlayerKeyword::Protection(Objects{kind:Any, filter:$protection_quality}) */
+player_protection ::= "protection" "from" protection_quality
+
+/* @sem PlayerKeyword::HexproofFrom(Objects{kind:Any, filter:$protection_quality}) */
+player_hexproof_from ::= "hexproof" "from" protection_quality
+
+/* @sem PlayerKeyword::Protection(Each([Objects{kind:Any, filter:Color(White)}, Objects{kind:Any, filter:Color(Blue)}, Objects{kind:Any, filter:Color(Black)}, Objects{kind:Any, filter:Color(Red)}, Objects{kind:Any, filter:Color(Green)}])) */
+player_protection_each ::= "protection" "from" "each" "color"
+
+/* Card-zone origin scopes are independent of the affected players. */
+line_zone_entry_prohibitions ::= zone_entry_single | zone_entry_pair
+/* @sem Ability::[CantEnter{cards:$card_filter, from:$prohibition_card_zone}] */
+zone_entry_single ::= card_filter "cards" "in" prohibition_card_zone "can't" "enter" "the" "battlefield" "."
+/* @sem Ability::[CantEnter{cards:$card_filter, from:$prohibition_card_zone}, CantEnter{cards:$card_filter, from:$prohibition_card_zone_second}] */
+zone_entry_pair ::= card_filter "cards" "in" prohibition_card_zone "and" prohibition_card_zone_second "can't" "enter" "the" "battlefield" "."
+
+zone_cast_prohibitions ::= zone_cast_single | zone_cast_pair
+/* @sem Change::[PlayerRule(Prohibit(CastSpell{from:$prohibition_card_zone, filter:$zone_cast_filter}))] */
+zone_cast_single ::= "cast" zone_cast_filter "from" prohibition_card_zone
+/* @sem Change::[PlayerRule(Prohibit(CastSpell{from:$prohibition_card_zone, filter:$zone_cast_filter})), PlayerRule(Prohibit(CastSpell{from:$prohibition_card_zone_second, filter:$zone_cast_filter}))] */
+zone_cast_pair ::= "cast" zone_cast_filter "from" prohibition_card_zone "or" prohibition_card_zone_second
+
+zone_cast_filter ::= zone_cast_any | zone_cast_filtered
+/* @sem ObjectFilter::Any */
+zone_cast_any ::= "spells"
+/* @sem $card_filter */
+zone_cast_filtered ::= card_filter "spells"
+
+prohibition_card_zone_second ::= prohibition_card_zone
+prohibition_card_zone ::= prohibition_graveyards | prohibition_libraries
+/* @sem ZoneScope::Players{zone:Graveyard, players:All} */
+prohibition_graveyards ::= "graveyards"
+/* @sem ZoneScope::Players{zone:Library, players:All} */
+prohibition_libraries ::= "libraries"
+
+/* PlayLand already supplies the land action domain; Any adds no unprinted
+   further restriction. Origin-zone owners remain independent of rule subjects. */
+/* @sem PlayerAction::PlayLand{filter:Any, from:$prohibition_card_zone} */
+player_prohibit_land_from_zone ::= "play" "land" "cards" "from" prohibition_card_zone
+
+/* Spell filters use card-type categories on the stack. A permanent spell is one of the
+   permanent card types; battlefield's unqualified permanent domain is broader. */
+/* @sem PlayerAction::CastSpell{filter:$card_filter} */
+player_prohibit_typed_spells ::= "cast" card_filter "spells"
+
+/* These are announced targets. Each verb applies once to the complete set,
+   so all players perform one action before the next grouped action starts. */
+/* @sem @apply($announced_many_players, $uniform_player_verbs) */
+instructions_announced_players ::= announced_many_players "each" uniform_player_verbs
+announced_many_players ::= announced_all_players | announced_opponents
+/* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:All})) */
+announced_all_players ::= "any" "number" "of" "target" "players"
+/* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:OpponentsOf(AbilityController)})) */
+announced_opponents ::= "any" "number" "of" "target" "opponents"
+
+/* The group owns all conjoined verbs. A period can start another subject;
+   an unspoken imperative after and cannot change the payer to the controller. */
+/* @sem Instruction::[...$instructions_announced_players, ...$instructions] */
+instructions_announced_players_more ::= instructions_announced_players "." instructions
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($cross_spells), changes:$grants} */
+static_spell_keywords ::= cross_spells ("has" | "have") grants "."
+
+/* A bulk operation shares one fixed amount. Personal/query-based quantities
+   retain the existing explicit ForEachPlayer contract. */
+uniform_player_verbs ::= uniform_player_one | uniform_player_more
+/* @sem Instruction::[Effect{result:@next, operation:$uniform_player_operation}] */
+uniform_player_one ::= uniform_player_operation
+/* @sem Instruction::[...$uniform_player_one, ...$uniform_player_verbs] */
+uniform_player_more ::= uniform_player_one "and" uniform_player_verbs
+uniform_player_operation ::= uniform_mill | uniform_draw | uniform_discard | uniform_gain | uniform_lose
+/* @sem Operation::Mill{players:@subject, amount:$uniform_card_count} */
+uniform_mill ::= "mill" uniform_card_count
+/* @sem Operation::Draw{players:@subject, amount:$uniform_card_count} */
+uniform_draw ::= "draw" uniform_card_count
+/* @sem Operation::Discard{players:@subject, amount:$uniform_card_count, random:false} */
+uniform_discard ::= "discard" uniform_card_count
+/* @sem Operation::GainLife{players:@subject, amount:$uniform_number} */
+uniform_gain ::= "gain" uniform_number "life"
+/* @sem Operation::LoseLife{players:@subject, amount:$uniform_number} */
+uniform_lose ::= "lose" uniform_number "life"
+uniform_number ::= number_digits | number_words
+uniform_card_count ::= card_count_one | uniform_cards
+/* @sem $uniform_number */
+uniform_cards ::= uniform_number "cards"

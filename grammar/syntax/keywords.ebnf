@@ -1,0 +1,240 @@
+/* Keyword abilities. */
+keyword_ability ::= mechanic_firebending_constant | listed_mechanic | mechanic_bare | keyword_plain | ability_devoid | ability_changeling
+    | mechanic_banding | mechanic_numbered_keyword
+    | mechanic_ingest | mechanic_convoke | mechanic_delve | reminded_mechanic | labelled_mechanic_reminder
+    | keyword_equip | keyword_equip_planeswalker | keyword_cycling | keyword_basic_landcycling
+    | reminded_equip | reminded_cycling | reminded_basic_landcycling
+    | labelled_equip_reminder | labelled_cycling_reminder | labelled_basic_landcycling_reminder
+    | keyword_morph | keyword_megamorph | keyword_disguise | keyword_foretell | keyword_flashback
+    | reminded_face_cost | labelled_face_cost_reminder
+    | cost_mechanic_head | reminded_cost_mechanic | labelled_cost_mechanic
+
+keyword_value ::= keyword_name | keyword_protection | keyword_protection_each | keyword_hexproof_from | keyword_walk
+    | keyword_ward | keyword_ward_tight | keyword_ward_payment | keyword_reminded
+
+/* @sem Ability::Keyword($keyword_value) */
+keyword_plain ::= keyword_value
+
+keyword_name ::= kn_islandwalk | kn_flying | kn_first_strike | kn_double_strike | kn_trample | kn_lifelink | kn_deathtouch | kn_vigilance | kn_haste | kn_reach | kn_indestructible | kn_hexproof | kn_shroud | kn_menace | kn_defender | kn_flash | kn_fear | kn_intimidate | kn_infect | kn_wither | kn_prowess | kn_flanking | kn_horsemanship | kn_shadow | kn_skulk
+
+/* A noninitial title-case word has a declared CAPITAL spelling token. The
+   keyword keeps one semantic declaration for both spellings; no lexical rewrite
+   or retained surface text supplies its meaning or operands. */
+/* @sem Keyword::Flying */
+kn_flying ::= ("flying" | "↑" "flying")
+/* @sem Keyword::FirstStrike */
+kn_first_strike ::= ("first" | "↑" "first") "strike"
+/* @sem Keyword::DoubleStrike */
+kn_double_strike ::= ("double" | "↑" "double") "strike"
+/* @sem Keyword::Trample */
+kn_trample ::= ("trample" | "↑" "trample")
+/* @sem Keyword::Lifelink */
+kn_lifelink ::= ("lifelink" | "↑" "lifelink")
+/* @sem Keyword::Deathtouch */
+kn_deathtouch ::= ("deathtouch" | "↑" "deathtouch")
+/* @sem Keyword::Vigilance */
+kn_vigilance ::= ("vigilance" | "↑" "vigilance")
+/* @sem Keyword::Haste */
+kn_haste ::= ("haste" | "↑" "haste")
+/* @sem Keyword::Reach */
+kn_reach ::= ("reach" | "↑" "reach")
+/* @sem Keyword::Indestructible */
+kn_indestructible ::= ("indestructible" | "↑" "indestructible")
+/* @sem Keyword::Hexproof */
+kn_hexproof ::= ("hexproof" | "↑" "hexproof")
+/* @sem Keyword::Shroud */
+kn_shroud ::= ("shroud" | "↑" "shroud")
+/* @sem Keyword::Menace */
+kn_menace ::= ("menace" | "↑" "menace")
+/* @sem Keyword::Defender */
+kn_defender ::= ("defender" | "↑" "defender")
+/* @sem Keyword::Flash */
+kn_flash ::= ("flash" | "↑" "flash")
+/* @sem Keyword::Fear */
+kn_fear ::= ("fear" | "↑" "fear")
+/* @sem Keyword::Intimidate */
+kn_intimidate ::= ("intimidate" | "↑" "intimidate")
+/* @sem Keyword::Infect */
+kn_infect ::= ("infect" | "↑" "infect")
+/* @sem Keyword::Wither */
+kn_wither ::= ("wither" | "↑" "wither")
+/* @sem Keyword::Prowess */
+kn_prowess ::= ("prowess" | "↑" "prowess")
+/* @sem Keyword::Flanking */
+kn_flanking ::= ("flanking" | "↑" "flanking")
+/* @sem Keyword::Horsemanship */
+kn_horsemanship ::= ("horsemanship" | "↑" "horsemanship")
+/* @sem Keyword::Shadow */
+kn_shadow ::= ("shadow" | "↑" "shadow")
+/* @sem Keyword::Skulk */
+kn_skulk ::= ("skulk" | "↑" "skulk")
+
+/* @sem Keyword::Protection($protection_source_quality) */
+keyword_protection ::= "protection" "from" protection_source_quality
+
+protection_source_quality ::= protection_object_quality | protection_all_spells | protection_colored_spells | protection_color_spells | protection_cast_permanents
+/* @sem Protection::Objects{kind:Any, filter:$protection_quality} */
+protection_object_quality ::= protection_quality
+/* @sem Protection::Objects{kind:Spell, filter:Any} */
+protection_all_spells ::= "spells"
+/* @sem Protection::Objects{kind:Spell, filter:Not(Colorless)} */
+protection_colored_spells ::= "spells" "that" "are" "one" "or" "more" "colors"
+/* @sem Protection::Objects{kind:Spell, filter:$adjective_color} */
+protection_color_spells ::= adjective_color "spells"
+/* @sem Protection::Objects{kind:Permanent, filter:Condition(Compare{left:EventHistory{event:Spell{event:Cast, players:All, spells:SameObject(Candidate)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})} */
+protection_cast_permanents ::= "permanents" "that" "were" "cast" "this" "turn"
+
+protection_quality ::= adjective_snow | adjective_color | filter_plural | adjective_monocolored | adjective_multicolored | protection_mana_value | noun
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:$bound, value:$number}} */
+protection_mana_value ::= "mana" "value" number "or" bound
+
+/* @sem Keyword::Protection(Each([Objects{kind:Any, filter:Color(White)}, Objects{kind:Any, filter:Color(Blue)}, Objects{kind:Any, filter:Color(Black)}, Objects{kind:Any, filter:Color(Red)}, Objects{kind:Any, filter:Color(Green)}])) */
+keyword_protection_each ::= "protection" "from" "each" "color"
+
+keyword_hexproof_from ::= hexproof_single_quality | hexproof_list_qualities | hexproof_each_color
+
+/* Restriction qualities share protection's typed object filters. */
+hexproof_object_quality ::= hexproof_filter_quality | hexproof_instant_quality | hexproof_sorcery_quality | hexproof_ability_quality
+
+/* @sem Protection::Objects{kind:Any, filter:$protection_quality} */
+hexproof_filter_quality ::= protection_quality
+
+/* @sem Protection::Objects{kind:Any, filter:CardType(Instant)} */
+hexproof_instant_quality ::= "instants"
+/* @sem Protection::Objects{kind:Any, filter:CardType(Sorcery)} */
+hexproof_sorcery_quality ::= "sorceries"
+
+/* Stack traits describe the targeting ability, distinct from its source card. */
+/* @sem Protection::Objects{kind:Any, filter:$ability_stack_filter} */
+hexproof_ability_quality ::= ability_stack_filter "abilities"
+ability_stack_filter ::= ability_stack_one | ability_stack_pair
+/* @sem ObjectFilter::OnStack($ability_stack_trait) */
+ability_stack_one ::= ability_stack_trait
+/* @sem ObjectFilter::AnyOf([OnStack($ability_stack_trait), OnStack($ability_stack_trait_2)]) */
+ability_stack_pair ::= ability_stack_trait "and" ability_stack_trait
+ability_stack_trait ::= ability_stack_activated | ability_stack_triggered
+/* @sem StackTrait::Activated */
+ability_stack_activated ::= "activated"
+/* @sem StackTrait::Triggered */
+ability_stack_triggered ::= "triggered"
+
+/* @sem Keyword::HexproofFrom($hexproof_object_quality) */
+hexproof_single_quality ::= ("hexproof" | "↑" "hexproof") "from" hexproof_object_quality
+
+/* @sem Keyword::HexproofFrom(Each($hexproof_quality_list)) */
+hexproof_list_qualities ::= ("hexproof" | "↑" "hexproof") "from" hexproof_quality_list
+
+hexproof_quality_list ::= hexproof_quality_pair | hexproof_quality_more
+/* @sem Protection::[$hexproof_object_quality, $hexproof_object_quality_2] */
+hexproof_quality_pair ::= hexproof_object_quality ","? "and" hexproof_object_quality
+/* @sem Protection::[$hexproof_object_quality, ...$hexproof_quality_list] */
+hexproof_quality_more ::= hexproof_object_quality "," hexproof_quality_list
+
+/* @sem Keyword::HexproofFrom(Each([Objects{kind:Any, filter:Color(White)}, Objects{kind:Any, filter:Color(Blue)}, Objects{kind:Any, filter:Color(Black)}, Objects{kind:Any, filter:Color(Red)}, Objects{kind:Any, filter:Color(Green)}])) */
+hexproof_each_color ::= ("hexproof" | "↑" "hexproof") "from" "each" "color"
+
+/* Repeated "from" introduces distinct protection instances; qualities and
+   duplicate instances are retained, rather than intersected into one filter. */
+/* @sem Ability::[Keyword(Protection($protection_source_quality)), ...$protection_list_tail] */
+keyword_protection_pair ::= "protection" "from" protection_source_quality protection_list_tail
+
+protection_list_tail ::= protection_list_final | protection_list_more
+/* @sem Ability::[Keyword(Protection($protection_source_quality))] */
+protection_list_final ::= ","? "and" "from" protection_source_quality
+/* @sem Ability::[Keyword(Protection($protection_source_quality)), ...$protection_list_tail] */
+protection_list_more ::= "," "from" protection_source_quality protection_list_tail
+
+/* @sem Keyword::Ward(Cost::Cost{parts:$cost_parts}) */
+keyword_ward ::= ("ward" | "↑" "ward") cost_parts
+
+/* @sem Keyword::Ward(Cost::Cost{parts:$cost_parts}) */
+keyword_ward_tight ::= "ward" "―" cost_parts "."
+
+/* Worded keyword prices use their printed dash and sentence terminator. */
+/* @sem Keyword::Ward($keyword_payment) */
+keyword_ward_payment ::= ("ward" | "↑" "ward") keyword_payment
+
+keyword_walk ::= walk_plains | walk_island | walk_swamp | walk_mountain | walk_forest | walk_legendary | walk_nonbasic | walk_desert
+    | walk_snow | walk_snow_swamp | walk_snow_forest
+
+/* @sem Keyword::Landwalk(ObjectFilter::Supertype(Snow)) */
+walk_snow ::= "snow" "landwalk"
+
+/* @sem Keyword::Landwalk(ObjectFilter::Supertype(Legendary)) */
+walk_legendary ::= "legendary" "landwalk"
+/* @sem Keyword::Landwalk(ObjectFilter::Not(ObjectFilter::Supertype(Basic))) */
+walk_nonbasic ::= "nonbasic" "landwalk"
+/* @sem Keyword::Landwalk(@and(ObjectFilter::Supertype(Snow), ObjectFilter::Subtype(Swamp))) */
+walk_snow_swamp ::= "snow" "swampwalk"
+/* @sem Keyword::Landwalk(@and(ObjectFilter::Supertype(Snow), ObjectFilter::Subtype(Forest))) */
+walk_snow_forest ::= "snow" "forestwalk"
+
+/* @sem Keyword::Landwalk(ObjectFilter::Subtype(Plains)) */
+walk_plains ::= "plainswalk"
+/* @sem Keyword::Landwalk(ObjectFilter::Subtype(Island)) */
+walk_island ::= "islandwalk"
+/* @sem Keyword::Landwalk(ObjectFilter::Subtype(Swamp)) */
+walk_swamp ::= "swampwalk"
+/* @sem Keyword::Landwalk(ObjectFilter::Subtype(Mountain)) */
+walk_mountain ::= "mountainwalk"
+/* @sem Keyword::Landwalk(ObjectFilter::Subtype(Forest)) */
+walk_forest ::= "forestwalk"
+
+/* @sem Keyword::Landwalk(ObjectFilter::Subtype(Island)) */
+kn_islandwalk ::= ("islandwalk" | "↑" "islandwalk")
+
+/* @sem Ability::Static(_{kind:CharacteristicDefining(_{keyword:$devoid_keyword, contributes_to_color_identity:true}), affected:Objects(One(Source)), changes:[Colors(_{mode:Set})]}) */
+ability_devoid ::= devoid_keyword
+
+/* @sem Ability::Static(_{kind:CharacteristicDefining(_{keyword:$changeling_keyword, contributes_to_color_identity:true}), affected:Objects(One(Source)), changes:[CreatureTypes(_{mode:Set, types:All})]}) */
+ability_changeling ::= changeling_keyword
+
+devoid_keyword ::= kn_devoid | reminded_devoid_keyword
+changeling_keyword ::= kn_changeling | reminded_changeling_keyword
+
+/* @sem Keyword::Devoid */
+kn_devoid ::= ("devoid" | "↑" "devoid")
+/* @sem Keyword::Changeling */
+kn_changeling ::= ("changeling" | "↑" "changeling")
+
+/* Numbered and land-type cycling mechanics compose as independent keyword
+   items, including repeated instances. Each meaning is declared here once. */
+listed_mechanic ::= listed_typecycling | listed_soulshift | listed_rampage
+
+/* @sem Ability::[$listed_mechanic] */
+keyword_listed_mechanic ::= listed_mechanic
+
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Cycling{search:$typecycling_filter}, cost:_{parts:[Mana($mana_symbols), Discard{count:Constant(1), filter:SameObject(Source)}]}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:$typecycling_filter, count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(0), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}})} */
+listed_typecycling ::= typecycling_filter mana_symbols
+
+typecycling_filter ::= cycling_plains | cycling_island | cycling_swamp | cycling_mountain | cycling_forest
+
+/* @sem ObjectFilter::Subtype(Plains) */
+cycling_plains ::= "plainscycling"
+
+/* @sem ObjectFilter::Subtype(Island) */
+cycling_island ::= "islandcycling"
+
+/* @sem ObjectFilter::Subtype(Swamp) */
+cycling_swamp ::= "swampcycling"
+
+/* @sem ObjectFilter::Subtype(Mountain) */
+cycling_mountain ::= "mountaincycling"
+
+/* @sem ObjectFilter::Subtype(Forest) */
+cycling_forest ::= "forestcycling"
+
+/* @sem Ability::Mechanic{mechanic:Soulshift, amount:$value} */
+listed_soulshift ::= "soulshift" value
+
+/* @sem Ability::Mechanic{mechanic:Rampage, amount:$value} */
+listed_rampage ::= "rampage" value
+
+/* @sem Keyword::Landwalk(ObjectFilter::Subtype(Desert)) */
+walk_desert ::= "desertwalk"
+
+/* A numbered mechanic is one header item, so existing comma/newline lists
+   compose it with ordinary keywords without changing either ability's meaning. */
+/* @sem Ability::Mechanic{mechanic:Firebending, amount:$number_digits} */
+mechanic_firebending_constant ::= "firebending" number_digits

@@ -1,0 +1,584 @@
+/* Replacement effects, prevention and delayed triggers. */
+
+replacement_clause ::= replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_counters_add | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_all_combat | replacement_prevent | replacement_prevent_some | replacement_prevent_all_but
+    | replacement_double_damage | replacement_draw_instead
+
+/* A creature or permanent without the word card is a battlefield population.
+   The counter kind is repeated in the replacement and must agree. */
+/* @sem ObjectFilter::InSet(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counter_replacement_filter}) */
+counter_replacement_population ::= ("a" | "an") counter_replacement_filter
+
+counter_replacement_filter ::= counter_replacement_head | counter_replacement_modified | counter_replacement_adjectives
+/* @sem @and($counter_replacement_head, $modifiers) */
+counter_replacement_modified ::= counter_replacement_head modifiers
+/* @sem @and($adjectives, $counter_replacement_filter) */
+counter_replacement_adjectives ::= adjectives counter_replacement_filter
+counter_replacement_head ::= counter_replacement_noun | counter_replacement_union | counter_replacement_union_three
+/* @sem ObjectFilter::AnyOf(@unordered([$counter_replacement_noun, $counter_replacement_noun_2])) */
+counter_replacement_union ::= counter_replacement_noun "or" counter_replacement_noun
+/* @sem ObjectFilter::AnyOf(@unordered([$counter_replacement_noun, $counter_replacement_noun_2, $counter_replacement_noun_3])) */
+counter_replacement_union_three ::= counter_replacement_noun "," counter_replacement_noun ","? "or" counter_replacement_noun
+counter_replacement_noun ::= noun_creature | noun_artifact | noun_enchantment | noun_land | noun_planeswalker | noun_permanent | noun_battle | noun_token | subtype
+
+/* @sem Ability::Replacement{active:Battlefield, event:Counters(_{kind:PowerToughness(1, 1), objects:$counter_replacement_population}), body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([Constant(2), EventAmount]))}}]}} */
+replacement_counters_double ::= "if" "one" "or" "more" "+" "1" "/" "+" "1" "counters" "would" "be" "put" "on" counter_replacement_population "," "twice" "that" "many" "+" "1" "/" "+" "1" "counters" "are" "put" "on" "it" "instead" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Counters(_{kind:PowerToughness(1, 1), objects:$counter_replacement_population}), body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Add([EventAmount, $number]))}}]}} */
+replacement_counters_add ::= "if" "one" "or" "more" "+" "1" "/" "+" "1" "counters" "would" "be" "put" "on" counter_replacement_population "," "that" "many" "plus" number "+" "1" "/" "+" "1" "counters" "are" "put" "on" "it" "instead" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Counters(_{kind:PowerToughness(-1, -1), objects:$counter_replacement_population}), body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Subtract([EventAmount, $number]))}}]}} */
+replacement_counters_subtract ::= "if" "one" "or" "more" "-" "1" "/" "-" "1" "counters" "would" "be" "put" "on" counter_replacement_population "," "that" "many" "-" "1" "/" "-" "1" "counters" "minus" number "are" "put" "on" "it" "instead" "."
+
+/* The replaced counter event identifies its destination after the exile change. */
+/* @sem Ability::Replacement{active:Battlefield, event:Countered{spells:$spell_filter, by:$countering_source}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:Either, cards:One(ObjectRef::Query{objects:InZone{objects:One(ObjectRef::EventDestination), zone:Exile}, index:0}), count:Exactly(Constant(1)), cost:Free}}]}}]}} */
+replacement_counter_exile_play ::= "if" countering_source "would" "counter" spell_filter "," "instead" "exile" "that" "spell" "and" "you" "may" "play" "that" "card" "without" "paying" "its" "mana" "cost" "."
+
+/* @sem ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)) */
+countering_source ::= "a" "spell" "or" "ability" "you" "control"
+
+/* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent ::= "if" damage_event "," "prevent" "that" "damage" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventSomeDamage($number)}}]}} */
+replacement_prevent_some ::= "if" damage_event "," "prevent" number "of" "that" "damage" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetAmount(Expr::Multiply([Expr::Constant(2), Expr::EventAmount]))}}]}} */
+replacement_double_damage ::= "if" damage_event "," "it" "deals" "double" "that" "damage" ("instead" | "to" "that" ("permanent" | "player" | "creature") "instead"  | "to" "that" "permanent" "or" "player" "instead") "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventAllButDamage($number)}}]}} */
+replacement_prevent_all_but ::= "if" damage_event "," "prevent" "all" "but" number "of" "that" "damage" "."
+
+/* @sem ReplacementEvent::Damage(DamageEvent{source_kind:Any, sources:$damage_source, recipients:$damage_to, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
+damage_event ::= damage_source "would" "deal" "damage" "to" damage_to
+
+damage_source ::= source_any | source_yours
+
+/* @sem ObjectFilter::Any */
+source_any ::= "a" "source"
+
+/* @sem ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)) */
+source_yours ::= "a" "source" "you" "control"
+
+damage_to ::= damage_to_you | damage_to_each | damage_to_filter
+
+/* @sem DamageRecipients::Players(One(PlayerRef::AbilityController)) */
+damage_to_you ::= "you"
+
+/* @sem DamageRecipients::Players(OpponentsOf(PlayerRef::AbilityController)) */
+damage_to_each ::= "an" "opponent"
+
+/* @sem DamageRecipients::Objects($filter_phrase) */
+damage_to_filter ::= ("a" | "an") filter_phrase
+
+/* @sem ReplacementEvent::Player{event:Draw, players:One(PlayerRef::AbilityController)} */
+draw_event ::= "you" "would" "draw" "a" "card"
+
+/* @sem Ability::Replacement{active:Battlefield, event:$draw_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:Cancel}}, ...$instructions]}} */
+replacement_draw_instead ::= "if" draw_event "," instructions "instead" "."
+
+/* The shield an instant leaves behind. */
+prevent_clause ::= prevent_distributed_targets | prevent_bidirectional_combat | prevent_next | prevent_all | prevent_all_combat | prevent_radiance
+
+/* The named recipient is included even when colorless. The other population
+   must be creatures sharing its color, with the original object excluded. */
+/* @sem Operation::CreateReplacement{event:Damage{source_kind:Any, sources:Any, recipients:Objects(AnyOf([AllOf([CardType(Creature), Not(SameObject($object_ref)), Shares{property:Colors, with:$object_ref_2}]), SameObject($object_ref)])), kind:Any, grouping:SourceRecipient, subject:Recipient}, limit:DamageToEach($value), duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_radiance ::= "prevent" "the" "next" value "damage" "that" "would" "be" "dealt" "to" object_ref "and" "each" "other" "creature" "that" "shares" "a" "color" "with" object_ref this_duration
+
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$prevent_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_next ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "to" prevent_to prevent_duration
+
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$prevent_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" prevent_to prevent_duration
+
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_combat ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" prevent_duration
+
+prevent_duration ::= this_duration
+
+prevent_to ::= prevent_to_any_target | prevent_to_target | prevent_to_you | prevent_to_it
+
+/* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
+prevent_to_any_target ::= "any" "target"
+
+/* @sem DamageRecipients::Objects(ObjectFilter::SameObject($target_object)) */
+prevent_to_target ::= target_object
+
+/* @sem DamageRecipients::Players(One(PlayerRef::AbilityController)) */
+prevent_to_you ::= "you"
+
+/* @sem DamageRecipients::Objects(ObjectFilter::SameObject($it_ref)) */
+prevent_to_it ::= it_ref
+
+/* Something later in this resolution or turn. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:@captured_targets($instructions)}}}] */
+clause_delayed_end_step ::= "at" "the" "beginning" "of" "the" "next" "end" "step" "," instructions
+
+/* A fresh target in a leading time clause is announced when the later trigger
+   fires. References to earlier objects remain captures from the creator. */
+/* @sem Instruction::[Effect{result:@next, operation:@scope(Operation::CreateTrigger{event:Turn{point:EndStepBegins, players:All}, duration:Indefinite, announcement:@announcement, body:Program{instructions:@announced_targets($instructions)}, once:true})}] */
+clause_delayed_end_step_announced ::= "at" "the" "beginning" "of" "the" "next" "end" "step" "," instructions
+
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:$may_body}}}] */
+clause_delayed_end_step_after ::= may_body "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:All}, start:NextTurn, body:Program{instructions:$may_body}}}] */
+clause_delayed_upkeep_after ::= may_body "at" "the" "beginning" "of" "the" "next" "turn's" "upkeep"
+
+/* A postposed combat time creates a delayed trigger, not a duration on the
+   action. The body retains the enclosing ability's object references. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:$may_body}}}] */
+clause_delayed_combat_after ::= may_body "at" "end" "of" "combat"
+
+/* The postposed time governs an explicit then-tail in the same sentence.
+   A following full stop remains an outer instruction boundary. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[...$may_body, ...$conjoined]}}}] */
+clause_delayed_end_step_then ::= may_body "at" "the" "beginning" "of" "the" "next" "end" "step" postfix_join conjoined
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:All}, start:NextTurn, body:_{instructions:[...$may_body, ...$conjoined]}}}] */
+clause_delayed_upkeep_then ::= may_body "at" "the" "beginning" "of" "the" "next" "turn's" "upkeep" postfix_join conjoined
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:_{instructions:[...$may_body, ...$conjoined]}}}] */
+clause_delayed_combat_then ::= may_body "at" "end" "of" "combat" postfix_join conjoined
+/* @sem () */
+postfix_join ::= "," "then"
+
+condition_consequent ::= may_body | clause_you | clause_you_life | clause_third | clause_they | clause_may
+
+/* A postposed condition tests at resolution, even as a trigger's first instruction. */
+/* @sem Instruction::[@resolution(Instruction::If{condition:$condition, then:Program{instructions:$condition_consequent}, otherwise:Program{}})] */
+clause_if_after ::= condition_consequent "if" condition
+
+/* @sem Instruction::[@resolution(Instruction::If{condition:Not($condition), then:Program{instructions:$condition_consequent}, otherwise:Program{}})] */
+clause_unless_condition ::= condition_consequent "unless" condition
+
+/* The object an instruction just moved can be named after it has moved. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$exile_objects}, Instruction::Effect{result:@next, operation:Operation::Move{objects:@exile_followup(InZone{objects:One(ObjectRef::Result{result:@marked, phase:After, index:0}), zone:Exile}), destination:$battlefield_control, qualifiers:[]}}] */
+clause_exile_return ::= exile_objects return_join "return" moved "to" "the" "battlefield" battlefield_control
+
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$exile_objects}, Instruction::Effect{result:@next, operation:Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Move{objects:@exile_followup(InZone{objects:One(ObjectRef::Result{result:@marked, phase:After, index:0}), zone:Exile}), destination:$battlefield_control, qualifiers:[]}}]}}}] */
+clause_exile_return_delayed ::= exile_objects return_join "return" moved "to" "the" "battlefield" battlefield_control "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem () */
+return_join ::= "," "then" | "."
+
+/* @sem () */
+moved ::= "it" | "that" "card"
+
+/* @sem () */
+moved_group ::= "them" | "those" "cards"
+
+/* What an exile effect holds, it holds only while its source stays. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:$exile_objects}, Instruction::Effect{result:@next, operation:Operation::ReturnAfter{objects:Transition{result:@prior, phase:After}, duration:WhileOnBattlefield($self_ref)}}] */
+clause_exile_until ::= exile_objects "until" self_ref "leaves" "the" "battlefield"
+
+/* @sem Operation::Keyword{actor:One(PlayerRef::AbilityController), action:KeywordAction::TapOrUntap{object:$object_ref}} */
+tap_or_untap ::= "tap" "or" "untap" object_ref
+
+/* @sem Operation::CreateEmblem{actor:One(PlayerRef::AbilityController), abilities:[@scope($ability)]} */
+create_emblem ::= "you" "get" "an" "emblem" "with" '"' ability '"'
+
+/* The choice is from the hand just revealed, independently of any player
+   supplied by the enclosing event. Both operations share the same operand. */
+/* @sem Operation::Reveal{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}} */
+reveal_hand ::= hand_player "reveals" "their" "hand"
+
+hand_player ::= player_ref
+
+/* A producer whose receipt is later read as the shown hand. Keeping this
+   phrase typed prevents an unrelated operation from introducing that receipt. */
+hand_observation ::= reveal_hand | hand_observation_look | hand_observation_yours | hand_observation_subset
+
+/* An immediately following choice can also query the unchanged whole hand.
+   Keep this native representation separate from observation-receipt readings;
+   a subset reveal cannot enter this production. */
+full_hand_observation ::= reveal_hand | hand_observation_look | hand_observation_yours
+
+/* @sem Operation::LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One($hand_look_owner)}, kind:Card, filter:Any}} */
+hand_observation_look ::= "look" "at" hand_look_owner "hand"
+
+/* @sem Operation::Reveal{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}} */
+hand_observation_yours ::= "reveal" "your" "hand"
+
+/* @sem Operation::RevealFromHand{actor:One($hand_player), cards:Any, count:$card_count} */
+hand_observation_subset ::= hand_player "reveals" card_count "from" "their" "hand"
+
+hand_look_owner ::= hand_look_target | hand_look_opponent | hand_look_that | hand_look_yours | hand_look_defending
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0} */
+hand_look_target ::= "target" "player's"
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}), index:0} */
+hand_look_opponent ::= "target" "opponent's"
+/* @sem PlayerRef::@that_player_literal */
+hand_look_that ::= "that" "player's"
+/* @sem PlayerRef::AbilityController */
+hand_look_yours ::= "your"
+/* @sem PlayerRef::@defending */
+hand_look_defending ::= "defending" "player's"
+
+/* The unchanged whole-hand query and observation receipt are distinct native readings. */
+instructions_hand_pick ::= instructions_hand_pick_observed | instructions_hand_pick_live_hand
+
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:@and($hand_pick_source, ObjectFilter::OwnedBy(One($hand_player)))}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:$hand_loss}] */
+instructions_hand_pick_observed ::= hand_player "reveals" "their" "hand" "." "you" "choose" hand_pick_source ("." | "and") hand_loss
+
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:$hand_pick_source}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:$hand_loss}] */
+instructions_hand_pick_live_hand ::= hand_player "reveals" "their" "hand" "." "you" "choose" hand_pick_source ("." | "and") hand_loss
+
+/* A subset observation and the controller's choice have independent counts.
+   Every later choice stays inside the observed cards still owned in that hand. */
+/* @sem Instruction::[Effect{result:@next, operation:RevealFromHand{actor:One($hand_player), cards:Any, count:$hand_subset_amount}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:OwnedBy(One($hand_player))}, count:AsManyAsCan(Constant(1))}}] */
+instructions_hand_subset_choice ::= hand_player "reveals" hand_subset_amount ("and" | ".") "you" "choose" "one" "of" ("them" | "those" "cards")
+
+/* @sem Instruction::[...$instructions_hand_subset_choice, Effect{result:@next, operation:$hand_subset_loss}] */
+instructions_hand_pick_subset ::= instructions_hand_subset_choice "." hand_subset_loss
+
+hand_subset_amount ::= hand_subset_counted | hand_subset_equal
+/* @sem $card_count */
+hand_subset_counted ::= card_count "from" "their" "hand"
+/* @sem $value */
+hand_subset_equal ::= "a" "number" "of" "cards" "from" "their" "hand" "equal" "to" value
+
+/* A choice of one can be read as its selected set or its sole result object.
+   These remain distinct native readings, never comparison aliases. */
+hand_subset_loss ::= hand_loss | hand_subset_discard_single
+/* @sem Operation::DiscardObjects{objects:One(Result{result:@marked, phase:After, index:0})} */
+hand_subset_discard_single ::= "that" "player" "discards" "that" "card"
+
+/* The complete hand-dependent continuation stays inside the chosen payment. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$instructions_hand_pick_subset}, otherwise:Program{}}] */
+clause_paid_hand_subset ::= "you" "may" payment "." "if" "you" "do" "," instructions_hand_pick_subset
+
+/* Only this actual exile supplies the conditional cast permission. */
+hand_subset_exile ::= hand_exile | hand_exile_owner | hand_exile_owner_it
+
+/* @sem Instruction::[...$instructions_hand_subset_choice, ...$hand_subset_permission_tail] */
+instructions_hand_subset_permission ::= instructions_hand_subset_choice "." hand_subset_permission_tail
+
+/* @sem Instruction::[Effect{result:@next, operation:$hand_subset_exile}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@last_result, phase:Before}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:AnyType}})], duration:WhileControlled{player:AbilityController, object:$self_ref}, evaluation:LiveObjects}}]}, otherwise:Program{}}] */
+hand_subset_permission_tail ::= hand_subset_exile "." "if" ("a" | "an") card_filter "card" "is" "exiled" "this" "way" "," "you" "may" "cast" "it" "for" "as" "long" "as" "you" "control" self_ref "," "and" "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "that" "spell"
+
+/* A written X definition owns the entire remaining program, including later
+   uses of X. The shared where binder retains its existing snapshot policy. */
+/* @sem @where(Program::Program{instructions:[Effect{result:@next, operation:RevealFromHand{actor:One($hand_player), cards:Any, count:AnnouncedX}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:OwnedBy(One($hand_player))}, count:AsManyAsCan(Constant(1))}}, ...$hand_subset_defined_tail]}, $value) */
+program_hand_subset_defined ::= hand_player "reveals" "X" "cards" "from" "their" "hand" "," "where" "X" "is" value "." "you" "choose" "one" "of" ("them" | "those" "cards") "." hand_subset_defined_tail
+
+hand_subset_defined_tail ::= hand_subset_permission_tail | hand_subset_lost_one | hand_subset_lost_more
+/* @sem Instruction::[Effect{result:@next, operation:$hand_subset_loss}] */
+hand_subset_lost_one ::= hand_subset_loss
+/* @sem Instruction::[Effect{result:@next, operation:$hand_subset_loss}, ...$instructions] */
+hand_subset_lost_more ::= hand_subset_loss "." instructions
+
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One($hand_look_owner)}, kind:Card, filter:Any}}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:@and($hand_pick_source, ObjectFilter::OwnedBy(One($hand_look_owner)))}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:$hand_loss}] */
+instructions_look_hand_pick ::= "look" "at" hand_look_owner "hand" ("." "you" | "and") "choose" hand_pick_source ("." | "and") hand_loss
+
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One($hand_look_owner)}, kind:Card, filter:Any}}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:@and($hand_pick_source, ObjectFilter::OwnedBy(One($hand_look_owner)))}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:$hand_loss}]}}] */
+instructions_look_hand_pick_optional ::= "look" "at" hand_look_owner "hand" "." "you" "may" "choose" hand_pick_source "." hand_loss
+
+hand_pick_source ::= hand_pick_source_plain | hand_pick_source_modified
+/* @sem $hand_pick */
+hand_pick_source_plain ::= hand_pick "from" "it"
+/* @sem @and($hand_pick, $modifiers) */
+hand_pick_source_modified ::= hand_pick "from" "it" modifiers
+
+hand_pick ::= hand_pick_any | hand_pick_filter
+
+/* @sem ObjectFilter::Any */
+hand_pick_any ::= "a" "card"
+
+/* @sem $card_filter */
+hand_pick_filter ::= ("a" | "an") card_filter "card"
+
+hand_loss ::= hand_exile | hand_exile_owner | hand_exile_owner_it | hand_discard
+
+/* @sem Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+hand_exile ::= "exile" "that" "card"
+
+/* @sem Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+hand_exile_owner ::= "that" "player" "exiles" "that" "card"
+
+/* @sem Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+hand_exile_owner_it ::= "that" "player" "exiles" "it"
+
+/* @sem Operation::DiscardObjects{objects:Selected(@marked)} */
+hand_discard ::= "that" "player" "discards" "that" "card"
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$shield_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_all ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" shield_to "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$shield_to, kind:Combat, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_all_combat ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "to" shield_to "."
+
+shield_to ::= prevent_to_you | shield_to_self | shield_to_group
+
+/* @sem DamageRecipients::Objects(ObjectFilter::SameObject($self_ref)) */
+shield_to_self ::= self_ref
+
+/* @sem DamageRecipients::Objects($filter_plural) */
+shield_to_group ::= filter_plural
+
+/* A hand discarded, then a new one: each player acts in turn before anyone draws. */
+/* @sem Instruction::[Instruction::ForEachPlayer{players:All, binding:0, in_chosen_direction:false, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Discard{players:One(Bound(0)), amount:Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), random:false}}]}}, Instruction::Effect{result:@next, operation:Operation::Draw{players:All, amount:$card_count}}] */
+instructions_wheel ::= "each" "player" "discards" "their" "hand" "," "then" "draws" card_count
+
+/* This broader wording shares a fixed or announced count. Per-player
+   "that many" requires separate result bookkeeping, not a shared draw. */
+/* @sem Instruction::[Instruction::ForEachPlayer{players:$hand_plural_players, binding:0, in_chosen_direction:false, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Discard{players:One(Bound(0)), amount:Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), random:false}}]}}, Instruction::Effect{result:@next, operation:Operation::Draw{players:$hand_plural_players, amount:$hand_shared_count}}] */
+instructions_hand_wheel ::= hand_plural_players "discards" hand_words ("," "then" | "and") "draws" hand_shared_count
+
+hand_shared_count ::= card_count_one | card_count_many | card_count_additional
+
+/* A created trigger governs the rest of its sentence. The creating effect owns
+   targets in the event; the future trigger owns targets and references in its body. */
+/* @sem Instruction::[Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:$event, duration:$duration, announcement:@announcement, body:Program{instructions:$conjoined}})}] */
+temporary_trigger_prefix ::= duration "," ("when" | "whenever") event "," conjoined
+
+/* @sem Instruction::[Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:$event, duration:$duration, announcement:@announcement, body:Program{instructions:$conjoined}, intervening_if:$condition})}] */
+temporary_trigger_prefix_if ::= duration "," ("when" | "whenever") event "," "if" condition "," conjoined
+
+/* @sem Instruction::[Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:$event, duration:EndOfTurn, announcement:@announcement, body:Program{instructions:$conjoined}})}] */
+temporary_trigger_this_turn ::= ("when" | "whenever") event "this" "turn" "," conjoined
+
+/* @sem Instruction::[Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:$event, duration:EndOfTurn, announcement:@announcement, body:Program{instructions:$conjoined}, intervening_if:$condition})}] */
+temporary_trigger_this_turn_if ::= ("when" | "whenever") event "this" "turn" "," "if" condition "," conjoined
+
+/* A conditional source-spell property applies on the stack. Its damage clause
+   chooses one prevention flag at resolution; it does not deal damage twice. */
+line_conditional_damage_protection ::= conditional_damage_protection | conditional_damage_protection_exile
+
+/* @sem Ability::[Scoped{zones:[Stack], condition:$conditional_spell_guard, ability:Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Stack), kind:Spell, filter:SameObject(Source)}), changes:[Rule(Prohibit(Counter))]}}, Spell{announcement:@announcement, body:Program{instructions:[If{condition:$conditional_spell_guard, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:$value, preventable:false}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Targets(0), amount:$value, preventable:true}}]}}]}}] */
+conditional_damage_protection ::= self_explicit_ref "deals" value "damage" "to" "any" "target" "." NEWLINE "if" conditional_spell_guard "," "this" "spell" "can't" "be" "countered" "and" "the" "damage" "can't" "be" "prevented" "."
+
+/* Both branches report their damage through a joined result, so a following
+   replacement observes exactly the branch that actually performed damage. */
+/* @sem Ability::[Scoped{zones:[Stack], condition:$conditional_spell_guard, ability:Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Stack), kind:Spell, filter:SameObject(Source)}), changes:[Rule(Prohibit(Counter))]}}, Spell{announcement:@announcement, body:Program{instructions:[If{condition:$conditional_spell_guard, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:$value, preventable:false}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Targets(0), amount:$value, preventable:true}}]}}, Effect{result:@mark, operation:JoinResults{results:[@back(3), @back(2)]}}, Effect{result:@next, operation:CreateReplacement{event:ZoneChange{objects:@and($filter_phrase, ObjectFilter::DamagedBy(@marked)), from:Battlefield, to:Graveyard}, limit:UntilExpired, duration:EndOfTurn, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}}}]}}] */
+conditional_damage_protection_exile ::= self_explicit_ref "deals" value "damage" "to" "any" "target" "." "if" "a" filter_phrase "dealt" "damage" "this" "way" "would" "die" "this" "turn" "," "exile" "it" "instead" "." NEWLINE "if" conditional_spell_guard "," "this" "spell" "can't" "be" "countered" "and" "the" "damage" "can't" "be" "prevented" "."
+
+/* These guards contain no announcement or event-dependent target reference.
+   The same condition is read independently on the stack and at resolution. */
+conditional_spell_guard ::= condition_hand_none | condition_hand_size | conditional_spell_x_bound
+
+/* @sem Condition::Compare{left:ObjectProperty{object:Source, property:SpellX, information:CurrentOrLastKnown}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}} */
+conditional_spell_x_bound ::= "X" "is" number "or" "more"
+
+/* An exile choice records the actual result of each branch, not the slot or
+   address a spliced child program happened to allocate. The pinned lowering
+   retains both the choice join and its alias; each joins the same two moves. */
+/* @sem Instruction::[ChooseOne{decider:AbilityController, options:[Program{instructions:[Effect{result:@next, operation:Move{objects:One($self_explicit_ref), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:$filter_phrase}), index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}]}, Effect{result:@mark, operation:JoinResults{results:[@back(3), @back(2)]}}, Effect{result:@next, operation:JoinResults{results:[@back(4), @back(3)]}}, Effect{result:@next, operation:CreateDelayedTrigger{event:$exile_choice_return_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+clause_exile_holder_or_target_return ::= "exile" self_explicit_ref "or" "up" "to" ("one" | "1") "target" filter_phrase "." "return" "that" "card" "to" "the" "battlefield" "under" "its" "owner's" "control" exile_choice_return_event
+
+/* The next matching occurrence, including an upcoming upkeep this turn. */
+/* @sem EventSpec::Turn{point:UpkeepBegins, players:One(AbilityController)} */
+exile_choice_return_event ::= "at" "the" "beginning" "of" "your" "next" "upkeep"
+
+/* One common tapping-for-mana condition and trailing type replacement apply
+   independently to every listed source population. ReplaceMana is per original
+   mana; it preserves the produced total, unlike AddMana's replacement amount. */
+/* @sem $mana_type_items */
+line_mana_type_replacements ::= "if" "tapped" "for" "mana" "," mana_type_items "instead" "of" "any" "other" "type" "."
+
+mana_type_items ::= mana_type_one | mana_type_pair | mana_type_list
+/* @sem Ability::[$mana_type_item] */
+mana_type_one ::= mana_type_item
+/* @sem Ability::[$mana_type_item, $mana_type_item_2] */
+mana_type_pair ::= mana_type_item "and" mana_type_item
+/* @sem Ability::[$mana_type_item, ...$mana_type_tail] */
+mana_type_list ::= mana_type_item "," mana_type_tail
+mana_type_tail ::= mana_type_last | mana_type_list
+/* @sem Ability::[$mana_type_item] */
+mana_type_last ::= "and" mana_type_item
+
+/* Only one mana symbol replaces each original unit. Producing a fixed amount
+   instead of the original amount is a separate contract and spelling. */
+/* @sem Ability::Replacement{active:Battlefield, event:ProduceMana{sources:$mana_plural_sources}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceMana(Amount{color:$mana_color, amount:Constant(1)})}}]}} */
+mana_type_item ::= mana_plural_sources "produce" mana_color
+
+/* A singleton can itself be granted; its controller and source filter then
+   belong to that new holder, independently of the granting object. */
+/* @sem Ability::$mana_type_item */
+replacement_mana_type_single ::= "if" "tapped" "for" "mana" "," mana_type_item "instead" "of" "any" "other" "type" "."
+
+/* Existing lower-case vocabulary makes these capitalized land names after
+   a comma explicit spelling tokens. The marker changes no filter meaning.
+   Plains is already plural and omitted by the generated plural catalogue. */
+mana_plural_sources ::= filter_plural | st_plains | mana_marked_land | mana_marked_land_modified | mana_unmarked_plains_modified
+/* @sem ObjectFilter::$mana_list_land */
+mana_marked_land ::= "↑" mana_list_land
+/* @sem ObjectFilter::@and($mana_list_land, $modifiers) */
+mana_marked_land_modified ::= "↑" mana_list_land modifiers
+/* @sem ObjectFilter::@and(ObjectFilter::Subtype(Plains), $modifiers) */
+mana_unmarked_plains_modified ::= st_plains modifiers
+
+mana_list_land ::= mana_list_plains | mana_list_swamps | mana_list_forests
+/* @sem ObjectFilter::Subtype(Plains) */
+mana_list_plains ::= "plains"
+/* @sem ObjectFilter::Subtype(Swamp) */
+mana_list_swamps ::= "swamps"
+/* @sem ObjectFilter::Subtype(Forest) */
+mana_list_forests ::= "forests"
+
+/* Additional counters add to other entry instructions, just like the existing
+   unqualified entry count. This wording does not create a replacement amount. */
+/* @sem Expr::$counter_amount */
+entry_counter_amount ::= counter_amount "additional"?
+
+/* A creature-cast trigger changes the actual cast spell's entry instructions.
+   It is distinct from a SourceEntering replacement on an ability holder. */
+/* @sem Ability::Triggered{event:$entry_counter_cast_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$cast_spell_entry_counters}]}} */
+triggered_cast_entry_counters ::= entry_counter_cast_event "," cast_spell_entry_counters "."
+
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:CardType(Creature)} */
+entry_counter_cast_event ::= ("when" | "whenever") "you" "cast" ("a" | "an") "creature" "spell"
+
+/* @sem Operation::ChangeSpell{subject:One(EventSubject), changes:[EntersWithCounters{kind:$counter_kind, amount:$entry_counter_amount}]} */
+cast_spell_entry_counters ::= ("that" "creature" | "it") "enters" "with" entry_counter_amount counter_kind ("counter" | "counters") "on" "it"
+
+/* A boon owns its creature-cast event and changes that event's spell. Its
+   closing quoted period also closes the granting instruction. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:$entry_counter_cast_event, duration:Indefinite, announcement:Announcement{}, body:Program{instructions:[Effect{result:@next, operation:$cast_spell_entry_counters}]}, once:true}}] */
+clause_entry_counter_boon ::= "you" "get" "a" "one-time" "boon" "with" '"' entry_counter_cast_event "," cast_spell_entry_counters "." '"'
+
+/* The leading time owns one complete sentence, including every coordinated action. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:$conjoined}}}]} */
+program_sentence_delayed_combat ::= "at" "end" "of" "combat" "," conjoined "."
+
+/* Next occurrence of this controller's upkeep, not the next turn globally. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:One(AbilityController)}, start:Immediately, body:Program{instructions:$relative_upkeep_action}}}] */
+clause_relative_upkeep_after ::= relative_upkeep_action "at" "the" "beginning" "of" "your" "next" "upkeep"
+relative_upkeep_action ::= may_body | clause_may
+
+/* The named flip condition remains with its delayed performing action. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@mark, operation:FlipCoin{player:AbilityController, protocol:@coin_protocol}}, If{condition:CoinFlip{result:@marked, outcome:$delayed_coin_outcome}, then:Program{instructions:$conjoined}, otherwise:Program{}}]}}}]}*/
+program_sentence_delayed_coin ::= "flip" "a" "coin" "at" "end" "of" "combat" "." "if" "you" delayed_coin_outcome "the" "flip" "," conjoined "."
+/* @sem CoinOutcome::Lost */
+delayed_coin_lost ::= "lose"
+/* @sem CoinOutcome::Won */
+delayed_coin_won ::= "win"
+delayed_coin_outcome ::= delayed_coin_lost | delayed_coin_won
+
+/* Both arms belong to the same resolution-time payment decision. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$conjoined}, otherwise:Program{instructions:$conjoined_2}}] */
+instructions_payment_otherwise ::= "you" "may" payment "." "if" "you" "do" "," conjoined "." "otherwise" "," conjoined
+
+/* A single announced target can produce multiple cards after exile. The whole
+   actual paid component is followed, only while those cards remain exiled. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost::Cost{parts:[Move{selections:[_{objects:One($target_object)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, zone:Exile}, destination:$battlefield_control, qualifiers:[]}}]}, otherwise:Program{}}] */
+clause_optional_target_blink ::= "you" "may" "exile" target_object "," "then" "return" "that" "card" "to" "the" "battlefield" battlefield_control
+
+/* Both explicit orders are retained for this pure two-leaf combat shield.
+   The event payload is the recipient in both leaves; the callback reads no
+   branch data. No event comparator or general Either ordering changes. */
+prevent_bidirectional_combat ::= prevent_combat_to_by | prevent_combat_by_to
+
+/* @sem Operation::CreateReplacement{event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:Combat, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient})]), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_combat_to_by ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref this_duration
+
+/* @sem Operation::CreateReplacement{event:Either([Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:Combat, grouping:SourceRecipient, subject:Recipient})]), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_combat_by_to ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref this_duration
+
+/* Plural card wording follows every actual card from this exact exile Move. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$exile_objects}, Instruction::Effect{result:@next, operation:Operation::Move{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, destination:$battlefield_control, qualifiers:[]}}] */
+clause_exile_return_group ::= exile_objects return_join "return" moved_group "to" "the" "battlefield" battlefield_control
+
+/* Plural card wording follows every actual card from this exact exile Move. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$exile_objects}, Instruction::Effect{result:@next, operation:Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Move{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, destination:$battlefield_control, qualifiers:[]}}]}}}] */
+clause_exile_return_delayed_group ::= exile_objects return_join "return" moved_group "to" "the" "battlefield" battlefield_control "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* The chosen source is a resolving choice, never a target. Callback owns the
+   actual ModifyEvent prevention result, not the original proposed damage. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources(Any), count:Exactly(Constant(1))}}, Effect{result:@next, operation:CreateReplacement{event:Damage{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}, limit:$prevention_choice_window, duration:EndOfTurn, body:Program{instructions:[Effect{result:@mark, operation:ModifyEvent{change:PreventDamage}}, $prevention_receipt_callback]}}}] */
+instructions_prevention_receipt_callback ::= prevention_choice_window "." prevention_receipt_callback
+
+prevention_choice_window ::= prevention_choice_next | prevention_choice_all
+/* @sem ReplacementLimit::NextOccurrence */
+prevention_choice_next ::= "the" "next" "time" "a" "source" "of" "your" "choice" "would" "deal" "damage" "to" "you" "this" "turn" "," "prevent" "that" "damage"
+/* @sem ReplacementLimit::UntilExpired */
+prevention_choice_all ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" "you" "this" "turn" "by" "a" "source" "of" "your" "choice"
+
+prevention_receipt_callback ::= prevention_damage_draw_callback | prevention_filtered_life_callback
+/* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:$prevention_damage_draw_body})} */
+prevention_damage_draw_callback ::= "when" "damage" "is" "prevented" "this" "way" "," prevention_damage_draw_body
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_ref, recipients:Players(One(ControllerOf(Damage(Source)))), amount:Performed(@marked), preventable:true}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Performed(@marked)}}]} */
+prevention_damage_draw_body ::= self_ref "deals" "that" "much" "damage" "to" "that" "source's" "controller" "and" "you" "draw" "that" "many" "cards"
+/* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, condition:AllOf(@unordered([Compare{left:CountObjects(Matching{objects:Damage(Source), filter:$adjectives}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, Compare{left:Performed(@marked), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}])), announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Performed(@marked)}}]}})} */
+prevention_filtered_life_callback ::= "whenever" "damage" "from" ("a" | "an") adjectives "source" "is" "prevented" "this" "way" "this" "turn" "," "you" "gain" "that" "much" "life"
+
+/* The preposed named return repeats the same printed source spelling;
+   the postposed pronoun refers to the single explicit paid self input. */
+instructions_optional_self_return_keyword ::= optional_self_return_post | optional_self_return_named
+
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One($self_explicit_ref)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:One(AbilityController)}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, zone:Exile}, destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Transition{result:@prior, phase:After}), changes:[GrantKeyword($keyword_value)], duration:Indefinite, evaluation:Snapshot}}]}}}]}, otherwise:Program{}}] */
+optional_self_return_post ::= "you" "may" "exile" self_explicit_ref "." "if" "you" "do" "," optional_self_return_keyword_postposed keyword_value
+
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One($self_ref_named)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:One(AbilityController)}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, zone:Exile}, destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Transition{result:@prior, phase:After}), changes:[GrantKeyword($keyword_value)], duration:Indefinite, evaluation:Snapshot}}]}}}]}, otherwise:Program{}}] */
+optional_self_return_named ::= "you" "may" "exile" self_ref_named "." "if" "you" "do" "," optional_self_return_keyword_preposed keyword_value
+
+/* @sem () */
+optional_self_return_keyword_postposed ::= "return" "it" "to" "the" "battlefield" "under" "its" "owner's" "control" "at" "the" "beginning" "of" "your" "next" "upkeep" "." "it" "gains"
+/* @sem () */
+optional_self_return_keyword_preposed ::= "at" "the" "beginning" "of" "your" "next" "upkeep" "," "return" self_named "to" "the" "battlefield" "under" "its" "owner's" "control" "and" "it" "gains"
+
+/* A future mandatory mana payment and its written failure stay together.
+   The condition names this exact local payment, not a preceding effect. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:One(AbilityController)}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Mana($delayed_fixed_mana)]}, optional:false}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::LoseGame}}]}, otherwise:Program{}}]}}}] */
+instructions_delayed_payment_failure ::= "at" "the" "beginning" "of" "your" "next" "upkeep" "," "pay" delayed_fixed_mana "." "if" "you" "don't" "," "you" "lose" "the" "game"
+
+delayed_fixed_mana ::= delayed_fixed_mana_one | delayed_fixed_mana_more
+/* @sem Vec<ManaSymbol>::[$delayed_fixed_mana_symbol] */
+delayed_fixed_mana_one ::= delayed_fixed_mana_symbol
+/* @sem Vec<ManaSymbol>::[$delayed_fixed_mana_symbol, ...$delayed_fixed_mana] */
+delayed_fixed_mana_more ::= delayed_fixed_mana_symbol delayed_fixed_mana
+
+delayed_fixed_mana_symbol ::= mana_colorless | mana_generic | mana_white | mana_blue | mana_black | mana_red | mana_green | mana_snow
+
+/* The announcement divides the written total among its targets. Each target
+   retains its own assigned shield; this is not one shared TotalDamage pool. */
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:UpTo($number), filter:Any, distribute:$number})), kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:DamageToEach(Expr::DistributedShare(@share)), duration:$prevent_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_distributed_targets ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" prevent_duration "to" "any" "number" "of" "targets" "," "divided" "as" "you" "choose"
+
+/* @sem Ability::Replacement{active:Battlefield, event:Counters(_{kind:PowerToughness(-1, -1), objects:$counter_replacement_population}), body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([Constant(2), EventAmount]))}}]}} */
+replacement_counters_double_minus ::= "if" "one" "or" "more" "-" "1" "/" "-" "1" "counters" "would" "be" "put" "on" counter_replacement_population "," "twice" "that" "many" "-" "1" "/" "-" "1" "counters" "are" "put" "on" "it" "instead" "."
+
+/* Close the pronoun over its producer. A chosen opponent and a targeted hand
+   owner cannot share a free-standing hard-coded Chosen condition. The body
+   ends with this sentence, preserving the ordinary conditional scope. */
+/* @sem Instruction::[...$instructions_hand_pick_subset, If{condition:$condition_that_player_more_cards, then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+instructions_subset_hand_compare ::= instructions_hand_pick_subset "." "then"? "if" condition_that_player_more_cards "," conjoined
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(OpponentsOf(AbilityController))]}} */
+choose_opponent ::= "choose" "an" "opponent"
+
+/* @sem Instruction::[Effect{result:@next, operation:$choose_opponent}, If{condition:$condition_chosen_player_more_cards, then:Program{instructions:[Effect{result:@next, operation:$chosen_hand_comparison_draw}]}, otherwise:Program{}}] */
+instructions_chosen_hand_compare ::= choose_opponent "." "if" condition_chosen_player_more_cards "," chosen_hand_comparison_draw
+
+/* These bodies name only the controller and the explicitly chosen opponent;
+   other player pronouns require their own lexical introduction contract. */
+chosen_hand_comparison_draw ::= chosen_hand_draw_controller | chosen_hand_difference_draw
+/* @sem @apply(PlayerSet::One(AbilityController), $draw_base) */
+chosen_hand_draw_controller ::= draw_base
+/* @sem Operation::Draw{players:One(AbilityController), amount:Subtract([CountObjects(Zone{scope:Players{zone:Hand, players:One(Chosen)}, kind:Card, filter:Any}), CountObjects(Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any})])} */
+chosen_hand_difference_draw ::= "draw" "cards" "equal" "to" "the" "difference"
+
+/* Counterparts are local to this matched damage event, independently of the
+   source holding the replacement ability. */
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Permanent, sources:$filter_phrase_2, recipients:Objects(@and($filter_phrase, ObjectFilter::Not(ObjectFilter::SameObject(Damage(Source))), ObjectFilter::Shares{property:Colors, with:Damage(Source)})), kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+replacement_matching_color_counterpart ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" ("a" | "an") filter_phrase "by" "another" filter_phrase "if" "they" "share" "a" "color" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Any, sources:ControlledBy(Matching{binding:0, condition:ValueChosenIs(Bound(0))}), recipients:ObjectsAndPlayers{objects:ControlledBy(Intersection([Matching{binding:0, condition:ValueChosenIs(Bound(0))}, OthersThan(ControllerOf(Damage(Source)))])), players:Intersection([Matching{binding:0, condition:ValueChosenIs(Bound(0))}, OthersThan(ControllerOf(Damage(Source)))])}, kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([$damage_counterpart_multiplier, EventAmount]))}}]}} */
+replacement_chosen_player_counterpart ::= "if" "a" "source" "controlled" "by" "one" "of" "the" "chosen" "players" "would" "deal" "damage" "to" "the" "other" "chosen" "player" "or" "a" "permanent" "that" "player" "controls" "," "that" "source" "deals" damage_counterpart_multiplier "that" "damage" "to" "that" "player" "or" "permanent" "instead" "."
+
+damage_counterpart_multiplier ::= damage_counterpart_double | damage_counterpart_triple
+/* @sem Expr::Constant(2) */
+damage_counterpart_double ::= "double"
+/* @sem Expr::Constant(3) */
+damage_counterpart_triple ::= "triple"
+
+/* A persistent chosen pair belongs to the entering holder. */
+/* @sem Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(Source)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{options:[Players(All)], count:Exactly(Constant(2))}}}]}} */
+replacement_choose_two_players_entering ::= "as" self_holder_text "enters" "," "choose" "two" "players" "."
+
+/* This resolution-time choice belongs to its enclosing program, including a
+   delayed trigger body. It does not select graveyard cards when created. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}, count:AsManyAsCan($number)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+exile_from_own_graveyard ::= "exile" number "cards" "from" "your" "graveyard"
+
+/* The postposed cleanup deadline owns the action, retaining its original
+   holder and controller references in the delayed body. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CleanupStepBegins, players:All}, start:Immediately, body:Program{instructions:$may_body}}}] */
+clause_delayed_cleanup_after ::= may_body "at" "the" "beginning" "of" "the" "next" "cleanup" "step"

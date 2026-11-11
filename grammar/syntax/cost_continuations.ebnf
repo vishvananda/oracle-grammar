@@ -1,0 +1,218 @@
+/* Native mechanics own their implicit actions. Explanations are presentation. */
+/* A resolving unless-choice is paid after its preceding target is known.
+   Activation costs retain their own holder contrast, including implicit equip
+   targets whose generated mention precedes the printed activation cost. */
+/* @sem Cost::Cost{parts:[$resolving_sacrifice_choice_part]} */
+resolving_sacrifice_choice_cost ::= resolving_sacrifice_choice_part
+resolving_sacrifice_choice_part ::= cost_sacrifice | cost_sacrifice_many | resolving_sacrifice_choice_another
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@other_reference(ObjectFilter::$filter_phrase))), $filter_phrase)}, choose:Exactly(Constant(1))} */
+resolving_sacrifice_choice_another ::= "sacrifice" "another" filter_phrase
+
+cost_mechanic_head ::= keyword_cumulative_upkeep | keyword_madness | keyword_unearth | keyword_ninjutsu | keyword_dash | keyword_evoke | keyword_blitz | keyword_replicate | keyword_buyback | keyword_kicker | keyword_multikicker | keyword_plot | keyword_bestow | keyword_warp | keyword_surge | keyword_freerunning
+/* @sem Ability::Mechanic{mechanic:Unearth, cost:$keyword_payment} */
+keyword_unearth ::= "unearth" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Ninjutsu, cost:$keyword_payment} */
+keyword_ninjutsu ::= "ninjutsu" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Dash, cost:$keyword_payment} */
+keyword_dash ::= "dash" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Evoke, cost:$keyword_payment} */
+keyword_evoke ::= "evoke" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Blitz, cost:$keyword_payment} */
+keyword_blitz ::= "blitz" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Replicate, cost:$keyword_payment} */
+keyword_replicate ::= "replicate" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Buyback, cost:$keyword_payment} */
+keyword_buyback ::= "buyback" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Kicker, cost:$keyword_payment} */
+keyword_kicker ::= "kicker" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Multikicker, cost:$keyword_payment} */
+keyword_multikicker ::= "multikicker" keyword_payment
+/* @sem Ability::Mechanic{mechanic:Plot, cost:$keyword_payment} */
+keyword_plot ::= "plot" keyword_payment
+keyword_bestow ::= keyword_bestow_fixed | keyword_bestow_variable
+/* @sem Ability::Mechanic{mechanic:Bestow, cost:Cost::@fixed_mana($keyword_payment)} */
+keyword_bestow_fixed ::= "bestow" keyword_payment
+/* @sem Ability::Mechanic{mechanic:BestowX, cost:Cost::@variable_mana($keyword_payment)} */
+keyword_bestow_variable ::= "bestow" keyword_payment
+keyword_warp ::= keyword_warp_fixed | keyword_warp_variable
+/* @sem Ability::Mechanic{mechanic:Warp, cost:Cost::@fixed_mana($keyword_payment)} */
+keyword_warp_fixed ::= "warp" keyword_payment
+/* @sem Ability::Mechanic{mechanic:WarpX, cost:Cost::@variable_mana($keyword_payment)} */
+keyword_warp_variable ::= "warp" keyword_payment
+
+/* X is part of the printed alternative cost. Its native mechanic tag stays
+   consistent with that operand in both parsing and edited-IR printing. */
+keyword_surge ::= keyword_surge_fixed | keyword_surge_variable
+/* @sem Ability::Mechanic{mechanic:Surge, cost:Cost::@fixed_mana($keyword_payment)} */
+keyword_surge_fixed ::= "surge" keyword_payment
+/* @sem Ability::Mechanic{mechanic:SurgeX, cost:Cost::@variable_mana($keyword_payment)} */
+keyword_surge_variable ::= "surge" keyword_payment
+keyword_freerunning ::= keyword_freerunning_fixed | keyword_freerunning_variable
+/* @sem Ability::Mechanic{mechanic:Freerunning, cost:Cost::@fixed_mana($keyword_payment)} */
+keyword_freerunning_fixed ::= "freerunning" keyword_payment
+/* @sem Ability::Mechanic{mechanic:FreerunningX, cost:Cost::@variable_mana($keyword_payment)} */
+keyword_freerunning_variable ::= "freerunning" keyword_payment
+
+/* @sem Ability::WithPresentation{reminder:true, ability:$cost_mechanic_explained} */
+reminded_cost_mechanic ::= cost_mechanic_explained
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:$cost_mechanic_explained} */
+labelled_cost_mechanic ::= ability_label "—" cost_mechanic_explained
+cost_mechanic_explained ::= unearth_explained | ninjutsu_explained | dash_explained | evoke_explained | blitz_explained | replicate_explained | buyback_explained | kicker_explained | multikicker_explained | plot_explained | bestow_explained | warp_explained
+
+/* A repeated payment is the same typed Cost, never a second game payment. */
+/* @sem Ability::Mechanic{mechanic:Unearth, cost:Cost::@agree($keyword_payment, $cost)} */
+unearth_explained ::= "unearth" keyword_payment "(" cost ":" "return" "this" "card" "from" "your" "graveyard" "to" "the" "battlefield" "." ("it" "gains" "haste" ".")? "exile" "it" "at" "the" "beginning" "of" "the" "next" "end" "step" "or" "if" "it" "would" "leave" "the" "battlefield" "." "unearth" "only" "as" "a" "sorcery" "." ")"
+/* @sem Ability::Mechanic{mechanic:Ninjutsu, cost:Cost::@agree($keyword_payment, $cost)} */
+ninjutsu_explained ::= "ninjutsu" keyword_payment "(" cost "," "↑" "return" "an" "unblocked" "attacker" "you" "control" "to" "hand" ":" "put" "this" "card" "onto" "the" "battlefield" "from" "your" "hand" "tapped" "and" "attacking" "." ")"
+/* @sem $keyword_dash */
+dash_explained ::= keyword_dash "(" "you" "may" "cast" "this" "spell" "for" "its" "dash" "cost" "." "if" "you" "do" "," "it" "gains" "haste" "," "and" "it's" "returned" "from" "the" "battlefield" "to" "its" "owner's" "hand" "at" "the" "beginning" "of" "the" "next" "end" "step" "." ")"
+/* @sem $keyword_evoke */
+evoke_explained ::= keyword_evoke "(" "you" "may" "cast" "this" "spell" "for" "its" "evoke" "cost" "." "if" "you" "do" "," "it's" "sacrificed" "when" "it" "enters" "." ")"
+/* @sem $keyword_blitz */
+blitz_explained ::= keyword_blitz "(" "if" "you" "cast" "this" "spell" "for" "its" "blitz" "cost" "," "it" "gains" "haste" "and" '"' "when" "this" "creature" "dies" "," "draw" "a" "card" "." '"' "sacrifice" "it" "at" "the" "beginning" "of" "the" "next" "end" "step" "." ")"
+/* @sem $keyword_replicate */
+replicate_explained ::= keyword_replicate "(" "when" "you" "cast" "this" "spell" "," "copy" "it" "for" "each" "time" "you" "paid" "its" "replicate" "cost" "." ("you" "may" "choose" "new" "targets" "for" "the" "copies" ".")? ("copies" "become" "tokens" ".")? ")"
+/* @sem Ability::Mechanic{mechanic:Buyback, cost:Cost::@agree($keyword_payment, $additional_payment)} */
+buyback_explained ::= "buyback" keyword_payment "(" "you" "may" additional_payment "as" "you" "cast" "this" "spell" "." "if" "you" "do" "," "put" "this" "card" "into" "your" "hand" "as" "it" "resolves" "." ")"
+/* @sem Ability::Mechanic{mechanic:Kicker, cost:Cost::@agree($keyword_payment, $additional_payment)} */
+kicker_explained ::= "kicker" keyword_payment "(" "you" "may" additional_payment "as" "you" "cast" "this" "spell" "." ")"
+/* @sem Ability::Mechanic{mechanic:Multikicker, cost:Cost::@agree($keyword_payment, $additional_payment)} */
+multikicker_explained ::= "multikicker" keyword_payment "(" "you" "may" additional_payment "any" "number" "of" "times" "as" "you" "cast" "this" "spell" "." ")"
+additional_payment ::= additional_mana_payment | additional_word_payment
+/* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
+additional_mana_payment ::= "pay" "an" "additional" mana_symbols
+/* @sem Cost::Cost{parts:[$cost_words_owned]} */
+additional_word_payment ::= cost_words_owned
+/* @sem Ability::Mechanic{mechanic:Plot, cost:Cost::@agree($keyword_payment, $plot_payment)} */
+plot_explained ::= "plot" keyword_payment "(" "you" "may" plot_payment "and" "exile" "this" "card" "from" "your" "hand" "." "cast" "it" "as" "a" "sorcery" "on" "a" "later" "turn" "without" "paying" "its" "mana" "cost" "." "plot" "only" "as" "a" "sorcery" "." ")"
+plot_payment ::= plot_mana_payment | additional_word_payment
+/* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
+plot_mana_payment ::= "pay" mana_symbols
+/* @sem $keyword_bestow */
+bestow_explained ::= keyword_bestow "(" "if" "you" "cast" "this" "card" "for" "its" "bestow" "cost" "," "it's" "an" "Aura" "spell" "with" "enchant" "creature" "." "it" "becomes" "a" "creature" "again" "if" "it's" "not" "attached" "." ")"
+/* @sem $keyword_warp */
+warp_explained ::= keyword_warp "(" "you" "may" "cast" "this" "card" "from" "your" "hand" "for" "its" "warp" "cost" "." "exile" "this" ("creature" | "enchantment") "at" "the" "beginning" "of" "the" "next" "end" "step" "," "then" "you" "may" "cast" "it" "from" "exile" "on" "a" "later" "turn" "." ")"
+
+/* Attachment continuations name the actual performed movement, not the old
+   card, an entering event, or an unrelated token batch. */
+program_sentence_move_attachment ::= move_attachment_return | move_attachment_hand
+
+/* The targeted return is a player action; its inner Move owns the receipt used
+   by the separately optional attachment. The enclosing payment precedes it. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:Move{objects:One($move_attachment_target), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}, optional:true}}, If{condition:PaymentChosen(@back(2)), then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Attach{attachments:One(Result{result:@marked, phase:After, index:0}), host:$self_explicit_ref}}]}}]}, otherwise:Program{}}]} */
+move_attachment_return ::= "you" "may" "return" move_attachment_target "from" "your" "graveyard" "to" "the" "battlefield" "." "if" "you" "do" "," "you" "may" "attach" "it" "to" self_explicit_ref "."
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($filter_phrase, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
+move_attachment_target ::= "target" filter_phrase "card"
+
+/* The untargeted hand choice is a native move-cost component. Its performed
+   after objects are those that actually entered, under this ability's control. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, choose:Exactly(Constant(1))}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Attach{attachments:One($self_explicit_ref), host:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}}}]}, otherwise:Program{}}]} */
+move_attachment_hand ::= "you" "may" "put" "a" filter_phrase "card" "from" "your" "hand" "onto" "the" "battlefield" "and" "attach" self_explicit_ref "to" "it" "."
+
+/* The closing period owns the entire reflexive body. A preceding program is
+   spliced before the payment without letting later clauses escape its scope. */
+/* @prefer always */
+program_sentence_repeat_mana ::= repeat_mana_sentence | repeat_mana_after_prefix
+/* @sem Program::Program{instructions:$repeat_mana_instructions} */
+repeat_mana_sentence ::= repeat_mana_instructions "."
+/* @sem Program::Program{instructions:[...$instructions, ...$repeat_mana_instructions]} */
+repeat_mana_after_prefix ::= instructions "." repeat_mana_instructions "."
+
+/* The payment happens during resolution; its one reflexive trigger announces
+   targets only after the player has chosen how many times to pay. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[ManaAnyNumberOfTimes($repeat_payment_symbols)]}, optional:false}}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:$repeat_mana_body})}]}}] */
+repeat_mana_instructions ::= "you" "may" "pay" repeat_payment_symbols "any" "number" "of" "times" "." "when" "you" "pay" "this" "cost" "one" "or" "more" "times" "," repeat_mana_body
+
+repeat_mana_body ::= repeat_mana_exile_copy | repeat_mana_phase_out | repeat_mana_counters_only | repeat_mana_tokens | repeat_mana_lands
+/* @sem Program::Program{instructions:[$repeat_mana_counters]} */
+repeat_mana_counters_only ::= repeat_mana_counters
+/* @sem Instruction::Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, amount:Performed(@marked)}]}} */
+repeat_mana_counters ::= "put" "that" "many" counter_kind "counters" "on" self_explicit_ref
+
+/* The count is the number of successful payments, not the number of counters
+   actually placed (counter-doubling replacements do not increase token count). */
+/* @sem Program::Program{instructions:[$repeat_mana_counters, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Multiply([Constant(2), Performed(@marked)]), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+repeat_mana_tokens ::= repeat_mana_counters "," "then" "create" "twice" "that" "many" token_recipe
+
+/* Explicitly retained lands keep their other types and prior creature types. */
+/* @sem Program::Program{instructions:[$repeat_mana_counters, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Performed(@marked)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}))), changes:[SetBasePowerToughness{power:$number, toughness:$number_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature), ...$grants], duration:Indefinite, evaluation:Snapshot}}]} */
+repeat_mana_lands ::= repeat_mana_counters "," "then" "up" "to" "that" "many" "target" "lands" "you" "control" "become" number "/" number becomes_types "creatures" "with" grants "that" "are" "still" "lands"
+
+/* Variable X chosen during repeated local payments needs a separate contract. */
+repeat_payment_symbols ::= repeat_payment_one | repeat_payment_more
+/* @sem ManaSymbol::[$repeat_payment_symbol] */
+repeat_payment_one ::= repeat_payment_symbol
+/* @sem ManaSymbol::[$repeat_payment_symbol, ...$repeat_payment_symbols] */
+repeat_payment_more ::= repeat_payment_symbol repeat_payment_symbols
+repeat_payment_symbol ::= mana_colorless | mana_generic | mana_white | mana_blue | mana_black | mana_red | mana_green | mana_snow | mana_hybrid
+
+/* The source card can function in either named zone. Cast permissions keep a
+   separate from-zone rule; an activation shares its unchanged source identity. */
+/* @sem Ability::[Scoped{zones:[Graveyard], ability:@scope(Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($source_zone_card), from:Graveyard, action:$source_zone_play_action, filter:Any})]})}, Scoped{zones:[Exile], ability:@scope(Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($source_zone_card), from:Exile, action:$source_zone_play_action, filter:Any})]})}] */
+line_source_zone_permission ::= "you" "may" source_zone_play_action source_zone_card source_zone_alternatives "."
+/* @sem ObjectRef::Source */
+source_zone_card ::= "this" "card"
+/* @sem CardPlayAction::CastSpell */
+source_zone_cast ::= "cast"
+/* @sem CardPlayAction::Either */
+source_zone_play ::= "play"
+source_zone_play_action ::= source_zone_cast | source_zone_play
+/* @sem () */
+source_zone_alternatives ::= "from" "your" "graveyard" "or" "from" "exile"
+
+/* Scoped governs activation, not a later source-zone recheck. The native move
+   verb rejects stale old objects (CR400.7); this is not a return of a new card. */
+/* @sem Ability::Scoped{zones:[Graveyard, Exile], ability:@scope(Ability::Activated{origin:Ordinary, cost:$source_zone_return_cost, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One($source_zone_card), destination:Battlefield{controller:Player(AbilityController), arrival:$source_zone_return_entry}, qualifiers:[]}}]}})} */
+source_zone_return_ability ::= source_zone_return_cost ":" "return" source_zone_card source_zone_alternatives "to" "the" "battlefield" source_zone_return_entry "."
+/* @sem BattlefieldArrival::BattlefieldArrival{tapped:true, counters:[], states:[]} */
+source_zone_return_tapped ::= "tapped"
+/* @sem BattlefieldArrival::BattlefieldArrival{tapped:false, counters:[], states:[]} */
+source_zone_return_untapped ::= "untapped"?
+source_zone_return_entry ::= source_zone_return_tapped | source_zone_return_untapped
+
+/* The pilot accepts mana payments only; a self-moving cost needs its own
+   performed-object history rather than an implicit source-incarnation alias. */
+/* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
+source_zone_return_cost ::= mana_symbols
+
+/* @sem Ability::Mechanic{mechanic:Madness, cost:$keyword_payment} */
+keyword_madness ::= "madness" keyword_payment
+
+/* Flashback belongs to the receiving card. Its owner/source and cost remain
+   inside that granted ability, independently of the creating ability holder. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(InZone{objects:One($callback_flashback_target), zone:Graveyard}), changes:[GrantAbility(@holder(Ability::Casting(Permission{origin:Flashback, player:OwnerOf(Source), from:Players{zone:Graveyard, players:One(OwnerOf(Source))}, require:AnyOf([CardType(Instant), CardType(Sorcery)]), cost:$cost, leave_stack:Exile})))], duration:$duration, evaluation:Snapshot}}]} */
+callback_flashback_program ::= callback_flashback_target "gains" "flashback" cost duration
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($callback_flashback_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
+callback_flashback_target ::= "target" callback_flashback_filter "card" "in" "your" "graveyard"
+
+/* @sem ObjectFilter::AnyOf([CardType(Instant), CardType(Sorcery)]) */
+callback_flashback_either ::= "instant" "or" "sorcery"
+callback_flashback_filter ::= callback_flashback_either | spell_instant | spell_sorcery
+
+/* These callback bodies stay under the existing repeated-resolution-payment
+   owner. Literal holder wording proves Source without a named-creator alias. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($self_ref_holder)), kind:$counter_kind, amount:Performed(@marked)}]}}, Effect{result:@next, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:UpTo(Performed(@marked)), filter:@and($repeat_mana_card_filter, ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$number}}, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))})), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:Transition{result:@prior, phase:After}, times:Constant(1)}}, Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:AnyNumber, cost:Free}}]} */
+repeat_mana_exile_copy ::= "put" "that" "many" counter_kind "counters" "on" self_ref_holder "," "then" "exile" "up" "to" "that" "many" "target" repeat_mana_card_filter "cards" "with" "mana" "value" number "or" "less" "from" "your" "graveyard" "and" "copy" "them" "." "you" "may" "cast" "any" "number" "of" "the" "copies" "without" "paying" "their" "mana" "costs"
+
+/* Other excludes the literal holder independently of callback target slots.
+   The amount remains payments performed, even when counters are prevented. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($self_ref_holder)), kind:$counter_kind, amount:Performed(@marked)}]}}, Effect{result:@next, operation:KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Performed(@marked)), filter:@and(ObjectFilter::Not(SameObject($self_ref_holder)), $repeat_mana_phase_filter)}))}}]} */
+repeat_mana_phase_out ::= "put" "that" "many" counter_kind "counters" "on" self_ref_holder "," "then" "up" "to" "that" "many" "other" "target" repeat_mana_phase_filter "phase" "out"
+
+/* Written and/or joins alternative card types, never their intersection.
+   Keep these list spellings inside the resolution-payment callback owner. */
+repeat_mana_card_filter ::= card_filter | repeat_mana_card_union
+/* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
+repeat_mana_card_union ::= card_word "and" "/" "or" card_word
+repeat_mana_phase_filter ::= filter_plural | repeat_mana_plural_union
+/* @sem ObjectFilter::AnyOf([$plural, $plural_2, $plural_3]) */
+repeat_mana_plural_union ::= plural "," plural "," "and" "/" "or" plural
+
+/* @sem Ability::Mechanic{mechanic:CumulativeUpkeep, cost:$keyword_payment} */
+keyword_cumulative_upkeep ::= "cumulative" "upkeep" keyword_payment
+
+/* A temporary graveyard mechanic belongs to the announced receiving card. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(InZone{objects:One($callback_flashback_target), zone:Graveyard}), changes:[GrantAbility(@holder($bare_jump_start))], duration:$duration, evaluation:Snapshot}}]} */
+callback_graveyard_mechanic_program ::= callback_flashback_target "gains" bare_jump_start duration

@@ -1,0 +1,64 @@
+/* Immediate copies announce their own stack target; future copies instead
+   refer to the spell observed by their future casting event. */
+
+/* @sem Operation::CopyOnStack{actor:One(AbilityController), object:$target_stack_spell, times:Constant(1), targets:Same} */
+copy_stack_spell ::= "copy" target_stack_spell
+
+next_spell_filter ::= next_any_spell | next_adjective_spell | next_modified_spell | next_described_spell
+
+/* @sem ObjectFilter::Any */
+next_any_spell ::= "spell"
+
+/* @sem $spell_adjectives */
+next_adjective_spell ::= spell_adjectives "spell"
+
+/* @sem $modifiers */
+next_modified_spell ::= "spell" modifiers
+
+/* @sem @and($spell_adjectives, $modifiers) */
+next_described_spell ::= spell_adjectives "spell" modifiers
+
+/* @sem Operation::CreateTrigger{event:Spell{event:Cast, players:One(AbilityController), spells:$next_spell_filter}, duration:$this_duration, announcement:Announcement{}, body:Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventSubject, times:Constant(1), targets:Same}}]}, once:true} */
+copy_next_spell ::= "copy" "the" "next" next_spell_filter "you" "cast" this_duration "when" "you" "cast" "it"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:Spell{event:Cast, players:One(AbilityController), spells:$next_spell_filter}, duration:$this_duration, announcement:Announcement{}, body:Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventSubject, times:Constant(1), targets:May}}]}, once:true}}] */
+copy_next_spell_retarget ::= "copy" "the" "next" next_spell_filter "you" "cast" this_duration "when" "you" "cast" "it" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* The targeted declaration proves a spell-only stack population. Keep its
+   existing membership reading and an explicit published stack-domain guard. */
+/* @sem Instruction::[Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:$copy_selected_spell_filter, targets:May}}] */
+clause_copy_selected_spells ::= "copy" copy_selected_spell_filter "." copy_group_retarget
+
+copy_selected_spell_filter ::= copy_selected_spell_guard | copy_selected_spell_members
+/* @sem ObjectFilter::@and(ObjectFilter::InSet($copy_spell_targets), ObjectFilter::OnStack(Spell)) */
+copy_selected_spell_guard ::= copy_spell_targets
+/* @sem ObjectFilter::InSet($copy_spell_targets) */
+copy_selected_spell_members ::= copy_spell_targets
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:$copy_spell_count, filter:AnyOf([CardType(Instant), CardType(Sorcery)])})) */
+copy_spell_targets ::= copy_spell_count "target" "instant" "and" "/" "or" "sorcery" "spells"
+copy_spell_count ::= copy_any_number | target_count
+/* @sem Count::AnyNumber */
+copy_any_number ::= "any" "number" "of"
+/* @sem () */
+copy_group_retarget ::= "you" "may" "choose" "new" "targets" "for" "the" "copies"
+
+/* Fixed mana and the actual optional payment result own both copy actions.
+   A spell-only filter must not be applied to the later ability-copy group. */
+/* @sem Cost::@fixed_mana(Cost{parts:[Mana($mana_symbols)]}) */
+copy_fixed_payment ::= mana_symbols
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$copy_fixed_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:_{instructions:[Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:@and(ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::OnStack(Spell)), targets:May}}, Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:@and(ObjectFilter::Not(OnStack(ThisAbility)), ObjectFilter::AnyOf([OnStack(Activated), OnStack(Triggered)]), ObjectFilter::ControlledBy(One(AbilityController))), targets:May}}]}, otherwise:_{}}] */
+clause_copy_paid_stack_groups ::= "you" "may" "pay" copy_fixed_payment "." "if" "you" "do" "," "copy" "all" "spells" "you" "control" "," "then" "copy" "all" "other" "activated" "and" "triggered" "abilities" "you" "control" "." copy_group_retarget
+
+/* Only this cast-spell producer supplies the marked result. Both copies use
+   one shared filter choice, retaining two identical copy actions (one pool). */
+copy_cast_spell_domain ::= copy_cast_spell_guard | copy_cast_spell_members
+/* @sem ObjectFilter::OnStack(Spell) */
+copy_cast_spell_guard ::= "spells"
+/* @sem ObjectFilter::Any */
+copy_cast_spell_members ::= "spells"
+
+/* @sem Ability::Scoped{zones:[Stack], ability:Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:SameObject(Source)})), changes:[Rule(Prohibit(Copy))]})} */
+stack_self_copy_prohibition ::= "this" "spell" "can't" "be" "copied" "."
+
+/* @sem Instruction::[Effect{result:@mark, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and(ObjectFilter::CardType(Instant), ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:AnnouncedX}}, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0}), SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and(ObjectFilter::CardType(Sorcery), ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:AnnouncedX}}, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0})])}), count:AnyNumber, cost:Free, into_exile:true}}, If{condition:Compare{left:ObjectProperty{object:Source, property:SpellX, information:CurrentOrLastKnown}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, then:_{instructions:[Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:@and(ObjectFilter::InSet(Affected(@marked)), $copy_cast_spell_domain), targets:May}}, Effect{result:@next, operation:CopyEach{actor:One(AbilityController), objects:@and(ObjectFilter::InSet(Affected(@marked)), $copy_cast_spell_domain), targets:May}}]}, otherwise:_{}}] */
+clause_cast_two_types_copy ::= "you" "may" "cast" "up" "to" "one" "target" "instant" "card" "and" "/" "or" "up" "to" "one" "target" "sorcery" "card" "from" "your" "graveyard" "each" "with" "mana" "value" "X" "or" "less" "without" "paying" "their" "mana" "costs" "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead" "." "if" "X" "is" number "or" "more" "," "copy" "each" "of" "those" copy_cast_spell_domain "twice" "." "you" "may" "choose" "new" "targets" "for" "the" "copies"

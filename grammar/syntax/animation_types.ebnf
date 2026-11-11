@@ -1,0 +1,87 @@
+/* Explicit retention modifies the animation, rather than a later no-op.
+   Named artifact-creature animations without retention still replace creature
+   types (CR 205.1b). Colors and granted abilities are independent. */
+
+/* @sem @retain_animation_types($change_becomes) */
+retained_change ::= change_becomes ("↓")? retention_suffix
+
+retention_suffix ::= retention_addition | retention_inline
+/* @sem () */
+retention_addition ::= "in" "addition" "to" ("its" | "their") "other" "types"
+/* @sem () */
+retention_inline ::= "that's" "still" ("a" | "an")? retention_type
+
+retention_note ::= retention_singular | retention_plural
+/* @sem () */
+retention_singular ::= ("it's" | "he's" | "she's") "still" ("a" | "an")? retention_type
+/* @sem () */
+retention_plural ::= "they're" "still" retention_plural_type
+/* @sem () */
+retention_type ::= "land" | "artifact" | "creature" | "enchantment" | "planeswalker" | "Cave" "land"
+/* @sem () */
+retention_plural_type ::= "lands" | "artifacts" | "creatures" | "enchantments" | "planeswalkers"
+
+retained_animation ::= retained_animation_after | retained_animation_before | retained_animation_indefinite | retained_animation_existing | retained_animation_quoted
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
+retained_animation_after ::= affected changes ("↓")? duration "." retention_note
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
+retained_animation_before ::= duration "," affected changes "." retention_note
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($dynamic_animation), duration:Indefinite, evaluation:Snapshot} */
+retained_animation_indefinite ::= affected dynamic_animation "." retention_note
+
+/* Existing operations supply their own target/group and duration operands. */
+/* @sem Operation::@retain_animation($mined_operation) */
+retained_animation_existing ::= mined_operation "." retention_note
+
+/* A complete final quotation also supplies the enclosing sentence's stop. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($animation_quoted), duration:$duration, evaluation:Snapshot} */
+retained_animation_quoted ::= duration "," affected animation_quoted retention_note
+
+/* @sem Program::@where(Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot}}]}, $value) */
+program_retained_defined ::= affected changes ("↓")? duration "," "where" "X" "is" value "." retention_note
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:@retain_animation_types($static_animation)}) */
+static_retained_animation ::= affected static_animation "." retention_note "."
+
+/* A supertype-only change preserves all other type-line components. */
+change_supertype_snow ::= change_add_snow | change_remove_snow
+/* @sem Change::[AddSupertype(Snow)] */
+change_add_snow ::= ("becomes" | "become" | "is" | "are") "snow"
+/* @sem Change::[RemoveSupertype(Snow)] */
+change_remove_snow ::= ("isn't" | "aren't") "snow"
+
+change_becomes_legendary ::= legendary_animation | legendary_animation_with
+/* @sem Change::[AddSupertype(Legendary), SetBasePowerToughness{power:$number, toughness:$number_2}, ...$legendary_creature_kind] */
+legendary_animation ::= ("becomes" | "become") ("a" | "an") "legendary" number "/" number legendary_creature_kind
+/* @sem Change::[...$legendary_animation, ...$grants] */
+legendary_animation_with ::= legendary_animation "with" grants
+
+/* Explicit retained types are indefinite when no duration is stated. This is
+   a resolution effect; it does not make a static property of a live query. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($dynamic_animation), duration:Indefinite, evaluation:Snapshot} */
+continuous_retained_inline_indefinite ::= affected dynamic_animation retention_suffix
+/* "Is" immediately after a battlefield return supplies an entry characteristic
+   (CR611.2e); "becomes" creates a later continuous effect. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$dynamic_type_addition, duration:Indefinite, evaluation:Snapshot} */
+continuous_type_addition_indefinite ::= affected dynamic_type_addition
+/* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
+dynamic_type_addition ::= ("becomes" | "become") ("a" | "an")? becomes_types "in" "addition" "to" ("its" | "their") "other" ("creature")? "types"
+
+/* A new perpetual type change has an explicit source or an actual one-card
+   draft receipt. Bare pronouns after other choices keep their prior contract. */
+/* @sem $bk_artifact */
+perpetual_artifact_creature ::= ("becomes" | "become") ("a" | "an") bk_artifact
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($self_explicit_ref), changes:$perpetual_artifact_creature}}] */
+clause_perpetual_source_types ::= self_explicit_ref "perpetually" perpetual_artifact_creature
+/* @sem Instruction::[Effect{result:@next, operation:$draft_one_source_spellbook}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$perpetual_artifact_creature}}] */
+instructions_draft_perpetual_types ::= draft_one_source_spellbook "." "that" "card" "perpetually" perpetual_artifact_creature
+/* @sem Operation::DraftFromSpellbook{actor:One(AbilityController), spellbook:@card_name, times:Constant(1)} */
+draft_one_source_spellbook ::= "draft" ("a" | "one") "card" "from" self_named "'s" "spellbook"
+
+/* A named creature animation replaces card types unless retention is explicit. */
+legendary_creature_kind ::= legendary_named_creature | legendary_colored_creature
+/* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Creature])] */
+legendary_named_creature ::= becomes_types "creature"
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Creature])] */
+legendary_colored_creature ::= mana_color_word becomes_types "creature"

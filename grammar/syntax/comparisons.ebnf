@@ -1,0 +1,62 @@
+/* Stat comparisons carry expression operands, not only numeric constants.
+   Within the operand, `its` names the object being tested by the filter.
+   Explicit holder names and `that creature's` retain their ordinary binding. */
+
+/* @sem ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:$stat_comparison, value:Expr::@in_filter($value)}} */
+modifier_stat_compared ::= "with" stat stat_comparison value
+
+stat_comparison ::= comparison_equal | comparison_less | comparison_less_equal | comparison_greater | comparison_greater_equal
+
+/* @sem Comparison::Equal */
+comparison_equal ::= "equal" "to"
+
+/* @sem Comparison::Less */
+comparison_less ::= "less" "than"
+
+/* @sem Comparison::LessOrEqual */
+comparison_less_equal ::= "less" "than" "or" "equal" "to"
+
+/* @sem Comparison::Greater */
+comparison_greater ::= "greater" "than"
+
+/* @sem Comparison::GreaterOrEqual */
+comparison_greater_equal ::= "greater" "than" "or" "equal" "to"
+
+/* A counterspell announces a spell in the stack zone. Its adjectives and
+   relative modifiers are the same phrases used by spell-trigger filters. */
+/* @sem Operation::Counter{objects:One($target_stack_spell), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None} */
+counter_spell ::= "counter" target_stack_spell
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Spell, zones:[Stack]}), count:Exactly(Expr::Constant(1)), filter:$stack_spell_filter}), index:0} */
+target_stack_spell ::= "target" stack_spell_filter
+
+stack_spell_filter ::= stack_spell_any | stack_spell_described | stack_spell_modified | stack_spell_described_modified
+
+/* @sem ObjectFilter::Any */
+stack_spell_any ::= "spell"
+
+/* @sem $spell_adjectives */
+stack_spell_described ::= spell_adjectives "spell"
+
+/* @sem $modifiers */
+stack_spell_modified ::= "spell" modifiers
+
+/* @sem @and($spell_adjectives, $modifiers) */
+stack_spell_described_modified ::= spell_adjectives "spell" modifiers
+
+/* A singular optional target spell still lives on the stack, independently of
+   optional battlefield-permanent targets. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Spell, zones:[Stack]}), count:UpTo(Expr::Constant(1)), filter:$stack_spell_filter}), index:0} */
+target_optional_stack_spell ::= "up" "to" "one" "target" stack_spell_filter
+
+/* A history's Top is its earliest subject, Bottom its latest. Spell sources
+   retain their own controllers, independently of this effect's damage source.
+   Prefer the explicit query over an unqualified player pronoun when printing. */
+/* @prefer value(ControllerOf) */
+/* @sem PlayerRef::ControllerOf(AtEnd{objects:FromHistory{event:Damage(DamageEvent{source_kind:Spell, sources:$stack_spell_filter, recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Source}), window:ThisTurn}, end:$history_source_end}) */
+history_damage_controller ::= "the" "controller" "of" "the" history_source_end stack_spell_filter "that" "dealt" "damage" "to" "you" "this" "turn"
+history_source_end ::= history_source_first | history_source_last
+/* @sem SequenceEnd::Top */
+history_source_first ::= "first"
+/* @sem SequenceEnd::Bottom */
+history_source_last ::= "last"

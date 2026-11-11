@@ -1,0 +1,386 @@
+/* Conditions on triggers and activations. */
+condition ::= condition_one | condition_and | condition_or
+
+/* @sem Condition::AllOf([$condition_one, $condition_one_2]) */
+condition_and ::= condition_one "and" condition_one
+
+/* @sem Condition::AnyOf([$condition_one, $condition_one_2]) */
+condition_or ::= condition_one "or" condition_one
+
+condition_one ::= condition_above_starting_life | condition_starting_life_margin | condition_no_hollow_sentinel | condition_shares_card_type | condition_ring_bearer_choice | condition_ring_bearer_choice_other | condition_total_mana_spent | condition_not_casters_turn | condition_no_opponent_more_life | condition_attached_named | condition_it_suspected | condition_kicked_with | condition_kicked_twice | condition_linked_card | condition_it_card | mined_condition | condition_cast_kicked | condition_kicked | condition_it_kicked | condition_hand_size | condition_hand_none | condition_control | condition_control_another
+    | condition_control_many | condition_control_none | condition_attacked | condition_lost_life
+    | condition_self_is | condition_not_type | condition_it_was | condition_died | condition_left_under | condition_entered_under
+    | condition_monarch | condition_cast | condition_graveyard_size | condition_graveyard_filtered_size | condition_graveyard_has
+    | condition_life | condition_gained_life | condition_no_spell | condition_control_both
+    | condition_card_types_graveyard | condition_land_types | condition_poison | condition_commander
+    | condition_lost_amount | condition_no_creatures_died | condition_had_counter | condition_put_counter
+    | condition_all_are | condition_not_their_turn | condition_damage_to_it | condition_that_entered
+    | condition_opponents_control_none | condition_same_color_spent | condition_not_that_players_turn
+    | condition_permanent_cards_graveyard | condition_entered_under_you | condition_defending_no
+    | condition_property_bounded | condition_property_compared | condition_property_equal
+    | condition_object_color | condition_it_color | condition_escaped
+    | condition_object_has_property | condition_controller_poison | condition_object_is_kind | condition_object_is_either_kind
+    | condition_mana_values_graveyard | condition_committed_crime
+    | condition_object_has_keyword | condition_object_lacks_keyword
+    | condition_citys_blessing | condition_full_party
+
+/* @sem Condition::PlayerState{player:AbilityController, state:FullParty} */
+condition_full_party ::= "you" "have" "a" "full" "party"
+
+/* @sem Condition::PlayerState{player:AbilityController, state:CitysBlessing} */
+condition_citys_blessing ::= "you" "have" "the" "city's" "blessing"
+
+/* The predicate keeps its explicitly written object, independently of the
+   current event subject or the ability holder. Negation applies to the keyword. */
+/* @sem Condition::ObjectMatches{object:@remember_object($object_ref), filter:HasKeyword($keyword_name)} */
+condition_object_has_keyword ::= object_ref "has" keyword_name
+
+/* @sem Condition::ObjectMatches{object:@remember_object($object_ref), filter:Not(HasKeyword($keyword_name))} */
+condition_object_lacks_keyword ::= object_ref "doesn't" "have" keyword_name
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:$filter_phrase} */
+condition_object_is_kind ::= object_ref ("is" | "was") ("a" | "an") filter_phrase
+
+/* The predicate describes the linked card, separately from the holder's noun. */
+/* @sem Condition::ObjectMatches{object:Earlier{what:LastExiled}, filter:CardType(Creature)} */
+condition_linked_card ::= "a" "card" "exiled" "with" self_holder_text "is" "a" "creature" "card"
+
+/* Alternatives test the same explicitly stated subject. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:AnyOf([$filter_phrase, $filter_phrase_2])} */
+condition_object_is_either_kind ::= object_ref ("is" | "was") ("a" | "an") filter_phrase "or" ("a" | "an") filter_phrase
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:$bound, value:$number}}} */
+condition_object_has_property ::= object_ref "has" stat number "or" bound
+
+/* A known object's controller is one player, without an existential binding. */
+/* @sem Condition::Compare{left:Expr::CountCounters{recipients:Players(One($its_controller)), kind:Named(PoisonCounter), information:CurrentOrLastKnown}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
+condition_controller_poison ::= its_controller "has" count "or" "more" "poison" "counters"
+
+/* A possessive supplies an object, independent of the property and comparison.
+   Card names retain the creator; `this creature's` retains the ability holder. */
+condition_property_subject ::= condition_property_it | condition_property_named | self_possessive
+
+/* @prefer value(EventSubject) */
+/* @sem ObjectRef::@it */
+condition_property_it ::= "its"
+
+/* @sem $it_possessive */
+condition_property_named ::= it_possessive
+
+/* @sem Condition::ObjectMatches{object:$condition_property_subject, filter:ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:$bound, value:$number}}} */
+condition_property_bounded ::= condition_property_subject stat "is" number "or" bound
+
+/* @sem Condition::ObjectMatches{object:$condition_property_subject, filter:ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:$stat_comparison, value:Expr::@in_filter($value)}}} */
+condition_property_compared ::= condition_property_subject stat "is" stat_comparison value
+
+/* @sem Condition::ObjectMatches{object:$condition_property_subject, filter:ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:$number}}} */
+condition_property_equal ::= condition_property_subject stat "is" number
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:$condition_color} */
+condition_object_color ::= object_ref "is" condition_color
+
+/* @sem Condition::ObjectMatches{object:@it, filter:$condition_color} */
+condition_it_color ::= "it's" condition_color
+
+condition_color ::= adjective_color | adjective_colorless
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:State(Escaped)} */
+condition_escaped ::= object_ref "escaped"
+
+/* @sem Condition::Compare{left:Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One($condition_player)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:$bound_words, value:$count}} */
+condition_hand_size ::= condition_player ("has" | "have") count bound_words "cards" "in" "hand"
+
+/* @sem Condition::Compare{left:Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One($condition_player)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:Equal, value:Expr::Constant(0)}} */
+condition_hand_none ::= condition_player ("has" | "have") "no" "cards" "in" "hand"
+
+condition_player ::= condition_you | condition_that_player
+
+/* @sem PlayerRef::AbilityController */
+condition_you ::= "you"
+
+/* @sem @that_player */
+condition_that_player ::= "that" "player"
+
+bound_words ::= bound_or_more | bound_or_fewer
+
+/* @sem Comparison::GreaterOrEqual */
+bound_or_more ::= "or" "more"
+
+/* @sem Comparison::LessOrEqual */
+bound_or_fewer ::= "or" ("fewer" | "less")
+
+/* The subject includes verb agreement; its reference is resolved in the enclosing
+   event/target scope. Keep object exclusion separate from the controlling player. */
+condition_control_subject ::= condition_control_you | condition_control_other | condition_control_they
+
+/* @sem PlayerRef::AbilityController */
+condition_control_you ::= "you" "control"
+
+/* @sem $that_player */
+condition_control_other ::= that_player "controls"
+
+/* @sem PlayerRef::@that_player */
+condition_control_they ::= "they" "control"
+
+/* @sem Condition::Controls{player:$condition_control_subject, filter:$filter_phrase, minimum:1} */
+condition_control ::= condition_control_subject ("a" | "an") filter_phrase
+
+/* @sem Condition::Controls{player:$condition_control_subject, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_phrase), minimum:1} */
+condition_control_another ::= condition_control_subject "another" filter_phrase
+
+/* @sem Condition::AllOf([Controls{player:$condition_control_subject, filter:$filter_phrase, minimum:1}, Controls{player:$condition_control_subject, filter:$filter_phrase_2, minimum:1}]) */
+condition_control_both ::= condition_control_subject ("a" | "an") filter_phrase "and" ("a" | "an") filter_phrase
+
+/* @sem Condition::Compare{left:Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One($condition_control_subject)))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
+condition_control_many ::= condition_control_subject count "or" "more" filter_plural
+
+/* @sem Condition::Not(Condition::Controls{player:$condition_control_subject, filter:$filter_plural, minimum:1}) */
+condition_control_none ::= condition_control_subject "no" filter_plural
+
+/* @sem Condition::Compare{left:EventHistory{event:Player{event:Attacks, players:One(PlayerRef::AbilityController)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}} */
+condition_attacked ::= "you" "attacked" "this" "turn"
+
+/* @sem Condition::ExistsPlayer{players:$event_player, binding:0, condition:Compare{left:EventHistory{event:Player{event:LosesLife, players:One(PlayerRef::Bound(0))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}} */
+condition_lost_life ::= event_player "lost" "life" "this" "turn"
+
+/* @sem Condition::ObjectMatches{object:ObjectRef::Source, filter:$condition_state} */
+condition_self_is ::= self_text "is" condition_state
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Not($filter_phrase)} */
+condition_not_type ::= object_ref "isn't" ("a" | "an") filter_phrase
+
+condition_state ::= adjective_tapped | adjective_untapped | adjective_attacking | adjective_blocking
+
+/* @sem Condition::ObjectMatches{object:@it, filter:ObjectFilter::Not($condition_state)} */
+condition_it_was ::= "it" "wasn't" condition_state
+
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:$filter_phrase, from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}} */
+condition_died ::= ("a" | "an") filter_phrase "died" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:Object{event:LeavesBattlefield, objects:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}} */
+condition_left_under ::= ("a" | "an") filter_phrase "left" "the" "battlefield" "under" "your" "control" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}} */
+condition_entered_under ::= ("a" | "an") filter_phrase "entered" "the" "battlefield" "under" "your" "control" "this" "turn"
+
+/* @sem Condition::PlayerState{player:AbilityController, state:Monarch} */
+condition_monarch ::= "you're" "the" "monarch"
+
+/* @sem Condition::Compare{left:EventHistory{event:Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}} */
+condition_cast ::= "you've" "cast" spell_filter "this" "turn"
+
+/* @sem Condition::Compare{left:Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
+condition_graveyard_size ::= "there" "are" count "or" "more" "cards" "in" "your" "graveyard"
+
+/* @sem Condition::Compare{left:Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$card_filter}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
+condition_graveyard_filtered_size ::= "there" "are" count "or" "more" card_filter "cards" "in" "your" "graveyard"
+
+/* @sem Condition::Compare{left:Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$card_filter}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}} */
+condition_graveyard_has ::= ("there's" | "there" "is") ("a" | "an") card_filter "card" "in" "your" "graveyard"
+
+/* @sem Condition::Compare{left:Expr::PlayerNumber{player:$condition_player, number:Life}, test:NumberTest::Compare{comparison:$bound_words, value:$number}} */
+condition_life ::= condition_player ("has" | "have") number bound_words "life"
+
+/* @sem Condition::Compare{left:EventHistory{event:Player{event:GainsLife, players:One(PlayerRef::AbilityController)}, window:ThisTurn, measure:TotalAmount}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}} */
+condition_gained_life ::= "you" "gained" number "or" "more" "life" "this" "turn"
+
+/* @sem Condition::Not(Condition::Compare{left:EventHistory{event:Spell{event:Cast, players:One(@that_player), spells:Any}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}) */
+condition_no_spell ::= "that" "player" "didn't" "cast" "a" "spell" "this" "turn"
+
+/* @sem Condition::Compare{left:Expr::CountDistinct{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, property:CardTypes}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
+condition_card_types_graveyard ::= "there" "are" count "or" "more" "card" "types" "among" "cards" "in" "your" "graveyard"
+
+/* @sem Condition::Compare{left:Expr::CountDistinct{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, property:ManaValues}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
+condition_mana_values_graveyard ::= "there" "are" count "or" "more" "mana" "values" "among" "cards" "in" "your" "graveyard"
+
+/* @sem Condition::PlayerState{player:AbilityController, state:CommittedCrime} */
+condition_committed_crime ::= ("you've" | "you" "have") "committed" "a" "crime" "this" "turn"
+
+/* @sem Condition::Compare{left:Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, property:BasicLandTypes}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
+condition_land_types ::= "there" "are" count "or" "more" "basic" "land" "types" "among" filter_plural
+
+/* @sem Condition::ExistsPlayer{players:$event_player, binding:0, condition:Compare{left:Expr::CountCounters{recipients:Players(One(PlayerRef::Bound(0))), kind:Named(PoisonCounter), information:CurrentOrLastKnown}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}}} */
+condition_poison ::= event_player "has" count "or" "more" "poison" "counters"
+
+/* @sem Condition::Controls{player:AbilityController, filter:AllOf([State(Commander), OwnedBy(One(PlayerRef::AbilityController))]), minimum:1} */
+condition_commander ::= "you" "control" "your" "commander"
+
+/* @sem Condition::ExistsPlayer{players:$event_player, binding:0, condition:Compare{left:EventHistory{event:Player{event:LosesLife, players:One(PlayerRef::Bound(0))}, window:ThisTurn, measure:TotalAmount}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}} */
+condition_lost_amount ::= event_player "lost" number "or" "more" "life" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:$filter_plural, from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:Equal, value:Expr::Constant(0)}} */
+condition_no_creatures_died ::= "no" filter_plural "died" "this" "turn"
+
+/* @sem Condition::ObjectMatches{object:@it, filter:ObjectFilter::Counters{kind:PowerToughness(1, 1), comparison:Greater, value:Expr::Constant(0)}} */
+condition_had_counter ::= "it" "had" "a" "+" "1" "/" "+" "1" "counter" "on" "it"
+
+/* @sem Condition::Compare{left:EventHistory{event:Batch{event:Counters{change:Put, objects:$filter_phrase, by:One(PlayerRef::AbilityController)}, per:Subject}, window:ThisTurn, measure:TotalAmount}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}} */
+condition_put_counter ::= "you" "put" "a" "counter" "on" ("a" | "an") filter_phrase "this" "turn"
+
+/* @sem Condition::Compare{left:Expr::CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, filter:ObjectFilter::Not($adjective_color)}), test:NumberTest::Compare{comparison:Equal, value:Expr::Constant(0)}} */
+condition_all_are ::= "all" filter_plural "are" adjective_color
+
+/* @sem Condition::Not(Condition::PlayerIsActive(@that_player)) */
+condition_not_their_turn ::= "it's" "not" "their" "turn"
+
+/* @sem Condition::ObjectMatches{object:@it, filter:ObjectFilter::Condition(Compare{left:EventHistory{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Objects(SameObject(ObjectRef::Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:TotalAmount}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}})} */
+condition_damage_to_it ::= number "or" "more" "damage" "was" "dealt" "to" "it" "this" "turn"
+
+/* @sem Condition::ObjectMatches{object:@that_object, filter:ObjectFilter::Condition(Compare{left:EventHistory{event:ZoneChange{objects:SameObject(ObjectRef::Candidate), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}})} */
+condition_that_entered ::= that_noun_word "entered" "this" "turn"
+
+/* @sem Condition::Compare{left:Expr::CountPlayers(Intersection([OpponentsOf(PlayerRef::AbilityController), Matching{binding:0, condition:Not(Condition::Controls{player:Bound(0), filter:$filter_plural, minimum:1})}])), test:NumberTest::Compare{comparison:Equal, value:Expr::CountPlayers(OpponentsOf(PlayerRef::AbilityController))}} */
+condition_opponents_control_none ::= "your" "opponents" "control" "no" filter_plural
+
+/* @sem Condition::Not(Condition::Controls{player:$defending_player, filter:$filter_plural, minimum:1}) */
+condition_defending_no ::= defending_player "controls" "no" filter_plural
+
+/* @sem Condition::ExistsPlayer{players:OthersThan(@that_player), binding:0, condition:PlayerIsActive(Bound(0))} */
+condition_not_that_players_turn ::= "it's" "not" "that" "player's" "turn"
+
+/* @sem Condition::Compare{left:Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}} */
+condition_permanent_cards_graveyard ::= "there" "are" number "or" "more" "permanent" "cards" "in" "your" "graveyard"
+
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:@and($filter_plural, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}} */
+condition_entered_under_you ::= number "or" "more" filter_plural "entered" "the" "battlefield" "under" "your" "control" "this" "turn"
+
+/* @sem Condition::ObjectMatches{object:EventSubject, filter:ObjectFilter::Condition(Compare{left:Expr::ManaSpent{object:Candidate, filter:SpentManaFilter{}, aggregation:MaximumPerColor}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}})} */
+condition_same_color_spent ::= "at" "least" number "mana" "of" "the" "same" "color" "was" "spent" "to" "cast" "it"
+
+/* When an activated ability may be activated. */
+activation_window ::= window_your_turn | window_before_attackers | window_your_upkeep | window_if
+
+/* @sem Condition::PlayerIsActive(AbilityController) */
+window_your_turn ::= "during" "your" "turn"
+
+/* @sem Condition::AllOf([Condition::PlayerIsActive(AbilityController), Condition::Window(BeforeAttackersDeclared)]) */
+window_before_attackers ::= "during" "your" "turn" "," "before" "attackers" "are" "declared"
+
+/* @sem Condition::PlayerState{player:AbilityController, state:InTheirUpkeep} */
+window_your_upkeep ::= "during" "your" "upkeep"
+
+/* @sem $condition */
+window_if ::= "if" condition
+
+/* @prefer value(ObjectMatches) */
+/* @sem Condition::ObjectMatches{object:$self_ref, filter:State(Kicked)} */
+condition_kicked ::= self_ref "was" "kicked"
+
+/* Keep the casting-state noun available before the ordinary self-name beam
+   ranks the other holder nouns. Keys still recover all the general forms. */
+/* @prefer type(Instant) */
+/* @prefer type(Sorcery) */
+/* @sem Condition::ObjectMatches{object:@self, filter:State(Kicked)} */
+condition_cast_kicked ::= "this" "spell" "was" "kicked"
+
+/* @prefer value(ObjectMatches) */
+/* @sem Condition::ObjectMatches{object:@it, filter:State(Kicked)} */
+condition_it_kicked ::= "it" "was" "kicked"
+
+condition_it_card ::= condition_card_single | condition_card_either
+
+/* @sem Condition::ObjectMatches{object:@current_it, filter:$card_filter} */
+condition_card_single ::= "it's" ("a" | "an") card_filter "card"
+
+/* A card's current characteristics may differ from its departed permanent. */
+/* @sem Condition::ObjectMatches{object:@current_it, filter:AnyOf([$card_filter, $card_filter_2])} */
+condition_card_either ::= "it's" ("a" | "an") card_filter "or" (("a" | "an"))? card_filter "card"
+
+/* A paid named kicker remains distinct from being kicked at all or twice. */
+/* @sem Condition::ObjectMatches{object:$kicked_subject, filter:$kicker_test_with} */
+condition_kicked_with ::= kicked_subject "was" kicker_test_with
+/* @sem Condition::ObjectMatches{object:$kicked_subject, filter:$kicker_test_twice} */
+condition_kicked_twice ::= kicked_subject "was" kicker_test_twice
+kicked_subject ::= self_ref | kicked_it | kicked_spell
+/* @sem @it */
+kicked_it ::= "it"
+/* @sem @self */
+kicked_spell ::= "this" "spell"
+
+/* @sem Condition::ObjectMatches{object:@it, filter:State(Suspected)} */
+condition_it_suspected ::= "it's" "suspected"
+
+/* Existential attachment is independent of the static ability's beneficiary. */
+/* @sem Condition::Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Subtype(Equipment), ObjectFilter::Name($attachment_card_name))}, filter:AttachedTo(InSet(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
+condition_attached_named ::= ("a" | "an") "Equipment" "named" attachment_card_name "is" "attached" "to" ("a" | "an") filter_phrase
+
+/* Names are data terminals, separate from this ability's holder and creator. */
+attachment_card_name ::= attachment_name_gown | attachment_name_finery
+/* @sem String::'Bride''s Gown' */
+attachment_name_gown ::= "Bride's" "Gown"
+/* @sem String::'Groom''s Finery' */
+attachment_name_finery ::= "Groom's" "Finery"
+
+/* @sem Condition::Compare{left:CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Life}, test:NumberTest::Compare{comparison:Greater, value:PlayerNumber{player:$life_comparison_player, number:Life}}}}])), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}} */
+condition_no_opponent_more_life ::= "no" "opponent" "has" "more" "life" "than" life_comparison_player
+
+life_comparison_player ::= player_ref | life_comparison_you
+/* @sem PlayerRef::AbilityController */
+life_comparison_you ::= "you"
+
+
+/* @sem Condition::Not(PlayerIsActive(@that_player)) */
+condition_not_casters_turn ::= "it" "isn't" "that" "player's" "turn"
+
+/* Referenced-card spelling data use the same String boundary as the existing
+   attachment_card_name vocabulary. These are not current-source name tokens. */
+referenced_card_name ::= referenced_name_rite | referenced_name_inventory | referenced_name_body | referenced_name_mox_emerald | referenced_name_mox_jet | referenced_name_mox_pearl | referenced_name_mox_ruby | referenced_name_mox_sapphire
+/* @sem String::'Rite of Flame' */
+referenced_name_rite ::= "Rite" "of" "Flame"
+/* @sem String::'Take Inventory' */
+referenced_name_inventory ::= "Take" "Inventory"
+/* @sem String::'Dig Up the Body' */
+referenced_name_body ::= "Dig" "Up" "the" "Body"
+
+/* @sem String::'Mox Emerald' */
+referenced_name_mox_emerald ::= "Mox" "Emerald"
+
+/* @sem String::'Mox Jet' */
+referenced_name_mox_jet ::= "Mox" "Jet"
+
+/* @sem String::'Mox Pearl' */
+referenced_name_mox_pearl ::= "Mox" "Pearl"
+
+/* @sem String::'Mox Ruby' */
+referenced_name_mox_ruby ::= "Mox" "Ruby"
+
+/* @sem String::'Mox Sapphire' */
+referenced_name_mox_sapphire ::= "Mox" "Sapphire"
+
+/* The written noun requires an already introduced spell, even after an action
+   on the source creature. This is total paid mana, not mana value or a color
+   maximum. Ordinary If/intervening-if owners retain their own placement. */
+/* @sem Condition::ObjectMatches{object:$named_spell, filter:ObjectFilter::Condition(Compare{left:Expr::ManaSpent{object:Candidate, filter:SpentManaFilter{}, aggregation:Count}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}})} */
+/* @prefer always */
+condition_total_mana_spent ::= number "or" "more" "mana" "was" "spent" "to" "cast" named_spell
+
+/* The player is a lexical antecedent, not necessarily a chosen opponent. */
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Players{zone:Hand, players:One(PlayerRef::@that_player_literal)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any})}} */
+condition_that_player_more_cards ::= "that" "player" "has" "more" "cards" "in" "hand" "than" "you"
+
+/* This fixed referent is used only in a span that explicitly chooses an opponent. */
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Players{zone:Hand, players:One(Chosen)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any})}} */
+condition_chosen_player_more_cards ::= "that" "player" "has" "more" "cards" "in" "hand" "than" "you"
+
+/* This is the creature chosen during the Ring event, not a current bearer query. */
+/* @sem Condition::RingBearerChosen($filter_phrase) */
+condition_ring_bearer_choice ::= "you" "chose" ("a" | "an") filter_phrase "as" "your" "Ring-bearer"
+/* @sem Condition::RingBearerChosen(@and(ObjectFilter::Not(SameObject($object_ref)), $filter_phrase)) */
+condition_ring_bearer_choice_other ::= "you" "chose" ("a" | "an") filter_phrase "other" "than" object_ref "as" "your" "Ring-bearer"
+
+/* Both objects are explicit: the event object can be compared with a card
+   linked to the holder without changing that event's actor. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Shares{property:CardTypes, with:$object_ref_2}} */
+condition_shares_card_type ::= object_ref "shares" "a" "card" "type" "with" object_ref
+
+/* A named-token existence check concerns controlled creatures with that name,
+   not the identity or characteristics of a target in another mode. */
+/* @prefer always */
+/* @sem Condition::Not(Controls{player:AbilityController, filter:AllOf([CardType(Creature), Name('The Hollow Sentinel')]), minimum:1}) */
+condition_no_hollow_sentinel ::= "you" "don't" "control" "a" "creature" "named" "The" "Hollow" "Sentinel"
+
+/* @sem Condition::Compare{left:PlayerNumber{player:AbilityController, number:Life}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Add([$value, StartingLife(AbilityController)])}} */
+condition_starting_life_margin ::= "your" "life" "total" "is" "at" "least" value "greater" "than" "your" "starting" "life" "total"
+
+/* @sem Condition::Compare{left:PlayerNumber{player:AbilityController, number:Life}, test:NumberTest::Compare{comparison:Greater, value:StartingLife(AbilityController)}} */
+condition_above_starting_life ::= "your" "life" "total" "is" "greater" "than" "your" "starting" "life" "total"

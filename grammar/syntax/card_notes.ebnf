@@ -1,0 +1,112 @@
+/* Card-characteristic explanations are separate from the card's abilities. */
+card_text ::= card_station_raw | card_station_raw_before | card_station_plain | card_station_before | card_station_explicit | card_text_land | card_text_land_only | card_text_land_cost | card_text_cost_land | card_text_land_cost_only | card_text_cost_land_only | card_text_noted | card_text_notes_only | card_text_plain
+
+/* @sem CardSurface::CardSurface{notes:$cost_notes, abilities:$card} */
+card_text_noted ::= cost_notes NEWLINE card
+/* @sem CardSurface::CardSurface{notes:$cost_notes} */
+card_text_notes_only ::= cost_notes
+/* @sem CardSurface::CardSurface{abilities:$card} */
+card_text_plain ::= card
+
+cost_notes ::= cost_notes_one | cost_notes_more
+/* @sem ManaSymbol::[$cost_note] */
+cost_notes_one ::= cost_note
+/* @sem ManaSymbol::[$cost_note, ...$cost_notes] */
+cost_notes_more ::= cost_note NEWLINE cost_notes
+
+cost_note ::= hybrid_cost_note | phyrexian_cost_note
+
+/* @sem ManaSymbol::@agree($note_hybrid, $hybrid_explanation) */
+hybrid_cost_note ::= "(" note_hybrid "can" "be" hybrid_explanation "." ")"
+note_hybrid ::= mana_hybrid | note_hybrid_reversed
+/* @sem ManaSymbol::Hybrid($mana_letter_2, $mana_letter) */
+note_hybrid_reversed ::= "{" mana_letter "/" mana_letter "}"
+
+hybrid_explanation ::= hybrid_either | hybrid_either_reversed
+/* @sem ManaSymbol::Hybrid($note_color, $note_color_2) */
+hybrid_either ::= "paid" "with" "either" note_color "or" note_color
+
+/* @sem ManaSymbol::@agree($note_phyrexian, $phyrexian_explanation) */
+phyrexian_cost_note ::= "(" note_phyrexian "can" "be" phyrexian_explanation "." ")"
+/* @sem ManaSymbol::Phyrexian([$mana_letter]) */
+note_phyrexian ::= "{" mana_letter "/" "P" "}"
+/* @sem ManaSymbol::Phyrexian([$note_color]) */
+phyrexian_explanation ::= "paid" "with" "either" note_color "or" "2" "life"
+
+/* @sem $mana_letter */
+note_color ::= "{" mana_letter "}"
+
+/* Either payment order describes the same declared symbol; preserve its spelling
+   with the production key rather than rewriting a native cost's operand order. */
+/* @sem ManaSymbol::Hybrid($note_color_2, $note_color) */
+hybrid_either_reversed ::= "paid" "with" "either" note_color "or" note_color
+
+/* Station reminders are parsed as complete source declarations, not rewritten. */
+/* @sem StationSource::StationSource{minimum:$number} */
+station_source_animation ::= "station" "(" "tap" "another" "creature" "you" "control" ":" "put" "charge" "counters" "equal" "to" "its" "power" "on" "this" "Spacecraft" "." "station" "only" "as" "a" "sorcery" "." "it's" "an" "artifact" "creature" "at" NUMBER "⁺" "." ")"
+
+/* The selected striation is supplied by explicit source layout context. */
+/* @sem CardSurface::CardSurface{station:true, abilities:$station_block} */
+card_station_plain ::= station_block
+/* @sem CardSurface::CardSurface{station:true, abilities:[...$abilities, ...$station_block]} */
+card_station_before ::= abilities NEWLINE station_block
+/* @sem Ability::[Mechanic{mechanic:Station}, ...$station_rows] */
+station_block ::= station_heading NEWLINE station_rows
+station_heading ::= station_heading_bare
+/* @sem () */
+station_heading_bare ::= "station"
+/* @sem () */
+station_heading_reminded ::= station_source
+station_rows ::= station_row_one | station_row_more
+/* @sem Ability::[CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:$number, abilities:$station_row_abilities}]}] */
+station_row_one ::= NUMBER "⁺" "|" station_row_abilities
+/* @sem Ability::[...$station_row_one, ...$station_rows] */
+station_row_more ::= station_row_one NEWLINE station_rows
+station_row_abilities ::= stage_line | station_row_keywords | station_row_animation
+station_row_keywords ::= station_row_keyword_one | station_row_keyword_more
+
+/* A bounded row composes a turn event, one optional other target, current
+   base statistics, grants and duration. It has no cross-clause pronoun or
+   replacement-stat continuation whose scope could leak into another action. */
+/* @sem Ability::[Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$station_row_animation_effect}]}}] */
+station_row_animation ::= "at" turn_event "," station_row_animation_effect "."
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($station_animation_target)), changes:[AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$number, toughness:$number_2}, ...$grants], duration:$duration, evaluation:Snapshot} */
+station_row_animation_effect ::= station_animation_target ("becomes" | "become") ("a" | "an") "artifact" "creature" "with" "base" "power" "and" "toughness" number "/" number "and" ("gains" | "gain") grants duration
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@other_reference(ObjectFilter::$filter_phrase))), $filter_phrase)}), index:0} */
+station_animation_target ::= "up" "to" "one" "other" "target" filter_phrase
+
+/* @sem Ability::[Keyword($keyword_value)] */
+station_row_keyword_one ::= keyword_value
+/* @sem Ability::[Keyword($keyword_value), ...$station_row_keywords] */
+station_row_keyword_more ::= keyword_value "," station_row_keywords
+
+/* An ability-only input may supply its box explicitly in the same striation. */
+/* @sem CardSurface::CardSurface{station_explicit:true, abilities:$station_explicit_text} */
+card_station_explicit ::= station_explicit_text
+/* @sem Ability::[Mechanic{mechanic:Station}, CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:$number, power_toughness:[$number_2, $number_3], animates:true, abilities:$station_row_abilities}]}] */
+station_explicit_abilities ::= "station" NEWLINE NUMBER "⁺" "|" station_row_abilities NEWLINE NUMBER "/" NUMBER
+
+station_source ::= station_source_animation | station_source_bare | station_source_nonanimating
+/* @sem StationSource::StationSource{} */
+station_source_bare ::= "station"
+/* @sem StationSource::StationSource{} */
+station_source_nonanimating ::= "station" "(" "tap" "another" "creature" "you" "control" ":" "put" "charge" "counters" "equal" "to" "its" "power" "on" "this" ("Spacecraft" | "Planet") "." "station" "only" "as" "a" "sorcery" "." ")"
+
+/* The visible reminder's operand stays available to the inverse grammar. */
+/* @sem CardSurface::CardSurface{station:true, station_declaration:$station_visible_source, abilities:[WithPresentation{reminder:true, ability:Mechanic{mechanic:Station}}, ...$station_rows]} */
+card_station_raw ::= station_visible_source NEWLINE station_rows
+/* @sem CardSurface::CardSurface{station:true, station_declaration:$station_visible_source, abilities:[...$abilities, WithPresentation{reminder:true, ability:Mechanic{mechanic:Station}}, ...$station_rows]} */
+card_station_raw_before ::= abilities NEWLINE station_visible_source NEWLINE station_rows
+
+station_visible_source ::= station_source_animation | station_source_nonanimating
+
+/* The ability root's wrapper is excluded at the card root; typed card surfaces
+   refer directly to this shared declaration, preserving explicit provenance. */
+line_station_explicit ::= station_explicit_abilities
+station_explicit_text ::= station_explicit_abilities | station_explicit_before | station_explicit_after | station_explicit_both
+/* @sem Ability::[...$abilities, ...$station_explicit_abilities] */
+station_explicit_before ::= abilities NEWLINE station_explicit_abilities
+/* @sem Ability::[...$station_explicit_abilities, ...$abilities] */
+station_explicit_after ::= station_explicit_abilities NEWLINE abilities
+/* @sem Ability::[...$abilities, ...$station_explicit_abilities, ...$abilities_2] */
+station_explicit_both ::= abilities NEWLINE station_explicit_abilities NEWLINE abilities

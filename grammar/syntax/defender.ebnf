@@ -1,0 +1,165 @@
+/* Defender exceptions: number agreement belongs to these plain EBNF productions. */
+
+/* @sem () */
+defender_join ::= "and" | "," "and"?
+
+defender_subject_sg ::= object_one | objects_each | objects_each_other | objects_random
+
+defender_subject_pl ::= affected_plural | affected_other | objects_all | objects_all_other
+    | objects_targets | objects_other_targets | objects_all_two | objects_two_targets
+    | objects_three_targets | objects_four_targets | objects_pair_both
+
+/* @sem Change::[Change::Rule(AttackException{ignore:Defender, defenders:Any})] */
+rule_attack_defender_sg ::= "can" "attack" "as" "though" "it" "didn't" "have" "defender"
+
+/* @sem Change::[Change::Rule(CombatDamage(UseToughness))] */
+defender_damage_sg ::= "assigns" "combat" "damage" "equal" "to" "its" "toughness" "rather" "than" "its" "power"
+
+defender_other_rule_sg ::= rule_change | defender_damage_sg
+
+defender_common_change_sg ::= change | defender_other_rule_sg
+
+defender_common_changes_sg ::= defender_common_change_sg | defender_common_changes_more_sg
+
+/* @sem Change::[...$defender_common_change_sg, ...$defender_common_changes_sg] */
+defender_common_changes_more_sg ::= defender_common_change_sg defender_join defender_common_changes_sg
+
+defender_other_rules_sg ::= defender_other_rule_sg | defender_other_rules_more_sg
+
+/* @sem Change::[...$defender_other_rule_sg, ...$defender_other_rules_sg] */
+defender_other_rules_more_sg ::= defender_other_rule_sg defender_join defender_other_rules_sg
+
+defender_changes_sg ::= rule_attack_defender_sg | defender_changes_before_sg | defender_changes_after_sg
+
+/* @sem Change::[...$defender_common_change_sg, ...$defender_changes_sg] */
+defender_changes_before_sg ::= defender_common_change_sg defender_join defender_changes_sg
+
+/* @sem Change::[...$rule_attack_defender_sg, ...$defender_common_changes_sg] */
+defender_changes_after_sg ::= rule_attack_defender_sg defender_join defender_common_changes_sg
+
+defender_rule_changes_sg ::= rule_attack_defender_sg | defender_rule_changes_before_sg | defender_rule_changes_after_sg
+
+/* @sem Change::[...$defender_other_rule_sg, ...$defender_rule_changes_sg] */
+defender_rule_changes_before_sg ::= defender_other_rule_sg defender_join defender_rule_changes_sg
+
+/* @sem Change::[...$rule_attack_defender_sg, ...$defender_other_rules_sg] */
+defender_rule_changes_after_sg ::= rule_attack_defender_sg defender_join defender_other_rules_sg
+
+defender_characteristic_changes_sg ::= change | defender_characteristic_before_sg | defender_characteristic_after_sg
+
+/* @sem Change::[...$defender_other_rule_sg, ...$defender_characteristic_changes_sg] */
+defender_characteristic_before_sg ::= defender_other_rule_sg defender_join defender_characteristic_changes_sg
+
+/* @sem Change::[...$change, ...$defender_common_changes_sg] */
+defender_characteristic_after_sg ::= change defender_join defender_common_changes_sg
+
+defender_mixed_changes_sg ::= defender_mixed_char_first_sg | defender_mixed_rule_first_sg | defender_mixed_first_sg
+
+/* @sem Change::[...$change, ...$defender_changes_sg] */
+defender_mixed_char_first_sg ::= change defender_join defender_changes_sg
+
+/* @sem Change::[...$defender_other_rule_sg, ...$defender_mixed_changes_sg] */
+defender_mixed_rule_first_sg ::= defender_other_rule_sg defender_join defender_mixed_changes_sg
+
+/* @sem Change::[...$rule_attack_defender_sg, ...$defender_characteristic_changes_sg] */
+defender_mixed_first_sg ::= rule_attack_defender_sg defender_join defender_characteristic_changes_sg
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($defender_subject_sg), changes:$defender_changes_sg} */
+defender_clause_sg ::= defender_subject_sg defender_changes_sg
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($defender_subject_sg), changes:$defender_rule_changes_sg, duration:$duration, evaluation:LiveObjects} */
+continuous_defender_sg ::= defender_subject_sg defender_rule_changes_sg duration | duration "," defender_subject_sg defender_rule_changes_sg
+
+/* @sem @continuous_parts(Instruction::Effect{result:@next, operation:Operation::CreateContinuousEffect{source:Source, affected:Objects($defender_subject_sg), changes:$defender_mixed_changes_sg, duration:$duration, evaluation:Snapshot}}) */
+continuous_defender_mixed_sg ::= defender_subject_sg defender_mixed_changes_sg duration | duration "," defender_subject_sg defender_mixed_changes_sg
+
+/* @sem Change::[Change::Rule(AttackException{ignore:Defender, defenders:Any})] */
+rule_attack_defender_pl ::= "can" "attack" "as" "though" "they" "didn't" "have" "defender"
+
+/* @sem Change::[Change::Rule(CombatDamage(UseToughness))] */
+defender_damage_pl ::= "assign" "combat" "damage" "equal" "to" "their" "toughness" "rather" "than" "their" "power"
+
+defender_other_rule_pl ::= rule_change | defender_damage_pl
+
+defender_common_change_pl ::= change | defender_other_rule_pl
+
+defender_common_changes_pl ::= defender_common_change_pl | defender_common_changes_more_pl
+
+/* @sem Change::[...$defender_common_change_pl, ...$defender_common_changes_pl] */
+defender_common_changes_more_pl ::= defender_common_change_pl defender_join defender_common_changes_pl
+
+defender_other_rules_pl ::= defender_other_rule_pl | defender_other_rules_more_pl
+
+/* @sem Change::[...$defender_other_rule_pl, ...$defender_other_rules_pl] */
+defender_other_rules_more_pl ::= defender_other_rule_pl defender_join defender_other_rules_pl
+
+defender_changes_pl ::= rule_attack_defender_pl | defender_changes_before_pl | defender_changes_after_pl
+
+/* @sem Change::[...$defender_common_change_pl, ...$defender_changes_pl] */
+defender_changes_before_pl ::= defender_common_change_pl defender_join defender_changes_pl
+
+/* @sem Change::[...$rule_attack_defender_pl, ...$defender_common_changes_pl] */
+defender_changes_after_pl ::= rule_attack_defender_pl defender_join defender_common_changes_pl
+
+defender_rule_changes_pl ::= rule_attack_defender_pl | defender_rule_changes_before_pl | defender_rule_changes_after_pl
+
+/* @sem Change::[...$defender_other_rule_pl, ...$defender_rule_changes_pl] */
+defender_rule_changes_before_pl ::= defender_other_rule_pl defender_join defender_rule_changes_pl
+
+/* @sem Change::[...$rule_attack_defender_pl, ...$defender_other_rules_pl] */
+defender_rule_changes_after_pl ::= rule_attack_defender_pl defender_join defender_other_rules_pl
+
+defender_characteristic_changes_pl ::= change | defender_characteristic_before_pl | defender_characteristic_after_pl
+
+/* @sem Change::[...$defender_other_rule_pl, ...$defender_characteristic_changes_pl] */
+defender_characteristic_before_pl ::= defender_other_rule_pl defender_join defender_characteristic_changes_pl
+
+/* @sem Change::[...$change, ...$defender_common_changes_pl] */
+defender_characteristic_after_pl ::= change defender_join defender_common_changes_pl
+
+defender_mixed_changes_pl ::= defender_mixed_char_first_pl | defender_mixed_rule_first_pl | defender_mixed_first_pl
+
+/* @sem Change::[...$change, ...$defender_changes_pl] */
+defender_mixed_char_first_pl ::= change defender_join defender_changes_pl
+
+/* @sem Change::[...$defender_other_rule_pl, ...$defender_mixed_changes_pl] */
+defender_mixed_rule_first_pl ::= defender_other_rule_pl defender_join defender_mixed_changes_pl
+
+/* @sem Change::[...$rule_attack_defender_pl, ...$defender_characteristic_changes_pl] */
+defender_mixed_first_pl ::= rule_attack_defender_pl defender_join defender_characteristic_changes_pl
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($defender_subject_pl), changes:$defender_changes_pl} */
+defender_clause_pl ::= defender_subject_pl defender_changes_pl
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($defender_subject_pl), changes:$defender_rule_changes_pl, duration:$duration, evaluation:LiveObjects} */
+continuous_defender_pl ::= defender_subject_pl defender_rule_changes_pl duration | duration "," defender_subject_pl defender_rule_changes_pl
+
+/* @sem @continuous_parts(Instruction::Effect{result:@next, operation:Operation::CreateContinuousEffect{source:Source, affected:Objects($defender_subject_pl), changes:$defender_mixed_changes_pl, duration:$duration, evaluation:Snapshot}}) */
+continuous_defender_mixed_pl ::= defender_subject_pl defender_mixed_changes_pl duration | duration "," defender_subject_pl defender_mixed_changes_pl
+
+defender_clause ::= defender_clause_sg | defender_clause_pl
+
+/* @sem Ability::$defender_clause */
+static_defender_ability ::= defender_clause "."
+
+/* @sem Ability::Conditional{condition:$condition, then:[$defender_clause]} */
+defender_conditional_first ::= "as" "long" "as" condition "," defender_clause "."
+
+/* @sem Ability::Conditional{condition:$condition, then:[$defender_clause]} */
+defender_conditional ::= defender_clause "as" "long" "as" condition "."
+
+continuous_defender ::= continuous_defender_sg | continuous_defender_pl
+
+continuous_defender_mixed ::= continuous_defender_mixed_sg | continuous_defender_mixed_pl
+
+/* A resolving requirement for a named defender does not itself declare an
+   attack. Restrictions, attack costs and ability-holder identity remain intact. */
+required_defender_attack ::= required_defender_sg | required_defender_pl
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($defender_subject_sg), changes:[Rule(RequireCombat{action:Attack(Players(One($required_defender_player))), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+required_defender_sg ::= defender_subject_sg "attacks" required_defender_player this_duration "if" "able"
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($defender_subject_pl), changes:[Rule(RequireCombat{action:Attack(Players(One($required_defender_player))), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+required_defender_pl ::= defender_subject_pl "attack" required_defender_player this_duration "if" "able"
+
+/* The defender has an independent announced player slot. It is never inferred
+   from the creature's owner/controller or chosen by a first-opponent fallback. */
+required_defender_player ::= target_opponent | target_player

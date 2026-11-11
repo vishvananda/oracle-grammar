@@ -1,0 +1,1210 @@
+/* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
+object_set ::= group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other
+    | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_two_targets
+    | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all
+    | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other
+    | objects_self_and_target
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
+objects_target_and_up_to ::= target_object "and" other_target_up_to
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@another_target_reference(ObjectFilter::$filter_phrase))), $filter_phrase)}), index:0} */
+other_target_up_to ::= "up" "to" "one" "other" "target" filter_phrase
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), $filter_plural])} */
+objects_target_and_all ::= target_object "and" "all" filter_plural
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), $others_of_target])} */
+objects_target_and_named ::= target_object "and" others_of_target
+
+/* @sem @and(ObjectFilter::Not(ObjectFilter::SameObject(@it)), $filter_plural) */
+others_of_target ::= "all" "other" filter_plural
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), $others_each])} */
+objects_target_and_each_other ::= target_object "and" others_each
+
+/* @sem @and(ObjectFilter::Not(ObjectFilter::SameObject(@it)), $filter_phrase) */
+others_each ::= "each" "other" filter_phrase
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf(@unordered([SameObject($self_ref), SameObject($target_object)]))} */
+objects_self_and_target ::= self_ref "and" target_object
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject(ObjectRef::BlockPair(Attacker)), SameObject(ObjectRef::BlockPair(Blocker))])} */
+objects_pair_both ::= "both" "creatures"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($that_noun), SameObject($self_ref)])} */
+objects_that_and_self ::= that_noun "and" self_ref
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_plural, $filter_plural_2])} */
+objects_all_two ::= "all" filter_plural "and" "all" filter_plural
+
+/* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, chooser:Chance, count:AsManyAsCan(Expr::Constant(1))}) */
+objects_random ::= ("a" | "an") filter_phrase "chosen" "at" "random"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($target_object_2)])} */
+objects_two_targets ::= target_object "and" target_object
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($target_object_2), SameObject($target_object_3)])} */
+objects_three_targets ::= target_object "," target_object "," "and" target_object
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($target_object_2), SameObject($target_object_3), SameObject($target_object_4)])} */
+objects_four_targets ::= target_object "," target_object "," target_object "," "and" target_object
+
+/* @sem ObjectSet::One($object_ref) */
+object_one ::= object_ref
+
+object_ref ::= target_optional_stack_spell | last_linked_card | last_linked_creature | current_card_ref | linked_exiled_card | mined_ref | self_ref | it_ref | target_object | attached_ref | target_card
+
+/* Earlier's link belongs to the current ability holder. The binder checks its
+   explicit anchor rather than accepting a target or a named outer creator. */
+/* @sem ObjectRef::@last_exiled($object_ref) */
+last_linked_card ::= "the" "last" "card" "exiled" "with" object_ref
+
+/* @sem ObjectRef::@last_exiled_creature($object_ref) */
+last_linked_creature ::= "the" "last" "creature" "card" "exiled" "with" object_ref
+
+/* @sem ObjectRef::@current_named_object */
+current_card_ref ::= "that" "card"
+
+/* The linked ability's source is its anchor, including after a death event. */
+/* @sem ObjectRef::@remember_object(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0}) */
+linked_exiled_card ::= "the" "exiled" "card"
+
+target_card ::= target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard
+    | target_card_your_graveyard_with | target_card_opponent_graveyard
+
+/* A card target is announced after a departure, so `another` excludes the new
+   card, rather than the departed permanent or the candidate being filtered. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::Not(ObjectFilter::SameObject(@current_named_object)), ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+target_card_other_your_graveyard ::= "another" "target" card_filter "card" "from" "your" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, $modifiers, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+target_card_your_graveyard_with ::= "target" card_filter "card" modifiers "from" "your" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(PlayerRef::AbilityController)}))}), index:0} */
+target_card_opponent_graveyard ::= "target" card_filter "card" ("from" | "in") "an" "opponent's" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+target_card_your_graveyard ::= "target" card_filter "card" "from" "your" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)})}), index:0} */
+target_any_card_your_graveyard ::= "target" "card" "from" "your" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:$card_filter}), index:0} */
+target_card_a_graveyard ::= "target" card_filter "card" "from" "a" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
+target_any_card_a_graveyard ::= "target" "card" "from" "a" "graveyard"
+
+/* An Aura or Equipment names its host by its enchant noun; the enchant ability holds the filter. */
+/* Explicit hosts become the next pronoun when acted on or tested. Event filters
+   and damage sources retain their enclosing event's referent. */
+attached_ref ::= enchanted_ref | equipped_ref
+
+/* The word enchanted supplies the Aura departure exception; Equipment and
+   Fortifications do not move to the graveyard when their host leaves. */
+/* @prefer value(AttachedTo) */
+enchanted_ref ::= enchanted_creature_ref | enchanted_other_ref
+
+/* Same reference as enchanted_operand; retain only the literal creature noun. */
+/* @sem ObjectRef::@enchanted_creature_operand(ObjectRef::AttachedTo(Source)) */
+enchanted_creature_ref ::= "enchanted" "creature"
+
+/* @sem ObjectRef::@enchanted_operand(ObjectRef::AttachedTo(Source)) */
+enchanted_other_ref ::= "enchanted" attached_other_noun
+
+/* @prefer value(AttachedTo) */
+/* @sem ObjectRef::@remember_operand(ObjectRef::AttachedTo(Source)) */
+equipped_ref ::= ("equipped" | "fortified") attached_noun
+
+/* @sem () */
+attached_noun ::= "creature" | "permanent" | "land" | "artifact" | "enchantment" | "planeswalker" | "Forest" | "Island"
+    | "Mountain" | "Plains" | "Swamp" | "Vehicle" | "battle" | "Equipment" | "Aura" | subtype_word
+
+/* All prior attached nouns remain available to Equipment/Fortifications. */
+/* @sem () */
+attached_other_noun ::= "permanent" | "land" | "artifact" | "enchantment" | "planeswalker" | "Forest" | "Island"
+    | "Mountain" | "Plains" | "Swamp" | "Vehicle" | "battle" | "Equipment" | "Aura" | subtype_word
+
+self_ref ::= self_explicit_ref | self_ref_pronoun
+
+self_explicit_ref ::= self_ref_holder | self_ref_named
+
+/* @prefer type(Holder) */
+/* @sem ObjectRef::@self */
+self_ref_holder ::= self_holder_text
+
+/* The printed card name still names the creator inside a token's ability. */
+/* @sem ObjectRef::@named_source */
+self_ref_named ::= self_named
+
+/* @sem ObjectRef::@self */
+self_ref_pronoun ::= self_pronoun
+
+/* @sem () */
+self_pronoun ::= "he" | "she"
+
+/* The word a card uses for itself. */
+self_text ::= self_holder_text | self_named
+
+self_holder_text ::= self_creature | self_land | self_artifact | self_enchantment | self_permanent | self_spell
+    | self_aura | self_equipment | self_vehicle | self_saga | self_class | self_token | self_planeswalker | self_battle
+    | self_card | self_room | self_case | self_spacecraft | self_background | self_siege | self_planet
+
+/* @prefer type(Creature) */
+/* @sem () */
+self_creature ::= "this" "creature"
+/* @prefer type(Land) */
+/* @sem () */
+self_land ::= "this" "land"
+/* @prefer type(Artifact) */
+/* @sem () */
+self_artifact ::= "this" "artifact"
+/* @prefer type(Enchantment) */
+/* @sem () */
+self_enchantment ::= "this" "enchantment"
+/* @prefer type(Legendary) */
+/* @prefer type(Instant) */
+/* @prefer type(Sorcery) */
+/* @prefer type(Planeswalker) */
+/* @sem () */
+self_named ::= SELF_NAME
+/* @sem () */
+self_permanent ::= "this" "permanent"
+/* @prefer type(Spell) */
+/* @sem () */
+self_spell ::= "this" "spell"
+/* @prefer type(Aura) */
+/* @sem () */
+self_aura ::= "this" "Aura"
+/* @prefer type(Equipment) */
+/* @sem () */
+self_equipment ::= "this" "Equipment"
+/* @prefer type(Vehicle) */
+/* @sem () */
+self_vehicle ::= "this" "Vehicle"
+/* @prefer type(Saga) */
+/* @sem () */
+self_saga ::= "this" "Saga"
+/* @prefer type(Class) */
+/* @sem () */
+self_class ::= "this" "Class"
+/* @prefer type(Token) */
+/* @sem () */
+self_token ::= "this" "token"
+/* @sem () */
+self_planeswalker ::= "this" "planeswalker"
+/* @prefer type(Battle) */
+/* @sem () */
+self_battle ::= "this" "battle"
+/* @prefer type(Card) */
+/* @sem () */
+self_card ::= "this" "card"
+/* @prefer type(Room) */
+/* @sem () */
+self_room ::= "this" "Room"
+/* @prefer type(Case) */
+/* @sem () */
+self_case ::= "this" "Case"
+/* @prefer type(Spacecraft) */
+/* @sem () */
+self_spacecraft ::= "this" "Spacecraft"
+/* @prefer type(Background) */
+/* @sem () */
+self_background ::= "this" "Background"
+/* @prefer type(Siege) */
+/* @sem () */
+self_siege ::= "this" "Siege"
+/* @prefer type(Planet) */
+/* @sem () */
+self_planet ::= "this" "Planet"
+
+/* @prefer value(EventSubject) */
+it_ref ::= it_pronoun | that_noun
+
+/* @prefer value(EventSubject) */
+it_pronoun ::= it_ordinary_pronoun | it_reflexive_pronoun
+/* @sem ObjectRef::@member_count_it(ObjectRef::@it) */
+it_ordinary_pronoun ::= "it"
+/* @sem ObjectRef::@literal_damage_itself(ObjectRef::@member_count_it(ObjectRef::@it)) */
+it_reflexive_pronoun ::= "itself"
+
+/* An explicitly named action recipient becomes the following pronoun's focus;
+   a damage source or event filter does not replace that action recipient. */
+/* @sem ObjectRef::@remember_operand($qualified_noun) */
+that_noun ::= qualified_noun
+
+/* Attachment subjects can name an object without replacing their host pronoun. */
+qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_equipment | named_aura | named_vehicle
+
+target_object ::= target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
+target_up_to_one ::= "up" "to" "one" "target" filter_phrase
+
+/* This attacking population keeps its optional slot and other-object anchor.
+   Wider optional-target spellings retain their existing receipt/role paths. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@another_target_reference(ObjectFilter::$filter_phrase))), @and(ObjectFilter::Attacking, $filter_phrase))}), index:0} */
+target_up_to_one_other_attacking ::= "up" "to" "one" "other" "target" "attacking" filter_phrase
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@another_target_reference(ObjectFilter::$filter_phrase))), $filter_phrase)}), index:0} */
+target_another ::= "another" "target" filter_phrase
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
+target_permanent ::= "target" filter_phrase
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:AnyOf([$filter_modified, $filter_tail])}), index:0} */
+target_either_kind ::= "target" filter_modified "or" filter_tail
+
+/* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}) */
+objects_all ::= "all" filter_plural
+
+/* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}) */
+objects_each ::= "each" filter_phrase
+
+/* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@pump_other_ref(ObjectRef::@it))), $filter_phrase)}) */
+objects_each_other ::= "each" "other" filter_phrase
+
+/* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@pump_other_ref(ObjectRef::@it))), $filter_plural)}) */
+objects_all_other ::= "all" "other" filter_plural
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$target_count, filter:$filter_plural})) */
+objects_targets ::= ("each" "of")? target_count "target" filter_plural
+
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$target_count, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@it)), $filter_plural)})) */
+objects_other_targets ::= ("each" "of")? target_count "other" "target" filter_plural
+
+target_count ::= target_receipt_up_to | target_exactly | target_up_to | target_adjacent_range
+
+/* @sem Count::Exactly($count) */
+target_exactly ::= count
+
+/* @sem Count::UpTo($count) */
+target_up_to ::= "up" "to" count
+
+filter_phrase ::= creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | mined_filter
+
+/* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
+filter_quality_list ::= quality noun "," noun "," "and" noun modifier
+
+filter_plain ::= filter_tail | filter_adjectives | filter_adjectives_comma | filter_type_prefix
+
+/* Non-noun qualities retain their shared scope. A noun prefix describes one
+   compound head before a following bare `or` head (artifact creature or Vehicle). */
+/* @sem @and($filter_outer_adjectives, $filter_plain) */
+filter_adjectives ::= filter_outer_adjectives filter_plain
+filter_outer_adjectives ::= quality_unscoped | adjective_either | adjective_and_or
+
+/* @sem @and($noun_atomic, $typed_filter_tail) */
+filter_type_prefix ::= noun_atomic typed_filter_tail
+/* @sem @and($typed_filter_head, $modifiers) */
+typed_filter_modified ::= typed_filter_head modifiers
+typed_filter_tail ::= typed_filter_head | typed_filter_modified
+typed_filter_head ::= filter_simple | noun_and | noun_list
+
+filter_compound_or ::= filter_compound_or_forward | filter_compound_or_reverse
+/* @sem ObjectFilter::AnyOf([@and($noun_atomic, $filter_simple), $noun]) */
+filter_compound_or_forward ::= noun_atomic filter_simple "or" noun
+/* @sem ObjectFilter::AnyOf([$noun, @and($noun_atomic, $filter_simple)]) */
+filter_compound_or_reverse ::= noun_atomic filter_simple "or" noun
+/* @sem @and($filter_compound_or, $modifiers) */
+filter_compound_or_modified ::= filter_compound_or modifiers
+
+/* @sem @and($quality, $filter_plain) */
+filter_adjectives_comma ::= quality "," filter_plain
+
+/* Lists of whole noun phrases. An adjective on the first noun alone distributes;
+   one on a later noun stays with that noun. */
+filter_lists ::= filter_list_two | filter_list_two_modified | filter_list_last_keyword | filter_list_last_stat
+
+/* Partition written heads lexically; never redistribute a finished IR Either. */
+filter_list_two ::= head_list_unshared_right | head_list_independent_left
+    | head_shared_creature | head_shared_tapped_creature
+
+filter_list_two_modified ::= head_list_unshared_right_modified | head_list_independent_left_modified
+    | head_shared_creature_modified | head_shared_tapped_creature_modified
+
+/* @sem ObjectFilter::AnyOf([...$noun_commas, @and($noun, $modifier_with_keyword)]) */
+filter_list_last_keyword ::= noun_commas "or" noun modifier_with_keyword
+
+filter_simple ::= noun | filter_described
+
+/* @sem @and($adjective, $filter_simple) */
+filter_described ::= adjective filter_simple
+
+noun_commas ::= noun_commas_more | noun_commas_last
+
+/* @sem ObjectFilter::[$noun, ...$noun_commas] */
+noun_commas_more ::= noun "," noun_commas
+
+/* @sem ObjectFilter::[$noun] */
+noun_commas_last ::= noun ","
+
+filter_tail ::= filter_head | filter_modified | filter_compound_or | filter_compound_or_modified
+
+filter_modified ::= filter_nonlist_modified | filter_list_modified | filter_creature_list_modified
+
+/* @sem @and($filter_nonlist_head, $modifiers) */
+filter_nonlist_modified ::= filter_nonlist_head modifiers
+
+filter_nonlist_head ::= noun | noun_either | noun_and
+
+/* @sem @and(ObjectFilter::AnyOf([...$noun_commas, $noun_noncreature]), $modifiers) */
+filter_list_modified ::= noun_commas "or" noun_noncreature modifiers
+
+/* A first numeric power/toughness qualifier belongs only to final Creature.
+   Other first modifiers retain the established shared-list interpretation. */
+/* @sem @and(ObjectFilter::AnyOf([...$noun_commas, $noun_creature]), $list_shared_modifiers) */
+filter_creature_list_modified ::= noun_commas "or" noun_creature list_shared_modifiers
+
+list_shared_modifiers ::= list_shared_modifier | list_shared_modifiers_more
+
+/* @sem @and($list_shared_nonattachment, $modifiers) */
+list_shared_modifiers_more ::= list_shared_nonattachment modifiers
+
+list_shared_modifier ::= list_shared_nonattachment | modifier_attached_to | modifier_attached_to_a
+list_shared_nonattachment ::= modifier_nonnumeric | modifier_mana_value_numeric | modifier_variable_stat
+
+/* Variable amounts retain their prior shared scope; the new contract is numeric. */
+modifier_variable_number ::= number_x | number_x_plus
+modifier_variable_stat ::= modifier_variable_stat_bound | modifier_variable_stat_exact
+/* @sem ObjectFilter::Property{property:$creature_stat, test:NumberTest::Compare{comparison:$bound, value:Expr::@in_filter($modifier_variable_number)}} */
+modifier_variable_stat_bound ::= "with" creature_stat modifier_variable_number "or" bound
+/* @sem ObjectFilter::Property{property:$creature_stat, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($modifier_variable_number)}} */
+modifier_variable_stat_exact ::= "with" creature_stat modifier_variable_number
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:$bound, value:Expr::@in_filter($number)}} */
+modifier_mana_value_bound ::= "with" "mana" "value" number "or" bound
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number)}} */
+modifier_mana_value_exact ::= "with" "mana" "value" number
+modifier_mana_value_numeric ::= modifier_mana_value_bound | modifier_mana_value_exact
+
+/* @sem ObjectFilter::AnyOf(@unordered([@and($noun_creature, $modifier_creature_stat), ...$noun_commas])) */
+filter_list_last_stat ::= noun_commas "or" noun_creature modifier_creature_stat
+
+modifier_creature_stat ::= modifier_creature_stat_bound | modifier_creature_stat_exact
+creature_stat ::= stat_power | stat_toughness
+creature_stat_number ::= number_digits | number_words
+/* @sem ObjectFilter::Property{property:$creature_stat, test:NumberTest::Compare{comparison:$bound, value:Expr::@in_filter($creature_stat_number)}} */
+modifier_creature_stat_bound ::= "with" creature_stat creature_stat_number "or" bound
+/* @sem ObjectFilter::Property{property:$creature_stat, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($creature_stat_number)}} */
+modifier_creature_stat_exact ::= "with" creature_stat creature_stat_number
+
+filter_head ::= noun | noun_either | noun_and | noun_list
+
+/* @sem ObjectFilter::AnyOf(@unordered([$noun, $noun_2])) */
+noun_and ::= noun "and" noun
+
+/* @sem ObjectFilter::AnyOf([$noun, $noun_2]) */
+noun_either ::= noun "or" noun
+
+/* @sem ObjectFilter::AnyOf([...$noun_commas, $noun]) */
+noun_list ::= noun_commas "or" noun
+
+noun ::= noun_atomic | noun_equipped
+noun_atomic ::= noun_creature | noun_noncreature
+
+/* @sem @and($adjective_equipped, $noun_equipped_head) */
+noun_equipped ::= adjective_equipped noun_equipped_head
+noun_equipped_head ::= noun_atomic | noun_equipped_qualified
+/* @sem @and($adjective, $noun_equipped_head) */
+noun_equipped_qualified ::= adjective noun_equipped_head
+
+noun_noncreature ::= noun_room | noun_outlaw | noun_artifact | noun_enchantment | noun_land | noun_planeswalker | noun_permanent
+    | noun_token | noun_battle | noun_commander | subtype | noun_wall_folded
+
+/* @sem ObjectFilter::State(Commander) */
+noun_commander ::= "commander"
+
+/* Capitalized Wall folds to an existing word token; inner capitals keep their mark. */
+/* @sem ObjectFilter::Subtype(Wall) */
+noun_wall_folded ::= "wall" | "↑" "wall"
+
+/* @sem ObjectFilter::CardType(Creature) */
+noun_creature ::= "creature"
+/* @sem ObjectFilter::CardType(Artifact) */
+noun_artifact ::= "artifact"
+/* @sem ObjectFilter::CardType(Enchantment) */
+noun_enchantment ::= "enchantment"
+/* @sem ObjectFilter::CardType(Land) */
+noun_land ::= "land"
+/* @sem ObjectFilter::CardType(Planeswalker) */
+noun_planeswalker ::= "planeswalker"
+/* @sem ObjectFilter::Any */
+noun_permanent ::= "permanent"
+/* @sem ObjectFilter::Token */
+noun_token ::= "token"
+/* @sem ObjectFilter::AnyOf([ObjectFilter::Subtype(Assassin), ObjectFilter::Subtype(Mercenary), ObjectFilter::Subtype(Pirate), ObjectFilter::Subtype(Rogue), ObjectFilter::Subtype(Warlock)]) */
+noun_outlaw ::= "outlaw"
+/* @sem ObjectFilter::CardType(Battle) */
+noun_battle ::= "battle"
+
+filter_plural ::= filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural
+
+/* @sem @and($filter_outer_adjectives, $filter_plural) */
+filter_plural_adjectives ::= filter_outer_adjectives filter_plural
+/* @sem @and($noun_atomic, $typed_plural_tail) */
+filter_plural_type_prefix ::= noun_atomic typed_plural_tail
+typed_plural_tail ::= typed_plural_head | typed_plural_modified
+/* @sem @and($typed_plural_head, $modifiers) */
+typed_plural_modified ::= typed_plural_head modifiers
+typed_plural_head ::= plural_simple | plural_either | plural_and_or | plural_three | plural_four
+plural_simple ::= plural | plural_described
+/* @sem @and($adjective, $plural_simple) */
+plural_described ::= adjective plural_simple
+plural_compound_or ::= plural_compound_or_forward | plural_compound_or_reverse
+/* @sem ObjectFilter::AnyOf([@and($noun_atomic, $plural_simple), $plural]) */
+plural_compound_or_forward ::= noun_atomic plural_simple "or" plural
+/* @sem ObjectFilter::AnyOf([$plural, @and($noun_atomic, $plural_simple)]) */
+plural_compound_or_reverse ::= noun_atomic plural_simple "or" plural
+/* @sem @and($plural_compound_or, $modifiers) */
+plural_compound_or_modified ::= plural_compound_or modifiers
+
+/* @sem @and($quality, $filter_plural) */
+filter_plural_comma ::= quality "," filter_plural
+
+filter_plural_tail ::= plural_head | plural_modified | plural_compound_or | plural_compound_or_modified
+
+/* @sem @and($plural_head, $modifiers) */
+plural_modified ::= plural_head modifiers
+
+plural_head ::= plural | plural_either | plural_or | plural_and_or | plural_three | plural_four
+
+/* @sem ObjectFilter::AnyOf([$plural, $plural_2]) */
+plural_or ::= plural "or" plural
+
+/* @sem ObjectFilter::AnyOf([$plural, $plural_2]) */
+plural_and_or ::= plural "and" "/" "or" plural
+
+/* @sem ObjectFilter::AnyOf([$plural, $plural_2, $plural_3]) */
+plural_three ::= plural "," plural "," "and" plural
+
+/* @sem ObjectFilter::AnyOf([$plural, $plural_2, $plural_3, $plural_4]) */
+plural_four ::= plural "," plural "," plural "," "and" plural
+
+/* @sem ObjectFilter::AnyOf(@unordered([$plural, $plural_2])) */
+plural_either ::= plural "and" plural
+
+plural ::= plural_atomic | plural_equipped
+/* @sem @and($adjective_equipped, $plural_equipped_head) */
+plural_equipped ::= adjective_equipped plural_equipped_head
+plural_equipped_head ::= plural_atomic | plural_equipped_qualified
+/* @sem @and($adjective, $plural_equipped_head) */
+plural_equipped_qualified ::= adjective plural_equipped_head
+
+plural_atomic ::= plural_creature | plural_artifact | plural_enchantment | plural_land | plural_permanent | plural_planeswalker | subtype_plural
+    | plural_token | plural_commander | subtype_plural
+
+/* @sem ObjectFilter::State(Commander) */
+plural_commander ::= "commanders"
+
+/* @sem ObjectFilter::CardType(Creature) */
+plural_creature ::= "creatures"
+/* @sem ObjectFilter::CardType(Artifact) */
+plural_artifact ::= "artifacts"
+/* @sem ObjectFilter::CardType(Enchantment) */
+plural_enchantment ::= "enchantments"
+/* @sem ObjectFilter::CardType(Land) */
+plural_land ::= "lands"
+/* @sem ObjectFilter::CardType(Planeswalker) */
+plural_planeswalker ::= "planeswalkers"
+/* @sem ObjectFilter::Any */
+plural_permanent ::= "permanents"
+/* @sem ObjectFilter::Token */
+plural_token ::= "tokens"
+
+adjectives ::= adjective | adjective_either | adjective_and_or
+
+/* @sem ObjectFilter::AnyOf([$quality, $quality_2]) */
+adjective_and_or ::= quality "and" "/" "or" quality
+
+/* @sem ObjectFilter::AnyOf([$quality, $quality_2]) */
+adjective_either ::= quality "or" quality
+
+adjective ::= quality_unscoped | noun_atomic
+
+/* An adjective that is not also a noun, so `or` between two of them is one slot. */
+quality ::= quality_unscoped | adjective_equipped
+quality_unscoped ::= adjective_party | adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_tapped | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked
+    | adjective_noncommander | adjective_nontoken | adjective_legendary | adjective_basic | adjective_nonbasic
+    | adjective_color | adjective_noncolor | adjective_nontype | subtype_negated
+    | adjective_colorless | adjective_snow | adjective_nonsnow | adjective_enchanted | adjective_attacking_or_blocking
+
+/* @sem ObjectFilter::Tapped */
+adjective_tapped ::= "tapped"
+/* @sem ObjectFilter::Not(ObjectFilter::Tapped) */
+adjective_untapped ::= "untapped"
+/* @sem ObjectFilter::Attacking */
+adjective_attacking ::= "attacking"
+/* @sem ObjectFilter::Not(Attacking) */
+adjective_nonattacking ::= "nonattacking"
+/* @sem ObjectFilter::Blocking */
+adjective_blocking ::= "blocking"
+/* A commander designation is independent of card type and legendary status. */
+/* @sem ObjectFilter::Not(ObjectFilter::State(Commander)) */
+adjective_noncommander ::= "noncommander"
+
+/* @sem ObjectFilter::Not(ObjectFilter::Token) */
+adjective_nontoken ::= "nontoken"
+/* @sem ObjectFilter::Supertype(Legendary) */
+adjective_legendary ::= "legendary"
+/* @sem ObjectFilter::Supertype(Basic) */
+adjective_basic ::= "basic"
+/* @sem ObjectFilter::Not(ObjectFilter::Supertype(Basic)) */
+adjective_nonbasic ::= "nonbasic"
+
+/* @sem ObjectFilter::Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:Expr::Constant(1)}} */
+adjective_monocolored ::= "monocolored"
+/* @sem ObjectFilter::Property{property:ColorCount, test:NumberTest::Compare{comparison:Greater, value:Expr::Constant(1)}} */
+adjective_multicolored ::= "multicolored"
+/* @sem ObjectFilter::State(FaceDown) */
+adjective_face_down ::= "face-down"
+/* @sem ObjectFilter::AnyOf([ObjectFilter::CardType(Artifact), ObjectFilter::Supertype(Legendary), ObjectFilter::Subtype(Saga)]) */
+adjective_historic ::= "historic"
+/* @sem ObjectFilter::AnyOf([ObjectFilter::Subtype(Assassin), ObjectFilter::Subtype(Mercenary), ObjectFilter::Subtype(Pirate), ObjectFilter::Subtype(Rogue), ObjectFilter::Subtype(Warlock)]) */
+adjective_outlaw ::= "outlaw"
+/* @sem ObjectFilter::Not(ObjectFilter::AnyOf([ObjectFilter::Subtype(Assassin), ObjectFilter::Subtype(Mercenary), ObjectFilter::Subtype(Pirate), ObjectFilter::Subtype(Rogue), ObjectFilter::Subtype(Warlock)])) */
+adjective_non_outlaw ::= "non-outlaw"
+/* @sem ObjectFilter::State(Blocked) */
+adjective_blocked ::= "blocked"
+/* @sem ObjectFilter::Colorless */
+adjective_colorless ::= "colorless"
+/* @sem ObjectFilter::Supertype(Snow) */
+adjective_snow ::= "snow"
+/* @sem ObjectFilter::Not(ObjectFilter::Supertype(Snow)) */
+adjective_nonsnow ::= "nonsnow"
+/* @sem ObjectFilter::State(Enchanted) */
+adjective_enchanted ::= "enchanted"
+/* @sem ObjectFilter::State(Equipped) */
+adjective_equipped ::= "equipped"
+/* @sem ObjectFilter::AnyOf([ObjectFilter::Attacking, ObjectFilter::Blocking]) */
+adjective_attacking_or_blocking ::= "attacking" "or" "blocking"
+
+adjective_color ::= color_white | color_blue | color_black | color_red | color_green
+adjective_noncolor ::= non_white | non_blue | non_black | non_red | non_green
+adjective_nontype ::= non_land | non_creature | non_artifact | non_enchantment | non_planeswalker
+
+/* @sem ObjectFilter::Color(White) */
+color_white ::= "white"
+/* @sem ObjectFilter::Color(Blue) */
+color_blue ::= "blue"
+/* @sem ObjectFilter::Color(Black) */
+color_black ::= "black"
+/* @sem ObjectFilter::Color(Red) */
+color_red ::= "red"
+/* @sem ObjectFilter::Color(Green) */
+color_green ::= "green"
+/* @sem ObjectFilter::Not(ObjectFilter::Color(White)) */
+non_white ::= "nonwhite"
+/* @sem ObjectFilter::Not(ObjectFilter::Color(Blue)) */
+non_blue ::= "nonblue"
+/* @sem ObjectFilter::Not(ObjectFilter::Color(Black)) */
+non_black ::= "nonblack"
+/* @sem ObjectFilter::Not(ObjectFilter::Color(Red)) */
+non_red ::= "nonred"
+/* @sem ObjectFilter::Not(ObjectFilter::Color(Green)) */
+non_green ::= "nongreen"
+/* @sem ObjectFilter::Not(ObjectFilter::CardType(Land)) */
+non_land ::= "nonland"
+/* @sem ObjectFilter::Not(ObjectFilter::CardType(Creature)) */
+non_creature ::= "noncreature"
+/* @sem ObjectFilter::Not(ObjectFilter::CardType(Artifact)) */
+non_artifact ::= "nonartifact"
+/* @sem ObjectFilter::Not(ObjectFilter::CardType(Enchantment)) */
+non_enchantment ::= "nonenchantment"
+/* @sem ObjectFilter::Not(ObjectFilter::CardType(Planeswalker)) */
+non_planeswalker ::= "nonplaneswalker"
+
+modifiers ::= modifier | modifiers_more
+
+/* An attachment consumes its complete object noun phrase. Following ownership
+   or control belongs to that object, rather than becoming an outer sibling. */
+/* @sem @and($modifier_nonattachment, $modifiers) */
+modifiers_more ::= modifier_nonattachment modifiers
+
+modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_to_a | modifier_except
+
+modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x
+
+modifier_nonnumeric ::= modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls
+    | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control
+    | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage
+    | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it
+    | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters
+    | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness
+    | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you
+    | modifier_not_enchanted | modifier_colored | modifier_entered_since
+    | modifier_shares_color | modifier_same_mana_value_as_spell
+    | modifier_stat_compared | modifier_source_name | modifier_not_named_self | modifier_banded_with
+
+/* Band membership refers to the explicitly described object; it is neither
+   a target nor a new group of creatures chosen by this effect. */
+/* @sem ObjectFilter::BandedWith($object_ref) */
+modifier_banded_with ::= "banded" "with" object_ref
+
+/* A written card name selects every matching object. It is not an object
+   self-reference, and granting this ability does not change the written name. */
+/* @sem ObjectFilter::Name(@card_name) */
+modifier_source_name ::= "named" SELF_NAME
+/* @sem ObjectFilter::Not(ObjectFilter::Name(@card_name)) */
+modifier_not_named_self ::= "not" "named" SELF_NAME
+
+/* @sem ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)) */
+modifier_you_control ::= "you" "control"
+/* @sem ObjectFilter::ControlledBy(OthersThan(PlayerRef::AbilityController)) */
+modifier_not_controlled ::= "you" "don't" "control"
+/* @sem ObjectFilter::@indefinite_opponent_controller(ObjectFilter::ControlledBy(OpponentsOf(PlayerRef::AbilityController))) */
+modifier_opponent_controls ::= ("an" "opponent" "controls")
+/* @sem ObjectFilter::HasKeyword($keyword_name) */
+modifier_with_keyword ::= "with" keyword_name
+/* @sem ObjectFilter::Not(ObjectFilter::HasKeyword($keyword_name)) */
+modifier_without_keyword ::= "without" keyword_name
+
+/* Bare and suffix bounds take numerals; an expression uses an explicit
+   comparison, as in `with power equal to its toughness`. */
+/* @sem ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:$bound, value:Expr::@in_filter($number)}} */
+modifier_stat ::= "with" stat number "or" bound
+
+/* @sem ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number)}} */
+modifier_stat_x ::= "with" stat number
+
+/* @sem ObjectFilter::ControlledBy(OpponentsOf(PlayerRef::AbilityController)) */
+modifier_opponents_control ::= "your" "opponents" "control"
+
+/* @sem ObjectFilter::ControlledBy(One($player_ref)) */
+modifier_player_controls ::= player_ref "controls"
+
+/* @sem ObjectFilter::ControlledBy(One(@that_player)) */
+modifier_they_control ::= "they" "control"
+
+/* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Objects(SameObject(ObjectRef::Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}) */
+modifier_was_dealt_damage ::= "that" ("was" | "has" "been") "dealt" "damage" "this" "turn"
+
+/* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Objects(SameObject(ObjectRef::Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}) */
+modifier_dealt_damage ::= "dealt" "damage" "this" "turn"
+
+/* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Damage(DamageEvent{source_kind:Permanent, sources:SameObject(ObjectRef::Candidate), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Source}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}) */
+modifier_dealt_damage_this_turn ::= "that" "dealt" "damage" "this" "turn"
+
+/* @sem ObjectFilter::AttachedTo(SameObject($object_ref)) */
+modifier_attached_to ::= "attached" "to" object_ref
+
+/* @sem ObjectFilter::AttachedTo(InSet(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase})) */
+modifier_attached_to_a ::= "attached" "to" ("a" | "an") filter_phrase
+
+modifier_same_name ::= modifier_same_name_that | modifier_same_name_explicit
+
+/* @sem ObjectFilter::SharesNameWith(@pump_name_ref(ObjectRef::@named_object)) */
+modifier_same_name_that ::= "with" "the" "same" "name" "as" that_noun_word
+
+/* An explicit self/name is independent of the per-member contrast. */
+/* @sem ObjectFilter::SharesNameWith($self_ref) */
+modifier_same_name_explicit ::= "with" "the" "same" "name" "as" self_ref
+
+/* @sem () */
+that_noun_word ::= "that" ("creature" | "permanent" | "artifact" | "enchantment" | "land")
+
+/* @sem ObjectFilter::Counters{kind:PowerToughness(-1, -1), comparison:Greater, value:Expr::Constant(0)} */
+modifier_minus_counter_on_it ::= "with" "a" "-" "1" "/" "-" "1" "counter" "on" "it"
+
+/* @sem ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Less, value:Expr::ObjectProperty{object:$it_possessive, property:$stat_2, information:CurrentOrLastKnown}}} */
+modifier_power_less_than_that ::= "with" stat "less" "than" it_possessive stat
+
+/* @sem ObjectFilter::AnyOf([ObjectFilter::Property{property:Power, test:NumberTest::Compare{comparison:$bound, value:$number}}, ObjectFilter::Property{property:Toughness, test:NumberTest::Compare{comparison:$bound, value:$number}}]) */
+modifier_power_or_toughness ::= "with" "power" "or" "toughness" number "or" bound
+
+/* Combat relation information is captured in an announced target filter.
+   Keep this phrase out of resolving battlefield sweeps: after a death event,
+   their current-card view would name the new graveyard object. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($filter_phrase, $combat_counterpart_filter)}), index:0} */
+target_combat_counterpart ::= "target" filter_phrase combat_counterpart_filter
+
+/* Both directed relations name the same written object. Canonical order is
+   BlockedByObject before BlockingObject, independently of word order. */
+combat_counterpart_filter ::= combat_counterpart_self | combat_counterpart_it
+
+/* @sem ObjectFilter::AnyOf([BlockedByObject($self_explicit_ref), BlockingObject($self_explicit_ref)]) */
+combat_counterpart_self ::= "blocking" "or" "blocked" "by" self_explicit_ref
+
+/* Announcement information preserves the antecedent's pre-effect identity. */
+/* @sem ObjectFilter::AnyOf([BlockedByObject(@it), BlockingObject(@it)]) */
+combat_counterpart_it ::= "blocking" "or" "blocked" "by" "it"
+
+/* Relative pronouns name the preceding object; explicit names keep holder binding. */
+/* @sem ObjectFilter::BlockingObject(@current_it) */
+modifier_blocking_self ::= "blocking" "it"
+
+/* @sem ObjectFilter::BlockedByObject($self_explicit_ref) */
+modifier_blocked_by_self ::= self_explicit_ref "is" "blocking"
+
+/* @sem ObjectFilter::BlockedByObject(@current_it) */
+modifier_blocked_by_it ::= "it's" "blocking"
+
+/* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Damage(DamageEvent{source_kind:Permanent, sources:SameObject(ObjectRef::Candidate), recipients:Players(One(PlayerRef::AbilityController)), kind:Any, grouping:SourceRecipient, subject:Source}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}) */
+modifier_dealt_damage_to_you ::= "that" "dealt" "damage" "to" "you" "this" "turn"
+
+/* @sem ObjectFilter::Not(ObjectFilter::State(Enchanted)) */
+modifier_not_enchanted ::= "that" ("aren't" | "isn't") "enchanted"
+
+/* @sem ObjectFilter::Not(ObjectFilter::Colorless) */
+modifier_colored ::= "that's" "one" "or" "more" "colors"
+
+/* @sem ObjectFilter::History{event:Entered, window:SinceLastTurnOf(AbilityController)} */
+modifier_entered_since ::= "that" "entered" "since" "your" "last" "turn" "ended"
+
+/* @sem ObjectFilter::Shares{property:Colors, with:@it} */
+modifier_shares_color ::= "that" "shares" "a" "color" "with" "it"
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:Expr::ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown}}} */
+modifier_same_mana_value_as_spell ::= "with" "that" "spell's" "mana" "value"
+
+/* The exception owns its complete qualified population and is terminal in
+   the outer modifier chain. Following qualifiers remain inside the negation. */
+/* @sem ObjectFilter::Not($filter_plural) */
+modifier_except ::= "except" "for" filter_plural
+
+/* @sem ObjectFilter::Counters{comparison:Greater, value:Expr::Constant(0)} */
+modifier_counters_on_them ::= "with" "counters" "on" "them"
+
+/* @sem ObjectFilter::Counters{comparison:Greater, value:Expr::Constant(0)} */
+modifier_counter_on_it ::= "with" "a" "counter" "on" "it"
+
+/* Counter quantities are integers; one or more is the canonical positive test. */
+/* @sem ObjectFilter::Counters{kind:$counter_kind, comparison:Greater, value:Expr::Constant(0)} */
+modifier_positive_named_counters ::= "with" "one" "or" "more" counter_kind "counters" "on" ("it" | "them")
+
+/* @sem ObjectFilter::Counters{kind:$counter_kind, comparison:Greater, value:Expr::Constant(0)} */
+modifier_named_counter_on_it ::= "with" "a" counter_kind "counter" "on" "it"
+
+/* @sem ObjectFilter::Counters{kind:PowerToughness(1, 1), comparison:Greater, value:Expr::Constant(0)} */
+modifier_pt_counter_on_it ::= "with" "a" "+" "1" "/" "+" "1" "counter" "on" "it"
+
+stat ::= stat_power | stat_toughness | stat_mana_value
+
+/* @sem Property::Power */
+stat_power ::= "power"
+/* @sem Property::Toughness */
+stat_toughness ::= "toughness"
+/* @sem Property::ManaValue */
+stat_mana_value ::= "mana" "value"
+
+bound ::= bound_less | bound_greater
+
+/* @sem Comparison::LessOrEqual */
+bound_less ::= "less"
+/* @sem Comparison::GreaterOrEqual */
+bound_greater ::= "greater"
+
+/* Players. */
+players_singular ::= players_fewest_permanents | mined_players | player_one | players_each_opponent | players_each | players_or_controller | players_each_other | players_each_other_opponent
+
+/* @sem PlayerSet::Intersection([OthersThan(@other_party), OpponentsOf(PlayerRef::AbilityController)]) */
+players_each_other_opponent ::= "each" "other" "opponent"
+
+/* @sem PlayerSet::OthersThan(@other_party) */
+players_each_other ::= "each" "other" "player"
+
+/* @sem PlayerSet::One(PlayerRef::PlayerOrControllerOf(Targets(@last_slot))) */
+players_or_controller ::= "that" "player" "or" "that" "planeswalker's" "controller"
+
+/* @sem PlayerSet::One($player_ref) */
+player_one ::= player_ref
+
+player_ref ::= mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner
+    | attacking_player
+
+its_owner ::= its_owner_pronoun | its_owner_named
+/* @sem PlayerRef::OwnerOf(@damage_relative_object) */
+its_owner_pronoun ::= "its" "owner"
+/* @sem PlayerRef::OwnerOf(@it) */
+its_owner_named ::= "that" ("creature's" | "permanent's" | "artifact's" | "enchantment's" | "land's") "owner"
+
+/* @sem PlayerRef::ControllerOf($object_ref) */
+explicit_object_controller ::= "the" "controller" "of" object_ref
+
+/* An edited owner can name an object different from the damage source. */
+/* @sem PlayerRef::OwnerOf($object_ref) */
+explicit_object_owner ::= "the" "owner" "of" object_ref
+
+/* @sem PlayerRef::AttackingPlayer */
+attacking_player ::= "attacking" "player"
+
+that_player ::= that_player_word | that_opponent
+
+/* @sem PlayerRef::@that_player_literal */
+that_player_word ::= "that" "player"
+
+/* @sem PlayerRef::@that_opponent */
+that_opponent ::= "that" "opponent"
+
+/* @sem @defending */
+defending_player ::= "defending" "player"
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:Matching{binding:0, condition:Compare{left:EventHistory{event:Damage(DamageEvent{source_kind:Permanent, sources:SameObject(ObjectRef::Source), recipients:Players(One(Bound(0))), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}}}), index:0} */
+target_player_dealt ::= "target" "player" "dealt" "damage" "by" self_text "this" "turn"
+
+/* @sem @that_player */
+stack_controller ::= "that" "spell" "or" "ability's" "controller"
+
+its_controller ::= its_controller_pronoun | its_controller_named | its_controller_spell
+
+/* @sem PlayerRef::ControllerOf(@damage_relative_object) */
+its_controller_pronoun ::= "its" "controller"
+
+/* @sem PlayerRef::ControllerOf(@named_object) */
+its_controller_named ::= "that" ("creature's" | "permanent's" | "artifact's" | "enchantment's" | "land's") "controller"
+
+/* @sem PlayerRef::ControllerOf($spell_possessive) */
+its_controller_spell ::= spell_possessive "controller"
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:All}), index:0} */
+target_player ::= "target" "player"
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:OpponentsOf(PlayerRef::AbilityController)}), index:0} */
+target_opponent ::= "target" "opponent"
+
+/* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
+players_each_opponent ::= "each" "opponent" | "each" "of" "your" "opponents"
+
+/* @sem PlayerSet::All */
+players_each ::= "each" "player"
+
+/* Damage recipients. */
+recipients ::= mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker
+    | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many
+    | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs
+    | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle
+    | recipients_target_and_each_other
+
+/* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_phrase, $filter_phrase_2])}) */
+recipients_each_and_each ::= "each" filter_phrase "and" "each" filter_phrase
+
+/* @sem Recipients::Union([Objects(One($target_object)), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$others_each})]) */
+recipients_target_and_each_other ::= target_object "and" others_each
+
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:AnyOf([@and($noun, ObjectFilter::Token), CardType(Planeswalker)]), players:All})) */
+recipients_token_player_walker ::= "target" noun "token" "," "player" "," "or" "planeswalker"
+
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:CardType(Battle), players:All})) */
+recipients_player_or_battle ::= "target" "player" "or" "battle"
+
+/* @sem Recipients::Union([Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:CardType(Planeswalker), players:All})), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_head, ObjectFilter::ControlledBy(One(PlayerRef::PlayerOrControllerOf(Targets(@last_slot)))))})]) */
+recipients_player_and_theirs ::= "target" "player" "or" "planeswalker" "and" "each" filter_head "that" "player" "or" "that" "planeswalker's" "controller" "controls"
+
+/* @sem Recipients::Union([Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), Players(All)]) */
+recipients_objects_and_players ::= "each" filter_phrase "and" "each" "player"
+
+/* @sem Recipients::Players(One(@that_player)) */
+recipients_them ::= "them"
+
+/* @sem Recipients::AttackedBy(@it) */
+recipients_attacked ::= "the" "player" "or" "planeswalker" ("it's" | "that" "creature" "is") "attacking"
+
+/* @sem Recipients::Union([Players(OpponentsOf(PlayerRef::AbilityController)), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_head, ObjectFilter::ControlledBy(OpponentsOf(PlayerRef::AbilityController)))})]) */
+recipients_opponents_and_theirs ::= "each" "opponent" "and" "each" filter_head "they" "control"
+
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:CardType(Planeswalker), players:OpponentsOf(PlayerRef::AbilityController)})) */
+recipients_opponent_or_walker ::= "target" "opponent" "or" "planeswalker"
+
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:$target_count, filter:Any})) */
+recipients_many ::= ("each" "of")? target_count "targets"
+
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any})) */
+recipients_any_target ::= "any" "target"
+
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:CardType(Planeswalker), players:All})) */
+recipients_player_or_walker ::= "target" "player" "or" "planeswalker"
+
+/* @sem Recipients::Objects($object_set) */
+recipients_objects ::= object_set
+
+/* Damage goes to `each`; destruction takes `all`. */
+/* @sem Recipients::Objects(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}) */
+recipients_each ::= "each" filter_phrase
+
+/* @sem Recipients::Players($players_singular) */
+recipients_players ::= players_singular
+
+/* @sem Recipients::Players(One(PlayerRef::AbilityController)) */
+recipients_you ::= "you"
+
+/* @sem Recipients::Union([$recipients_part, $recipients_part_2]) */
+recipients_both ::= recipients_part "and" recipients_part
+
+recipients_part ::= recipients_objects | recipients_players
+
+
+/* Created tokens are one result set, even when Oracle uses a singular pronoun. */
+/* An ordinary plural reference keeps the focused target slot or the matched
+   event's object batch. It never falls back to a stale target across creation. */
+group_reference ::= group_pronoun | group_creatures | group_permanents | group_artifacts | group_lands | group_enchantments
+/* @sem ObjectSet::@group_reference(ObjectKind::Any, ObjectFilter::Any) */
+group_pronoun ::= "them"
+/* @sem ObjectSet::@group_reference(ObjectKind::Any, ObjectFilter::Any) */
+group_subject ::= "they"
+/* @sem ObjectSet::@group_reference(ObjectKind::Permanent, ObjectFilter::CardType(Creature)) */
+group_creatures ::= ("each" "of")? "those" "creatures"
+/* @sem ObjectSet::@group_reference(ObjectKind::Permanent, ObjectFilter::Any) */
+group_permanents ::= "those" "permanents"
+/* @sem ObjectSet::@group_reference(ObjectKind::Permanent, ObjectFilter::CardType(Artifact)) */
+group_artifacts ::= "those" "artifacts"
+/* @sem ObjectSet::@group_reference(ObjectKind::Permanent, ObjectFilter::CardType(Land)) */
+group_lands ::= "those" "lands"
+/* @sem ObjectSet::@group_reference(ObjectKind::Permanent, ObjectFilter::CardType(Enchantment)) */
+group_enchantments ::= "those" "enchantments"
+
+created_reference ::= created_singular_reference | created_group_reference | created_batch_reference | created_named_reference
+created_singular_reference ::= created_ordinary_singular | created_reflexive_singular
+/* @sem ObjectSet::@created_reference_single */
+created_ordinary_singular ::= "it"
+/* @sem ObjectSet::@literal_damage_itself_objects(ObjectSet::@created_reference_single) */
+created_reflexive_singular ::= "itself"
+/* @sem ObjectSet::@created_reference */
+created_group_reference ::= "them" | "they" | "those" "creatures" | "those" "permanents"
+
+/* Explicit token nouns keep the named batch when another operand takes focus. */
+/* @sem ObjectSet::@created_batch_reference */
+created_batch_reference ::= "those" "tokens"
+/* @sem ObjectSet::@created_named_reference */
+created_named_reference ::= ("that" | "the") "token"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::CardType(Creature)) */
+named_creature ::= ("that" | "the" "other") "creature"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::Any) */
+named_permanent ::= ("that" | "the" "other") "permanent"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::CardType(Artifact)) */
+named_artifact ::= ("that" | "the" "other") "artifact"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::CardType(Enchantment)) */
+named_enchantment ::= ("that" | "the" "other") "enchantment"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::CardType(Land)) */
+named_land ::= ("that" | "the" "other") "land"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Spell, ObjectFilter::Any) */
+named_spell ::= ("that" | "the" "other") "spell"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::CardType(Planeswalker)) */
+named_planeswalker ::= ("that" | "the" "other") "planeswalker"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::Subtype(Equipment)) */
+named_equipment ::= ("that" | "the" "other") "Equipment"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::Subtype(Aura)) */
+named_aura ::= ("that" | "the" "other") "Aura"
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::Subtype(Vehicle)) */
+named_vehicle ::= ("that" | "the" "other") "Vehicle"
+
+/* A qualified action recipient names a full creation result, not index zero. */
+/* @sem ObjectSet::@qualified_members($that_noun) */
+qualified_set ::= that_noun
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::Subtype(@subtype_name($subtype))) */
+named_subtype ::= ("that" | "the" "other") subtype
+
+/* Target constraints name announced objects, even when written after an effect. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:@and($filter_phrase, ObjectFilter::Not(ObjectFilter::SameObject($that_noun)))}), index:0} */
+target_excluding_named ::= "target" filter_phrase "other" "than" that_noun
+
+/* A later card-group phrase names the draft output, not token creation. */
+drafted_cards_reference ::= drafted_cards_pronoun | drafted_cards_explicit
+/* @sem ObjectSet::@drafted_reference */
+drafted_cards_pronoun ::= "them"
+/* @sem ObjectSet::@drafted_reference_explicit */
+drafted_cards_explicit ::= "those" "cards"
+
+
+/* The native mixed-zone constructor names physical spell/permanent objects.
+   This descriptor is exposed only by actions valid in both zones. Color/text
+   actions retain their implied modes and different spell/permanent operations. */
+target_spell_or_noun ::= target_spell_or_controlled_permanent | target_spell_or_permanent | target_spell_or_typed_permanent
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Any, zones:[Stack, Battlefield]}), count:Exactly(Constant(1)), filter:Any}), index:0} */
+target_spell_or_permanent ::= "target" "spell" "or" "permanent"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Any, zones:[Stack, Battlefield]}), count:Exactly(Constant(1)), filter:AnyOf([@and(ObjectFilter::InZone(Shared(Battlefield)), $mixed_permanent_noun), InZone(Shared(Stack))])}), index:0} */
+target_spell_or_typed_permanent ::= "target" "spell" "or" mixed_permanent_noun
+/* No shared trailing modifier is inferred from this bare noun spelling. */
+mixed_permanent_noun ::= noun_creature | noun_artifact | noun_enchantment | noun_land | noun_planeswalker | noun_battle | noun_token | noun_commander | noun_outlaw | subtype | noun_wall_folded
+
+/* Relative state clauses reuse complete state predicates. Color lists have
+   their own coordination contracts and cannot end after one color here. */
+/* @sem ObjectFilter::$relative_state_quality */
+modifier_relative_state ::= ("that's" | "that" "is" | "that" "are") relative_state_quality
+
+relative_state_quality ::= adjective_tapped | adjective_untapped | adjective_attacking
+    | adjective_nonattacking | adjective_blocking | adjective_blocked
+    | adjective_enchanted | adjective_equipped
+
+/* Ownership is independent of battlefield control, including granted abilities. */
+/* @sem ObjectFilter::OwnedBy(One(AbilityController)) */
+modifier_you_own ::= "you" "own"
+
+/* An explicit exclusion preserves its own object, independently of a Pump's
+   lexical other/current-member annotation. */
+/* @sem ObjectFilter::Not(SameObject($self_ref)) */
+modifier_other_than_self ::= "other" "than" self_ref
+
+/* The trailing controller restricts both physical alternatives; the permanent
+   adjective stays confined to the battlefield branch. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Any, zones:[Stack, Battlefield]}), count:Exactly(Constant(1)), filter:@and(ObjectFilter::ControlledBy($mixed_target_controller), ObjectFilter::AnyOf([@and(ObjectFilter::InZone(Shared(Battlefield)), $mixed_controlled_permanent), InZone(Shared(Stack))]))}), index:0} */
+target_spell_or_controlled_permanent ::= "target" "spell" "or" mixed_controlled_permanent mixed_target_controller
+
+mixed_controlled_permanent ::= mixed_controlled_adjective | mixed_permanent_noun
+/* @sem $adjective_nontype */
+mixed_controlled_adjective ::= adjective_nontype "permanent"
+
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+mixed_target_opponent ::= ("an" | "one") "opponent" "controls"
+/* @sem PlayerSet::One(AbilityController) */
+mixed_target_you ::= "you" "control"
+
+mixed_target_controller ::= mixed_target_opponent | mixed_target_you
+
+/* A callback target counts its actual performed action's pre-action objects,
+   independently of callback/body result allocation and target cardinality. */
+/* @sem Count::UpTo(CountObjects(Transition{result:@reflexive_performed, phase:Before})) */
+target_receipt_up_to ::= "up" "to" "that" "many"
+
+/* The candidate is a blocker of the explicitly named or targeted attacker. */
+/* @sem ObjectFilter::BlockingObject($combat_blocking_operand) */
+modifier_blocking_operand ::= ("that's" | "that" "is")? "blocking" combat_blocking_operand
+combat_blocking_operand ::= target_object | self_explicit_ref | combat_context_it
+
+/* Current relation union; the explicit holder/name remains its own reference. */
+/* @sem ObjectFilter::AnyOf([BlockingObject($self_explicit_ref), BlockedByObject($self_explicit_ref)]) */
+modifier_resolving_counterpart ::= "blocking" "or" "blocked" "by" self_explicit_ref
+
+/* The candidate was an attacker blocked by the named blocker this combat. */
+/* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Pair{event:BecomesBlockedBy, objects:SameObject(ObjectRef::Candidate), others:SameObject($object_ref)}, window:ThisCombat, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}) */
+modifier_blocked_this_combat ::= "that" "were" "blocked" "by" object_ref "this" "combat"
+
+/* A characteristic relation reads its antecedent, including death-event LKI. */
+/* @sem ObjectFilter::Shares{property:CreatureTypes, with:$object_ref} */
+modifier_shares_creature_type ::= "that" ("share" | "shares") "a" "creature" "type" "with" object_ref
+
+/* A shared-type query composes ordinary positive noun descriptions. Literal
+   other has its own contrast contract and is not introduced by this query. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($sharing_query_filter, $modifier_shares_creature_type)} */
+objects_all_sharing ::= "all" sharing_query_filter modifier_shares_creature_type
+
+sharing_query_filter ::= filter_plural_tail | sharing_query_adjectives
+/* @sem @and($adjectives, $sharing_query_filter) */
+sharing_query_adjectives ::= adjectives sharing_query_filter
+
+/* A pure five-subtype disjunction is shared by the negative creature filter
+   and the existing singular attack event. Capitals remain spelling metadata. */
+/* @sem ObjectFilter::@and(ObjectFilter::CardType(Creature), ObjectFilter::Not($five_subtype_union)) */
+creature_not_five_subtypes ::= "creature" "that" "isn't" ("a" | "an") five_subtype_union
+/* @sem ObjectFilter::AnyOf([$five_subtype_word, $five_subtype_word_2, $five_subtype_word_3, $five_subtype_word_4, $five_subtype_word_5]) */
+five_subtype_union ::= five_subtype_word "," five_subtype_word "," five_subtype_word "," five_subtype_word "," "or" five_subtype_word
+five_subtype_word ::= subtype | five_marked_kraken | five_marked_leviathan | five_marked_merfolk
+/* @sem ObjectFilter::Subtype(Kraken) */
+five_marked_kraken ::= "↑" "kraken"
+/* @sem ObjectFilter::Subtype(Leviathan) */
+five_marked_leviathan ::= "↑" "leviathan"
+/* @sem ObjectFilter::Subtype(Merfolk) */
+five_marked_merfolk ::= "↑" "merfolk"
+
+/* Shared-head prototype: exactly bare or one leading tapped qualifier. */
+head_subtype ::= subtype | noun_wall_folded
+head_non_subtype_atomic ::= noun_creature | head_non_subtype_noncreature
+head_non_subtype_noncreature ::= noun_outlaw | noun_artifact | noun_enchantment | noun_land
+    | noun_planeswalker | noun_permanent | noun_token | noun_battle | noun_commander
+head_non_subtype_noun ::= head_non_subtype_atomic | noun_equipped
+head_adjective_not_subtype ::= quality_unscoped | head_non_subtype_atomic
+head_adjective_not_tapped ::= head_quality_not_tapped | noun_atomic
+head_quality_not_tapped ::= adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked | adjective_noncommander | adjective_nontoken | adjective_legendary | adjective_basic | adjective_nonbasic | adjective_color | adjective_noncolor | adjective_nontype | subtype_negated | adjective_colorless | adjective_snow | adjective_nonsnow | adjective_enchanted | adjective_attacking_or_blocking
+
+/* Exact complement of filter_described = adjective filter_simple,
+   excluding only subtype + bare Creature. */
+head_right_not_shared ::= head_right_other_adjective | head_right_other_noun
+/* @sem @and($head_adjective_not_subtype, $filter_simple) */
+head_right_other_adjective ::= head_adjective_not_subtype filter_simple
+/* @sem @and($head_subtype, $head_simple_not_creature) */
+head_right_other_noun ::= head_subtype head_simple_not_creature
+head_simple_not_creature ::= noun_noncreature | noun_equipped | filter_described
+/* @sem @and($head_subtype, $noun_creature) */
+head_right_shared ::= head_subtype noun_creature
+
+/* Exact complement of filter_simple excluding bare subtype or tapped subtype.
+   Multiple adjectives and independently written type heads retain old meanings. */
+head_left_independent ::= head_non_subtype_noun | head_left_long
+    | head_left_other_noun | head_left_other_adjective
+/* @sem @and($adjective, $filter_described) */
+head_left_long ::= adjective filter_described
+/* @sem @and($adjective, $head_non_subtype_noun) */
+head_left_other_noun ::= adjective head_non_subtype_noun
+/* @sem @and($head_adjective_not_tapped, $head_subtype) */
+head_left_other_adjective ::= head_adjective_not_tapped head_subtype
+
+head_list_unshared_right ::= head_list_unshared_right_forward | head_list_unshared_right_reverse
+/* @sem ObjectFilter::AnyOf([$filter_simple, $head_right_not_shared]) */
+head_list_unshared_right_forward ::= filter_simple "or" head_right_not_shared
+/* @sem ObjectFilter::AnyOf([$head_right_not_shared, $filter_simple]) */
+head_list_unshared_right_reverse ::= filter_simple "or" head_right_not_shared
+head_list_independent_left ::= head_list_independent_left_forward | head_list_independent_left_reverse
+/* @sem ObjectFilter::AnyOf([$head_left_independent, $head_right_shared]) */
+head_list_independent_left_forward ::= head_left_independent "or" head_right_shared
+/* @sem ObjectFilter::AnyOf([$head_right_shared, $head_left_independent]) */
+head_list_independent_left_reverse ::= head_left_independent "or" head_right_shared
+head_list_unshared_right_modified ::= head_list_unshared_right_modified_forward | head_list_unshared_right_modified_reverse
+/* @sem @and(ObjectFilter::AnyOf([$filter_simple, $head_right_not_shared]), $modifiers) */
+head_list_unshared_right_modified_forward ::= filter_simple "or" head_right_not_shared modifiers
+/* @sem @and(ObjectFilter::AnyOf([$head_right_not_shared, $filter_simple]), $modifiers) */
+head_list_unshared_right_modified_reverse ::= filter_simple "or" head_right_not_shared modifiers
+head_list_independent_left_modified ::= head_list_independent_left_modified_forward | head_list_independent_left_modified_reverse
+/* @sem @and(ObjectFilter::AnyOf([$head_left_independent, $head_right_shared]), $modifiers) */
+head_list_independent_left_modified_forward ::= head_left_independent "or" head_right_shared modifiers
+/* @sem @and(ObjectFilter::AnyOf([$head_right_shared, $head_left_independent]), $modifiers) */
+head_list_independent_left_modified_reverse ::= head_left_independent "or" head_right_shared modifiers
+
+head_shared_creature ::= head_shared_creature_forward | head_shared_creature_reverse
+/* @sem @and(ObjectFilter::CardType(Creature), ObjectFilter::AnyOf([$head_subtype, $head_subtype_2])) */
+head_shared_creature_forward ::= head_subtype "or" head_subtype "creature"
+/* @sem @and(ObjectFilter::CardType(Creature), ObjectFilter::AnyOf([$head_subtype_2, $head_subtype])) */
+head_shared_creature_reverse ::= head_subtype "or" head_subtype "creature"
+/* @sem @and(ObjectFilter::Tapped, $head_shared_creature) */
+head_shared_tapped_creature ::= "tapped" head_shared_creature
+/* @sem @and($head_shared_creature, $modifiers) */
+head_shared_creature_modified ::= head_shared_creature modifiers
+/* @sem @and($head_shared_tapped_creature, $modifiers) */
+head_shared_tapped_creature_modified ::= head_shared_tapped_creature modifiers
+
+/* A negative occurrence condition is independent of the counter amount. */
+/* @sem ObjectFilter::AllOf([Condition(Not(Compare{left:EventHistory{event:Object{event:Attacks, objects:SameObject(Candidate)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})), Condition(Not(Compare{left:EventHistory{event:ZoneChange{objects:SameObject(Candidate), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}))]) */
+modifier_neither_attacked_nor_entered ::= "that" "didn't" "attack" "or" "enter" "this" "turn"
+
+/* @sem ObjectFilter::Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:$number}} */
+filter_exact_color_count ::= "that's" "exactly" number "colors"
+
+/* Party is a union of the four stated creature subtypes, for cards and spells
+   as well as battlefield objects. It is not a party-size query. */
+/* @sem ObjectFilter::AnyOf([Subtype(Cleric), Subtype(Rogue), Subtype(Warrior), Subtype(Wizard)]) */
+adjective_party ::= "party"
+
+/* The chosen player is persistent choice information, independently of the
+   controller of the permanent whose ability contains this selector. */
+/* @sem ObjectFilter::ControlledBy(One(Chosen)) */
+modifier_chosen_controller ::= "the" "chosen" "player" "controls"
+
+/* @sem ObjectFilter::Subtype(Room) */
+noun_room ::= "Room"
+
+/* A creature with both abilities is counted once by this disjunction. */
+/* @sem ObjectFilter::AnyOf(@unordered([HasKeyword($keyword_name), HasKeyword($keyword_name_2)])) */
+modifier_with_keyword_pair ::= "with" keyword_name "or" keyword_name
+
+/* @sem ObjectRef::@current_it */
+combat_context_it ::= "it"
+
+/* Explicit inclusive-or kind restrictions describe one candidate population. */
+/* @sem ObjectFilter::AnyOf([$plural_atomic, $plural_atomic_2]) */
+modifier_relative_kind_union ::= "that" "are" plural_atomic "and" "/" "or" plural_atomic
+
+/* Ties for the minimum qualify independently; each player's own permanents
+   are counted using the same written filter on both sides of the comparison. */
+/* @sem PlayerSet::Matching{binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Permanents($filter_plural)}, test:NumberTest::Compare{comparison:LessOrEqual, value:AmongPlayers{players:All, number:Permanents($filter_plural), aggregation:Minimum}}}} */
+players_fewest_permanents ::= "each" "player" "who" "controls" "the" "fewest" filter_plural

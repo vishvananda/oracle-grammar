@@ -1,0 +1,518 @@
+/* Numbers and amounts. */
+number ::= number_digits | number_words | number_x | number_x_plus
+
+/* @sem Expr::Add(Expr::AnnouncedX, $number_digits) */
+number_x_plus ::= "X" "plus" number_digits
+
+/* Oracle spells out card counts and writes damage and life in digits. */
+count ::= number_words | number_digits | number_x
+
+/* @sem Expr::Constant($number) */
+number_digits ::= NUMBER
+
+/* @sem Expr::AnnouncedX */
+number_x ::= "X"
+
+number_words ::= n1 | n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20
+
+/* @sem Expr::Constant(1) */
+n1 ::= "one"
+/* @sem Expr::Constant(2) */
+n2 ::= "two"
+/* @sem Expr::Constant(3) */
+n3 ::= "three"
+/* @sem Expr::Constant(4) */
+n4 ::= "four"
+/* @sem Expr::Constant(5) */
+n5 ::= "five"
+/* @sem Expr::Constant(6) */
+n6 ::= "six"
+/* @sem Expr::Constant(7) */
+n7 ::= "seven"
+/* @sem Expr::Constant(8) */
+n8 ::= "eight"
+/* @sem Expr::Constant(9) */
+n9 ::= "nine"
+/* @sem Expr::Constant(10) */
+n10 ::= "ten"
+/* @sem Expr::Constant(11) */
+n11 ::= "eleven"
+/* @sem Expr::Constant(12) */
+n12 ::= "twelve"
+/* @sem Expr::Constant(13) */
+n13 ::= "thirteen"
+/* @sem Expr::Constant(14) */
+n14 ::= "fourteen"
+/* @sem Expr::Constant(15) */
+n15 ::= "fifteen"
+/* @sem Expr::Constant(20) */
+n20 ::= "twenty"
+
+card_count ::= card_count_one | card_count_many | card_count_additional | card_count_that_many | card_count_each | card_count_each_many | card_count_equal
+
+/* @sem Expr::Constant(1) */
+card_count_one ::= ("a" | "one" | "an" "additional") "card"
+
+/* @sem $count */
+card_count_additional ::= count "additional" "cards"
+
+/* @sem $count */
+card_count_many ::= count "cards"
+
+/* @sem @that_many */
+card_count_that_many ::= "that" "many" "cards"
+
+/* @sem $count_each */
+card_count_each ::= ("a" | "one") "card" "for" "each" count_each
+
+/* @sem @times($count, $count_each) */
+card_count_each_many ::= count "cards" "for" "each" count_each
+
+/* @sem $value */
+card_count_equal ::= "cards" "equal" "to" value
+
+count_each ::= count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand
+    | count_each_card_graveyard | count_each_destroyed | count_each_discarded | count_each_died | count_each_land_type
+
+/* @sem Expr::EventHistory{event:$commander_cast_history, window:ThisGame, measure:Occurrences} */
+count_each_commander_cast ::= "time" commander_cast_history
+/* @sem EventSpec::Filtered{event:Spell{event:Cast, players:One(AbilityController), spells:State(Commander)}, condition:WasCastFrom{object:EventSubject, zone:Command}} */
+commander_cast_history ::= "you've" "cast" ("a" | "your") "commander" "from" "the" "command" "zone" "this" "game"
+
+/* @sem $discarded_this_turn */
+count_each_discarded_turn ::= "card" discarded_this_turn
+
+/* @sem Expr::EventHistory{event:Discard{players:One(PlayerRef::AbilityController), cards:Any, kind:Any, grouping:Card}, window:ThisTurn, measure:Occurrences} */
+discarded_this_turn ::= "you've" "discarded" "this" "turn"
+
+/* @sem $discarded_this_turn */
+value_cards_discarded ::= "the" "number" "of" "cards" discarded_this_turn
+
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:All, spells:Cast{by:One(PlayerRef::AbilityController)}}, window:ThisTurn, measure:Distinct(CardTypes)} */
+count_each_type_cast ::= "card" "type" "among" "spells" "you've" "cast" "this" "turn"
+
+/* @sem Expr::CountPlayers(Matching{binding:0, condition:Compare{left:Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(Bound(0))))}), test:NumberTest::Compare{comparison:Less, value:Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))})}}}) */
+count_each_opponent_fewer ::= "opponent" "who" "controls" "fewer" filter_plural "than" "you"
+
+/* @sem Expr::PartySize(AbilityController) */
+count_each_party ::= "creature" "in" "your" "party"
+
+/* @sem Expr::CountObjects(Matching{objects:Transition{result:@prior, phase:After}, filter:$card_filter}) */
+count_each_discarded ::= card_filter "card" "discarded" "this" "way"
+
+/* @sem Expr::EventHistory{event:ZoneChange{objects:$filter_phrase, from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences} */
+count_each_died ::= filter_phrase "that" "died" "this" "turn"
+
+/* @sem Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, property:BasicLandTypes} */
+count_each_land_type ::= "basic" "land" "type" "among" filter_plural
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}) */
+count_each_permanent ::= filter_phrase ("on" "the" "battlefield")?
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@pump_other_ref(ObjectRef::@it))), $other_count_filter)}) */
+count_each_other ::= "other" other_count_filter
+
+/* Keep the original generic phrase without a battlefield suffix. The extra
+   explicit suffix is proved only for creature/subtype nouns in this family. */
+other_count_filter ::= filter_phrase | other_battlefield_count_filter
+/* @sem $other_battlefield_count_noun */
+other_battlefield_count_filter ::= other_battlefield_count_noun "on" "the" "battlefield"
+other_battlefield_count_noun ::= noun_creature | subtype
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One($zone_owner)}, kind:Card, filter:Any}) */
+count_each_card_hand ::= "card" "in" zone_owner "hand"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:Any}) */
+count_each_card_graveyard ::= "card" "in" zone_owner "graveyard"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One($zone_owner)}, kind:Card, filter:$card_filter}) */
+count_each_hand ::= card_filter "card" "in" zone_owner "hand"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:$card_filter}) */
+count_each_graveyard ::= card_filter "card" "in" zone_owner "graveyard"
+
+/* @sem Expr::CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:$filter_phrase}) */
+count_each_destroyed ::= filter_phrase "destroyed" "this" "way"
+
+/* What a card can be, away from the battlefield. `permanent` narrows nothing on the
+   battlefield, but among cards it excludes instants and sorceries. */
+card_filter ::= mined_cards | card_word | card_stacked | card_stacked_comma | card_stacked_either | card_stacked_type
+    | card_or | card_three | card_filter_and
+
+card_word ::= quality | card_noun | spell_instant | spell_sorcery
+
+card_noun ::= noun_outlaw | noun_creature | noun_artifact | noun_enchantment | noun_land | noun_planeswalker
+    | noun_token | noun_battle | subtype | card_permanent
+
+/* @sem ObjectFilter::AnyOf([ObjectFilter::CardType(Artifact), ObjectFilter::CardType(Battle), ObjectFilter::CardType(Creature), ObjectFilter::CardType(Enchantment), ObjectFilter::CardType(Land), ObjectFilter::CardType(Planeswalker)]) */
+card_permanent ::= "permanent"
+
+/* @sem @and($quality, $card_filter) */
+card_stacked ::= quality card_filter
+
+/* @sem @and($quality, $card_filter) */
+card_stacked_comma ::= quality "," card_filter
+
+/* @sem @and(ObjectFilter::AnyOf([$quality, $quality_2]), $card_word) */
+card_stacked_either ::= quality "or" quality card_word
+
+/* @sem @and($card_noun, $card_noun_2) */
+card_stacked_type ::= card_noun card_noun
+
+/* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
+card_or ::= card_word "or" card_word
+
+/* @sem ObjectFilter::AnyOf([$card_word, $card_word_2, $card_word_3]) */
+card_three ::= card_word "," card_word "," "or" card_word
+
+/* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
+card_filter_and ::= card_word "and" card_word
+
+zone_owner ::= zone_your | zone_their | zone_that_player | zone_its_controller | zone_chosen_player
+
+/* @sem PlayerRef::Chosen */
+zone_chosen_player ::= "the" "chosen" "player's"
+
+/* @sem PlayerRef::ControllerOf(@it) */
+zone_its_controller ::= "its" "controller's"
+
+/* @sem PlayerRef::AbilityController */
+zone_your ::= "your"
+/* @sem @that_player */
+zone_their ::= "their"
+/* @sem @that_player */
+zone_that_player ::= "that" "player's"
+
+life_phrase ::= life_number | life_that_much | life_each | life_equal | life_half | life_half_your | life_twice
+
+/* @sem @times(Expr::Constant(2), $life_phrase) */
+life_twice ::= "twice" life_phrase
+
+/* @sem Expr::Divide{numerator:Expr::PlayerNumber{player:@that_player, number:Life}, denominator:Expr::Constant(2), rounding:$rounding_words} */
+life_half ::= "half" "their" "life" "," rounding_words
+
+/* @sem Expr::Divide{numerator:Expr::PlayerNumber{player:PlayerRef::AbilityController, number:Life}, denominator:Expr::Constant(2), rounding:$rounding_words} */
+life_half_your ::= "half" "your" "life" "," rounding_words
+
+rounding_words ::= rounded_up | rounded_down
+
+/* @sem Rounding::Up */
+rounded_up ::= "rounded" "up"
+/* @sem Rounding::Down */
+rounded_down ::= "rounded" "down"
+
+/* @sem $value */
+life_equal ::= "life" "equal" "to" value
+
+/* @sem $number */
+life_number ::= number "life"
+
+/* @sem @that_much */
+life_that_much ::= "that" "much" "life"
+
+/* @sem @times($number, $count_each) */
+life_each ::= number "life" "for" "each" count_each
+
+/* Values a sentence can be equal to. */
+value ::= value_greater | value_atom | value_sum | value_difference
+
+/* @sem Expr::Add($value_atom, $value) */
+value_sum ::= value_atom "plus" value
+
+/* @sem Expr::Subtract($value_atom, $value) */
+value_difference ::= value_atom "minus" value
+
+value_constant ::= number_digits | number_words | number_x
+
+value_atom ::= value_cast_since_last_turn | value_chosen_creature_population | value_shared_countered | value_shared_other_four_subtypes | value_shared_saga_mana | value_times_mutated | value_your_life | mined_value | value_constant | value_number_of | value_power | value_toughness | value_mana_value | value_that_much | value_twice
+    | value_number_hand | value_number_graveyard | value_number_card_graveyard | value_number_card_hand
+    | value_life_lost | value_sacrificed | value_stat_of | value_number_on_battlefield | value_number_other
+    | value_greatest | value_greatest_pair | value_colors_among | value_land_types_among | value_card_types_graveyard | value_devotion
+    | value_party | value_number_died | value_named_all | value_named_yours | value_all_graveyards
+    | value_half | value_damage_dealt | value_self_stat | value_power_of_target | value_damage_already
+    | value_cards_drawn | value_cards_discarded | value_died_yours | value_sacrificed_count | value_noun_stat | value_turns_begun
+    | value_excess | value_colors_spent | value_damage_to_you | value_life_lost_all | value_damage_already_it
+    | value_as_cast | value_graveyards_same_name | value_destroyed_yours | value_died_this_way | value_cards_with_cycling | value_spells_cast_by
+    | value_total_mana_population | value_total_mana_other_cast
+
+/* Live objects and cast-event history are different populations. */
+/* @sem Expr::Aggregate{objects:$greatest_population, property:ManaValue, aggregation:Sum} */
+value_total_mana_population ::= "the" "total" "mana" "value" "of" greatest_population
+
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:All, spells:@and(ObjectFilter::Not(SameObject(Source)), ObjectFilter::Cast{by:One(AbilityController)})}, window:ThisTurn, measure:Property(ManaValue, Sum)} */
+value_total_mana_other_cast ::= "the" "total" "mana" "value" "of" "other" "spells" "you've" "cast" "this" "turn"
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}) */
+value_number_of ::= "the" "number" "of" filter_plural
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}) */
+value_number_on_battlefield ::= "the" "number" "of" filter_plural "on" "the" "battlefield"
+
+/* @sem Expr::@its_stat(Expr::ObjectProperty{object:@it, property:Power, information:CurrentOrLastKnown}) */
+value_power ::= "its" "power"
+
+/* @sem Expr::@its_stat(Expr::ObjectProperty{object:@it, property:Toughness, information:CurrentOrLastKnown}) */
+value_toughness ::= "its" "toughness"
+
+/* @sem Expr::ObjectProperty{object:@move_after_property(ObjectRef::@it), property:ManaValue, information:CurrentOrLastKnown} */
+value_mana_value ::= "its" "mana" "value"
+
+/* @sem @that_much */
+value_that_much ::= "that" "much"
+
+/* @sem @times(Expr::Constant(2), $value) */
+value_twice ::= "twice" value
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One($zone_owner)}, kind:Card, filter:Any}) */
+value_number_hand ::= "the" "number" "of" "cards" "in" zone_owner "hand"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:Any}) */
+value_number_graveyard ::= "the" "number" "of" "cards" "in" zone_owner "graveyard"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:$card_filter}) */
+value_number_card_graveyard ::= "the" "number" "of" card_filter "cards" "in" zone_owner "graveyard"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One($zone_owner)}, kind:Card, filter:$card_filter}) */
+value_number_card_hand ::= "the" "number" "of" card_filter "cards" "in" zone_owner "hand"
+
+/* @sem Expr::Performed(@prior) */
+value_life_lost ::= "the" "life" "lost" "this" "way"
+
+/* @sem Expr::ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[@cost_index], view:Inputs, phase:Before}, index:0}, property:$stat, information:CurrentOrLastKnown} */
+value_sacrificed ::= "the" "sacrificed" noun_word stat
+
+/* @sem Expr::ObjectProperty{object:$it_possessive, property:$stat, information:CurrentOrLastKnown} */
+value_stat_of ::= it_possessive stat
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@it)), $filter_plural)}) */
+value_number_other ::= "the" "number" "of" "other" filter_plural
+
+/* Property and population are independent. Card-zone ownership must not turn
+   into battlefield control, and other excludes the enclosing ability's object. */
+/* @sem Expr::Aggregate{objects:$greatest_population, property:$stat, aggregation:Maximum} */
+value_greatest ::= "the" "greatest" stat "among" greatest_population
+
+/* @sem Expr::Maximum(Aggregate{objects:$greatest_population, property:$stat, aggregation:Maximum}, Aggregate{objects:$greatest_population, property:$stat_2, aggregation:Maximum}) */
+value_greatest_pair ::= "the" "greatest" stat "and/or" stat "among" greatest_population
+
+greatest_population ::= greatest_battlefield | greatest_other_battlefield | greatest_cards | greatest_filtered_cards
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
+greatest_battlefield ::= filter_plural
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(@it)), $filter_plural)} */
+greatest_other_battlefield ::= "other" filter_plural
+/* @sem ObjectSet::Zone{scope:Players{zone:$greatest_card_zone, players:One($zone_owner)}, kind:Card, filter:Any} */
+greatest_cards ::= "cards" "in" zone_owner greatest_card_zone
+/* @sem ObjectSet::Zone{scope:Players{zone:$greatest_card_zone, players:One($zone_owner)}, kind:Card, filter:$card_filter} */
+greatest_filtered_cards ::= card_filter "cards" "in" zone_owner greatest_card_zone
+
+greatest_card_zone ::= greatest_hand | greatest_graveyard | greatest_library
+/* @sem ZoneName::Hand */
+greatest_hand ::= "hand"
+/* @sem ZoneName::Graveyard */
+greatest_graveyard ::= "graveyard"
+/* @sem ZoneName::Library */
+greatest_library ::= "library"
+
+/* @sem Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, property:Colors} */
+value_colors_among ::= "the" "number" "of" "colors" "among" filter_plural
+
+/* @sem Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, property:BasicLandTypes} */
+value_land_types_among ::= "the" "number" "of" "basic" "land" "types" "among" filter_plural
+
+/* @sem Expr::CountDistinct{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, property:CardTypes} */
+value_card_types_graveyard ::= "the" "number" "of" "card" "types" "among" "cards" "in" "your" "graveyard"
+
+/* @sem Expr::CountManaSymbols{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:ControlledBy(One(PlayerRef::AbilityController))}, colors:[$devotion_color]} */
+value_devotion ::= "your" "devotion" "to" devotion_color
+
+devotion_color ::= dc_white | dc_blue | dc_black | dc_red | dc_green
+
+/* @sem ManaColor::White */
+dc_white ::= "white"
+/* @sem ManaColor::Blue */
+dc_blue ::= "blue"
+/* @sem ManaColor::Black */
+dc_black ::= "black"
+/* @sem ManaColor::Red */
+dc_red ::= "red"
+/* @sem ManaColor::Green */
+dc_green ::= "green"
+
+/* @sem Expr::PartySize(AbilityController) */
+value_party ::= "the" "number" "of" "creatures" "in" "your" "party"
+
+/* @sem Expr::EventHistory{event:ZoneChange{objects:$filter_plural, from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences} */
+value_number_died ::= "the" "number" "of" filter_plural "that" "died" "this" "turn"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:Name(@card_name)}) */
+value_named_all ::= "the" "number" "of" "cards" "named" SELF_NAME "in" "all" "graveyards"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Name(@card_name)}) */
+value_named_yours ::= "the" "number" "of" "cards" "named" SELF_NAME "in" "your" "graveyard"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:Any}) */
+value_all_graveyards ::= "the" "number" "of" "cards" "in" "all" "graveyards"
+
+/* @sem Expr::Divide{numerator:$value_atom, denominator:Expr::Constant(2), rounding:$rounding_words} */
+value_half ::= "half" value_atom "," rounding_words
+
+/* @sem Expr::Performed(@prior) */
+value_damage_dealt ::= "the" "damage" "dealt" "this" "way"
+
+it_possessive ::= named_possessive | spell_possessive
+
+named_possessive ::= named_creature_possessive | named_other_possessive
+
+/* The existing words retain creature provenance through direct/snapshot X. */
+/* @sem ObjectRef::@activation_creature_property(ObjectRef::@named_object) */
+named_creature_possessive ::= "that" "creature's"
+
+/* @sem ObjectRef::@named_object */
+named_other_possessive ::= "that" ("artifact's" | "enchantment's" | "land's" | "permanent's" | "planeswalker's")
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Spell, ObjectFilter::Any) */
+spell_possessive ::= "that" "spell's"
+
+/* @sem () */
+noun_word ::= "creature's" | "artifact's" | "enchantment's" | "land's" | "permanent's"
+
+/* @sem Expr::ObjectProperty{object:$self_possessive, property:$stat, information:CurrentOrLastKnown} */
+value_self_stat ::= self_possessive stat
+
+self_possessive ::= holder_possessive_ref | named_possessive_ref
+
+/* @prefer value(Source) */
+/* @sem ObjectRef::@self */
+holder_possessive_ref ::= holder_possessive
+
+/* @prefer value(GrantingObject) */
+/* @sem ObjectRef::@named_source */
+named_possessive_ref ::= SELF_NAME "'s"
+
+/* @sem () */
+holder_possessive ::= "this" ("creature's" | "artifact's" | "enchantment's" | "land's" | "permanent's" | "token's")
+
+/* @sem Expr::ObjectProperty{object:$object_ref, property:$stat, information:CurrentOrLastKnown} */
+value_power_of_target ::= "the" stat "of" object_ref
+
+/* @sem Expr::EventHistory{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Players(One(@that_player)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:TotalAmount} */
+value_damage_already ::= "the" "damage" "already" "dealt" "to" "that" "player" "this" "turn"
+
+/* @sem Expr::EventHistory{event:Player{event:Draws, players:One(PlayerRef::AbilityController)}, window:ThisTurn, measure:Occurrences} */
+value_cards_drawn ::= "the" "number" "of" "cards" "you've" "drawn" "this" "turn"
+
+/* @sem Expr::EventHistory{event:ZoneChange{objects:@and($filter_plural, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))), from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences} */
+value_died_yours ::= "the" "number" "of" filter_plural "that" "died" "under" "your" "control" "this" "turn"
+
+/* @sem Expr::EventHistory{event:Player{event:Sacrifices, players:One(PlayerRef::AbilityController), objects:$filter_plural}, window:ThisTurn, measure:Occurrences} */
+value_sacrificed_count ::= "the" "number" "of" filter_plural "you've" "sacrificed" "this" "turn"
+
+/* @sem Expr::ObjectProperty{object:@named_object, property:$stat, information:CurrentOrLastKnown} */
+value_noun_stat ::= "the" noun_word stat
+
+/* @sem Expr::PlayerNumber{player:AbilityController, number:TurnsBegun} */
+value_turns_begun ::= "the" "number" "of" "turns" "you" "have" "begun"
+
+/* @sem Expr::ExcessDamage{result:@prior, to:Any} */
+value_excess ::= "the" "excess" "damage" "dealt" "this" "way"
+
+/* @sem Expr::ManaSpent{object:Source, filter:SpentManaFilter{}, aggregation:DistinctColors} */
+value_colors_spent ::= "the" "number" "of" "colors" "of" "mana" "spent" "to" "cast" "this" "spell"
+
+/* @sem Expr::EventHistory{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Players(One(PlayerRef::AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:TotalAmount} */
+value_damage_to_you ::= "the" "damage" "dealt" "to" "you" "this" "turn"
+
+/* @sem Expr::Maximum($value_atom, $value_atom_2) */
+value_greater ::= value_atom "or" value_atom "," "whichever" "is" "greater"
+
+/* @sem Expr::EventHistory{event:Player{event:LosesLife, players:All}, window:ThisTurn, measure:TotalAmount} */
+value_life_lost_all ::= "the" "total" "life" "lost" "by" "all" "players" "this" "turn"
+
+/* @sem Expr::EventHistory{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Objects(SameObject(@it)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:TotalAmount} */
+value_damage_already_it ::= "the" "damage" "already" "dealt" "to" "it" "this" "turn"
+
+/* The IR reads this number on resolution, not as the spell was cast. */
+/* @sem $value_number_on_battlefield */
+value_as_cast ::= value_number_on_battlefield "as" "you" "cast" "this" "spell"
+
+/* @sem Expr::CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))}) */
+value_destroyed_yours ::= "the" "number" "of" filter_plural "you" "controlled" "that" "were" "destroyed" "this" "way"
+
+/* @sem Expr::CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:$filter_plural}) */
+value_died_this_way ::= "the" "number" "of" filter_plural "that" "died" "this" "way"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:ObjectFilter::HasActivatedAbility(Cycling)}) */
+value_cards_with_cycling ::= "the" "number" "of" "cards" "with" "a" "cycling" "ability" "in" "your" "graveyard"
+
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:One(@that_player), spells:$spell_adjectives}, window:ThisTurn, measure:Occurrences} */
+value_spells_cast_by ::= "the" "number" "of" spell_adjectives "spells" "they've" "cast" "this" "turn"
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:SharesNameWith(@it)}) */
+value_graveyards_same_name ::= "the" "number" "of" "cards" "in" "all" "graveyards" "with" "the" "same" "name" "as" "that" "spell"
+
+/* @sem Expr::PlayerNumber{player:PlayerRef::AbilityController, number:Life} */
+value_your_life ::= "your" "life" "total"
+
+/* Adjacent integer alternatives are an inclusive interval. An arbitrary
+   nonadjacent disjunction is not a range: one or three must not permit two. */
+target_adjacent_range ::= target_range_one_two | target_range_two_three | target_range_three_four | target_range_four_five
+/* @sem Count::Between{minimum:Constant(1), maximum:Constant(2)} */
+target_range_one_two ::= ("one" | "1") "or" ("two" | "2")
+/* @sem Count::Between{minimum:Constant(2), maximum:Constant(3)} */
+target_range_two_three ::= ("two" | "2") "or" ("three" | "3")
+/* @sem Count::Between{minimum:Constant(3), maximum:Constant(4)} */
+target_range_three_four ::= ("three" | "3") "or" ("four" | "4")
+/* @sem Count::Between{minimum:Constant(4), maximum:Constant(5)} */
+target_range_four_five ::= ("four" | "4") "or" ("five" | "5")
+
+/* Player counters are not counters on the source or on permanents. */
+/* @sem Expr::CountCounters{recipients:Players(One(PlayerRef::AbilityController)), kind:$counter_kind, information:CurrentOrLastKnown} */
+count_each_player_counter ::= counter_kind "counter" "you" "have"
+
+/* A permanent counter count keeps its written recipient separate from player counters. */
+/* @sem Expr::CountCounters{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown} */
+count_each_object_counter ::= counter_kind ("counter" | "counters") "on" affected
+
+/* The printed actor is the sacrificing player, not a current controller filter. */
+/* @sem Expr::EventHistory{event:Player{event:Sacrifices, players:One(AbilityController), objects:$filter_plural}, window:ThisTurn, measure:Distinct(CardTypes)} */
+count_each_you_sacrificed_types ::= "card" "type" "among" filter_plural "you've" "sacrificed" "this" "turn"
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Counters{kind:$counter_kind, comparison:Greater, value:Constant(0)})}) */
+value_shared_countered ::= "the" "number" "of" filter_plural "you" "control" "with" counter_kind "counters" "on" "them"
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([AnyOf(@unordered([$value_shared_subtype_plural, $value_shared_subtype_plural_2, $value_shared_subtype_plural_3, $value_shared_subtype_plural_4])), ControlledBy(One(AbilityController)), Not(SameObject(Source))])}) */
+value_shared_other_four_subtypes ::= "the" "number" "of" "other" value_shared_subtype_plural "," value_shared_subtype_plural "," value_shared_subtype_plural ","? "and" value_shared_subtype_plural "you" "control"
+/* The named Saga must have a proven lexical referent, normally the final
+   chapter's event subject. An unrelated object cannot supply this property. */
+/* @sem Expr::ObjectProperty{object:@qualified_object(ObjectKind::Permanent, ObjectFilter::Subtype(Saga)), property:ManaValue, information:CurrentOrLastKnown} */
+value_shared_saga_mana ::= "that" "Saga's" "mana" "value"
+
+value_shared_subtype_plural ::= subtype_plural | value_shared_marked_bats | value_shared_marked_goblins | value_shared_marked_rats
+/* These words also occur in lower case in the seeded vocabulary. A comma
+   preserves their capital with an explicit spelling token. */
+/* @sem ObjectFilter::Subtype(Bat) */
+value_shared_marked_bats ::= "↑" "bats"
+/* @sem ObjectFilter::Subtype(Goblin) */
+value_shared_marked_goblins ::= "↑" "goblins"
+/* @sem ObjectFilter::Subtype(Rat) */
+value_shared_marked_rats ::= "↑" "rats"
+
+/* @sem Expr::TimesMutated($object_ref) */
+value_times_mutated ::= "the" "number" "of" "times" object_ref "has" "mutated"
+
+/* The printed self reference supplies the object identity for the whole-game
+   attack history, independently of any currently counted battlefield group. */
+/* @sem Expr::EventHistory{event:Object{event:Attacks, objects:SameObject($self_explicit_ref)}, window:ThisGame, measure:Occurrences} */
+count_each_self_attack_game ::= "time" self_explicit_ref "attacked" "this" "game"
+
+/* Chosen creature type is persistent choice information. It filters the live
+   battlefield population and is not a currently supplied literal subtype. */
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::Chosen(CreatureType))}) */
+value_chosen_creature_population ::= "the" "number" "of" "creatures" "of" "the" "chosen" "type" "on" "the" "battlefield"
+
+/* The beginning of the last turn names a history window, independently of
+   the current turn or a trigger's entry/turn-face-up event. */
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:One(AbilityController), spells:$card_filter}, window:SinceLastTurnOf(AbilityController), measure:Occurrences} */
+value_cast_since_last_turn ::= "the" "number" "of" card_filter "spells" "you've" "cast" "since" "the" "beginning" "of" "your" "last" "turn"
+
+/* @sem Expr::EventHistory{event:Player{event:Sacrifices, players:One(AbilityController), objects:$filter_plural}, window:ThisTurn, measure:Occurrences} */
+sacrifice_history_one_or_more ::= "you" "sacrificed" "one" "or" "more" filter_plural "this" "turn"

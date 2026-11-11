@@ -1,0 +1,250 @@
+/* A period inside a closing quotation ends the enclosing sentence too. The
+   closed productions record that grammatical fact; no punctuation is inserted
+   by the tokenizer and an unquoted program still needs its final period. */
+/* A leading time is a program only inside an already announced ability. */
+program_sentence ::= program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence
+
+/* This limits a successful performance, not the number of triggers. The
+   offer owns the complete coordinated program. Declining it or failing a
+   required payment leaves the offer available later in the turn. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PlayersDo{players:One(AbilityController), any_one:false, optional:true, once_each_turn:true, body:[Program($action_once_body)], otherwise:[]}}]} */
+program_sentence_action_once ::= "you" "may" action_once_body "." action_once_suffix
+
+action_once_body ::= program | action_once_payment
+
+/* Optionality belongs to the enclosing offer; this payment is required after
+   accepting it. Keep the actual payment receipt in the dependent condition. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:false}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}]} */
+action_once_payment ::= payment "." "if" "you" "do" "," conjoined
+
+/* @sem () */
+action_once_suffix ::= "do" "this" "only" "once" "each" "turn" "."
+
+ordinary_program_sentence ::= program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment
+
+/* @sem $program */
+program_sentence_plain ::= program "."
+
+/* @sem Program::Program{instructions:$instructions_quoted} */
+program_sentence_quoted ::= instructions_quoted
+
+instructions_quoted ::= instructions_conjured_duplicate_grant | clause_quoted | instructions_before_quoted | instructions_between_quoted | instructions_closed_before_quoted | instructions_if_you_do_quoted | instructions_paid_token_quoted
+
+/* A final quoted grant closes both the token-only continuation and the paid
+   conditional sentence. Its dependent effects still share the creation receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[$conditional_token_creation, ...$conditional_token_followups_quoted]}, otherwise:Program{}}] */
+instructions_paid_token_quoted ::= "you" "may" payment "." "if" "you" "do" "," conditional_token_creation "." conditional_token_followups_quoted
+
+conditional_token_followups_quoted ::= conditional_token_quoted_one | conditional_token_quoted_more
+/* @sem Instruction::[$conditional_token_grant_quoted] */
+conditional_token_quoted_one ::= conditional_token_grant_quoted
+/* @sem Instruction::[$conditional_token_followup, ...$conditional_token_followups_quoted] */
+conditional_token_quoted_more ::= conditional_token_followup "." conditional_token_followups_quoted
+
+/* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_reference), changes:$closed_grants, duration:Indefinite, evaluation:Snapshot}} */
+conditional_token_grant_quoted ::= created_reference ("gains" | "gain") closed_grants
+
+/* The final quoted ability closes the paid action's conditional sentence. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$clause_quoted}, otherwise:Program{}}] */
+instructions_if_you_do_quoted ::= "you" "may" payment "." "if" "you" "do" "," clause_quoted
+
+/* A leading conditional sentence can precede a final quoted token ability. */
+/* @sem Instruction::[...$clause_closed, ...$instructions_quoted] */
+instructions_closed_before_quoted ::= clause_closed "." NEWLINE? instructions_quoted
+
+instructions_before_quoted ::= before_quoted_period | before_quoted_then
+/* @sem Instruction::[...$clause, ...$instructions_quoted] */
+before_quoted_period ::= clause sequencer instructions_quoted
+/* @sem Vec<Instruction>::@then_sequence($clause_before_then, $instructions_quoted) */
+before_quoted_then ::= clause_before_then "," "then" instructions_quoted
+
+/* @sem Instruction::[...$clause_quoted, ...$instructions_quoted] */
+instructions_between_quoted ::= clause_quoted instructions_quoted
+
+/* @sem Instruction::[...$clause_quoted, ...$instructions] */
+instructions_after_quoted ::= clause_quoted "then"? instructions
+
+clause_quoted ::= clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted
+
+/* An emblem's final quoted sentence also closes its enclosing sentence. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateEmblem{actor:One(PlayerRef::AbilityController), abilities:[$token_quoted_sentence]}}] */
+clause_emblem_quoted ::= "you" "get" "an" "emblem" "with" token_quoted_sentence
+
+/* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verbs_base_quoted) */
+clause_imperative_quoted ::= verbs_base_quoted
+
+/* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verbs_base_quoted) */
+clause_you_quoted ::= "you" verbs_base_quoted
+
+/* @sem @apply($players_singular, $verbs_third_quoted) */
+clause_third_quoted ::= players_singular verbs_third_quoted
+
+/* @sem Instruction::[Instruction::Optional{decider:AbilityController, body:Program{instructions:$clause_imperative_quoted}}] */
+clause_may_quoted ::= "you" "may" clause_imperative_quoted
+
+verbs_base_quoted ::= verb_base_quoted_list | verbs_base_before_quoted
+
+/* @sem Instruction::[$verb_base_quoted] */
+verb_base_quoted_list ::= verb_base_quoted
+
+/* @sem Instruction::[...$verbs_base, ...$verb_base_quoted_list] */
+verbs_base_before_quoted ::= verbs_base "and" verb_base_quoted_list
+
+/* @sem Instruction::Effect{result:@next, operation:$create_base_quoted} */
+verb_base_quoted ::= create_base_quoted
+
+verbs_third_quoted ::= verb_third_quoted_list | verbs_third_before_quoted
+
+/* @sem Instruction::[$verb_third_quoted] */
+verb_third_quoted_list ::= verb_third_quoted
+
+/* @sem Instruction::[...$verbs_third, ...$verb_third_quoted_list] */
+verbs_third_before_quoted ::= verbs_third "and" verb_third_quoted_list
+
+/* @sem Instruction::Effect{result:@next, operation:$create_third_quoted} */
+verb_third_quoted ::= create_third_quoted
+
+/* @sem Operation::CreateTokens{players:@subject, tokens:$token_groups_quoted, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+create_base_quoted ::= "create" token_groups_quoted
+
+/* @sem Operation::CreateTokens{players:@subject, tokens:$token_groups_quoted, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+create_third_quoted ::= "creates" token_groups_quoted
+
+token_groups_quoted ::= token_groups_quoted_one | token_groups_quoted_pair | token_groups_quoted_list
+
+/* @sem TokenSpec::[$token_group_quoted] */
+token_groups_quoted_one ::= token_group_quoted
+
+/* @sem TokenSpec::[$token_group, $token_group_quoted] */
+token_groups_quoted_pair ::= token_group "and" token_group_quoted
+
+/* @sem TokenSpec::[$token_group, ...$token_groups_quoted_tail] */
+token_groups_quoted_list ::= token_group "," token_groups_quoted_tail
+
+token_groups_quoted_tail ::= token_groups_quoted_last | token_groups_quoted_more
+
+/* @sem TokenSpec::[$token_group_quoted] */
+token_groups_quoted_last ::= "and" token_group_quoted
+
+/* @sem TokenSpec::[$token_group, ...$token_groups_quoted_tail] */
+token_groups_quoted_more ::= token_group "," token_groups_quoted_tail
+
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe_quoted} */
+token_group_quoted ::= token_amount token_recipe_quoted
+
+/* @sem TokenRecipe::@token_abilities($token_recipe_base, $token_description_quoted) */
+token_recipe_quoted ::= token_recipe_base token_description_quoted
+
+token_description_quoted ::= token_description_with_quoted | token_description_after_quoted
+    | token_description_with_then_quoted | token_description_after_then_quoted
+
+/* @sem $token_abilities_quoted */
+token_description_with_quoted ::= "with" token_abilities_quoted
+
+/* @sem $token_abilities_quoted */
+token_description_after_quoted ::= "." token_ability_subject token_abilities_quoted
+
+/* @sem Ability::[...$token_abilities, ...$token_description_quoted] */
+token_description_with_then_quoted ::= "with" token_abilities token_description_quoted
+
+/* @sem Ability::[...$token_abilities, ...$token_description_quoted] */
+token_description_after_then_quoted ::= "." token_ability_subject token_abilities token_description_quoted
+
+token_abilities_quoted ::= token_abilities_quoted_one | token_abilities_quoted_pair | token_abilities_quoted_list
+
+/* @sem Ability::[$token_quoted_sentence] */
+token_abilities_quoted_one ::= token_quoted_sentence
+
+/* @sem Ability::[$token_ability, $token_quoted_sentence] */
+token_abilities_quoted_pair ::= token_ability "and" token_quoted_sentence
+
+/* @sem Ability::[$token_ability, ...$token_abilities_quoted_tail] */
+token_abilities_quoted_list ::= token_ability "," token_abilities_quoted_tail
+
+token_abilities_quoted_tail ::= token_abilities_quoted_last | token_abilities_quoted_more
+
+/* @sem Ability::[$token_quoted_sentence] */
+token_abilities_quoted_last ::= "and" token_quoted_sentence
+
+/* @sem Ability::[$token_ability, ...$token_abilities_quoted_tail] */
+token_abilities_quoted_more ::= token_ability "," token_abilities_quoted_tail
+
+/* A quoted keyword without a period does not end the enclosing sentence. */
+/* @sem Ability::@holder($token_ability_sentence) */
+token_quoted_sentence ::= '"' token_ability_sentence '"'
+
+token_ability_sentence ::= departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty
+    | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if
+    | static_ability | static_conditional | static_conditional_first | static_your_turn | static_player_prohibition | replacement_ability
+    | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence
+
+/* A final quoted sentence closes a duration-led grant too. The existing
+   token_quoted_sentence enforces its inner period and resets the holder. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$closed_grants, duration:$duration, evaluation:Snapshot}}] */
+clause_continuous_grant_quoted ::= duration "," affected ("gains" | "gain") closed_grants
+
+closed_grants ::= closed_grant_ability | closed_grant_keyword_prefix
+/* @sem Change::[GrantAbility($token_quoted_sentence)] */
+closed_grant_ability ::= token_quoted_sentence
+/* @sem Change::[$grant_keyword, ...$closed_grants] */
+closed_grant_keyword_prefix ::= grant_keyword "and" closed_grants
+
+/* The ability's own closing period also ends this perpetual grant. Scalar
+   references retain the current moved/selected object; closed_grants resets
+   the holder. Private graveyard cards use the pinned AnyZone/AddAbility form. */
+clause_perpetual_grant_quoted ::= perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$perpetual_quote_scalar, changes:$closed_grants}}] */
+perpetual_quote_scalar_grant ::= perpetual_quote_scalar "perpetually" ("gains" | "gain") closed_grants
+/* @sem ObjectSet::One($perpetual_quote_reference) */
+perpetual_quote_scalar ::= perpetual_quote_reference
+perpetual_quote_reference ::= self_ref | exiled_card_ref | target_object | attached_ref | target_card
+
+/* InZone restricts the AnyZone query to existing cards in this graveyard.
+   card_permanent supplies all six permanent card types, not Creature only.
+   token_quoted_sentence resets the granted holder inside the typed operand. */
+/* @sem Instruction::[Effect{result:@next, operation:EffectOn{subject:Objects(AnyZone(AllOf([$card_noun, InZone(Players{zone:Graveyard, players:One($zone_owner)})]))), effects:[Term{family:PerpetualEffect, form:AddAbility, operands:[Ability($token_quoted_sentence)]}]}}] */
+perpetual_quote_cards_grant ::= "all"? card_noun "cards" "in" zone_owner "graveyard" "perpetually" ("gains" | "gain") token_quoted_sentence
+
+/* A literal choice establishes this one current card; generic @it does not
+   establish a selection receipt. Require a card noun even after qualities. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$perpetual_chosen_card_filter}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$closed_grants}}] */
+perpetual_quote_choose_grant ::= "choose" ("a" | "an") perpetual_chosen_card_filter "card" "in" "your" "hand" "." "it" "perpetually" "gains" closed_grants
+perpetual_chosen_card_filter ::= card_noun | perpetual_chosen_card_qualified
+/* @sem @and($quality, $perpetual_chosen_card_filter) */
+perpetual_chosen_card_qualified ::= quality perpetual_chosen_card_filter
+
+/* An explicit exile followed immediately by this grant names its actual
+   resulting incarnation, without reopening ordinary bare-pronoun fallback. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($target_object), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:@exile_followup(One(Result{result:@prior, phase:After, index:0})), changes:$closed_grants}}] */
+perpetual_quote_exile_grant ::= "exile" target_object "." "it" "perpetually" "gains" closed_grants
+
+/* A casting rule printed on the granted card; no surrounding source query. */
+/* @sem Ability::Casting(SpendAsThoughAnyType) */
+casting_spend_any_type ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "this" "spell" "."
+
+/* The singular duplicate owns this immediately following printed grant. */
+/* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Duplicate(One($conjured_duplicate_target)), count:Constant(1), destination:Hand(CardArrival{counters:[], states:[]})}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$closed_grants}}] */
+instructions_conjured_duplicate_grant ::= "conjure" "a" "duplicate" "of" conjured_duplicate_target "into" "your" "hand" "." "it" "perpetually" "gains" closed_grants
+
+conjured_duplicate_target ::= target_card | target_card_opponent_graveyard
+
+/* A granted group owns two independent event scopes inside its new holder.
+   Destination-sensitive bodies must bind before equal bodies can be merged. */
+departure_granted_triggers ::= departure_granted_separate | departure_granted_joined
+
+/* @sem Ability::Triggers([@scope(Ability::Triggered{event:ZoneChange{objects:$death_exile_object, from:Battlefield, to:Graveyard}, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence}), @scope(Ability::Triggered{event:ZoneChange{objects:$death_exile_object, from:Battlefield, to:Exile}, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence})]) */
+departure_granted_separate ::= ("when" | "whenever") death_exile_object "," program_sentence
+
+/* @sem Ability::Triggers([@scope(Ability::Triggered{event:@either_event(EventSpec::ZoneChange{objects:$death_exile_object, from:Battlefield, to:Graveyard}, EventSpec::ZoneChange{objects:$death_exile_object, from:Battlefield, to:Exile}), limits:TriggerLimits{}, announcement:@announcement, body:$departure_independent_sentence})]) */
+departure_granted_joined ::= ("when" | "whenever") death_exile_object "," departure_independent_sentence
+
+departure_independent_sentence ::= departure_draw_sentence | departure_life_sentence | departure_damage_sentence | departure_destroy_sentence | death_library_independent_sentence
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}]} */
+departure_draw_sentence ::= "draw" card_count "."
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number}}]} */
+departure_life_sentence ::= "you"? "gain" number "life" "."
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Players(One(AbilityController)), amount:$number, preventable:true}}]} */
+departure_damage_sentence ::= self_explicit_ref "deals" number "damage" "to" "you" "."
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Destroy{objects:One($target_object), regeneration:true}}]} */
+departure_destroy_sentence ::= "destroy" target_object "."

@@ -1,0 +1,141 @@
+/* The same source spell is specialized only after its references are bound.
+   Each native branch keeps its own announcement. No text rewrite is applied. */
+/* @sem $keyword_payment */
+kicker_branch_header ::= "kicker" keyword_payment
+/* @sem Cost::@agree($keyword_payment, $additional_payment) */
+kicker_branch_reminded_header ::= "kicker" keyword_payment "(" "you" "may" additional_payment "as" "you" "cast" "this" "spell" "." ")"
+
+/* @sem Ability::@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program}) */
+spell_kicker_branch ::= kicker_branch_header NEWLINE kicker_branch_program
+/* @sem Ability::WithPresentation{reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
+spell_kicker_branch_reminded ::= kicker_branch_reminded_header NEWLINE kicker_branch_program
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:false, ability:@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
+spell_kicker_branch_labelled ::= ability_label "—" kicker_branch_header NEWLINE kicker_branch_program
+/* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
+spell_kicker_branch_labelled_reminded ::= ability_label "—" kicker_branch_reminded_header NEWLINE kicker_branch_program
+
+kicker_branch_program ::= program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both
+/* @sem Program::Program{instructions:$kicker_override} */
+kicker_override_sentence ::= kicker_override
+/* @sem Program::Program{instructions:[...$instructions, ...$kicker_override]} */
+kicker_override_before ::= instructions "." NEWLINE? kicker_override
+/* @sem Program::Program{instructions:[...$kicker_override, ...$instructions]} */
+kicker_override_after ::= kicker_override NEWLINE? instructions "."
+/* @sem Program::Program{instructions:[...$instructions, ...$kicker_override, ...$instructions_2]} */
+kicker_override_both ::= instructions "." NEWLINE? kicker_override NEWLINE? instructions "."
+/* One preceding sentence supplies the ordinary action. References in the new
+   sentence can still name that sentence's announced target. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$clause_2}, otherwise:Program{instructions:$clause}}] */
+kicker_override ::= clause "." NEWLINE? "if" condition "," clause "instead" "."
+
+/* Entwine changes how many modes are selected; each branch retains the same
+   independently scoped mode programs and target announcements. */
+/* @sem Ability::CostBranch{keyword:Entwine, cost:$keyword_payment, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:@length($modes), maximum:@length($modes)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
+spell_entwine ::= "choose" "one" "—" NEWLINE modes NEWLINE "entwine" keyword_payment
+
+/* Kicker changes the number of chosen modes; each mode keeps its own target
+   announcement in both casting branches. */
+/* @sem Ability::CostBranch{keyword:Kicker, cost:$keyword_payment, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(0), maximum:@length($modes)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
+spell_modal_kicker ::= "kicker" keyword_payment NEWLINE "choose" "one" "." "if" "this" "spell" "was" "kicked" "," "choose" "any" "number" "instead" "." NEWLINE modes
+
+/* Two independent optional costs, not one combined payment or a mode choice. */
+/* @sem Ability::[Mechanic{mechanic:Kicker, cost:$keyword_payment}, Mechanic{mechanic:Kicker, cost:$keyword_payment_2}] */
+line_dual_kicker ::= "kicker" keyword_payment "and" "/" "or" keyword_payment
+
+/* These legacy Operand terms are the pinned IR's typed KickedWith payload. */
+/* @sem Operand::[$kicker_operand] */
+kicker_operands_one ::= kicker_operand
+/* @sem Operand::[$kicker_operand, ...$kicker_operands] */
+kicker_operands_more ::= kicker_operand kicker_operands
+kicker_operands ::= kicker_operands_one | kicker_operands_more
+kicker_operand ::= kicker_operand_generic | kicker_operand_white | kicker_operand_blue | kicker_operand_black | kicker_operand_red | kicker_operand_green | kicker_operand_snow
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]} */
+kicker_operand_generic ::= "{" NUMBER "}"
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostW, operands:[]} */
+kicker_operand_white ::= "{W}"
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostU, operands:[]} */
+kicker_operand_blue ::= "{U}"
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostB, operands:[]} */
+kicker_operand_black ::= "{B}"
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostR, operands:[]} */
+kicker_operand_red ::= "{R}"
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostG, operands:[]} */
+kicker_operand_green ::= "{G}"
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostS, operands:[]} */
+kicker_operand_snow ::= "{S}"
+
+/* Conditional entry counter/ability changes share the existing grants grammar.
+   The condition tests the entering source, while granted abilities receive
+   a fresh holder through grant_ability. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:ObjectMatches{object:@self, filter:$kicker_entry_test}, then:Program{instructions:$kicker_entry_changes}, otherwise:Program{}}]}}) */
+kicker_entry_conditional ::= "if" self_ref "was" kicker_entry_test "," "it" "enters" "with" kicker_entry_changes "."
+
+kicker_entry_test ::= kicker_test_with | kicker_test_twice | kicker_test_any
+/* @sem ObjectFilter::KickedWith($kicker_operands) */
+kicker_test_with ::= "kicked" "with" "its" kicker_operands "kicker"
+/* @sem ObjectFilter::State(KickedTwice) */
+kicker_test_twice ::= "kicked" "twice"
+/* @sem ObjectFilter::State(Kicked) */
+kicker_test_any ::= "kicked"
+
+kicker_entry_changes ::= kicker_entry_counters | kicker_entry_counters_and_grants
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})}}] */
+kicker_entry_counters ::= counter_amount counter_kind ("counter" | "counters") "on" "it"
+/* @sem Instruction::[...$kicker_entry_counters, Effect{result:@next, operation:ModifyEvent{change:Entry(Changes($grants))}}] */
+kicker_entry_counters_and_grants ::= kicker_entry_counters "and" "with" grants
+
+/* The quoted ability's inner period also closes the enclosing sentence. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:ObjectMatches{object:@self, filter:$kicker_entry_test}, then:Program{instructions:[...$kicker_entry_counters, Effect{result:@next, operation:ModifyEvent{change:Entry(Changes([$grant_ability]))}}]}, otherwise:Program{}}]}}) */
+kicker_entry_conditional_quoted ::= "if" self_ref "was" kicker_entry_test "," "it" "enters" "with" kicker_entry_counters "and" "with" grant_ability
+
+/* The kicked search replaces the ordinary search. Shared following actions
+   use the actual search selection in each independently scoped spell branch. */
+/* @sem Ability::[CostBranch{keyword:Kicker, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$kicker_search_pair}, Effect{result:@next, operation:$found_reveal}, ...$search_follow]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$found_reveal}, ...$search_follow]}})}] */
+line_kicker_search_override ::= "kicker" keyword_payment NEWLINE search "." "if" "this" "spell" "was" "kicked" "," "instead" kicker_search_pair "." found_reveal search_follow "."
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[SearchChoice{filter:$search_filter, count:UpTo(Constant(1))}, SearchChoice{filter:$search_filter_2, count:UpTo(Constant(1))}]} */
+kicker_search_pair ::= "search" "your" "library" "for" ("a" | "an") search_filter "and" ("a" | "an") search_filter
+
+/* The optional kicker payment grants this ability to the same source spell. */
+/* @sem Ability::KickedHas{cost:$keyword_payment, ability:$keyword_ability} */
+kicker_conditional_keyword ::= "kicker" keyword_payment NEWLINE "if" "this" "spell" "was" "kicked" "," "it" "has" keyword_ability "."
+
+/* These spending restrictions modify the kicker payment rather than the entry
+   replacement in the following paragraph. */
+/* @sem Ability::Modified{ability:Mechanic{mechanic:Kicker, cost:$keyword_payment}, modifier:Term{family:CastModifier, form:SpendOnlyColoredManaOnXAndAtMostOneManaOfEachColor, operands:[]}} */
+kicker_colored_spending ::= "kicker" keyword_payment NEWLINE "spend" "only" "colored" "mana" "on" "X" "." "no" "more" "than" "one" "mana" "of" "each" "color" "may" "be" "spent" "this" "way" "."
+
+/* A common root spell postlude belongs to both exhaustive casting branches. */
+/* @sem Ability::[@kicker_branch($kicker_branch_header, Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$instructions_2]}})] */
+line_kicker_branch_paragraphs ::= kicker_branch_header NEWLINE instructions "." NEWLINE instructions "."
+
+/* Required and optional conditional choices have different lower bounds. Both
+   forms name exactly two modes; each keeps its own announcement namespace. */
+conditional_modes ::= conditional_modes_required | conditional_modes_optional
+/* @sem Mode::[$mode, $mode_2] */
+conditional_two_modes ::= mode NEWLINE mode
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Conditional{condition:$condition, then:Constant(2), otherwise:Constant(1)}, maximum:Conditional{condition:$condition, then:Constant(2), otherwise:Constant(1)}}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+conditional_modes_required ::= "choose" "one" "." "if" condition "," "choose" "both" "instead" "." NEWLINE conditional_two_modes
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Conditional{condition:$condition, then:Constant(2), otherwise:Constant(1)}}, options:$conditional_two_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+conditional_modes_optional ::= "choose" "one" "." "if" condition "," "you" "may" "choose" "both" "instead" "." NEWLINE conditional_two_modes
+/* @sem Ability::Spell{announcement:Announcement{modes:$conditional_modes}, body:Program{}} */
+conditional_spell_modal ::= conditional_modes
+/* @sem Ability::Triggered{event:ZoneChange{objects:$event_object, to:Battlefield}, limits:TriggerLimits{}, announcement:Announcement{modes:$conditional_modes}, body:Program{}} */
+conditional_entry_modal ::= ("when" | "whenever") event_object "enters" "," conditional_modes
+/* @sem Ability::Triggered{event:$event_scheme, limits:TriggerLimits{}, announcement:Announcement{modes:$conditional_modes}, body:Program{}} */
+conditional_scheme_modal ::= ("when" | "whenever") event_scheme "," conditional_modes
+/* An own cast trigger functions on the stack. Its count condition observes
+   the matched spell, independently of any targets chosen in the modes. */
+/* @sem Ability::Scoped{zones:[Stack], ability:@scope(Ability::Triggered{event:Spell{event:Cast, players:One(AbilityController), spells:$event_self}, limits:TriggerLimits{}, announcement:Announcement{modes:$conditional_modes}, body:Program{}})} */
+conditional_cast_modal ::= ("when" | "whenever") "you" "cast" event_self "," conditional_modes
+
+/* A stack-time restriction is independent of the resolution-time payment
+   branches. The single printed kicker header supplies their actual cost. */
+/* @sem Ability::Scoped{zones:[Stack], ability:Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Stack), kind:Spell, filter:SameObject(Source)}), changes:[Rule(Prohibit(Counter))]}} */
+stack_uncounterable_declaration ::= "this" "spell" "can't" "be" "countered" "."
+
+/* @sem Ability::[$stack_uncounterable_declaration, CostBranch{keyword:Kicker, cost:$kicker_branch_header, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:$number_2, preventable:false}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:$number, preventable:true}}]}})}] */
+line_kicker_uncounterable_damage ::= kicker_branch_header NEWLINE stack_uncounterable_declaration NEWLINE self_explicit_ref "deals" number "damage" "to" "any" "target" "." "if" "this" "spell" "was" "kicked" "," "instead" "it" "deals" number "damage" "to" "that" "permanent" "or" "player" "and" "the" "damage" "can't" "be" "prevented" "."
+
+/* The actual payer chooses one sacrifice, independent of ability control. */
+/* @sem Cost::Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))}]} */
+payment_sacrifice_choice ::= "sacrifice" ("a" | "an") filter_phrase "of" "their" "choice"

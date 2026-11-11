@@ -1,0 +1,94 @@
+/* Energy is a resource, independent of mana symbols and object counters.
+   A run of symbols and a worded quantity construct the same typed amount. */
+energy_amount ::= energy_symbols | energy_counted
+energy_symbols ::= energy_symbol_one | energy_symbols_more
+/* @sem Expr::Constant(1) */
+energy_symbol_one ::= "{E}"
+/* @sem Expr::@plus_one($energy_symbols) */
+energy_symbols_more ::= "{E}" energy_symbols
+/* @sem $energy_count_value */
+energy_counted ::= energy_count_value "{E}"
+energy_count_value ::= number | energy_fifty
+/* @sem Expr::Constant(50) */
+/* @prefer value(Constant) */
+energy_fifty ::= "fifty"
+
+/* Payments remain native costs, including in optional resolution payments. */
+/* @sem CostPart::Energy($energy_amount) */
+cost_energy ::= "pay" energy_amount
+/* @sem CostPart::Energy($energy_word_amount) */
+cost_energy_words ::= "pay" energy_word_amount
+energy_word_amount ::= energy_word_one | energy_word_many
+/* @sem Expr::Constant(1) */
+energy_word_one ::= ("an" | "one") "energy" "counter"
+/* @sem $energy_plural_words */
+energy_word_many ::= energy_plural_words "energy" "counters"
+energy_plural_words ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20 | energy_fifty
+
+energy_get_base ::= energy_get_fixed | energy_get_value | energy_get_event
+energy_get_third ::= energy_gets_fixed | energy_gets_value | energy_gets_event
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$energy_amount}} */
+energy_get_fixed ::= "get" energy_amount
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$energy_amount}} */
+energy_gets_fixed ::= "gets" energy_amount
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$value}} */
+energy_get_value ::= "get" "an" "amount" "of" "{E}" "equal" "to" value
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$value}} */
+energy_gets_value ::= "gets" "an" "amount" "of" "{E}" "equal" "to" value
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:@that_much}} */
+energy_get_event ::= "get" "that" "many" "{E}"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:@that_much}} */
+energy_gets_event ::= "gets" "that" "many" "{E}"
+
+energy_reminded_base ::= energy_reminded_fixed | energy_reminded_unit | energy_reminded_value | energy_reminded_event
+energy_reminded_third ::= energy_reminded_gets | energy_reminded_gets_unit | energy_reminded_gets_value | energy_reminded_gets_event
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:@agree($energy_amount, $energy_word_amount)}} */
+/* @prefer value(Keyword) */
+energy_reminded_fixed ::= "get" energy_amount "(" "↓" energy_word_amount ")"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:@agree($energy_amount, $energy_word_amount)}} */
+/* @prefer value(Keyword) */
+energy_reminded_gets ::= "gets" energy_amount "(" "↓" energy_word_amount ")"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$energy_amount}} */
+energy_reminded_unit ::= "get" energy_amount "(" "↓" "energy" "counters" ")"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$energy_amount}} */
+energy_reminded_gets_unit ::= "gets" energy_amount "(" "↓" "energy" "counters" ")"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$value}} */
+energy_reminded_value ::= "get" "an" "amount" "of" "{E}" "(" "↓" "energy" "counters" ")" "equal" "to" value
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$value}} */
+energy_reminded_gets_value ::= "gets" "an" "amount" "of" "{E}" "(" "↓" "energy" "counters" ")" "equal" "to" value
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:@that_much}} */
+energy_reminded_event ::= "get" "that" "many" "{E}" "(" "↓" "energy" "counters" ")"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:@that_much}} */
+energy_reminded_gets_event ::= "gets" "that" "many" "{E}" "(" "↓" "energy" "counters" ")"
+
+/* Inline reminders participate in the ordinary subject/verb composition. */
+reminder_open ::= reminder_you | reminder_imperative | reminder_third | reminder_they
+/* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $reminder_verbs_base) */
+reminder_you ::= "you" reminder_verbs_base
+/* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $reminder_verbs_base) */
+reminder_imperative ::= reminder_verbs_base
+/* @sem @apply($players_singular, $reminder_verbs_third) */
+reminder_third ::= players_singular reminder_verbs_third
+/* @sem @apply(PlayerSet::One(@that_player), $reminder_verbs_base) */
+reminder_they ::= "they" reminder_verbs_base
+reminder_verbs_base ::= reminder_verb_base_one | reminder_verbs_base_before | reminder_verbs_base_after | reminder_verbs_base_multiple
+/* @sem Instruction::[Effect{result:@next, operation:$energy_reminded_base}] */
+reminder_verb_base_one ::= energy_reminded_base
+/* @sem Instruction::[$verb_base, ...$reminder_verbs_base] */
+reminder_verbs_base_before ::= verb_base reminder_energy_join reminder_verbs_base
+/* @sem Instruction::[...$reminder_verb_base_one, ...$verbs_base] */
+reminder_verbs_base_after ::= reminder_verb_base_one reminder_energy_join verbs_base
+/* @sem Instruction::[...$reminder_verb_base_one, ...$reminder_verbs_base] */
+reminder_verbs_base_multiple ::= reminder_verb_base_one reminder_energy_join reminder_verbs_base
+reminder_verbs_third ::= reminder_verb_third_one | reminder_verbs_third_before | reminder_verbs_third_after | reminder_verbs_third_multiple
+/* @sem Instruction::[Effect{result:@next, operation:$energy_reminded_third}] */
+reminder_verb_third_one ::= energy_reminded_third
+/* @sem Instruction::[$verb_third, ...$reminder_verbs_third] */
+reminder_verbs_third_before ::= verb_third reminder_energy_join reminder_verbs_third
+/* @sem Instruction::[...$reminder_verb_third_one, ...$verbs_third] */
+reminder_verbs_third_after ::= reminder_verb_third_one reminder_energy_join verbs_third
+/* @sem Instruction::[...$reminder_verb_third_one, ...$reminder_verbs_third] */
+reminder_verbs_third_multiple ::= reminder_verb_third_one reminder_energy_join reminder_verbs_third
+
+/* @sem () */
+reminder_energy_join ::= "and" | "," | "," "and"

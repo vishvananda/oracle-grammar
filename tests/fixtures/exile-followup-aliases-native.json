@@ -1,0 +1,741 @@
+[
+  {
+    "name": "Saltskitter",
+    "text": "Whenever another creature enters, exile this creature. Return this creature to the battlefield under its owner's control at the beginning of the next end step.",
+    "native": [
+      {
+        "kind": "Triggered",
+        "args": {
+          "event": {
+            "ZoneChange": {
+              "objects": {
+                "kind": "AllOf",
+                "args": [
+                  {
+                    "kind": "Not",
+                    "args": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  }
+                ]
+              },
+              "from": null,
+              "to": "Battlefield"
+            }
+          },
+          "intervening_if": null,
+          "limits": {
+            "per_turn": null,
+            "total": null
+          },
+          "announcement": {
+            "targets": [],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "Move",
+                    "args": {
+                      "objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      },
+                      "destination": {
+                        "Exile": {
+                          "visibility": "FaceUp",
+                          "arrival": {
+                            "counters": [],
+                            "states": []
+                          }
+                        }
+                      },
+                      "qualifiers": []
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 1,
+                  "operation": {
+                    "kind": "CreateDelayedTrigger",
+                    "args": {
+                      "event": {
+                        "Turn": {
+                          "point": "EndStepBegins",
+                          "players": {
+                            "kind": "All"
+                          }
+                        }
+                      },
+                      "start": "Immediately",
+                      "expires": null,
+                      "intervening_if": null,
+                      "body": {
+                        "instructions": [
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 1,
+                              "operation": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Transition",
+                                        "args": {
+                                          "result": 0,
+                                          "phase": "After"
+                                        }
+                                      },
+                                      "zone": "Exile"
+                                    }
+                                  },
+                                  "destination": {
+                                    "Battlefield": {
+                                      "controller": "Owner",
+                                      "arrival": {
+                                        "controller": null,
+                                        "tapped": false,
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "Sundering Sentinel",
+    "text": "Starting intensity 2\nWhen this creature enters, it deals X damage to any target and you gain X life, where X is this creature's intensity. Then it intensifies.\nAt the beginning of your end step, exile this creature. At the beginning of your next upkeep, return it to the battlefield under its owner's control. It gains haste.",
+    "native": [
+      {
+        "kind": "Mechanic",
+        "args": {
+          "mechanic": "StartingIntensity",
+          "cost": null,
+          "amount": {
+            "kind": "Constant",
+            "args": 2
+          },
+          "filter": null
+        }
+      },
+      {
+        "kind": "Triggered",
+        "args": {
+          "event": {
+            "ZoneChange": {
+              "objects": {
+                "kind": "SameObject",
+                "args": {
+                  "kind": "Source"
+                }
+              },
+              "from": null,
+              "to": "Battlefield"
+            }
+          },
+          "intervening_if": null,
+          "limits": {
+            "per_turn": null,
+            "total": null
+          },
+          "announcement": {
+            "targets": [
+              {
+                "slot": 0,
+                "kind": "DamageRecipient",
+                "count": {
+                  "Exactly": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                },
+                "filter": {
+                  "kind": "Any"
+                },
+                "players": null,
+                "distribute": null,
+                "constraints": [],
+                "chooser": null
+              }
+            ],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "DealDamage",
+                    "args": {
+                      "source": {
+                        "kind": "Source"
+                      },
+                      "recipients": {
+                        "kind": "Targets",
+                        "args": 0
+                      },
+                      "amount": {
+                        "kind": "ObjectProperty",
+                        "args": {
+                          "object": {
+                            "kind": "Source"
+                          },
+                          "property": "Intensity",
+                          "information": "CurrentOrLastKnown"
+                        }
+                      },
+                      "preventable": true
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 1,
+                  "operation": {
+                    "kind": "GainLife",
+                    "args": {
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      },
+                      "amount": {
+                        "kind": "ObjectProperty",
+                        "args": {
+                          "object": {
+                            "kind": "Source"
+                          },
+                          "property": "Intensity",
+                          "information": "CurrentOrLastKnown"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 2,
+                  "operation": {
+                    "kind": "Keyword",
+                    "args": {
+                      "actor": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      },
+                      "action": {
+                        "Intensify": {
+                          "object": {
+                            "kind": "Source"
+                          },
+                          "times": null
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "Triggered",
+        "args": {
+          "event": {
+            "Turn": {
+              "point": "EndStepBegins",
+              "players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            }
+          },
+          "intervening_if": null,
+          "limits": {
+            "per_turn": null,
+            "total": null
+          },
+          "announcement": {
+            "targets": [],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "Move",
+                    "args": {
+                      "objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      },
+                      "destination": {
+                        "Exile": {
+                          "visibility": "FaceUp",
+                          "arrival": {
+                            "counters": [],
+                            "states": []
+                          }
+                        }
+                      },
+                      "qualifiers": []
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 1,
+                  "operation": {
+                    "kind": "CreateDelayedTrigger",
+                    "args": {
+                      "event": {
+                        "Turn": {
+                          "point": "UpkeepBegins",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "start": "Immediately",
+                      "expires": null,
+                      "intervening_if": null,
+                      "body": {
+                        "instructions": [
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 1,
+                              "operation": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Transition",
+                                        "args": {
+                                          "result": 0,
+                                          "phase": "After"
+                                        }
+                                      },
+                                      "zone": "Exile"
+                                    }
+                                  },
+                                  "destination": {
+                                    "Battlefield": {
+                                      "controller": "Owner",
+                                      "arrival": {
+                                        "controller": null,
+                                        "tapped": false,
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 2,
+                              "operation": {
+                                "kind": "CreateContinuousEffect",
+                                "args": {
+                                  "source": {
+                                    "kind": "Source"
+                                  },
+                                  "affected": {
+                                    "Objects": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "Result",
+                                        "args": {
+                                          "result": 1,
+                                          "phase": "After",
+                                          "index": 0
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "changes": [
+                                    {
+                                      "kind": "GrantKeyword",
+                                      "args": {
+                                        "kind": "Haste"
+                                      }
+                                    }
+                                  ],
+                                  "duration": "Indefinite",
+                                  "evaluation": "Snapshot"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "source_expected": [
+      {
+        "kind": "Mechanic",
+        "args": {
+          "mechanic": "StartingIntensity",
+          "cost": null,
+          "amount": {
+            "kind": "Constant",
+            "args": 2
+          },
+          "filter": null
+        }
+      },
+      {
+        "kind": "Triggered",
+        "args": {
+          "event": {
+            "ZoneChange": {
+              "objects": {
+                "kind": "SameObject",
+                "args": {
+                  "kind": "Source"
+                }
+              },
+              "from": null,
+              "to": "Battlefield"
+            }
+          },
+          "intervening_if": null,
+          "limits": {
+            "per_turn": null,
+            "total": null
+          },
+          "announcement": {
+            "targets": [
+              {
+                "slot": 0,
+                "kind": "DamageRecipient",
+                "count": {
+                  "Exactly": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                },
+                "filter": {
+                  "kind": "Any"
+                },
+                "players": null,
+                "distribute": null,
+                "constraints": [],
+                "chooser": null
+              }
+            ],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "DealDamage",
+                    "args": {
+                      "source": {
+                        "kind": "Source"
+                      },
+                      "recipients": {
+                        "kind": "Targets",
+                        "args": 0
+                      },
+                      "amount": {
+                        "kind": "ObjectProperty",
+                        "args": {
+                          "object": {
+                            "kind": "Source"
+                          },
+                          "property": "Intensity",
+                          "information": "CurrentOrLastKnown"
+                        }
+                      },
+                      "preventable": true
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 1,
+                  "operation": {
+                    "kind": "GainLife",
+                    "args": {
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      },
+                      "amount": {
+                        "kind": "ObjectProperty",
+                        "args": {
+                          "object": {
+                            "kind": "Source"
+                          },
+                          "property": "Intensity",
+                          "information": "CurrentOrLastKnown"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 2,
+                  "operation": {
+                    "kind": "Keyword",
+                    "args": {
+                      "actor": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      },
+                      "action": {
+                        "Intensify": {
+                          "object": {
+                            "kind": "Source"
+                          },
+                          "times": null
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "kind": "Triggered",
+        "args": {
+          "event": {
+            "Turn": {
+              "point": "EndStepBegins",
+              "players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            }
+          },
+          "intervening_if": null,
+          "limits": {
+            "per_turn": null,
+            "total": null
+          },
+          "announcement": {
+            "targets": [],
+            "modes": null
+          },
+          "body": {
+            "instructions": [
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 0,
+                  "operation": {
+                    "kind": "Move",
+                    "args": {
+                      "objects": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      },
+                      "destination": {
+                        "Exile": {
+                          "visibility": "FaceUp",
+                          "arrival": {
+                            "counters": [],
+                            "states": []
+                          }
+                        }
+                      },
+                      "qualifiers": []
+                    }
+                  }
+                }
+              },
+              {
+                "kind": "Effect",
+                "args": {
+                  "result": 1,
+                  "operation": {
+                    "kind": "CreateDelayedTrigger",
+                    "args": {
+                      "event": {
+                        "Turn": {
+                          "point": "UpkeepBegins",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "start": "Immediately",
+                      "expires": null,
+                      "intervening_if": null,
+                      "body": {
+                        "instructions": [
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 1,
+                              "operation": {
+                                "kind": "Move",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Transition",
+                                        "args": {
+                                          "result": 0,
+                                          "phase": "After"
+                                        }
+                                      },
+                                      "zone": "Exile"
+                                    }
+                                  },
+                                  "destination": {
+                                    "Battlefield": {
+                                      "controller": "Owner",
+                                      "arrival": {
+                                        "controller": null,
+                                        "tapped": false,
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  },
+                                  "qualifiers": []
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "kind": "Effect",
+                            "args": {
+                              "result": 2,
+                              "operation": {
+                                "kind": "CreateContinuousEffect",
+                                "args": {
+                                  "source": {
+                                    "kind": "Source"
+                                  },
+                                  "affected": {
+                                    "Objects": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 1,
+                                        "phase": "After"
+                                      }
+                                    }
+                                  },
+                                  "changes": [
+                                    {
+                                      "kind": "GrantKeyword",
+                                      "args": {
+                                        "kind": "Haste"
+                                      }
+                                    }
+                                  ],
+                                  "duration": "Indefinite",
+                                  "evaluation": "Snapshot"
+                                }
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+]

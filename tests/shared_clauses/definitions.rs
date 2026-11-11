@@ -1,0 +1,111 @@
+//! Defining words retain the holder, grant and conditional scope (CR604.3a).
+use super::*;
+
+fn parsed(text: &str) -> Value {
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
+    readings[0].clone()
+}
+
+fn definition(frame: &Value) -> Value {
+    let mut statics = Vec::new();
+    visit(frame, "Static", &mut statics);
+    assert_eq!(statics.len(), 1, "{frame:#?}");
+    statics.remove(0)
+}
+
+#[test]
+fn chosen_player_definitions_match_complete_native_cards() {
+    for name in ["Entropic Specter", "Haunting Apparition", "Sewer Nemesis"] {
+        let case = cases().into_iter().find(|c| c["name"] == name).unwrap();
+        let expected = canonical_abilities(&case["expected"]).unwrap();
+        let readings = engine()
+            .parse(name, case["text"].as_str().unwrap())
+            .unwrap()
+            .readings;
+        assert_eq!(
+            readings.as_slice(),
+            std::slice::from_ref(&expected),
+            "{name}"
+        );
+        printed(&expected);
+    }
+}
+
+#[test]
+fn granted_definitions_keep_creator_and_holder_distinct() {
+    for (subject, object) in [
+        ("This creature's", "Source"),
+        ("Context example's", "GrantingObject"),
+    ] {
+        let text = format!(
+            "Target creature gains \"{subject} power is equal to seven.\" until end of turn."
+        );
+        let frame = parsed(&text);
+        let static_ = definition(&frame);
+        assert_eq!(static_["kind"], "Ordinary");
+        assert_eq!(
+            static_["affected"],
+            json!({"Objects":{"kind":"One","args":{"kind":object}}})
+        );
+        assert_eq!(
+            static_["changes"],
+            json!([{"kind":"SetPower","args":{"kind":"Constant","args":7}}])
+        );
+        printed_types(&frame, &["Instant"]);
+    }
+}
+
+#[test]
+fn conditional_definition_is_ordinary_but_intrinsic_definition_is_cda() {
+    let frame = parsed("This creature's power is equal to seven.");
+    assert!(
+        definition(&frame)["kind"]
+            .get("CharacteristicDefining")
+            .is_some()
+    );
+    let frame = parsed("During your turn, this creature's power is equal to seven.");
+    assert_eq!(definition(&frame)["kind"], "Ordinary");
+    printed(&frame);
+}
+
+#[test]
+fn edited_definition_prints_new_amount_and_player() {
+    let mut frame = parsed(
+        "This creature's power is equal to the number of cards in the chosen player's hand.",
+    );
+    let count = &mut frame[0]["args"]["changes"][0]["args"];
+    count["args"]["args"]["scope"]["Players"]["players"] =
+        json!({"kind":"One","args":{"kind":"AbilityController"}});
+    let text = printed(&frame).to_lowercase();
+    assert!(text.contains("your hand"), "{text}");
+    frame[0]["args"]["changes"][0]["args"] = json!({"kind":"Constant","args":9});
+    let text = printed(&frame).to_lowercase();
+    assert!(text.contains("nine") || text.contains('9'), "{text}");
+    assert!(!text.contains("chosen player"), "{text}");
+}
+
+#[test]
+fn entry_subtypes_are_applied_on_arrival_and_becomes_is_later() {
+    for (word, arrival, instructions) in [("is", true, 1), ("becomes", false, 2)] {
+        let frame = parsed(&format!(
+            "Put target artifact card from a graveyard onto the battlefield under your control. It {word} an Elf in addition to its other types."
+        ));
+        let body = frame[0]["args"]["body"]["instructions"].as_array().unwrap();
+        assert_eq!(body.len(), instructions);
+        let states = &body[0]["args"]["operation"]["args"]["destination"]["Battlefield"]["arrival"]
+            ["states"];
+        assert_eq!(!states.as_array().unwrap().is_empty(), arrival);
+        if !arrival {
+            assert_eq!(
+                body[1]["args"]["operation"]["kind"],
+                "CreateContinuousEffect"
+            );
+            assert_eq!(
+                body[1]["args"]["operation"]["args"]["affected"]["Objects"]["args"]["kind"],
+                "Result"
+            );
+        }
+        printed_types(&frame, &["Sorcery"]);
+    }
+}

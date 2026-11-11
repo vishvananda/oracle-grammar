@@ -1,0 +1,355 @@
+/* Token creation. A token's words list colors, subtypes, card types and abilities in that order. */
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+create_base ::= "create" token_groups
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+create_third ::= "creates" token_groups
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}) */
+create_tapped_base ::= "create" token_groups_tapped
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}) */
+create_tapped_third ::= "creates" token_groups_tapped
+
+/* Entry states belong to the creation operation, rather than later tap or
+   combat instructions. The ordinary subject binder supplies the creator. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups, entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_attacking_base ::= "create" token_groups "that" "are" "tapped" "and" "attacking"
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups, entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_attacking_third ::= "creates" token_groups "that" "are" "tapped" "and" "attacking"
+
+/* A dependent token sentence stays with the conditional creation. Ordinary
+   following instructions remain outside the payment branch. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[$conditional_token_creation, ...$conditional_token_followups]}, otherwise:Program{}}] */
+clause_paid_token_followups ::= "you" "may" payment "." "if" "you" "do" "," conditional_token_creation "." conditional_token_followups
+
+/* @sem Instruction::Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $conditional_creation_operation)} */
+conditional_token_creation ::= conditional_creation_operation
+
+conditional_creation_operation ::= create_base | create_tapped_base | create_attacking_base
+
+/* @sem Instruction::[$conditional_token_followup] */
+conditional_token_followups_one ::= conditional_token_followup
+/* @sem Instruction::[$conditional_token_followup, ...$conditional_token_followups] */
+conditional_token_followups_more ::= conditional_token_followup "." conditional_token_followups
+conditional_token_followups ::= conditional_token_followups_one | conditional_token_followups_more
+
+conditional_token_followup ::= conditional_token_change | conditional_token_grant | conditional_token_cleanup
+
+/* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_reference), changes:$changes, duration:$duration, evaluation:Snapshot}} */
+conditional_token_change ::= created_reference changes duration
+
+/* An undated grant lasts indefinitely; its holder is the created token. */
+/* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_reference), changes:$change_grant, duration:Indefinite, evaluation:Snapshot}} */
+conditional_token_grant ::= created_reference change_grant
+
+/* The condition is tested when the delayed ability resolves. It neither gates
+   registration nor becomes an intervening-if test on the delayed trigger. */
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[If{condition:Not($condition), then:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_reference, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{}}]}}} */
+conditional_token_cleanup ::= "at" "the" "beginning" "of" "the" "next" "end" "step" "," "exile" created_reference "unless" condition
+
+/* A coordinated list is one simultaneous token-creation batch. */
+token_groups ::= token_groups_one | token_groups_pair | token_groups_list
+
+/* @sem TokenSpec::[$token_group] */
+token_groups_one ::= token_group
+
+/* @sem TokenSpec::[$token_group, $token_group_2] */
+token_groups_pair ::= token_group "and" token_group
+
+/* @sem TokenSpec::[$token_group, ...$token_groups_tail] */
+token_groups_list ::= token_group "," token_groups_tail
+
+token_groups_tail ::= token_groups_last | token_groups_more
+
+/* @sem TokenSpec::[$token_group] */
+token_groups_last ::= "and" token_group
+
+/* @sem TokenSpec::[$token_group, ...$token_groups_tail] */
+token_groups_more ::= token_group "," token_groups_tail
+
+token_groups_tapped ::= token_groups_tapped_one | token_groups_tapped_pair | token_groups_tapped_list
+
+/* @sem TokenSpec::[$token_group_tapped] */
+token_groups_tapped_one ::= token_group_tapped
+
+/* @sem TokenSpec::[$token_group_tapped, $token_group_tapped_2] */
+token_groups_tapped_pair ::= token_group_tapped "and" token_group_tapped
+
+/* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
+token_groups_tapped_list ::= token_group_tapped "," token_groups_tapped_tail
+
+token_groups_tapped_tail ::= token_groups_tapped_last | token_groups_tapped_more
+
+/* @sem TokenSpec::[$token_group_tapped] */
+token_groups_tapped_last ::= "and" token_group_tapped
+
+/* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
+token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
+
+token_group ::= token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy
+
+token_copy ::= token_copy_plain | token_copy_artifact_exception
+
+/* @sem TokenSpec::TokenSpec{amount:Expr::Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
+token_copy_plain ::= "a" "token" "that's" "a" "copy" "of" object_ref
+
+/* The word `tapped` follows the count, so the count and description stay one phrase. */
+token_group_tapped ::= token_defined_tapped | token_defined_each_tapped | token_named_tapped
+
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe} */
+token_defined ::= token_amount token_recipe
+
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_tapped ::= token_amount "tapped" token_recipe
+
+/* @sem TokenSpec::TokenSpec{amount:$count_each, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_each ::= counter_a token_recipe "for" "each" count_each
+
+/* @sem TokenSpec::TokenSpec{amount:$count_each, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_each_tapped ::= counter_a "tapped" token_recipe "for" "each" count_each
+
+/* @sem TokenSpec::TokenSpec{amount:$value, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_equal ::= "a" "number" "of" token_recipe "equal" "to" value
+
+token_amount ::= counter_amount | token_that_many
+
+/* @sem @that_many */
+token_that_many ::= "that" "many"
+
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:Rules, recipe:$token_named_recipe} */
+token_named ::= token_amount token_named_recipe ("token" | "tokens")
+
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:Rules, recipe:$token_named_recipe} */
+token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "tokens")
+
+/* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
+token_named_each ::= counter_a token_named_recipe "token" "for" "each" count_each
+
+token_recipe ::= token_recipe_base | token_recipe_with
+
+token_recipe_base ::= token_recipe_plain | token_recipe_no_subtype | token_recipe_statless
+
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+token_recipe_plain ::= token_stat "/" token_stat token_colors token_subtypes token_types ("token" | "tokens")
+
+/* @sem TokenRecipe::@token_abilities($token_recipe_base, $token_ability_description) */
+token_recipe_with ::= token_recipe_base token_ability_description
+
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2]}) */
+token_recipe_no_subtype ::= token_stat "/" token_stat token_colors token_types ("token" | "tokens")
+
+
+/* A characteristic-defining ability can supply statistics instead of numerals. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Expr::Constant(0), Expr::Constant(0)]}) */
+token_recipe_statless ::= token_colors token_subtypes token_types ("token" | "tokens")
+
+
+/* Oracle's following sentence states intrinsic token abilities too. It is part
+   of the recipe, rather than an instruction granting an ability after creation. */
+token_ability_description ::= token_abilities_with | token_abilities_after | token_abilities_with_more | token_abilities_after_more
+
+/* @sem $token_abilities */
+token_abilities_with ::= "with" token_abilities
+
+/* @sem $token_abilities */
+token_abilities_after ::= "." token_ability_subject token_abilities
+
+/* @sem Ability::[...$token_abilities, ...$token_ability_description] */
+token_abilities_with_more ::= "with" token_abilities token_ability_description
+
+/* @sem Ability::[...$token_abilities, ...$token_ability_description] */
+token_abilities_after_more ::= "." token_ability_subject token_abilities token_ability_description
+
+/* @sem () */
+token_ability_subject ::= "it" "has" | "they" "have"
+
+token_abilities ::= token_ability_one | token_ability_two | token_ability_list | reminder_group_abilities
+
+/* @sem Ability::[$token_ability] */
+token_ability_one ::= token_ability
+
+/* @sem Ability::[$token_ability, $token_ability_2] */
+token_ability_two ::= token_ability "and" token_ability
+
+/* @sem Ability::[$token_ability, ...$token_ability_tail] */
+token_ability_list ::= token_ability "," token_ability_tail
+
+token_ability_tail ::= token_ability_last | token_ability_list
+
+/* @sem Ability::[$token_ability] */
+token_ability_last ::= "and" token_ability
+
+token_ability ::= keyword_ability | token_quoted | token_toxic
+
+/* @sem Ability::Mechanic{mechanic:Toxic, amount:$number} */
+token_toxic ::= "toxic" number
+
+/* What is quoted is a whole ability: "this" is the token and "you" its controller. */
+/* @sem Ability::@holder($token_ability_body) */
+token_quoted ::= '"' token_ability_body '"'
+
+token_ability_body ::= max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword
+
+/* A characteristic-defining ability here describes the token itself. */
+/* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(ObjectRef::Source)), changes:[Change::SetBasePowerToughness{power:$value, toughness:$value}]} */
+token_defining_both ::= holder_possessive "power" "and" "toughness" "are" "each" "equal" "to" value "."
+
+/* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(ObjectRef::Source)), changes:[Change::SetPower($value)]} */
+token_defining_power ::= holder_possessive "power" "is" "equal" "to" value "."
+
+/* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(ObjectRef::Source)), changes:[Change::SetToughness($value)]} */
+token_defining_toughness ::= holder_possessive "toughness" "is" "equal" "to" value "."
+
+token_stat ::= number_digits | number_x
+
+token_colors ::= token_colorless | token_color_one | token_color_two | token_color_three
+
+/* @sem ManaColor::[] */
+token_colorless ::= "colorless"
+/* @sem ManaColor::[$token_color] */
+token_color_one ::= token_color
+/* @sem ManaColor::[$token_color, $token_color_2] */
+token_color_two ::= token_color "and" token_color
+/* @sem ManaColor::[$token_color, $token_color_2, $token_color_3] */
+token_color_three ::= token_color "," token_color "," "and" token_color
+
+token_color ::= tc_white | tc_blue | tc_black | tc_red | tc_green
+
+/* @sem ManaColor::White */
+tc_white ::= "white"
+/* @sem ManaColor::Blue */
+tc_blue ::= "blue"
+/* @sem ManaColor::Black */
+tc_black ::= "black"
+/* @sem ManaColor::Red */
+tc_red ::= "red"
+/* @sem ManaColor::Green */
+tc_green ::= "green"
+
+token_subtypes ::= token_subtype_one | token_subtype_more
+
+/* @sem SubType::[@subtype_name($subtype)] */
+token_subtype_one ::= subtype
+
+/* @sem SubType::[@subtype_name($subtype), ...$token_subtypes] */
+token_subtype_more ::= subtype token_subtypes
+
+token_types ::= tt_creature | tt_artifact_creature | tt_enchantment_creature | tt_land_creature
+
+/* @sem CardType::[Creature] */
+tt_creature ::= "creature"
+/* @sem CardType::[Artifact, Creature] */
+tt_artifact_creature ::= "artifact" "creature"
+/* @sem CardType::[Enchantment, Creature] */
+tt_enchantment_creature ::= "enchantment" "creature"
+/* @sem CardType::[Land, Creature] */
+tt_land_creature ::= "land" "creature"
+
+token_named_recipe ::= tn_powerstone | tn_blood | tn_clue | tn_food | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Blood], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Discard{count:Expr::Constant(1), filter:Any}, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
+tn_blood ::= "Blood"
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Clue], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(2)]), Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
+tn_clue ::= "Clue"
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Food], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(2)]), TapSymbol, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Constant(3)}}]}})]} */
+tn_food ::= "Food"
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Junk], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[TapSymbol, Sacrifice{objects:One(Source)}]}, limits:_{sorcery:true}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Expr::Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:EndOfTurn, evaluation:LiveObjects}}]}})]} */
+tn_junk ::= "Junk"
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Lander], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(2)]), TapSymbol, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:@and(ObjectFilter::Supertype(Basic), ObjectFilter::CardType(Land)), count:UpTo(Expr::Constant(1))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}})]} */
+tn_lander ::= "Lander"
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Map], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Sacrifice{objects:One(Source)}]}, limits:_{sorcery:true}, announcement:_{targets:[_{slot:0, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}]}, body:_{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Explore{object:Target{slot:0, index:0}}}}]}})]} */
+tn_map ::= "Map"
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Mutagen], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Sacrifice{objects:One(Source)}]}, limits:_{sorcery:true}, announcement:_{targets:[_{slot:0, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:CardType(Creature)}]}, body:_{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:0, index:0})), kind:PowerToughness([1, 1]), amount:Expr::Constant(1)}]}}]}})]} */
+tn_mutagen ::= "Mutagen"
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Treasure], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[TapSymbol, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:ChooseOne([Amount{color:White, amount:Expr::Constant(1)}, Amount{color:Blue, amount:Expr::Constant(1)}, Amount{color:Black, amount:Expr::Constant(1)}, Amount{color:Red, amount:Expr::Constant(1)}, Amount{color:Green, amount:Expr::Constant(1)}])}}]}})]} */
+tn_treasure ::= "Treasure"
+
+/* A singular token phrase names the actual produced objects. Replacement effects
+   can produce a batch, so native lowering chooses one member before attaching. */
+clause_attach_created ::= attach_created_required | attach_created_optional
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:$created_attachment_host, count:AsManyAsCan(Constant(1)), constraints:[]}}, Effect{result:@next, operation:Attach{attachments:$affected, host:Result{result:@prior, phase:After, index:0}}}] */
+attach_created_required ::= "attach" affected "to" created_attachment_host
+
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$attach_created_required}}] */
+attach_created_optional ::= "you" "may" attach_created_required
+
+/* A bare pronoun still needs current token focus. The explicit token noun
+   names the prior produced batch even after another object was moved. */
+created_attachment_host ::= created_attachment_pronoun | created_attachment_token
+
+/* @sem ObjectSet::@created_reference_single */
+created_attachment_pronoun ::= "it"
+
+/* @sem ObjectSet::@created_named_reference */
+/* @prefer value(Created) */
+created_attachment_token ::= "that" "token"
+
+/* Token copy effects use their own typed container; ordinary CopyOf effects
+   cannot be substituted for these copiable token adjustments. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$target_object, exceptions:[$token_copy_add_artifact]}} */
+token_copy_artifact_exception ::= "a" "token" "that's" "a" "copy" "of" target_object "," "except" token_copy_add_artifact
+
+/* @sem CopyException::AddCardTypes([Artifact]) */
+token_copy_add_artifact ::= "it's" "an" "artifact" "in" "addition" "to" "its" "other" "types"
+
+/* The written attachment is an entry state of the new Aura, not a later
+   Attach action or a change to the ability holder. Its target is announced by
+   whichever Spell/Activated/reflexive owner contains this operation. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$sorcerer_role_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($target_object)]}}) */
+create_sorcerer_role_attached ::= "create" sorcerer_role_token "attached" "to" target_object
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:Rules, recipe:$sorcerer_role_recipe} */
+sorcerer_role_token ::= token_amount sorcerer_role_recipe ("token" | "tokens")
+/* The named Role's intrinsic +1/+1 and scry1 never scale with token quantity. */
+/* @sem TokenRecipe::Defined{name:Explicit(Sorcerer), card_types:[Enchantment], subtypes:[Aura, Role], abilities:[Enchant{hosts:Permanents(CardType(Creature))}, Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:Constant(1), toughness:Constant(1)}, GrantAbility(@scope(Ability::Triggered{event:Object{event:Attacks, objects:SameObject(Source)}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Scry{players:One(AbilityController), amount:Constant(1)}}]}}))]}]} */
+sorcerer_role_recipe ::= "Sorcerer" "Role"
+
+/* The named token is a vocabulary entry. Its variable characteristics are
+   operands of its creation, independent of any other mode's target filter. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit('The Hollow Sentinel'), supertypes:[Legendary], card_types:[Artifact, Creature], subtypes:[Phyrexian, Golem], power_toughness:[$number, $number_2]}} */
+token_hollow_sentinel ::= "The" "Hollow" "Sentinel" "," "a" "legendary" number "/" number "colorless" "Phyrexian" "Golem" "artifact" "creature" "token"
+
+/* A Powerstone always produces one colorless mana. Its creation count and
+   tapped arrival are operands of the surrounding token-creation operation. */
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Powerstone], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[TapSymbol]}, limits:_{}, announcement:_{}, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Amount{color:Colorless, amount:Constant(1)}, restriction:Not(CastSpell(Not(CardType(Artifact))))}}]}})]} */
+tn_powerstone ::= "Powerstone"
+
+/* An explicit token name is part of the recipe, independently of its stats,
+   colors and intrinsic abilities. It is not a reference to the creating card. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit(Cherubael), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$number, $number_2], abilities:$token_ability_description}} */
+token_cherubael ::= "Cherubael" "," "a" "legendary" number "/" number token_colors token_subtypes token_types "token" token_ability_description
+
+/* The whole population supplies one creation amount, rather than a sequence
+   of independently produced batches. The creator remains the controller. */
+/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:@times($token_amount, Expr::CountPlayers(OpponentsOf(AbilityController))), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+clause_opponent_count_tokens ::= "for" "each" "opponent" "," "you" "create" token_amount token_recipe
+
+/* A scalar destroyed target provides pre-move controller information, even if
+   destruction moves it or changes which object its target reference locates. */
+/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:One($target_object), regeneration:true}}, Effect{result:@next, operation:CreateTokens{players:One(ControllerOf(Result{result:@prior, phase:Before, index:0})), tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}] */
+clause_destroy_controller_tapped_tokens ::= "destroy" target_object "." "its" "controller" "creates" token_groups_tapped
+
+/* Retained mined entry points delegate to this owned construction. Token
+   quantity never scales the mana ability of each individual Powerstone. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:Rules, recipe:$tn_powerstone}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}) */
+create_powerstones_tapped ::= "create" token_amount "tapped" tn_powerstone ("token" | "tokens")
+
+/* The entry states belong to the creation batch, including every replacement
+   copy. Later token anaphors use that exact Created result. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_copy_tapped_attacking ::= "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" object_ref
+
+/* The counters on the written source are counted at resolution, independently
+   of the created batch that receives the new counters. */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects($created_reference), kind:$counter_kind, amount:CountCounters{recipients:Objects(One($object_ref)), kind:$counter_kind_2, information:CurrentOrLastKnown}}]} */
+put_created_counters_for_counters ::= "put" ("a" | "one") counter_kind "counter" "on" created_reference "for" "each" counter_kind "counter" "on" object_ref

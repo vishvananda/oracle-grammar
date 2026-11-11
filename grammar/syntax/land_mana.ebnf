@@ -1,0 +1,36 @@
+/* An inherent mana reminder refers to the current basic land types. It does
+   not add an activated ability that those types already grant. */
+/* @sem CardSurface::CardSurface{land_mana:$land_mana_header, abilities:$abilities} */
+card_text_land ::= land_mana_header NEWLINE abilities
+/* @sem CardSurface::CardSurface{land_mana:$land_mana_header} */
+card_text_land_only ::= land_mana_header
+/* @sem CardSurface::CardSurface{land_mana:$land_mana_header, notes:$cost_notes, abilities:$abilities} */
+card_text_land_cost ::= land_mana_header NEWLINE cost_notes NEWLINE abilities
+/* @sem CardSurface::CardSurface{land_mana:$land_mana_header, notes:$cost_notes, abilities:$abilities} */
+card_text_cost_land ::= cost_notes NEWLINE land_mana_header NEWLINE abilities
+/* @sem CardSurface::CardSurface{land_mana:$land_mana_header, notes:$cost_notes} */
+card_text_land_cost_only ::= land_mana_header NEWLINE cost_notes
+/* @sem CardSurface::CardSurface{land_mana:$land_mana_header, notes:$cost_notes} */
+card_text_cost_land_only ::= cost_notes NEWLINE land_mana_header
+
+/* A color option set has one meaning; the reversible operation returns every
+   printed order, with at most five colors and 120 inverse bindings. */
+/* @sem LandMana::LandMana{colors:@mana_options($land_mana_colors)} */
+land_mana_header ::= "(" "{T}" ":" "add" land_mana_colors "." ")"
+land_mana_colors ::= land_mana_one | land_mana_pair | land_mana_list
+/* @sem ManaColor::[$mana_color] */
+land_mana_one ::= mana_color
+/* @sem ManaColor::[$mana_color, $mana_color_2] */
+land_mana_pair ::= mana_color "or" mana_color
+/* @sem ManaColor::[$mana_color, ...$land_mana_tail] */
+land_mana_list ::= mana_color "," land_mana_tail
+land_mana_tail ::= land_mana_last | land_mana_more
+/* @sem ManaColor::[$mana_color] */
+land_mana_last ::= "or" mana_color
+/* @sem ManaColor::[$mana_color, ...$land_mana_tail] */
+land_mana_more ::= mana_color "," land_mana_tail
+
+/* Entry payment composes with the header without becoming an enters trigger.
+   The replacement's entering object supplies its controller, not an outer holder. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:_{instructions:[Effect{result:@next, operation:PayCost{player:ControllerOf(EventSubject), cost:$payment, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}, otherwise:_{}}]}}) */
+entry_optional_payment ::= "as" self_ref "enters" "," "you" "may" payment "." "if" "you" "don't" "," "it" "enters" "tapped" "."

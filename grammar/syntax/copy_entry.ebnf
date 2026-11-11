@@ -1,0 +1,60 @@
+/* Copiable exceptions compose; the last quoted sentence closes the outer one. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, exceptions:$copy_exceptions_sentence})}}]}}]}}) */
+entry_copy_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" "a" "copy" "of" "any" filter_phrase "on" "the" "battlefield" "," "except" copy_exceptions_sentence
+
+copy_exceptions_sentence ::= copy_exceptions_period | copy_exceptions_closed
+
+/* @sem $copy_exceptions_plain */
+copy_exceptions_period ::= copy_exceptions_plain "."
+
+copy_exceptions_plain ::= copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain
+
+/* @sem Vec<CopyException>::[$copy_exception_plain] */
+copy_exception_plain_one ::= copy_exception_plain
+
+/* @sem Vec<CopyException>::[$copy_exception_plain, ...$copy_exceptions_plain] */
+copy_exception_plain_more ::= copy_exception_plain "and" copy_exceptions_plain
+
+/* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_plain] */
+copy_exception_quote_then_plain ::= copy_granted_sentence ("↓")? "and" copy_exceptions_plain
+
+copy_exceptions_closed ::= copy_exception_closed_one | copy_exception_plain_then_quote | copy_exception_quote_more
+
+/* @sem Vec<CopyException>::[$copy_granted_sentence] */
+copy_exception_closed_one ::= copy_granted_sentence
+
+/* @sem Vec<CopyException>::[$copy_exception_plain, ...$copy_exceptions_closed] */
+copy_exception_plain_then_quote ::= copy_exception_plain "and" copy_exceptions_closed
+
+/* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_closed] */
+copy_exception_quote_more ::= copy_granted_sentence ("↓")? "and" copy_exceptions_closed
+
+copy_exception_plain ::= copy_add_creature_type
+
+/* @sem CopyException::AddCreatureTypes([@subtype_name($subtype)]) */
+copy_add_creature_type ::= "it's" ("a" | "an") subtype "in" "addition" "to" "its" "other" "types"
+
+/* This ability belongs to the entering source; its event establishes its own
+   references. No anaphor from outside the quotation is substituted into it. */
+/* @sem CopyException::AddAbilities([@scope($token_ability_sentence)]) */
+copy_granted_sentence ::= "it" "has" '"' token_ability_sentence '"'
+
+/* The second branch refers to the explicitly named holder, not the event's
+   future subject. List order follows the canonical IR for these two branches. */
+/* @sem EventSpec::AnyOf([Damage(DamageEvent{source_kind:Permanent, sources:@and(ObjectFilter::Not(SameObject($self_explicit_ref)), $filter_phrase, ObjectFilter::SharesNameWith($self_explicit_ref)), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}), Damage(DamageEvent{source_kind:Permanent, sources:SameObject($self_explicit_ref), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source})]) */
+event_holder_or_same_name_damage ::= self_explicit_ref "or" "another" filter_phrase "with" "the" "same" "name" "deals" "combat" "damage" "to" "a" "player"
+
+
+/* In "have this permanent become a copy of it", the copy operand refers to
+   the previously named object; naming the recipient does not replace it. */
+/* @sem ObjectRef::@named_object */
+copy_previous_object ::= "it"
+
+/* "Other" excludes the chosen copy object, rather than this ability's source.
+   The shared object hole keeps that exclusion tied to the actual copy operand. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject($object_ref)), $filter_phrase)}), changes:[CopyOf{object:$object_ref, exceptions:[$copy_remove_legendary]}], duration:$duration, evaluation:Snapshot}}] */
+clause_other_copy_exception ::= "each" "other" filter_phrase "becomes" "a" "copy" "of" object_ref duration "," "except" copy_remove_legendary
+
+/* This is a copiable exception, not a later continuous type removal. */
+/* @sem CopyException::RemoveSupertypes([Legendary]) */
+copy_remove_legendary ::= "it" "isn't" "legendary"

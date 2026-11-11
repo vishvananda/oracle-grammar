@@ -1,0 +1,1423 @@
+/* Continuous effects: what changes, what it changes and for how long. */
+
+/* Changes that alter characteristics fix their affected objects when the effect
+   starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
+continuous_snapshot ::= continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | copied_base_stats
+
+/* @sem Operation::@implicit_return_grant(Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$changes, duration:$duration, evaluation:Snapshot}) */
+continuous_snapshot_plain ::= affected changes ("↓")? duration
+
+/* The explicit object is introduced once. Its following empty expression
+   reads that established object, after contextual target filters are bound. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_possessive)), changes:$copied_base_change, duration:$duration, evaluation:Snapshot} */
+copied_base_stats ::= self_possessive copied_base_change duration
+
+/* @sem Change::[SetBasePowerToughness{power:ObjectProperty{object:$copied_stat_object, property:Power, information:CurrentOrLastKnown}, toughness:$copied_toughness}] */
+copied_base_change ::= "base" "power" "and" "toughness" ("become" | "becomes") "equal" "to" "the" "power" "and" "toughness" "of" copied_stat_object copied_toughness
+
+copied_stat_object ::= target_object
+/* @sem Expr::ObjectProperty{object:@named_object, property:Toughness, information:CurrentOrLastKnown} */
+copied_toughness ::= ("↓")?
+
+/* A leading duration changes the same game rules as a trailing duration. The
+   affected object query remains live; no characteristic snapshot is created. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
+continuous_live ::= affected rule_changes ("↓")? duration
+    | duration "," affected rule_changes
+
+/* The effect is created by the ability holder. The named attacker is the
+   block requirement's operand, independently of that source. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(RequireCombat{action:Block(SameObject($object_ref)), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+combat_block_requirement ::= affected "blocks" object_ref this_duration "if" "able"
+
+/* The requirement follows its affected population while a characteristic
+   bonus fixes its recipients. Sharing a subject does not share those gates. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$be_blocked_requirement, duration:$this_duration, evaluation:LiveObjects} */
+combat_be_blocked_requirement ::= affected be_blocked_requirement this_duration "if" "able"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$be_blocked_requirement, duration:$this_duration, evaluation:LiveObjects}}] */
+clause_pump_and_block_requirement ::= affected ("gets" | "get") signed "/" signed duration "and" be_blocked_requirement this_duration "if" "able"
+
+/* Actor and object targets occupy their own textual positions. The object
+   phrase supplies the entire group, rather than a literal numbered slot. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($object_set), changes:[SetController($control_other_player)], duration:$duration, evaluation:Snapshot} */
+gain_control_player ::= control_other_player "gains" "control" "of" object_set duration
+
+control_other_player ::= target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($object_set), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot} */
+gain_control_you ::= "you"? "gain" "control" "of" object_set duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(RequireCombat{action:Block(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+combat_block_any_requirement ::= affected ("blocks" | "block") this_duration "if" "able"
+
+/* A plain plural follow-up keeps the population captured before counter
+   placement, including objects that cannot receive counters. */
+clause_counter_group ::= clause_original_counter_group
+
+/* Untapping refers to the recorded recipients, not a new battlefield query.
+   The follow-up starts after the first result has been allocated. */
+/* @sem Instruction::[Effect{result:@next, operation:$continuous_snapshot}, $untap_affected] */
+clause_continuous_untap ::= continuous_snapshot "." untap_affected
+
+/* @sem Instruction::[Effect{result:@next, operation:$recorded_counter_choice}, $untap_affected] */
+clause_chosen_counters_untap ::= recorded_counter_choice "." untap_affected
+
+recorded_counter_choice ::= put_counters_choice | put_counters_many_choices
+
+/* @sem Instruction::Effect{result:@next, operation:SetTapped{objects:Affected(@prior)}} */
+untap_affected ::= "untap" "them"
+
+/* Announced targets remain targets even if a counter replacement changes
+   which objects actually receive counters. Both mentions share the same slot. */
+/* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($objects_targets), kind:$counter_kind, amount:$counter_amount}]}}, Effect{result:@next, operation:SetTapped{objects:$objects_targets}}] */
+clause_target_counters_untap ::= "put" counter_amount counter_kind ("counter" | "counters") "on" objects_targets "." "untap" "them"
+
+/* @sem () */
+counter_group_reference ::= "they" | "those" "creatures" | "those" "permanents"
+
+/* A repeated subject can be omitted after a damage clause. Keep that subject
+   explicitly, rather than treating any bare characteristic change as the source. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:$number, preventable:true}}, Instruction::Effect{result:@next, operation:Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$changes, duration:$duration, evaluation:Snapshot}}] */
+clause_damage_and_change ::= object_ref "deals" number "damage" "to" recipients "and" changes duration
+
+affected ::= affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference
+
+counter_choice_reference ::= counter_choice_singular_reference | counter_choice_group_reference
+/* @sem ObjectSet::@counter_reference_single */
+counter_choice_singular_reference ::= "it" | "that" "creature"
+/* @sem ObjectSet::@counter_reference */
+counter_choice_group_reference ::= "those" "creatures" | "those" "permanents" | "they"
+
+/* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}) */
+affected_plural ::= filter_plural
+
+/* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$contextual_other_filter}) */
+affected_other ::= contextual_other_filter
+
+/* The old mined plural route and direct affected-set route share one reference
+   contract, so a constant Source cannot survive as a competing meaning. */
+/* @sem ObjectFilter::@and(ObjectFilter::Not(ObjectFilter::SameObject(@other_reference(ObjectFilter::$filter_plural))), $filter_plural) */
+contextual_other_filter ::= "other" filter_plural
+
+duration ::= duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep
+
+/* @sem Duration::EndOfTurn */
+until_end_of_turn ::= "until" "end" "of" "turn"
+/* @sem Duration::EndOfCombat */
+until_end_of_combat ::= "until" "end" "of" "combat"
+/* @sem Duration::UntilNextTurn(PlayerRef::AbilityController) */
+until_your_next_turn ::= "until" "your" "next" "turn"
+/* @sem Duration::UntilEndOfNextTurn(PlayerRef::AbilityController) */
+until_end_of_your_next_turn ::= "until" "the" "end" "of" "your" "next" "turn"
+/* @sem Duration::EndOfTurn */
+this_turn ::= "this" "turn"
+/* @sem Duration::EndOfCombat */
+this_combat ::= "this" "combat"
+
+/* Schema179 distinguishes an entire next upkeep from its beginning. The
+   deadline names a scalar player independently of the effect's object holder. */
+/* @sem Duration::UntilEndOfNextUpkeep($next_upkeep_player) */
+until_end_of_next_upkeep ::= "until" "the" "end" "of" next_upkeep_player "next" "upkeep"
+/* @sem Duration::UntilNext{point:UpkeepBegins, players:One($next_upkeep_player)} */
+until_next_upkeep ::= "until" next_upkeep_player "next" "upkeep"
+
+next_upkeep_player ::= next_upkeep_you | next_upkeep_that_player
+/* @sem PlayerRef::AbilityController */
+next_upkeep_you ::= "your"
+/* @sem PlayerRef::@that_player */
+next_upkeep_that_player ::= "that" "player's"
+
+/* A deadline a sentence states after its verb. */
+this_duration ::= this_turn | this_combat
+
+changes ::= change | changes_and | changes_comma
+
+/* @sem Change::[...$change, ...$changes] */
+changes_and ::= change "and" changes
+
+/* @sem Change::[...$change, ...$changes] */
+changes_comma ::= change "," "and"? changes
+
+change ::= change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add
+
+/* @sem Change::[Change::Pump{power:@times($signed, $count_each), toughness:@times($signed_2, $count_each)}] */
+change_pump_for_each ::= ("gets" | "get") signed "/" signed "for" "each" count_each
+
+/* Color-only resolution effects replace the color set, independently of
+   card types. An omitted duration uses the existing Indefinite/Snapshot route;
+   explicit durations still compose through continuous_snapshot. */
+/* @sem Change::[Colors{mode:Set, colors:$token_colors}] */
+change_color_set ::= ("becomes" | "become") token_colors
+
+/* Explicit retention composes separately from ordinary type replacement. */
+change_becomes ::= change_becomes_legendary | change_becomes_plain | change_becomes_with | change_becomes_base
+
+/* @sem $animation_plain */
+change_becomes_plain ::= ("becomes" | "become" | "is" | "are") animation_plain
+
+/* @sem $animation_with */
+change_becomes_with ::= ("becomes" | "become" | "is" | "are") animation_with
+
+animation_description ::= animation_plain | animation_with
+/* @sem Change::[Change::SetBasePowerToughness{power:$number, toughness:$number_2}, ...$becomes_kind] */
+animation_plain ::= ("a" | "an") number "/" number becomes_kind
+/* @sem Change::[Change::SetBasePowerToughness{power:$number, toughness:$number_2}, ...$becomes_kind, ...$grants] */
+animation_with ::= ("a" | "an") number "/" number becomes_kind "with" grants
+
+/* A named subtype list replaces the old creature types; no card-type word
+   means no new card type. Artifact creatures retain their prior card types. */
+/* @sem $base_animation */
+change_becomes_base ::= ("becomes" | "become") base_animation
+
+base_animation ::= base_subtypes | base_subtypes_retained | base_artifact_creature | base_artifact_creature_native
+/* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetBasePowerToughness{power:$value, toughness:$value_2}] */
+base_subtypes ::= ("a" | "an") becomes_types "with" "base" "power" "and" "toughness" value "/" value
+/* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}, SetBasePowerToughness{power:$value, toughness:$value_2}] */
+base_subtypes_retained ::= ("a" | "an") becomes_types "with" "base" "power" "and" "toughness" value "/" value retention_addition
+/* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$value, toughness:$value_2}] */
+base_artifact_creature ::= ("a" | "an") becomes_types "artifact" "creature" "with" "base" "power" "and" "toughness" value "/" value
+/* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Artifact, Creature]), SetBasePowerToughness{power:$value, toughness:$value_2}] */
+base_artifact_creature_native ::= ("a" | "an") becomes_types "artifact" "creature" "with" "base" "power" "and" "toughness" value "/" value
+
+base_changes ::= change_color_set | change_becomes_base | base_changes_and | base_changes_keywords
+/* @sem Change::[...$change_becomes_base, ...$changes] */
+base_changes_and ::= change_becomes_base "and" changes
+/* @sem Change::[...$change_becomes_base, ...$grants] */
+base_changes_keywords ::= change_becomes_base "," grants
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$base_changes, duration:Indefinite, evaluation:Snapshot} */
+continuous_base_indefinite ::= affected base_changes
+
+/* @sem $animation_description */
+dynamic_animation ::= ("becomes" | "become") animation_description
+/* @sem $animation_description */
+static_animation ::= ("is" | "are") animation_description
+
+/* @sem Change::[Change::SetBasePowerToughness{power:$number, toughness:$number_2}, ...$becomes_kind, GrantAbility(@holder($token_ability_sentence))] */
+animation_quoted ::= ("becomes" | "become") ("a" | "an") number "/" number becomes_kind "with" '"' token_ability_sentence '"'
+
+change_becomes_with_add ::= retained_change
+
+becomes_kind ::= bk_two_colors_named_artifact | bk_two_colors_named_artifact_native | bk_creature | bk_artifact | bk_named | bk_named_artifact | bk_color | bk_color_named | bk_color_named_artifact | bk_two_colors_named
+    | bk_artifact_native | bk_named_artifact_native | bk_color_named_artifact_native
+
+/* The published IR contract gives the exact Artifact+Creature SetCardTypes pair
+   CR 205.1b's additive meaning. Keep the explicit AddCardType representation
+   too. Creature subtype replacement remains its independent change. */
+/* @sem Change::[SetCardTypes([Artifact, Creature])] */
+bk_artifact_native ::= "artifact" "creature"
+/* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Artifact, Creature])] */
+bk_named_artifact_native ::= becomes_types "artifact" "creature"
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Artifact, Creature])] */
+bk_color_named_artifact_native ::= mana_color_word becomes_types "artifact" "creature"
+
+/* @sem Change::[Change::AddCardType(Creature)] */
+bk_creature ::= "creature"
+/* @sem Change::[Change::AddCardType(Artifact), Change::AddCardType(Creature)] */
+bk_artifact ::= "artifact" "creature"
+/* @sem Change::[Change::CreatureTypes{mode:Set, types:Listed($becomes_types)}, Change::AddCardType(Creature)] */
+bk_named ::= becomes_types "creature"
+/* @sem Change::[Change::CreatureTypes{mode:Set, types:Listed($becomes_types)}, Change::AddCardType(Artifact), Change::AddCardType(Creature)] */
+bk_named_artifact ::= becomes_types "artifact" "creature"
+/* @sem Change::[Change::Colors{mode:Set, colors:[$mana_color_word]}, Change::AddCardType(Creature)] */
+bk_color ::= mana_color_word "creature"
+/* @sem Change::[Change::Colors{mode:Set, colors:[$mana_color_word]}, Change::CreatureTypes{mode:Set, types:Listed($becomes_types)}, Change::AddCardType(Creature)] */
+bk_color_named ::= mana_color_word becomes_types "creature"
+/* @sem Change::[Change::Colors{mode:Set, colors:[$mana_color_word]}, Change::CreatureTypes{mode:Set, types:Listed($becomes_types)}, Change::AddCardType(Artifact), Change::AddCardType(Creature)] */
+bk_color_named_artifact ::= mana_color_word becomes_types "artifact" "creature"
+/* @sem Change::[Change::Colors{mode:Set, colors:[$mana_color_word, $mana_color_word_2]}, Change::CreatureTypes{mode:Set, types:Listed($becomes_types)}, Change::AddCardType(Creature)] */
+bk_two_colors_named ::= mana_color_word "and" mana_color_word becomes_types "creature"
+
+mana_color_word ::= mcw_white | mcw_blue | mcw_black | mcw_red | mcw_green
+
+/* @sem ManaColor::White */
+mcw_white ::= "white"
+/* @sem ManaColor::Blue */
+mcw_blue ::= "blue"
+/* @sem ManaColor::Black */
+mcw_black ::= "black"
+/* @sem ManaColor::Red */
+mcw_red ::= "red"
+/* @sem ManaColor::Green */
+mcw_green ::= "green"
+
+becomes_types ::= becomes_type_one | becomes_type_more
+
+/* @sem CreatureType::[@subtype_name($subtype)] */
+becomes_type_one ::= subtype
+
+/* @sem CreatureType::[@subtype_name($subtype), ...$becomes_types] */
+becomes_type_more ::= subtype becomes_types
+
+/* @sem Change::[Change::CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
+change_also_type ::= ("is" | "are" | "becomes" | "become") ("a" | "an")? becomes_types "in" "addition" "to" ("its" | "their") "other" ("creature")? "types"
+
+/* Bonuses counted out over a set, with the count last in the sentence. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Change::Pump{power:@times($signed, $count_each), toughness:@times($signed_2, $count_each)}], duration:$duration, evaluation:Snapshot} */
+continuous_for_each ::= affected ("gets" | "get") signed "/" signed duration "for" "each" count_each
+
+/* @sem Change::[Change::Pump{power:$signed, toughness:$signed_2}] */
+change_pump ::= ("gets" | "get") ("an" "additional")? signed "/" signed
+
+signed ::= signed_plus | signed_minus
+
+signed_number ::= number_digits | number_x
+
+/* @sem $signed_number */
+signed_plus ::= "+" signed_number
+
+/* @sem @negate($signed_number) */
+signed_minus ::= "-" signed_number
+
+/* @sem $grants */
+change_grant ::= ("gains" | "gain" | "has" | "have") grants
+
+grants ::= grant_one | grant_two | grant_many | reminder_group_grants
+
+/* @sem Change::[$grant] */
+grant_one ::= grant
+
+/* @sem Change::[$grant, $grant_2] */
+grant_two ::= grant "and" grant
+
+/* @sem Change::[$grant, ...$grant_tail] */
+grant_many ::= grant "," grant_tail
+
+grant_tail ::= grant_last | grant_many
+
+/* @sem Change::[$grant] */
+grant_last ::= "and" grant
+
+grant ::= grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic
+
+/* @sem Change::GrantKeyword($keyword_value) */
+grant_keyword ::= keyword_value
+
+/* What is quoted is a whole ability of the object that gets it. */
+/* @sem Change::GrantAbility(@holder($ability)) */
+grant_ability ::= '"' ability '"'
+
+/* @sem Change::GrantAbility(@holder($departure_granted_triggers)) */
+grant_departure_triggers ::= '"' departure_granted_triggers '"'
+
+rule_changes ::= rule_change | rule_changes_and
+
+/* @sem Change::[...$rule_change, ...$rule_changes] */
+rule_changes_and ::= rule_change "and" rule_changes
+
+rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack
+    | rule_cant_attack_or_block | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked
+
+/* @sem $be_blocked_requirement */
+rule_must_be_blocked ::= be_blocked_requirement "if" "able"
+/* @sem Change::[Rule(RequireCombat{action:BeBlocked(Any), amount:AtLeast(Constant(1))})] */
+be_blocked_requirement ::= "must" "be" "blocked"
+
+/* @sem Change::[Rule(CombatDamage(NoAssignment))] */
+rule_no_combat_assignment ::= ("assigns" | "assign") "no" "combat" "damage"
+
+/* @sem Change::[Rule(Prohibit(Sacrifice))] */
+rule_cant_be_sacrificed ::= "can't" "be" "sacrificed"
+
+/* @sem Change::[Change::Rule(Prohibit(BecomeSuspected))] */
+rule_cant_become_suspected ::= "can't" "become" "suspected"
+
+/* @sem Change::[Change::Rule(Prohibit(Block(Any)))] */
+rule_cant_block ::= "can't" "block"
+/* @sem Change::[Change::Rule(Prohibit(Attack(PlayersAndPlaneswalkers(One(PlayerRef::AbilityController)))))] */
+rule_cant_attack_you ::= "can't" "attack" "you" "or" "planeswalkers" "you" "control"
+/* @sem Change::[Rule(Prohibit(Attack(Players(One(PlayerRef::AbilityController)))))] */
+rule_cant_attack_you_only ::= "can't" "attack" "you"
+/* @sem Change::[Change::Rule(CombatGroup{role:BlockedAttacker, participants:Any, others_only:false, comparison:LessOrEqual, amount:Expr::Constant(1)})] */
+rule_block_limit ::= "can't" "be" "blocked" "by" "more" "than" "one" "creature"
+/* @sem Change::[Change::Rule(AttackException{ignore:SummoningSickness, defenders:Any})] */
+rule_attack_haste ::= "can" "attack" "as" "though" ("it" "had" | "they" "had") "haste"
+/* @sem Change::[Change::Rule(Prohibit(BeBlocked(Any)))] */
+rule_cant_be_blocked ::= "can't" "be" "blocked"
+/* @sem Change::[Change::Rule(Prohibit(BeBlocked($filter_plural)))] */
+rule_cant_be_blocked_by ::= "can't" "be" "blocked" "by" filter_plural
+/* @sem Change::[Change::Rule(Prohibit(Attack(Any)))] */
+rule_cant_attack ::= "can't" "attack"
+/* @sem Change::[Change::Rule(Prohibit(Attack(Any))), Change::Rule(Prohibit(Block(Any)))] */
+rule_cant_attack_or_block ::= "can't" "attack" "or" "block"
+/* @sem Change::[Change::Rule(Prohibit(Block(Not($filter_plural))))] */
+rule_block_only ::= "can" "block" "only" filter_plural
+/* @sem Change::[Change::Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Expr::Constant(1))})] */
+rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
+/* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
+rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
+
+static_ability ::= static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes}) */
+static_ordinary_ability ::= affected static_changes "."
+
+/* This new count route owns only lexical distributive populations and explicit
+   self references. Scalar attached hosts retain their previous learned routes. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($static_pump_subject), changes:$static_pump_changes} */
+static_pump_ability ::= static_pump_subject static_pump_changes "."
+
+static_pump_subject ::= objects_each | objects_each_other | objects_all | objects_all_other | affected_plural | affected_other | static_pump_self
+/* @sem ObjectSet::One($self_ref) */
+static_pump_self ::= self_ref
+
+static_pump_changes ::= static_pump_change | static_pump_changes_more
+static_pump_change ::= static_change | change_pump_for_each
+/* @sem Change::[...$static_pump_change, ...$static_pump_changes] */
+static_pump_changes_more ::= static_pump_change ("and" | "," "and"?) static_pump_changes
+
+/* This numeric definition must actually name X. A mana symbol {X} is a
+   different operand and cannot silently retain its unbound spending meaning. */
+/* @sem Ability::@where(Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_numeric_x}), $value) */
+static_ability_where ::= affected static_numeric_x "," "where" "X" "is" value "."
+
+static_numeric_x ::= static_power_x | static_toughness_x
+/* @sem Change::[Pump{power:$static_signed_x, toughness:$signed}] */
+static_power_x ::= ("gets" | "get") static_signed_x "/" signed
+/* @sem Change::[Pump{power:$signed, toughness:$static_signed_x}] */
+static_toughness_x ::= ("gets" | "get") signed "/" static_signed_x
+
+static_signed_x ::= static_positive_x | static_negative_x
+/* @sem Expr::AnnouncedX */
+static_positive_x ::= "+" "X"
+/* @sem Expr::@negate(Expr::AnnouncedX) */
+static_negative_x ::= "-" "X"
+
+/* A perpetual modifier uses the current scalar card, including the actual
+   hand incarnation introduced by a preceding seek. It retains edited changes. */
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($object_ref), changes:$static_changes}}] */
+clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
+
+static_changes ::= static_change | static_changes_and
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[CopyOf{object:$copy_model_ref, exceptions:[]}], duration:$duration, evaluation:Snapshot}}] */
+clause_copy_for_duration ::= affected "becomes" "a" "copy" "of" copy_model_ref duration
+
+copy_model_ref ::= copy_model_pronoun | object_ref
+/* Prefer a type-neutral anaphor after editing the copied target's type. */
+/* @prefer always */
+/* @sem ObjectRef::@it */
+copy_model_pronoun ::= "it"
+
+/* @sem Change::[...$static_change, ...$static_changes] */
+static_changes_and ::= static_change ("and" | "," "and"?) static_changes
+
+static_change ::= change_lose_all_abilities | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | mined_change
+
+/* Retention changes the copied creature-type operation, not its statistics. */
+trait_copy_change ::= trait_copy_replace | trait_copy_add | trait_copy_note | trait_copy_other_note
+
+/* @sem Change::[SetPower(ObjectProperty{object:$trait_copy_source, property:Power, information:CurrentOrLastKnown}), SetToughness(ObjectProperty{object:$trait_copy_source, property:Toughness, information:CurrentOrLastKnown}), CreatureTypesOf{object:$trait_copy_source, mode:Set}] */
+trait_copy_replace ::= trait_copy_source
+
+/* The IR retains types, but has no operand naming a particular retained type.
+   Prefer a neutral spelling that remains valid after editing the card. */
+/* @prefer always */
+/* @sem Change::[SetPower(ObjectProperty{object:$trait_copy_source, property:Power, information:CurrentOrLastKnown}), SetToughness(ObjectProperty{object:$trait_copy_source, property:Toughness, information:CurrentOrLastKnown}), CreatureTypesOf{object:$trait_copy_source, mode:Add}] */
+trait_copy_add ::= trait_copy_source trait_copy_addition
+
+/* @sem () */
+trait_copy_addition ::= "in" "addition" "to" ("its" | "their") "other" "creature" "types"
+
+/* @sem Change::[SetPower(ObjectProperty{object:$trait_copy_source, property:Power, information:CurrentOrLastKnown}), SetToughness(ObjectProperty{object:$trait_copy_source, property:Toughness, information:CurrentOrLastKnown}), CreatureTypesOf{object:$trait_copy_source, mode:Add}] */
+trait_copy_note ::= trait_copy_source "." (trait_copy_retention_note | trait_copy_retention_plural)
+
+/* @sem () */
+trait_copy_retention_note ::= ("it's" | "he's" | "she's") "still" ("a" | "an") creature_type_word
+
+/* @sem () */
+trait_copy_retention_plural ::= "they're" "still" creature_type_plural_word
+
+/* Card types and noncreature subtypes were never replaced by CreatureTypesOf. */
+/* @sem Change::[SetPower(ObjectProperty{object:$trait_copy_source, property:Power, information:CurrentOrLastKnown}), SetToughness(ObjectProperty{object:$trait_copy_source, property:Toughness, information:CurrentOrLastKnown}), CreatureTypesOf{object:$trait_copy_source, mode:Set}] */
+trait_copy_other_note ::= trait_copy_source "." trait_copy_other_retention
+
+trait_copy_other_retention ::= retention_note | trait_copy_other_single | trait_copy_other_plural
+
+/* @sem () */
+trait_copy_other_single ::= ("it's" | "he's" | "she's") "still" ("a" | "an") other_subtype_word
+
+/* @sem () */
+trait_copy_other_plural ::= "they're" "still" other_subtype_plural_word
+
+/* @sem ObjectRef::$object_ref */
+trait_copy_source ::= ("has" | "have") "the" "power" "," "toughness" "," "and" "creature" "types" "of" object_ref
+
+/* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_conditional ::= affected static_changes "as" "long" "as" condition "."
+
+/* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_conditional_first ::= "as" "long" "as" condition "," affected static_changes "."
+
+/* @sem Ability::@where(Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_numeric_x})]}, $value) */
+static_conditional_first_where ::= "as" "long" "as" condition "," affected static_numeric_x "," "where" "X" "is" value "."
+
+/* @sem Ability::Conditional{condition:Not($condition), then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_unless ::= affected static_changes "unless" condition "."
+
+/* Flash for the card's casters has its own native ability. A quoted ability's
+   printed creator name must not silently become its holder: only explicit
+   holder words use this production inside granted or token abilities. */
+holder_flash_if ::= holder_flash_if_after | holder_flash_if_before
+
+/* @sem Ability::FlashIf($condition) */
+holder_flash_if_after ::= self_holder_text "has" "flash" "as" "long" "as" condition "."
+
+/* @sem Ability::FlashIf($condition) */
+holder_flash_if_before ::= "as" "long" "as" condition "," self_holder_text "has" "flash" "."
+
+/* Named self references are safe here because line is the card-level root,
+   never the quoted-ability root. Keep creator references in ordinary statics. */
+line_named_flash_if ::= named_flash_if_after | named_flash_if_before
+
+/* @sem Ability::[FlashIf($condition)] */
+named_flash_if_after ::= self_named "has" "flash" "as" "long" "as" condition "."
+
+/* @sem Ability::[FlashIf($condition)] */
+named_flash_if_before ::= "as" "long" "as" condition "," self_named "has" "flash" "."
+
+/* @sem Ability::Conditional{condition:PlayerIsActive(PlayerRef::AbilityController), then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_your_turn ::= "during" "your" "turn" "," affected static_changes "."
+
+/* Definition words retain their context until references are bound (CR604.3a).
+   Only an intrinsic, unconditional definition of the holder is a CDA. */
+/* @sem Ability::@defining_static(Ability::Static{kind:Ordinary, affected:Objects(One($self_possessive)), changes:[Change::SetBasePowerToughness{power:$value, toughness:$value}]}) */
+static_defining_both ::= self_possessive "power" "and" "toughness" "are" "each" "equal" "to" value "."
+
+/* @sem Ability::@defining_static(Ability::Static{kind:Ordinary, affected:Objects(One($self_possessive)), changes:[Change::SetPower($value)]}) */
+static_defining_power ::= self_possessive "power" "is" "equal" "to" value "."
+
+/* @sem Ability::@defining_static(Ability::Static{kind:Ordinary, affected:Objects(One($self_possessive)), changes:[Change::SetToughness($value)]}) */
+static_defining_toughness ::= self_possessive "toughness" "is" "equal" "to" value "."
+
+static_definition ::= static_defining_both | static_defining_power | static_defining_toughness
+/* @sem Ability::Conditional{condition:PlayerIsActive(PlayerRef::AbilityController), then:[$static_definition]} */
+static_definition_during_turn ::= "during" "your" "turn" "," static_definition
+/* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
+static_definition_if ::= "as" "long" "as" condition "," static_definition
+
+replacement_ability ::= replacement_entry_condition | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_if | replacement_enters_counters_for_each
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetTapped(true)}}]}}) */
+replacement_enters_tapped ::= self_ref "enters" "tapped" "."
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$entry_counter_amount})}}]}}) */
+replacement_enters_counters ::= self_ref "enters" "with" entry_counter_amount counter_kind ("counter" | "counters") "on" "it" "."
+
+/* The entering permanent's prospective controller supplies "you" in its
+   replacement condition; a granted ability keeps its independent controller. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$counter_amount}}}]}, otherwise:Program{}}]}}) */
+replacement_enters_counters_if ::= self_ref "enters" "with" counter_amount counter_kind ("counter" | "counters") "on" "it" "if" condition "."
+
+/* The counted history's predicate names the historical object, independently
+   of the incoming permanent whose prospective controller supplies "you". */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:@times($counter_amount, $count_each)}}}]}}) */
+replacement_enters_counters_for_each ::= self_ref "enters" "with" counter_amount counter_kind ("counter" | "counters") "on" ("it" | "him" | "her") "for" "each" count_each "."
+
+/* @sem Ability::Enchant{hosts:Permanents($filter_phrase)} */
+enchant_ability ::= "enchant" filter_phrase
+
+/* A battlefield replacement changes incoming objects; it is distinct from
+   the source-only replacement active while that source is entering. */
+replacement_entry_state ::= replacement_entry_tapped | replacement_entry_untapped
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}} */
+replacement_entry_tapped ::= entry_objects "enter" "tapped" "."
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(false)}}]}} */
+replacement_entry_untapped ::= entry_objects "enter" "untapped" "."
+
+/* The condition's explicit object distinguishes a named creator from a
+   granted ability's holder. The replacement's incoming-object filter is separate. */
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$self_explicit_ref, filter:$condition_state}, then:[$replacement_entry_state], otherwise:[]} */
+replacement_entry_condition ::= "as" "long" "as" self_explicit_ref "is" condition_state "," replacement_entry_state
+
+entry_objects ::= entry_other_objects | filter_plural
+/* @sem ObjectFilter::@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_plural) */
+entry_other_objects ::= "other" filter_plural
+
+/* A defending player also protects any battle being attacked (CR 508.5).
+   Explicit player/planeswalker wording continues to use its narrower selector. */
+/* @sem Change::[Rule(Prohibit(Attack(DefendingPlayers(Matching{binding:0, condition:Not($defending_attack_requirement)}))))] */
+rule_defending_attack ::= "can't" "attack" "unless" defending_attack_requirement
+
+defending_attack_requirement ::= defending_attack_controls | defending_attack_controls_either
+    | defending_attack_controls_many | defending_attack_state | defending_attack_graveyard
+    | defending_attack_outnumber
+
+/* @sem Condition::Controls{player:Bound(0), filter:$filter_phrase, minimum:1} */
+defending_attack_controls ::= "defending" "player" "controls" ("a" | "an") filter_phrase
+
+/* @sem Condition::AnyOf([Controls{player:Bound(0), filter:$filter_phrase, minimum:1}, Controls{player:Bound(0), filter:$filter_phrase_2, minimum:1}]) */
+defending_attack_controls_either ::= "defending" "player" "controls" ("a" | "an") filter_phrase "or" ("a" | "an") filter_phrase
+
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}} */
+defending_attack_controls_many ::= "defending" "player" "controls" number "or" "more" filter_plural
+
+/* @sem Condition::PlayerState{player:Bound(0), state:$defending_attack_state_value} */
+defending_attack_state ::= "defending" "player" "is" defending_attack_state_value
+
+/* @sem PlayerState::Poisoned */
+defending_attack_poisoned ::= "poisoned"
+
+/* @sem PlayerState::Monarch */
+defending_attack_monarch ::= "the" "monarch"
+
+defending_attack_state_value ::= defending_attack_poisoned | defending_attack_monarch
+
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+defending_attack_graveyard ::= "defending" "player" "has" value "or" "more" "cards" "in" "their" "graveyard"
+
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])})}} */
+defending_attack_outnumber ::= "you" "control" "more" filter_plural "than" "defending" "player"
+
+/* One written characteristic change applies independently to three populations.
+   Battlefield control, spell control and card ownership are separate selectors;
+   the final population explicitly excludes the battlefield. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$cross_characteristics}, Static{kind:Ordinary, affected:Objects($cross_spells), changes:$cross_characteristics}, Static{kind:Ordinary, affected:Objects($cross_owned_cards), changes:$cross_characteristics}] */
+line_cross_zone_characteristics ::= cross_battlefield_subject cross_characteristics "." "the" "same" "is" "true" "for" cross_spells "and" cross_owned_cards "."
+
+cross_battlefield_subject ::= cross_explicit_battlefield | cross_battlefield_filter | cross_battlefield_other | cross_battlefield_pair | cross_battlefield_pair_reverse
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
+cross_battlefield_filter ::= ("all")? filter_plural
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(@self)), $filter_plural)} */
+cross_battlefield_other ::= "other" filter_plural
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_plural, $filter_plural_2])} */
+cross_battlefield_pair ::= filter_plural "and" filter_plural
+/* Either is native-canonicalized as a set. Both declarations preserve the
+   written member order through an exact key without changing its meaning. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_plural_2, $filter_plural])} */
+cross_battlefield_pair_reverse ::= filter_plural "and" filter_plural
+
+cross_spells ::= cross_spells_any | cross_spells_filtered
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:ControlledBy(One(AbilityController))} */
+cross_spells_any ::= "spells" "you" "control"
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:@and($card_filter, ObjectFilter::ControlledBy(One(AbilityController)))} */
+cross_spells_filtered ::= card_filter "spells" "you" "control"
+
+cross_owned_cards ::= cross_owned_any | cross_owned_filtered
+/* @sem ObjectSet::AnyZone(@and(ObjectFilter::OwnedBy(One(AbilityController)), ObjectFilter::Not(InZone(Shared(Battlefield))))) */
+cross_owned_any ::= "cards" "you" "own" "that" "aren't" "on" "the" "battlefield"
+/* @sem ObjectSet::AnyZone(@and($card_filter, ObjectFilter::OwnedBy(One(AbilityController)), ObjectFilter::Not(InZone(Shared(Battlefield))))) */
+cross_owned_filtered ::= card_filter "cards" "you" "own" "that" "aren't" "on" "the" "battlefield"
+
+cross_characteristics ::= cross_characteristic_types | change_grant
+/* @sem $cross_traits */
+cross_characteristic_types ::= "are" cross_traits
+
+cross_traits ::= cross_trait | cross_colors_and_card_type
+/* @sem Change::[...$cross_colors, ...$cross_added_types] */
+cross_colors_and_card_type ::= cross_colors "and" cross_added_types
+
+cross_trait ::= cross_chosen_type | cross_chosen_type_add | cross_all_types | cross_added_types | cross_named_types | cross_named_types_add | cross_colors
+/* @sem Change::[ChosenType{kind:CreatureType, mode:Set}] */
+cross_chosen_type ::= "the" "chosen" ("creature")? "type"
+/* @sem Change::[ChosenType{kind:CreatureType, mode:Add}] */
+cross_chosen_type_add ::= "the" "chosen" ("creature")? "type" "in" "addition" "to" "their" "other" ("creature")? "types"
+/* @sem Change::[CreatureTypes{mode:Set, types:All}] */
+cross_all_types ::= "every" "creature" "type"
+/* @sem Change::[CreatureTypes{mode:Set, types:Listed($cross_creature_types)}] */
+cross_named_types ::= cross_creature_types
+/* @sem Change::[CreatureTypes{mode:Add, types:Listed($cross_creature_types)}] */
+cross_named_types_add ::= cross_creature_types "in" "addition" "to" "their" "other" ("creature")? "types"
+
+cross_creature_types ::= cross_creature_type | cross_creature_types_more
+cross_creature_type ::= cross_creature_type_plural
+/* @sem CreatureType::[...$cross_creature_type, ...$cross_creature_types] */
+cross_creature_types_more ::= cross_creature_type "and" cross_creature_types
+/* @sem CreatureType::[@subtype_name($subtype_plural)] */
+cross_creature_type_plural ::= subtype_plural
+
+/* @sem Change::[AddCardType($cross_card_type)] */
+cross_added_types ::= cross_card_type "in" "addition" "to" "their" "other" "types"
+cross_card_type ::= cross_artifact_type | cross_enchantment_type | cross_creature_card_type | cross_land_type
+/* @sem CardType::Artifact */
+cross_artifact_type ::= "artifacts"
+/* @sem CardType::Enchantment */
+cross_enchantment_type ::= "enchantments"
+/* @sem CardType::Creature */
+cross_creature_card_type ::= "creatures"
+/* @sem CardType::Land */
+cross_land_type ::= "lands"
+
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}] */
+cross_colors ::= mana_color_word
+
+/* A minimum blocker group also excludes creatures outside the group filter. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(Prohibit(BeBlocked(Not($filter_plural)))), Rule(CombatGroup{role:BlockedAttacker, participants:$filter_plural, comparison:GreaterOrEqual, amount:$value})]}) */
+static_minimum_blockers ::= affected "can't" "be" "blocked" "except" "by" value "or" "more" filter_plural "."
+
+/* Removal and prohibition remain distinct native changes. Each paired
+   clause constrains both mentions to one native CheckHasable term. Hexproof
+   suppression covers every hexproof variant rather than granting a keyword. */
+line_ability_suppression ::= suppression_flying | suppression_first_strike | suppression_trample | suppression_hexproof | suppression_deathtouch
+
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:Flying}), Rule(CantGainAbility(Term{family:CheckHasable, form:Flying}))]})] */
+suppression_flying ::= affected ("lose" | "loses") "flying" "and" "can't" "have" "or" "gain" "flying" "."
+
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:FirstStrike}), Rule(CantGainAbility(Term{family:CheckHasable, form:FirstStrike}))]})] */
+suppression_first_strike ::= affected ("lose" | "loses") "first" "strike" "and" "can't" "have" "or" "gain" "first" "strike" "."
+
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:Trample}), Rule(CantGainAbility(Term{family:CheckHasable, form:Trample}))]})] */
+suppression_trample ::= affected ("lose" | "loses") "trample" "and" "can't" "have" "or" "gain" "trample" "."
+
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:AnyHexproof}), Rule(CantGainAbility(Term{family:CheckHasable, form:AnyHexproof}))]})] */
+suppression_hexproof ::= affected ("lose" | "loses") "hexproof" "and" "can't" "have" "or" "gain" "hexproof" "."
+
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:Deathtouch}), Rule(CantGainAbility(Term{family:CheckHasable, form:Deathtouch}))]})] */
+suppression_deathtouch ::= affected ("lose" | "loses") "deathtouch" "and" "can't" "have" "or" "gain" "deathtouch" "."
+
+/* Entry state and a continuing property are separate native abilities. Only
+   the replacement's body uses the entering controller's prospective scope. */
+/* @sem Ability::[@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}}), Static{kind:Ordinary, affected:Objects(One($self_ref)), changes:$entry_continuing_changes}] */
+line_entry_tapped_and_changes ::= self_ref "enters" "tapped" "and" entry_continuing_changes "."
+
+/* @sem Change::[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})] */
+entry_self_skip_untap ::= "doesn't" "untap" "during" "your" "untap" "step"
+
+entry_continuing_changes ::= static_changes | entry_self_skip_untap
+
+/* The possessive names this affected permanent's controller, including when
+   the permanent is controlled by an opponent of the Aura's controller. */
+/* @sem Change::[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})] */
+rule_skip_untap_controller ::= "doesn't" "untap" "during" "its" "controller's" "untap" "step"
+    | "don't" "untap" "during" "their" "untap" "step"
+
+/* The source's own permanent controller is the speaker of this standalone
+   self-reference. Do not expose the `your` form to generic affected subjects. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(One($self_ref_holder)), changes:$entry_self_skip_untap}] */
+line_self_skip_untap ::= self_ref_holder entry_self_skip_untap "."
+
+/* An explicit original-set receipt precedes the first effect. Neither later
+   characteristics nor control changes may change the plural antecedent. */
+immediate_affected_set ::= objects_each | objects_each_other | objects_all | objects_all_other | affected_plural | affected_other
+
+clause_counters_same_group ::= clause_original_counter_group
+
+/* @sem Instruction::[Effect{result:@mark, operation:NoteObjects{objects:$immediate_affected_set}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@marked)), changes:[Pump{power:ObjectProperty{object:Affected, property:Power, information:CurrentOrLastKnown}, toughness:Constant(0)}], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@marked)), changes:$changes, duration:$duration_2, evaluation:Snapshot}}] */
+clause_double_power_same_group ::= "double" "the" "power" "of" immediate_affected_set duration "." counter_group_reference changes duration
+
+/* The characteristic bonus is unconditional. Only the blocking prohibition
+   has the stated owner-defender exception; owner and controller differ. */
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects(One($object_ref)), changes:[Pump{power:$signed, toughness:$signed_2}]}), Conditional{condition:Not(ObjectMatches{object:$object_ref, filter:AnyOf([AttackingDefender(Objects(ControlledBy(One(OwnerOf($object_ref))))), AttackingDefender(Players(One(OwnerOf($object_ref))))])}), then:[Static(_{kind:Ordinary, affected:Objects(One($object_ref)), changes:[Rule(Prohibit(BeBlocked(Any)))]})], otherwise:[]}] */
+line_pump_owner_attack_exception ::= object_ref "gets" signed "/" signed "and" "can't" "be" "blocked" "unless" "it's" "attacking" "its" "owner" "or" "a" "permanent" "its" "owner" "controls" "."
+
+/* An announced target and a characteristic bonus describe a resolution effect,
+   rather than a permanent's static characteristic declaration. Omission of a
+   duration leaves that effect indefinite; explicit durations use their own rule. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:$indefinite_bonus_changes, duration:Indefinite, evaluation:Snapshot} */
+continuous_bonus_indefinite ::= target_object indefinite_bonus_changes
+
+indefinite_bonus_changes ::= change_pump | indefinite_bonus_changes_and
+/* @sem Change::[...$change_pump, ...$changes] */
+indefinite_bonus_changes_and ::= change_pump "and" changes
+
+/* No-duration bonuses are complete sentences, never an operation fragment
+   following a shared leading duration and a coordinating conjunction. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$continuous_bonus_indefinite}]} */
+program_sentence_indefinite_bonus ::= continuous_bonus_indefinite "."
+
+/* Coordinated characteristics and restrictions share one live host. Native
+   canonicalization merges adjacent statics with this same kind and subject,
+   so declare that merged form directly for both recognition and printing. */
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects(One($attached_ref)), changes:[...$attached_characteristics, ...$attached_restriction]})] */
+line_attached_restrictions ::= attached_ref attached_characteristics (","? "and") attached_restriction "."
+
+attached_characteristics ::= changes | attached_type_set
+
+attached_restriction ::= rule_change | attached_activation_prohibition | attached_all_blockers
+    | attached_matching_blocker | attached_spell_targeting | attached_other_auras
+
+/* @sem Change::[Rule(Prohibit(Activate(Any)))] */
+attached_activation_prohibition ::= "its" "activated" "abilities" "can't" "be" "activated"
+
+/* Every creature able to block the host must do so; no creature is forced to
+   attack, and the requirement remains on that host rather than on the Aura. */
+/* @sem Change::[Rule(RequireCombat{action:BeBlocked(CardType(Creature)), amount:Each})] */
+attached_all_blockers ::= "all" "creatures" "able" "to" "block" "it" "do" "so"
+
+/* Setting just creature subtypes does not add Creature or overwrite colors. */
+/* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}] */
+attached_type_set ::= "is" ("a" | "an") becomes_types
+
+/* One eligible matching blocker suffices. Existing restrictions and blocking
+   costs still govern whether it is able; this is not exactly one or all. */
+/* @sem Change::[Rule(RequireCombat{action:BeBlocked($filter_phrase), amount:AtLeast(Constant(1))})] */
+attached_matching_blocker ::= "must" "be" "blocked" "by" ("a" | "an") filter_phrase "if" "able"
+
+/* A spell-only targeting prohibition does not prohibit activated/triggered
+   abilities and is not controller-limited hexproof. */
+/* @sem Change::[Rule(Prohibit(BeTargeted(OnStack(Spell))))] */
+attached_spell_targeting ::= "can't" "be" "the" "target" "of" "spells"
+
+/* The source Aura remains allowed, while other Auras cannot remain attached.
+   The excluded object is the Aura source, independently of the attached host. */
+/* @sem Change::[Rule(Prohibit(BeAttachedBy{attachments:@and(ObjectFilter::Not(SameObject(Source)), ObjectFilter::Subtype(Aura)), keep_existing:false}))] */
+attached_other_auras ::= "can't" "be" "enchanted" "by" "other" "Auras"
+
+/* Unquoted mechanics are abilities of each recipient, distinct from Keyword. */
+/* @sem Change::GrantAbility(@holder($granted_mechanic)) */
+grant_native_mechanic ::= granted_mechanic
+
+granted_mechanic ::= mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost
+/* @sem Ability::Mechanic{mechanic:Affinity, filter:$filter_plural} */
+granted_affinity ::= "affinity" "for" filter_plural
+/* Source belongs to the receiving spell, not the static granting permanent. */
+/* @sem Ability::Mechanic{mechanic:Replicate, cost:Cost{parts:[ManaCostOf(Source)]}} */
+granted_replicate_mana_cost ::= "replicate" "." "the" "replicate" "cost" "is" "equal" "to" "its" "mana" "cost"
+
+/* Cast-time grants have distinct native spell-object and casting-player
+   readings. Keep both; neither is an equality alias for the other. Source in
+   each granted cost is the receiving spell, not the granting permanent. */
+static_mechanic_grant ::= static_spell_mana_grant_with_cost_reduction | static_spell_mana_grant | static_spell_keyword_cost_reduction | static_other_spell_mechanic_grant | static_object_mechanic_grant
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$spell_mana_grant_subject, abilities:List([$spell_mana_grant_effect])})]} */
+static_spell_mana_grant ::= spell_mana_grant_subject ("has" | "have") spell_mana_grant_effect "."
+
+spell_mana_grant_subject ::= spell_mana_grant_plain | spell_mana_grant_threshold | spell_mana_grant_all
+/* @sem $card_filter */
+spell_mana_grant_plain ::= "each" card_filter "spell" "you" "cast"
+/* @sem @and($card_filter, ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$spell_mana_grant_constant}}) */
+spell_mana_grant_threshold ::= "each" card_filter "spell" "you" "cast" "with" "mana" "value" spell_mana_grant_constant "or" "greater"
+/* @sem ObjectFilter::Any */
+spell_mana_grant_all ::= "spells" "you" "cast" | "each" "spell" "you" "cast"
+spell_mana_grant_constant ::= number_words | number_digits
+
+spell_mana_grant_effect ::= spell_mana_grant_replicate | spell_mana_grant_blitz
+/* @sem Operand::Term{family:SpellEffect, form:Replicate, operands:[Cost{parts:[ManaCostOf(Source)]}]} */
+spell_mana_grant_replicate ::= "replicate" "." "the" "replicate" "cost" "is" "equal" "to" "its" "mana" "cost"
+/* @sem Operand::Term{family:SpellEffect, form:Blitz, operands:[Cost{parts:[ManaCostOf(Source)]}]} */
+spell_mana_grant_blitz ::= "blitz" "." "the" "blitz" "cost" "is" "equal" "to" "its" "mana" "cost"
+
+/* The stack-object reading retains the casting proposal's actor/origin filter
+   and the holder scope of the granted mechanic. Permanent grants stay objects. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($mechanic_cast_spells), changes:[GrantAbility(@holder($other_spell_mechanic))]} */
+static_other_spell_mechanic_grant ::= mechanic_cast_spells ("has" | "have") other_spell_mechanic "."
+other_spell_mechanic ::= bare_exalted | granted_affinity | granted_replicate_cost | granted_replicate_mana_cost
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($mechanic_grant_subject), changes:[GrantAbility(@holder($granted_mechanic))]} */
+static_object_mechanic_grant ::= mechanic_grant_subject ("has" | "have") granted_mechanic "."
+
+mechanic_cast_spells ::= mechanic_all_cast_spells | mechanic_each_cast_spell | mechanic_filtered_cast_spells
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:Cast{by:One(AbilityController)}} */
+mechanic_all_cast_spells ::= "spells" "you" "cast"
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:@and($card_filter, ObjectFilter::Cast{by:One(AbilityController)})} */
+mechanic_each_cast_spell ::= "each" card_filter "spell" "you" "cast"
+
+/* A spell's caster is independent of its current controller and card types. */
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:@and($filter_phrase, ObjectFilter::Cast{by:One(AbilityController)})} */
+mechanic_filtered_cast_spells ::= filter_phrase "spells" "you" "cast"
+
+/* Existing lowercase Clues vocabulary folds the sentence-initial spelling.
+   Keep that declared spelling local to these typed mechanic grants. */
+mechanic_grant_subject ::= mechanic_clues | mechanic_modified_clues
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:Subtype(Clue)} */
+mechanic_clues ::= "clues"
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Subtype(Clue), $modifiers)} */
+mechanic_modified_clues ::= "clues" modifiers
+
+/* @sem Ability::Mechanic{mechanic:Replicate, cost:$cost} */
+granted_replicate_cost ::= "replicate" cost
+
+/* Mixed player/object recipients use different native keyword changes. These
+   live static groups never turn the player into an object or grant the source
+   an ability meant for its controlled recipients. */
+line_hexproof_recipients ::= hexproof_player_objects | hexproof_player_object_list
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Players($hexproof_players), changes:[PlayerRule(GrantKeyword(Hexproof))]}, $hexproof_object_grant] */
+hexproof_player_objects ::= hexproof_players "and" hexproof_object_grant "have" "hexproof" "."
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Players($hexproof_players), changes:[PlayerRule(GrantKeyword(Hexproof))]}, $hexproof_object_grant, $hexproof_object_grant_2] */
+hexproof_player_object_list ::= hexproof_players "," hexproof_object_grant "," "and" hexproof_object_grant "have" "hexproof" "."
+
+hexproof_players ::= hexproof_you | player_keyword_many
+/* @sem PlayerSet::One(AbilityController) */
+hexproof_you ::= "you"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$hexproof_object_filter}), changes:[GrantKeyword(Hexproof)]} */
+hexproof_object_grant ::= hexproof_object_filter
+
+hexproof_object_filter ::= filter_plural | contextual_other_filter
+
+/* A complete battlefield move names at most one object; its following grant
+   uses the existing moved-incarnation pronoun contract. No bare indefinite
+   grant operation is exposed after a possibly shared leading duration. */
+/* @sem Instruction::[Effect{result:@next, operation:$post_grant_move}, Effect{result:@next, operation:@return_grant(Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:$grants, duration:Indefinite, evaluation:Snapshot})}] */
+clause_post_move_grant ::= post_grant_move ("." | "and") "it" "gains" grants
+
+post_grant_move ::= post_grant_move_controlled | post_grant_move_owned
+/* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set(ObjectSet::One($post_grant_object))), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+post_grant_move_controlled ::= ("return" | "put") post_grant_object ("to" | "onto") "the" "battlefield" ("under" "your" "control")?
+/* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set(ObjectSet::One($post_grant_object))), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+post_grant_move_owned ::= ("return" | "put") post_grant_object ("to" | "onto") "the" "battlefield" "under" owner_possessive "control"
+
+post_grant_object ::= returning_card_ref | post_grant_card_pronoun | target_card
+/* The existing return marker refuses a bare uncaptured Source fallback. */
+/* @sem ObjectRef::@return_ref($it_ref) */
+post_grant_card_pronoun ::= it_ref
+
+/* The delayed action retains exactly the scalar move receipt across the
+   intervening grant. It never treats the continuous-effect receipt as a token
+   or re-queries the old graveyard target. */
+/* @sem Instruction::[Effect{result:@mark, operation:$post_grant_move}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@marked, phase:After, index:0})), changes:$grants, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:$post_grant_turn_point, players:One(AbilityController)}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Result{result:@marked, phase:After, index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+clause_post_move_grant_exile ::= post_grant_move "." "it" "gains" grants "." "exile" "it" "at" "the" "beginning" "of" "your" "next" post_grant_turn_point
+
+post_grant_turn_point ::= post_grant_upkeep | post_grant_end_step
+/* @sem TurnPoint::UpkeepBegins */
+post_grant_upkeep ::= "upkeep"
+/* @sem TurnPoint::EndStepBegins */
+post_grant_end_step ::= "end" "step"
+
+/* The quoted ability belongs to the newly moved object. Its Source and you
+   reset at @holder, while the granting effect retains its creating source. */
+/* @sem Instruction::[Effect{result:@next, operation:$post_grant_move}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:[GrantAbility(@holder($ability))], duration:Indefinite, evaluation:Snapshot}}] */
+clause_post_move_grant_quoted ::= post_grant_move "." "it" "gains" '"' ability '"'
+
+/* BeBlocked already applies the cost once per declared blocker. The printed
+   per-blocker wording does not add a second multiplier to its inner cost. */
+/* @sem Change::[Rule(CombatCost{action:BeBlocked(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}})] */
+rule_declared_blocker_cost ::= "can't" "be" "blocked" "unless" "defending" "player" "pays" mana_symbols "for" "each" "creature" "they" "control" "that's" "blocking" "it"
+
+/* A single conjured card is an After result, not a token Created batch. The
+   explicit producer supplies count one and the literal battlefield zone. */
+/* @sem Instruction::[Effect{result:@mark, operation:$conjure_single_battlefield}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@marked, phase:After, index:0})), changes:$conjure_keywords, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Result{result:@marked, phase:After, index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+clause_conjure_grant_exile ::= conjure_single_battlefield "." "that" "creature" "gains" conjure_keywords "." "exile" "it" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem Operation::Conjure{actor:One(AbilityController), card:Random(Filter(@and(ObjectFilter::CardType(Creature), ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:$conjure_mana_value}}))), count:Constant(1), destination:Battlefield(BattlefieldArrival{tapped:false, counters:[], states:[]})} */
+conjure_single_battlefield ::= "conjure" ("a" | "one") "random" "creature" "card" "with" "mana" "value" conjure_mana_value
+
+/* One eager property read belongs to this producer; the where-X phrase does
+   not capture or redefine X in the later grant or an independent holder. */
+/* @sem $value */
+conjure_value_inline ::= value "onto" "the" "battlefield"
+/* @sem $value */
+conjure_value_where ::= "X" "onto" "the" "battlefield" "," "where" "X" "is" value
+conjure_mana_value ::= conjure_value_inline | conjure_value_where
+
+/* Payment and its decision remain inside the delayed program. The explicit
+   Created noun uses the actual singular creation receipt, never Source. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:One(AbilityController)}, start:Immediately, body:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:@created_named_reference}}]}, otherwise:Program{}}]}}}] */
+clause_created_delayed_unless ::= "at" "the" "beginning" "of" "your" "next" "end" "step" "," "sacrifice" "it" "unless" "you" payment
+
+/* Parameter-free keywords cannot accidentally import the producer's local X
+   definition into another amount or an independent granted ability. */
+conjure_keywords ::= conjure_keyword_one | conjure_keyword_more
+/* @sem Change::[GrantKeyword($keyword_name)] */
+conjure_keyword_one ::= keyword_name
+/* @sem Change::[GrantKeyword($keyword_name), ...$conjure_keywords] */
+conjure_keyword_more ::= keyword_name "and" conjure_keywords
+
+/* Pronouns repeat exactly the preceding static population. Both bonus and
+   keyword remain under one ongoing condition. */
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($static_followup_affected), changes:$static_changes}), Conditional{condition:$condition, then:[Static(_{kind:Ordinary, affected:Objects($static_followup_affected), changes:$conditional_followup_changes})]}] */
+line_static_conditional_followup ::= static_followup_affected static_changes "." ("it" | "they") conditional_followup_changes "as" "long" "as" condition "."
+    | static_followup_affected static_changes "." "as" "long" "as" condition "," ("it" | "they") "also"? conditional_followup_changes "."
+
+conditional_followup_changes ::= static_changes | static_additional_changes
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}, ...$static_changes] */
+static_additional_changes ::= ("gets" | "get") "an" "additional" signed "/" signed "and" static_changes
+
+/* Chosen creature type is justified by the explicit creature domain. Keep this
+   population local to static continuations: an unrestricted noun modifier
+   would misread lands whose earlier choice has kind LandType. */
+static_followup_affected ::= affected | static_followup_chosen_creatures
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), @and($modifier_you_control, ObjectFilter::Chosen(CreatureType)))} */
+static_followup_chosen_creatures ::= "creatures" modifier_you_control "of" "the" "chosen" "type"
+
+/* A battlefield population and a private-zone card population remain separate
+   native static abilities, even when Oracle shares their characteristic verb. */
+line_private_zone_static ::= line_private_zone_static_legacy | line_plural_private_zone_static
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$private_static_changes}, Static{kind:Ordinary, affected:Objects($private_static_subject), changes:$private_static_changes}] */
+line_private_zone_static_legacy ::= cross_battlefield_subject "and" private_static_subject private_static_changes "."
+
+static_private_zone ::= static_private_zone_legacy | static_plural_private_zone
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($private_static_subject), changes:$private_static_changes} */
+static_private_zone_legacy ::= private_static_subject private_static_changes "."
+
+private_static_subject ::= greatest_cards | greatest_filtered_cards
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$static_basic} */
+static_battlefield_basic ::= cross_battlefield_subject static_basic "."
+
+private_static_changes ::= private_land_type_add | private_opponent_targeting | static_changes | static_basic
+
+/* Basic is a supertype; it never grants any basic land subtype or mana ability. */
+/* @sem Change::[AddSupertype(Basic)] */
+static_basic ::= "are" "basic"
+
+/* Each distributes one continuous change over the explicit holder/target pair. */
+/* @sem ObjectSet::$objects_self_and_target */
+affected_pair_each ::= objects_self_and_target "each"
+
+/* The final quoted sentence closes a static grant's outer sentence as well. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$closed_grants} */
+static_quoted_grant ::= affected ("has" | "have") closed_grants
+
+/* Shared color changes retain three native populations. AnyZone here is the
+   card domain with the battlefield excluded; stack spells and battlefield
+   permanents are independent, unrestricted by controller or owner. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects($global_nonbattlefield_cards), changes:$global_color_changes}, Static{kind:Ordinary, affected:Objects($global_stack_spells), changes:$global_color_changes}, Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$global_color_changes}] */
+line_global_cross_zone_colors ::= "all" global_nonbattlefield_cards "," global_stack_spells "," "and" cross_battlefield_subject "are" global_color_changes "."
+
+/* @sem ObjectSet::AnyZone(@and(ObjectFilter::$global_card_filter, ObjectFilter::Not(InZone(Shared(Battlefield))))) */
+global_nonbattlefield_cards ::= global_card_filter "that" "aren't" "on" "the" "battlefield"
+
+global_card_filter ::= global_cards_any | global_cards_filtered
+/* @sem ObjectFilter::Any */
+global_cards_any ::= "cards"
+/* @sem ObjectFilter::$card_filter */
+global_cards_filtered ::= card_filter "cards"
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:Any} */
+global_stack_spells ::= "spells"
+
+global_color_changes ::= global_colors_set | global_colors_add | global_chosen_color_set | global_chosen_color_add
+/* @sem Change::[Colors{mode:Set, colors:$token_colors}] */
+global_colors_set ::= token_colors
+/* @sem Change::[Colors{mode:Add, colors:$token_colors}] */
+global_colors_add ::= token_colors "in" "addition" "to" "their" "other" "colors"
+/* @sem Change::[ChosenColor{mode:Set}] */
+global_chosen_color_set ::= "the" "chosen" "color"
+/* @sem Change::[ChosenColor{mode:Add}] */
+global_chosen_color_add ::= "the" "chosen" "color" "in" "addition" "to" "their" "other" "colors"
+
+/* Spending permission changes no mana color and creates no mana. Its player
+   population is independent of the three object populations above. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players($color_spending_players), changes:[PlayerRule(SpendManaAs{spend_as:AnyColor, on:Anything})]} */
+static_player_color_spending ::= color_spending_players "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "."
+
+color_spending_players ::= color_spending_all | color_spending_you
+/* @sem PlayerSet::All */
+color_spending_all ::= "players" | "all" "players"
+/* @sem PlayerSet::One(AbilityController) */
+color_spending_you ::= "you"
+
+/* Each listed change has its own condition. The subject is shared by exact
+   semantic-hole identity; conditions never become one enclosing gate. Lists
+   are bounded to two through five items and end at the sentence period. */
+line_independent_static_list ::= independent_static_two | independent_static_three | independent_static_four | independent_static_five
+
+/* Only scalar self/attached subjects are proved here. A plural subject needs
+   per-affected condition binding and is deliberately outside this family. */
+/* @sem ObjectSet::One($independent_static_object) */
+independent_static_subject ::= independent_static_object
+independent_static_object ::= self_ref | attached_ref
+
+/* These gates read an independent controller population, never a pronoun whose
+   antecedent would require new subject binding. */
+/* @sem Condition::Controls{player:AbilityController, filter:$noun, minimum:1} */
+independent_static_gate ::= ("as" "long" "as" | "if") "you" "control" ("a" | "an") noun
+
+independent_static_changes ::= change_pump | change_grant | independent_static_keyword | independent_static_activated
+/* @sem Change::[GrantKeyword($keyword_value)] */
+independent_static_keyword ::= keyword_value
+
+/* @sem () */
+independent_static_last ::= "," "and" | "and"
+
+/* @sem Ability::[Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes}], otherwise:[]}, Conditional{condition:$independent_static_gate_2, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_2}], otherwise:[]}] */
+independent_static_two ::= independent_static_subject independent_static_changes independent_static_gate independent_static_last independent_static_changes independent_static_gate "."
+
+/* @sem Ability::[Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes}], otherwise:[]}, Conditional{condition:$independent_static_gate_2, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_2}], otherwise:[]}, Conditional{condition:$independent_static_gate_3, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_3}], otherwise:[]}] */
+independent_static_three ::= independent_static_subject independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate independent_static_last independent_static_changes independent_static_gate "."
+
+/* @sem Ability::[Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes}], otherwise:[]}, Conditional{condition:$independent_static_gate_2, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_2}], otherwise:[]}, Conditional{condition:$independent_static_gate_3, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_3}], otherwise:[]}, Conditional{condition:$independent_static_gate_4, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_4}], otherwise:[]}] */
+independent_static_four ::= independent_static_subject independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate independent_static_last independent_static_changes independent_static_gate "."
+
+/* @sem Ability::[Conditional{condition:$independent_static_gate, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes}], otherwise:[]}, Conditional{condition:$independent_static_gate_2, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_2}], otherwise:[]}, Conditional{condition:$independent_static_gate_3, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_3}], otherwise:[]}, Conditional{condition:$independent_static_gate_4, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_4}], otherwise:[]}, Conditional{condition:$independent_static_gate_5, then:[Static{kind:Ordinary, affected:Objects($independent_static_subject), changes:$independent_static_changes_5}], otherwise:[]}] */
+independent_static_five ::= independent_static_subject independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate "," independent_static_changes independent_static_gate independent_static_last independent_static_changes independent_static_gate "."
+
+
+/* A quoted activation without an inner period remains part of this item's
+   conditional predicate. Its holder is independent of the creating source. */
+/* @sem Change::[GrantAbility(@holder(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program}))] */
+independent_static_activated ::= '"' cost ":" program '"'
+
+/* Resolving paired loss and grant fixes the same affected objects for both
+   changes. No duration wording means the created effect is indefinite. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:Defender}), GrantKeyword($keyword_value)], duration:Indefinite, evaluation:Snapshot} */
+keyword_loss_gain_indefinite ::= affected "loses" "defender" "and" "gains" keyword_value
+
+/* The explicit scalar subject owns both the static recipient and its state
+   test. Plural subjects require a separate per-object condition contract. */
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$scalar_static_subject, filter:$scalar_static_state}, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$static_changes}], otherwise:[]} */
+scalar_subject_static_condition ::= scalar_static_subject static_changes "as" "long" "as" "it's" scalar_static_state "."
+scalar_static_subject ::= self_ref | attached_ref
+scalar_static_state ::= adjective_untapped | scalar_static_attacking_alone
+/* @sem ObjectFilter::State(AttackingAlone) */
+scalar_static_attacking_alone ::= "attacking" "alone"
+
+/* The scalar optional-other target has a lexical antecedent, independently
+   of the operation's effect receipt. Keep this opt-in to characteristic changes;
+   generic verbs retain their existing target/pronoun ownership contracts. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($other_target_up_to)), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
+optional_other_static_snapshot ::= other_target_up_to static_changes duration
+
+/* "Each" is a subject-side quantifier; the effect still receives the complete
+   announced target set. It is not a trailing modifier on imperative objects. */
+/* @sem ObjectSet::$objects_targets */
+affected_targets_each ::= objects_targets "each"
+
+/* The controller chooses one ability for the stated affected population. The
+   temporary and perpetual producers remain distinct operations. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Ability, terms:_{count:Exactly(Constant(1)), options:$choice_keyword_options}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($choice_keyword_subject), changes:[ChosenAbility], duration:$duration, evaluation:Snapshot}}] */
+clause_keyword_choice_temporary ::= choice_keyword_subject ("gains" | "gain") "your" "choice" "of" choice_keyword_options duration
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Ability, terms:_{count:Exactly(Constant(1)), options:$choice_keyword_options}}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:$choice_keyword_subject, changes:[ChosenAbility]}}] */
+clause_keyword_choice_perpetual ::= choice_keyword_subject "perpetually" ("gains" | "gain") "your" "choice" "of" choice_keyword_options
+
+clause_keyword_choice ::= clause_keyword_choice_temporary | clause_keyword_choice_perpetual
+
+/* A crewing relation names the prior object before this target is introduced.
+   Candidate is the creature being selected; current_it is the outer referent. */
+choice_keyword_subject ::= affected | choice_keyword_crewed_target
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, Condition(Compare{left:EventHistory{event:Pair{event:Crews, objects:SameObject(Candidate), others:SameObject(@current_it)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})])}), index:0}) */
+choice_keyword_crewed_target ::= "target" noun "that" "crewed" "it" "this" "turn"
+
+/* Bare keywords carry no nested payment/holder context. Preserve option order
+   and the current operands for lists of two or more choices. */
+choice_keyword_options ::= choice_keyword_pair | choice_keyword_many
+/* @sem Operand::[Ability(Keyword($keyword_name)), Ability(Keyword($keyword_name_2))] */
+choice_keyword_pair ::= keyword_name "or" keyword_name
+/* @sem Operand::[Ability(Keyword($keyword_name)), ...$choice_keyword_tail] */
+choice_keyword_many ::= keyword_name "," choice_keyword_tail
+choice_keyword_tail ::= choice_keyword_last | choice_keyword_options
+/* @sem Operand::[Ability(Keyword($keyword_name))] */
+choice_keyword_last ::= "or" keyword_name
+
+/* The eligibility belongs to the granting population, not the received ability. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($nonbattlefield_owned_subject), changes:[GrantAbility(@holder($nonbattlefield_granted_ability))]} */
+static_nonbattlefield_owned_grant ::= nonbattlefield_owned_subject nonbattlefield_granted_ability "."
+nonbattlefield_owned_subject ::= nonbattlefield_plural_subject_verb | nonbattlefield_singular_subject_verb
+/* @sem $nonbattlefield_owned_plural */
+nonbattlefield_plural_subject_verb ::= nonbattlefield_owned_plural "have"
+/* @sem $nonbattlefield_owned_singular */
+nonbattlefield_singular_subject_verb ::= nonbattlefield_owned_singular "has"
+/* @sem ObjectSet::AnyZone(@and($filter_phrase, ObjectFilter::OwnedBy(One(AbilityController)), ObjectFilter::Not(InZone(Shared(Battlefield))))) */
+nonbattlefield_owned_plural ::= filter_phrase "cards" "you" "own" "that" "aren't" "on" "the" "battlefield"
+/* @sem ObjectSet::AnyZone(@and($filter_phrase, ObjectFilter::OwnedBy(One(AbilityController)), ObjectFilter::Not(InZone(Shared(Battlefield))))) */
+nonbattlefield_owned_singular ::= "each" filter_phrase "card" "you" "own" "that" "isn't" "on" "the" "battlefield"
+nonbattlefield_granted_ability ::= nonbattlefield_granted_keyword | nonbattlefield_granted_madness
+/* @sem Ability::Keyword($keyword_value) */
+nonbattlefield_granted_keyword ::= keyword_value
+/* The granted card is Source for its own madness cost; the granter is not. */
+/* @sem Ability::Mechanic{mechanic:Madness, cost:Cost{parts:[ManaCostOf(Source)]}} */
+nonbattlefield_granted_madness ::= "madness" "." "the" "madness" "cost" "is" "equal" "to" "its" "mana" "cost"
+
+/* A shared written subject supplies both populations. Characteristic changes
+   snapshot their recipients; the conjoined rule keeps the same live query. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($shared_rule_subject), changes:$shared_rule_characteristics, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($shared_rule_subject), changes:$rule_changes, duration:$this_duration, evaluation:LiveObjects}}] */
+clause_shared_population_rule ::= shared_rule_subject shared_rule_characteristics duration "and" rule_changes this_duration
+
+/* Only explicit noun, target and holder subjects enter this composition.
+   Implicit pronoun/receipt continuations keep their separate contracts. */
+shared_rule_subject ::= immediate_affected_set | affected_targets_each | affected_pair_each | shared_rule_object
+/* @sem ObjectSet::One($shared_rule_reference) */
+shared_rule_object ::= shared_rule_reference
+shared_rule_reference ::= target_object | self_explicit_ref | attached_ref
+
+/* This explicit capture is equivalent to the earlier effect's recorded
+   affected set; preserve that original receipt reading as well. */
+/* @sem Instruction::[Effect{result:@mark, operation:NoteObjects{objects:$immediate_affected_set}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@marked)), changes:$change_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:Selected(@marked)}}] */
+clause_selected_continuous_untap ::= immediate_affected_set change_pump duration "." "untap" "them"
+
+/* An explicit temporary base-setting has the same independently determined
+   characteristic and rule populations as an ordinary characteristic bonus. */
+shared_rule_characteristics ::= changes | shared_rule_base_stats
+/* @sem Change::[SetBasePowerToughness{power:$number, toughness:$number_2}] */
+shared_rule_base_stats ::= ("has" | "have") "base" "power" "and" "toughness" number "/" number
+
+/* The permission changes the blocking limit, independently of any preceding
+   characteristic snapshot; it retains that same explicitly written subject. */
+/* @sem Change::[Rule(BlockCapacity(Unlimited))] */
+rule_block_unlimited ::= "can" "block" "any" "number" "of" "creatures"
+
+/* A duration-first control change and its coordinated keyword share the one
+   explicit target. This creates one characteristic snapshot, not a second target. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:[SetController(AbilityController), GrantKeyword($keyword_value)], duration:$duration, evaluation:Snapshot} */
+gain_control_and_keyword ::= duration "," "you" "gain" "control" "of" target_object "and" "it" "gains" keyword_value
+
+/* These two spellings share one counter Pump meaning. The joined form
+   preserves the two explicit host sentences as one native Static. */
+static_attached_counter_population ::= static_attached_counter_plain | static_attached_counter_joined
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(ObjectRef::@enchanted_creature_operand(ObjectRef::AttachedTo(Source)))), changes:[$attached_counter_pump]} */
+static_attached_counter_plain ::= attached_counter_pump "."
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(ObjectRef::@enchanted_creature_operand(ObjectRef::AttachedTo(Source)))), changes:[$attached_counter_pump, ...$attached_counter_follow]} */
+static_attached_counter_joined ::= attached_counter_pump "." NEWLINE "enchanted" "creature" attached_counter_follow
+
+/* @sem Change::Pump{power:@times($signed, Expr::CountCounters{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(ObjectFilter::SameObject(AttachedTo(Source))))}), kind:$counter_kind, information:CurrentOrLastKnown}), toughness:@times($signed_2, Expr::CountCounters{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(ObjectFilter::SameObject(AttachedTo(Source))))}), kind:$counter_kind, information:CurrentOrLastKnown})} */
+attached_counter_pump ::= "enchanted" "creature" "gets" signed "/" signed "for" "each" counter_kind ("counter" | "counters") "on" "other" "creatures" "you" "control"
+
+/* The existing quoted-sentence rule owns its closing inner period. Ordinary
+   unquoted changes still require their own terminal period. */
+attached_counter_follow ::= attached_counter_follow_plain | attached_counter_follow_quoted
+/* @sem $static_changes */
+attached_counter_follow_plain ::= static_changes "."
+/* @sem $closed_grants */
+attached_counter_follow_quoted ::= ("has" | "have") closed_grants
+
+/* The receiving player is the caster. Cast's origin narrows the spells, not
+   the zone of the rule's affected player or the ability holder. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:@and($adjective_nontype, ObjectFilter::Cast{from:Shared(Exile)}), abilities:List([Term{family:SpellEffect, form:Convoke}])})]} */
+static_exile_convoke ::= adjective_nontype "spells" "you" "cast" "from" "exile" "have" "convoke" "."
+
+/* A separate requirement for every matching creature able to block the written
+   attacker. This is the attacker-owned view of the existing blocker-owned
+   requirement; the holder remains the continuous effect's source. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:[Rule(RequireCombat{action:BeBlocked($filter_plural), amount:Each})], duration:$this_duration, evaluation:LiveObjects} */
+all_matching_blockers_attacker_view ::= "all" filter_plural "able" "to" "block" object_ref this_duration "do" "so"
+
+/* The explicitly introduced one-creature target, not the source or the
+   successful counter participants, remains the following noun's referent. */
+/* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($counter_keyword_creature_target)), kind:$counter_kind, amount:$counter_amount}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($counter_keyword_creature_target)), changes:[$grant_keyword], duration:$duration, evaluation:Snapshot}}] */
+clause_counter_target_keyword ::= "put" counter_amount counter_kind ("counter" | "counters") "on" counter_keyword_creature_target ","? "and" "that" "creature" "gains" grant_keyword duration
+
+/* This lexical subset positively proves the subsequent creature noun. It
+   shares the existing another-target holder/reference policy verbatim. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and(ObjectFilter::Not(SameObject(@another_target_reference(ObjectFilter::AllOf([CardType(Creature), ControlledBy(One(AbilityController))])))), ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)))}), index:0} */
+counter_keyword_creature_target ::= "another" "target" "creature" "you" "control"
+
+/* Explicit private-card populations retain owner versus controller and zone
+   predicates. AnyZone here never includes the battlefield. */
+/* @sem ObjectSet::AnyZone(@and(ObjectFilter::$card_filter, ObjectFilter::OwnedBy(One(AbilityController)), ObjectFilter::Not(InZone(Shared(Battlefield))))) */
+private_owned_nonbattlefield_cards ::= card_filter "cards" "you" "own" "that" "aren't" "on" "the" "battlefield"
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$card_filter} */
+private_all_graveyard_cards ::= card_filter "cards" "in" "graveyards"
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
+cross_explicit_battlefield ::= filter_plural "on" "the" "battlefield"
+
+/* These shared characteristic changes use the same explicit plural subject
+   owner as the existing private-zone static rule, never a temporary grant. */
+/* @sem Change::[AddLandType($private_land_plural)] */
+private_land_type_add ::= "are" private_land_plural "in" "addition" "to" "their" "other" "types"
+private_land_plural ::= private_deserts | private_forests | private_islands | private_swamps | private_mountains | private_plains
+/* @sem LandType::Desert */
+private_deserts ::= "Deserts"
+/* @sem LandType::Forest */
+private_forests ::= "Forests"
+/* @sem LandType::Island */
+private_islands ::= "Islands"
+/* @sem LandType::Swamp */
+private_swamps ::= "Swamps"
+/* @sem LandType::Mountain */
+private_mountains ::= "Mountains"
+/* @sem LandType::Plains */
+private_plains ::= "Plains"
+/* Spells and abilities are both covered; no spell-only OnStack predicate. */
+/* @sem Change::[Rule(Prohibit(BeTargeted(ControlledBy(OpponentsOf(AbilityController)))))] */
+private_opponent_targeting ::= "can't" "be" "the" "targets" "of" "spells" "or" "abilities" "your" "opponents" "control"
+
+/* New explicitly plural subjects never flow into singular has/gets grammar.
+   Legacy greatest_* owners keep their existing checked declarations unchanged. */
+plural_private_subject ::= private_owned_nonbattlefield_cards | private_all_graveyard_cards
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$plural_private_changes}, Static{kind:Ordinary, affected:Objects($plural_private_subject), changes:$plural_private_changes}] */
+line_plural_private_zone_static ::= cross_battlefield_subject "and" plural_private_subject plural_private_changes "."
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($plural_private_subject), changes:$plural_private_changes} */
+static_plural_private_zone ::= plural_private_subject plural_private_changes "."
+plural_private_changes ::= plural_private_change | plural_private_changes_more
+/* @sem Change::[...$plural_private_change, ...$plural_private_changes] */
+plural_private_changes_more ::= plural_private_change ("and" | "," "and"?) plural_private_changes
+plural_private_change ::= private_land_type_add | private_opponent_targeting | static_basic | plural_private_pump | plural_private_grant
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+plural_private_pump ::= "get" signed "/" signed
+/* Same granted-ability owner as the established nonbattlefield-owned grants:
+   Flash keywords are not a second GrantKeyword representation of those words. */
+/* @sem Change::[GrantAbility(@holder($nonbattlefield_granted_ability))] */
+plural_private_grant ::= ("have" | "gain") nonbattlefield_granted_ability
+
+/* The written plural antecedent is the population before the first action,
+   including objects that cannot receive the counters. */
+/* @sem Instruction::[Effect{result:@mark, operation:NoteObjects{objects:$immediate_affected_set}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Selected(@marked)), kind:$counter_kind, amount:$counter_amount}]}}, ...$original_counter_followup] */
+clause_original_counter_group ::= "put" counter_amount counter_kind ("counter" | "counters") "on" immediate_affected_set ("and" | ".") original_counter_followup
+
+original_counter_followup ::= original_counter_changes | original_counter_untap | original_counter_gain_life
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@marked)), changes:$changes, duration:$duration, evaluation:Snapshot}}] */
+original_counter_changes ::= counter_group_reference changes duration
+/* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:Selected(@marked), tapped:false}}] */
+original_counter_untap ::= "untap" original_counter_count_words
+/* @sem Instruction::[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:@times($number, Expr::CountObjects(Selected(@marked)))}}] */
+original_counter_gain_life ::= "you" "gain" number "life" "for" "each" "of" original_counter_count_words
+/* @sem () */
+original_counter_count_words ::= "those" ("creatures" | "permanents")
+
+/* CR205.1a-b: named subtype changes replace; explicit retention adds. Card
+   type retention is independent of this creature-subtype mode. */
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word, $mana_color_word_2]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Artifact), AddCardType(Creature)] */
+bk_two_colors_named_artifact ::= mana_color_word "and" mana_color_word becomes_types "artifact" "creature"
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word, $mana_color_word_2]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Artifact, Creature])] */
+bk_two_colors_named_artifact_native ::= mana_color_word "and" mana_color_word becomes_types "artifact" "creature"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{except:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}], count:Exactly(Constant(1))}} */
+choose_creature_type_excluding ::= "choose" "a" "creature" "type" "other" "than" creature_subtype
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}} */
+choose_creature_type_plain ::= "choose" "a" "creature" "type"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot} */
+continuous_chosen_creature_type ::= affected "becomes" "that" "type" duration
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Add}], duration:$duration, evaluation:Snapshot} */
+continuous_chosen_creature_type_retained ::= affected "becomes" "that" "type" retention_addition duration
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
+clause_creature_type_choice_timed ::= affected "becomes" "the" "creature" "type" "of" "your" "choice" duration
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:Indefinite, evaluation:Snapshot}}] */
+clause_creature_type_choice_indefinite ::= affected "becomes" "the" "creature" "type" "of" "your" "choice"
+
+/* That-type wording takes its kind from this explicit choice sentence. It
+   cannot escape as an independent creature-typed operation after a land choice. */
+/* @sem Instruction::[Effect{result:@next, operation:$creature_type_choice_operation}, Effect{result:@next, operation:$creature_type_chosen_change}] */
+clause_choose_creature_type_change ::= creature_type_choice_operation "." creature_type_chosen_change
+creature_type_choice_operation ::= choose_creature_type_plain | choose_creature_type_excluding
+creature_type_chosen_change ::= continuous_chosen_creature_type | continuous_chosen_creature_type_retained
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:LandType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
+clause_choose_basic_land_type_change ::= "choose" "a" "basic" "land" "type" "." affected "becomes" "that" "type" duration
+
+/* An explicit type noun also supports edited/persistent choices, independently
+   of a preceding choice of another kind. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot} */
+continuous_chosen_creature_type_explicit ::= affected "becomes" "the" "chosen" "creature" "type" duration
+
+/* Adjacent rules of this same player merge natively. Declare the complete span
+   as well, so printing a merged IR never drops either the grant or reduction. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$spell_mana_grant_subject, abilities:List([$spell_mana_grant_effect])}), $spell_blitz_cost_rule]} */
+static_spell_mana_grant_with_cost_reduction ::= spell_mana_grant_subject ("has" | "have") spell_mana_grant_effect "." NEWLINE spell_blitz_cost_rule "."
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$spell_blitz_cost_rule]} */
+static_spell_keyword_cost_reduction ::= spell_blitz_cost_rule "."
+/* @sem Change::PlayerRule(KeywordCost{keyword:Blitz, cards:Any, change:Reduce($spell_generic_reduction), per:$count_each_commander_cast}) */
+spell_blitz_cost_rule ::= "blitz" "costs" "you" "pay" "cost" spell_generic_reduction "less" "for" "each" count_each_commander_cast
+/* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]}]) */
+spell_generic_reduction ::= "{" NUMBER "}"
+
+/* The color-count qualifier belongs to the graveyard card population. The
+   granted mechanic is held by each receiving card. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:@and($card_filter, $filter_exact_color_count)}), changes:[GrantAbility(Mechanic{mechanic:JumpStart})]} */
+static_graveyard_card_exact_color_jump_start ::= "each" card_filter "card" "in" "your" "graveyard" filter_exact_color_count "has" "jump-start" "."
+
+/* Reach overrides flying only for the stated attacking population; it grants
+   no persistent keyword and leaves other evasion rules in force. */
+/* @sem Change::[Rule(BlocksDespite{attackers:$filter_plural, evasion:Flying})] */
+blocks_as_though_had_reach ::= "can" "block" filter_plural "as" "though" "it" "had" "reach"
+
+/* Each population retains its zone and selector. A shared trait phrase does
+   not turn spell control into casting or battlefield control into ownership. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$cross_characteristics}, Static{kind:Ordinary, affected:Objects($cross_spells), changes:$cross_characteristics}] */
+line_battlefield_and_stack_traits ::= cross_battlefield_subject "and" cross_spells cross_characteristics "."
+
+/* Damage-source color is distinct from changing the object's actual colors.
+   The pinned permanent and spell domains use their respective native changes. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$damage_source_color_filter}), changes:[Rule(Unique(ColorlessSourceOfDamage))]}, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Stack), kind:Spell, filter:$damage_source_color_filter}), changes:[ColorlessDamageSource]}] */
+line_mixed_damage_zone ::= damage_source_color_filter "permanents" "and" "spells" "are" "colorless" "sources" "of" "damage" "."
+damage_source_color_filter ::= adjective_color | damage_source_color_pair
+/* @sem ObjectFilter::AnyOf(@unordered([$adjective_color, $adjective_color_2])) */
+damage_source_color_pair ::= adjective_color "and" "/" "or" adjective_color
+
+/* Ignore summoning sickness only for attacks at the stated defenders. This
+   grants no Haste keyword and makes no exception for other players. The plural
+   follow-up requires a plural subject. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected_plural), changes:$rule_attack_haste_opponent_defenders} */
+static_opponent_attack_haste ::= ("all")? affected_plural rule_attack_haste_opponent_defenders "."
+/* @sem Change::[Rule(AttackException{ignore:SummoningSickness, defenders:PlayersAndPlaneswalkers(OpponentsOf(PlayerRef::AbilityController))})] */
+rule_attack_haste_opponent_defenders ::= "can" "attack" "your" "opponents" "and" "planeswalkers" "your" "opponents" "control" "as" "though" "those" "creatures" "had" "haste"
+
+/* @sem Change::[Rule(BlocksDespite{attackers:Any, evasion:Landwalk})] */
+blocks_as_though_landwalk ::= "can" "block" "creatures" "with" "landwalk" "abilities" "as" "though" "they" "didn't" "have" "those" "abilities"
+
+/* Either deadline ends the effect at its first matching event. The die face
+   is an event amount, independent of the affected objects or ability holder. */
+/* @sem Duration::Either([$until_end_of_turn, UntilEvent(Filtered{event:Player{event:RollsADie, players:All}, condition:Compare{left:EventAmount, test:NumberTest::Compare{comparison:Equal, value:$number}}})]) */
+duration_die_roll_earliest ::= until_end_of_turn "," "or" "until" "any" "player" "rolls" "a" number "," "whichever" "comes" "first"
+
+/* Rule changes follow the live population, while the base statistics snapshot
+   the same operands. Each written deadline belongs to its own effect. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$rule_changes, duration:$this_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[SetBasePowerToughness{power:$number, toughness:$number_2}], duration:$duration, evaluation:Snapshot}}] */
+clause_live_then_base_stats ::= affected rule_changes this_duration "and" ("has" | "have") "base" "power" "and" "toughness" number "/" number duration
+
+/* The owner belongs to this explicitly named object, including a receiving
+   holder inside a grant. No attacker or previous target supplies its owner. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One($self_explicit_ref)), changes:[Rule(Prohibit(Attack(Players(One(OwnerOf($self_explicit_ref))))))]} */
+static_cant_attack_owner ::= self_explicit_ref "can't" "attack" "its" "owner" "."
+
+/* The stated player fixes both the step and expiry. Every creature is subject
+   to the rule, including one another player untaps during that step. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}), changes:[Rule(UntapStep{players:One($graveyard_target_player), behavior:Skip})], duration:DuringNextUntapStep($graveyard_target_player), evaluation:LiveObjects} */
+creatures_skip_target_next_untap ::= "creatures" "don't" "untap" "during" graveyard_target_player "next" "untap" "step"
+
+/* Player protection and creature protection retain distinct recipients. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(GrantKeyword(Protection(Objects{kind:Any, filter:Chosen(CardType)})))]}, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), changes:[GrantKeyword(Protection(Objects{kind:Any, filter:Chosen(CardType)}))]}] */
+line_player_creature_chosen_protection ::= "you" "and" "creatures" "you" "control" "have" "protection" "from" "the" "chosen" "card" "type" "."
+
+/* Both stated spell populations get timing permission, without a permission
+   to play them from another zone or a change to their other restrictions. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellTiming{spells:AnyOf(@unordered([$card_filter, $card_filter_2])), timing:Flash})]} */
+static_spell_filter_pair_flash ::= "you" "may" "cast" card_filter "spells" "and" card_filter "spells" "as" "though" "they" "had" "flash" "."
+
+/* The cause filters and the controlled ability holders are independent.
+   Entering and leaving remain two native trigger-rule entries. */
+/* @sem Ability::[TriggerRule{cause:ZoneChange{objects:AnyOf(@unordered([$filter_phrase, $filter_phrase_2])), to:Battlefield}, abilities:AbilityOf(ControlledBy(One(AbilityController))), rule:TriggersAgain}, TriggerRule{cause:Object{event:LeavesBattlefield, objects:AnyOf(@unordered([$filter_phrase, $filter_phrase_2]))}, abilities:AbilityOf(ControlledBy(One(AbilityController))), rule:TriggersAgain}] */
+line_additional_enter_leave_triggers ::= "if" ("a" | "an") filter_phrase "or" ("a" | "an") filter_phrase "entering" "or" "leaving" "the" "battlefield" "causes" "a" "triggered" "ability" "of" "a" "permanent" "you" "control" "to" "trigger" "," "that" "ability" "triggers" "an" "additional" "time" "."
+
+/* @sem Change::[RemoveAllAbilities] */
+change_lose_all_abilities ::= ("loses" | "lose") "all" "abilities"
+
+/* A definite creature antecedent supports literal boosts here. Variable boosts
+   retain their existing definition-scope rules rather than opening an unbound X. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($boosted_creature)), changes:[Pump{power:$signed_literal, toughness:$signed_literal_2}], duration:$duration, evaluation:Snapshot} */
+qualified_creature_literal_pump ::= boosted_creature ("gets" | "get") signed_literal "/" signed_literal duration
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::CardType(Creature)) */
+boosted_creature ::= "the" "creature"
+signed_literal ::= signed_literal_plus | signed_literal_minus
+/* @sem $number_digits */
+signed_literal_plus ::= "+" number_digits
+/* @sem Expr::@negate($number_digits) */
+signed_literal_minus ::= "-" number_digits
+
+/* Adjacent statements preserve independent conditions and one explicit host. */
+
+/* @sem Ability::[$static_conditional_first, $static_conditional] */
+line_inline_conditional_statics ::= static_conditional_first static_conditional
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$static_changes}, Conditional{condition:ObjectMatches{object:$attached_ref, filter:$host_static_quality}, then:[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$conditional_followup_changes}]}, Conditional{condition:ObjectMatches{object:$attached_ref, filter:$host_static_quality_2}, then:[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$conditional_followup_changes_2}]}] */
+line_host_two_conditions ::= attached_ref static_changes "." "as" "long" "as" host_static_quality "," "it" conditional_followup_changes "." "as" "long" "as" host_static_quality "," "it" conditional_followup_changes "."
+
+/* @sem $quality */
+host_static_quality ::= ("it's" | "it" "is") quality
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:[...$base_subtypes, ...$attached_restriction_pair]}] */
+line_host_base_restrictions ::= attached_ref "is" base_subtypes "." "it" attached_restriction_pair "."
+
+/* These simultaneous restrictions share their host; printing may use either order. */
+/* @sem Change::[...$change_lose_all_abilities, ...$rule_change] */
+attached_restriction_pair ::= rule_change "and" change_lose_all_abilities
+    | change_lose_all_abilities "and" rule_change
+
+/* The unqualified legend rule exemption applies to every battlefield permanent. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:Any}), changes:[Rule(LegendRuleExempt)]} */
+static_global_legend_rule ::= "the" '"' ("↓")? "legend" "rule" '"' "doesn't" "apply" "."
+
+/* The explicit local X definition supplies every X in this one modifier. */
+/* @sem Operation::@where(Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[GrantKeyword($keyword_value), Pump{power:AnnouncedX, toughness:$value}], duration:$duration, evaluation:Snapshot}, Expr::ObjectProperty{object:Affected, property:$stat, information:CurrentOrLastKnown}) */
+continuous_keyword_pump_own_power ::= affected "gains" keyword_value "and" "gets" "+" "X" "/" "+" value duration "," "where" "X" "is" "its" stat
+
+/* Every written condition qualifies its own simultaneous keyword grant. */
+line_conditional_keyword_arms ::= conditional_keywords_2 | conditional_keywords_3 | conditional_keywords_4 | conditional_keywords_5
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality)}), changes:[GrantKeyword($keyword_value)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_2)}), changes:[GrantKeyword($keyword_value_2)] }] */
+conditional_keywords_2 ::= "each" filter_phrase "has" keyword_value "if" conditional_keyword_quality (",")? "and" keyword_value "if" conditional_keyword_quality "."
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality)}), changes:[GrantKeyword($keyword_value)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_2)}), changes:[GrantKeyword($keyword_value_2)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_3)}), changes:[GrantKeyword($keyword_value_3)] }] */
+conditional_keywords_3 ::= "each" filter_phrase "has" keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality (",")? "and" keyword_value "if" conditional_keyword_quality "."
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality)}), changes:[GrantKeyword($keyword_value)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_2)}), changes:[GrantKeyword($keyword_value_2)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_3)}), changes:[GrantKeyword($keyword_value_3)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_4)}), changes:[GrantKeyword($keyword_value_4)] }] */
+conditional_keywords_4 ::= "each" filter_phrase "has" keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality (",")? "and" keyword_value "if" conditional_keyword_quality "."
+
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality)}), changes:[GrantKeyword($keyword_value)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_2)}), changes:[GrantKeyword($keyword_value_2)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_3)}), changes:[GrantKeyword($keyword_value_3)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_4)}), changes:[GrantKeyword($keyword_value_4)] }, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, $conditional_keyword_quality_5)}), changes:[GrantKeyword($keyword_value_5)] }] */
+conditional_keywords_5 ::= "each" filter_phrase "has" keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality "," keyword_value "if" conditional_keyword_quality (",")? "and" keyword_value "if" conditional_keyword_quality "."
+
+/* @sem $quality */
+conditional_keyword_quality ::= ("it's" | "it" "is") quality
+
+/* Player protection uses the player-rule constructor; the accompanying
+   permanents receive the same source quality as an ordinary keyword. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(GrantKeyword(Protection($protection_source_quality)))]}, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[GrantKeyword(Protection($protection_source_quality))]}] */
+line_player_objects_protection ::= "you" "and" filter_plural "have" "protection" "from" protection_source_quality "."

@@ -1,0 +1,291 @@
+/* Costs and mana symbols. */
+/* @sem Cost::Cost{parts:$cost_parts} */
+cost ::= cost_parts
+
+cost_parts ::= cost_parts_one | cost_parts_more
+
+/* @sem CostPart::[$cost_part] */
+cost_parts_one ::= cost_part
+
+/* @sem CostPart::[$cost_part, ...$cost_parts_later] */
+cost_parts_more ::= cost_part "," cost_parts_later
+
+cost_parts_later ::= cost_parts_one_later | cost_parts_more_later | cost_sacrifice_many_and_self | cost_exile_many_and_self
+
+/* @sem CostPart::[CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count)}, CostPart::Sacrifice{objects:One(ObjectRef::Source)}] */
+cost_sacrifice_many_and_self ::= "↑" "sacrifice" count filter_plural "and" self_text
+
+/* @sem CostPart::[CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, choose:Exactly($count)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}, CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}] */
+cost_exile_many_and_self ::= "↑" "exile" count "cards" "from" "your" "graveyard" "and" self_text
+
+/* @sem CostPart::[$cost_part_later] */
+cost_parts_one_later ::= cost_part_later
+
+/* @sem CostPart::[$cost_part_later, ...$cost_parts_later] */
+cost_parts_more_later ::= cost_part_later "," cost_parts_later
+
+cost_part_later ::= cost_symbols | cost_word_later
+
+/* @sem $cost_words */
+cost_word_later ::= "↑" cost_words
+
+cost_part ::= cost_symbols | cost_words
+
+cost_symbols ::= cost_mana | cost_tap
+
+cost_words ::= mined_cost | cost_words_owned
+
+/* Explicit verb-led payments exclude mined mana-only shorthand. */
+cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_energy_words | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many
+    | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped
+    | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_discard_random
+    | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self
+    | cost_exile_self | cost_remove_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand
+
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:SameObject($self_explicit_ref)} */
+cost_reveal_self_hand ::= "reveal" self_explicit_ref "from" "your" "hand"
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_self ::= "exile" self_text
+
+/* An ability paid by moving this card out of a zone works only from that zone. */
+activated_from_zone ::= activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after
+    | activated_graveyard_return | activated_graveyard_return_limited
+
+/* Returning this card explicitly from the graveyard scopes the whole
+   activation there, including any preceding action and its announced targets. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[...$instructions, $graveyard_self_hand]}})} */
+activated_graveyard_return ::= cost ":" instructions "." graveyard_self_hand "."
+
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[...$instructions, $graveyard_self_hand]}})} */
+activated_graveyard_return_limited ::= cost ":" instructions "." graveyard_self_hand "." activation_limits "."
+
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:One(@self), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}} */
+graveyard_self_hand ::= "return" "this" "card" "from" "your" "graveyard" "to" "your" "hand"
+
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
+activated_exile_self ::= "exile" self_text "from" "your" "graveyard" ":" program "."
+
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
+activated_exile_self_after ::= cost_parts "," "↑" "exile" self_text "from" "your" "graveyard" ":" program "."
+
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
+activated_discard_self ::= "discard" self_text ":" program "."
+
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
+activated_discard_self_after ::= cost_parts "," "↑" "discard" self_text ":" program "."
+
+/* @sem CostPart::RemoveCounters{removals:[CounterRemoval{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, amount:Count(Exactly($counter_amount))}]} */
+cost_remove_counters ::= "remove" counter_amount counter_kind ("counter" | "counters") "from" self_explicit_ref
+
+/* @sem CostPart::TapSymbol */
+cost_tap ::= "{T}"
+
+/* @sem CostPart::Life($number) */
+cost_life ::= "pay" number "life"
+
+/* @sem CostPart::Sacrifice{objects:One($self_explicit_ref)} */
+cost_sacrifice_self ::= "sacrifice" self_explicit_ref
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice ::= "sacrifice" ("a" | "an") filter_phrase
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_phrase)}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice_another ::= "sacrifice" "another" filter_phrase
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count)} */
+cost_sacrifice_many ::= "sacrifice" count filter_plural
+
+/* @sem CostPart::Discard{count:Expr::Constant(1), filter:Any} */
+cost_discard ::= "discard" ("a" | "an") "card"
+
+/* @sem CostPart::Discard{count:Expr::Constant(1), filter:$card_filter} */
+cost_discard_filtered ::= "discard" ("a" | "an") card_filter "card"
+
+/* @sem CostPart::Discard{count:$count, filter:Any} */
+cost_discard_many ::= "discard" count "cards"
+
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::Tapped), $filter_phrase)}, choose:Exactly(Expr::Constant(1))}], tapped:true} */
+cost_tap_untapped ::= "tap" ("a" | "an") "untapped" filter_phrase
+
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::Tapped), $filter_plural)}, choose:Exactly($count)}], tapped:true} */
+cost_tap_untapped_many ::= "tap" count "untapped" filter_plural
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$card_filter}, choose:Exactly(Expr::Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_graveyard ::= "exile" ("a" | "an") card_filter "card" "from" "your" "graveyard"
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, choose:Exactly(Expr::Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_card_graveyard ::= "exile" "a" "card" "from" "your" "graveyard"
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, choose:Exactly($count)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_cards_graveyard ::= "exile" count "cards" "from" "your" "graveyard"
+
+/* @sem CostPart::Discard{count:$count_or_a, filter:Any, random:true} */
+cost_discard_random ::= "discard" count_or_a "at" "random"
+
+count_or_a ::= count_a_card | count_cards
+
+/* @sem Expr::Constant(1) */
+count_a_card ::= "a" "card"
+
+/* @sem $count */
+count_cards ::= count "cards"
+
+/* @sem CostPart::RemoveCounters{removals:[CounterRemoval{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), kind:PowerToughness(1, 1), amount:Count(Exactly(Expr::Constant(1))), selection:SelectionChoice{player:AbilityController, count:Exactly(Expr::Constant(1))}}]} */
+cost_remove_pt_counter ::= "remove" "a" "+" "1" "/" "+" "1" "counter" "from" ("a" | "an") filter_phrase
+
+/* @sem CostPart::Discard{count:$count, filter:$card_filter} */
+cost_discard_filtered_many ::= "discard" count card_filter "cards"
+
+/* @sem CostPart::DiscardHand */
+cost_discard_hand ::= "discard" "your" "hand"
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:OwnersHand(CardArrival{counters:[], states:[]})} */
+cost_return_self ::= "return" self_text "to" "its" "owner's" "hand"
+
+/* @sem CostPart::Discard{count:Expr::Constant(1), filter:AnyOf([$card_filter, $card_filter_2])} */
+cost_discard_either_kind ::= "discard" ("a" | "an") card_filter "card" "or" card_filter "card"
+
+/* @sem CostPart::Exert(ObjectRef::Source) */
+cost_exert ::= "exert" self_text
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:$number, from:Top}, choose:Exactly($number)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_top ::= "exile" "the" "top" number "cards" "of" "your" "library"
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count)}], destination:OwnersHand(CardArrival{counters:[], states:[]})} */
+cost_return_many ::= "return" count filter_plural "to" "their" "owner's" "hand"
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $noun), $filter_phrase])}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice_another_or ::= "sacrifice" "another" noun "or" ("a" | "an") filter_phrase
+
+/* @sem CostPart::Keyword{action:CollectEvidence, amount:$number} */
+cost_collect_evidence ::= "collect" "evidence" number
+
+/* @sem CostPart::Life(Expr::Divide{numerator:Expr::PlayerNumber{player:PlayerRef::AbilityController, number:Life}, denominator:Expr::Constant(2), rounding:$rounding_words}) */
+cost_life_half ::= "pay" "half" "your" "life" "," rounding_words
+
+/* @sem CostPart::Mana($mana_symbols) */
+cost_mana ::= mana_symbols
+
+mana_symbols ::= mana_symbols_one | mana_symbols_more
+
+/* @sem ManaSymbol::[$mana_symbol] */
+mana_symbols_one ::= mana_symbol
+
+/* @sem ManaSymbol::[$mana_symbol, ...$mana_symbols] */
+mana_symbols_more ::= mana_symbol mana_symbols
+
+mana_symbol ::= mana_colorless | mana_generic | mana_white | mana_blue | mana_black | mana_red | mana_green | mana_x | mana_snow
+    | mana_hybrid
+
+/* @sem ManaSymbol::Snow */
+mana_snow ::= "{S}"
+
+/* @sem ManaSymbol::Hybrid($mana_letter, $mana_letter_2) */
+mana_hybrid ::= "{" mana_letter "/" mana_letter "}"
+
+mana_letter ::= letter_white | letter_blue | letter_black | letter_red | letter_green
+
+/* @sem ManaColor::White */
+letter_white ::= "W"
+/* @sem ManaColor::Blue */
+letter_blue ::= "U"
+/* @sem ManaColor::Black */
+letter_black ::= "B"
+/* @sem ManaColor::Red */
+letter_red ::= "R"
+/* @sem ManaColor::Green */
+letter_green ::= "G"
+
+/* @sem ManaSymbol::Generic($number) */
+mana_generic ::= "{" NUMBER "}"
+
+/* An amount of generic mana, as in `cost {2} less`. */
+braced_amount ::= braced_number | braced_x
+/* @sem Expr::Constant($number) */
+braced_number ::= "{" NUMBER "}"
+/* @sem Expr::AnnouncedX */
+braced_x ::= "{" "X" "}"
+
+/* The printed generic reduction is a factor, not the number of counted objects. */
+/* @sem Ability::Casting(ReduceCost([_{amount:Multiply([$braced_number, $count_each])}])) */
+casting_reduction_each ::= "this" "spell" "costs" braced_number "less" "to" "cast" "for" "each" count_each "."
+
+/* A following reduction modifies the offered payment, before deciding whether
+   the holder is sacrificed. It cannot create a second sacrifice instruction. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:_{parts:[ManaReducedForEach{mana:$mana_symbols, reduction:$generic_reduction_symbols, per:$count_each}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:_{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One($self_ref)}}]}, otherwise:_{}}]} */
+program_sentence_reduced_payment ::= "sacrifice" self_ref "unless" "you" "pay" mana_symbols "." "this" "cost" "is" "reduced" "by" generic_reduction_symbols "for" "each" count_each "."
+
+/* @sem Operand::List([Term{family:CostReductionSymbol, form:CostReduceGeneric, operands:[Integer($number)]}]) */
+generic_reduction_symbols ::= "{" NUMBER "}"
+
+/* @sem ManaSymbol::Color(White) */
+mana_white ::= "{W}"
+/* @sem ManaSymbol::Color(Blue) */
+mana_blue ::= "{U}"
+/* @sem ManaSymbol::Color(Black) */
+mana_black ::= "{B}"
+/* @sem ManaSymbol::Color(Red) */
+mana_red ::= "{R}"
+/* @sem ManaSymbol::Color(Green) */
+mana_green ::= "{G}"
+/* @sem ManaSymbol::X */
+mana_x ::= "{X}"
+
+/* @sem ManaSymbol::Color(Colorless) */
+mana_colorless ::= "{C}"
+
+/* Another excludes the current ability holder without implying a card type. */
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), ObjectFilter::Not(ObjectFilter::Tapped), $filter_phrase)}, choose:Exactly(Expr::Constant(1))}], tapped:true} */
+cost_tap_another_untapped ::= "tap" "another" "untapped" filter_phrase
+
+/* Each condition independently reduces the source spell's generic cost.
+   The continuation is not a conjunctive condition or an additional game action. */
+conditional_casting_reductions ::= conditional_reductions_compact | conditional_reductions_sentences
+/* @sem Ability::[Casting(If{condition:$condition, rule:ReduceCost([_{amount:$braced_amount}])}), Casting(If{condition:$condition_2, rule:ReduceCost([_{amount:$braced_amount_2}])})] */
+conditional_reductions_compact ::= "this" "spell" "costs" braced_amount "less" "to" "cast" "if" condition "and" braced_amount "less" "to" "cast" "if" condition "."
+/* @sem Ability::[Casting(If{condition:$condition, rule:ReduceCost([_{amount:$braced_amount}])}), Casting(If{condition:$condition_2, rule:ReduceCost([_{amount:$braced_amount_2}])})] */
+conditional_reductions_sentences ::= "this" "spell" "costs" braced_amount "less" "to" "cast" "if" condition "." "it" "also" "costs" braced_amount "less" "to" "cast" "if" condition "."
+
+/* Named cost actions are performed by the payer of their enclosing Cost. */
+/* @sem CostPart::Keyword{action:Blight, amount:$value} */
+cost_blight ::= "blight" value
+
+/* The number repeats the printed mana unit; it is not generic mana. */
+/* @sem CostPart::Repeated{part:Mana($mana_symbols), times:$number} */
+cost_pay_repeated_mana ::= "pay" number mana_symbols
+
+
+/* A resolving instruction modifies one future spell, not this permanent or
+   every later spell. Omitting "this turn" retains the pending modifier. */
+/* @sem Operation::ChangeSpell{subject:$next_cost_subject, changes:[SpellCost(Reduce{reductions:[_{amount:$braced_number}], spill_into_generic:true})]} */
+next_filtered_spell_reduction ::= next_cost_subject "costs" braced_number "less" "to" "cast"
+
+next_cost_subject ::= next_cost_filtered_turn | next_cost_filtered_pending | next_cost_any_turn | next_cost_any_pending
+/* @sem SpellSubject::Next{spells:$next_cost_filter, player:AbilityController, this_turn:true, from_hand:false} */
+next_cost_filtered_turn ::= "the" "next" next_cost_filter "spell" "you" "cast" "this" "turn"
+/* @sem SpellSubject::Next{spells:$next_cost_filter, player:AbilityController, this_turn:false, from_hand:false} */
+next_cost_filtered_pending ::= "the" "next" next_cost_filter "spell" "you" "cast"
+/* @sem SpellSubject::Next{spells:Any, player:AbilityController, this_turn:true, from_hand:false} */
+next_cost_any_turn ::= "the" "next" "spell" "you" "cast" "this" "turn"
+/* @sem SpellSubject::Next{spells:Any, player:AbilityController, this_turn:false, from_hand:false} */
+next_cost_any_pending ::= "the" "next" "spell" "you" "cast"
+
+next_cost_filter ::= filter_phrase | adjective_nontype
+
+/* A final quoted ability's period closes the activation body. The following
+   activation limit belongs to the outer ability, not to the granted holder. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$program_sentence_quoted})} */
+activated_graveyard_quoted_limited ::= cost "from" "your" "graveyard" ":" program_sentence_quoted activation_limits "."
+
+/* The chosen opponent performs this cost action. The body repeats that same
+   actor operand; it is not token creation by the ability's controller. */
+/* @sem CostPart::PlayerAction{player:$cost_token_actor, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One($cost_token_actor), tokens:$token_groups, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
+cost_opponent_token_creation ::= "have" cost_token_actor "create" token_groups
+/* @sem PlayerRef::OneOf(OpponentsOf(AbilityController)) */
+cost_token_actor ::= "an" "opponent"
+
+/* A written this-card exile cost proves the holder's activation zone.
+   Following restrictions apply to the same complete activated ability. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}}]}, limits:$activation_limits, announcement:@announcement, body:$program_sentence})} */
+activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":" program_sentence activation_limits "."
