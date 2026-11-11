@@ -1,4 +1,5 @@
 //! Check a phrase family's synthetic cases with one grammar load and no rebuild.
+use oracle_ir_grammar::corpus;
 use oracle_ir_grammar::engine::{
     CardInputContext, CardNote, Engine, Refusal, canonical_abilities, validate_abilities,
 };
@@ -282,9 +283,15 @@ fn run() -> Result<(), String> {
     let compositional = args.iter().any(|arg| arg == "--compositional");
     let off =
         engine.rule_set(|name| compositional && (name.starts_with("m_") || name.starts_with("t_")));
+    // Cases are independent reads of one immutable engine. Results keep input order.
+    let cases: Vec<&Case> = families.iter().flat_map(|f| &f.cases).collect();
+    let mut checked = corpus::parallel(&cases, |case| check(&engine, &off, case))?.into_iter();
     let reports: Vec<_> = families
         .iter()
-        .map(|family| report_family(&engine, &off, family, compositional))
+        .map(|family| {
+            let results: Vec<_> = checked.by_ref().take(family.cases.len()).collect();
+            report_family(family, &results, compositional)
+        })
         .collect();
     let passed = reports.iter().all(|(_, passed)| *passed);
     if reports.len() == 1 {
@@ -320,15 +327,14 @@ fn load_family(path: &str) -> Result<Family, String> {
 }
 
 fn report_family(
-    engine: &Engine,
-    off: &RuleSet,
     family: &Family,
+    results: &[Result<usize, String>],
     compositional: bool,
 ) -> (Value, bool) {
     let mut failures = Vec::new();
     let mut readings = 0;
-    for case in &family.cases {
-        match check(engine, off, case) {
+    for (case, result) in family.cases.iter().zip(results) {
+        match result {
             Ok(n) => readings += n,
             Err(why) => failures.push(json!({"name":case.name,"why":why})),
         }

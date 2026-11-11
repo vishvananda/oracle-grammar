@@ -62,6 +62,8 @@ selection, so omitting a one-command environment setting does not create a
 second dependency cache. A remembered directory that no longer exists is refused
 until `CARGO_TARGET_DIR` selects one. Quick helper builds and the test preset
 compile the frontend incrementally; `build --optimized` does not.
+`ORACLE_GRAMMAR_THREADS` raises the default of two worker threads for families,
+inspection and scoring.
 
 ## Layout
 
