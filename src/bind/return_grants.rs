@@ -617,11 +617,11 @@ mod tests {
 #[cfg(test)]
 mod native_preflight {
     use super::*;
-    use crate::engine::{Engine, canonical_abilities};
+    use crate::engine::canonical_abilities;
 
     #[test]
     fn both_whole_card_grants_have_only_the_correct_full_receipt_and_reject_wrong_native_scalars() {
-        let engine = Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/returned-keyword-grants.json"
         ))
@@ -676,7 +676,7 @@ mod native_preflight {
 
     #[test]
     fn owned_exile_return_grant_composition_and_edited_duration_keep_the_current_receipt() {
-        let engine = Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let case: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/returned-keyword-grants.json"
         ))

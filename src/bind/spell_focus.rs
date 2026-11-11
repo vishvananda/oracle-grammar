@@ -147,8 +147,8 @@ mod tests {
 
     #[test]
     fn native_spell_references_and_unrelated_object_controls_preflight() {
-        use crate::engine::{Engine, semantic_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::semantic_abilities;
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> =
             serde_json::from_str(include_str!("../../tests/fixtures/spell-focus-native.json"))
                 .unwrap();
@@ -193,8 +193,8 @@ mod tests {
 
     #[test]
     fn spell_possessive_inverse_preflight() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let family: Value =
             serde_json::from_str(include_str!("../../families/spell-focus.json")).unwrap();
         for case in family["cases"].as_array().unwrap() {
@@ -215,8 +215,8 @@ mod tests {
 
     #[test]
     fn native_permission_sources_and_created_spell_events_keep_complete_readings() {
-        use crate::engine::{Engine, semantic_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::semantic_abilities;
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/spell-focus-compatibility-native.json"
         ))

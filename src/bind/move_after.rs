@@ -393,8 +393,8 @@ mod tests {
     use super::*;
     #[test]
     fn library_preflight_actual_full_native_frames_and_prior_controls() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/move-after-information.json"
         ))

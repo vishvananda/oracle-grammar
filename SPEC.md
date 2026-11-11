@@ -164,7 +164,9 @@ upstream experiments use isolated checkouts, never another worker's active tree.
 
 Group related grammar fixes before validating the affected phrase families.
 Build diagnostic helpers once per Rust, lexical, model or toolchain change.
-Reuse them for runtime syntax edits. Batch parse-only triage; print and reparse
+Reuse them for runtime syntax edits. `cargo quicktest` uses the same release
+profile and CLI feature set, with no binary links. Keep one routine profile and
+feature configuration instead of rebuilding a matrix at each checkpoint. Batch parse-only triage; print and reparse
 the relevant changed cohort. Reserve full corpus audits for explicit checkpoints.
 
 Required repository checks are formatting, tests, Clippy over all targets and

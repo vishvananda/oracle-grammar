@@ -354,8 +354,8 @@ mod cycling_tests {
 
     #[test]
     fn end_to_end_native_cycling_x_and_independent_announcements_preflight() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let fixtures: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/cycling-activation-x.json"
         ))
@@ -379,8 +379,8 @@ mod cycling_tests {
 
     #[test]
     fn end_to_end_cycling_event_x_inverse_preflight() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let family: Value =
             serde_json::from_str(include_str!("../../families/cycling-activation-x.json")).unwrap();
         for case in family["cases"].as_array().unwrap() {

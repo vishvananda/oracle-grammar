@@ -179,7 +179,7 @@ mod tests {
             serde_json::from_str(include_str!("../../tests/fixtures/shared-clauses-17.json"))
                 .unwrap();
         let case = &case[0];
-        let engine = crate::engine::Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let actual = engine
             .parse(
                 case["name"].as_str().unwrap(),

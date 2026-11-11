@@ -69,11 +69,9 @@ fn scalar(objects: &Value, depth: usize) -> Result<Option<ObjectRef>, String> {
 mod tests {
     use super::*;
     use crate::engine::Engine;
-    use std::sync::OnceLock;
 
     fn engine() -> &'static Engine {
-        static ENGINE: OnceLock<Engine> = OnceLock::new();
-        ENGINE.get_or_init(|| Engine::load().unwrap())
+        crate::test_support::engine()
     }
 
     #[test]

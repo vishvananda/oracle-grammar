@@ -470,8 +470,8 @@ mod tests {
 
     #[test]
     fn granted_damage_itself_original_text_remains_available_from_expected_ir() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let family: Value = serde_json::from_str(include_str!(
             "../../families/player-event-object-bindings.json"
         ))

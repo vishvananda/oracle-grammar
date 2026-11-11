@@ -6,14 +6,19 @@ license = "MIT OR Apache-2.0"
 description = "Phrase-level Oracle grammar over MTGish's normalized IR"
 publish = false
 autobins = false
+autotests = false
 repository = "https://github.com/vishvananda/oracle-grammar"
 readme = "README.md"
+
+[lib]
+# There are no Rust documentation examples to test. Keep the ordinary test
+# command to one executable instead of building a second library for rustdoc.
+doctest = false
 
 [features]
 default = []
 # Diagnostics are explicit: ordinary library tests do not link every CLI.
 cli = []
-validation-audit = ["cli"]
 # Keep allocation instrumentation separate from timing builds.
 allocation-profile = ["cli", "dep:stats_alloc"]
 
@@ -85,7 +90,7 @@ name = "validate-readings"
 path = "src/bin/validate-readings.rs"
 test = false
 bench = false
-required-features = ["validation-audit"]
+required-features = ["cli"]
 
 [dependencies]
 mtgish-ast = { git = "https://github.com/vishvananda/mtgish.git", rev = "a2914e01da6515e3bbd855a4b5c5282b0bfe4d8b", default-features = false }
@@ -102,9 +107,9 @@ stats_alloc = { version = "=0.1.10", optional = true }
 # them independently, disable source lowering, and reuse their opt-level 1 builds.
 # Correctness uses one reusable frontend configuration; performance builds
 # explicitly override this package to opt-level 3.
-# Tests repeatedly load the full grammar; optimize the frontend without
-# rebuilding the large upstream dependencies at another optimization level.
-[profile.test.package.oracle-ir-grammar]
+# Test and diagnostic loops repeatedly load the full grammar. Optimize the
+# frontend in dev/test without rebuilding upstream packages at another level.
+[profile.dev.package.oracle-ir-grammar]
 opt-level = 1
 
 [profile.release.package.oracle-ir-grammar]

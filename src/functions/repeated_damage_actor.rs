@@ -267,8 +267,8 @@ mod tests {
 
     #[test]
     fn repeated_actor_three_native_frames_retain_every_complete_reviewed_reading() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/repeated-damage-actor-native.json"
         ))

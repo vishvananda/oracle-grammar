@@ -18,7 +18,7 @@ pub mod style;
 pub mod tokens;
 mod traverse;
 
-#[cfg(all(test, feature = "validation-audit"))]
+#[cfg(test)]
 mod saved_meaning_preflight;
 
 #[cfg(test)]
@@ -38,3 +38,9 @@ mod target_contrast_tests;
 
 #[cfg(test)]
 mod revealed_card_antecedent_tests;
+
+#[cfg(test)]
+mod test_support;
+
+#[cfg(test)]
+mod tests;

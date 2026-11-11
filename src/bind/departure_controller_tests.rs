@@ -1,6 +1,5 @@
 use super::*;
 use crate::engine::{Engine, canonical_abilities};
-use std::sync::OnceLock;
 fn cue() -> Value {
     json!({"$sym":"indefinite_opponent_controller","args":[{"kind":"ControlledBy","args":{"kind":"OpponentsOf","args":{"kind":"AbilityController"}}}],"at":3})
 }
@@ -14,8 +13,7 @@ fn ability(event: Value) -> Value {
     json!({"kind":"Triggered","args":{"event":event,"limits":{"per_turn":null,"total":null},"announcement":{"targets":[],"modes":null},"body":{"instructions":[]}}})
 }
 fn engine() -> &'static Engine {
-    static ENGINE: OnceLock<Engine> = OnceLock::new();
-    ENGINE.get_or_init(|| Engine::load().unwrap())
+    crate::test_support::engine()
 }
 #[test]
 fn actual_public_original_edits_explicit_owner_and_quoted_roles_before_cli() {

@@ -542,7 +542,7 @@ mod type_information_tests {
 
     #[test]
     fn whole_native_type_information_and_current_card_controls() {
-        let engine = crate::engine::Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/death-type-information.json"
         ))
@@ -566,7 +566,7 @@ mod type_information_tests {
     }
     #[test]
     fn ordinary_type_relation_and_query_choices_compose_without_learned_rules() {
-        let engine = crate::engine::Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let off = engine.rule_set(|name| name.starts_with("m_") || name.starts_with("t_"));
         let family: Value =
             serde_json::from_str(include_str!("../../families/death-type-information.json"))

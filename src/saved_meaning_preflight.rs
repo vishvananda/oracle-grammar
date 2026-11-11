@@ -136,16 +136,16 @@ impl Write for BoundedOutput {
 }
 
 #[test]
-#[ignore = "external frozen request; run via tools/issue_preflight.py"]
+#[ignore = "external request; set ORACLE_PREFLIGHT_REQUEST and ORACLE_PREFLIGHT_OUTPUT"]
 fn saved_meaning_cohort() {
     let input = std::env::var_os("ORACLE_PREFLIGHT_REQUEST").expect("ORACLE_PREFLIGHT_REQUEST");
     let output = std::env::var_os("ORACLE_PREFLIGHT_OUTPUT").expect("ORACLE_PREFLIGHT_OUTPUT");
     let request = request(std::path::Path::new(&input)).expect("valid bounded request");
-    let engine = Engine::load().expect("load frozen grammar");
+    let engine = crate::test_support::engine();
     let mut rows = Vec::new();
     let mut row_bytes = BoundedOutput(Vec::new());
     for case in &request.cases {
-        let row = inspect(&engine, case);
+        let row = inspect(engine, case);
         // Bound accumulated evidence while collecting, before the final report
         // serialization. Do not retain unbounded results across many cases.
         serde_json::to_writer(&mut row_bytes, &row).expect("bounded row evidence");

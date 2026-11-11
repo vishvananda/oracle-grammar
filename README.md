@@ -25,9 +25,9 @@ Rust 1.98.0 and Python 3.11 or newer are required. Dependencies use public HTTPS
 there are no submodules or required corpus downloads.
 
 ```sh
-cargo test --locked
-cargo run --locked --features cli --bin probe -- Example 'Draw a card.'
-cargo run --locked --features cli --bin grammar-export > /tmp/oracle.ebnf
+cargo quicktest
+cargo run --locked --release --features cli --bin probe -- Example 'Draw a card.'
+cargo run --locked --release --features cli --bin grammar-export > /tmp/oracle.ebnf
 ```
 
 For repeated grammar edits, build the helpers once:
@@ -39,10 +39,21 @@ python3 tools/dev.py family families/revealed-followups.json --compositional
 python3 tools/dev.py families
 ```
 
+`cargo quicktest` runs the full unit suite in the same release profile and CLI
+feature configuration as the helpers. Filters stay cheap, for example
+`cargo quicktest tests::revealed_followups` or
+`cargo quicktest bind::optional_entered_card`. Plain `cargo test --locked` also
+works when a development-profile run is needed.
+
 Syntax EBNF edits are loaded from disk on each invocation. Rust, lexical EBNF,
 print model, toolchain or dependency changes require a rebuild; the helper checks
 those inputs before running. A validation-reference update does not require a
-rebuild. CLI targets are opt-in, so ordinary tests avoid linking every diagnostic.
+rebuild. CLI targets are opt-in, so ordinary tests avoid linking every diagnostic. The
+regression suites share one immutable test engine in one executable; tests use
+opt-level 1 for the frontend in dev/test and reuse the ordinary dependency builds.
+A warm `build` reuses verified helpers without invoking Cargo; each run verifies
+the selected executable. Read-only helper runs share a lock and may run in
+parallel; builds use an exclusive lock.
 Generated files and build receipts stay under ignored `.cache/` and `target/`.
 `CARGO_TARGET_DIR` can select a shared local build cache.
 
@@ -50,7 +61,7 @@ Generated files and build receipts stay under ignored `.cache/` and `target/`.
 
 - `grammar/`: Oracle terminals, phrase composition and inverse semantics.
 - `src/`: grammar loader, parser, binder, renderer and model boundary.
-- `tests/` and `families/`: checked-in unit/integration assets and phrase families.
+- `src/tests/`, `tests/fixtures/` and `families/`: regression tests and phrase assets.
 - `pins/model.json`: provenance of the current schema implementation.
 - `adapters/mtgish/`: independently pinned optional validation reference.
 - `tools/`: reusable diagnostics and pin/artifact checks.
@@ -75,7 +86,7 @@ bundled in this repository.
 
 ```sh
 cargo fmt --check
-cargo test --locked
+cargo quicktest
 cargo clippy --locked --all-targets --all-features -- -D warnings
 python3 -m unittest discover -s tools -p 'test_*.py'
 python3 tools/pin.py check

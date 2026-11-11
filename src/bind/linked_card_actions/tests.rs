@@ -7,7 +7,7 @@ fn local_optional_exile_uses_its_receipt_instead_of_a_linked_query() {
     ))
     .unwrap();
     let case = &cases[0];
-    let engine = crate::engine::Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     let actual = engine
         .parse(
             case["name"].as_str().unwrap(),

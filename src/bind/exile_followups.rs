@@ -666,8 +666,8 @@ mod phase_tests {
 
     #[test]
     fn four_exact_export_native_frames_are_supported_without_scalar_return_readings() {
-        use crate::engine::{Engine, semantic_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::semantic_abilities;
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/exile-followup-native.json"
         ))
@@ -713,8 +713,8 @@ mod phase_tests {
 
     #[test]
     fn saltskitter_and_sundering_keep_source_correct_frames_and_preserve_properties() {
-        use crate::engine::{Engine, semantic_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::semantic_abilities;
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/exile-followup-aliases-native.json"
         ))
@@ -753,8 +753,8 @@ mod phase_tests {
 
     #[test]
     fn granted_death_return_defaults_preserve_holder_and_named_granter_from_expected_ir() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let family: Value =
             serde_json::from_str(include_str!("../../families/event-card-views.json")).unwrap();
         for index in [8, 9] {

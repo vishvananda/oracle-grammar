@@ -226,7 +226,7 @@ mod tests {
     }
     #[test]
     fn actual_full_phoenix_native_prints_and_reparses_without_spelling_key() {
-        use crate::engine::{Engine, canonical_abilities};
+        use crate::engine::canonical_abilities;
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/fixtures/additional-graveyard-trigger-native.json"
         ))
@@ -241,7 +241,7 @@ mod tests {
                     .is_some_and(|name| name.contains("Phoenix"))
             })
             .unwrap();
-        let engine = Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let expected = canonical_abilities(&c["normal_expected_readings"][0]).unwrap();
         let name = c["name"].as_str().unwrap();
         let got = engine.parse(name, c["text"].as_str().unwrap()).unwrap();

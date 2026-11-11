@@ -32,10 +32,10 @@ def source(root=ROOT):
 
 
 @contextmanager
-def lock():
+def lock(shared=False):
     WORK.mkdir(parents=True, exist_ok=True)
     with (WORK/'build.lock').open('a') as stream:
-        fcntl.flock(stream, fcntl.LOCK_EX)
+        fcntl.flock(stream, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
         yield
 
 
@@ -52,10 +52,18 @@ def compiler():
 
 def build(optimized=False):
     pin.check_model()
+    profile = 'optimized' if optimized else 'quick'
+    try:
+        cached = ready()
+        if cached['profile'] == profile:
+            print(json.dumps({**cached, 'reused': True}, indent=2))
+            return
+    except (ValueError, OSError):
+        pass
     before = source()
     inputs = compiler()
     subprocess.run(['cargo', 'fmt', '--check'], cwd=ROOT, check=True)
-    command = ['cargo', 'build', '--locked', '--release', '--features', 'validation-audit',
+    command = ['cargo', 'build', '--locked', '--release', '--features', 'cli',
                '--message-format=json']
     for name in BINS:
         command += ['--bin', name]
@@ -82,13 +90,13 @@ def build(optimized=False):
         shutil.copy2(path, WORK/name)
         hashes[name] = pin.digest(WORK/name)
     manifest = {'source_sha256': before, 'compiler': inputs, 'binaries': hashes,
-                'profile': 'optimized' if optimized else 'quick',
+                'profile': profile,
                 'build_seconds': time.monotonic()-started}
     (WORK/'build.json').write_text(json.dumps(manifest, indent=2)+'\n')
     print(json.dumps(manifest, indent=2))
 
 
-def ready():
+def ready(binary=None):
     pin.check_model()
     try:
         manifest = json.loads((WORK/'build.json').read_text())
@@ -96,7 +104,10 @@ def ready():
         raise ValueError('run python3 tools/dev.py build first') from error
     if manifest['source_sha256'] != source() or manifest['compiler'] != compiler():
         raise ValueError('compiled inputs changed; run python3 tools/dev.py build')
-    if any(pin.digest(WORK/name) != sha for name, sha in manifest['binaries'].items()):
+    if set(manifest['binaries']) != set(BINS):
+        raise ValueError('helper manifest is incomplete; rebuild')
+    selected = (binary,) if binary else BINS
+    if any(pin.digest(WORK/name) != manifest['binaries'][name] for name in selected):
         raise ValueError('helper executable changed; rebuild')
     return manifest
 
@@ -114,8 +125,8 @@ def modules(root=ROOT):
 
 
 def run(action, args):
-    ready()
     binary = {'family': 'family-check', 'families': 'family-check'}.get(action, action)
+    ready(binary)
     if action == 'families':
         if args:
             raise ValueError('families takes no arguments')
@@ -131,7 +142,7 @@ def main():
         with lock():
             build('--optimized' in args)
     elif args and args[0] in ('family', 'families', 'probe', 'inspect', 'score', 'validate-readings'):
-        with lock():
+        with lock(shared=True):
             run(args[0], args[1:])
     else:
         raise ValueError('usage: dev.py build [--optimized] | family <file>... [--compositional] | families | probe <name> <text> | inspect <request> | score ... | validate-readings ...')

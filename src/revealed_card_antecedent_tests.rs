@@ -1,10 +1,8 @@
 //! Public whole-card regression; no fabricated source substitutions or aliases.
 use crate::engine::{Engine, canonical_abilities};
 use serde_json::Value;
-use std::sync::OnceLock;
 fn engine() -> &'static Engine {
-    static E: OnceLock<Engine> = OnceLock::new();
-    E.get_or_init(|| Engine::load().unwrap())
+    crate::test_support::engine()
 }
 fn cases() -> Vec<Value> {
     serde_json::from_str::<Value>(include_str!(

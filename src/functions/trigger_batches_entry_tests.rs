@@ -1,9 +1,7 @@
 use super::*;
 use crate::engine::{Engine, canonical_abilities};
-use std::sync::OnceLock;
 fn engine() -> &'static Engine {
-    static ENGINE: OnceLock<Engine> = OnceLock::new();
-    ENGINE.get_or_init(|| Engine::load().unwrap())
+    crate::test_support::engine()
 }
 fn fixture() -> Value {
     serde_json::from_str(include_str!(

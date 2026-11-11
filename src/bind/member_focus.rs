@@ -582,8 +582,8 @@ mod tests {
 
     #[test]
     fn end_to_end_native_members_and_both_paid_and_ordinary_goblin_bomb_sources() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let fixtures: Vec<Value> =
             serde_json::from_str(include_str!("../../tests/fixtures/member-focus.json")).unwrap();
         for case in fixtures.into_iter().take(3) {

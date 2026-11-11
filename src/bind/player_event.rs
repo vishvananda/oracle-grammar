@@ -96,8 +96,8 @@ mod tests {
 
     #[test]
     fn original_whole_card_player_event_source_focus_preflight() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/player-event-object-bindings-native.json"
         ))
@@ -123,8 +123,8 @@ mod tests {
 
     #[test]
     fn player_and_reflexive_holder_creator_library_preflight() {
-        use crate::engine::{Engine, canonical_abilities};
-        let engine = Engine::load().unwrap();
+        use crate::engine::canonical_abilities;
+        let engine = crate::test_support::engine();
         let family: Value = serde_json::from_str(include_str!(
             "../../families/player-event-object-bindings.json"
         ))

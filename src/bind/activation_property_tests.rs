@@ -201,8 +201,7 @@ fn inverse_keeps_exact_activation_receipt_shape_and_ordinary_references() {
 }
 
 fn engine() -> &'static crate::engine::Engine {
-    static ENGINE: std::sync::OnceLock<crate::engine::Engine> = std::sync::OnceLock::new();
-    ENGINE.get_or_init(|| crate::engine::Engine::load().unwrap())
+    crate::test_support::engine()
 }
 
 #[test]

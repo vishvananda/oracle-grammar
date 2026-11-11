@@ -113,7 +113,7 @@ fn lexical_annotation_does_not_hide_leading_if_or_mark_explicit_targets() {
 
 #[test]
 fn actual_engine_load_originals_include_exactly_the_published_partition_frames() {
-    let engine = crate::engine::Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     for c in fixtures()["cases"].as_array().unwrap() {
         assert_eq!(
             engine
@@ -167,7 +167,7 @@ fn scope_boundaries_do_not_inherit_the_prior_return_into_scalar_branches() {
 
 #[test]
 fn synthesized_counter_edit_prints_current_amount_and_cannot_replay_old_a_counter() {
-    let engine = crate::engine::Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     let f = fixtures();
     let c = &f["cases"][0];
     let original = canonical_abilities(&c["expected"]).unwrap();
@@ -263,7 +263,7 @@ fn inverse_accepts_only_unobserved_canonical_unused_duplicates() {
 
 #[test]
 fn actual_hallowed_original_and_edited_counter_print_before_cli_relink() {
-    let engine = crate::engine::Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     let f = fixtures();
     let c = f["cases"]
         .as_array()

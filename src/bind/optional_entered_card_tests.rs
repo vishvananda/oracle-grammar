@@ -36,7 +36,7 @@ fn exact(engine: &Engine, case: &Value, reading: &Value) -> bool {
 
 #[test]
 fn whole_original_cards_keep_scopes_and_retire_only_wrong_implicit_objects() {
-    let engine = Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     for case in fixtures() {
         let name = case["name"].as_str().unwrap();
         let parsed = engine.parse(name, case["text"].as_str().unwrap()).unwrap();
@@ -63,7 +63,7 @@ fn whole_original_cards_keep_scopes_and_retire_only_wrong_implicit_objects() {
         }
         for reading in &parsed.readings {
             validate_abilities(reading).unwrap();
-            assert!(exact(&engine, &case, reading), "{name}: exact print");
+            assert!(exact(engine, &case, reading), "{name}: exact print");
             assert!(
                 engine
                     .print_keyed(name, reading, &types(&case), &[])
@@ -77,7 +77,7 @@ fn whole_original_cards_keep_scopes_and_retire_only_wrong_implicit_objects() {
 
 #[test]
 fn surprise_native_default_and_edited_color_use_the_current_entry_receipt() {
-    let engine = Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     let case = fixtures()
         .into_iter()
         .find(|c| c["name"] == "Surprise Deployment")
@@ -166,7 +166,7 @@ fn entered_followups(ability: &Value) {
 
 #[test]
 fn prior_results_and_targets_cannot_steal_the_actual_hand_entry() {
-    let engine = Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     for prefix in [
         "Draw a card. ",
         "Tap target creature. ",
@@ -200,7 +200,7 @@ fn prior_results_and_targets_cannot_steal_the_actual_hand_entry() {
 
 #[test]
 fn prior_target_slot_and_result_do_not_change_the_graveyard_receipt() {
-    let engine = Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     let text = "At the beginning of your upkeep, tap target creature. Draw a card. You may return target creature card from your graveyard to the battlefield. That creature gains haste until end of turn. Exile it at the beginning of the next end step.";
     let parsed = engine.parse("Entry Controls", text).unwrap();
     for reading in &parsed.readings {
@@ -216,7 +216,7 @@ fn prior_target_slot_and_result_do_not_change_the_graveyard_receipt() {
 
 #[test]
 fn explicit_ability_holder_is_not_an_implicit_entered_card() {
-    let engine = Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     for noun in ["this creature", "Entry Controls"] {
         let text = format!(
             "{{R}}: You may put a planeswalker card from your hand onto the battlefield. Sacrifice {noun} at the beginning of the next end step."
@@ -240,7 +240,7 @@ fn source_aware_station_control_preserves_the_112th_complete_meaning() {
         .iter()
         .find(|c| c["name"] == "Sledge-Class Seedship")
         .unwrap();
-    let engine = Engine::load().unwrap();
+    let engine = crate::test_support::engine();
     let name = case["name"].as_str().unwrap();
     let characteristics = serde_json::from_value(case["context"].clone()).unwrap();
     let pt = case["printed_power_toughness"].as_array().unwrap();

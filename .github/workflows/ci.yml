@@ -20,14 +20,14 @@ jobs:
       - run: python3 tools/pin.py check
       - run: python3 tools/hygiene.py
       - run: python3 -m unittest discover -s tools -p 'test_*.py'
-      - run: cargo test --locked
+      - run: cargo quicktest
       - run: cargo clippy --locked --all-targets --all-features -- -D warnings
-      - run: cargo build --locked --features cli --bin family-check
+      - run: cargo build --locked --release --features cli --bin family-check
       - name: Compositional phrase families
         run: |
           python3 - <<'PY'
           import json, subprocess
           from pathlib import Path
           families = json.loads(Path('tests/families.json').read_text())
-          subprocess.run(['target/debug/family-check', *families, '--compositional'], check=True)
+          subprocess.run(['target/release/family-check', *families, '--compositional'], check=True)
           PY

@@ -1,10 +1,8 @@
 //! The target is remembered by the entry ability, not inferred from the leave event.
 use crate::engine::{Engine, canonical_abilities};
 use serde_json::Value;
-use std::sync::OnceLock;
 fn engine() -> &'static Engine {
-    static ENGINE: OnceLock<Engine> = OnceLock::new();
-    ENGINE.get_or_init(|| Engine::load().unwrap())
+    crate::test_support::engine()
 }
 fn native() -> Vec<Value> {
     serde_json::from_str(include_str!(

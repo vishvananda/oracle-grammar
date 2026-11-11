@@ -1,48 +1,46 @@
 //! Whole-card semantics, edited operands and references across shared clauses.
-use oracle_ir_grammar::engine::{Engine, Refusal, canonical_abilities, validate_abilities};
+use crate::engine::{Engine, Refusal, canonical_abilities, validate_abilities};
 use serde_json::{Value, json};
-use std::sync::OnceLock;
 
 fn engine() -> &'static Engine {
-    static ENGINE: OnceLock<Result<Engine, String>> = OnceLock::new();
-    ENGINE.get_or_init(Engine::load).as_ref().unwrap()
+    crate::test_support::engine()
 }
 
 fn cases() -> Vec<Value> {
     [
-        include_str!("fixtures/shared-clauses-0.json"),
-        include_str!("fixtures/shared-clauses-1.json"),
-        include_str!("fixtures/shared-clauses-2.json"),
-        include_str!("fixtures/shared-clauses-3.json"),
-        include_str!("fixtures/shared-clauses-4.json"),
-        include_str!("fixtures/shared-clauses-5.json"),
-        include_str!("fixtures/shared-clauses-6.json"),
-        include_str!("fixtures/shared-clauses-7.json"),
-        include_str!("fixtures/shared-clauses-8.json"),
-        include_str!("fixtures/shared-clauses-9.json"),
-        include_str!("fixtures/shared-clauses-10.json"),
-        include_str!("fixtures/shared-clauses-11.json"),
-        include_str!("fixtures/shared-clauses-12.json"),
-        include_str!("fixtures/shared-clauses-13.json"),
-        include_str!("fixtures/shared-clauses-14.json"),
-        include_str!("fixtures/shared-clauses-15.json"),
-        include_str!("fixtures/shared-clauses-16.json"),
-        include_str!("fixtures/shared-clauses-17.json"),
-        include_str!("fixtures/shared-clauses-18.json"),
-        include_str!("fixtures/shared-clauses-19.json"),
-        include_str!("fixtures/shared-clauses-20.json"),
-        include_str!("fixtures/shared-clauses-21.json"),
-        include_str!("fixtures/shared-clauses-22.json"),
-        include_str!("fixtures/shared-clauses-23.json"),
-        include_str!("fixtures/shared-clauses-24.json"),
-        include_str!("fixtures/shared-clauses-25.json"),
-        include_str!("fixtures/shared-clauses-26.json"),
-        include_str!("fixtures/shared-clauses-27.json"),
-        include_str!("fixtures/shared-clauses-28.json"),
-        include_str!("fixtures/shared-clauses-29.json"),
-        include_str!("fixtures/shared-clauses-30.json"),
-        include_str!("fixtures/shared-clauses-31.json"),
-        include_str!("fixtures/shared-clauses-32.json"),
+        include_str!("../../tests/fixtures/shared-clauses-0.json"),
+        include_str!("../../tests/fixtures/shared-clauses-1.json"),
+        include_str!("../../tests/fixtures/shared-clauses-2.json"),
+        include_str!("../../tests/fixtures/shared-clauses-3.json"),
+        include_str!("../../tests/fixtures/shared-clauses-4.json"),
+        include_str!("../../tests/fixtures/shared-clauses-5.json"),
+        include_str!("../../tests/fixtures/shared-clauses-6.json"),
+        include_str!("../../tests/fixtures/shared-clauses-7.json"),
+        include_str!("../../tests/fixtures/shared-clauses-8.json"),
+        include_str!("../../tests/fixtures/shared-clauses-9.json"),
+        include_str!("../../tests/fixtures/shared-clauses-10.json"),
+        include_str!("../../tests/fixtures/shared-clauses-11.json"),
+        include_str!("../../tests/fixtures/shared-clauses-12.json"),
+        include_str!("../../tests/fixtures/shared-clauses-13.json"),
+        include_str!("../../tests/fixtures/shared-clauses-14.json"),
+        include_str!("../../tests/fixtures/shared-clauses-15.json"),
+        include_str!("../../tests/fixtures/shared-clauses-16.json"),
+        include_str!("../../tests/fixtures/shared-clauses-17.json"),
+        include_str!("../../tests/fixtures/shared-clauses-18.json"),
+        include_str!("../../tests/fixtures/shared-clauses-19.json"),
+        include_str!("../../tests/fixtures/shared-clauses-20.json"),
+        include_str!("../../tests/fixtures/shared-clauses-21.json"),
+        include_str!("../../tests/fixtures/shared-clauses-22.json"),
+        include_str!("../../tests/fixtures/shared-clauses-23.json"),
+        include_str!("../../tests/fixtures/shared-clauses-24.json"),
+        include_str!("../../tests/fixtures/shared-clauses-25.json"),
+        include_str!("../../tests/fixtures/shared-clauses-26.json"),
+        include_str!("../../tests/fixtures/shared-clauses-27.json"),
+        include_str!("../../tests/fixtures/shared-clauses-28.json"),
+        include_str!("../../tests/fixtures/shared-clauses-29.json"),
+        include_str!("../../tests/fixtures/shared-clauses-30.json"),
+        include_str!("../../tests/fixtures/shared-clauses-31.json"),
+        include_str!("../../tests/fixtures/shared-clauses-32.json"),
     ]
     .into_iter()
     .flat_map(|s| serde_json::from_str::<Vec<Value>>(s).unwrap())

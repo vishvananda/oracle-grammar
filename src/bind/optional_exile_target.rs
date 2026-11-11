@@ -381,7 +381,7 @@ mod tests {
 #[cfg(test)]
 mod native_preflight {
     use super::*;
-    use crate::engine::{Engine, canonical_abilities};
+    use crate::engine::canonical_abilities;
 
     fn canonical_set(values: Vec<Value>) -> Vec<Value> {
         let mut values: Vec<_> = values
@@ -409,7 +409,7 @@ mod native_preflight {
     }
     #[test]
     fn twenty_target_phrases_and_six_existing_set_controls_preserve_all_reviewed_meanings() {
-        let engine = Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/optional-exile-targets-native.json"
         ))
@@ -448,7 +448,7 @@ mod native_preflight {
     }
     #[test]
     fn single_slot_exile_followup_uses_actual_after_receipt_in_both_input_views() {
-        let engine = Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let case: Value = serde_json::from_str(include_str!(
             "../../tests/fixtures/optional-exile-target-return.json"
         ))
@@ -497,7 +497,7 @@ mod native_preflight {
 
     #[test]
     fn registered_optional_target_family_has_only_the_two_reviewed_views_and_verified_prints() {
-        let engine = Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let family: Value =
             serde_json::from_str(include_str!("../../families/optional-exile-targets.json"))
                 .unwrap();
@@ -552,7 +552,7 @@ mod native_preflight {
     }
     #[test]
     fn edited_optional_return_controller_reads_current_operand_and_rejects_old_trail() {
-        let engine = Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         let case: Value = serde_json::from_str(include_str!(
             "../../tests/fixtures/optional-exile-target-return.json"
         ))

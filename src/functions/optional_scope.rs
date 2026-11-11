@@ -328,7 +328,7 @@ mod tests {
         let cases: Vec<Value> =
             serde_json::from_str(include_str!("../../tests/fixtures/shared-clauses-21.json"))
                 .unwrap();
-        let engine = crate::engine::Engine::load().unwrap();
+        let engine = crate::test_support::engine();
         for case in cases {
             let name = case["name"].as_str().unwrap();
             let attempt = engine.inspect_with_candidate_ir(name, case["text"].as_str().unwrap());

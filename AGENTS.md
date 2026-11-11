@@ -38,10 +38,12 @@ bounds. Rust files target 800 lines, hard limit 1,500; functions have at most
 
 Group fixes before relevant family validation. Use `python3 tools/dev.py build`
 once after compiled-input changes, then reuse the helpers for syntax edits.
-CLI binaries are feature-gated. Respect `CARGO_TARGET_DIR` for shared caches.
+CLI binaries are feature-gated. Default-grammar tests share the read-only engine
+in `src/test_support.rs`; use a fresh engine for custom grammars or mutable settings.
+Add regression tests under `src/tests/`; root `tests/` holds data fixtures. Respect `CARGO_TARGET_DIR` for shared caches.
 Do not run a whole corpus or rebuild at every grammar-only checkpoint.
 
-Run `cargo fmt --check`, `cargo test --locked`, and
+Run `cargo fmt --check`, `cargo quicktest` (the locked release library test preset), and
 `cargo clippy --locked --all-targets --all-features -- -D warnings`, plus
 `python3 -m unittest discover -s tools -p 'test_*.py'`,
 `python3 tools/pin.py check` and `python3 tools/hygiene.py`.

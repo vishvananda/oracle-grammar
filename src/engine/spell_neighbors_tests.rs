@@ -1,10 +1,8 @@
 //! Native modal announcements must not absorb unconditional neighboring programs.
 use super::*;
-use std::sync::OnceLock;
 
 fn engine() -> &'static Engine {
-    static ENGINE: OnceLock<Engine> = OnceLock::new();
-    ENGINE.get_or_init(|| Engine::load().unwrap())
+    crate::test_support::engine()
 }
 fn fixtures() -> Value {
     serde_json::from_str(include_str!(

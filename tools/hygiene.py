@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Check owned source size, fixture closure and portable checked-in paths."""
 from pathlib import Path
+import os
 import re
 import sys
 
@@ -10,8 +11,11 @@ IGNORED = {'.git', '.cache', 'target', '__pycache__'}
 
 def check(root=ROOT):
     errors = []
-    files = [p for p in root.rglob('*')
-             if p.is_file() and not any(part in IGNORED for part in p.relative_to(root).parts)]
+    files = []
+    for directory, subdirs, names in os.walk(root):
+        subdirs[:] = sorted(name for name in subdirs if name not in IGNORED
+                            and not (Path(directory)/name).is_symlink())
+        files.extend(Path(directory)/name for name in sorted(names))
     for path in files:
         if path.suffix not in ('.rs', '.py', '.md', '.toml', '.json', '.ebnf', '.yml', '.txt'):
             continue
