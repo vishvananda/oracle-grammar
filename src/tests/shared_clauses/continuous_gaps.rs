@@ -315,3 +315,22 @@ fn a_cast_spell_keeps_a_temporary_grant_only_as_a_spell_change() {
     assert_eq!(found(&frame, "CreateContinuousEffect").len(), 1);
     printed(&frame);
 }
+
+#[test]
+fn a_granted_self_trigger_reads_it_as_its_event_subject() {
+    for holder in ["Enchanted creature has", "Creatures you control have"] {
+        let text = format!(
+            "{holder} \"Whenever this creature becomes the target of a spell, put a +1/+1 counter on it.\""
+        );
+        let readings = engine().parse("Context example", &text).unwrap().readings;
+        assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
+        let mut counters = Vec::new();
+        visit(&readings[0], "PutCounters", &mut counters);
+        assert_eq!(
+            counters[0]["placements"][0]["recipients"],
+            json!({"kind":"Objects","args":{"kind":"One","args":{"kind":"EventSubject"}}}),
+            "{text}"
+        );
+        printed_types(&readings[0], &["Enchantment"]);
+    }
+}

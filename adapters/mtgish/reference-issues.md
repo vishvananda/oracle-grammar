@@ -34,6 +34,8 @@ Each named face matches at `7228b84`.
 - Alora, Cheerful Scout: the perpetual effect is applied to
   `CostObjects{payment:Resolution(0), component:[0], view:Performed, phase:After}`
   under the payment guard.
+- Veteran's Armaments: the grammar withdrew its dispute and reads `it` in a
+  granted holder's own trigger as `EventSubject`, as upstream kept.
 
 ## Perpetual effect after an ordinary return to hand
 
@@ -131,6 +133,29 @@ sacrifices.
   reflexive trigger.
 - Status: open.
 
+## "It" in a granted or token holder's own trigger read as `Source`
+
+In a holder's own trigger, `it` names the event's object, as in a printed
+self-trigger. The reference reads it as `EventSubject` in granted and token
+abilities such as Dismiss into Dream and Makeshift Mannequin ("When this
+creature becomes the target of a spell or ability, sacrifice it."), Vrondiss,
+Rage of Ancients ("When this token deals damage, sacrifice it."), Dionus,
+Elvish Archdruid ("Whenever this creature becomes tapped during your turn,
+untap it and put a +1/+1 counter on it."), Fungus Sliver and Veteran's
+Armaments. Two faces read the same `it` as `Source`.
+
+### Jace, Cunning Castaway
+
+- At `[1].args.body.instructions[0].args.operation.args.tokens[0].recipe.Defined.abilities[0].args.body.instructions[0].args.operation.args.objects.args`:
+  reference `{"kind":"Source"}`, expected `{"kind":"EventSubject"}`.
+- Status: open.
+
+### Tale of Katara and Toph
+
+- At `[0].args.changes[0].args.args.body.instructions[0].args.operation.args.placements[0].recipients.args.args`:
+  reference `{"kind":"Source"}`, expected `{"kind":"EventSubject"}`.
+- Status: open.
+
 ## Retained upstream pending a witness
 
 Upstream kept these encodings and named the test that would justify a change.
@@ -142,14 +167,6 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
 - Witness: the history reader keeps the outer event frame; show that
   `EventSubject` rebinds to the queried history event.
-- Status: open.
-
-### Veteran's Armaments
-
-- At `[0].args.changes[0].args.args.body.instructions[0].args.operation.args.affected.Objects.args`:
-  reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
-- Witness: show that `Source` names the equipped holder in the granted
-  attack/block frame.
 - Status: open.
 
 ### Storm Entity

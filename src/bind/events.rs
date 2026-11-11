@@ -354,9 +354,9 @@ pub(super) fn scope_for(ability: &Value, card_name: &str, holders: u16) -> Scope
     };
     if triggered {
         event_referents(&ability["args"]["event"], &mut scope, true);
-        if holders > 0 && !scope.leaving && holder::self_event(&ability["args"]["event"], holders) {
-            scope.objects.push(json!({"kind": "Source"}));
-        }
+        // A granted or token holder's own event names that holder as its
+        // subject, so `it` reads the event as it does in a printed ability.
+
         // `If this artifact has ..., put a counter on it`: the condition named the card last.
         let condition = &ability["args"]["intervening_if"];
         if mentions(condition, "Source") || names_self(condition) {
