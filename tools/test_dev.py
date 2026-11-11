@@ -87,7 +87,8 @@ class BuildInputTests(unittest.TestCase):
 
     def test_documented_test_entrypoint_displays_cargo_help(self):
         result = subprocess.run([sys.executable, str(dev.ROOT/'tools/dev.py'), 'test', '--help'],
-                                cwd=dev.ROOT, capture_output=True, text=True, check=True, timeout=15)
+                                cwd=dev.ROOT, env={**os.environ, 'CARGO_TERM_COLOR': 'never'},
+                                capture_output=True, text=True, check=True, timeout=15)
         self.assertIn('Usage: cargo test', result.stdout)
 
     def test_test_preset_forwards_filter_and_cache_environment(self):
