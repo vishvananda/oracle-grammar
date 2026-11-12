@@ -95,6 +95,11 @@ instruction, so each player gets only their own payment instead of the total.
   `Performed(0)` in `Mill{players:All}`, expected `PerformedTotal(0)`.
 - Status: open.
 
+Witness for all three, under the `Performed` contract upstream kept for
+Alliance of Arms: in a two-player game you pay {3} and your opponent pays
+nothing. "The total amount of mana paid this way" is 3, so each player draws,
+mills or searches for 3. `Performed(0)` gives you 3 and your opponent 0.
+
 ## A draw "except the first one they draw in each of their draw steps" read as a draw-step window
 
 The trigger fires on every draw except a player's first draw in their own draw
@@ -118,6 +123,11 @@ reads the trigger as Orcish Bowmasters does, so Orcish Bowmasters matches.
 - At `[1].args.event.Filtered`: same reference and expected forms as Leela,
   Sevateem Warrior.
 - Status: open.
+
+Witness for both: during your end step an opponent cycles a card and draws.
+That draw is not the first one in their own draw step, so the printed trigger
+fires; `Window(DrawStep)` does not. Likewise, an opponent's first draw of your
+turn fires the printed trigger but fails `NthEachTurn ... NotEqual 1`.
 
 ## "Sacrifice another creature or a token" split into two sacrifices
 
@@ -252,14 +262,6 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
 - Witness: verify the per-recipient reading of `Acting`.
 - Status: open.
 
-### Bloodroot Apothecary
-
-- At `[2].args.event.Player.objects.args`: reference adds
-  `Not(SameObject(Source))`, expected `[Not(CardType(Creature)), Token]` with
-  no source exclusion, as in 6 controls.
-- Witness: a legal state where an opponent's sacrifice includes the source.
-- Status: open.
-
 ### Ward of Piety
 
 - At `[1].args.body.instructions[0].args.operation`: reference
@@ -349,6 +351,14 @@ and the grammar adds no alias for them.
   perpetual changes. Kithkin Brinefarer has the same sentence with
   `Duplicate(One(EventSubject))`. Its event's `OwnedBy` is a separate
   encoding split (see "A card in your graveyard" below).
+
+#### Bloodroot Apothecary
+
+- `Not(SameObject(Source))` beside `[Not(CardType(Creature)), Token]` is
+  redundant, so no witness exists. The source is a nontoken creature card. A
+  token copy would be sacrificed only by its controller (CR 701.21a), who also
+  controls the look-back trigger (CR 603.10a) and is not their own opponent.
+  6 controls with the same event omit the exclusion.
 
 #### Worzel, the Protector, Nemesis Mask, Molly Hayes, Runaway, Forbidden Crypt
 
