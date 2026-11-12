@@ -276,14 +276,23 @@ objects_each_other ::= "each" "other" filter_phrase
 /* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@pump_other_ref(ObjectRef::@it))), $filter_plural)}) */
 objects_all_other ::= "all" "other" filter_plural
 
-/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$target_count, filter:$filter_plural})) */
-objects_targets ::= ("each" "of")? target_count "target" filter_plural
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$target_count_any, filter:$filter_plural})) */
+objects_targets ::= ("each" "of")? target_count_any "target" filter_plural
 
 
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$target_count, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@it)), $filter_plural)})) */
 objects_other_targets ::= ("each" "of")? target_count "other" "target" filter_plural
 
 target_count ::= target_receipt_up_to | target_exactly | target_up_to | target_adjacent_range
+
+/* A count of targets, or as many as the chooser likes, none included. `Other` targets
+   take only `target_count`: whether `any number of other target creatures` contrasts
+   with an earlier target or with this object depends on how directly that target
+   precedes it (Jaheira, Heroic Harper and Kinetic Ooze in the reference), which the
+   binder cannot yet tell. */
+target_count_any ::= target_count | count_any_number
+/* @sem Count::AnyNumber */
+count_any_number ::= "any" "number" "of"
 
 /* @sem Count::Exactly($count) */
 target_exactly ::= count
@@ -928,8 +937,8 @@ recipients_opponents_and_theirs ::= "each" "opponent" "and" "each" filter_head "
 /* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:CardType(Planeswalker), players:OpponentsOf(PlayerRef::AbilityController)})) */
 recipients_opponent_or_walker ::= "target" "opponent" "or" "planeswalker"
 
-/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:$target_count, filter:Any})) */
-recipients_many ::= ("each" "of")? target_count "targets"
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:$target_count_any, filter:Any})) */
+recipients_many ::= ("each" "of")? target_count_any "targets"
 
 /* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any})) */
 recipients_any_target ::= "any" "target"

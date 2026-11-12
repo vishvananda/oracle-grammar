@@ -830,3 +830,6 @@ mod kinds;
 
 #[path = "shared_clauses/payments.rs"]
 mod payments;
+
+#[path = "shared_clauses/counts.rs"]
+mod counts;
