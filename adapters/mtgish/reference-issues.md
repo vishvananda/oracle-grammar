@@ -266,6 +266,20 @@ different are marked *(different)*.
 - One-card seeded rules keep both until upstream chooses; a hand rule for the
   plural would give Start Your Engines both readings.
 
+#### A target constraint one card adds to its wording
+
+- Spirit Flare ("Tap target untapped creature you control. If you do, it deals
+  damage equal to its power to target attacking or blocking creature an
+  opponent controls") adds `Not(SameObject(Target{slot:0}))` to the second
+  target, though "you control" and "an opponent controls" are already disjoint.
+- Uchuulon ("exile up to one target creature card from an opponent's
+  graveyard. If you do, ...") adds `CommonProperty(Owners)` and an unchosen
+  count; the 25 faces exiling "target creature card from an opponent's
+  graveyard" have neither.
+- Both faces are equal through one-card seeded rules, and the compositional
+  required payment ("<action>. If you do, ...") gives each a second reading
+  without the constraint.
+
 #### "If you've cast another <color> spell this turn"
 
 - `PlayerDid{event:CastSpell(...), window:ThisTurn}`: Dream Thief *(different)*

@@ -323,6 +323,42 @@ def accept(args):
     print(json.dumps({'baseline': data['baseline'], 'summary': summary(result)}))
 
 
+def gap_ranking(stuck, needed):
+    """Cluster compositional refusals by where they stuck. Each cluster is credited with
+    the seeded rules only its faces need: what one compositional fix there could retire."""
+    by_face = defaultdict(set)
+    for rule, faces in needed.items():
+        for face in faces:
+            by_face[face].add(rule)
+    clusters = defaultdict(list)
+    for row in stuck:
+        frontier = (row.get('syntax') or {}).get('frontier')
+        if frontier is not None:
+            clusters[frontier.lower()].append(row['name'])
+    ranked = []
+    for key, names in clusters.items():
+        members = set(names)
+        used = set().union(*(by_face[name] for name in names))
+        ranked.append({'key': key, 'faces': names,
+                       'retirable': sorted(r for r in used if set(needed[r]) <= members)})
+    ranked.sort(key=lambda c: (-len(c['retirable']), -len(c['faces']), c['key']))
+    return ranked
+
+
+def gaps(args):
+    stuck = WORK/'runs'/f'{args.name}@without=m_,t_'/'rows.jsonl'
+    audit = WORK/'runs'/args.name/'rules.json'
+    for path, command in ((stuck, f'score {args.name} --without=m_,t_'),
+                          (audit, f'rules {args.name}')):
+        if not path.exists():
+            raise ValueError(f'missing {path}; run corpus.py {command} first')
+    ranked = gap_ranking(rows(stuck), json.loads(audit.read_text())['needed'])
+    write(WORK/'gaps.json', ranked)
+    for cluster in ranked[:args.top]:
+        print(f"{len(cluster['retirable']):4} {len(cluster['faces']):4}  {cluster['key']}  | "
+              + '; '.join(cluster['faces'][:4]))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     commands = parser.add_subparsers(dest='command', required=True)
@@ -346,13 +382,17 @@ def main():
     needs.add_argument('--credit', action='store_true', help='also tally right and wrong faces')
     ranking = commands.add_parser('queue', help='cluster unmatched rows by shared mechanism')
     ranking.add_argument('name', nargs='?')
+    stuck = commands.add_parser('gaps', help='rank compositional stuck points by the seeded '
+                                'rules a fix could retire (after score --without=m_,t_ and rules)')
+    stuck.add_argument('name')
+    stuck.add_argument('--top', type=int, default=40)
     commands.add_parser('prepare', help='verify inputs and filter them to the population')
     args = parser.parse_args()
     if args.command == 'prepare':
         print(prepare(inputs()))
     else:
         {'slice': make_slice, 'score': score, 'audit': audit, 'rules': rules,
-         'queue': queue, 'accept': accept}[args.command](args)
+         'queue': queue, 'gaps': gaps, 'accept': accept}[args.command](args)
 
 
 if __name__ == '__main__':

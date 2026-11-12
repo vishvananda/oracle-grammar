@@ -554,6 +554,9 @@ impl Pattern {
                     ("single_reflexive_base", [actions]) => {
                         return crate::functions::optional_scope::single_base(actions);
                     }
+                    ("offered_action", [actions]) => {
+                        return crate::functions::optional_scope::offered_action(actions);
+                    }
                     ("optional_action_program", [program]) => {
                         return crate::functions::optional_scope::action_program(program);
                     }
@@ -831,6 +834,7 @@ impl Pattern {
             | "then_sequence"
             | "optional_then"
             | "single_reflexive_base"
+            | "offered_action"
             | "optional_program"
             | "optional_action_program" => {
                 return crate::functions::optional_scope::unify(name, args, value, bindings);

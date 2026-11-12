@@ -6,16 +6,10 @@ program_sentence ::= program_sentence_action_once | program_sentence_delayed_com
 
 /* This limits a successful performance, not the number of triggers. The
    offer owns the complete coordinated program. Declining it or failing a
-   required payment leaves the offer available later in the turn. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:PlayersDo{players:One(AbilityController), any_one:false, optional:true, once_each_turn:true, body:[Program($action_once_body)], otherwise:[]}}]} */
-program_sentence_action_once ::= "you" "may" action_once_body "." action_once_suffix
-
-action_once_body ::= program | action_once_payment
-
-/* Optionality belongs to the enclosing offer; this payment is required after
-   accepting it. Keep the actual payment receipt in the dependent condition. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:false}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}]} */
-action_once_payment ::= payment "." "if" "you" "do" "," conjoined
+   required payment leaves the offer available later in the turn.
+   Its payment is required after accepting the offer (`clause_required_if_you_do`). */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PlayersDo{players:One(AbilityController), any_one:false, optional:true, once_each_turn:true, body:[Program($program)], otherwise:[]}}]} */
+program_sentence_action_once ::= "you" "may" program "." action_once_suffix
 
 /* @sem () */
 action_once_suffix ::= "do" "this" "only" "once" "each" "turn" "."

@@ -336,7 +336,7 @@ payment_actor ::= payment_you | player_ref
 /* @sem PlayerRef::AbilityController */
 payment_you ::= "you"
 
-/* @sem Cost::Cost{parts:[CostPart::PlayerAction{player:AbilityController, body:Program{instructions:$may_body}}]} */
+/* @sem Cost::Cost{parts:[CostPart::PlayerAction{player:AbilityController, body:Program{instructions:@offered_action($may_body)}}]} */
 payment_action ::= may_body
 
 /* @sem Cost::Cost{parts:[CostPart::Move{selections:[CostObjectSelection{objects:$affected}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]} */
@@ -363,6 +363,11 @@ pay_mana ::= "pay" resolving_cost
 
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:true}}, Instruction::If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
 clause_if_you_do ::= "you" "may" payment "." "if" "you" "do" "," conjoined
+
+/* "Discard a card. If you do, draw a card": a required payment that can still fail,
+   so the dependent effects test its success. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:false}}, Instruction::If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_required_if_you_do ::= payment "." "if" "you" "do" "," conjoined
 
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$player_ref, cost:$other_payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
 clause_if_they_do ::= player_ref "may" other_payment "." "if" "they" "do" "," conjoined

@@ -451,6 +451,7 @@ fn optional_scope_call(
     let arity = if matches!(
         name,
         "single_reflexive_base"
+            | "offered_action"
             | "captured_targets"
             | "announced_targets"
             | "optional_program"
@@ -641,6 +642,7 @@ fn specialized_call(
         | "then_sequence"
         | "optional_then"
         | "single_reflexive_base"
+        | "offered_action"
         | "captured_targets"
         | "announced_targets"
         | "optional_program"

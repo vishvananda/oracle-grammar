@@ -110,6 +110,17 @@ class CorpusTests(unittest.TestCase):
                                       syntax={'frontier': 'Draw a ^ Card in hand'}))
         self.assertEqual(key, 'syntax before: card in')
 
+    def test_gaps_credit_a_stuck_point_with_the_rules_only_its_faces_need(self):
+        stuck = [row('A', 'refused', 0, syntax={'frontier': '. If you ^ Do,'}),
+                 row('B', 'refused', 0, syntax={'frontier': '. if you ^ do,'}),
+                 row('C', 'refused', 0, syntax={'frontier': 'X is the ^ amount'}),
+                 row('D', 'equal')]
+        needed = {'m_a': ['A'], 'm_b': ['B'], 'm_shared': ['A', 'C'], 'm_d': ['D']}
+        first, second = corpus.gap_ranking(stuck, needed)
+        self.assertEqual(first, {'key': '. if you ^ do,', 'faces': ['A', 'B'],
+                                 'retirable': ['m_a', 'm_b']})
+        self.assertEqual(second['retirable'], [])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -51,14 +51,24 @@ fn compound(mut actions: &[Value]) -> bool {
     matches!(actions, [discard, draw] if hand_discard(discard) && controller_draw(draw))
 }
 
+/// `You may exile it and collect evidence 4. If you do, ...`: the check reads the
+/// whole option, so `and` cannot end the option before a payment it checks.
 fn split_optional(head: &[Value], tail: &[Value]) -> bool {
     let [head] = head else { return false };
-    head["kind"] == "Optional"
-        && head["args"]["decider"] == json!({"kind":"AbilityController"})
-        && head["args"]["body"]["instructions"]
-            .as_array()
-            .is_some_and(|body| matches!(body.as_slice(), [discard] if hand_discard(discard)))
-        && tail.first().is_some_and(controller_draw)
+    let optional = head["kind"] == "Optional"
+        && head["args"]["decider"] == json!({"kind":"AbilityController"});
+    let discard = head["args"]["body"]["instructions"]
+        .as_array()
+        .is_some_and(|body| matches!(body.as_slice(), [discard] if hand_discard(discard)));
+    optional
+        && (discard && tail.first().is_some_and(controller_draw)
+            || checked_payment(&tail[..tail.len().min(2)]))
+}
+
+/// `Then if it has no counters on it, sacrifice it and you gain 4 life`: a condition
+/// governs to the end of its sentence, so `and` never ends it.
+fn forbidden_join(head: &[Value], tail: &[Value]) -> bool {
+    split_optional(head, tail) || head.last().is_some_and(|last| last["kind"] == "If")
 }
 
 /// Only this EBNF-declared `and` join applies this policy. Period/then joins do
@@ -73,8 +83,8 @@ pub(crate) fn sequence(head: &Value, tail: &Value) -> Result<Value, String> {
     {
         return Err("instruction-list semantic work bound".into());
     }
-    if split_optional(head, tail) {
-        return Err("and does not end the optional discard-hand action before its draw".into());
+    if forbidden_join(head, tail) {
+        return Err("and does not end an optional action or a condition early".into());
     }
     Ok(Value::Array(head.iter().chain(tail).cloned().collect()))
 }
@@ -97,6 +107,10 @@ fn then_parts(value: &Value) -> Result<&[Value], String> {
 
 fn then_allowed(head: &[Value], tail: &[Value], inside: bool) -> bool {
     let new_choice = tail.first().is_some_and(|i| i["kind"] == "Optional");
+    // `If you do, draw a card, then you may search`: the condition reaches the full stop.
+    if head.last().is_some_and(|i| i["kind"] == "If") {
+        return false;
+    }
     if inside {
         !new_choice
     } else {
@@ -141,6 +155,28 @@ fn unify_then<'p, 'v>(
     result
 }
 
+/// A choice of one card from your hand put onto the battlefield.
+fn hand_entry(items: &[Value]) -> bool {
+    let [choose, put] = items else { return false };
+    let chosen = &choose["args"]["operation"];
+    let moved = &put["args"]["operation"];
+    chosen["kind"] == "ChooseObjects"
+        && chosen["args"]["objects"]["args"]["scope"]
+            == json!({"Players":{"zone":"Hand","players":controller()}})
+        && moved["kind"] == "Move"
+        && moved["args"]["destination"].get("Battlefield").is_some()
+}
+
+/// `You may put a creature card from your hand onto the battlefield. If you do, ...`
+/// pays with the card itself (`payment_put_hand_card`), so an offered action never
+/// performs that put as a competing reading.
+pub(crate) fn offered_action(actions: &Value) -> Result<Value, String> {
+    if hand_entry(instructions(actions)?) {
+        return Err("a put from the hand pays with the card itself".into());
+    }
+    Ok(actions.clone())
+}
+
 /// This compound producer has its own declared completion receipt. It cannot
 /// use the generic single-action backwards reference as a competing reading.
 pub(crate) fn single_base(actions: &Value) -> Result<Value, String> {
@@ -181,11 +217,31 @@ fn required_sacrifice(item: &Value) -> bool {
             .is_some_and(|parts| parts.iter().any(|part| part.get("Sacrifice").is_some()))
 }
 
+/// `Pay {1}. If you do, ...` checked by its own success: under a generic `you may`
+/// it is the optional payment its `you may pay` clause already reads.
+fn checked_payment(items: &[Value]) -> bool {
+    items.windows(2).any(|pair| {
+        let operation = &pair[0]["args"]["operation"];
+        let condition = &pair[1]["args"]["condition"];
+        pair[0]["kind"] == "Effect"
+            && operation["kind"] == "PayCost"
+            && operation["args"]["optional"] == false
+            && pair[1]["kind"] == "If"
+            && condition["kind"] == "PaymentChosen"
+            && (condition["args"] == pair[0]["args"]["result"]
+                // While parsing, the check still names the payment as the last result.
+                || condition["args"]["$sym"] == "last_result")
+    })
+}
+
 fn checked_program(value: &Value, offer: Offer) -> Result<Value, String> {
     crate::functions::branch_bounds(value)?;
     let items = value["instructions"]
         .as_array()
         .ok_or("optional program needs instructions")?;
+    if matches!(offer, Offer::Action) && checked_payment(items) {
+        return Err("an optional payment uses its declared payment clause".into());
+    }
     let mut pending: Vec<_> = items.iter().collect();
     let mut work = 0usize;
     while let Some(item) = pending.pop() {
@@ -208,6 +264,9 @@ fn checked_program(value: &Value, offer: Offer) -> Result<Value, String> {
             let group = item["args"]["instructions"]
                 .as_array()
                 .ok_or("optional program group needs instructions")?;
+            if matches!(offer, Offer::Action) && checked_payment(group) {
+                return Err("an optional payment uses its declared payment clause".into());
+            }
             pending.extend(group);
         }
     }
@@ -225,6 +284,10 @@ pub(crate) fn unify<'p, 'v>(
         "then_sequence" => unify_then(args, value, bindings, false),
         "optional_then" => unify_then(args, value, bindings, true),
         "single_reflexive_base" => unify_base(args, value, bindings),
+        "offered_action" => match args {
+            [inner] if offered_action(value).is_ok() => inner.unify(value, bindings),
+            _ => Vec::new(),
+        },
         "optional_action_program" => match args {
             [inner] if action_program(value).is_ok() => inner.unify(value, bindings),
             _ => Vec::new(),
@@ -263,7 +326,7 @@ pub(crate) fn unify_sequence<'p, 'v>(
     let mut result = Vec::new();
     // Same contiguous partitions as the former pair of instruction splices.
     for split in 0..=items.len() {
-        if split_optional(&items[..split], &items[split..]) {
+        if forbidden_join(&items[..split], &items[split..]) {
             continue;
         }
         let left = Value::Array(items[..split].to_vec());
@@ -302,6 +365,53 @@ mod tests {
             unify("optional_action_program", &args, &nested, Bindings::new()).len(),
             1
         );
+    }
+
+    #[test]
+    fn an_offered_action_never_performs_a_put_from_the_hand() {
+        let choose = |zone: &str| {
+            json!({"kind":"Effect","args":{"operation":{"kind":"ChooseObjects","args":{
+                "objects":{"kind":"Zone","args":{"scope":{"Players":{"zone":zone,"players":controller()}}}}
+            }}}})
+        };
+        let put = json!({"kind":"Effect","args":{"operation":{"kind":"Move","args":{
+            "destination":{"Battlefield":{}}
+        }}}});
+        let hand = json!([choose("Hand"), put.clone()]);
+        assert!(offered_action(&hand).is_err());
+        let args = [Pattern::Hole(
+            "body".into(),
+            Ty::Vec(Box::new(Ty::Named("Instruction".into()))),
+        )];
+        assert!(unify("offered_action", &args, &hand, Bindings::new()).is_empty());
+        let graveyard = json!([choose("Graveyard"), put]);
+        assert_eq!(offered_action(&graveyard).unwrap(), graveyard);
+        assert_eq!(
+            unify("offered_action", &args, &graveyard, Bindings::new()).len(),
+            1
+        );
+    }
+
+    #[test]
+    fn generic_optional_actions_do_not_absorb_a_payment_checked_by_its_success() {
+        let pay = |optional: bool| {
+            json!({"kind":"Effect","args":{"result":0,"operation":{
+                "kind":"PayCost","args":{"optional":optional,"cost":{"parts":[{"Mana":[]}]}}
+            }}})
+        };
+        let check = json!({"kind":"If","args":{"condition":{"kind":"PaymentChosen","args":0}}});
+        let reflexive =
+            json!({"kind":"Effect","args":{"result":1,"operation":{"kind":"ReflexiveTrigger"}}});
+        let checked = json!({"instructions":[pay(false), check.clone()]});
+        assert!(action_program(&checked).is_err());
+        assert!(program(&checked).is_ok());
+        let grouped = json!({"instructions":[{"kind":"Group","args":checked}]});
+        assert!(action_program(&grouped).is_err());
+        // `You may pay {1}. When you do, ...` keeps its required payment.
+        let when = json!({"instructions":[pay(false), reflexive]});
+        assert!(action_program(&when).is_ok());
+        let offered = json!({"instructions":[pay(true), check]});
+        assert!(action_program(&offered).is_ok());
     }
 
     #[test]
