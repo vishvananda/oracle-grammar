@@ -150,6 +150,10 @@ sacrifices.
   `Optional` over one `Sacrifice` of
   `AnyOf([AllOf([Creature, Not(SameObject(Source))]), Token])`, followed by the
   reflexive trigger.
+- Finding: no witness exists. Each choice sacrifices one permanent that is
+  another creature or a token, or none, and the reflexive trigger follows the
+  same sacrifice. Consolidate to one `Sacrifice` of the disjunction, as in Gut,
+  True Soul Zealot.
 - Status: open.
 
 ## "It" in a granted or token holder's own trigger read as `Source`
@@ -191,6 +195,8 @@ later one.
   Attack(Any), amount: AtLeast(Constant(1))})]`, merged from
   `Static[GrantKeyword, Pump]` and `Static[Rule(RequireCombat)]`; expected the
   written order `[GrantKeyword(Trample), Rule(RequireCombat), Pump]`.
+- Finding: no witness exists. Changes in one static apply by layer, not by
+  list order, so the orders agree. Consolidate to the written order.
 - Status: open.
 
 ## Retained upstream pending a witness
