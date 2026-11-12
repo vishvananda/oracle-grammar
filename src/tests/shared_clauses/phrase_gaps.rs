@@ -448,3 +448,12 @@ fn a_short_name_alone_on_its_line_is_its_keyword() {
         .unwrap();
     assert!(matches!(named[0], Token::SelfName(_)));
 }
+
+#[test]
+fn reaching_a_counter_threshold_is_a_state_trigger() {
+    let text = "When there are four or more time counters on this artifact, sacrifice it.";
+    let mut counted = Vec::new();
+    visit(&only_reading(text), "Counters", &mut counted);
+    assert_eq!(counted[0]["comparison"], json!("GreaterOrEqual"));
+    assert_eq!(counted[0]["kind"], json!({"Named":"TimeCounter"}));
+}
