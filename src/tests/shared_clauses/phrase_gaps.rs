@@ -254,3 +254,19 @@ fn an_optional_reveal_before_a_reflexive_trigger_is_an_action() {
     assert_eq!(optional.len(), 1);
     printed_types(actions, &["Enchantment"]);
 }
+
+#[test]
+fn a_perpetual_grant_on_a_creature_that_died_names_its_graveyard_card() {
+    let text = "Until end of turn, whenever a nontoken creature dies, it perpetually gains unearth {5}.\nConsumed by History deals 3 damage to each creature.";
+    let readings = engine()
+        .parse("Consumed by History", text)
+        .unwrap()
+        .readings;
+    assert_eq!(readings.len(), 1, "{readings:#?}");
+    let mut perpetual = Vec::new();
+    visit(&readings[0], "CreatePerpetualEffect", &mut perpetual);
+    assert_eq!(
+        perpetual[0]["objects"]["args"]["args"]["objects"]["args"]["objects"],
+        json!({"kind":"One","args":{"kind":"EventDestination"}})
+    );
+}

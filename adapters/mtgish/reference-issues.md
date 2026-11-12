@@ -460,7 +460,7 @@ requirement comes before any normal form is chosen.
 
 - `EventSubject`: Forgeborn Phoenix ("whenever ... creature dies, it
   perpetually gains").
-- `Query(InZone(One(EventDestination), Graveyard))`: Consumed by History
-  *(different)*, with the same wording.
+- `Query(InZone(One(EventDestination), Graveyard))`: Consumed by History,
+  with the same wording.
 - `Source`: Hook Horror (its own "it perpetually gets"), whose later "that
   card's toughness" and "return it" use the `Query`.
