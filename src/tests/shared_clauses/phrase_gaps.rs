@@ -291,3 +291,26 @@ fn a_perpetual_grant_on_a_creature_that_died_names_its_graveyard_card() {
         json!({"kind":"One","args":{"kind":"EventDestination"}})
     );
 }
+
+#[test]
+fn it_after_a_created_trigger_still_names_its_event_object() {
+    let text = "Whenever a creature you control attacks alone this turn, put three +1/+1 counters on it. It gains trample, lifelink, and indestructible until end of turn.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    let inner = readings
+        .iter()
+        .find(|reading| {
+            let mut created = Vec::new();
+            visit(reading, "CreateTrigger", &mut created);
+            created.first().is_some_and(|created| {
+                created["body"]["instructions"].as_array().unwrap().len() == 2
+            })
+        })
+        .unwrap_or_else(|| panic!("{readings:#?}"));
+    let mut effects = Vec::new();
+    visit(inner, "CreateContinuousEffect", &mut effects);
+    assert_eq!(
+        effects[0]["affected"]["Objects"]["args"],
+        json!({"kind":"EventSubject"})
+    );
+    printed_types(inner, &["Sorcery"]);
+}
