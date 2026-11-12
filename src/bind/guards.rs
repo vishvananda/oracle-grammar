@@ -138,6 +138,42 @@ pub(super) fn blocks_itself(value: &Value) -> bool {
     }
 }
 
+/// An activation restriction adds the margin to the starting life total; any
+/// other life-margin condition adds the starting life total to the margin.
+pub(super) fn life_margin_order(value: &Value, activation: bool) -> bool {
+    match value {
+        Value::Object(object) => {
+            let parts = value["args"].as_array().filter(|_| value["kind"] == "Add");
+            let wrong = parts.is_some_and(|parts| {
+                let starting = |part: &Value| part["kind"] == "StartingLife";
+                parts.len() == 2
+                    && starting(&parts[0]) != starting(&parts[1])
+                    && starting(&parts[1]) == activation
+            });
+            if wrong {
+                return true;
+            }
+            if value["kind"] == "Activated" {
+                return object.iter().any(|(key, child)| {
+                    if key == "args" {
+                        child.as_object().is_some_and(|args| {
+                            args.iter()
+                                .any(|(field, inner)| life_margin_order(inner, field == "limits"))
+                        })
+                    } else {
+                        life_margin_order(child, activation)
+                    }
+                });
+            }
+            object
+                .values()
+                .any(|child| life_margin_order(child, activation))
+        }
+        Value::Array(items) => items.iter().any(|item| life_margin_order(item, activation)),
+        _ => false,
+    }
+}
+
 /// Protection from objects described by a controller or counters is protection
 /// from permanents; any other described quality names objects in every zone.
 pub(super) fn protection_domain_mismatch(value: &Value) -> bool {

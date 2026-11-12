@@ -42,7 +42,7 @@ mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{
     blocks_itself, cancels_before_choice, condition_placement, has_cost_as_action,
-    protection_domain_mismatch, single_holder_affected,
+    life_margin_order, protection_domain_mismatch, single_holder_affected,
 };
 mod coin_protocol;
 mod holder;
@@ -279,6 +279,9 @@ pub fn bind_ability(ability: &mut Value, card_name: &str) -> Result<(), String> 
     }
     if protection_domain_mismatch(ability) {
         return Err("protection names the domain its quality proves".into());
+    }
+    if life_margin_order(ability, false) {
+        return Err("a life margin keeps its restriction's operand order".into());
     }
     variables::bind(ability)?;
     exile_followups::lower(ability)?;

@@ -453,7 +453,7 @@ requirement comes before any normal form is chosen.
 
 - `Add([N, StartingLife])` in conditions (Chalice of Life, Doctor Strange,
   Surgeon, Leyline of Hope) and `Add([StartingLife, N])` in activation
-  restrictions (Speaker of the Heavens, Ayli, Eternal Pilgrim *(different)*).
+  restrictions (Speaker of the Heavens, Ayli, Eternal Pilgrim).
 - Review: a normal-form choice under identical arithmetic, not a rules defect.
 
 #### A perpetual effect on a creature that just died
