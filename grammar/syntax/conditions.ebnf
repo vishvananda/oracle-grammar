@@ -7,7 +7,7 @@ condition_and ::= condition_one "and" condition_one
 /* @sem Condition::AnyOf([$condition_one, $condition_one_2]) */
 condition_or ::= condition_one "or" condition_one
 
-condition_one ::= condition_above_starting_life | condition_starting_life_margin | condition_no_hollow_sentinel | condition_shares_card_type | condition_ring_bearer_choice | condition_ring_bearer_choice_other | condition_total_mana_spent | condition_not_casters_turn | condition_no_opponent_more_life | condition_attached_named | condition_it_suspected | condition_kicked_with | condition_kicked_twice | condition_linked_card | condition_it_card | mined_condition | condition_cast_kicked | condition_kicked | condition_it_kicked | condition_hand_size | condition_hand_none | condition_control | condition_control_another
+condition_one ::= condition_above_starting_life | condition_starting_life_margin | condition_no_hollow_sentinel | condition_shares_card_type | condition_ring_bearer_choice | condition_ring_bearer_choice_other | condition_total_mana_spent | condition_typed_mana_spent | condition_not_casters_turn | condition_no_opponent_more_life | condition_attached_named | condition_it_suspected | condition_kicked_with | condition_kicked_twice | condition_linked_card | condition_it_card | mined_condition | condition_cast_kicked | condition_kicked | condition_it_kicked | condition_hand_size | condition_hand_none | condition_control | condition_control_another
     | condition_control_many | condition_control_none | condition_attacked | condition_lost_life
     | condition_self_is | condition_not_type | condition_it_was | condition_died | condition_left_under | condition_entered_under
     | condition_monarch | condition_cast | condition_graveyard_size | condition_graveyard_filtered_size | condition_graveyard_has
@@ -304,11 +304,12 @@ condition_card_either ::= "it's" ("a" | "an") card_filter "or" (("a" | "an"))? c
 condition_kicked_with ::= kicked_subject "was" kicker_test_with
 /* @sem Condition::ObjectMatches{object:$kicked_subject, filter:$kicker_test_twice} */
 condition_kicked_twice ::= kicked_subject "was" kicker_test_twice
-kicked_subject ::= self_ref | kicked_it | kicked_spell
+kicked_subject ::= self_ref | cast_it | cast_this_spell
+/* The spell being cast or just cast. */
 /* @sem @it */
-kicked_it ::= "it"
+cast_it ::= "it"
 /* @sem @self */
-kicked_spell ::= "this" "spell"
+cast_this_spell ::= "this" "spell"
 
 /* @sem Condition::ObjectMatches{object:@it, filter:State(Suspected)} */
 condition_it_suspected ::= "it's" "suspected"
@@ -328,12 +329,25 @@ life_comparison_you ::= "you"
 /* @sem Condition::Not(PlayerIsActive(@that_player)) */
 condition_not_casters_turn ::= "it" "isn't" "that" "player's" "turn"
 
-/* The written noun requires an already introduced spell, even after an action
-   on the source creature. This is total paid mana, not mana value or a color
-   maximum. Ordinary If/intervening-if owners retain their own placement. */
-/* @sem Condition::ObjectMatches{object:$named_spell, filter:ObjectFilter::Condition(Compare{left:Expr::ManaSpent{object:Candidate, filter:SpentManaFilter{}, aggregation:Count}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}})} */
-/* @prefer always */
-condition_total_mana_spent ::= number "or" "more" "mana" "was" "spent" "to" "cast" named_spell
+/* Mana paid to cast a spell, of any type or of one: `at least four mana was spent to cast
+   it`, `five or more mana was spent to cast that spell`, `at least three black mana was
+   spent to cast this spell`. This is total paid mana, not mana value or a color maximum.
+   A written noun requires an already introduced spell, even after an action on the
+   source creature. Ordinary If/intervening-if owners retain their own placement. */
+/* @sem Condition::ObjectMatches{object:$spent_spell, filter:ObjectFilter::Condition(Compare{left:Expr::ManaSpent{object:Candidate, filter:SpentManaFilter{}, aggregation:Count}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$spent_least}})} */
+condition_total_mana_spent ::= spent_least "mana" "was" "spent" "to" "cast" spent_spell
+/* @sem Condition::ObjectMatches{object:$spent_spell, filter:ObjectFilter::Condition(Compare{left:Expr::ManaSpent{object:Candidate, filter:SpentManaFilter{colors:[$spent_type]}, aggregation:Count}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$spent_least}})} */
+condition_typed_mana_spent ::= spent_least spent_type "mana" "was" "spent" "to" "cast" spent_spell
+
+spent_least ::= spent_at_least | spent_or_more
+/* @sem $number */
+spent_at_least ::= "at" "least" number
+/* @sem $number */
+spent_or_more ::= number "or" "more"
+spent_type ::= mana_color_word | spent_colorless
+/* @sem ManaColor::Colorless */
+spent_colorless ::= "colorless"
+spent_spell ::= cast_it | cast_this_spell | named_spell
 
 /* The player is a lexical antecedent, not necessarily a chosen opponent. */
 /* @sem Condition::Compare{left:CountObjects(Zone{scope:Players{zone:Hand, players:One(PlayerRef::@that_player_literal)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any})}} */

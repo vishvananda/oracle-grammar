@@ -39,7 +39,7 @@ cost_words ::= mined_cost | cost_words_owned
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
 cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_energy_words | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many
     | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped
-    | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_discard_random
+    | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_hand | cost_discard_random
     | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self
     | cost_exile_self | cost_remove_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand
 
@@ -117,6 +117,10 @@ cost_exile_graveyard ::= "exile" ("a" | "an") card_filter "card" "from" "your" "
 
 /* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, choose:Exactly(Expr::Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
 cost_exile_card_graveyard ::= "exile" "a" "card" "from" "your" "graveyard"
+
+/* Exiling a card of a kind from your hand. */
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Hand, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$card_filter}, choose:Exactly(Expr::Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_hand ::= "exile" ("a" | "an") card_filter "card" "from" "your" "hand"
 
 /* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, choose:Exactly($count)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
 cost_exile_cards_graveyard ::= "exile" count "cards" "from" "your" "graveyard"
@@ -324,9 +328,32 @@ casting_reduction_if_targets ::= object_ref "costs" braced_amount "less" "to" "c
 /* @sem Ability::Casting(ReduceCost([_{amount:$value}])) */
 casting_reduction_x ::= "this" "spell" "costs" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" value "."
 
-/* An alternative cost. */
-/* @sem Ability::Casting(AlternativeCost($cost)) */
-casting_alternative_cost ::= "you" "may" cost "rather" "than" "pay" "this" "spell's" "mana" "cost" "."
+/* An alternative cost, perhaps only while a condition holds, before or after it. */
+casting_alternative_cost ::= casting_alternative_plain | casting_alternative_if | casting_alternative_if_after
+
+/* @sem Ability::Casting(AlternativeCost($alternative_payment)) */
+casting_alternative_plain ::= "you" "may" alternative_payment rather_than_mana_cost "."
+
+/* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($alternative_payment)}) */
+casting_alternative_if ::= "if" condition "," "you" "may" alternative_payment rather_than_mana_cost "."
+
+/* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($alternative_payment)}) */
+casting_alternative_if_after ::= "you" "may" alternative_payment rather_than_mana_cost "if" condition "."
+
+/* @sem () */
+rather_than_mana_cost ::= "rather" "than" "pay" "this" "spell's" "mana" "cost"
+
+/* One payment, two joined by `and`, or mana the player pays: `you may pay {1}{U}`. */
+alternative_payment ::= alternative_words | alternative_words_two | alternative_mana
+
+/* @sem Cost::Cost{parts:[$cost_words]} */
+alternative_words ::= cost_words
+
+/* @sem Cost::Cost{parts:[$cost_words, $cost_words_2]} */
+alternative_words_two ::= cost_words "and" cost_words
+
+/* @sem Cost::Cost{parts:[$cost_mana]} */
+alternative_mana ::= "pay" cost_mana
 
 /* Cast only while being attacked during declare attackers. */
 /* @sem Ability::Casting(Require(AllOf([Window(DeclareAttackers), PlayerState{player:AbilityController, state:BeingAttacked}]))) */
