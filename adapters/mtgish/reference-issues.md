@@ -156,6 +156,24 @@ Armaments. Two faces read the same `it` as `Source`.
   reference `{"kind":"Source"}`, expected `{"kind":"EventSubject"}`.
 - Status: open.
 
+## A written attack requirement moved after a later change
+
+The reference gives "attacks each combat if able" its own `Static` after the
+static holding the other changes, so merged statics list the requirement last.
+That keeps written order where the requirement is written last (Craving of
+Yeenoghu: "gets +3/+2, has haste, and attacks each combat if able"). Skeletal
+Swarming writes it between two changes, and the reference moves it after the
+later one.
+
+### Skeletal Swarming
+
+- At `[0].args.changes`: reference `[GrantKeyword(Trample), Pump{power:
+  CountObjects(...), toughness: Constant(0)}, Rule(RequireCombat{action:
+  Attack(Any), amount: AtLeast(Constant(1))})]`, merged from
+  `Static[GrantKeyword, Pump]` and `Static[Rule(RequireCombat)]`; expected the
+  written order `[GrantKeyword(Trample), Rule(RequireCombat), Pump]`.
+- Status: open.
+
 ## Retained upstream pending a witness
 
 Upstream kept these encodings and named the test that would justify a change.
