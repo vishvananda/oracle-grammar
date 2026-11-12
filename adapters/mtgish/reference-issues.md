@@ -302,6 +302,12 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   this one, as in 12 controls.
 - Witness: show the history predicate or own-spell exclusion is wrong, not
   only the wrapper.
+- Finding: both forms have the same history predicate and the same
+  `Not(SameObject(Source))` exclusion; only the `ObjectMatches(Source, ...)`
+  wrapper differs. If `ObjectMatches` fails once the source has left the
+  battlefield, a Dream Thief destroyed in response to its trigger is a witness:
+  the printed condition still lets you draw. Otherwise the forms agree;
+  consolidate to `Compare`.
 - Status: open.
 
 ### Hit
