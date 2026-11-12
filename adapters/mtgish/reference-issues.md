@@ -464,3 +464,17 @@ requirement comes before any normal form is chosen.
   with the same wording.
 - `Source`: Hook Horror (its own "it perpetually gets"), whose later "that
   card's toughness" and "return it" use the `Query`.
+
+#### "He" or "she" naming a holder in its own trigger
+
+- `Source`: Ultron, Unlimited ("Whenever Ultron attacks, he connives") and
+  Tiger Shark, Abyssal Hunter ("enters or attacks, he connives").
+- `EventSubject`: Norman Osborn *(different)* ("Whenever Norman Osborn deals
+  combat damage to a player, he connives") and Jack of Hearts, Volatile Hero
+  ("When Jack of Hearts dies, he deals damage").
+- "It" in the same places is `EventSubject` in attack triggers (Atlantean
+  Skirmisher, Copycrook) and `Damage(Source)` in combat-damage triggers
+  (Cyclonus, the Saboteur, Security Bypass), so the gendered pronoun differs
+  from "it" in each context, in opposite directions.
+- Review: decide whether a gendered pronoun reads like "it" in each event
+  frame; a dies trigger needs the departed object either way.
