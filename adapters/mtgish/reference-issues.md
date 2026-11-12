@@ -20,6 +20,21 @@ are disputed now.
 
 ## Disputed
 
+### Cauldron Dance
+
+- "Return target creature card from your graveyard to the battlefield. ... You
+  may put a creature card from your hand onto the battlefield. That creature
+  gains haste. Its controller sacrifices it at the beginning of the next end
+  step." The second paragraph's haste and sacrifice under `If PaymentChosen(2)`
+  name the first paragraph's returned creature, `Result{result:0, phase:After,
+  index:0}`, at
+  `1/args/body/instructions/4/args/then/instructions/0/args/operation/args/affected/Objects/args`
+  and
+  `1/args/body/instructions/4/args/then/instructions/1/args/operation/args/body/instructions/0/args/operation/args/objects/args`.
+  "That creature" is the card put from the hand, the payment's
+  `CostObjects{payment:Resolution(2), component:[0], view:Performed,
+  phase:After}`, as in Meek Attack.
+
 ### Phage the Untouchable Avatar
 
 - "Until end of turn, whenever target creature you control deals combat damage
@@ -176,18 +191,24 @@ producer form per wording for the remaining 30 reopened faces. These now match:
 - Vulshok Factory: a sacrificed source named by the activation cost is `Source`.
 - Worzel, the Protector: a basic Plains has no extra `CardType(Land)`.
 
-Upstream also settled these wordings, which the grammar does not read yet:
+Upstream also settled these wordings, and the grammar now reads them:
 
-- Optional entries and creations with dependent follow-ups are
-  `PayCost{optional:true}` with the follow-ups under `If PaymentChosen`, reading
+- An optional put from a hand with dependent follow-ups is an optional `PayCost`
+  of a typed `Move` part, and the follow-ups under `If PaymentChosen` read
   `CostObjects{payment:Resolution(r), component:[0], view:Performed, phase:After}`:
-  Dawn of the Dead, Ilharg, the Raze-Boar, Mirror Mockery, the hand-entry
-  templates (Arms Race, Cauldron Dance, Incandescent Soulstoke, Kavaron Consumed,
-  Meek Attack, Oviya, Automech Artisan, Planebound Accomplice, Terminal
-  Velocity), Admiral Brass, Unsinkable, Break Out, Hellkite Courser and Kharasha
-  Foothills. Leaf-Crowned Elder has the kinship form.
+  Arms Race, Incandescent Soulstoke, Kavaron Consumed, Meek Attack, Oviya,
+  Automech Artisan, Planebound Accomplice, Terminal Velocity and Ilharg, the
+  Raze-Boar. Cauldron Dance is disputed above and Surprise Deployment is a
+  same-wording split below.
+- Any other optional entry or creation whose later instructions all change, move
+  or sacrifice what entered is performed as an optional `PayCost` of a
+  `PlayerAction`, and those instructions keep naming its result (upstream
+  `producer_forms.rs`): Dawn of the Dead, Mirror Mockery, Admiral Brass,
+  Unsinkable, Break Out, Hellkite Courser and Kharasha Foothills. Leaf-Crowned
+  Elder has the kinship form.
 - Resplendent Marshal: "another" and "other than this creature" under "enters or
-  dies" name `Source`, inside the reflexive closure too.
+  dies" name `Source`, inside the reflexive closure too, and "the exiled card"
+  is the reflexive exile's receipt.
 - Deathbringer Regent: the free condition is lifted out of the object filter;
   "there are five or more other creatures on the battlefield" counts
   `Difference{objects, excluding:One(Source)}`, as Portcullis's count does.
@@ -221,6 +242,29 @@ different are marked *(different)*.
 - Rupture and Grab the Reins have the same two sentences up to the damage
   recipients. Upstream's Hit contract says Rupture now shares the payment form;
   Grab the Reins still reads the effect.
+
+#### An optional put from a hand followed by a delayed return
+
+- `PayCost` of the put from the hand, the delayed trigger under
+  `If PaymentChosen` and the creature read from the payment's `CostObjects`:
+  Ilharg, the Raze-Boar ("you may put a creature card from your hand onto the
+  battlefield tapped and attacking. Return that creature to your hand at the
+  beginning of the next end step"), Meek Attack and Planebound Accomplice.
+- An `Optional` put followed by an unguarded delayed trigger reading
+  `Result{result:1, phase:After}`: Surprise Deployment *(different)* ("You may
+  put a nonwhite creature card from your hand onto the battlefield. At the
+  beginning of the next end step, return that creature to your hand").
+- The source spells Surprise Deployment with `MayAction` and the others with
+  `MayCost` and `If(CostWasPaid)`. The grammar guards every such entry.
+
+#### "Vehicles you control become artifact creatures until end of turn"
+
+- `AddCardType(Artifact)` and `AddCardType(Creature)`, as for a crewed Vehicle
+  that "becomes an artifact creature": Armed and Armored and The Thanos-Copter.
+- `SetCardTypes([Artifact, Creature])`: Start Your Engines, with the same
+  sentence followed by "Creatures you control get +2/+0 until end of turn".
+- One-card seeded rules keep both until upstream chooses; a hand rule for the
+  plural would give Start Your Engines both readings.
 
 #### "If you've cast another <color> spell this turn"
 

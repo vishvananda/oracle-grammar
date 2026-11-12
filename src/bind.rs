@@ -26,6 +26,7 @@ mod fight_counterpart;
 mod filters;
 pub(crate) mod group_contrast;
 mod optional_entered_card;
+mod optional_entries;
 mod optional_exile_target;
 mod payment_move_after;
 mod player_event;
@@ -60,6 +61,7 @@ mod payments;
 mod per_recipient;
 pub(crate) mod pump_counts;
 mod references;
+mod reflexive_exiled_card;
 mod reflexive_move;
 mod reflexive_receipts;
 mod reflexive_x;
@@ -326,6 +328,8 @@ pub fn bind_held_ability(
     event_subjects::name_conniving_sources(ability);
     event_subjects::name_enclosed_sources(ability);
     event_subjects::duplicate_hidden_arrivals(ability, true);
+    optional_entries::lower(ability);
+    reflexive_exiled_card::lower(ability);
     target_populations::lower(ability);
     spell_focus::check_spell_grants(ability)
 }
@@ -996,11 +1000,14 @@ fn nested_forms(forms: Vec<Value>) -> Vec<Value> {
     out
 }
 
-/// Abilities in the binder's normal form, for fixtures recorded before it: an optional
-/// target is its whole population.
+/// Abilities in the binder's normal form, for fixtures recorded before it: a guarded
+/// entry is a payment, a reflexive exile names its receipt and an optional target is its
+/// whole population.
 #[cfg(test)]
 pub(crate) fn lowered(abilities: &Value) -> Value {
     let mut abilities = abilities.clone();
+    optional_entries::lower(&mut abilities);
+    reflexive_exiled_card::lower(&mut abilities);
     target_populations::lower(&mut abilities);
     abilities
 }
@@ -1013,12 +1020,15 @@ pub(crate) fn normal_form(abilities: &Value) -> Value {
 
 /// The surface forms of an ability, and of the abilities inside it.
 pub fn unbind_ability(ability: &Value) -> Vec<Value> {
-    // The printer's rules spell an optional population as its one chosen object, and a
-    // hidden arrival's duplicate as a duplicate of that card.
+    // The printer's rules spell an optional population as its one chosen object, a
+    // hidden arrival's duplicate as a duplicate of that card, a guarded entry as an
+    // optional action and a reflexive receipt as the linked exiled card.
     let mut scalar = ability.clone();
     let populations = target_populations::surface(&mut scalar);
     let duplicates = event_subjects::duplicate_hidden_arrivals(&mut scalar, false);
-    if !(populations || duplicates) {
+    let entries = optional_entries::surface(&mut scalar);
+    let receipts = reflexive_exiled_card::surface(&mut scalar);
+    if !(populations || duplicates || entries || receipts) {
         return unbind_view(ability);
     }
     let mut forms = unbind_view(&scalar);

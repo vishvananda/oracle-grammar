@@ -839,3 +839,6 @@ mod turn_history;
 
 #[path = "shared_clauses/normal_forms.rs"]
 mod normal_forms;
+
+#[path = "shared_clauses/verb_agreement.rs"]
+mod verb_agreement;

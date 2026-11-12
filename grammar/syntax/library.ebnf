@@ -133,7 +133,7 @@ search_follow_more ::= "," found_action search_follow
 search_follow_last ::= search_shuffle | search_shuffle_top
 
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Shuffle{players:One(PlayerRef::AbilityController)}}] */
-search_shuffle ::= "," "then" "shuffle"
+search_shuffle ::= "," "then" "shuffle" ("your" "library")?
 
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Shuffle{players:One(PlayerRef::AbilityController), excluding:Selected(@marked)}}, Instruction::Effect{result:@next, operation:Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@marked), end:Top, order:Chosen}}] */
 search_shuffle_top ::= "," "then" "shuffle" "and" "put" found "on" "top"
@@ -216,8 +216,14 @@ instructions_reveal_if ::= "reveal" your_top "." "if" "it's" ("a" | "an") card_f
 /* Kinship: an optional look at the top card; if it shares a creature type with this
    creature, an optional reveal of it; and what follows only once it is revealed. Each
    optional action is a payment with its own guard, as in Wandering Graybeard. */
-/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[If{condition:ObjectMatches{object:Query{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, index:0}, filter:Shares{property:CreatureTypes, with:$self_ref}}, then:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]}, otherwise:Program{}}]}, otherwise:Program{}}] */
-instructions_kinship_reveal ::= "you" "may" "look" "at" "the" "top" "card" "of" "your" "library" "." "if" "it" "shares" "a" "creature" "type" "with" self_ref "," "you" "may" "reveal" "it" "." "if" "you" "do" "," program
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[If{condition:ObjectMatches{object:Query{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, index:0}, filter:Shares{property:CreatureTypes, with:$self_ref}}, then:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$kinship_revealed, otherwise:Program{}}]}, otherwise:Program{}}]}, otherwise:Program{}}] */
+instructions_kinship_reveal ::= "you" "may" "look" "at" "the" "top" "card" "of" "your" "library" "." "if" "it" "shares" "a" "creature" "type" "with" self_ref "," "you" "may" "reveal" "it" "." "if" "you" "do" "," kinship_revealed
+
+kinship_revealed ::= kinship_free_play | program
+
+/* "You may play that card without paying its mana cost": the revealed top card. */
+/* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:Either, cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]} */
+kinship_free_play ::= "you" "may" "play" "that" "card" "without" "paying" "its" "mana" "cost"
 
 /* Choosing a card from a zone, then acting on it. */
 your_zone ::= your_hand | your_graveyard
@@ -227,7 +233,11 @@ your_hand ::= "your" "hand"
 /* @sem EventZone::Graveyard */
 your_graveyard ::= "your" "graveyard"
 
-a_card ::= a_card_any_with | a_card_any | a_card_kind | a_card_with
+a_card ::= a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another
+
+/* "Another creature card from your graveyard": any but this card. */
+/* @sem @and($card_filter, ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source))) */
+a_card_another ::= "another" card_filter "card"
 
 /* @sem ObjectFilter::Any */
 a_card_any ::= "a" "card"

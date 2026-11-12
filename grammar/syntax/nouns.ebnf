@@ -280,7 +280,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one
+target_object ::= target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -292,6 +292,10 @@ target_up_to_one_other_attacking ::= "up" "to" "one" "other" "target" "attacking
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@another_target_reference(ObjectFilter::$filter_phrase))), $filter_phrase)}), index:0} */
 target_another ::= "another" "target" filter_phrase
+
+/* "Up to one other target nontoken creature you control": another, optionally. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@another_target_reference(ObjectFilter::$filter_phrase))), $filter_phrase)}), index:0} */
+target_up_to_one_other ::= "up" "to" "one" "other" "target" filter_phrase
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_permanent ::= "target" filter_phrase
@@ -702,7 +706,7 @@ modifier_nonnumeric ::= modifier_relative_kind_union | modifier_with_keyword_pai
     | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness
     | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you
     | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn
-    | modifier_shares_color | modifier_same_mana_value_as_spell
+    | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell
     | modifier_stat_compared | modifier_source_name | modifier_not_named_self | modifier_referenced_name
     | modifier_banded_with
 
@@ -1159,6 +1163,15 @@ modifier_blocked_this_combat ::= "that" "were" "blocked" "by" object_ref "this" 
 /* A characteristic relation reads its antecedent, including death-event LKI. */
 /* @sem ObjectFilter::Shares{property:CreatureTypes, with:$object_ref} */
 modifier_shares_creature_type ::= "that" ("share" | "shares") "a" "creature" "type" "with" object_ref
+
+/* "Each creature you control that shares a creature type with the exiled card": a
+   relation to an explicit antecedent. A pronoun's antecedent stays with the frames
+   that name it, such as "target creature and each other creature that shares a
+   creature type with it". */
+/* @sem ObjectFilter::Shares{property:CreatureTypes, with:$shared_type_antecedent} */
+modifier_shares_type_named ::= "that" ("share" | "shares") "a" "creature" "type" "with" shared_type_antecedent
+
+shared_type_antecedent ::= linked_exiled_card | self_explicit_ref
 
 /* A shared-type query composes ordinary positive noun descriptions. Literal
    other has its own contrast contract and is not introduced by this query. */

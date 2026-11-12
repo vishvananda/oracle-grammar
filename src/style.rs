@@ -336,11 +336,11 @@ fn plural_subject(subject: &[Token]) -> Option<bool> {
     head
 }
 
-/// `Creatures you control get`, `Target creature gets`.
+/// `Creatures you control get`, `Target creature gets`, `up to one target Vehicle becomes`.
 fn verb_agrees(tokens: &[Token], at: usize, word: &str, found: &mut Found) {
     let plural = match word {
-        "get" | "gain" | "have" | "lose" => true,
-        "gets" | "gains" | "has" | "loses" => false,
+        "get" | "gain" | "have" | "lose" | "become" => true,
+        "gets" | "gains" | "has" | "loses" | "becomes" => false,
         _ => return,
     };
     // In `causes you to gain` and `as though it didn't have`, the infinitive has no

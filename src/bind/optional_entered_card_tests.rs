@@ -1,3 +1,4 @@
+use crate::bind::normal_form;
 use crate::engine::{Engine, canonical_abilities, validate_abilities};
 use serde_json::{Value, json};
 
@@ -44,7 +45,7 @@ fn whole_original_cards_keep_scopes_and_retire_only_wrong_implicit_objects() {
             .as_array()
             .unwrap()
             .iter()
-            .map(|v| canonical_abilities(v).unwrap())
+            .map(normal_form)
             .collect::<Vec<_>>();
         expected.sort_by_key(Value::to_string);
         expected.dedup();
@@ -55,7 +56,7 @@ fn whole_original_cards_keep_scopes_and_retire_only_wrong_implicit_objects() {
             "{name}: reference-only correction must preserve every scope"
         );
         for old in case["proper_previous_readings"].as_array().unwrap() {
-            let old = canonical_abilities(old).unwrap();
+            let old = normal_form(old);
             assert!(
                 parsed.readings.contains(&old),
                 "{name}: proper old Dawn Optional reading"
@@ -83,7 +84,7 @@ fn surprise_native_default_and_edited_color_use_the_current_entry_receipt() {
         .find(|c| c["name"] == "Surprise Deployment")
         .unwrap();
     let name = case["name"].as_str().unwrap();
-    let native = canonical_abilities(&case["native"]).unwrap();
+    let native = normal_form(&case["native"]);
     let parsed = engine.parse(name, case["text"].as_str().unwrap()).unwrap();
     assert_eq!(parsed.readings, vec![native.clone()]);
     let printed = engine
@@ -97,9 +98,9 @@ fn surprise_native_default_and_edited_color_use_the_current_entry_receipt() {
             .readings
             .contains(&native)
     );
-    let mut edited = native;
+    let mut edited = case["native"].clone();
     *edited.pointer_mut("/1/args/body/instructions/0/args/body/instructions/0/args/operation/args/objects/args/filter/args/1/args/args").unwrap() = json!("Blue");
-    let edited = canonical_abilities(&edited).unwrap();
+    let edited = normal_form(&edited);
     let text = engine
         .print_keyed(name, &edited, &types(&case), &[])
         .unwrap()
@@ -133,33 +134,50 @@ fn surprise_native_default_and_edited_color_use_the_current_entry_receipt() {
 fn operation(instruction: &Value) -> Option<&Value> {
     (instruction["kind"] == "Effect").then_some(&instruction["args"]["operation"])
 }
-fn one_result(objects: &Value, result: &Value) -> bool {
-    objects
-        == &json!({"kind":"One","args":{"kind":"Result","args":{
-            "result":result,"phase":"After","index":0
-        }}})
+/// The sentences after the entry and the reference to the entered card they must use:
+/// the optional action's move result, or the guarded payment's performed card.
+fn entry_tails(all: &[Value]) -> (Vec<&Value>, Value) {
+    if let Some(optional) = all.iter().find(|i| i["kind"] == "Optional") {
+        let body = optional["args"]["body"]["instructions"].as_array().unwrap();
+        let moved = body
+            .iter()
+            .find(|i| operation(i).is_some_and(|o| o["kind"] == "Move"))
+            .unwrap();
+        let entered = json!({"kind":"Result","args":{
+            "result":moved["args"]["result"],"phase":"After","index":0}});
+        let mut tails: Vec<&Value> = body.iter().skip_while(|i| *i != moved).skip(1).collect();
+        tails.extend(all.iter().skip_while(|i| *i != optional).skip(1));
+        return (tails, entered);
+    }
+    let at = all
+        .iter()
+        .position(|i| operation(i).is_some_and(|o| o["kind"] == "PayCost"))
+        .unwrap();
+    let paid = json!({"kind":"Query","args":{"objects":{"kind":"CostObjects","args":{
+        "payment":{"Resolution":all[at]["args"]["result"]},"component":[0],
+        "view":"Performed","phase":"After"}},"index":0}});
+    let mut tails: Vec<&Value> = all[at + 1]["args"]["then"]["instructions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .collect();
+    tails.extend(&all[at + 2..]);
+    (tails, paid)
 }
 fn entered_followups(ability: &Value) {
     let all = ability["args"]["body"]["instructions"].as_array().unwrap();
-    let optional = all.iter().find(|i| i["kind"] == "Optional").unwrap();
-    let body = optional["args"]["body"]["instructions"].as_array().unwrap();
-    let moved = body
-        .iter()
-        .find(|i| operation(i).is_some_and(|o| o["kind"] == "Move"))
-        .unwrap();
-    let result = &moved["args"]["result"];
-    let mut tails: Vec<&Value> = body.iter().skip_while(|i| *i != moved).skip(1).collect();
-    tails.extend(all.iter().skip_while(|i| *i != optional).skip(1));
+    let (tails, entered) = entry_tails(all);
+    let names = |objects: &Value| objects == &json!({"kind":"One","args":entered});
     assert!(!tails.is_empty());
     for tail in tails {
         let op = operation(tail).unwrap();
         if op["kind"] == "CreateContinuousEffect" {
             assert_eq!(op["args"]["source"], json!({"kind":"Source"}));
-            assert!(one_result(&op["args"]["affected"]["Objects"], result));
+            assert!(names(&op["args"]["affected"]["Objects"]));
         } else {
             assert_eq!(op["kind"], "CreateDelayedTrigger");
             let action = &op["args"]["body"]["instructions"][0]["args"]["operation"];
-            assert!(one_result(&action["args"]["objects"], result));
+            assert!(names(&action["args"]["objects"]));
         }
     }
 }

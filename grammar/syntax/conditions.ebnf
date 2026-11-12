@@ -7,7 +7,7 @@ condition_and ::= condition_one "and" condition_one
 /* @sem Condition::AnyOf([$condition_one, $condition_one_2]) */
 condition_or ::= condition_one "or" condition_one
 
-condition_one ::= condition_above_starting_life | condition_starting_life_margin | condition_no_hollow_sentinel | condition_shares_card_type | condition_ring_bearer_choice | condition_ring_bearer_choice_other | condition_total_mana_spent | condition_typed_mana_spent | condition_left_battlefield_this_turn | condition_spell_warped_this_turn | condition_not_casters_turn | condition_no_opponent_more_life | condition_attached_named | condition_it_suspected | condition_kicked_with | condition_kicked_twice | condition_linked_card | condition_it_card | mined_condition | condition_cast_kicked | condition_kicked | condition_it_kicked | condition_hand_size | condition_hand_none | condition_control | condition_control_another
+condition_one ::= condition_battlefield_size | condition_battlefield_other_size | condition_above_starting_life | condition_starting_life_margin | condition_no_hollow_sentinel | condition_shares_card_type | condition_ring_bearer_choice | condition_ring_bearer_choice_other | condition_total_mana_spent | condition_typed_mana_spent | condition_left_battlefield_this_turn | condition_spell_warped_this_turn | condition_not_casters_turn | condition_no_opponent_more_life | condition_attached_named | condition_it_suspected | condition_kicked_with | condition_kicked_twice | condition_linked_card | condition_it_card | mined_condition | condition_cast_kicked | condition_kicked | condition_it_kicked | condition_hand_size | condition_hand_none | condition_control | condition_control_another
     | condition_control_many | condition_control_none | condition_attacked | condition_lost_life
     | condition_self_is | condition_not_type | condition_it_was | condition_died | condition_left_under | condition_entered_under
     | condition_monarch | condition_cast | condition_graveyard_size | condition_graveyard_filtered_size | condition_graveyard_has
@@ -176,6 +176,19 @@ condition_monarch ::= "you're" "the" "monarch"
 
 /* @sem Condition::Compare{left:EventHistory{event:Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}} */
 condition_cast ::= "you've" "cast" spell_filter "this" "turn"
+
+/* "If there are seven or more lands on the battlefield": the permanents counted where
+   they are. */
+/* @sem Condition::Compare{left:Expr::CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counted_plural}, filter:InZone(Shared(Battlefield))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+condition_battlefield_size ::= "there" "are" value "or" "more" counted_plural "on" "the" "battlefield"
+
+/* "If there are five or more other creatures on the battlefield": all of them but the
+   one the ability is about, the entering creature or this one. */
+/* @sem Condition::Compare{left:Expr::CountObjects(Difference{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counted_plural}, excluding:One(@pump_other_ref(ObjectRef::@it))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+condition_battlefield_other_size ::= "there" "are" value "or" "more" "other" counted_plural "on" "the" "battlefield"
+
+/* A counted population; "other" belongs to the count's exclusion, not the filter. */
+counted_plural ::= filter_plural_type_prefix | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural
 
 /* @sem Condition::Compare{left:Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}} */
 condition_graveyard_size ::= "there" "are" count "or" "more" "cards" "in" "your" "graveyard"

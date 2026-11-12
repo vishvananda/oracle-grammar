@@ -94,7 +94,15 @@ pub(super) fn reference(
         if moving_object(root, path) {
             reference = frame.returning_aura(reference)?;
         }
-        reference = frame.reference(reference, current)?;
+        // "Each creature you control other than this creature" excludes the ability's
+        // own object, as "other" does, whichever zone its event moved it to.
+        if matches!(name, "self" | "named_source") && battlefield_filter(root, path) {
+            if reference["kind"] == "EventSubject" {
+                reference = json!({"kind":"Source"});
+            }
+        } else {
+            reference = frame.reference(reference, current)?;
+        }
     }
     // The target filter is evaluated at announcement, even when its words
     // follow an earlier effect. Its current-card view precedes all those moves.
@@ -416,14 +424,7 @@ fn information(root: &Value, path: &[Step]) -> bool {
         // The shared battlefield query replaces ObjectSet::Battlefield's direct
         // filter payload. That new record field does not make an exclusion an
         // information read; it still follows the event or earlier public move.
-        if matches!(step, Step::Key(key) if key == "filter")
-            && depth > 0
-            && get(root, &path[..depth - 1]).is_some_and(|objects| {
-                objects["kind"] == "Zone"
-                    && objects["args"]["scope"]["Shared"] == "Battlefield"
-                    && objects["args"]["kind"] == "Permanent"
-            })
-        {
+        if battlefield_filter_at(root, path, depth) {
             continue;
         }
         if matches!(step, Step::Key(key) if matches!(key.as_str(),
@@ -467,6 +468,22 @@ fn information(root: &Value, path: &[Step]) -> bool {
         }
     }
     false
+}
+
+/// Whether `path[depth]` is the filter of a battlefield permanent population.
+fn battlefield_filter_at(root: &Value, path: &[Step], depth: usize) -> bool {
+    matches!(&path[depth], Step::Key(key) if key == "filter")
+        && depth > 0
+        && get(root, &path[..depth - 1]).is_some_and(|objects| {
+            objects["kind"] == "Zone"
+                && objects["args"]["scope"]["Shared"] == "Battlefield"
+                && objects["args"]["kind"] == "Permanent"
+        })
+}
+
+/// Whether the reference at `path` is inside a battlefield population's filter.
+fn battlefield_filter(root: &Value, path: &[Step]) -> bool {
+    (0..path.len()).any(|depth| battlefield_filter_at(root, path, depth))
 }
 
 /// Other parts of an effect can find an object it moved to a public zone
