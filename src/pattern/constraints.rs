@@ -61,7 +61,13 @@ pub(super) fn refers_to(name: &str, value: &Value) -> bool {
             !introducing
                 && matches!(
                     kind,
-                    "Source" | "Target" | "EventSubject" | "EventDestination" | "Result" | "Query"
+                    "Source"
+                        | "Target"
+                        | "EventSubject"
+                        | "EventDestination"
+                        | "Result"
+                        | "Query"
+                        | "Affected"
                 )
         }
         "named_source" => matches!(kind, "Source" | "GrantingObject"),

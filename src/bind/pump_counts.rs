@@ -6,6 +6,8 @@ use serde_json::{Value, json};
 const SUBJECT: &str = "distributive_pump_subject";
 const OTHER: &str = "pump_other_ref";
 const NAME: &str = "pump_name_ref";
+/// Contextual `other` from an ordinary filter; it names the member only here.
+const CONTEXTUAL: &str = "other_reference";
 
 fn source(value: &Value) -> bool {
     value.as_object().is_some_and(|fields| fields.len() == 1) && value["kind"] == "Source"
@@ -29,7 +31,20 @@ pub(super) fn marker(root: &mut Value, path: &[Step], name: &str) -> Result<bool
         }
         return Ok(true);
     }
-    if !matches!(name, "it" | "named_object") || !eligible(root, path, name)? {
+    if name == CONTEXTUAL {
+        if !eligible(root, path, name)? {
+            return Ok(false);
+        }
+        *at_path(root, path).ok_or("distributive contextual other path")? =
+            json!({"kind":"Affected"});
+        return Ok(true);
+    }
+    // A `where X is` definition renames its pronouns; the member is the same.
+    if !matches!(
+        name,
+        "it" | "named_object" | "defined_it" | "defined_named_object"
+    ) || !eligible(root, path, name)?
+    {
         return Ok(false);
     }
     *at_path(root, path).ok_or("distributive count reference path")? = json!({"kind":"Affected"});
@@ -103,10 +118,12 @@ fn shared_subtype(subject: &Value, count: &Value, work: &mut usize, depth: usize
     false
 }
 
+/// The count names the subject's own kind: both are creatures, or both name
+/// one subtype, as in `each Skeleton ... the number of other Skeletons`.
 fn compatible_creatures(subject: &Value, count: &Value) -> bool {
-    positive(subject, "CardType", "Creature", &mut 256, 0)
-        && (positive(count, "CardType", "Creature", &mut 256, 0)
-            || shared_subtype(subject, count, &mut 256, 0))
+    shared_subtype(subject, count, &mut 256, 0)
+        || (positive(subject, "CardType", "Creature", &mut 256, 0)
+            && positive(count, "CardType", "Creature", &mut 256, 0))
 }
 
 /// Only arithmetic expression edges lead to this count. A count nested inside
@@ -202,7 +219,7 @@ fn relation_path(mut filter: &Value, mut path: &[Step], marker: &str) -> bool {
                 negated = true;
             }
             Some(kind)
-                if (marker == OTHER && kind == "SameObject" && negated)
+                if (matches!(marker, OTHER | CONTEXTUAL) && kind == "SameObject" && negated)
                     || (marker == NAME && kind == "SharesNameWith") =>
             {
                 return matches!(path, [Step::Key(argument)] if argument == "args")
@@ -213,11 +230,28 @@ fn relation_path(mut filter: &Value, mut path: &[Step], marker: &str) -> bool {
     }
 }
 
+/// Does the path from the Pump to the marker pass through the subject's own
+/// object-set production, read at the same token as the subject?
+fn repeats_subject(mut node: &Value, path: &[Step], subject: &Value) -> bool {
+    for step in path {
+        if symbol_name(node) == Some(SUBJECT) && node["at"] == subject["at"] {
+            return true;
+        }
+        node = match step {
+            Step::Key(key) => &node[key.as_str()],
+            Step::Index(index) => &node[*index],
+        };
+    }
+    false
+}
+
 fn eligible(root: &Value, path: &[Step], name: &str) -> Result<bool, String> {
     let annotation = if name == OTHER {
         if !at(root, path).is_some_and(constant_marker) {
             return Ok(false);
         }
+        path
+    } else if name == CONTEXTUAL {
         path
     } else {
         let [annotation @ .., Step::Key(args), Step::Index(0)] = path else {
@@ -228,10 +262,10 @@ fn eligible(root: &Value, path: &[Step], name: &str) -> Result<bool, String> {
         }
         annotation
     };
-    let expected = if matches!(name, "named_object" | NAME) {
-        NAME
-    } else {
-        OTHER
+    let expected = match name {
+        "named_object" | "defined_named_object" | NAME => NAME,
+        CONTEXTUAL => CONTEXTUAL,
+        _ => OTHER,
     };
     if at(root, annotation).and_then(symbol_name) != Some(expected) {
         return Ok(false);
@@ -263,6 +297,10 @@ fn eligible(root: &Value, path: &[Step], name: &str) -> Result<bool, String> {
                 || inner["args"]["kind"] != "Permanent"
                 || !compatible_creatures(&inner["args"]["filter"], filter)
             {
+                return Ok(false);
+            }
+            // A count that repeats the subject's words keeps the subject's `other`.
+            if name == CONTEXTUAL && repeats_subject(node, &annotation[position..], subject) {
                 return Ok(false);
             }
             // Bound only this proven new context; unrelated legacy paths remain unchanged.

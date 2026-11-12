@@ -351,3 +351,31 @@ fn that_creature_skips_an_unwritten_land_target() {
     visit(&readings[0], "ObjectProperty", &mut properties);
     assert_eq!(properties[0]["object"], json!({"kind":"EventSubject"}));
 }
+
+fn only_reading(text: &str) -> Value {
+    let mut readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
+    readings.remove(0)
+}
+
+fn compared(text: &str) -> Vec<Value> {
+    let mut found = Vec::new();
+    visit(&only_reading(text), "SameObject", &mut found);
+    found
+}
+
+#[test]
+fn a_distributive_count_s_other_is_each_member() {
+    for text in [
+        "Each Skeleton you control gets +X/+0, where X is the number of other Skeletons you control.",
+        "Creatures you control get +X/+0, where X is the number of other creatures you control.",
+    ] {
+        assert_eq!(compared(text), vec![json!({"kind":"Affected"})], "{text}");
+    }
+    let named = "Whenever this creature attacks, other attacking creatures get +1/+1 until end of turn for each attacking creature other than this creature.";
+    let found = compared(named);
+    assert!(
+        !found.is_empty() && found.iter().all(|it| it == &json!({"kind":"Source"})),
+        "{found:#?}"
+    );
+}
