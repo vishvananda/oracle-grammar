@@ -60,6 +60,11 @@ general scalar reading.
 - At `[1].args.body.instructions[1].args.operation.args.objects`: reference
   `One(Result{result:0, phase:After, index:0})`, expected
   `Transition{result:0, phase:After}`.
+- At `[1].args.body.instructions[1].args.operation.args.changes[0]`: reference
+  `CreatureTypes{mode:Add, types:Listed([Spirit])}` for "perpetually becomes a
+  Spirit", expected `mode:Set`, as in Heir to Dragonfire ("perpetually becomes
+  a Dragon") and Second Little Pig. Only "in addition to its other types" adds
+  (The Grand Goatnapper, Prototype X-8).
 - Status: open.
 
 ## "The total amount of mana paid this way" read per player
