@@ -314,3 +314,30 @@ fn it_after_a_created_trigger_still_names_its_event_object() {
     );
     printed_types(inner, &["Sorcery"]);
 }
+
+#[test]
+fn the_chosen_type_is_the_kind_of_type_the_card_chose() {
+    for (text, kind) in [
+        (
+            "As this artifact enters, choose a creature type.\nSpells you cast of the chosen type cost {1} less to cast.",
+            "CreatureType",
+        ),
+        (
+            "As this artifact enters, choose a card type.\nSpells you cast of the chosen type cost {1} less to cast.",
+            "CardType",
+        ),
+        (
+            "As this enchantment enters, choose a planeswalker type.\nPlaneswalkers you control of the chosen type have hexproof.",
+            "PlaneswalkerType",
+        ),
+    ] {
+        let readings = engine().parse("Context example", text).unwrap().readings;
+        assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
+        let mut chosen = Vec::new();
+        visit(&readings[0], "Chosen", &mut chosen);
+        assert!(
+            !chosen.is_empty() && chosen.iter().all(|used| used == kind),
+            "{text}"
+        );
+    }
+}

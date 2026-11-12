@@ -7,6 +7,7 @@ pub(crate) mod activation_property;
 mod addresses;
 pub(crate) mod attached_counter_other;
 mod branches;
+pub(crate) mod chosen_kinds;
 mod combat;
 mod conditional;
 mod controller_role;
