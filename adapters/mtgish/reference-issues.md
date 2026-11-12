@@ -46,7 +46,8 @@ the card `TheCardPutInHandThisWay` instead of `TheCardReturnedToHandThisWay`
 keep the scalar `One(Result{..., index:0})`. The producer's put-in-hand branch
 needs a recorded return, and these Source actions do not record one. Candela,
 Aegis of Adagia has the same encoding and still matches through the grammar's
-general scalar reading.
+general scalar reading. Upstream's decision of 2026-11-11 chose the full
+`Transition` for an ordinary return; these Source actions need that lowering.
 
 ### Paths of Tuinvale
 
@@ -65,6 +66,9 @@ general scalar reading.
   Spirit", expected `mode:Set`, as in Heir to Dragonfire ("perpetually becomes
   a Dragon") and Second Little Pig. Only "in addition to its other types" adds
   (The Grand Goatnapper, Prototype X-8).
+- Witness for `mode:Set`: return a Zombie creature card. After "becomes a
+  Spirit" it is no longer a Zombie, so an effect that counts or reduces Zombie
+  spells stops applying to it; `mode:Add` keeps it a Zombie Spirit.
 - Status: open.
 
 ## "The total amount of mana paid this way" read per player
@@ -200,6 +204,9 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
 - Witness: the history reader keeps the outer event frame; show that
   `EventSubject` rebinds to the queried history event.
+- Finding: no witness exists under that contract. The outer subject is the
+  attacking Warden itself, so `EventSubject` and `Source` agree in every state.
+  Consolidate to `Source`.
 - Status: open.
 
 ### Storm Entity
@@ -208,6 +215,8 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
 - Witness: the entry replacement's subject is the entering source; show where
   it differs from `Source`.
+- Finding: no witness exists. The entering subject is the source in every
+  entry, cast or not, so the forms agree. Consolidate to `Source`.
 - Status: open.
 
 ### Graven Dominator
@@ -216,6 +225,10 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
 - Witness: review each `AnyOf` branch (source entry, haunted creature death)
   and its source incarnation separately.
+- Finding: no witness exists. In the entry branch `EventSubject` is the
+  source. In the haunt branch the haunted creature is in a graveyard and the
+  haunting source is in exile, so neither exclusion removes a battlefield
+  creature. Consolidate to `Source`.
 - Status: open.
 
 ### In Thrall to the Pit
@@ -226,6 +239,9 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   recorded result.
 - Witness: a failed control change or moved target showing that `Recorded`
   names something other than the target.
+- Finding: no witness exists. With one target, an illegal target stops the
+  whole spell, and a legal one is the object `Recorded{result:0}` names, even
+  when its controller does not change. Consolidate to `Target`.
 - Status: open.
 
 ### Liliana, Death Mage
@@ -234,6 +250,8 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   reference `{"kind":"Prior","args":"That"}`, expected
   `{"kind":"Target","args":{"slot":0,"index":0}}`, as in 22 of 24 controls.
 - Witness: verify the per-recipient reading of `Prior(That)`.
+- Finding: no witness exists. The one target opponent is the only player
+  `Prior(That)` can name here. Consolidate to `Target`.
 - Status: open.
 
 ### Cryptic Coat
@@ -243,6 +261,9 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   `{"kind":"Result","args":{"result":0,"phase":"After","index":0}}`, as in 12
   cloak and manifest controls.
 - Witness: a before/after mismatch between `Recorded` and the cloaked result.
+- Finding: no witness exists. Cloak makes at most one permanent; `Recorded`
+  names it when it exists and nothing otherwise, as `Result{index:0}` does.
+  Consolidate to `Result`.
 - Status: open.
 
 ### Know Naught but Fire
@@ -260,6 +281,8 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   `{"kind":"Target","args":{"slot":0,"index":0}}`, as in Balor and
   Laquatus's Creativity.
 - Witness: verify the per-recipient reading of `Acting`.
+- Finding: no witness exists. With one target player, `Acting` is that
+  player for the life loss. Consolidate to `Target`.
 - Status: open.
 
 ### Ward of Piety
@@ -300,6 +323,8 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   creatures" count controls and the split "if you cast it and ..." of
   Inquisitor Captain.
 - Witness: a binding counterexample for `Candidate` inside the conjunction.
+- Finding: agreed that no binding counterexample exists; `Candidate` is the
+  source here. Consolidate to the split form of the controls.
 - Status: open.
 
 ### Goblin Snowman
