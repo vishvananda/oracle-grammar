@@ -778,7 +778,7 @@ fn one(token: Token, value: Option<Value>) -> Found {
 /// The value a token gives its production, as the parser reads it.
 fn token_value(token: &Token) -> Option<Value> {
     match token {
-        Token::Number(number) => Some(Value::from(*number)),
+        Token::Number(number) | Token::Grouped(number) => Some(Value::from(*number)),
         Token::Word(word) => Some(Value::from(word.clone())),
         Token::SelfName(_) => Some(Value::from("$self")),
         Token::Mark(_) | Token::Newline => None,

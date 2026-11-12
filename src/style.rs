@@ -17,7 +17,7 @@ pub const LINE: &str = "$";
 pub fn key_of(token: &Token) -> String {
     match token {
         Token::Word(word) => word.clone(),
-        Token::Number(_) => "#".to_string(),
+        Token::Number(_) | Token::Grouped(_) => "#".to_string(),
         Token::Mark(mark) => mark.to_string(),
         Token::SelfName(_) => "@".to_string(),
         Token::Newline => LINE.to_string(),
@@ -697,7 +697,7 @@ impl Model {
         let mut mark = [0; 4];
         let key = match token {
             Token::Word(word) => word.as_str(),
-            Token::Number(_) => "#",
+            Token::Number(_) | Token::Grouped(_) => "#",
             Token::Mark(symbol) => symbol.encode_utf8(&mut mark),
             Token::SelfName(_) => "@",
             Token::Newline => LINE,

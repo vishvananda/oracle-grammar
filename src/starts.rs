@@ -229,7 +229,7 @@ impl Starts {
                 key: self.words.get(word).copied(),
                 class: word_class(word),
             },
-            Some(Token::Number(number)) => Look {
+            Some(Token::Number(number) | Token::Grouped(number)) => Look {
                 key: self.numbers.get(number).copied(),
                 class: NUMBER,
             },

@@ -9,6 +9,8 @@ pub enum Token {
     /// A word, in the case a mid-sentence occurrence has.
     Word(String),
     Number(u32),
+    /// A number written with thousands separators, as in `1,000 life`.
+    Grouped(u32),
     /// One punctuation character, including the braces of a `{T}` symbol.
     Mark(char),
     /// This card's name, as a spelling index into the context's names.
@@ -141,6 +143,42 @@ fn name_at(text: &str, at: usize, names: &Names) -> Option<(u8, usize)> {
     None
 }
 
+/// Digits in groups of three after a comma, as in `1,000`, and their length.
+/// A comma not followed by exactly three digits is punctuation.
+fn grouped(rest: &str) -> Option<(u32, usize)> {
+    let bytes = rest.as_bytes();
+    let lead = bytes.iter().take_while(|b| b.is_ascii_digit()).count();
+    if !(1..=3).contains(&lead) {
+        return None;
+    }
+    let mut end = lead;
+    while bytes.get(end) == Some(&b',')
+        && bytes
+            .get(end + 1..end + 4)
+            .is_some_and(|g| g.iter().all(u8::is_ascii_digit))
+        && !bytes.get(end + 4).is_some_and(u8::is_ascii_digit)
+    {
+        end += 4;
+    }
+    if end == lead {
+        return None;
+    }
+    let digits: String = rest[..end].chars().filter(char::is_ascii_digit).collect();
+    Some((digits.parse().ok()?, end))
+}
+
+fn with_separators(value: u32) -> String {
+    let digits = value.to_string();
+    let mut out = String::with_capacity(digits.len() + digits.len() / 3);
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(digit);
+    }
+    out
+}
+
 /// Split text into tokens, or refuse it. `vocabulary` holds the grammar's words,
 /// so a sentence-initial `Goblins` keeps its capital and `Draw` loses it.
 pub fn tokenize(
@@ -181,6 +219,11 @@ fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<T
             '\n' => {
                 tokens.push(Token::Newline);
                 at += 1;
+            }
+            _ if c.is_ascii_digit() && grouped(rest).is_some() => {
+                let (value, end) = grouped(rest).ok_or("grouped number")?;
+                tokens.push(Token::Grouped(value));
+                at += end;
             }
             _ if c.is_ascii_digit() => {
                 let end = rest
@@ -282,6 +325,7 @@ pub fn detokenize(tokens: &[Token], names: &Names) -> String {
             }
             Token::Word(word) => out.push_str(word),
             Token::Number(value) => out.push_str(&value.to_string()),
+            Token::Grouped(value) => out.push_str(&with_separators(*value)),
             Token::Mark(mark) => {
                 quotes.pass(*mark);
                 out.push(spelled(*mark));

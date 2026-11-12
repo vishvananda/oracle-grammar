@@ -354,11 +354,13 @@ impl<'a> Parser<'a> {
         let token = self.tokens.get(at)?;
         match (sym, token) {
             (Sym::Word(expected), Token::Word(word)) => (expected == word).then_some(None),
-            (Sym::Word(expected), Token::Number(value)) => {
+            (Sym::Word(expected), Token::Number(value) | Token::Grouped(value)) => {
                 (expected.parse::<u32>().ok()? == *value).then_some(None)
             }
             (Sym::Mark(expected), Token::Mark(mark)) => (expected == mark).then_some(None),
-            (Sym::Class(Class::Number), Token::Number(value)) => Some(Some(Value::from(*value))),
+            (Sym::Class(Class::Number), Token::Number(value) | Token::Grouped(value)) => {
+                Some(Some(Value::from(*value)))
+            }
             (Sym::Class(Class::Word), Token::Word(word)) => Some(Some(Value::from(word.clone()))),
             (Sym::Class(Class::Capitalized), Token::Word(word)) => word
                 .starts_with(char::is_uppercase)

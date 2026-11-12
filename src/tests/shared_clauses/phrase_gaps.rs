@@ -415,3 +415,24 @@ fn exile_at_random_moves_the_card_the_random_choice_selects() {
     visit(&reading, "Move", &mut moved);
     assert_eq!(moved[0]["objects"], json!({"kind":"Selected","args":0}));
 }
+
+#[test]
+fn a_thousands_grouped_number_is_one_number_token() {
+    use crate::tokens::Token;
+    let tokens = engine().tokens_of("Example", "loses 1,000 life").unwrap();
+    assert!(tokens.contains(&Token::Grouped(1000)), "{tokens:?}");
+    let listed = engine().tokens_of("Example", "1, 2 or 3").unwrap();
+    assert!(
+        !listed
+            .iter()
+            .any(|token| matches!(token, Token::Grouped(_)))
+    );
+    assert!(engine().tokens_of("Example", "1,00").is_err());
+    let mut lost = Vec::new();
+    visit(
+        &only_reading("Each opponent loses 1,000 life."),
+        "LoseLife",
+        &mut lost,
+    );
+    assert_eq!(lost[0]["amount"], json!({"kind":"Constant","args":1000}));
+}
