@@ -309,12 +309,14 @@ const PLURAL: [&str; 13] = [
 ];
 
 /// Whether a subject is plural, when its head can be told from its words. The head ends
-/// the first run of nouns: `land creatures`, `creature cards`.
+/// the first run of nouns: `land creatures`, `creature cards`. A list or a subordinate
+/// clause leaves it in doubt; a relative clause after the head (`creatures that entered
+/// this turn`) does not.
 fn plural_subject(subject: &[Token]) -> Option<bool> {
     let is_word = |token: &Token, words: &[&str]| matches!(token, Token::Word(word) if words.contains(&word.as_str()));
     if subject
         .iter()
-        .any(|t| is_word(t, &["and", "or", "that", "as", "if"]))
+        .any(|t| is_word(t, &["and", "or", "as", "if"]))
     {
         return None;
     }
@@ -322,7 +324,9 @@ fn plural_subject(subject: &[Token]) -> Option<bool> {
     for token in subject {
         match token {
             Token::SelfName(_) => return Some(false),
-            Token::Word(word) if word == "you" => return head,
+            _ if head.is_none() && is_word(token, &["that"]) => return None,
+            // `Creature you control`, `creature they control`: a new subject ends the head.
+            Token::Word(word) if word == "you" || word == "they" && head.is_some() => return head,
             Token::Word(word) if SINGULAR.contains(&word.as_str()) => head = Some(false),
             Token::Word(word) if PLURAL.contains(&word.as_str()) => head = Some(true),
             _ if head.is_some() => return head,
@@ -339,8 +343,12 @@ fn verb_agrees(tokens: &[Token], at: usize, word: &str, found: &mut Found) {
         "gets" | "gains" | "has" | "loses" => false,
         _ => return,
     };
-    // In `causes you to gain`, the infinitive has no subject agreement.
-    if plural && at > 0 && is(tokens, at - 1, "to") {
+    // In `causes you to gain` and `as though it didn't have`, the infinitive has no
+    // subject agreement.
+    let bare = [
+        "to", "didn't", "doesn't", "don't", "can", "can't", "may", "must", "would", "will",
+    ];
+    if plural && at > 0 && bare.iter().any(|word| is(tokens, at - 1, word)) {
         return;
     }
     let subject = &tokens[clause_start(tokens, at)..at];

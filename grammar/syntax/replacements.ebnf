@@ -151,6 +151,13 @@ condition_consequent ::= may_body | clause_you | clause_you_life | clause_third 
 /* @sem Instruction::[@resolution(Instruction::If{condition:$condition, then:Program{instructions:$condition_consequent}, otherwise:Program{}})] */
 clause_if_after ::= condition_consequent "if" condition
 
+/* Each counter goes only on an object of its kind, the verb said once: `put a +1/+1
+   counter on it if it's a creature and a loyalty counter on it if it's a planeswalker`.
+   `It` is the object both counters name; each test holds at resolution, as a postposed
+   condition does. */
+/* @sem Instruction::[@resolution(Instruction::If{condition:ObjectMatches{object:@it, filter:$card_filter}, then:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::PutCounters{placements:[$counter_direct_placement]}}]}, otherwise:Program{}}), @resolution(Instruction::If{condition:ObjectMatches{object:@it, filter:$card_filter_2}, then:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::PutCounters{placements:[$counter_direct_placement_2]}}]}, otherwise:Program{}})] */
+clause_put_counters_each_kind ::= "put" counter_direct_placement "if" "it's" ("a" | "an") card_filter "and" counter_direct_placement "if" "it's" ("a" | "an") card_filter
+
 /* @sem Instruction::[@resolution(Instruction::If{condition:Not($condition), then:Program{instructions:$condition_consequent}, otherwise:Program{}})] */
 clause_unless_condition ::= condition_consequent "unless" condition
 
