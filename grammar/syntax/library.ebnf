@@ -383,6 +383,17 @@ exiled_card_ref ::= "it" | "that" "card"
 /* @sem Operation::@exiled_card_result(Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
 exile_top_card_receipt ::= player_ref "exiles" "the" "top" "card" "of" "their" "library"
 
+/* After a player exiles their top card, "it's a <type> card" counts the exiled
+   card with that type, as in Audacious Swap, Dimensional Infiltrator and Mind's
+   Dilation. */
+instructions_exiled_top_type ::= instructions_exiled_top_type_only | instructions_exiled_top_type_otherwise
+
+/* @sem Vec<Instruction>::[Effect{result:@mark, operation:$exile_top_card_receipt}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:$clause}, otherwise:Program{}}] */
+instructions_exiled_top_type_only ::= exile_top_card_receipt "." "if" "it's" ("a" | "an") card_filter "card" "," clause
+
+/* @sem Vec<Instruction>::[Effect{result:@mark, operation:$exile_top_card_receipt}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:$clause}, otherwise:Program{instructions:$clause_2}}] */
+instructions_exiled_top_type_otherwise ::= exile_top_card_receipt "." "if" "it's" ("a" | "an") card_filter "card" "," clause "." "otherwise" "," clause
+
 /* Player and card references have independent typed scopes. */
 /* @sem Operation::Move{objects:InZone{objects:One($exiled_card_ref), zone:Exile}, destination:Battlefield{controller:Player(@that_player), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
 exiled_card_put ::= "the" "player" "puts" exiled_card_ref "onto" "the" "battlefield"
