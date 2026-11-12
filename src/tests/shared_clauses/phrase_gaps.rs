@@ -402,3 +402,16 @@ fn a_noncreature_aura_s_other_creatures_exclude_its_host() {
     let plain = "Other creatures you control get -1/-1.";
     assert_eq!(compared(plain), vec![json!({"kind":"Source"})]);
 }
+
+#[test]
+fn exile_at_random_moves_the_card_the_random_choice_selects() {
+    let text =
+        "Exile an instant or sorcery card with mana value 3 or less from your graveyard at random.";
+    let reading = only_reading(text);
+    let mut chosen = Vec::new();
+    visit(&reading, "ChooseObjects", &mut chosen);
+    assert_eq!(chosen[0]["constraints"], json!(["AtRandom"]));
+    let mut moved = Vec::new();
+    visit(&reading, "Move", &mut moved);
+    assert_eq!(moved[0]["objects"], json!({"kind":"Selected","args":0}));
+}
