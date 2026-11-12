@@ -476,3 +476,31 @@ revealed_terminated_grants ::= grants "."
    An absent card still causes one library shuffle; drawing is unconditional. */
 /* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[Mana($mana_symbols), Discard{count:Constant(1), filter:SameObject(Source), random:false}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[...$clause, If{condition:ObjectMatches{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}]}})} */
 activated_discard_self_shuffle ::= mana_symbols "," ("↑")? "discard" "this" "card" ":" clause "." "shuffle" "this" "card" "into" "your" "library" "from" "your" "graveyard" "," "then" "draw" card_count "."
+
+/* Exiling cards from the top of your library. */
+/* @sem Operation::Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$card_count, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_top_cards_of_your_library ::= "exile" "the" "top" card_count "of" "your" "library"
+
+/* A following shuffle. */
+/* @sem Operation::Shuffle{players:$players_singular} */
+then_players_shuffle ::= "then" players_singular "shuffles"
+
+/* Looking at the top X cards. */
+/* @sem Operation::LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$value, from:Top}} */
+look_at_top_x_cards ::= "look" "at" "the" "top" "X" "cards" "of" "your" "library" "," "where" "X" "is" value
+
+/* Shuffling your library. */
+/* @sem Operation::Shuffle{players:One(AbilityController)} */
+shuffle_your_library ::= "shuffle" "your" "library"
+
+/* Searching your library for any cards. */
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:Any, count:AsManyAsCan($card_count)}]} */
+search_library_for_cards ::= "search" "your" "library" "for" card_count
+
+/* Permission to play the prior card. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
+play_that_card_permission ::= duration "," "you" "may" "play" "that" "card"
+
+/* Permission to play the prior cards. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
+play_those_cards_permission ::= duration "," "you" "may" "play" "those" "cards"

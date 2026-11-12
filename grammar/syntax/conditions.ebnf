@@ -23,6 +23,14 @@ condition_one ::= condition_above_starting_life | condition_starting_life_margin
     | condition_mana_values_graveyard | condition_committed_crime
     | condition_object_has_keyword | condition_object_lacks_keyword
     | condition_citys_blessing | condition_full_party
+    | condition_counters_at_least | condition_there_are_counters_at_least | condition_has_counter
+    | condition_no_counters | condition_you_cast | condition_you_cast_from_hand
+    | condition_cast_from_graveyard | condition_no_spells_last_turn
+    | condition_player_cast_spells_last_turn | condition_gained_life_this_turn | condition_drawn_at_least
+    | condition_total_power_at_least | condition_searched_this_way | condition_opponent_controls_more
+    | condition_different_powers | condition_equipped | condition_your_turn | condition_completed_dungeon
+    | condition_bargained | condition_opponent_graveyard_at_least | condition_value_less_than
+    | condition_entered_this_turn
 
 /* @sem Condition::PlayerState{player:AbilityController, state:FullParty} */
 condition_full_party ::= "you" "have" "a" "full" "party"
@@ -389,3 +397,91 @@ condition_starting_life_margin ::= "your" "life" "total" "is" "at" "least" value
 
 /* @sem Condition::Compare{left:PlayerNumber{player:AbilityController, number:Life}, test:NumberTest::Compare{comparison:Greater, value:StartingLife(AbilityController)}} */
 condition_above_starting_life ::= "your" "life" "total" "is" "greater" "than" "your" "starting" "life" "total"
+
+/* At least a number of counters of a kind on an object. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})} */
+condition_counters_at_least ::= object_ref "has" value "or" "more" counter_kind "counters" "on" "it"
+
+/* At least a number of counters of a kind, phrased as existence. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})} */
+condition_there_are_counters_at_least ::= "there" "are" value "or" "more" counter_kind "counters" "on" object_ref
+
+/* Any counter of a kind on an object. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})} */
+condition_has_counter ::= object_ref "has" "a" counter_kind "counter" "on" "it"
+
+/* No counters of a kind on an object. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:Equal, value:Constant(0)})} */
+condition_no_counters ::= "there" "are" "no" counter_kind "counters" "on" object_ref
+
+/* You cast the object. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Cast{by:One(AbilityController)}} */
+condition_you_cast ::= "you" "cast" object_ref
+
+/* You cast the object from your hand. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Cast{by:One(AbilityController), from:Players{zone:Hand, players:One(AbilityController)}}} */
+condition_you_cast_from_hand ::= "you" "cast" object_ref "from" "your" "hand"
+
+/* The object was cast from any graveyard. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Cast{from:Players{zone:Graveyard, players:All}}} */
+condition_cast_from_graveyard ::= object_ref "was" "cast" "from" "a" "graveyard"
+
+/* No player cast a spell last turn. */
+/* @sem Condition::Compare{left:EventHistory{event:Spell{event:Cast, players:All, spells:Any}, window:LastTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:Equal, value:Constant(0)}} */
+condition_no_spells_last_turn ::= "no" "spells" "were" "cast" "last" "turn"
+
+/* Some player cast at least a number of spells last turn. */
+/* @sem Condition::ExistsPlayer{players:All, binding:0, condition:Compare{left:EventHistory{event:Spell{event:Cast, players:One(Bound(0)), spells:Any}, window:LastTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}} */
+condition_player_cast_spells_last_turn ::= "a" "player" "cast" value "or" "more" "spells" "last" "turn"
+
+/* You gained life this turn. */
+/* @sem Condition::Compare{left:EventHistory{event:Player{event:GainsLife, players:One(AbilityController)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
+condition_gained_life_this_turn ::= "you" "gained" "life" "this" "turn"
+
+/* You drew at least a number of cards this turn. */
+/* @sem Condition::Compare{left:EventHistory{event:Player{event:Draws, players:One(AbilityController)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+condition_drawn_at_least ::= "you've" "drawn" value "or" "more" "cards" "this" "turn"
+
+/* A group whose total power reaches a number. */
+/* @sem Condition::Compare{left:Aggregate{objects:$affected, property:Power, aggregation:Sum}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+condition_total_power_at_least ::= affected "have" "total" "power" value "or" "greater"
+
+/* The preceding search happened. */
+/* @sem Condition::Searched(0) */
+condition_searched_this_way ::= "you" "search" "your" "library" "this" "way"
+
+/* An opponent controls more of a kind than you. */
+/* @sem Condition::ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})}}} */
+condition_opponent_controls_more ::= "an" "opponent" "controls" "more" filter_plural "than" "you"
+
+/* You control a number of creatures with different powers. */
+/* @sem Condition::Compare{left:CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])}, property:Powers}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+condition_different_powers ::= "you" "control" value "or" "more" filter_plural "with" "different" "powers"
+
+/* The object is equipped. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:State(Equipped)} */
+condition_equipped ::= object_ref "is" "equipped"
+
+/* It is your turn. */
+/* @sem Condition::PlayerIsActive(AbilityController) */
+condition_your_turn ::= "it's" "your" "turn"
+
+/* You completed a dungeon. */
+/* @sem Condition::PlayerState{player:AbilityController, state:CompletedDungeon} */
+condition_completed_dungeon ::= "you've" "completed" "a" "dungeon"
+
+/* The spell was bargained. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:State(Bargained)} */
+condition_bargained ::= object_ref "was" "bargained"
+
+/* Some opponent has at least a number of cards in their graveyard. */
+/* @sem Condition::ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:Compare{left:CountObjects(Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any})), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}} */
+condition_opponent_graveyard_at_least ::= "an" "opponent" "has" value "or" "more" "cards" "in" "their" "graveyard"
+
+/* One amount is less than another. */
+/* @sem Condition::Compare{left:$value, test:NumberTest::Compare{comparison:Less, value:$value_2}} */
+condition_value_less_than ::= value "is" "less" "than" value
+
+/* The object entered this turn. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Condition(Compare{left:EventHistory{event:ZoneChange{objects:SameObject(Candidate), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})} */
+condition_entered_this_turn ::= object_ref "entered" "this" "turn"

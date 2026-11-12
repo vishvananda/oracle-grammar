@@ -90,6 +90,24 @@ ability ::= activated_discard_self_shuffle | triggered_counter_owner_echo | crew
     | activated_modal | triggered_ability | triggered_once | triggered_once_death | triggered_once_entry | triggered_if | triggered_cast_if | triggered_turn
     | triggered_turn_if | triggered_in_graveyard | triggered_if_modal | triggered_modal | triggered_turn_modal | keyword_ability | static_ability | static_ability_where | static_conditional_first_where
     | static_retained_animation | static_defender_ability | defender_conditional_first | defender_conditional | static_conditional | static_conditional_first | static_unless | static_your_turn | static_player_keywords | static_player_keywords_if | static_player_prohibition | replacement_ability | enchant_ability | activated_from_zone | replacement_clause | static_defining_both | static_defining_power | static_defining_toughness | static_defining_every_type | mined_ability | labelled_ability | labelled_spell_override | labelled_search_option | mechanic_suspend | reminded_suspend | labelled_suspend_reminder
+    | casting_additional_cost | casting_additional_cost_choice | casting_optional_additional_cost
+    | casting_cost_per_extra_target | casting_uncounterable | casting_reduction_one_each
+    | casting_reduction_if | casting_reduction_if_targets | casting_reduction_x | casting_alternative_cost
+    | casting_only_when_attacked | entering_choose_creature_type | entering_choose_color
+    | entering_program | entering_tapped_unless | entering_tapped_unless_or_control
+    | entering_tapped_with_counters | entering_reveal_or_tapped | graveyard_from_anywhere_exile
+    | triggered_optional_program | triggered_first_main_phase | triggered_each_end_step
+    | activated_exhaust | activated_untap_symbol | activated_graveyard_to_hand
+    | activated_graveyard_to_battlefield_tapped | triggered_graveyard_to_hand
+    | opening_hand_begin_on_battlefield | can_be_your_commander | draft_face_up
+    | mechanic_escape_exile_others | mechanic_splice_onto | static_affected_changes | static_changes_if
+    | static_changes_while_opponent_controls | static_not_a_creature_while | static_chosen_type_changes
+    | static_pump_and_grant_trigger | static_pump_and_grant_activated
+    | static_cant_attack_block_or_activate | static_must_be_blocked_by_all | static_low_power_cant_block
+    | static_may_not_untap | static_untap_each_other_untap | static_may_exert | static_you_control
+    | static_look_at_top_card | static_top_card_revealed | static_cast_from_top | static_spells_cost_less
+    | static_instants_sorceries_cost_less | static_no_maximum_hand_size | static_additional_land_plays
+    | static_skip_draw_step
 
 /* @sem Ability::Spell{announcement:@announcement, body:$ordinary_program_sentence} */
 spell_ability ::= ordinary_program_sentence
@@ -269,6 +287,8 @@ instructions ::= instructions_draft_perpetual_types | instructions_exiled_top_ty
     | instructions_sacrifice_value | instructions_may_sacrifice_value
     | instructions_connive_reflexive | instructions_may_hand_draw_reflexive | instructions_prevention_receipt_callback | instructions_reveal_move_card_value_reflexive | instructions_reveal_card_value_reflexive | instructions_exile_card_value_reflexive | instructions_when_you_do | instructions_may_when_you_do | instructions_wheel | instructions_hand_wheel | instructions_look_put | instructions_look_reveal | instructions_reveal_until
     | instructions_reveal_if | mined_instructions
+    | return_chosen_to_owners_hand | protection_from_chosen_color | add_mana_spend_only | clash_if_you_win
+    | flip_coin_win_or_lose
 
 /* Oracle joins a life drain with `and` and cards drawn then discarded with `, then`. */
 /* @sem Instruction::[...$clause_lose_life, ...$clause_you_life] */
@@ -1154,3 +1174,47 @@ nested_closed_callback ::= temporary_trigger_prefix | temporary_trigger_prefix_i
 /* @sem Vec<Instruction>::@and_sequence($clause_may, $independent_may_tail) */
 clause_independent_may_choices ::= clause_may "," "and" independent_may_tail
 independent_may_tail ::= clause_may | clause_independent_may_choices
+
+/* A trigger whose instructions are optional together. */
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:_{instructions:[Optional{decider:AbilityController, body:@optional_action_program($program)}]}} */
+triggered_optional_program ::= event_clause "," "you" "may" program "."
+
+/* At the beginning of your first main phase. */
+/* @sem Ability::Triggered{event:Turn{point:FirstMainPhaseBegins, players:One(AbilityController)}, limits:_{}, announcement:@announcement, body:$program} */
+triggered_first_main_phase ::= "at" "the" "beginning" "of" "your" "first" "main" "phase" "," program "."
+
+/* At the beginning of each end step. */
+/* @sem Ability::Triggered{event:Turn{point:EndStepBegins, players:All}, limits:_{}, announcement:@announcement, body:$program} */
+triggered_each_end_step ::= "at" "the" "beginning" "of" "the" "end" "step" "," program "."
+
+/* An exhaust ability, activated once. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{once:true, keyword:Exhaust}, announcement:@announcement, body:$program} */
+activated_exhaust ::= "exhaust" "—" cost ":" program "."
+
+/* An activated ability with the untap symbol. */
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Mana($mana_symbols), ChangeTapState{selections:[_{objects:One(Source)}], symbol:true}]}, limits:_{}, announcement:@announcement, body:$program} */
+activated_untap_symbol ::= mana_symbols "," "{" "Q" "}" ":" program "."
+
+/* Returning this card from your graveyard to your hand. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:$affected, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}})} */
+activated_graveyard_to_hand ::= cost ":" "return" affected "from" "your" "graveyard" "to" "your" "hand" "."
+
+/* Returning this card from your graveyard to the battlefield tapped. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:$affected, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}})} */
+activated_graveyard_to_battlefield_tapped ::= cost ":" "return" affected "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "."
+
+/* A graveyard trigger returning this card to your hand. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:Move{objects:$affected, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]}})} */
+triggered_graveyard_to_hand ::= event_clause "," "you" "may" "return" affected "from" "your" "graveyard" "to" "your" "hand" "."
+
+/* Beginning the game with this card on the battlefield. */
+/* @sem Ability::OpeningHand{announcement:@announcement, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:BeginOnBattlefield{actor:One(AbilityController), flags:List([Term{family:EnterFlag, form:EntersNormally}])}}]}}]}} */
+opening_hand_begin_on_battlefield ::= "if" "this" "card" "is" "in" "your" "opening" "hand" "," "you" "may" "begin" "the" "game" "with" "it" "on" "the" "battlefield" "."
+
+/* This card can be your commander. */
+/* @sem Ability::DeckRule(CanBeCommander) */
+can_be_your_commander ::= SELF_NAME "can" "be" "your" "commander" "."
+
+/* Drafting this card face up. */
+/* @sem Ability::DraftRule([Vocabulary{family:DraftAction, form:DraftFaceUp}]) */
+draft_face_up ::= "draft" "this" "card" "face" "up" "."

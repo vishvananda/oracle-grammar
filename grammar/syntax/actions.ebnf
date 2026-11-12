@@ -102,10 +102,25 @@ counter_plus ::= "+" "1" "/" "+" "1"
 /* @sem CounterKind::PowerToughness(-1, -1) */
 counter_minus ::= "-" "1" "/" "-" "1"
 
-action ::= return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | clash_opponent | attach_each_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard
+action ::= keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | clash_opponent | attach_each_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard
     | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | move_battlefield | move_battlefield_tapped | move_battlefield_owner
     | move_battlefield_transformed | move_battlefield_owner_transformed
     | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | prevent_clause | tap_or_untap | create_emblem | reveal_hand
+    | remove_counters_from_affected | remove_all_counters_from_affected | put_that_many_counters
+    | double_counters | put_counter_for_each | recipients_gets_counter | recipients_get_counter
+    | recipients_gets_counters | support_action | choose_a_color | choose_a_card_name
+    | choose_cards_in_hand | flip_a_coin | add_mana_for_affected | add_mana_for_each
+    | add_mana_of_chosen_color | add_mana_any_combination | add_mana_amount_equal
+    | create_tokens_tapped_attacking | abandon_this_scheme | you_gain_life | deal_damage_equal_counters
+    | deal_damage_split_two | exile_target_players_graveyard
+    | exile_two_groups | exile_all_graveyards | exile_with_counters | exile_instead_of_dying
+    | exile_damaged_instead_of_dying | prevent_combat_damage_by | gain_control_of
+    | player_gains_control_of | gain_control_while_controlled | exile_top_cards_of_your_library
+    | then_players_shuffle | look_at_top_x_cards | shuffle_your_library | search_library_for_cards
+    | play_that_card_permission | play_those_cards_permission | skip_controllers_next_untap
+    | skip_your_next_untap | duration_affected_static_changes | duration_affected_changes
+    | base_power_toughness_for_duration | affected_also_changes | becomes_artifact_creature
+    | attack_despite_defender | changes_while_tapped | loses_flying | attacks_if_able
 
 /* Manifest dread yields one face-down creature for a later singular reference. */
 /* @sem Operation::@manifest_result(Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ManifestDread{}}) */
@@ -1484,3 +1499,155 @@ payment_return_controlled_permanent ::= "return" ("a" | "an") filter_phrase "you
    This does not enable a bare scalar pronoun in unrelated/static contexts. */
 /* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:One($attached_ref), tapped:true}}, If{condition:ObjectMatches{object:$attached_ref, filter:$filter_phrase}, then:Program{instructions:$conjoined}, otherwise:Program{}}] */
 clause_tap_attached_kind ::= "tap" attached_ref "." "if" "it's" ("a" | "an") filter_phrase "," conjoined
+
+/* Removing a number of counters of a kind. */
+/* @sem Operation::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), kind:$counter_kind, amount:Count(Exactly($counter_amount))}]} */
+remove_counters_from_affected ::= "remove" counter_amount counter_kind "counter" "from" affected
+
+/* Removing every counter of a kind. */
+/* @sem Operation::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), kind:$counter_kind, amount:All}]} */
+remove_all_counters_from_affected ::= "remove" "all" counter_kind "counters" "from" affected
+
+/* Putting the event's amount of counters. */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:EventAmount}]} */
+put_that_many_counters ::= "put" "that" "many" counter_kind "counters" "on" affected
+
+/* Doubling the counters of a kind. */
+/* @sem Operation::DoubleCounters(_{objects:$affected, kind:$counter_kind}) */
+double_counters ::= "double" "the" "number" "of" counter_kind "counters" "on" affected
+
+/* One counter for each counted object. */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:$count_each}]} */
+put_counter_for_each ::= "put" "a" counter_kind "counter" "on" affected "for" "each" count_each
+
+/* A recipient getting counters. */
+/* @sem Operation::PutCounters{placements:[_{recipients:$recipients, kind:$counter_kind, amount:$counter_amount}]} */
+recipients_gets_counter ::= recipients "gets" counter_amount counter_kind "counter"
+
+/* Recipients getting counters. */
+/* @sem Operation::PutCounters{placements:[_{recipients:$recipients, kind:$counter_kind, amount:$counter_amount}]} */
+recipients_get_counter ::= recipients "get" counter_amount counter_kind "counter"
+
+/* A recipient getting an amount of counters. */
+/* @sem Operation::PutCounters{placements:[_{recipients:$recipients, kind:$counter_kind, amount:$value}]} */
+recipients_gets_counters ::= recipients "gets" value counter_kind "counters"
+
+/* Support puts a +1/+1 counter on each of up to a number of other target creatures. */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($number), filter:CardType(Creature)}))), kind:PowerToughness([1, 1]), amount:Constant(1)}]} */
+support_action ::= "support" number
+
+/* Choosing one color. */
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}} */
+choose_a_color ::= "choose" "a" "color"
+
+/* Naming any Oracle card. */
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[Term{family:CardsInOracle, form:AnyOracleCard}]}} */
+choose_a_card_name ::= "choose" "a" "card" "name"
+
+/* Choosing cards in your hand. */
+/* @sem Operation::@selected_result(Operation::ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}), count:AsManyAsCan($counter_amount)}) */
+choose_cards_in_hand ::= "choose" counter_amount filter_phrase "card" "in" "your" "hand"
+
+/* Flipping a coin. */
+/* @sem Operation::FlipCoin{player:AbilityController, protocol:@coin_protocol}*/
+flip_a_coin ::= "flip" "a" "coin"
+
+/* Mana for each object in a group. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:CountObjects($affected), production:$mana_for_each_existing, choice:Once}} */
+add_mana_for_affected ::= "add" mana_for_each_existing "for" affected
+
+/* Mana for each counted thing. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$count_each, production:$mana_for_each_existing, choice:Once}} */
+add_mana_for_each ::= "add" mana_for_each_existing "for" "each" count_each
+
+/* Mana of the chosen color. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Amount{color:Chosen, amount:$value}} */
+add_mana_of_chosen_color ::= "add" value "mana" "of" "the" "chosen" "color"
+
+/* Mana in any combination of colors. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$number, production:ChooseOne([Amount{color:White, amount:Constant(1)}, Amount{color:Blue, amount:Constant(1)}, Amount{color:Black, amount:Constant(1)}, Amount{color:Red, amount:Constant(1)}, Amount{color:Green, amount:Constant(1)}]), choice:EachUnit}} */
+add_mana_any_combination ::= "add" number "mana" "in" "any" "combination" "of" "colors"
+
+/* An amount of mana equal to a value. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$value, production:$mana_production, choice:Once}} */
+add_mana_amount_equal ::= "add" "an" "amount" "of" mana_production "equal" "to" value
+
+/* Tokens that enter tapped and attacking. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$token_group], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_tokens_tapped_attacking ::= "create" token_group "that's" "tapped" "and" "attacking"
+
+/* Abandoning this scheme. */
+/* @sem Operation::AbandonScheme{actor:One(AbilityController)} */
+abandon_this_scheme ::= "abandon" "this" "scheme"
+
+/* You gaining an amount of life. */
+/* @sem Operation::GainLife{players:One(AbilityController), amount:$value} */
+you_gain_life ::= "you" "gain" value "life"
+
+/* Damage equal to the counters on an object. */
+/* @sem Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:CountCounters(_{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown}), preventable:true} */
+deal_damage_equal_counters ::= affected "deals" "damage" "equal" "to" "the" "number" "of" counter_kind "counters" "on" object_ref "to" recipients
+
+/* Two amounts of damage dealt in one event. */
+/* @sem Operation::DealDamageParts{source:$object_ref, parts:[_{recipients:Objects($affected), amount:$value}, _{recipients:$recipients, amount:$value_2}], preventable:true} */
+deal_damage_split_two ::= object_ref "deals" value "damage" "to" affected "and" value "damage" "to" recipients
+
+/* Exiling a target player's graveyard. */
+/* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Graveyard, players:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0})}, kind:Card, filter:Any}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_target_players_graveyard ::= "exile" "target" "player's" "graveyard"
+
+/* Exiling two groups together. */
+/* @sem Operation::Move{objects:Union([$affected, $affected_2]), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_two_groups ::= "exile" affected "and" affected
+
+/* Exiling every graveyard. */
+/* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:Any}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_all_graveyards ::= "exile" "all" "graveyards"
+
+/* Exiled cards arrive with counters. */
+/* @sem Operation::Move{objects:$affected, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[[$counter_kind, $value]], states:[]}}, qualifiers:[]} */
+exile_with_counters ::= "exile" affected "with" value counter_kind "counters" "on" "it"
+
+/* A dying object is exiled instead. */
+/* @sem Operation::CreateReplacement{event:ZoneChange{objects:SameObject($object_ref), from:Battlefield, to:Graveyard}, limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */
+exile_instead_of_dying ::= "if" object_ref "would" "die" this_duration "," "exile" "it" "instead"
+
+/* Objects damaged this way are exiled instead of dying. */
+/* @sem Operation::CreateReplacement{event:ZoneChange{objects:AllOf([$filter_phrase, DamagedBy(@prior)]), from:Battlefield, to:Graveyard}, limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */
+exile_damaged_instead_of_dying ::= "if" "a" filter_phrase "dealt" "damage" "this" "way" "would" "die" this_duration "," "exile" "it" "instead"
+
+/* Preventing combat damage an object would deal. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_combat_damage_by ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "by" object_ref this_duration
+
+/* You gaining control indefinitely. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[SetController(AbilityController)], duration:Indefinite, evaluation:Snapshot} */
+gain_control_of ::= "gain" "control" "of" affected
+
+/* A player gaining control indefinitely. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[SetController($player_ref)], duration:Indefinite, evaluation:Snapshot} */
+player_gains_control_of ::= player_ref "gains" "control" "of" affected
+
+/* Control that lasts while you control the source. */
+/* @sem Operation::CreateContinuousEffect{source:$object_ref, affected:Objects($affected), changes:[SetController(AbilityController)], duration:WhileControlled{player:AbilityController, object:$object_ref}, evaluation:Snapshot} */
+gain_control_while_controlled ::= "gain" "control" "of" affected "for" "as" "long" "as" "you" "control" object_ref
+
+/* Choosing permanents and returning them to their owners' hands. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, count:AsManyAsCan($counter_amount)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+return_chosen_to_owners_hand ::= "return" counter_amount filter_phrase "to" "its" "owner's" "hand"
+
+/* Protection from a color chosen as it resolves. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[GrantKeyword(Protection(Objects(_{kind:Any, filter:Chosen(Color)})))], duration:$duration, evaluation:Snapshot}}] */
+protection_from_chosen_color ::= affected "gains" "protection" "from" "the" "color" "of" "your" "choice" duration
+
+/* Mana restricted to casting a kind of spell. */
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:CastSpell($filter_phrase)}}] */
+add_mana_spend_only ::= "add" mana_production "." "spend" "this" "mana" "only" "to" "cast" "a" filter_phrase "spell"
+
+/* Clashing, with instructions if you win. */
+/* @sem Instruction::[Effect{result:@next, operation:Clash{actor:One(AbilityController), opponents:OpponentsOf(AbilityController), won:[$program], lost:[_{}]}}] */
+clash_if_you_win ::= "clash" "with" "an" "opponent" "." "if" "you" "win" "," program
+
+/* A coin flip with won and lost instructions. */
+/* @sem Instruction::[Effect{result:@next, operation:FlipCoin{player:AbilityController, protocol:@coin_protocol}}, If{condition:CoinFlip{result:0, outcome:Won}, then:$program, otherwise:$program_2}]*/
+flip_coin_win_or_lose ::= "flip" "a" "coin" "." "if" "you" "win" "the" "flip" "," program "." "if" "you" "lose" "the" "flip" "," program

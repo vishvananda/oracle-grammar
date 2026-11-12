@@ -409,6 +409,8 @@ copy_model_pronoun ::= "it"
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes
 
 static_change ::= change_lose_all_abilities | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | mined_change
+    | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap
+    | change_cant_block_kind | change_block_additional | change_is_goaded
 
 /* Retention changes the copied creature-type operation, not its statistics. */
 trait_copy_change ::= trait_copy_replace | trait_copy_add | trait_copy_note | trait_copy_other_note
@@ -523,8 +525,13 @@ replacement_enters_counters_if ::= self_ref "enters" "with" counter_amount count
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:@times($counter_amount, $count_each)}}}]}}) */
 replacement_enters_counters_for_each ::= self_ref "enters" "with" counter_amount counter_kind ("counter" | "counters") "on" ("it" | "him" | "her") "for" "each" count_each "."
 
+enchant_ability ::= enchant_permanents | enchant_player | enchant_opponent
 /* @sem Ability::Enchant{hosts:Permanents($filter_phrase)} */
-enchant_ability ::= "enchant" filter_phrase
+enchant_permanents ::= "enchant" filter_phrase
+/* @sem Ability::Enchant{hosts:Players(All)} */
+enchant_player ::= "enchant" "player"
+/* @sem Ability::Enchant{hosts:Players(OpponentsOf(AbilityController))} */
+enchant_opponent ::= "enchant" "opponent"
 
 /* A battlefield replacement changes incoming objects; it is distinct from
    the source-only replacement active while that source is entering. */
@@ -1437,3 +1444,159 @@ conditional_keyword_quality ::= ("it's" | "it" "is") quality
    permanents receive the same source quality as an ordinary keyword. */
 /* @sem Ability::[Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(GrantKeyword(Protection($protection_source_quality)))]}, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[GrantKeyword(Protection($protection_source_quality))]}] */
 line_player_objects_protection ::= "you" "and" filter_plural "have" "protection" "from" protection_source_quality "."
+
+/* Only a kind of creature can block. */
+/* @sem Change::[Rule(Prohibit(BeBlocked(Not($filter_plural))))] */
+change_unblockable_except_by ::= "can't" "be" "blocked" "except" "by" filter_plural
+
+/* A set base power and toughness. */
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}] */
+change_has_base_power_toughness ::= "has" "base" "power" "and" "toughness" value "/" value
+
+/* Each affected permanent skips its controller's untap. */
+/* @sem Change::[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})] */
+change_skip_controllers_untap ::= "don't" "untap" "during" "their" "controllers'" "untap" "steps"
+
+/* A prohibition on blocking a kind of creature. */
+/* @sem Change::[Rule(Prohibit(Block($filter_plural)))] */
+change_cant_block_kind ::= "can't" "block" filter_plural
+
+/* Additional blocks each combat. */
+/* @sem Change::[Rule(BlockCapacity(Additional($counter_amount)))] */
+change_block_additional ::= "can" "block" counter_amount "additional" "creature" "each" "combat"
+
+/* Goaded by the ability's controller. */
+/* @sem Change::[Rule(GoadedBy(AbilityController))] */
+change_is_goaded ::= "is" "goaded"
+
+/* Skipping its controller's next untap. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
+skip_controllers_next_untap ::= affected "doesn't" "untap" "during" "its" "controller's" "next" "untap" "step"
+
+/* Skipping your next untap. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
+skip_your_next_untap ::= affected "doesn't" "untap" "during" "your" "next" "untap" "step"
+
+/* A leading duration over static changes. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
+duration_affected_static_changes ::= duration "," affected static_changes
+
+/* A leading duration over changes. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$changes, duration:$duration, evaluation:Snapshot} */
+duration_affected_changes ::= duration "," affected changes
+
+/* Base power and toughness for a duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[SetBasePowerToughness{power:$value, toughness:$value_2}], duration:$duration, evaluation:Snapshot} */
+base_power_toughness_for_duration ::= affected "has" "base" "power" "and" "toughness" value "/" value duration
+
+/* Additional changes for a duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
+affected_also_changes ::= affected "also" static_changes duration
+
+/* Becoming an artifact creature for a duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:$duration, evaluation:Snapshot} */
+becomes_artifact_creature ::= affected "becomes" "an" "artifact" "creature" duration
+
+/* Attacking as though without defender. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(AttackException{ignore:Defender, defenders:Any})], duration:$this_duration, evaluation:LiveObjects} */
+attack_despite_defender ::= affected "can" "attack" this_duration "as" "though" "it" "didn't" "have" "defender"
+
+/* Changes while the source remains tapped. */
+/* @sem Operation::CreateContinuousEffect{source:$object_ref, affected:Objects($affected), changes:$static_changes, duration:WhileMatches{object:$object_ref, filter:Tapped}, evaluation:Snapshot} */
+changes_while_tapped ::= affected static_changes "for" "as" "long" "as" object_ref "remains" "tapped"
+
+/* Losing flying for a duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:Flying})], duration:$duration, evaluation:Snapshot} */
+loses_flying ::= affected "loses" "flying" duration
+
+/* A requirement to attack. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+attacks_if_able ::= affected "attacks" this_duration "if" "able"
+
+/* Changes to a group of objects. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$changes}) */
+static_affected_changes ::= affected changes "."
+
+/* Changes that apply while a trailing condition holds. */
+/* @sem Ability::Conditional{condition:$condition, then:[Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_changes_if ::= affected static_changes "if" condition "."
+
+/* Changes while an opponent controls a kind of permanent. */
+/* @sem Ability::Conditional{condition:ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:Controls{player:Bound(0), filter:$filter_phrase, minimum:1}}, then:[Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_changes_while_opponent_controls ::= affected static_changes "as" "long" "as" "an" "opponent" "controls" "a" filter_phrase "."
+
+/* Not a creature while a condition holds. */
+/* @sem Ability::Conditional{condition:$condition, then:[Static(_{kind:Ordinary, affected:Objects($affected), changes:[RemoveCardType(Creature)]})]} */
+static_not_a_creature_while ::= "as" "long" "as" condition "," affected "isn't" "a" "creature" "."
+
+/* Changes to creatures of the chosen type. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Chosen(CreatureType)])}), changes:$static_changes}) */
+static_chosen_type_changes ::= filter_plural "of" "the" "chosen" "type" static_changes "."
+
+/* A pump and a granted trigger. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Pump{power:$signed, toughness:$signed_2}, GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program}))]}) */
+static_pump_and_grant_trigger ::= affected "gets" signed "/" signed "and" "has" '"' event_clause "," program "." '"'
+
+/* A pump and a granted activated ability. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Pump{power:$signed, toughness:$signed_2}, GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program}))]}) */
+static_pump_and_grant_activated ::= affected "gets" signed "/" signed "and" "has" '"' cost ":" program "." '"'
+
+/* No attacking, blocking or activated abilities. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(Prohibit(Attack(Any))), Rule(Prohibit(Block(Any))), Rule(Prohibit(Activate(Any)))]}) */
+static_cant_attack_block_or_activate ::= affected "can't" "attack" "or" "block" "," "and" "its" "activated" "abilities" "can't" "be" "activated" "."
+
+/* All able blockers of a kind must block. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(RequireCombat{action:BeBlocked($filter_plural), amount:Each})]}) */
+static_must_be_blocked_by_all ::= "all" filter_plural "able" "to" "block" affected "do" "so" "."
+
+/* Creatures with less power can't block. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Property{property:Power, test:NumberTest::Compare{comparison:Less, value:$value}}])}), changes:[Rule(Prohibit(Block(SameObject($object_ref))))]}) */
+static_low_power_cant_block ::= filter_plural "with" "power" "less" "than" value "can't" "block" object_ref "."
+
+/* You may choose not to untap. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Optional})]}) */
+static_may_not_untap ::= "you" "may" "choose" "not" "to" "untap" affected "during" "your" "untap" "step" "."
+
+/* Untapping during each other player's untap step. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(UntapStep{players:OthersThan(AbilityController), behavior:Additional})]}) */
+static_untap_each_other_untap ::= "untap" affected "during" "each" "other" "player's" "untap" "step" "."
+
+/* Exerting as it attacks. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(MayExert(Program($program)))]}) */
+static_may_exert ::= "you" "may" "exert" affected "as" "it" "attacks" "." "when" "you" "do" "," program "."
+
+/* You control the affected objects. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[SetController(AbilityController)]}) */
+static_you_control ::= "you" "control" affected "."
+
+/* Looking at your library's top card any time. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:AffectedPlayer})]}) */
+static_look_at_top_card ::= "you" "may" "look" "at" "the" "top" "card" "of" "your" "library" "any" "time" "."
+
+/* Playing with your library's top card revealed. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:Everyone})]}) */
+static_top_card_revealed ::= "play" "with" "the" "top" "card" "of" "your" "library" "revealed" "."
+
+/* Casting spells of a kind from your library's top. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$filter_phrase})]}) */
+static_cast_from_top ::= "you" "may" "cast" filter_phrase "spells" "from" "the" "top" "of" "your" "library" "."
+
+/* Your spells of a kind cost less. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$filter_phrase, modifier:Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true}})]}) */
+static_spells_cost_less ::= filter_phrase "spells" "you" "cast" "cost" braced_amount "less" "to" "cast" "."
+
+/* Your instant and sorcery spells cost less. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:AnyOf([CardType(Instant), CardType(Sorcery)]), modifier:Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true}})]}) */
+static_instants_sorceries_cost_less ::= "instant" "and" "sorcery" "spells" "you" "cast" "cost" braced_amount "less" "to" "cast" "."
+
+/* No maximum hand size. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))]}) */
+static_no_maximum_hand_size ::= "you" "have" "no" "maximum" "hand" "size" "."
+
+/* Additional land plays. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(AdditionalLandPlays(Exactly($counter_amount)))]}) */
+static_additional_land_plays ::= "you" "may" "play" counter_amount "additional" "land" "on" "each" "of" "your" "turns" "."
+
+/* Skipping your draw step. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(Skip(Draw))]}) */
+static_skip_draw_step ::= "skip" "your" "draw" "step" "."

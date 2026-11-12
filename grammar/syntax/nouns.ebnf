@@ -4,6 +4,7 @@ object_set ::= group_reference | drafted_cards_reference | graveyard_target_card
     | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all
     | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other
     | objects_self_and_target
+    | top_card_of_your_library
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -441,6 +442,7 @@ noun_outlaw ::= "outlaw"
 noun_battle ::= "battle"
 
 filter_plural ::= filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural
+    | filter_plural_modified
 
 /* @sem @and($filter_outer_adjectives, $filter_plural) */
 filter_plural_adjectives ::= filter_outer_adjectives filter_plural
@@ -1208,3 +1210,11 @@ modifier_relative_kind_union ::= "that" "are" plural_atomic "and" "/" "or" plura
    are counted using the same written filter on both sides of the comparison. */
 /* @sem PlayerSet::Matching{binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Permanents($filter_plural)}, test:NumberTest::Compare{comparison:LessOrEqual, value:AmongPlayers{players:All, number:Permanents($filter_plural), aggregation:Minimum}}}} */
 players_fewest_permanents ::= "each" "player" "who" "controls" "the" "fewest" filter_plural
+
+/* Your library's top card. */
+/* @sem ObjectSet::Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top} */
+top_card_of_your_library ::= "the" "top" "card" "of" "your" "library"
+
+/* Modified creatures of a kind. */
+/* @sem ObjectFilter::AllOf([$filter_plural, Modified]) */
+filter_plural_modified ::= "modified" filter_plural

@@ -34,6 +34,7 @@ cost_part ::= cost_symbols | cost_words
 cost_symbols ::= cost_mana | cost_tap
 
 cost_words ::= mined_cost | cost_words_owned
+    | cost_return_to_owners_hand
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
 cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_energy_words | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many
@@ -289,3 +290,51 @@ cost_token_actor ::= "an" "opponent"
    Following restrictions apply to the same complete activated ability. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}}]}, limits:$activation_limits, announcement:@announcement, body:$program_sentence})} */
 activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":" program_sentence activation_limits "."
+
+/* An additional cost to cast this spell. */
+/* @sem Ability::Casting(AdditionalCost{cost:$cost, repetition:Once}) */
+casting_additional_cost ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost "."
+
+/* An additional cost with a choice of payments. */
+/* @sem Ability::Casting(AdditionalCost{cost:_{parts:[Choice([$cost, $cost_2])]}, repetition:Once}) */
+casting_additional_cost_choice ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost "or" "pay" cost "."
+
+/* An optional additional cost. */
+/* @sem Ability::Casting(AdditionalCost{cost:$cost, optional:true, repetition:Once}) */
+casting_optional_additional_cost ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "you" "may" cost "."
+
+/* An additional cost for each target beyond the first. */
+/* @sem Ability::Casting(AdditionalCost{cost:$cost, repetition:TargetsBeyond(1)}) */
+casting_cost_per_extra_target ::= "this" "spell" "costs" cost "more" "to" "cast" "for" "each" "target" "beyond" "the" "first" "."
+
+/* A spell that can't be countered, while on the stack. */
+/* @sem Ability::Scoped{zones:[Stack], ability:Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:SameObject($object_ref)})), changes:[Rule(Prohibit(Counter))]})} */
+casting_uncounterable ::= object_ref "can't" "be" "countered" "."
+
+/* A reduction of {1} for each counted thing. */
+/* @sem Ability::Casting(ReduceCost([_{amount:$count_each}])) */
+casting_reduction_one_each ::= "this" "spell" "costs" "{" "1" "}" "less" "to" "cast" "for" "each" count_each "."
+
+/* A reduction while a condition holds. */
+/* @sem Ability::Casting(If{condition:$condition, rule:ReduceCost([_{amount:$braced_amount}])}) */
+casting_reduction_if ::= "this" "spell" "costs" braced_amount "less" "to" "cast" "if" condition "."
+
+/* A reduction when the spell targets a kind of permanent. */
+/* @sem Ability::Casting(If{condition:TargetsMatch(_{object:$object_ref, kind:Permanent, filter:$filter_phrase}), rule:ReduceCost([_{amount:$braced_amount}])}) */
+casting_reduction_if_targets ::= object_ref "costs" braced_amount "less" "to" "cast" "if" "it" "targets" "a" filter_phrase "."
+
+/* A reduction of X, defined after. */
+/* @sem Ability::Casting(ReduceCost([_{amount:$value}])) */
+casting_reduction_x ::= "this" "spell" "costs" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" value "."
+
+/* An alternative cost. */
+/* @sem Ability::Casting(AlternativeCost($cost)) */
+casting_alternative_cost ::= "you" "may" cost "rather" "than" "pay" "this" "spell's" "mana" "cost" "."
+
+/* Cast only while being attacked during declare attackers. */
+/* @sem Ability::Casting(Require(AllOf([Window(DeclareAttackers), PlayerState{player:AbilityController, state:BeingAttacked}]))) */
+casting_only_when_attacked ::= "cast" "this" "spell" "only" "during" "the" "declare" "attackers" "step" "and" "only" "if" "you've" "been" "attacked" "this" "step" "."
+
+/* Returning a permanent to its owner's hand as a cost. */
+/* @sem CostPart::Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))}], destination:OwnersHand(CardArrival{counters:[], states:[]})} */
+cost_return_to_owners_hand ::= "return" "a" filter_phrase "to" "its" "owner's" "hand"

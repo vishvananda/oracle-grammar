@@ -1,5 +1,5 @@
 /* Trigger events. */
-event ::= event_controlled_self_or_a_enters | event_controller_attacks | event_chosen_player_attacked_or_targeted | event_bends_all_kinds | event_enchanted_player_entry | event_face_down_permanent_up | event_named_attack_or_block | event_land_or_spell_you | event_land_or_spell_player | event_damage_subject_player | event_combat_damage_subject_player | event_object_mutates | event_final_chapter_resolves | event_ring_tempts_you | event_conjures_other | event_own_or_other_faceup | event_self_enters_saddled_attack | event_self_attacks_or_blocks | event_attacks_player | event_two_owned_origins | event_pair_enters_owned_origin | event_enters_owned_origin | event_tapless_activation | event_passive_combat_recipient | event_named_controller_own_turn | event_dies_or_exiled_battlefield | event_controlled_self_or_enters_original | event_controlled_enters_original | event_controlled_self_or_enters | event_controlled_enters | event_enters_and_sacrificed | event_self_sacrificed | event_blocks_or_blocked_once | event_enters_or_face_up | event_turns_face_up | event_holder_or_same_name_damage | event_spell_single_target_damage | mined_event | event_once | event_enters_or_dies | event_enters | event_dies | event_leaves | event_attacks | event_blocks | event_becomes_blocked
+event ::= event_controlled_self_or_a_enters | event_controller_attacks | event_chosen_player_attacked_or_targeted | event_bends_all_kinds | event_enchanted_player_entry | event_face_down_permanent_up | event_named_attack_or_block | event_land_or_spell_you | event_land_or_spell_player | event_damage_subject_player | event_combat_damage_subject_player | event_object_mutates | event_final_chapter_resolves | event_ring_tempts_you | event_conjures_other | event_own_or_other_faceup | event_self_enters_saddled_attack | event_attacks_or_blocks | event_attacks_player | event_two_owned_origins | event_pair_enters_owned_origin | event_enters_owned_origin | event_tapless_activation | event_passive_combat_recipient | event_named_controller_own_turn | event_dies_or_exiled_battlefield | event_controlled_self_or_enters_original | event_controlled_enters_original | event_controlled_self_or_enters | event_controlled_enters | event_enters_and_sacrificed | event_self_sacrificed | event_blocks_or_blocked_once | event_enters_or_face_up | event_turns_face_up | event_holder_or_same_name_damage | event_spell_single_target_damage | mined_event | event_once | event_enters_or_dies | event_enters | event_dies | event_leaves | event_attacks | event_blocks | event_becomes_blocked
     | event_combat_damage_player | event_damage_player | event_damage_object | event_damage
     | event_cast | event_cast_third | event_gain_life | event_gain_life_third | event_lose_life
     | event_self_or_enters | event_self_or_dies | event_self_or_attacks | event_self_or_leaves
@@ -22,6 +22,12 @@ event ::= event_controlled_self_or_a_enters | event_controller_attacks | event_c
     | event_card_to_graveyard_opponent | event_returned_to_hand | event_first_spell_player
     | event_self_enters_or_cast | event_attack_with_others | event_owned_by_other_to_graveyard
     | event_shuffle_caused | event_enters_or_unlock | event_card_from_elsewhere | event_counter_threshold
+    | event_chaos_ensues | event_group_combat_damage_to_player | event_second_draw_each_turn
+    | event_a_attacks_alone | event_object_attacks_alone | event_unlock_this_door
+    | event_attacks_while_saddled | event_control_none | event_combat_damage_to_player_or
+    | event_damaged_by_dies | event_exploits | event_transforms_into_self | event_object_dies
+    | event_sacrifice_another | event_becomes_monstrous | event_tap_for_mana | event_tapped_for_mana
+    | event_you_scry | event_enters_or_leaves | event_expend
 
 event_once ::= event_self_enters | event_self_dies | event_self_leaves
 
@@ -759,8 +765,8 @@ event_two_owned_origins ::= event_enters_owned_origin "or" event_enters_owned_or
 /* @sem EventSpec::Attack{attackers:$event_object, defenders:Players(All)} */
 event_attacks_player ::= event_object "attacks" "a" "player"
 
-/* @sem EventSpec::AnyOf([Object{event:Attacks, objects:$event_self}, Object{event:Blocks, objects:$event_self}]) */
-event_self_attacks_or_blocks ::= event_self "attacks" "or" "blocks"
+/* @sem EventSpec::AnyOf([Object{event:Attacks, objects:$event_object}, Object{event:Blocks, objects:$event_object}]) */
+event_attacks_or_blocks ::= event_object "attacks" "or" "blocks"
 
 /* Standalone leading timing is a recurring turn trigger. */
 /* @sem EventSpec::Turn{point:CombatEnds, players:All} */
@@ -926,3 +932,83 @@ triggered_counter_owner_echo ::= ("when" | "whenever") self_explicit_ref "dies" 
 
 /* The threshold is written, rather than an undeclared announced X. */
 counter_echo_threshold ::= number_digits | number_words
+
+/* Chaos ensues for every player. */
+/* @sem EventSpec::Player{event:ChaosEnsues, players:All} */
+event_chaos_ensues ::= "chaos" "ensues"
+
+/* One trigger per player dealt combat damage by the group. */
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$filter_plural, recipients:Players(All), kind:Combat, grouping:Recipient, subject:Source}) */
+event_group_combat_damage_to_player ::= "one" "or" "more" filter_plural "deal" "combat" "damage" "to" "a" "player"
+
+/* Your second draw each turn. */
+/* @sem EventSpec::NthEachTurn{event:Player{event:Draws, players:One(AbilityController)}, test:NumberTest::Compare{comparison:Equal, value:Constant(2)}} */
+event_second_draw_each_turn ::= "you" "draw" "your" "second" "card" "each" "turn"
+
+/* A matching creature attacking alone. */
+/* @sem EventSpec::Object{event:AttacksAlone, objects:$filter_phrase} */
+event_a_attacks_alone ::= "a" filter_phrase "attacks" "alone"
+
+/* A named creature attacking alone. */
+/* @sem EventSpec::Object{event:AttacksAlone, objects:SameObject($object_ref)} */
+event_object_attacks_alone ::= object_ref "attacks" "alone"
+
+/* Unlocking this Room door. */
+/* @sem EventSpec::Player{event:UnlocksDoor, players:One(AbilityController), objects:SameObject(Source)} */
+event_unlock_this_door ::= "you" "unlock" "this" "door"
+
+/* Attacking while saddled filters the attack event by state. */
+/* @sem EventSpec::Filtered{event:Object{event:Attacks, objects:SameObject($object_ref)}, condition:ObjectMatches{object:$object_ref, filter:State(Saddled)}} */
+event_attacks_while_saddled ::= object_ref "attacks" "while" "saddled"
+
+/* A state trigger when you control none of a kind. */
+/* @sem EventSpec::State{condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}} */
+event_control_none ::= "you" "control" "no" filter_plural
+
+/* Combat damage to a player or to a matching permanent. */
+/* @sem EventSpec::AnyOf([Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Objects($filter_phrase), kind:Combat, grouping:SourceRecipient, subject:Source})]) */
+event_combat_damage_to_player_or ::= object_ref "deals" "combat" "damage" "to" "a" "player" "or" filter_phrase
+
+/* A creature dealt damage this turn by the named source dies. */
+/* @sem EventSpec::ZoneChange{objects:AllOf([$filter_phrase, Condition(Compare{left:EventHistory{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Objects(SameObject(Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_amount}})]), from:Battlefield, to:Graveyard} */
+event_damaged_by_dies ::= counter_amount filter_phrase "dealt" "damage" "by" object_ref "this" "turn" "dies"
+
+/* Exploiting pairs the exploiter with the sacrificed creature. */
+/* @sem EventSpec::Pair{event:Exploits, objects:SameObject($object_ref), others:$filter_phrase} */
+event_exploits ::= object_ref "exploits" "a" filter_phrase
+
+/* Transforming into this face. */
+/* @sem EventSpec::Object{event:Transforms, objects:SameObject($object_ref)} */
+event_transforms_into_self ::= object_ref "transforms" "into" SELF_NAME
+
+/* A named object dying. */
+/* @sem EventSpec::ZoneChange{objects:SameObject($object_ref), from:Battlefield, to:Graveyard} */
+event_object_dies ::= object_ref "dies"
+
+/* Sacrificing a matching permanent other than this one. */
+/* @sem EventSpec::Player{event:Sacrifices, players:One(AbilityController), objects:AllOf([Not(SameObject(Source)), $filter_phrase])} */
+event_sacrifice_another ::= "you" "sacrifice" "another" filter_phrase
+
+/* Becoming monstrous. */
+/* @sem EventSpec::Object{event:BecomesMonstrous, objects:SameObject($object_ref)} */
+event_becomes_monstrous ::= object_ref "becomes" "monstrous"
+
+/* You tapping a matching permanent for mana. */
+/* @sem EventSpec::Player{event:TapsForMana, players:One(AbilityController), objects:$filter_phrase} */
+event_tap_for_mana ::= "you" "tap" "a" filter_phrase "for" "mana"
+
+/* A named permanent becoming tapped for mana. */
+/* @sem EventSpec::Object{event:TappedForMana, objects:SameObject($object_ref)} */
+event_tapped_for_mana ::= object_ref "is" "tapped" "for" "mana"
+
+/* You scrying. */
+/* @sem EventSpec::Player{event:Scries, players:One(AbilityController)} */
+event_you_scry ::= "you" "scry"
+
+/* Entering or leaving the battlefield. */
+/* @sem EventSpec::AnyOf([ZoneChange{objects:SameObject($object_ref), to:Battlefield}, Object{event:LeavesBattlefield, objects:SameObject($object_ref)}]) */
+event_enters_or_leaves ::= object_ref "enters" "or" "leaves" "the" "battlefield"
+
+/* Expending a number of mana this turn. */
+/* @sem EventSpec::NthEachTurn{event:Player{event:Expends, players:One(AbilityController)}, test:NumberTest::Compare{comparison:Equal, value:$value}} */
+event_expend ::= "you" "expend" value

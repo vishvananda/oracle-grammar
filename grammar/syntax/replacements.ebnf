@@ -591,3 +591,35 @@ exile_from_own_graveyard ::= "exile" number "cards" "from" "your" "graveyard"
    holder and controller references in the delayed body. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CleanupStepBegins, players:All}, start:Immediately, body:Program{instructions:$may_body}}}] */
 clause_delayed_cleanup_after ::= may_body "at" "the" "beginning" "of" "the" "next" "cleanup" "step"
+
+/* Choosing a creature type as the permanent enters. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1)), options:[]}}}]}}) */
+entering_choose_creature_type ::= "as" object_ref "enters" "," "choose" "a" "creature" "type" "."
+
+/* Choosing a color as the permanent enters. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}]}}) */
+entering_choose_color ::= "as" object_ref "enters" "," "choose" "a" "color" "."
+
+/* Instructions performed as the permanent enters. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$program}) */
+entering_program ::= "as" object_ref "enters" "," program "."
+
+/* Entering tapped unless a condition holds. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[If{condition:Not($condition), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}, otherwise:_{}}]}}) */
+entering_tapped_unless ::= object_ref "enters" "tapped" "unless" condition "."
+
+/* Entering tapped unless a condition holds or you control a kind of permanent. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[If{condition:Not(AnyOf([$condition, Controls{player:AbilityController, filter:$filter_phrase, minimum:1}])), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}, otherwise:_{}}]}}) */
+entering_tapped_unless_or_control ::= object_ref "enters" "tapped" "unless" condition "or" "a" filter_phrase "."
+
+/* Entering tapped with counters. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]}}) */
+entering_tapped_with_counters ::= object_ref "enters" "tapped" "with" value counter_kind "counters" "on" "it" "."
+
+/* Revealing a card from hand, or entering tapped. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[Reveal{count:Exactly($counter_amount), filter:$filter_phrase}]}, optional:true}}, If{condition:Not(PaymentChosen(0)), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}, otherwise:_{}}]}}) */
+entering_reveal_or_tapped ::= "as" object_ref "enters" "," "you" "may" "reveal" counter_amount filter_phrase "card" "from" "your" "hand" "." "if" "you" "don't" "," "this" "land" "enters" "tapped" "."
+
+/* Exiled instead of going to a graveyard from anywhere. */
+/* @sem Ability::Replacement{active:Everywhere, event:ZoneChange{objects:SameObject($object_ref), to:Graveyard}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */
+graveyard_from_anywhere_exile ::= "if" object_ref "would" "be" "put" "into" "a" "graveyard" "from" "anywhere" "," "exile" "it" "instead" "."

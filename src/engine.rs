@@ -55,6 +55,7 @@ const SYNTAX_MODULES: &[(&str, &str)] = &[
     ("energy", "syntax/energy.ebnf"),
     ("events", "syntax/events.ebnf"),
     ("keywords", "syntax/keywords.ebnf"),
+    ("keyword_actions", "syntax/keyword_actions.ebnf"),
     ("cost_branches", "syntax/cost_branches.ebnf"),
     ("cost_continuations", "syntax/cost_continuations.ebnf"),
     ("face_cost_reminders", "syntax/face_cost_reminders.ebnf"),
