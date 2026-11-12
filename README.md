@@ -69,6 +69,11 @@ inspection and scoring.
 baseline. Its inputs and their SHA-256 checksums are named in the ignored local
 manifest `.cache/corpus/inputs.json`; `slice`, `score`, `audit`, `queue` and
 `accept` compare by occurrence and refuse lost matches, lost parses or limits.
+`rules` names the seeded (`m_` and `t_`) rules that a slice's matching faces
+need. `tools/mined.py` removes unneeded rules, or adopts a seeded rule into a
+syntax module under a descriptive name so that the next audit retires the
+original. The audit only sees parses of matching faces: a removal can still drop
+a print template, so also run the library tests and compare a render run.
 
 ## Layout
 
