@@ -8,12 +8,13 @@ have no `###` heading, so they never excuse a lost match. After an upstream fix,
 advance `reference.json`, re-prepare the inputs and recount. Paths are IR paths
 inside the face's ability list.
 
-The current reference is `0a8d67d968793f2aedade48349986b180d61d5a0` (schema
+The current reference is `7d5544bcb49be3adf594c64d99706bfe898a38e9` (schema
 190). Upstream reviewed the grammar's 53 differing faces at `1fe5782` in
 `docs/reference-decisions-20261112.md`, with a per-face ledger in
 `reference-decisions-20261112.json`, and closed the nine held for a witness in
-`docs/reference-nine-resolutions-20261112.md`. No face is disputed now, so no
-`###` heading remains.
+`docs/reference-nine-resolutions-20261112.md`. It reopened 36 retained forms for
+one producer form per wording in `docs/reference-consistency-20261112.md`. No
+face is disputed now, so no `###` heading remains.
 
 ## Resolved upstream
 
@@ -81,6 +82,24 @@ At `0a8d67d` (`docs/reference-reflecting-mirror-20261112.md`):
   reference had also required its mana value to equal X, which excludes every
   nonzero target because X is twice that mana value (#274).
 
+At `e1b51e1` (`docs/reference-consistency-20261112.md`):
+
+- Bloodroot Apothecary: the opponent-sacrifice event no longer adds an
+  unprinted `Not(SameObject(Source))`.
+- Graven Dominator: "each other creature" excludes the source.
+- Karn's Touch: the animation reads mana value from `Target`, as Karn, Silver
+  Golem, Sydri, Galvanic Genius and Toymaker do.
+- Korvold, Fae-Cursed King and 26 other "enters or attacks" self-triggers name
+  the source, not the event subject, in their bodies. The grammar binds `it` and
+  "another" after alternatives that include this object's entry to `Source`;
+  "attacks or blocks" still names the subject in the reference.
+
+At `7d5544b` (`docs/reference-codsworth-20261112.md`):
+
+- Codsworth, Handy Helper, Danitha Capashen, Paragon and Golden-Tail Trainer:
+  "Aura and Equipment spells" and "Aura and/or Equipment spells" are
+  `AnyOf([Subtype(Aura), Subtype(Equipment)])`, either kind (#276).
+
 ## Retained by the reference
 
 Upstream judged these encodings valid contracts or equivalent forms and kept
@@ -88,12 +107,6 @@ them. In each, matched faces with the same wording use the grammar's encoding,
 or the reference splits the wording with no majority, so the grammar keeps its
 encoding and the face stays different. They are not reference errors, and the
 grammar adds no alias for them. Faces in a group below are listed there.
-
-#### Karn's Touch
-
-- `Affected` names the object whose characteristics are evaluated. Karn,
-  Silver Golem, Sydri, Galvanic Genius and Toymaker have the same sentence with
-  `Target`.
 
 #### Draining Whelk
 
@@ -118,13 +131,6 @@ grammar adds no alias for them. Faces in a group below are listed there.
   perpetual changes. Kithkin Brinefarer has the same sentence with
   `Duplicate(One(EventSubject))`. Its event's `OwnedBy` is a separate
   encoding split (see "A card in your graveyard" below).
-
-#### Bloodroot Apothecary
-
-- `Not(SameObject(Source))` beside `[Not(CardType(Creature)), Token]` is
-  redundant. A token copy would be sacrificed only by its controller (CR
-  701.21a), who also controls the look-back trigger (CR 603.10a) and is not
-  their own opponent. 6 controls with the same event omit the exclusion.
 
 #### Worzel, the Protector, Nemesis Mask, Molly Hayes, Runaway, Forbidden Crypt
 
@@ -180,7 +186,7 @@ grammar adds no alias for them. Faces in a group below are listed there.
 - `Acting` for "their hand"; Balor and Laquatus's Creativity read
   `Target{slot:0, index:0}`. With one target player the forms agree.
 
-#### Waterspout Warden, Storm Entity, Graven Dominator
+#### Waterspout Warden, Storm Entity
 
 - `EventSubject` where the grammar reads `Source` for an excluded self. Nine
   "another ... entered the battlefield this turn" faces read `Source`, as do
@@ -250,16 +256,6 @@ different are marked *(different)*.
   back through `Transition` under `EventSubject`.
 - Upstream keeps the captured target: the delayed event matches
   `SameObject(Target(0))`, so its subject is that original target.
-
-#### "Another" in a compound "enters or attacks" self-trigger
-
-- `EventSubject`: Arashin Foremost, Ellivere of the Wild Court, Picard,
-  Steadfast Captain, Shredder, Unrelenting, The Rani and Korvold, Fae-Cursed
-  King *(different)*.
-- `Source`: Hei Bai, Spirit of Balance. Sephiroth, Fabled SOLDIER reads both.
-- Among sacrifices the split is one each: Korvold `EventSubject`, Hei Bai
-  `Source`, Sephiroth both; the grammar reads a sacrifice's "another" as
-  `Source`.
 
 #### "If it's a <type> card" after a one-card move
 

@@ -74,6 +74,22 @@ fn printed_types(frame: &Value, types: &[&str]) -> String {
     text
 }
 
+/// The one reading of `text`, which ordinary rules reach with every seeded rule off.
+fn compositional(text: &str) -> Value {
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
+    let audited = engine()
+        .audited("Context example", text, &crate::parse::RuleSet::default())
+        .unwrap();
+    assert!(
+        audited.iter().any(|(value, rules)| {
+            canonical_abilities(value).unwrap() == readings[0] && rules.iter().all(Vec::is_empty)
+        }),
+        "{text} needs a seeded rule: {audited:?}"
+    );
+    readings[0].clone()
+}
+
 fn visit(value: &Value, kind: &str, found: &mut Vec<Value>) {
     if value["kind"] == kind {
         found.push(value["args"].clone());
@@ -808,3 +824,6 @@ mod self_words;
 
 #[path = "shared_clauses/searches.rs"]
 mod searches;
+
+#[path = "shared_clauses/kinds.rs"]
+mod kinds;

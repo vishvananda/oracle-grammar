@@ -405,10 +405,18 @@ filter_head ::= noun | noun_either | noun_and | noun_list
 noun_and ::= noun "and" noun
 
 /* @sem ObjectFilter::AnyOf([$noun, $noun_2]) */
-noun_either ::= noun "or" noun
+noun_either ::= noun union_or noun
 
 /* @sem ObjectFilter::AnyOf([...$noun_commas, $noun]) */
-noun_list ::= noun_commas "or" noun
+noun_list ::= noun_commas union_or noun
+
+/* `And/or` joins kinds as `or` does: `instant and/or sorcery`. */
+/* @sem () */
+union_or ::= "or" | "and" "/" "or"
+
+/* In a plural list it joins them as `and` does: `artifacts, creatures, and/or lands`. */
+/* @sem () */
+union_and ::= "and" | "and" "/" "or"
 
 noun ::= noun_atomic | noun_equipped
 noun_atomic ::= noun_creature | noun_noncreature
@@ -487,10 +495,10 @@ plural_or ::= plural "or" plural
 plural_and_or ::= plural "and" "/" "or" plural
 
 /* @sem ObjectFilter::AnyOf([$plural, $plural_2, $plural_3]) */
-plural_three ::= plural "," plural "," "and" plural
+plural_three ::= plural "," plural "," union_and plural
 
 /* @sem ObjectFilter::AnyOf([$plural, $plural_2, $plural_3, $plural_4]) */
-plural_four ::= plural "," plural "," plural "," "and" plural
+plural_four ::= plural "," plural "," plural "," union_and plural
 
 /* @sem ObjectFilter::AnyOf(@unordered([$plural, $plural_2])) */
 plural_either ::= plural "and" plural

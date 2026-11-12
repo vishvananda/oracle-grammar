@@ -363,6 +363,17 @@ pub(super) fn scope_for(ability: &Value, card_name: &str, holders: u16) -> Scope
     };
     if triggered {
         event_referents(&ability["args"]["event"], &mut scope, true);
+        // Every branch of `enters or attacks` is this object's own, so `it` names the
+        // source, as it does after one own event. A branch that leaves keeps the subject.
+        // The reference has settled this only where one branch is the entry; `attacks or
+        // blocks` still names the subject there.
+        let event = &ability["args"]["event"];
+        if own_entry_alternatives(event, holders)
+            && !scope.leaving
+            && scope.object() == Some(json!({"kind": "EventSubject"}))
+        {
+            scope.objects.pop();
+        }
         // A granted or token holder's own event names that holder as its
         // subject, so `it` reads the event as it does in a printed ability.
 
@@ -373,6 +384,15 @@ pub(super) fn scope_for(ability: &Value, card_name: &str, holders: u16) -> Scope
         }
     }
     scope
+}
+
+/// Alternatives that are all this object's own, one of them its entry onto the battlefield.
+fn own_entry_alternatives(event: &Value, holders: u16) -> bool {
+    event["AnyOf"].as_array().is_some_and(|cases| {
+        cases
+            .iter()
+            .any(|case| case["ZoneChange"]["to"] == "Battlefield")
+    }) && holder::self_event(event, holders)
 }
 
 /// A scoped ability has its own event. Modes and lexical closures inherit it.

@@ -1,22 +1,6 @@
 //! A search names where it looks and what it finds; an `and/or` search shuffles only
 //! if it looked through the library.
 use super::*;
-use crate::parse::RuleSet;
-
-fn one_reading(text: &str) -> Value {
-    let readings = engine().parse("Context example", text).unwrap().readings;
-    assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
-    let audited = engine()
-        .audited("Context example", text, &RuleSet::default())
-        .unwrap();
-    assert!(
-        audited.iter().any(|(value, rules)| {
-            canonical_abilities(value).unwrap() == readings[0] && rules.iter().all(Vec::is_empty)
-        }),
-        "{text} needs a seeded rule: {audited:?}"
-    );
-    readings[0].clone()
-}
 
 fn search(reading: &Value) -> &Value {
     let first = &reading[0]["args"]["body"]["instructions"][0]["args"]["operation"];
@@ -28,7 +12,7 @@ fn search(reading: &Value) -> &Value {
 fn an_either_search_shuffles_only_if_it_searched_the_library() {
     let text = "Search your library and/or graveyard for a card named Jiang Yanggu, reveal it, \
                 and put it into your hand. If you search your library this way, shuffle.";
-    let mut reading = one_reading(text);
+    let mut reading = compositional(text);
     let found = search(&reading);
     assert_eq!(found["also"], json!(["Graveyard"]));
     assert_eq!(found["either"], json!(true));
@@ -48,10 +32,18 @@ fn an_either_search_shuffles_only_if_it_searched_the_library() {
 }
 
 #[test]
+fn an_either_search_may_reveal_then_put_the_card_away() {
+    let then = "Search your library and/or graveyard for a card named Jiang Yanggu, reveal it, \
+                then put it into your hand. If you search your library this way, shuffle.";
+    let and = then.replace("reveal it, then", "reveal it, and");
+    assert_eq!(compositional(then), compositional(&and));
+}
+
+#[test]
 fn a_search_of_library_and_graveyard_always_shuffles() {
     let text = "Search your library and graveyard for a card named Nissa, Nature's Artisan, \
                 reveal it, put it into your hand, then shuffle.";
-    let reading = one_reading(text);
+    let reading = compositional(text);
     let found = search(&reading);
     assert_eq!(found["also"], json!(["Graveyard"]));
     assert_ne!(found["either"], json!(true));
