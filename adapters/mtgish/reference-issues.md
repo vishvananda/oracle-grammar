@@ -301,8 +301,8 @@ Each entry stays open until that witness is supplied or the dispute is dropped.
   "dealt to" and "dealt by", expected one `CreateReplacement` whose event is
   `Either` of the two damage branches, as in 23 "dealt to and dealt by"
   controls such as Elvish Scout and Maze of Ith.
-- The grammar also returns both `Either` branch orders here; that is a grammar
-  issue.
+- The grammar returns both `Either` branch orders here because the reference
+  writes the wording both ways (see the branch-order group below).
 - Witness: a damage or replacement interaction where the two effects differ
   from one.
 - Status: open.
@@ -473,6 +473,14 @@ requirement comes before any normal form is chosen.
   Surgeon, Leyline of Hope) and `Add([StartingLife, N])` in activation
   restrictions (Speaker of the Heavens, Ayli, Eternal Pilgrim).
 - Review: a normal-form choice under identical arithmetic, not a rules defect.
+
+#### Branch order of "dealt to and dealt by"
+
+- Dealt-to branch first: 19 faces, such as Elvish Scout and Maze of Ith.
+- Dealt-by branch first: Cephalid Illusionist, Energy Arc, Soratami Cloud
+  Chariot and Statecraft.
+- The grammar returns both orders for this wording until one is chosen.
+- Review: a normal-form choice for one two-branch event, not a rules defect.
 
 #### A perpetual effect on a creature that just died
 
