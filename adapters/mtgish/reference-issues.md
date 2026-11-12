@@ -403,6 +403,9 @@ requirement comes before any normal form is chosen.
 - `Target`: Delif's Cube *(different)*, Long River Lurker *(different)*,
   Okoye, Mighty and Adored, Arcbond and 1 more. Delif's Cone and Delif's Cube
   have near-identical wording.
+- Long River Lurker's "you may exile it" follows the pronoun: a `Move` cost of
+  the target under `Target`, and a `PlayerAction` exile of `EventSubject` read
+  back through `Transition` under `EventSubject`.
 - Review: a delayed turn event has no object subject; show whether
   `EventSubject` captures the outer trigger, and keep the target's identity.
 
