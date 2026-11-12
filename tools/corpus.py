@@ -176,13 +176,19 @@ def score(args):
     data = inputs()
     prepared = prepare(data)
     cards = set(json.loads(slice_path(args.name).read_text())['cards'])
-    out = WORK/'runs'/args.name
+    out = WORK/'runs'/(args.name + (f'@without={args.without}' if args.without else ''))
     out.mkdir(parents=True, exist_ok=True)
     flags = [f for f, on in (('--render', args.render), ('--round-trip', args.round_trip)) if on]
+    if args.without:
+        flags.append(f'--without={args.without}')
     with dev.lock(shared=True), (out/'score.log').open('w') as log:
         dev.run('score', [str(prepared/'gold.jsonl'), str(prepared/'oracle.json'),
                           str(slice_path(args.name)), str(out/'rows.jsonl'),
                           f'--totals={out/"totals.json"}', *flags], stdout=log)
+    if args.without:
+        # Coverage of a narrower grammar, not a candidate baseline: never compared or accepted.
+        print((out/'totals.json').read_text().strip())
+        return
     before = cohort(rows(resolve(data['baseline'])), cards)
     write_rows(out/'before.jsonl', before)
     report = compare(before, rows(out/'rows.jsonl'), documented())
@@ -330,6 +336,8 @@ def main():
     scoring.add_argument('name')
     scoring.add_argument('--render', action='store_true')
     scoring.add_argument('--round-trip', action='store_true')
+    scoring.add_argument('--without', metavar='PREFIXES',
+                         help='switch off rules with these comma-separated name prefixes')
     for command, help_text in (('audit', 'native validity and baseline-meaning preservation'),
                                ('accept', 'overlay a passing run onto the baseline')):
         commands.add_parser(command, help=help_text).add_argument('name')

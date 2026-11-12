@@ -3,6 +3,7 @@ use oracle_ir_grammar::corpus;
 use oracle_ir_grammar::engine::{
     CardNote, CardReading, Engine, Parsed, Refusal, canonical_abilities, semantic_abilities,
 };
+use oracle_ir_grammar::parse::RuleSet;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -26,6 +27,10 @@ struct Options {
     aggregate: bool,
     /// Also write the totals as JSON, for the gate check.
     totals: Option<String>,
+    /// Rule-name prefixes to switch off, e.g. `m_,t_` for compositional coverage.
+    without: Vec<String>,
+    /// The rules those prefixes name, once the grammar is loaded.
+    off: RuleSet,
 }
 
 fn options() -> Result<Options, String> {
@@ -37,10 +42,22 @@ fn options() -> Result<Options, String> {
     let totals = args
         .iter()
         .find_map(|a| a.strip_prefix("--totals=").map(str::to_string));
+    let without: Vec<String> = args
+        .iter()
+        .filter_map(|a| a.strip_prefix("--without="))
+        .flat_map(|list| list.split(','))
+        .filter(|prefix| !prefix.is_empty())
+        .map(str::to_string)
+        .collect();
     let plain: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
     let [unified, oracle, slice, out] = plain.as_slice() else {
-        return Err("usage: score <unified.jsonl> <oracle.json> <slice.json> <out.jsonl> [--raw] [--render] [--round-trip] [--aggregate] [--totals=FILE]".into());
+        return Err("usage: score <unified.jsonl> <oracle.json> <slice.json> <out.jsonl> [--raw] [--render] [--round-trip] [--aggregate] [--totals=FILE] [--without=PREFIX,...]".into());
     };
+    if !without.is_empty() && (raw || render || round_trip) {
+        return Err(
+            "--without scores parsing only; it excludes --raw, --render and --round-trip".into(),
+        );
+    }
     Ok(Options {
         unified: (*unified).clone(),
         oracle: (*oracle).clone(),
@@ -51,6 +68,8 @@ fn options() -> Result<Options, String> {
         round_trip,
         aggregate,
         totals,
+        without,
+        off: RuleSet::default(),
     })
 }
 
@@ -265,7 +284,7 @@ fn judge(
         Err(Refusal::Binding(why))
     } else if source_context.station_present {
         engine
-            .parse_card_with_source(name, &text, &source_context)
+            .parse_card_without_source(name, &text, &source_context, &options.off)
             .map(|parsed| {
                 notes = parsed
                     .readings
@@ -296,7 +315,7 @@ fn judge(
             }
         })
     } else {
-        engine.parse(name, &text)
+        engine.parse_without(name, &text, &options.off)
     };
     match parsed {
         Err(refusal) => {
@@ -389,8 +408,10 @@ impl Score {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let options = options()?;
+    let mut options = options()?;
     let engine = Engine::load_from_args()?;
+    options.off =
+        engine.rule_set(|rule| options.without.iter().any(|p| rule.starts_with(p.as_str())));
     let slice: Value = serde_json::from_slice(&std::fs::read(&options.slice)?)?;
     let wanted: BTreeSet<String> = slice["cards"]
         .as_array()
