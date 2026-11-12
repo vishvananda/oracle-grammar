@@ -20,7 +20,7 @@ fn eight_complete_cards_print_their_native_meanings() {
             .iter()
             .map(|ty| ty.as_str().unwrap())
             .collect();
-        printed_types(&case["expected"], &types);
+        printed_types(&crate::bind::lowered(&case["expected"]), &types);
     }
 }
 

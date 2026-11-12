@@ -383,11 +383,15 @@ mod native_preflight {
     use super::*;
     use crate::engine::canonical_abilities;
 
+    /// The reviewed meaning in the reference's normal form: an optional target is its
+    /// whole population, so its scalar and set views are one reading.
+    fn normal(value: &Value) -> Value {
+        let mut value = value.clone();
+        super::super::target_populations::lower(&mut value);
+        canonical_abilities(&value).unwrap()
+    }
     fn canonical_set(values: Vec<Value>) -> Vec<Value> {
-        let mut values: Vec<_> = values
-            .iter()
-            .map(|v| canonical_abilities(v).unwrap())
-            .collect();
+        let mut values: Vec<_> = values.iter().map(normal).collect();
         values.sort_by_key(Value::to_string);
         values.dedup();
         values
@@ -436,7 +440,7 @@ mod native_preflight {
                 .unwrap_or_else(|why| panic!("{name}: {why:?}"))
                 .readings;
             assert!(
-                actual.contains(&canonical_abilities(&case["native"]).unwrap()),
+                actual.contains(&normal(&case["native"])),
                 "{name}: whole native frame"
             );
             assert_eq!(
@@ -522,7 +526,7 @@ mod native_preflight {
             );
             assert_eq!(
                 engine.parse_without(name, text, &off).unwrap().readings,
-                vec![expected],
+                vec![normal(&expected)],
                 "{name}: registered production"
             );
             for reading in actual {

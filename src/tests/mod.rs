@@ -48,7 +48,7 @@ fn cases() -> Vec<Value> {
 }
 
 fn expected(name: &str) -> Value {
-    cases().into_iter().find(|c| c["name"] == name).unwrap()["expected"].clone()
+    crate::bind::lowered(&cases().into_iter().find(|c| c["name"] == name).unwrap()["expected"])
 }
 
 fn printed(frame: &Value) -> String {
@@ -116,7 +116,7 @@ fn complete_cards_include_native_or_independently_reviewed_corrected_ir() {
         assert!(
             actual
                 .readings
-                .contains(&canonical_abilities(&case["expected"]).unwrap()),
+                .contains(&crate::bind::normal_form(&case["expected"])),
             "{name}"
         );
         if let Some(forbidden) = case.get("forbidden") {
@@ -836,3 +836,6 @@ mod counts;
 
 #[path = "shared_clauses/turn_history.rs"]
 mod turn_history;
+
+#[path = "shared_clauses/normal_forms.rs"]
+mod normal_forms;

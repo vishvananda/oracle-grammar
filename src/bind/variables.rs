@@ -365,7 +365,7 @@ mod cycling_tests {
             let parsed = engine.parse(name, case["text"].as_str().unwrap()).unwrap();
             assert_eq!(
                 parsed.readings,
-                vec![canonical_abilities(&case["expected"]).unwrap()],
+                vec![crate::bind::normal_form(&case["expected"])],
                 "{name}"
             );
             if let Some(old) = case.get("rejected_reading") {
@@ -379,14 +379,13 @@ mod cycling_tests {
 
     #[test]
     fn end_to_end_cycling_event_x_inverse_preflight() {
-        use crate::engine::canonical_abilities;
         let engine = crate::test_support::engine();
         let family: Value =
             serde_json::from_str(include_str!("../../families/cycling-activation-x.json")).unwrap();
         for case in family["cases"].as_array().unwrap() {
             let name = case["name"].as_str().unwrap();
             let text = case["text"].as_str().unwrap();
-            let expected = canonical_abilities(&case["expected"]).unwrap();
+            let expected = crate::bind::normal_form(&case["expected"]);
             let trail = engine
                 .trail_of(name, &expected, text)
                 .unwrap()

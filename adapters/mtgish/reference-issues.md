@@ -8,13 +8,45 @@ have no `###` heading, so they never excuse a lost match. After an upstream fix,
 advance `reference.json`, re-prepare the inputs and recount. Paths are IR paths
 inside the face's ability list.
 
-The current reference is `7d5544bcb49be3adf594c64d99706bfe898a38e9` (schema
+The current reference is `5408607bc4342aa3cdde1e764e2f405e71dccd39` (schema
 190). Upstream reviewed the grammar's 53 differing faces at `1fe5782` in
 `docs/reference-decisions-20261112.md`, with a per-face ledger in
 `reference-decisions-20261112.json`, and closed the nine held for a witness in
 `docs/reference-nine-resolutions-20261112.md`. It reopened 36 retained forms for
-one producer form per wording in `docs/reference-consistency-20261112.md`. No
-face is disputed now, so no `###` heading remains.
+one producer form per wording in `docs/reference-consistency-20261112.md` and
+closed all 36 by `5c1abe1` in `docs/reference-self-frames-20261112.md` and
+`docs/reference-remaining30-20261112.md`. The faces below with a `###` heading
+are disputed now.
+
+## Disputed
+
+### Phage the Untouchable Avatar
+
+- "Until end of turn, whenever target creature you control deals combat damage
+  to a creature, destroy the damaged creature." The created trigger captures the
+  target as the damage source, so the captured-target rule (Delif's Cube) names
+  `Target{slot:0, index:0}` at
+  `1/args/body/instructions/0/args/operation/args/body/instructions/0/args/operation/args/objects/args`
+  and destroys the attacker. The damaged creature is the event's recipient,
+  `Damage(Recipient)`, which the grammar reads.
+
+### Seizures
+
+- "Whenever enchanted creature becomes tapped, this Aura deals 3 damage to that
+  creature's controller unless that player pays {3}." The reference damages
+  `AbilityController` at
+  `1/args/body/instructions/1/args/then/instructions/0/args/operation/args/recipients/args/args`;
+  "that creature's controller" is `ControllerOf(EventSubject)`, as the payment's
+  player already is.
+
+### Woodland Bellower
+
+- "Search your library for a nonlegendary green creature card with mana value 3
+  or less": the reference's `Search` choice filter is
+  `AllOf([Not(Supertype(Legendary)), Color(Green), Property(ManaValue <= 3)])`,
+  without `CardType(Creature)`, so it also finds green noncreature cards. The
+  face matches today only through a seeded rule that copies this filter; a
+  compositional "nonlegendary" adjective reads the creature card.
 
 ## Resolved upstream
 
@@ -100,105 +132,76 @@ At `7d5544b` (`docs/reference-codsworth-20261112.md`):
   "Aura and Equipment spells" and "Aura and/or Equipment spells" are
   `AnyOf([Subtype(Aura), Subtype(Equipment)])`, either kind (#276).
 
-## Retained by the reference
+At `724d110` (`docs/reference-self-frames-20261112.md`):
 
-Upstream judged these encodings valid contracts or equivalent forms and kept
-them. In each, matched faces with the same wording use the grammar's encoding,
-or the reference splits the wording with no majority, so the grammar keeps its
-encoding and the face stays different. They are not reference errors, and the
-grammar adds no alias for them. Faces in a group below are listed there.
+- Waterspout Warden: the self-attack trigger's intervening condition names
+  `Source`, as do the eight equivalent self-attack templates.
+- Storm Entity: its own entry count excludes `Source` from the spell history, as
+  Thrasta, Tempest's Roar, Thunder Salvo and Call Forth the Tempest do.
 
-#### Draining Whelk
+At `e8b29bb` and `5c1abe1` (`docs/reference-remaining30-20261112.md`), one
+producer form per wording for the remaining 30 reopened faces. These now match:
 
-- `Earlier{what:Countered, measure:Of(ManaValue)}` reads the saved target even
-  if countering fails, which matches the Time Spiral Remastered release notes.
-  12 countered-spell controls read `ObjectProperty` of the target.
+- Cryptic Coat: a singular cloak result is `Result{After, index:0}`.
+- Ebonblade Reaper, Personal Incarnation and Skybreen: singular life loss names
+  its recipient in quantities as well as the operation; Scourge of the Skyclaves
+  keeps `Acting` for its plural loss.
+- Liliana, Death Mage: up-to-one target populations are `Targets(slot)`.
+- Delif's Cube and Long River Lurker: a created event that captures exactly one
+  target names it in its body, as Delif's Cone, Niko Aris and Barreling Attack
+  do. Zone changes keep their event subject.
+- Electro, Assaulting Battery and Passenger Ferry: reflexive closures keep a
+  proven self object as `Source`, as Sparktongue Dragon, Cyclops
+  Superconductor, Ambergris, Agent of Balance and Leyline Tyrant now do.
+- Draining Whelk: the counter follow-up reads the targeted spell's mana value
+  with current or last-known information.
+- Forbidden Crypt: an own-graveyard payment drops only the redundant `InZone`.
+- In Thrall to the Pit: control, untap, haste and the delayed sacrifice name the
+  original target.
+- Wandering Graybeard: kinship templates use two explicit guards, an optional
+  look and an optional reveal.
+- Molly Hayes, Runaway: a singular top-card exile's permission names
+  `One(Result{After, index:0})`.
+- Myriad Construct: "sacrifice it ... equal to its power" names the original
+  object with current or last-known information.
+- Nemesis Mask: all-able-blockers requirements attach to the creature to be
+  blocked, as Lure does.
+- No Quarter: mirrored blocking-pair events name explicit `Attacker` and
+  `Blocker` roles.
+- Norman Osborn: connive names its object, and that object's controller acts.
+- Skeletal Swarming: one static keeps keyword, attack requirement and pump in
+  printed order.
+- Veteran Ghoulcaller: to-hand duplication is `DuplicateLastKnown(EventSubject)`,
+  as Kithkin Brinefarer's is, and the graveyard-origin filter keeps `InZone`.
+- Vulshok Factory: a sacrificed source named by the activation cost is `Source`.
+- Worzel, the Protector: a basic Plains has no extra `CardType(Land)`.
 
-#### Ebonblade Reaper
+Upstream also settled these wordings, which the grammar does not read yet:
 
-- `Acting` resolves to the controller in the first life loss and to the damaged
-  player in the second. 4 controls name `AbilityController`.
+- Optional entries and creations with dependent follow-ups are
+  `PayCost{optional:true}` with the follow-ups under `If PaymentChosen`, reading
+  `CostObjects{payment:Resolution(r), component:[0], view:Performed, phase:After}`:
+  Dawn of the Dead, Ilharg, the Raze-Boar, Mirror Mockery, the hand-entry
+  templates (Arms Race, Cauldron Dance, Incandescent Soulstoke, Kavaron Consumed,
+  Meek Attack, Oviya, Automech Artisan, Planebound Accomplice, Terminal
+  Velocity), Admiral Brass, Unsinkable, Break Out, Hellkite Courser and Kharasha
+  Foothills. Leaf-Crowned Elder has the kinship form.
+- Resplendent Marshal: "another" and "other than this creature" under "enters or
+  dies" name `Source`, inside the reflexive closure too.
+- Deathbringer Regent: the free condition is lifted out of the object filter;
+  "there are five or more other creatures on the battlefield" counts
+  `Difference{objects, excluding:One(Source)}`, as Portcullis's count does.
 
-#### Vulshok Factory
+At `5408607` (`docs/reference-other-targets-20261112.md`):
 
-- `Query{objects:CostObjects{payment:Activation, ...}}` with
-  `CurrentOrLastKnown` keeps the sacrificed source's counters. 37 faces that
-  sacrifice themselves and count their own counters read `Source`.
-
-#### Veteran Ghoulcaller
-
-- `DuplicateLastKnown(EventSubject)` keeps the departed card's definition and
-  perpetual changes. Kithkin Brinefarer has the same sentence with
-  `Duplicate(One(EventSubject))`. Its event's `OwnedBy` is a separate
-  encoding split (see "A card in your graveyard" below).
-
-#### Worzel, the Protector, Nemesis Mask, Molly Hayes, Runaway, Forbidden Crypt
-
-- Redundant or equivalent forms: Worzel's `CardType(Land)` beside a basic
-  Plains; Nemesis Mask's `Block` requirement on every able creature, where
-  Lure and 20 other statics require the creature to be `BeBlocked` by each;
-  Molly Hayes's `Transition{result:0, phase:After}` for a one-card exile, where
-  71 impulse faces read `One(Result{..., index:0})`; and Forbidden Crypt's
-  repeated graveyard scope.
-
-#### Hit
-
-- A mandatory resolving `PayCost` of the sacrifice, with the damage under
-  `If PaymentChosen` and the mana value read from
-  `CostObjects{payment:Resolution(0), view:Inputs, phase:Before}`. Five
-  controls read a `Sacrifice` effect and `Transition{result:0, phase:Before}`.
-  Upstream showed the forms agree for this sole-target, one-sacrifice damage
-  follow-up and kept the explicit cost receipt.
-
-#### Deathbringer Regent
-
-- `ObjectMatches{object:Source, filter:AllOf([Condition(Compare(...)), Cast ...])}`,
-  whose count excludes `Candidate`. The grammar splits the conjunction and
-  excludes `Source`, as 6 "other creatures" count controls and Inquisitor
-  Captain do. Upstream found no binding counterexample and kept its form.
-
-#### Dream Thief
-
-- `ObjectMatches{object:Source, filter:Condition(PlayerDid ...)}`; 12 controls
-  read `Compare` over `EventHistory`. The history predicate and own-spell
-  exclusion are the same, and `ObjectMatches` reads the source's last-known
-  identity after it leaves.
-
-#### Cryptic Coat
-
-- `Recorded{result:0}` names the cloaked permanent; 12 cloak and manifest
-  controls read `Result{result:0, phase:After, index:0}`. Cloak makes at most
-  one permanent, so the forms agree.
-
-#### In Thrall to the Pit
-
-- The control change is recorded as result `0`, and `Recorded{result:0}` names
-  the creature for untap, haste and the delayed sacrifice; the grammar reads
-  `Target{slot:0, index:0}`. With one target the two name the same object.
-
-#### Liliana, Death Mage
-
-- `One(Target)` for "up to one target creature card", and `Prior(That)` for
-  the player in the last ability, where 22 of 24 controls read `Target`.
-
-#### Skybreen
-
-- `Acting` for "their hand"; Balor and Laquatus's Creativity read
-  `Target{slot:0, index:0}`. With one target player the forms agree.
-
-#### Waterspout Warden, Storm Entity
-
-- `EventSubject` where the grammar reads `Source` for an excluded self. Nine
-  "another ... entered the battlefield this turn" faces read `Source`, as do
-  the spell-history counts of Thrasta, Tempest's Roar, Call Forth the Tempest
-  and Thunder Salvo. Upstream showed each event subject is the source here and
-  kept separate identities.
-
-#### Skeletal Swarming
-
-- The reference lists "attacks each combat if able" after the later pump; the
-  grammar keeps the written order. Changes in one static apply by layer, and
-  this is the only face whose requirement is written between two changes.
+- Jaheira, Heroic Harper, Rhino, Terrible Trampler and Amy Rose: "other target
+  creatures" after an artifact, enchantment or Equipment target excludes the
+  source, as Kinetic Ooze does. The grammar contrasts "other" with an earlier
+  target only when that target's type matches.
+- A statically `UpTo(1)` target population is `Targets(slot)` wherever it is
+  used as objects, players or damage recipients; scalar fields, mandatory single
+  targets and required payments keep their forms. The grammar lowers the scalar
+  spelling at binding and restores it for the printer.
 
 ## Same wording encoded more than one way
 
@@ -207,55 +210,40 @@ every encoding below. Groups use `####` headings and faces appear only in
 bullets, so these entries never excuse a lost match. Faces the grammar scores as
 different are marked *(different)*.
 
-#### Self references inside a reflexive "When you do" body
+#### A sacrifice followed by damage equal to its property
 
-- `Source`: Electro, Assaulting Battery *(different)* ("he deals X damage"),
-  Passenger Ferry *(different)* ("another target attacking creature"),
-  Resplendent Marshal *(different)*, and 30 matched faces.
-- `EventSubject`: Sparktongue Dragon ("it deals 3 damage"), Cyclops
-  Superconductor, Ambergris, Agent of Balance ("another target creature") and
-  Leyline Tyrant ("it deals that much damage").
-- Direct counterparts: Passenger Ferry and Ambergris (attack trigger,
-  "another target"); Electro and Leyline Tyrant (leave or die, "When you do,
-  it/he deals").
-- Upstream keeps `Source` in these three: a reflexive payment is not an object
-  event that rebinds `EventSubject`.
+- `PayCost` of the sacrifice, the damage under `If PaymentChosen` and the
+  property read from `CostObjects{payment:Resolution(0), view:Inputs, phase:Before}`:
+  Hit *(different)* and Rupture *(different)*.
+- A `Sacrifice` effect read through `Transition{result:0, phase:Before}`: Grab
+  the Reins ("Sacrifice a creature. Grab the Reins deals damage equal to that
+  creature's power to any target").
+- Rupture and Grab the Reins have the same two sentences up to the damage
+  recipients. Upstream's Hit contract says Rupture now shares the payment form;
+  Grab the Reins still reads the effect.
 
-#### "You may <action>." followed by sentences that depend on it
+#### "If you've cast another <color> spell this turn"
 
-- `Optional` around the action and its follow-ups: 8 matched faces, such as
-  Hellkite Courser, Pawn of Ulamog and Yedora, Grave Gardener; also Planebound
-  Accomplice and Surprise Deployment.
-- `PayCost{optional:true}` with the follow-ups under `If PaymentChosen`:
-  Through the Breach, Swift Warkite, Vizier of Deferment, Purphoros,
-  Bronze-Blooded, Dawn of the Dead *(different)*, Mirror Mockery *(different)*,
-  Wandering Graybeard *(different)* and Ilharg, the Raze-Boar *(different)*.
-- Upstream keeps the guarded payment for Dawn, Mirror and Ilharg (CR 118.12)
-  and Wandering Graybeard's guarded look and reveal.
+- `PlayerDid{event:CastSpell(...), window:ThisTurn}`: Dream Thief *(different)*
+  ("draw a card if you've cast another blue spell this turn") and Hotheaded
+  Giant ("unless you've cast another red spell this turn").
+- `Compare(EventHistory(Spell Cast ...) > 0)`: Soul Reap ("Its controller loses
+  3 life if you've cast another black spell this turn"), Patrician's Scorn,
+  Talara's Battalion and Mage Duel.
+- Dream Thief and Soul Reap both put the condition on a body effect; the grammar
+  reads the history count for both.
 
 #### Random return from a graveyard to a hand
 
-- `ChooseObjects{constraints:[AtRandom]}`: 19 faces of every ability kind, such
-  as Fossil Find, Surreal Memoir, Make a Wish, The Deck of Many Things and
-  Haunted Fengraf.
-- `WithSelections{chooser:Chance}`: Charmbreaker Devils, Exalted Flamer of
+- Haunted Fengraf's contract is one `Move` of a `WithSelections{chooser:Chance}`
+  selection whose count `AsManyAsCan(1)` handles an empty pool. Fossil Find,
+  Make a Wish, Reap the Past, Surreal Memoir, The Deck of Many Things and Trash
+  Bin match it.
+- The same template has `Exactly(1)` in Charmbreaker Devils, Exalted Flamer of
   Tzeentch, Ghoulraiser, Nephalia, Viconia, Drow Apostate and Woodland Sleuth.
-- The grammar reads a written card filter with `ChooseObjects` and returns the
-  chance selection beside it, so the five faces among these that have a filter
-  carry both readings until one form is chosen. Upstream found both choose one
-  card uniformly at resolution.
-
-#### A targeted object's pronoun inside a delayed trigger
-
-- `EventSubject`: Delif's Cone, Niko Aris, Barreling Attack and 8 more.
-- `Target`: Delif's Cube *(different)*, Long River Lurker *(different)*,
-  Okoye, Mighty and Adored, Arcbond and 1 more. Delif's Cone and Delif's Cube
-  have near-identical wording.
-- Long River Lurker's "you may exile it" follows the pronoun: a `Move` cost of
-  the target under `Target`, and a `PlayerAction` exile of `EventSubject` read
-  back through `Transition` under `EventSubject`.
-- Upstream keeps the captured target: the delayed event matches
-  `SameObject(Target(0))`, so its subject is that original target.
+- A single untyped card keeps a redundant `InZone(your graveyard)` filter in
+  Fossil Find, The Deck of Many Things and Trash Bin, but not in Nephalia.
+- The grammar returns both counts for this template until one is chosen.
 
 #### "If it's a <type> card" after a one-card move
 
@@ -288,13 +276,6 @@ different are marked *(different)*.
   `Result{index:0}`; reading the whole batch needs a batch reference for "its"
   with its own printing inverse.
 
-#### The last-known state of a sacrificed fixed object
-
-- `EventSubject` or `Source`: Foot Chopper, Riders of the Mark. `Recorded`:
-  Ravenous Slime. `Transition{phase:Before}`: Myriad Construct *(different)*.
-- Upstream keeps Myriad Construct's sacrifice receipt with `CurrentOrLastKnown`,
-  which pins the exact original object and its power.
-
 #### "This card" after the card exiled itself
 
 - `InZone(Source, Exile)`, `InZone(Transition, Exile)` and
@@ -303,28 +284,12 @@ different are marked *(different)*.
 - Review: keep the post-cost or post-exile incarnation and its expected zone;
   Kogla shows a generic `Source` can be wrong.
 
-#### The subject of a block-pair event on one card
-
-- No Quarter *(different)* names the event subject `BlockPair(Attacker)` in
-  "becomes blocked by a creature with lesser power" and `EventSubject` in the
-  mirrored "blocks a creature with lesser power"; the grammar reads
-  `BlockPair(Blocker)` there.
-- Upstream showed both spellings generate byte-identical code.
-
 #### Operand order of "N life more than your starting life total"
 
 - `Add([N, StartingLife])` in conditions (Chalice of Life, Doctor Strange,
   Surgeon, Leyline of Hope) and `Add([StartingLife, N])` in activation
   restrictions (Speaker of the Heavens, Ayli, Eternal Pilgrim).
 - Review: a normal-form choice under identical arithmetic, not a rules defect.
-
-#### "A card in your graveyard" in a zone-change trigger
-
-- `InZone(Players{zone:Graveyard, players:One(AbilityController)})`: Kaya,
-  Spirits' Justice ("creature cards in your graveyard are put into exile").
-- `OwnedBy(One(AbilityController))` beside `from: Graveyard`: Veteran
-  Ghoulcaller *(different)* ("a card in your graveyard is put into your hand").
-- The grammar keeps `InZone` for this wording.
 
 #### Branch order of "dealt to and dealt by"
 
@@ -341,26 +306,3 @@ different are marked *(different)*.
   with the same wording.
 - `Source`: Hook Horror (its own "it perpetually gets"), whose later "that
   card's toughness" and "return it" use the `Query`.
-
-#### "He" or "she" naming a holder in its own trigger
-
-- `Source`: Ultron, Unlimited ("Whenever Ultron attacks, he connives") and
-  Tiger Shark, Abyssal Hunter ("enters or attacks, he connives").
-- `EventSubject`: Norman Osborn *(different)* ("Whenever Norman Osborn deals
-  combat damage to a player, he connives") and Jack of Hearts, Volatile Hero
-  ("When Jack of Hearts dies, he deals damage").
-- Upstream keeps Norman Osborn's form: connive is object-directed (CR
-  701.50a-b), and the object's controller performs it.
-
-#### "Their life" after a named losing player
-
-- `Acting`: Personal Incarnation *(different)* ("its owner loses half their
-  life"), Scourge of the Skyclaves ("each player loses half their life") and
-  Ebonblade Reaper (retained above).
-- The named player itself: Blood Tribute, Revenge, Rush of Dread and Shard of
-  the Nightbringer (`Target`); Havoc Festival, Quietus Spike and Grievous Wound
-  (`EventSubject`). `Bound` under `ForEachPlayer`: Betor, Kin to All, Fraying
-  Omnipotence, Skull Storm and Shahrazad.
-- The grammar reads the named loser for Personal Incarnation,
-  `OwnerOf(Source)`, and `Acting` for a player group. Upstream keeps `Acting`
-  as the player receiving the life loss.

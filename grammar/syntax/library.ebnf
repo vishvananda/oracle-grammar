@@ -213,6 +213,12 @@ until_battlefield ::= "onto" "the" "battlefield"
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Reveal{objects:$your_top}}, Instruction::If{condition:Compare{left:Expr::CountObjects(Matching{objects:Observed(@last_result), filter:$card_filter}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Move{objects:$your_top, destination:$until_destination, qualifiers:[]}}]}, otherwise:Program{}}] */
 instructions_reveal_if ::= "reveal" your_top "." "if" "it's" ("a" | "an") card_filter "card" "," "put" "it" until_destination
 
+/* Kinship: an optional look at the top card; if it shares a creature type with this
+   creature, an optional reveal of it; and what follows only once it is revealed. Each
+   optional action is a payment with its own guard, as in Wandering Graybeard. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[If{condition:ObjectMatches{object:Query{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, index:0}, filter:Shares{property:CreatureTypes, with:$self_ref}}, then:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]}, otherwise:Program{}}]}, otherwise:Program{}}] */
+instructions_kinship_reveal ::= "you" "may" "look" "at" "the" "top" "card" "of" "your" "library" "." "if" "it" "shares" "a" "creature" "type" "with" self_ref "," "you" "may" "reveal" "it" "." "if" "you" "do" "," program
+
 /* Choosing a card from a zone, then acting on it. */
 your_zone ::= your_hand | your_graveyard
 

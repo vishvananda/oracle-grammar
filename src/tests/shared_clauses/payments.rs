@@ -48,11 +48,12 @@ fn spent(reading: &Value, at: &str) -> Value {
         "intervening" => &reading[0]["args"]["intervening_if"],
         _ => &reading[0]["args"]["body"]["instructions"][0]["args"]["condition"],
     };
-    let filter = &condition["args"]["filter"]["args"]["args"];
+    // A free condition on the spell's mana, not a test of the object.
+    let spent = &condition["args"]["left"]["args"];
     json!({
-        "object": condition["args"]["object"]["kind"],
-        "colors": filter["left"]["args"]["filter"]["colors"],
-        "least": filter["test"]["args"]["value"]["args"],
+        "object": spent["object"]["kind"],
+        "colors": spent["filter"]["colors"],
+        "least": condition["args"]["test"]["args"]["value"]["args"],
     })
 }
 
@@ -82,6 +83,7 @@ fn a_spell_named_after_an_action_on_the_card_keeps_its_noun_in_print() {
                 more mana was spent to cast that spell, draw a card.";
     let reading = compositional(text);
     let condition = &reading[0]["args"]["body"]["instructions"][1]["args"]["condition"];
-    assert_eq!(condition["args"]["object"], json!({"kind":"EventSubject"}));
+    let spent = &condition["args"]["left"]["args"]["object"];
+    assert_eq!(spent, &json!({"kind":"EventSubject"}));
     assert!(printed(&reading).contains("to cast that spell"));
 }

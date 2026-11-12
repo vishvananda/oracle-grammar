@@ -3,6 +3,7 @@
 use super::{Scope, Step, at_path, symbol_name};
 use crate::model::ir::{DamageSubject, ObjectDomain, ObjectRef};
 use serde_json::{Value, json};
+use std::collections::BTreeSet;
 
 // Shared through Arc in Referent: snapshots never clone this filter payload.
 pub(super) struct Target {
@@ -57,6 +58,55 @@ fn compatible(filter: &Value, domain: &Value) -> bool {
     }
 }
 
+/// The card types a description names; a subtype names its own card type.
+fn card_types(filter: &Value, types: &mut BTreeSet<String>) {
+    use crate::model::mtg_types::{ArtifactType, CreatureType, EnchantmentType, LandType};
+    let subtype = |name: &Value| {
+        let of = |ok: bool, ty: &str| ok.then(|| ty.to_string());
+        of(
+            serde_json::from_value::<CreatureType>(name.clone()).is_ok(),
+            "Creature",
+        )
+        .or_else(|| {
+            of(
+                serde_json::from_value::<ArtifactType>(name.clone()).is_ok(),
+                "Artifact",
+            )
+        })
+        .or_else(|| {
+            of(
+                serde_json::from_value::<EnchantmentType>(name.clone()).is_ok(),
+                "Enchantment",
+            )
+        })
+        .or_else(|| {
+            of(
+                serde_json::from_value::<LandType>(name.clone()).is_ok(),
+                "Land",
+            )
+        })
+    };
+    match filter["kind"].as_str() {
+        Some("CardType") => types.extend(filter["args"].as_str().map(str::to_string)),
+        Some("Subtype") => types.extend(subtype(&filter["args"])),
+        Some("AllOf" | "AnyOf") => {
+            for part in filter["args"].as_array().into_iter().flatten() {
+                card_types(part, types);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Whether an earlier target's description and a later "other" noun can name the same
+/// kind of object. Without card types on either side, nothing sets them apart.
+fn shares_card_type(earlier: &Value, later: &Value) -> bool {
+    let (mut first, mut second) = (BTreeSet::new(), BTreeSet::new());
+    card_types(earlier, &mut first);
+    card_types(later, &mut second);
+    first.is_empty() || second.is_empty() || !first.is_disjoint(&second)
+}
+
 pub(super) fn resolve_marker(marker: &str, scope: &Scope, domain: &Value) -> Result<Value, String> {
     match marker {
         "another_target_reference" => another_target(scope, domain),
@@ -90,8 +140,10 @@ pub(super) fn resolve(scope: &Scope, domain: &Value) -> Result<Value, String> {
     serde_json::to_value(&target.reference).map_err(|error| error.to_string())
 }
 
-/// A directly preceding target establishes an explicit contrast even when its
-/// subtype/union does not prove the following noun domain. Event focus does not.
+/// A directly preceding target of the same kind establishes an explicit contrast.
+/// An earlier artifact, enchantment, land or Equipment target does not merely by
+/// coming first: "other target creatures" then excludes the source (Jaheira, Heroic
+/// Harper; Amy Rose). Event focus does not contrast.
 pub(super) fn another_target(scope: &Scope, domain: &Value) -> Result<Value, String> {
     if let Some(reference) = scope.object() {
         if reference["kind"] == "Target" {
@@ -108,12 +160,15 @@ pub(super) fn another_target(scope: &Scope, domain: &Value) -> Result<Value, Str
                     matches!(&target.reference, ObjectRef::Target { slot: prior, index: at }
                         if prior.0 == slot.0 && *at == index)
                 });
-            if target.is_some_and(|target| target.single)
-                && usize::from(slot.0) >= scope.target_base
-            {
+            let Some(target) =
+                target.filter(|target| target.single && usize::from(slot.0) >= scope.target_base)
+            else {
+                return Err("another target needs a singular prior battlefield target".into());
+            };
+            if shares_card_type(&target.filter, domain) {
                 return Ok(reference);
             }
-            return Err("another target needs a singular prior battlefield target".into());
+            return resolve(scope, domain);
         }
         // Native normalization surfaces the distinguished Damage role as
         // EventSubject. A proof for one role never licenses its sibling.

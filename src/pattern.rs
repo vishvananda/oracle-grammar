@@ -814,7 +814,10 @@ impl Pattern {
                 return crate::functions::unify_continuous(name, args, value, bindings);
             }
             "zone_members" => return unify_zone_members(args, value, bindings),
-            "implicit_card_set" | "exile_followup" if value.get("$sym").is_none() => {
+            // A chance selection is itself the moved set.
+            "implicit_card_set" | "exile_followup"
+                if value.get("$sym").is_none_or(|sym| sym == "selection") =>
+            {
                 return crate::bind::exile_followups::unify(args, value, bindings);
             }
             "returned_conditional" | "returned_conditional_literal" => {

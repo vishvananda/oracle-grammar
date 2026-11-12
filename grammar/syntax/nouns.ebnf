@@ -1,6 +1,6 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
 object_set ::= group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other
-    | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_two_targets
+    | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets
     | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all
     | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other
     | objects_self_and_target
@@ -42,6 +42,41 @@ objects_all_two ::= "all" filter_plural "and" "all" filter_plural
 
 /* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, chooser:Chance, count:AsManyAsCan(Expr::Constant(1))}) */
 objects_random ::= ("a" | "an") filter_phrase "chosen" "at" "random"
+
+/* Cards chosen by chance from one player's graveyard or library: as many as the pool
+   holds, up to the count, so an empty pool selects nothing (Haunted Fengraf). */
+objects_random_cards ::= objects_random_graveyard_any | objects_random_graveyard_one | objects_random_graveyard_many | objects_random_library_one | objects_random_library_chosen
+
+/* A single untyped card keeps the written graveyard as its own predicate (Fossil Find). */
+/* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One($zone_owner)})}, chooser:Chance, count:AsManyAsCan(Expr::Constant(1))}) */
+objects_random_graveyard_any ::= "a" "card" "at" "random" "from" zone_owner "graveyard"
+
+/* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:$random_card_kind}, chooser:Chance, count:AsManyAsCan(Expr::Constant(1))}) */
+objects_random_graveyard_one ::= ("a" | "an") random_card_kind "card" "at" "random" "from" zone_owner "graveyard"
+
+/* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:$random_cards}, chooser:Chance, count:AsManyAsCan($count)}) */
+objects_random_graveyard_many ::= count random_cards "at" "random" "from" zone_owner "graveyard"
+
+/* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:Zone{scope:Players{zone:Library, players:One($zone_owner)}, kind:Card, filter:$random_card_one}, chooser:Chance, count:AsManyAsCan(Expr::Constant(1))}) */
+objects_random_library_one ::= "a" "random" random_card_one "from" zone_owner "library"
+
+/* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:Zone{scope:Players{zone:Library, players:One($zone_owner)}, kind:Card, filter:$random_card_one}, chooser:Chance, count:AsManyAsCan(Expr::Constant(1))}) */
+objects_random_library_chosen ::= ("a" | "an") random_card_one "from" zone_owner "library" "chosen" "at" "random"
+
+random_card_one ::= random_any_card | random_filtered_card
+/* @sem ObjectFilter::Any */
+random_any_card ::= "card"
+/* @sem $random_card_kind */
+random_filtered_card ::= random_card_kind "card"
+
+random_cards ::= random_any_cards | random_filtered_cards
+/* @sem ObjectFilter::Any */
+random_any_cards ::= "cards"
+/* @sem $random_card_kind */
+random_filtered_cards ::= random_card_kind "cards"
+
+/* A permanent's qualities, or a spell type that only a card in a library can have. */
+random_card_kind ::= filter_phrase | spell_instant | spell_sorcery
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($target_object_2)])} */
 objects_two_targets ::= target_object "and" target_object
@@ -276,12 +311,18 @@ objects_each_other ::= "each" "other" filter_phrase
 /* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@pump_other_ref(ObjectRef::@it))), $filter_plural)}) */
 objects_all_other ::= "all" "other" filter_plural
 
-/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$target_count_any, filter:$filter_plural})) */
-objects_targets ::= ("each" "of")? target_count_any "target" filter_plural
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$plural_target_count_any, filter:$filter_plural})) */
+objects_targets ::= ("each" "of")? plural_target_count_any "target" filter_plural
 
 
-/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$target_count, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@it)), $filter_plural)})) */
-objects_other_targets ::= ("each" "of")? target_count "other" "target" filter_plural
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$plural_target_count, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@another_target_reference(ObjectFilter::$filter_plural))), $filter_plural)})) */
+objects_other_targets ::= ("each" "of")? plural_target_count "other" "target" filter_plural
+
+/* A plural noun agrees with its count: never "up to one target creatures". */
+/* @sem Count::@plural_count($target_count_any) */
+plural_target_count_any ::= target_count_any
+/* @sem Count::@plural_count($target_count) */
+plural_target_count ::= target_count
 
 target_count ::= target_receipt_up_to | target_exactly | target_up_to | target_adjacent_range
 

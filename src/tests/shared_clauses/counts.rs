@@ -20,16 +20,25 @@ fn any_number_of_targets_is_one_count_for_every_action() {
 }
 
 #[test]
-fn other_targets_right_after_a_target_exclude_that_target() {
+fn other_targets_contrast_with_a_prior_target_of_their_own_kind_or_else_the_source() {
+    let other = |reading: &Value| reading[0]["args"]["announcement"]["targets"][1].clone();
+    let not = |object: Value| json!({"kind":"Not","args":{"kind":"SameObject","args":object}});
     let text = "Destroy up to one target artifact or enchantment. Put a +1/+1 counter on \
                 each of up to two other target creatures.";
     let reading = compositional(text);
-    let other = &reading[0]["args"]["announcement"]["targets"][1];
-    assert_eq!(other["count"], json!({"UpTo":{"kind":"Constant","args":2}}));
     assert_eq!(
-        other["filter"]["args"][1],
-        json!({"kind":"Not","args":{"kind":"SameObject","args":{"kind":"Target","args":{"slot":0,"index":0}}}})
+        other(&reading)["count"],
+        json!({"UpTo":{"kind":"Constant","args":2}})
     );
+    assert_eq!(
+        other(&reading)["filter"]["args"][1],
+        not(json!({"kind":"Source"}))
+    );
+    let same = "Tap up to one target creature. Put a +1/+1 counter on each of up to two \
+                other target creatures.";
+    let reading = compositional(same);
+    let target = json!({"kind":"Target","args":{"slot":0,"index":0}});
+    assert_eq!(other(&reading)["filter"]["args"][1], not(target));
 }
 
 #[test]

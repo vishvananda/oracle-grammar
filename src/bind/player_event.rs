@@ -96,7 +96,6 @@ mod tests {
 
     #[test]
     fn original_whole_card_player_event_source_focus_preflight() {
-        use crate::engine::canonical_abilities;
         let engine = crate::test_support::engine();
         let cases: Vec<Value> = serde_json::from_str(include_str!(
             "../../tests/fixtures/player-event-object-bindings-native.json"
@@ -112,7 +111,7 @@ mod tests {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|reading| canonical_abilities(reading).unwrap())
+                .map(crate::bind::normal_form)
                 .collect();
             assert_eq!(actual.readings.len(), expected.len(), "{name}");
             for reading in expected {

@@ -17,6 +17,7 @@ pub(crate) mod damage_reflexive;
 pub(crate) mod damage_relative;
 pub(crate) mod departure_controller;
 mod drafted;
+mod event_subjects;
 mod events;
 pub(crate) mod exile_followups;
 mod exile_returns;
@@ -33,6 +34,7 @@ pub(crate) mod returned_conditionals;
 mod search_move;
 mod selections;
 pub(crate) mod target_contrast;
+mod target_populations;
 mod target_surface;
 use events::scope_for;
 mod guards;
@@ -319,6 +321,12 @@ pub fn bind_held_ability(
     selections::bind(ability)?;
     coin_protocol::lower(ability)?;
     crate::functions::definitions::resolve(ability)?;
+    event_subjects::name_captured_targets(ability);
+    event_subjects::name_reflexive_sources(ability);
+    event_subjects::name_conniving_sources(ability);
+    event_subjects::name_enclosed_sources(ability);
+    event_subjects::duplicate_hidden_arrivals(ability, true);
+    target_populations::lower(ability);
     spell_focus::check_spell_grants(ability)
 }
 
@@ -988,8 +996,41 @@ fn nested_forms(forms: Vec<Value>) -> Vec<Value> {
     out
 }
 
+/// Abilities in the binder's normal form, for fixtures recorded before it: an optional
+/// target is its whole population.
+#[cfg(test)]
+pub(crate) fn lowered(abilities: &Value) -> Value {
+    let mut abilities = abilities.clone();
+    target_populations::lower(&mut abilities);
+    abilities
+}
+
+/// The canonical form of [`lowered`] abilities.
+#[cfg(test)]
+pub(crate) fn normal_form(abilities: &Value) -> Value {
+    crate::engine::canonical_abilities(&lowered(abilities)).expect("canonical fixture abilities")
+}
+
 /// The surface forms of an ability, and of the abilities inside it.
 pub fn unbind_ability(ability: &Value) -> Vec<Value> {
+    // The printer's rules spell an optional population as its one chosen object, and a
+    // hidden arrival's duplicate as a duplicate of that card.
+    let mut scalar = ability.clone();
+    let populations = target_populations::surface(&mut scalar);
+    let duplicates = event_subjects::duplicate_hidden_arrivals(&mut scalar, false);
+    if !(populations || duplicates) {
+        return unbind_view(ability);
+    }
+    let mut forms = unbind_view(&scalar);
+    for form in unbind_view(ability) {
+        if !forms.contains(&form) {
+            forms.push(form);
+        }
+    }
+    forms
+}
+
+fn unbind_view(ability: &Value) -> Vec<Value> {
     presentation::forms(ability).unwrap_or_else(|| nested_forms(own_forms(ability)))
 }
 
