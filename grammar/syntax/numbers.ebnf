@@ -71,7 +71,7 @@ card_count_each_many ::= count "cards" "for" "each" count_each
 /* @sem $value */
 card_count_equal ::= "cards" "equal" "to" value
 
-count_each ::= count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand
+count_each ::= count_each_vote | count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand
     | count_each_card_graveyard | count_each_destroyed | count_each_discarded | count_each_died | count_each_land_type
 
 /* @sem Expr::EventHistory{event:$commander_cast_history, window:ThisGame, measure:Occurrences} */
@@ -229,7 +229,7 @@ value_constant ::= number_digits | number_words | number_x
 
 value_atom ::= value_cast_since_last_turn | value_chosen_creature_population | value_shared_countered | value_shared_other_four_subtypes | value_shared_saga_mana | value_times_mutated | value_your_life | mined_value | value_constant | value_number_of | value_power | value_toughness | value_mana_value | value_that_much | value_twice
     | value_number_hand | value_number_graveyard | value_number_card_graveyard | value_number_card_hand
-    | value_life_lost | value_sacrificed | value_sacrificed_result | value_stat_of | value_number_on_battlefield | value_number_other
+    | value_life_lost | value_life_gained_turn | value_mana_spent | value_sacrificed | value_sacrificed_result | value_stat_of | value_number_on_battlefield | value_number_other
     | value_greatest | value_greatest_pair | value_colors_among | value_land_types_among | value_card_types_graveyard | value_devotion
     | value_party | value_number_died | value_named_all | value_named_yours | value_all_graveyards
     | value_half | value_damage_dealt | value_self_stat | value_power_of_target | value_damage_already
@@ -281,6 +281,13 @@ value_number_card_hand ::= "the" "number" "of" card_filter "cards" "in" zone_own
 
 /* @sem Expr::Performed(@prior) */
 value_life_lost ::= "the" "life" "lost" "this" "way"
+
+/* "Where X is the amount of life you gained this turn": the total, not the occasions. */
+/* @sem Expr::EventHistory{event:Player{event:GainsLife, players:One(PlayerRef::AbilityController)}, window:ThisTurn, measure:TotalAmount} */
+value_life_gained_turn ::= "the" "amount" "of" "life" "you" "gained" "this" "turn"
+
+/* @sem Expr::ManaSpent{object:$spent_spell, filter:SpentManaFilter{}, aggregation:Count} */
+value_mana_spent ::= "the" "amount" "of" "mana" "spent" "to" "cast" spent_spell
 
 /* Naming the sacrificed creature makes it the object a later "its" reads. */
 /* @sem Expr::ObjectProperty{object:@remember_object(ObjectRef::Query{objects:CostObjects{payment:Activation, component:[@cost_index], view:Inputs, phase:Before}, index:0}), property:$stat, information:CurrentOrLastKnown} */

@@ -35,6 +35,17 @@ are disputed now.
   `CostObjects{payment:Resolution(2), component:[0], view:Performed,
   phase:After}`, as in Meek Attack.
 
+### Lieutenants of the Guard
+
+- "Starting with you, each player votes for strength or numbers. Put a +1/+1
+  counter on this creature for each strength vote and create a 1/1 white
+  Soldier creature token for each numbers vote." The counter amount counts
+  `Votes(Word("Feather"))`, a word not on this ballot (`Words(["Strength",
+  "Numbers"])`), at
+  `0/args/body/instructions/1/args/operation/args/placements/0/amount/args/Word`;
+  it reads `Votes(Word("Strength"))`. Messenger Jays' "for each feather vote"
+  has the same shape.
+
 ### Phage the Untouchable Avatar
 
 - "Until end of turn, whenever target creature you control deals combat damage
@@ -265,6 +276,18 @@ different are marked *(different)*.
   sentence followed by "Creatures you control get +2/+0 until end of turn".
 - One-card seeded rules keep both until upstream chooses; a hand rule for the
   plural would give Start Your Engines both readings.
+
+#### "Starting with you, each player votes for <word> or <word>"
+
+- `ForEachPlayer{players:All, starting_with:AbilityController}` around a
+  `Vote{actor:Bound(0)}`: 17 faces, such as Tyrant's Choice, Plea for Power,
+  Magister of Worth and Emissary Green.
+- One `Vote{actor:AbilityController}`: Coercive Portal, Lieutenants of the
+  Guard, Messenger Jays and Orchard Elemental, all triggered abilities, as are
+  Magister of Worth, Emissary Green, Galadriel, Elven-Queen and Tivit, Seller of
+  Secrets.
+- The grammar reads the loop; one-card seeded rules keep the single vote, so
+  Coercive Portal and Orchard Elemental have both readings.
 
 #### A target constraint one card adds to its wording
 

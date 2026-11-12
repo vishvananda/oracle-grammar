@@ -296,12 +296,15 @@ fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<T
     Ok(tokens)
 }
 
-/// English spelling the grammar leaves open: `a` agrees with the next word's sound.
+/// English spelling the grammar leaves open: `a` or `an` agrees with the next word's
+/// sound. Oracle writes `an X/X` and `an hour`, but `a one-time` and `a unity counter`.
 pub fn agree_articles(tokens: &[Token]) -> Vec<Token> {
     let vowel_sound = |word: &str| {
-        word.starts_with(['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U'])
+        (word.starts_with(['a', 'e', 'i', 'o', 'u', 'A', 'E', 'I', 'O', 'U', 'X'])
+            || word.starts_with("hour"))
             && !word.starts_with("one")
             && !word.starts_with("Uni")
+            && !word.starts_with("uni")
     };
     tokens
         .iter()
@@ -309,6 +312,9 @@ pub fn agree_articles(tokens: &[Token]) -> Vec<Token> {
         .map(|(index, token)| match (token, tokens.get(index + 1)) {
             (Token::Word(word), Some(Token::Word(next))) if word == "a" && vowel_sound(next) => {
                 Token::Word("an".to_string())
+            }
+            (Token::Word(word), Some(Token::Word(next))) if word == "an" && !vowel_sound(next) => {
+                Token::Word("a".to_string())
             }
             _ => token.clone(),
         })

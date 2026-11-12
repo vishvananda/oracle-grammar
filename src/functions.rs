@@ -296,7 +296,16 @@ pub(crate) fn computed_numbers(node: &Value, out: &mut Vec<Value>) {
             // fields (or source/affected metadata) as where-clause values.
             if node["kind"] == "Pump" {
                 for key in ["power", "toughness"] {
-                    let item = &node["args"][key];
+                    // `-X/-X`: X names the amount under the minus sign, never a negative.
+                    let item = match &node["args"][key] {
+                        negated
+                            if negated["kind"] == "Multiply"
+                                && constant(&negated["args"][0]) == Some(-1) =>
+                        {
+                            &negated["args"][1]
+                        }
+                        item => item,
+                    };
                     if item.get("kind").is_some() && constant(item).is_none() && !out.contains(item)
                     {
                         out.push(item.clone());

@@ -630,3 +630,12 @@ entering_reveal_or_tapped ::= "as" object_ref "enters" "," "you" "may" "reveal" 
 /* Exiled instead of going to a graveyard from anywhere. */
 /* @sem Ability::Replacement{active:Everywhere, event:ZoneChange{objects:SameObject($object_ref), to:Graveyard}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */
 graveyard_from_anywhere_exile ::= "if" object_ref "would" "be" "put" "into" "a" "graveyard" "from" "anywhere" "," "exile" "it" "instead" "."
+
+/* "If a spell or ability an opponent controls causes you to discard this card, put it
+   onto the battlefield instead of putting it into your graveyard." */
+/* @sem Ability::Replacement{active:Everywhere, event:Discard{players:One(AbilityController), causes:ControlledBy(OpponentsOf(AbilityController)), card:SameObject(Source)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(OwnersBattlefield)}}]}} */
+discard_onto_battlefield ::= "if" opponent_spell_or_ability "causes" "you" "to" "discard" "this" "card" "," "put" "it" "onto" "the" "battlefield" "instead" "of" "putting" "it" "into" "your" "graveyard" "."
+/* @sem Ability::Replacement{active:Everywhere, event:Discard{players:One(AbilityController), causes:ControlledBy(OpponentsOf(AbilityController)), card:SameObject(Source)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(OwnersBattlefield)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]}} */
+discard_onto_battlefield_counters ::= "if" opponent_spell_or_ability "causes" "you" "to" "discard" "this" "card" "," "put" "it" "onto" "the" "battlefield" "with" value counter_kind "counters" "on" "it" "instead" "of" "putting" "it" "into" "your" "graveyard" "."
+/* @sem () */
+opponent_spell_or_ability ::= "a" "spell" "or" "ability" "an" "opponent" "controls"

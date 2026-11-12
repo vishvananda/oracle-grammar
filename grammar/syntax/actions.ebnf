@@ -369,6 +369,15 @@ clause_if_you_do ::= "you" "may" payment "." "if" "you" "do" "," conjoined
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:false}}, Instruction::If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
 clause_required_if_you_do ::= payment "." "if" "you" "do" "," conjoined
 
+/* "You may sacrifice a creature. If you don't, tap this creature": what follows
+   happens only when the offered payment is declined. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:true}}, Instruction::If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_if_you_dont ::= "you" "may" payment "." "if" "you" "don't" "," conjoined
+
+/* Both outcomes of one offered payment form one condition and its otherwise branch. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:true}}, Instruction::If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{instructions:$conjoined_2}}] */
+clause_if_you_do_otherwise ::= "you" "may" payment "." "if" "you" "do" "," conjoined "." "if" "you" "don't" "," conjoined
+
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$player_ref, cost:$other_payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
 clause_if_they_do ::= player_ref "may" other_payment "." "if" "they" "do" "," conjoined
 
@@ -430,6 +439,27 @@ reflexive_energy_cost ::= cost_energy | cost_energy_words
    action and its conditional result still belong to this ability. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}, otherwise:Program{}}] */
 clause_counter_unless_plain ::= "counter" target_stack_spell "unless" "its" "controller" "pays" counter_unless_cost
+
+/* "If that spell is countered this way, exile it instead of putting it into its owner's
+   graveyard": where the counter puts the spell is part of the counter itself. */
+/* @sem Instruction::[Effect{result:@next, operation:Counter{objects:One($target_stack_spell), destination:$countered_destination, destination_when:None}}] */
+clause_counter_elsewhere ::= "counter" target_stack_spell "." countered_this_way countered_destination
+
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot, index:0}), destination:$countered_destination, destination_when:None}}]}, otherwise:Program{}}] */
+clause_counter_unless_elsewhere ::= "counter" target_stack_spell "unless" "its" "controller" "pays" counter_unless_cost "." countered_this_way countered_destination
+
+/* @sem () */
+countered_this_way ::= "if" "that" "spell" "is" "countered" "this" "way" ","
+
+countered_destination ::= countered_exile | countered_library_top | countered_library_bottom | countered_hand
+/* @sem MovementDestination::Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}} */
+countered_exile ::= "exile" "it" "instead" "of" "putting" "it" "into" "its" "owner's" "graveyard"
+/* @sem MovementDestination::Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+countered_library_top ::= "put" "it" "on" "top" "of" "its" "owner's" "library" "instead" "of" "into" "that" "player's" "graveyard"
+/* @sem MovementDestination::Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+countered_library_bottom ::= "put" "it" "on" "the" "bottom" "of" "its" "owner's" "library" "instead" "of" "into" "that" "player's" "graveyard"
+/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
+countered_hand ::= "put" "it" "into" "its" "owner's" "hand" "instead" "of" "into" "that" "player's" "graveyard"
 
 reflexive_trigger ::= reflexive_trigger_plain | reflexive_trigger_if
 

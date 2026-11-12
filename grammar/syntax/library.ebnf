@@ -213,6 +213,23 @@ until_battlefield ::= "onto" "the" "battlefield"
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Reveal{objects:$your_top}}, Instruction::If{condition:Compare{left:Expr::CountObjects(Matching{objects:Observed(@last_result), filter:$card_filter}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Move{objects:$your_top, destination:$until_destination, qualifiers:[]}}]}, otherwise:Program{}}] */
 instructions_reveal_if ::= "reveal" your_top "." "if" "it's" ("a" | "an") card_filter "card" "," "put" "it" until_destination
 
+/* "If it's a land card, you may reveal it and put it into your hand": an optional move
+   of the top card that only a matching card can make. A later sentence about putting
+   the card into your hand tests that move as a payment. The payment and its action
+   start on the same word, so the test names the payment by its mark. */
+/* @sem Operation::MoveTopCard{actor:One(AbilityController), cards:$card_filter, reveal:true, destination:OwnersHand(CardArrival{counters:[], states:[]})} */
+top_card_revealed_to_hand ::= "if" "it's" ("a" | "an") card_filter "card" "," "you" "may" "reveal" "it" "and" "put" "it" "into" "your" "hand"
+/* @sem Instruction::[Effect{result:@next, operation:$top_card_revealed_to_hand}] */
+top_card_reveal_action ::= top_card_revealed_to_hand
+/* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:$top_card_reveal_action}}]} */
+top_card_reveal_payment ::= top_card_reveal_action
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$top_card_reveal_action}}] */
+clause_top_card_revealed ::= top_card_reveal_action
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_reveal_payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_top_card_revealed_declined ::= top_card_reveal_payment "." "if" "you" "don't" "put" ("it" | "the" "card") "into" "your" "hand" "," conjoined
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_reveal_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_top_card_revealed_taken ::= top_card_reveal_payment "." "if" "you" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
+
 /* Kinship: an optional look at the top card; if it shares a creature type with this
    creature, an optional reveal of it; and what follows only once it is revealed. Each
    optional action is a payment with its own guard, as in Wandering Graybeard. */

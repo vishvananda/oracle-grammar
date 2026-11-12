@@ -7,6 +7,7 @@ use rustc_hash::FxHashMap as HashMap;
 mod casting;
 mod mana;
 mod owners;
+mod where_x;
 
 const BACKOFF: f32 = 0.4;
 /// The score of a token the corpus never had.
@@ -68,6 +69,7 @@ pub fn breaches(tokens: &[Token], context: &[String]) -> Vec<(&'static str, f32,
     casting::wording(tokens, context, &mut found);
     mana::wording(tokens, &mut found);
     owners::agreement(tokens, &mut found);
+    where_x::defined_after_use(tokens, &mut found);
     found
 }
 

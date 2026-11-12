@@ -262,10 +262,15 @@ fn event_referents(event: &Value, scope: &mut Scope, surfaced: bool) {
                 .players
                 .push(json!({"kind": "OwnerOf", "args": subject}));
         }
-        None if event.get("BecomesTarget").is_some() => scope.players.push(json!({
-            "kind": "ControllerOf",
-            "args": {"kind": "EventStackObject"},
-        })),
+        // "Causes you to discard": `that player` controls the cause, not the discarder.
+        None if event.get("BecomesTarget").is_some()
+            || event["Discard"]["kind"].get("CausedBy").is_some() =>
+        {
+            scope.players.push(json!({
+                "kind": "ControllerOf",
+                "args": {"kind": "EventStackObject"},
+            }))
+        }
         None => scope.players.push(subject),
     }
     scope.event_quantity = event_quantity(event);
@@ -622,7 +627,8 @@ impl Frame {
         if event["Discard"]["grouping"] == "Card" {
             return Self {
                 before: true,
-                own: event["Discard"]["source_only"] == true,
+                own: event["Discard"]["source_only"] == true
+                    || source_filter(&event["Discard"]["cards"]),
                 destination: Destination::Discarded,
                 ..Self::default()
             };

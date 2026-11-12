@@ -842,3 +842,15 @@ mod normal_forms;
 
 #[path = "shared_clauses/verb_agreement.rs"]
 mod verb_agreement;
+
+#[path = "shared_clauses/votes.rs"]
+mod votes;
+
+#[path = "shared_clauses/stack_actions.rs"]
+mod stack_actions;
+
+#[path = "shared_clauses/discard_causes.rs"]
+mod discard_causes;
+
+#[path = "shared_clauses/declined_payments.rs"]
+mod declined_payments;

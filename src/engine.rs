@@ -73,6 +73,7 @@ const SYNTAX_MODULES: &[(&str, &str)] = &[
     ("tokens", "syntax/tokens.ebnf"),
     ("quoted", "syntax/quoted.ebnf"),
     ("comparisons", "syntax/comparisons.ebnf"),
+    ("votes", "syntax/votes.ebnf"),
 ];
 
 fn read_module(path: &str) -> Result<String, String> {
