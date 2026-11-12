@@ -457,3 +457,16 @@ fn reaching_a_counter_threshold_is_a_state_trigger() {
     assert_eq!(counted[0]["comparison"], json!("GreaterOrEqual"));
     assert_eq!(counted[0]["kind"], json!({"Named":"TimeCounter"}));
 }
+
+#[test]
+fn it_after_a_random_graveyard_exile_is_the_exiled_card() {
+    let text = "Exile an instant or sorcery card with mana value 3 or less from your graveyard at random. You may cast it without paying its mana cost.";
+    let mut cast = Vec::new();
+    visit(&only_reading(text), "PlayCards", &mut cast);
+    assert_eq!(
+        cast[0]["cards"]["args"]["kind"],
+        json!("Result"),
+        "{cast:#?}"
+    );
+    assert_eq!(cast[0]["cards"]["args"]["args"]["phase"], json!("After"));
+}

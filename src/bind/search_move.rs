@@ -1,4 +1,4 @@
-//! Scalar focus from proved search and random library-selection movements.
+//! Scalar focus from proved search and random library- or graveyard-selection movements.
 use super::{Scope, Step, at_path, transitions};
 use crate::model::ir::{
     Count, EventZone, Expr, MovementDestination, ObjectFilter, ObjectKind, ObjectSet, Operation,
@@ -26,7 +26,7 @@ fn producer(operation: Operation, seek: bool) -> bool {
                 ObjectSet::Zone {
                     scope:
                         ZoneScope::Players {
-                            zone: EventZone::Library,
+                            zone: EventZone::Library | EventZone::Graveyard,
                             players: PlayerSet::One(PlayerRef::AbilityController),
                         },
                     kind: ObjectKind::Card,
@@ -43,7 +43,7 @@ fn producer(operation: Operation, seek: bool) -> bool {
     }
 }
 
-// Library cards have owners but no controllers. A following control qualifier
+// Library and graveyard cards have owners but no controllers. A following control qualifier
 // belongs to the battlefield population inside a comparison, not its card.
 fn library_filter(filter: &ObjectFilter) -> bool {
     match filter {
@@ -93,8 +93,10 @@ pub(super) fn marker(
     };
     if !matches!(
         (&destination, seek),
-        (MovementDestination::OwnersHand(_), true)
-            | (MovementDestination::Battlefield { .. }, false)
+        (
+            MovementDestination::OwnersHand(_) | MovementDestination::Exile { .. },
+            true
+        ) | (MovementDestination::Battlefield { .. }, false)
     ) {
         return Err("search/seek move destination disagrees with its receipt".into());
     }
@@ -127,7 +129,9 @@ pub(super) fn marker(
         None => false,
     };
     if seek && !scalar {
-        return Err("seek move requires one random card from the controller's library".into());
+        return Err(
+            "seek move requires one random card from the controller's library or graveyard".into(),
+        );
     }
     // Shared found-actions also serve plural searches. They retain their exact
     // old operation, without manufacturing a scalar referent.
