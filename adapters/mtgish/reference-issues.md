@@ -342,8 +342,8 @@ and the grammar adds no alias for them.
 
 - `DuplicateLastKnown(EventSubject)` keeps the departed card's definition and
   perpetual changes. Kithkin Brinefarer has the same sentence with
-  `Duplicate(One(EventSubject))`. The event's `OwnedBy(One(AbilityController))`
-  follows the reference; the grammar's `InZone` there is a grammar issue.
+  `Duplicate(One(EventSubject))`. Its event's `OwnedBy` is a separate
+  encoding split (see "A card in your graveyard" below).
 
 #### Worzel, the Protector, Nemesis Mask, Molly Hayes, Runaway, Forbidden Crypt
 
@@ -473,6 +473,15 @@ requirement comes before any normal form is chosen.
   Surgeon, Leyline of Hope) and `Add([StartingLife, N])` in activation
   restrictions (Speaker of the Heavens, Ayli, Eternal Pilgrim).
 - Review: a normal-form choice under identical arithmetic, not a rules defect.
+
+#### "A card in your graveyard" in a zone-change trigger
+
+- `InZone(Players{zone:Graveyard, players:One(AbilityController)})`: Kaya,
+  Spirits' Justice ("creature cards in your graveyard are put into exile").
+- `OwnedBy(One(AbilityController))` beside `from: Graveyard`: Veteran
+  Ghoulcaller *(different)* ("a card in your graveyard is put into your hand").
+- The grammar keeps `InZone` for this wording.
+- Review: choose one filter for a card named by the zone it leaves.
 
 #### Branch order of "dealt to and dealt by"
 
