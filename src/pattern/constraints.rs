@@ -68,6 +68,7 @@ pub(super) fn refers_to(name: &str, value: &Value) -> bool {
                         | "Result"
                         | "Query"
                         | "Affected"
+                        | "AttachedTo"
                 )
         }
         "named_source" => matches!(kind, "Source" | "GrantingObject"),

@@ -390,3 +390,15 @@ fn that_player_after_an_attacker_an_opponent_owns_is_its_owner() {
         json!({"kind":"One","args":{"kind":"OwnerOf","args":{"kind":"EventSubject"}}})
     );
 }
+
+#[test]
+fn a_noncreature_aura_s_other_creatures_exclude_its_host() {
+    let aura =
+        "Enchant creature\nEnchanted creature gets +1/+1.\nOther creatures you control get -1/-1.";
+    assert_eq!(
+        compared(aura),
+        vec![json!({"kind":"AttachedTo","args":{"kind":"Source"}})]
+    );
+    let plain = "Other creatures you control get -1/-1.";
+    assert_eq!(compared(plain), vec![json!({"kind":"Source"})]);
+}

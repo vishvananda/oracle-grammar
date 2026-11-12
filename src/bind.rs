@@ -135,6 +135,9 @@ struct Scope {
     other_source_event: bool,
     /// The exact distinguished damage role proven to be the holder.
     other_source_damage: Option<crate::model::ir::DamageSubject>,
+    /// A noncreature Aura's own static: unqualified `other creatures` excludes
+    /// the enchanted creature. Nested and granted scopes never inherit it.
+    attached_holder: bool,
     /// Combat descriptions retain their attacker when ordinary pronoun focus changes.
     defending_attacker: Option<crate::model::ir::ObjectRef>,
     /// Generated player loops cannot shadow a binding already declared by this ability.
@@ -207,6 +210,7 @@ impl Scope {
             event: self.event.clone(),
             other_source_event: self.other_source_event,
             other_source_damage: self.other_source_damage,
+            attached_holder: false,
             defending_attacker: self.defending_attacker.clone(),
             binding_floor: self.binding_floor,
             leaving: self.leaving,
@@ -244,6 +248,16 @@ fn names_self(value: &Value) -> bool {
 
 /// Resolve one ability in place.
 pub fn bind_ability(ability: &mut Value, card_name: &str) -> Result<(), String> {
+    bind_held_ability(ability, card_name, false)
+}
+
+/// Is this unbound card a noncreature Aura that enchants creatures?
+pub fn noncreature_aura(abilities: &Value) -> bool {
+    other::noncreature_aura(abilities)
+}
+
+/// Bind one of a card's abilities; `aura` says the card is a noncreature Aura.
+pub fn bind_held_ability(ability: &mut Value, card_name: &str, aura: bool) -> Result<(), String> {
     let ability = presentation::core_mut(ability);
     target_contrast::prepare(ability)?;
     let departure_controller = departure_controller::prepare(ability)?;
@@ -257,6 +271,7 @@ pub fn bind_ability(ability: &mut Value, card_name: &str) -> Result<(), String> 
     let paid_self_exile = paid_self_exile::prepare(ability)?;
     let mut scope = scope_for(ability, card_name, 0);
     scope.root_card_scope = true;
+    scope.attached_holder = aura && ability["kind"] == "Static";
     if controller_role::default_player(ability, &scope) {
         scope.default_object_player = Some(scope.players.len());
     }

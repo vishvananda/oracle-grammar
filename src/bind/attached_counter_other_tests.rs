@@ -82,7 +82,7 @@ fn actual_edited_counter_kind_amount_and_both_holder_compositions_without_mined(
     }
 }
 #[test]
-fn actual_matching_object_counts_and_mask_vampirism_remain_exact_old_sets() {
+fn actual_matching_object_counts_and_mask_vampirism_keep_exact_sets() {
     let f = fixture();
     for c in f["proper_controls"].as_array().unwrap() {
         let wanted = canonical_abilities(&c["expected"]).unwrap();

@@ -69,7 +69,7 @@ pub(super) fn resolve(scope: &Scope, domain: &Value) -> Result<Value, String> {
     // An explicitly acted-on holder supersedes an earlier target contrast.
     // Event focus is deliberately absent from this test.
     if scope.object() == Some(json!({"kind":"Source"})) {
-        return Ok(source(scope));
+        return Ok(holder_contrast(scope, domain));
     }
     let mut eligible = scope.references.iter().filter_map(|entry| {
         let target = entry.other_target.as_ref()?;
@@ -82,7 +82,7 @@ pub(super) fn resolve(scope: &Scope, domain: &Value) -> Result<Value, String> {
             .then_some(target)
     });
     let Some(target) = eligible.next() else {
-        return Ok(source(scope));
+        return Ok(holder_contrast(scope, domain));
     };
     if !target.single || eligible.next().is_some() {
         return Err("other needs one compatible prior target, not a target group".into());
@@ -176,6 +176,33 @@ pub(super) fn source_damage(event: &Value) -> Option<DamageSubject> {
 fn source(scope: &Scope) -> Value {
     // Preserve the existing holder spelling's proven source-departure role.
     json!({"kind":if scope.leaving {"EventSubject"} else {"Source"}})
+}
+
+fn creature() -> Value {
+    json!({"kind":"CardType","args":"Creature"})
+}
+
+/// A noncreature Aura is never among "other creatures"; its static contrasts
+/// them with the creature it enchants.
+fn holder_contrast(scope: &Scope, domain: &Value) -> Value {
+    if scope.attached_holder && implies(domain, &creature()) {
+        return json!({"kind":"AttachedTo","args":{"kind":"Source"}});
+    }
+    source(scope)
+}
+
+/// The card is an Aura that enchants creatures and has no bestow creature form.
+pub(crate) fn noncreature_aura(abilities: &Value) -> bool {
+    let Some(items) = abilities.as_array() else {
+        return false;
+    };
+    let enchants = items.iter().any(|item| {
+        item["kind"] == "Enchant" && implies(&item["args"]["hosts"]["Permanents"], &creature())
+    });
+    let bestow = items
+        .iter()
+        .any(|item| item["kind"] == "Mechanic" && item["args"]["mechanic"] == "Bestow");
+    enchants && !bestow
 }
 
 #[cfg(test)]

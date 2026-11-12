@@ -377,9 +377,10 @@ fn bind_surface(value: &Value, name: &str) -> Result<Value, String> {
         other => other.clone(),
     };
     let linked_card_sites = bind::linked_card_actions::prepare(&mut bound)?;
+    let aura = bind::noncreature_aura(&bound);
     if let Value::Array(items) = &mut bound {
         for item in items {
-            bind::bind_ability(item, name)?;
+            bind::bind_held_ability(item, name, aura)?;
         }
     }
     bind::linked_card_actions::lower(&mut bound, &linked_card_sites)?;
