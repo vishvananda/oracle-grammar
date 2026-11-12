@@ -143,6 +143,20 @@ fn name_at(text: &str, at: usize, names: &Names) -> Option<(u8, usize)> {
     None
 }
 
+/// A short name alone on its line, as `Storm` on `Storm of Memories`, is the
+/// keyword it spells: a reference to the card is never a whole line.
+fn keyword_line(
+    text: &str,
+    at: usize,
+    length: usize,
+    index: u8,
+    vocabulary: &HashSet<String>,
+) -> bool {
+    let alone = (at == 0 || text[..at].ends_with('\n'))
+        && (text.len() == at + length || text[at + length..].starts_with('\n'));
+    index > 0 && alone && vocabulary.contains(lower_first(&text[at..at + length]).as_str())
+}
+
 /// Digits in groups of three after a comma, as in `1,000`, and their length.
 /// A comma not followed by exactly three digits is punctuation.
 fn grouped(rest: &str) -> Option<(u32, usize)> {
@@ -205,6 +219,7 @@ fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<T
         if word_start
             && !after_article(tokens.last())
             && let Some((index, length)) = name_at(text, at, names)
+            && !keyword_line(text, at, length, index, vocabulary)
         {
             tokens.push(Token::SelfName(index));
             at += length;

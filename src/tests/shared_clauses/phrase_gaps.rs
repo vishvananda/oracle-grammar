@@ -436,3 +436,15 @@ fn a_thousands_grouped_number_is_one_number_token() {
     );
     assert_eq!(lost[0]["amount"], json!({"kind":"Constant","args":1000}));
 }
+
+#[test]
+fn a_short_name_alone_on_its_line_is_its_keyword() {
+    use crate::tokens::Token;
+    let name = "Storm of Memories";
+    let tokens = engine().tokens_of(name, "Storm\nDraw a card.").unwrap();
+    assert_eq!(tokens[0], Token::Word("storm".into()));
+    let named = engine()
+        .tokens_of(name, "Storm deals 2 damage to you.")
+        .unwrap();
+    assert!(matches!(named[0], Token::SelfName(_)));
+}
