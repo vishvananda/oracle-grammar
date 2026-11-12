@@ -117,6 +117,12 @@ pub struct Derivation {
     pub productions: Rope<(RuleId, usize)>,
     /// How many `@prefer`red alternatives it took.
     pub preferred: u32,
+    /// How many of its references to the card pass over the card's best word for itself.
+    pub missed: u32,
+    /// How well the best word for the card it says names the card.
+    pub word: u32,
+    /// How many references to the card it holds whose word has been weighed.
+    pub references: u32,
     /// How many tokens it holds.
     pub length: usize,
     /// The children so far of a production being walked.
@@ -149,6 +155,9 @@ impl Derivation {
             tokens: self.tokens.join(&piece.tokens),
             productions: self.productions.join(&piece.productions),
             preferred: self.preferred + piece.preferred,
+            missed: self.missed + piece.missed,
+            word: self.word.max(piece.word),
+            references: self.references + piece.references,
             length: self.length + piece.length,
             kids,
             node: None,

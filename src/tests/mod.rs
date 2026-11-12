@@ -802,3 +802,6 @@ mod sacrificed_receipts;
 
 #[path = "shared_clauses/audit_derivations.rs"]
 mod audit_derivations;
+
+#[path = "shared_clauses/self_words.rs"]
+mod self_words;

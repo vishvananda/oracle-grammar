@@ -59,6 +59,13 @@ pub struct Grammar {
     pub starts: crate::starts::Starts,
     /// Only declared, literal presentation labels may be stripped from rules text.
     pub presentation_labels: Vec<String>,
+    /// How rules say the card, for printing.
+    pub(crate) words: crate::render::words::Words,
+}
+
+/// Whether a rule was seeded from cards rather than written: named `m_` or `t_`.
+pub fn seeded(name: &str) -> bool {
+    name.starts_with("m_") || name.starts_with("t_")
 }
 
 /// A small validated catalogue, shared by built-in and hot-loaded normalization.
@@ -382,6 +389,7 @@ pub fn load(lexical: &str, syntax: &[(&str, &str)], schema: &Schema) -> Result<G
     finish(&mut grammar)?;
     grammar.fingerprint = fingerprint(&sources);
     grammar.net = crate::heads::Net::build(&grammar.rules);
+    grammar.words = crate::render::words::Words::build(&grammar.rules);
     if let Some((_, source)) = syntax.iter().find(|(name, _)| *name == "labels") {
         grammar.presentation_labels = presentation_labels(source)?;
     }

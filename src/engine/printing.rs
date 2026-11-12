@@ -321,6 +321,7 @@ impl Engine {
         let mut printed: Vec<(f32, Vec<tokens::Token>, Option<Rc<Node>>)> = Vec::new();
         let mut renderer = Renderer::new(&self.grammar, &self.style, cap, types.to_vec())
             .with_key(named)
+            .with_name(name)
             .with_self_name(names.printed(types));
         for surface in surfaces {
             let found = renderer.render(root, &surface);
@@ -485,11 +486,14 @@ impl Engine {
     /// The alternatives a card's default print takes.
     pub fn productions_of(
         &self,
+        name: &str,
         abilities: &Value,
         types: &[String],
     ) -> Result<Vec<String>, String> {
         let mut out = Vec::new();
-        let mut renderer = Renderer::new(&self.grammar, &self.style, 8, types.to_vec());
+        let mut renderer = Renderer::new(&self.grammar, &self.style, 8, types.to_vec())
+            .with_name(name)
+            .with_self_name(Names::of(name).printed(types));
         for surface in Self::surfaces(abilities)? {
             if let Some(best) = renderer.render(self.root, &surface).first() {
                 out.extend(

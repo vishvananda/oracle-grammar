@@ -119,7 +119,7 @@ fn render_row(
     let mut any = first;
     if !first {
         row["default"] = json!(printed);
-        let default = engine.productions_of(abilities, &types)?;
+        let default = engine.productions_of(name, abilities, &types)?;
         if let Some(full) = engine.derivation_of(name, abilities, text)? {
             score.reachable += 1;
             let trimmed = Engine::trim_key(&full, &default);

@@ -108,7 +108,7 @@ fn starts_sentence(before: &[Token]) -> bool {
     }
 }
 
-fn lower_first(word: &str) -> String {
+pub(crate) fn lower_first(word: &str) -> String {
     let mut chars = word.chars();
     chars.next().map_or_else(String::new, |first| {
         first.to_lowercase().chain(chars).collect()
@@ -122,9 +122,10 @@ fn upper_first(word: &str) -> String {
     })
 }
 
-/// A card's own name takes no article, so `a Wall` on `Wall of Junk` is a type.
+/// A card's own name takes no article and no `this`, so `a Wall` on `Wall of Junk` and
+/// `this Case` on `Case of the Lost Witness` are types.
 fn after_article(previous: Option<&Token>) -> bool {
-    matches!(previous, Some(Token::Word(word)) if matches!(word.as_str(), "a" | "an" | "another"))
+    matches!(previous, Some(Token::Word(word)) if matches!(word.as_str(), "a" | "an" | "another" | "this"))
 }
 
 fn name_at(text: &str, at: usize, names: &Names) -> Option<(u8, usize)> {

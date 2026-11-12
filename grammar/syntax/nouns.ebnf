@@ -5,6 +5,7 @@ object_set ::= group_reference | drafted_cards_reference | graveyard_target_card
     | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other
     | objects_self_and_target
     | top_card_of_your_library
+    | linked_exiled_cards
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -131,7 +132,6 @@ self_ref ::= self_explicit_ref | self_ref_pronoun
 
 self_explicit_ref ::= self_ref_holder | self_ref_named
 
-/* @prefer type(Holder) */
 /* @sem ObjectRef::@self */
 self_ref_holder ::= self_holder_text
 
@@ -150,7 +150,7 @@ self_text ::= self_holder_text | self_named
 
 self_holder_text ::= self_creature | self_land | self_artifact | self_enchantment | self_permanent | self_spell
     | self_aura | self_equipment | self_vehicle | self_saga | self_class | self_token | self_planeswalker | self_battle
-    | self_card | self_room | self_case | self_spacecraft | self_background | self_siege | self_planet
+    | self_card | self_room | self_case | self_spacecraft | self_background | self_siege | self_planet | self_emblem
 
 /* @prefer type(Creature) */
 /* @sem () */
@@ -168,6 +168,9 @@ self_enchantment ::= "this" "enchantment"
 /* @prefer type(Instant) */
 /* @prefer type(Sorcery) */
 /* @prefer type(Planeswalker) */
+/* @prefer type(Plane) */
+/* @prefer type(Phenomenon) */
+/* @prefer type(Vanguard) */
 /* @sem () */
 self_named ::= SELF_NAME
 /* @sem () */
@@ -219,6 +222,10 @@ self_siege ::= "this" "Siege"
 /* @prefer type(Planet) */
 /* @sem () */
 self_planet ::= "this" "Planet"
+/* An emblem's abilities name it. */
+/* @prefer type(Emblem) */
+/* @sem () */
+self_emblem ::= "this" "emblem"
 
 /* @prefer value(EventSubject) */
 it_ref ::= it_pronoun | that_noun
@@ -1218,3 +1225,7 @@ top_card_of_your_library ::= "the" "top" "card" "of" "your" "library"
 /* Modified creatures of a kind. */
 /* @sem ObjectFilter::AllOf([$filter_plural, Modified]) */
 filter_plural_modified ::= "modified" filter_plural
+
+/* Every card exiled with the source, as one group. */
+/* @sem ObjectSet::InZone{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}), zone:Exile} */
+linked_exiled_cards ::= "the" "exiled" "cards"

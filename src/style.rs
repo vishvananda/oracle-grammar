@@ -29,9 +29,10 @@ pub fn key_of(token: &Token) -> String {
 const BROKEN: f32 = 500.0;
 /// What a wording costs that Oracle uses, but seldom.
 const SOFTLY: f32 = 4.0;
-/// A second name for the card in a sentence: rarer than `it`, but it does happen, so
-/// this outweighs the trigrams and not a `@prefer`.
-const SECONDLY: f32 = 40.0;
+/// A second name for the card in a sentence: rarer than `it`, but it does happen. It
+/// outweighs the trigrams and the `it` that passes over the card's word for itself,
+/// so `it` reads after the card is named and nowhere else, but not a broken rule.
+const SECONDLY: f32 = 150.0;
 
 /// Canonical style rules the trigrams are too short to see, with what breaking each costs.
 pub fn broken_rules(tokens: &[Token], context: &[String]) -> f32 {
@@ -59,6 +60,7 @@ pub fn breaches(tokens: &[Token], context: &[String]) -> Vec<(&'static str, f32,
     self_named_again(tokens, &mut found);
     joined_verbs(tokens, &mut found);
     plain_phrasing(tokens, &mut found);
+    subject_named(tokens, &mut found);
     numeric_stat_phrasing(tokens, &mut found);
     shared_defender_condition(tokens, &mut found);
     reminder_wording(tokens, &mut found);
@@ -471,7 +473,8 @@ const OPENERS: [&str; 4] = ["when", "whenever", "if", "as"];
 
 /// After a clause's subject names the card, the rest of it says `it`, unless what stands
 /// between could take the pronoun. A card named as an object does not lend `it` its
-/// name: `a spell that targets this creature, put a counter on this creature`.
+/// name: `a spell that targets this creature, put a counter on this creature`. A sentence
+/// that opens `Whenever it` never names the card after: the card comes first.
 fn self_named_again(tokens: &[Token], found: &mut Found) {
     let names = |at: usize| {
         let this = is(tokens, at, "this")
@@ -492,12 +495,20 @@ fn self_named_again(tokens: &[Token], found: &mut Found) {
     for (start, end) in sentences(tokens) {
         let mut named = false;
         let mut rival = false;
+        let mut pronoun = ["when", "whenever", "as"]
+            .iter()
+            .any(|opener| is(tokens, start, opener))
+            && is(tokens, start + 1, "it");
         for at in start..end {
             if names(at) {
                 let blocked = at > start
                     && matches!(&tokens[at - 1], Token::Word(w) if NAMES_AGAIN.contains(&w.as_str()));
                 if named && !rival && !blocked {
                     found.push(("self named again", SECONDLY, at));
+                }
+                if pronoun {
+                    found.push(("pronoun before name", BROKEN, start + 1));
+                    pronoun = false;
                 }
                 named |= subject(at, start);
                 rival = false;
@@ -537,6 +548,26 @@ fn joined_verbs(tokens: &[Token], found: &mut Found) {
                 found.push(("joined verbs", BROKEN, at));
             }
             seen = Some(many);
+        }
+    }
+}
+
+/// A verb of an object names its subject: `This land deals 1 damage to you`. Only a list
+/// of what one subject does goes on without it: `gets +1/+1, gains flying`. A phrase
+/// ranked alone has its subject outside it, so only a boundary before the verb counts.
+fn subject_named(tokens: &[Token], found: &mut Found) {
+    for (at, token) in tokens.iter().enumerate().skip(1) {
+        let Token::Word(word) = token else {
+            continue;
+        };
+        let sentence = matches!(
+            tokens[at - 1],
+            Token::Newline | Token::Mark('.' | ':' | '\u{2022}' | '"')
+        );
+        let clause = sentence || tokens[at - 1] == Token::Mark(',');
+        let listed = matches!(word.as_str(), "gets" | "gains" | "has" | "loses");
+        if (word == "deals" && clause) || (listed && sentence) {
+            found.push(("verb without subject", BROKEN, at));
         }
     }
 }

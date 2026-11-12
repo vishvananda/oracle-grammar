@@ -307,7 +307,7 @@ impl Engine {
         self.grammar
             .rules
             .iter()
-            .filter(|rule| rule.name.starts_with("m_") || rule.name.starts_with("t_"))
+            .filter(|rule| crate::grammar::seeded(&rule.name))
             .filter(|rule| {
                 rule.alternatives
                     .iter()

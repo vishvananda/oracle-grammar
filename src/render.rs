@@ -14,6 +14,8 @@ use std::rc::Rc;
 
 mod branches;
 mod context;
+mod prefer;
+pub(crate) mod words;
 
 type Found = Rc<Vec<Derivation>>;
 
@@ -21,7 +23,7 @@ type Found = Rc<Vec<Derivation>>;
 const WIDEN: usize = 4;
 /// What each distinct alternative of a card's key is worth against everything else.
 const KEY_WEIGHT: f32 = 1000.0;
-/// What a `@prefer` is worth: more than any style score.
+/// What a `@prefer` is worth, taken or passed over: more than any style score.
 const PREFER_WEIGHT: f32 = 100.0;
 
 /// What printing did, to compare a change by more than the clock.
@@ -76,11 +78,17 @@ pub struct Renderer<'a> {
     self_name: u8,
     /// Card types, for `@prefer type(...)`.
     contexts: Vec<Vec<String>>,
+    /// The card's best word for itself in each context.
+    best: Vec<u32>,
     context: usize,
+    /// The words of the card's name, when it is known: a seeded rule that calls the card
+    /// by a name prints only for the card it names.
+    name: Option<HashSet<String>>,
 }
 
 impl<'a> Renderer<'a> {
     pub fn new(grammar: &'a Grammar, style: &'a Model, cap: usize, context: Vec<String>) -> Self {
+        let context = words::card_context(context);
         Self {
             work: Work::default(),
             grammar,
@@ -93,14 +101,22 @@ impl<'a> Renderer<'a> {
             nothing: Rc::new(Vec::new()),
             truncated: false,
             self_name: 0,
+            best: vec![grammar.words.best(&context)],
             contexts: vec![context],
             context: 0,
+            name: None,
         }
     }
 
     /// Print the card's name as this entry of its [`crate::tokens::Names`].
     pub fn with_self_name(mut self, index: u8) -> Self {
         self.self_name = index;
+        self
+    }
+
+    /// Print for the card of this name.
+    pub fn with_name(mut self, name: &str) -> Self {
+        self.name = Some(words::name_words(name));
         self
     }
 
@@ -123,7 +139,8 @@ impl<'a> Renderer<'a> {
                 .collect();
             named.len()
         };
-        KEY_WEIGHT * named as f32 + PREFER_WEIGHT * derivation.preferred as f32
+        KEY_WEIGHT * named as f32
+            + PREFER_WEIGHT * (derivation.preferred as f32 - derivation.missed as f32)
             - crate::style::broken_rules(tokens, &self.contexts[self.context])
     }
 
@@ -170,34 +187,19 @@ impl<'a> Renderer<'a> {
             .collect()
     }
 
-    /// What `@prefer` gives an alternative: `type(X)` reads the card, the sooner in its
-    /// context the more it counts; `value(X)` reads the value's kind. `always`
-    /// prefers a neutral wording when the value cannot name a retained trait.
-    fn preferred(&self, alternative: &Alternative, value: &Value) -> u32 {
-        let [Sym::Rule(rule)] = alternative.syms.as_slice() else {
-            return 0;
-        };
-        let kind = value
-            .get("kind")
-            .and_then(Value::as_str)
-            .unwrap_or_default();
-        let mut most = 0;
-        for prefer in &self.grammar.rules[*rule as usize].prefer {
-            if prefer == "always"
-                || prefer == &format!("value({kind})")
-                || (prefer == "once" && happens_once(value))
-                || (prefer == "recurs" && !happens_once(value))
-            {
-                most = most.max(1);
-            }
-            let context = &self.contexts[self.context];
-            for (at, name) in context.iter().enumerate() {
-                if prefer == &format!("type({name})") {
-                    most = most.max(u32::try_from(context.len() - at).unwrap_or(1));
-                }
-            }
+    /// `found` ranked, with the best text that passes over a better word for the card
+    /// moved up behind the best, so that a cut product keeps it, as
+    /// [`Self::best_of_each`] does.
+    fn ranked_heads(&mut self, found: Vec<Derivation>) -> Vec<Derivation> {
+        let mut ranked = self.ranked(found);
+        let fewest = ranked.iter().map(|derivation| derivation.missed).min();
+        if let Some(at) = ranked.iter().position(|d| Some(d.missed) > fewest)
+            && at > 1
+        {
+            let passing = ranked.remove(at);
+            ranked.insert(1, passing);
         }
-        most
+        ranked
     }
 
     /// Derivations of `value` from `rule`, likeliest first. Empty means this
@@ -232,10 +234,8 @@ impl<'a> Renderer<'a> {
 
     fn render_id(&mut self, rule: RuleId, value: &Value, (id, reach): (u32, &Reach)) -> Found {
         let outer = self.context;
-        if let Some(definition) = value.get("Defined")
-            && definition["card_types"].is_array()
-        {
-            self.context = self.intern_context(context::token(definition));
+        if let Some(context) = context::own(value) {
+            self.context = self.intern_context(context);
         }
         let found = self.render_contextual(rule, value, (id, reach));
         self.context = outer;
@@ -247,6 +247,7 @@ impl<'a> Renderer<'a> {
             .iter()
             .position(|existing| existing == &context)
             .unwrap_or_else(|| {
+                self.best.push(self.grammar.words.best(&context));
                 self.contexts.push(context);
                 self.contexts.len() - 1
             })
@@ -320,7 +321,8 @@ impl<'a> Renderer<'a> {
     /// At most the beam's width, reserving representatives of ability productions
     /// through aliases and card-list wrappers, or alternatives for other values.
     /// A rule is ranked with no text around it, and what reads best alone may read worst
-    /// in a sentence: every `this <noun>` beats `it` until there is something to refer to.
+    /// in a sentence: every `this <noun>` beats `it` until there is something to refer to,
+    /// so the best text that passes over a better word for the card keeps a place too.
     /// `opens` says where each alternative starts in `found`.
     fn best_of_each(
         &mut self,
@@ -337,6 +339,8 @@ impl<'a> Renderer<'a> {
         let mut reserved = self.cap / 2;
         let mut first = Vec::new();
         let mut rest = Vec::new();
+        let fewest = found.iter().map(|derivation| derivation.missed).min();
+        let mut passing = true;
         for (alternative, derivation) in self.scored(found, opens) {
             let distinct = if reserved > 0 {
                 let (branch, nodes) = branches::of(self.grammar, rule, alternative, &derivation);
@@ -345,8 +349,10 @@ impl<'a> Renderer<'a> {
             } else {
                 false
             };
-            if distinct {
-                reserved -= 1;
+            let passes = passing && Some(derivation.missed) > fewest;
+            if distinct || passes {
+                reserved = reserved.saturating_sub(usize::from(distinct));
+                passing &= !passes;
                 first.push(derivation);
             } else {
                 rest.push(derivation);
@@ -358,10 +364,18 @@ impl<'a> Renderer<'a> {
     }
 
     fn allowed(&self, rule: RuleId, index: usize) -> bool {
-        !self.keyed_rules.contains(&rule) || self.key.contains(&(rule, index))
+        if self.keyed_rules.contains(&rule) {
+            return self.key.contains(&(rule, index));
+        }
+        let name = self.name.as_ref();
+        name.is_none_or(|name| self.grammar.words.fit((rule, index), name))
     }
 
-    /// Add what one alternative derived to its rule's derivations.
+    /// Add what one alternative derived to its rule's derivations. Where a value is the
+    /// card itself, the innermost such production weighs the word its text says for the
+    /// card, once: `it` or `this creature` for a legendary card passes over the card's
+    /// best word. A text weighs the words it says, not the ones it avoids: `another
+    /// creature` passes over nothing against `a creature other than this creature`.
     fn take(
         &self,
         step: (RuleId, usize),
@@ -373,12 +387,31 @@ impl<'a> Renderer<'a> {
         if found.is_empty() {
             return;
         }
-        let preferred = self.preferred(alternative, value);
+        let preferred = prefer::preferred(self.grammar, alternative, value);
+        // The card's best word for itself, where its context says what it is. A word for
+        // something it is not, as `this Saga` is for a creature, misnames it as well as
+        // passing over that word.
+        // A seeded pronoun for the card is a word for it too: `on her` passes over
+        // `this land`.
+        let best = self.best[self.context];
+        let word = self.grammar.words.of(step.0, &self.contexts[self.context]);
+        let misnames = u32::from(word == Some(0) && best > 0);
+        let word = word.unwrap_or(0);
         let closes = self.grammar.rules[step.0 as usize].sem.is_some();
+        let pronoun = self.grammar.words.by_pronoun(step);
+        let best = (closes && (words::is_the_card(value) || pronoun)).then_some(best);
         let leaf = Rope::leaf(step);
         for mut derivation in found {
             derivation.productions = derivation.productions.join(&leaf);
             derivation.preferred += preferred;
+            derivation.missed += misnames;
+            derivation.word = derivation.word.max(word);
+            if let Some(best) = best
+                && derivation.references == 0
+            {
+                derivation.missed += u32::from(derivation.word < best);
+                derivation.references = 1;
+            }
             if closes {
                 derivation.close(step.0, step.1);
             }
@@ -428,7 +461,7 @@ impl<'a> Renderer<'a> {
             // The product has to fit, so when it does not, keep the best of each side.
             if partial.len() * pieces.len() > limit {
                 self.truncated = true;
-                partial = self.ranked(partial);
+                partial = self.ranked_heads(partial);
                 pieces = Rc::new(self.ranked(pieces.to_vec()));
             }
             let mut next = Vec::with_capacity(limit.min(partial.len() * pieces.len()));
@@ -470,64 +503,6 @@ impl<'a> Renderer<'a> {
         }
     }
 }
-
-/// Events Oracle opens with `When`, because they happen to this object once; the rest
-/// take `Whenever`.
-fn happens_once(event: &Value) -> bool {
-    let Some((kind, inner)) = event.as_object().and_then(|o| o.iter().next()) else {
-        return false;
-    };
-    if kind == "AnyOf" {
-        return inner
-            .as_array()
-            .is_some_and(|cases| cases.iter().all(happens_once));
-    }
-    let subject = if inner["objects"].is_null() {
-        &inner["spells"]
-    } else {
-        &inner["objects"]
-    };
-    let source = is_this_object(subject) || inner["players"].is_null() && subject.is_null();
-    let attached = subject["kind"] == "SameObject" && subject["args"]["kind"] == "AttachedTo";
-    let name = inner["event"].as_str().unwrap_or_default();
-    match kind.as_str() {
-        "State" => true,
-        "ZoneChange" => source || attached && inner["to"] == "Graveyard",
-        "Spell" | "Object" | "Pair" | "Player" => {
-            source && ONCE.contains(&name) || ONCE_ANYONE.contains(&name)
-        }
-        _ => false,
-    }
-}
-
-/// Whether a set of objects is the card itself, however narrowly it is filtered.
-fn is_this_object(objects: &Value) -> bool {
-    match objects["kind"].as_str() {
-        Some("SameObject") => objects["args"]["kind"] == "Source",
-        Some("AllOf") => objects["args"]
-            .as_array()
-            .is_some_and(|parts| parts.iter().any(is_this_object)),
-        _ => false,
-    }
-}
-
-/// Object events that happen to this object once.
-const ONCE: [&str; 7] = [
-    "Cast",
-    "TurnsFaceUp",
-    "LeavesBattlefield",
-    "Specializes",
-    "Exploits",
-    "BecomesMonstrous",
-    "Transforms",
-];
-/// Player events worded with the object they belong to.
-const ONCE_ANYONE: [&str; 4] = [
-    "SetsSchemeInMotion",
-    "EncountersPhenomenon",
-    "UnlocksDoor",
-    "Planeswalks",
-];
 
 /// Whether a value can render as exactly these tokens. This proves the inverse
 /// reaches a text without enumerating every other text on the way.

@@ -327,9 +327,7 @@ impl<'a> Parser<'a> {
                         .first()
                         .map_or_else(|| Rc::new(Value::Null), |(_, v)| Rc::clone(v)),
                 };
-                let value = if self.audit
-                    && (definition.name.starts_with("m_") || definition.name.starts_with("t_"))
-                {
+                let value = if self.audit && crate::grammar::seeded(&definition.name) {
                     Rc::new(tagged(&value, &definition.name))
                 } else {
                     value

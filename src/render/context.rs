@@ -5,10 +5,20 @@ use serde_json::Value;
 
 const HOLDER_HINT: &str = "GrantHolder:";
 
-pub(super) fn token(definition: &Value) -> Vec<String> {
+fn token(definition: &Value) -> Vec<String> {
     let mut context = crate::corpus::object_print_context(definition);
     context.insert(0, "Token".to_string());
     context
+}
+
+/// The context a value sets for the abilities inside it: a token's types, or an emblem.
+pub(super) fn own(value: &Value) -> Option<Vec<String>> {
+    if let Some(definition) = value.get("Defined")
+        && definition["card_types"].is_array()
+    {
+        return Some(token(definition));
+    }
+    (value["kind"] == "CreateEmblem").then(|| vec!["Emblem".to_string()])
 }
 
 pub(super) fn holes<'p>(
@@ -45,14 +55,27 @@ fn recipient(value: &Value, current: Option<&[String]>) -> Option<Vec<String>> {
     }
     let objects = value.pointer("/args/affected/Objects")?;
     if objects["kind"] == "One" && objects["args"]["kind"] == "Source" {
+        // An animated card goes by the type it gains: `this creature`, not `this land`.
+        let gained = value.pointer("/args/changes").and_then(Value::as_array);
+        let gained = gained
+            .into_iter()
+            .flatten()
+            .filter(|c| c["kind"] == "AddCardType");
+        let mut context: Vec<String> = gained
+            .filter_map(|change| change["args"].as_str().map(str::to_string))
+            .collect();
         // Pending receiver hints are metadata, not fresh receiver types. Copying
         // their encoded names would grow the context on grammar cycles.
-        return current.map(|context| {
+        return current.map(|current| {
+            context.extend(
+                current
+                    .iter()
+                    .filter(|name| name.as_str() != "Holder" && !name.starts_with(HOLDER_HINT))
+                    .filter(|name| !context.contains(name))
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            );
             context
-                .iter()
-                .filter(|name| name.as_str() != "Holder" && !name.starts_with(HOLDER_HINT))
-                .cloned()
-                .collect()
         });
     }
     if objects["kind"] == "Created" {
@@ -107,10 +130,7 @@ fn walk<'p>(
     holder: Option<&[String]>,
     found: &mut Vec<(&'p str, Vec<String>)>,
 ) {
-    let own = value
-        .get("Defined")
-        .filter(|definition| definition["card_types"].is_array())
-        .map(token);
+    let own = own(value);
     let context = own.as_deref().or(inherited);
     // At @holder the value is already the child ability, whose affected objects
     // are not the receiver that supplied this pending holder context.
@@ -162,7 +182,8 @@ fn walk<'p>(
         }
         Pattern::Symbol(name, args) if name == "holder" => {
             if let Some(inner) = args.first() {
-                let known = holder.or(context.filter(|c| c.iter().any(|n| n == "Token")));
+                let created = |c: &&[String]| c.iter().any(|n| n == "Token" || n == "Emblem");
+                let known = holder.or(context.filter(created));
                 // An unknown receiver still establishes a new holder. The
                 // creator's types would otherwise favor its printed name,
                 // which names a different object inside the granted ability.
