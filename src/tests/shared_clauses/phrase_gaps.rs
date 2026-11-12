@@ -509,3 +509,15 @@ fn an_equipment_s_other_creatures_exclude_the_creature_it_damaged() {
     assert!(!found.is_empty());
     assert!(!found.contains(&json!({"kind":"Damage","args":"Recipient"})));
 }
+
+#[test]
+fn a_spell_s_other_creatures_after_a_group_exclude_that_group() {
+    let text = "Zombies you control get +2/+1 until end of turn. Other creatures you control get +1/+1 until end of turn.";
+    let mut negated = Vec::new();
+    visit(&only_reading(text), "Not", &mut negated);
+    let zombies = json!({"kind":"AllOf","args":[{"kind":"Subtype","args":"Zombie"},
+        {"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}]});
+    assert_eq!(negated, vec![zombies]);
+    let alone = "Other creatures you control get +1/+1 until end of turn.";
+    assert_eq!(compared(alone), vec![json!({"kind":"Source"})]);
+}

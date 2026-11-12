@@ -65,8 +65,12 @@ impl Engine {
         let mut surfaces: Vec<Vec<Value>> = vec![Vec::new()];
         for (index, item) in items.iter().enumerate() {
             let mut forms = bind::unbind_ability(item);
-            if let Some(view) = bind::target_contrast::projection(item)? {
-                for form in bind::unbind_ability(&view) {
+            let views = [
+                bind::target_contrast::projection(item)?,
+                bind::group_contrast::projection(item),
+            ];
+            for view in views.iter().flatten() {
+                for form in bind::unbind_ability(view) {
                     if forms.len() < 64 && !forms.contains(&form) {
                         forms.push(form);
                     }

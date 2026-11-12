@@ -23,6 +23,7 @@ mod exile_returns;
 mod exiled_card;
 mod fight_counterpart;
 mod filters;
+pub(crate) mod group_contrast;
 mod optional_entered_card;
 mod optional_exile_target;
 mod payment_move_after;
@@ -290,6 +291,7 @@ pub fn bind_held_ability(
     scope.binding_floor = per_recipient::binding_floor(ability)?;
     bind_scope(ability, &mut scope)?;
     target_contrast::lower(ability)?;
+    group_contrast::lower(ability);
     payments::bind(ability)?;
     paid_self_exile::lower(ability, paid_self_exile)?;
     if has_cost_as_action(ability) {
