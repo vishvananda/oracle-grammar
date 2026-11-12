@@ -91,6 +91,50 @@ fn tagged(value: &Value, rule: &str) -> Value {
     copy
 }
 
+/// Equal once audit tags are ignored.
+fn same_untagged(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Object(left), Value::Object(right)) => {
+            let width = |map: &serde_json::Map<String, Value>| {
+                map.len() - usize::from(map.contains_key(AUDIT_TAG))
+            };
+            width(left) == width(right)
+                && left
+                    .iter()
+                    .filter(|(key, _)| *key != AUDIT_TAG)
+                    .all(|(key, value)| {
+                        right
+                            .get(key)
+                            .is_some_and(|other| same_untagged(value, other))
+                    })
+        }
+        (Value::Array(left), Value::Array(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(value, other)| same_untagged(value, other))
+        }
+        _ => left == right,
+    }
+}
+
+/// How many seeded-rule tags a value carries.
+fn tag_count(value: &Value) -> usize {
+    match value {
+        Value::Object(object) => object
+            .iter()
+            .map(|(key, value)| match (key == AUDIT_TAG, value) {
+                (true, Value::Array(names)) => names.len(),
+                (true, _) => 0,
+                (false, value) => tag_count(value),
+            })
+            .sum(),
+        Value::Array(items) => items.iter().map(tag_count).sum(),
+        _ => 0,
+    }
+}
+
 /// Remove the audit tags from a value and return the rules they named.
 pub fn take_tags(value: &mut Value, out: &mut Vec<String>) {
     match value {
@@ -139,7 +183,8 @@ impl<'a> Parser<'a> {
         self
     }
 
-    /// Tag each value with the mined rules that made it, for the rule audit.
+    /// Tag each value with the mined rules that made it, for the rule audit. Each distinct
+    /// value keeps one derivation: the one with the fewest tags.
     pub fn with_audit(mut self) -> Self {
         self.audit = true;
         self
@@ -289,14 +334,28 @@ impl<'a> Parser<'a> {
                 } else {
                     value
                 };
-                if !readings
-                    .iter()
-                    .any(|r| r.end == partial.at && r.value == value)
-                {
-                    readings.push(Reading {
+                let audit = self.audit;
+                let found = readings.iter().position(|r| {
+                    r.end == partial.at
+                        && if audit {
+                            same_untagged(&r.value, &value)
+                        } else {
+                            r.value == value
+                        }
+                });
+                match found {
+                    None => readings.push(Reading {
                         end: partial.at,
                         value,
-                    });
+                    }),
+                    // Derivations that differ only in their seeded rules would multiply
+                    // across sentences. An audit keeps the one naming the fewest.
+                    Some(index)
+                        if audit && tag_count(&value) < tag_count(&readings[index].value) =>
+                    {
+                        readings[index].value = value;
+                    }
+                    Some(_) => {}
                 }
             }
             if readings.len() > self.limits.readings {

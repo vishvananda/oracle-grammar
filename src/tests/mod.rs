@@ -799,3 +799,6 @@ mod revealed_followups;
 
 #[path = "shared_clauses/sacrificed_receipts.rs"]
 mod sacrificed_receipts;
+
+#[path = "shared_clauses/audit_derivations.rs"]
+mod audit_derivations;
