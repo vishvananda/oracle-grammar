@@ -382,3 +382,30 @@ fn protection_from_controlled_objects_is_protection_from_permanents() {
         printed(&readings[0]);
     }
 }
+
+#[test]
+fn a_changed_object_that_deals_damage_is_the_damage_source() {
+    for (text, source) in [
+        (
+            "Whenever this creature becomes the target of a spell, it gets +2/+2 until end of turn and deals 2 damage to each opponent.",
+            json!({"kind":"EventSubject"}),
+        ),
+        (
+            "Target creature gets +2/+0 until end of turn and deals 1 damage to you.",
+            json!({"kind":"Target","args":{"slot":0,"index":0}}),
+        ),
+    ] {
+        let readings = engine().parse("Context example", text).unwrap().readings;
+        let shared = readings
+            .iter()
+            .find(|reading| {
+                let mut damage = Vec::new();
+                visit(reading, "DealDamage", &mut damage);
+                damage
+                    .first()
+                    .is_some_and(|damage| damage["source"] == source)
+            })
+            .unwrap_or_else(|| panic!("{text}: {readings:#?}"));
+        printed(shared);
+    }
+}

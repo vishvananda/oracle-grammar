@@ -257,7 +257,7 @@ program_where_sentence ::= program_plain "." "X" "is" value
 instructions ::= instructions_draft_perpetual_types | instructions_announced_players_more | instructions_announced_players | instructions_paid_exile_copy_return | instructions_sacrifice_x_targets | conjoined_serial | instructions_reveal_until_select_cards | instructions_reveal_top_hand_life_loss | instructions_manifest_dread_counters | instructions_return_card_shared_life | instructions_clamped_damage_life | instructions_clamped_damage_mana_life | instructions_next_x_stack_copy | instructions_next_typed_stack_copy | instructions_exile_receipt_span | instructions_discard_triple_return | instructions_paid_impulse_choice | instructions_sacrifice_unless_discard_callback | instructions_optional_plural_discard_callback | instructions_may_exile_exact_reflexive | instructions_commander_prevention_reflexive | instructions_opponent_graveyard_entry | instructions_returned_type_partition | instructions_returned_entry_partition | instructions_returned_current_kind | instructions_shared_single_draw_callback | instructions_payment_otherwise | instructions_after_quoted | instructions_if_otherwise | instructions_drain | instructions_loot | instructions_one | instructions_more | instructions_more_then | instructions_more_and
     | instructions_exile_counted_drain | instructions_draw_discard_amount | instructions_player_fraction
     | entry_subtype_instructions
-    | instructions_requested_draw_discard | instructions_requested_draw_discard_more
+    | instructions_requested_draw_discard | instructions_requested_draw_discard_more | instructions_changed_object_deals
     | instructions_reveal_copy_reorder | instructions_reveal_any_battlefield_remainder | instructions_reveal_grant_remainder
     | instructions_closed_one | instructions_closed_more
     | instructions_exile_compare_copy_free
@@ -317,6 +317,10 @@ sequencer ::= "." | "." "then"
 
 /* @sem Vec<Instruction>::@and_sequence($clause, $instructions) */
 instructions_more_and ::= clause "and" instructions
+
+/* One subject both changes and deals damage: the changed object is the source. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$changes, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:DealDamage{source:$object_ref, recipients:$recipients, amount:$value, preventable:true}}] */
+instructions_changed_object_deals ::= object_ref changes duration "and" "deals" value "damage" "to" recipients
 
 clause ::= clause_required_sacrifice_followup | clause_requested_optional_draw | clause_independent_may_choices | clause_destroy_unless_paid_success | clause_return_success_payment | clause_exile_card_value_rewards | clause_target_counter_lasting_grant | clause_optional_top_card_life | clause_seek_delayed_discard | clause_delayed_cleanup_after | clause_perpetual_card_changes | clause_seek_card | clause_linked_mana_instead | clause_equal_object_you_damage | clause_each_player_fixed_mana | clause_relative_upkeep_after | clause_immediate | clause_may | clause_may_then | clause_delayed_end_step_after | clause_delayed_upkeep_after | clause_delayed_combat_after
     | clause_delayed_end_step_then | clause_delayed_upkeep_then | clause_delayed_combat_then
