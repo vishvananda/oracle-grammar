@@ -341,3 +341,13 @@ fn the_chosen_type_is_the_kind_of_type_the_card_chose() {
         );
     }
 }
+
+#[test]
+fn that_creature_skips_an_unwritten_land_target() {
+    let text = "Whenever a nonland creature you control dies, earthbend X, where X is that creature's power.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    assert_eq!(readings.len(), 1, "{readings:#?}");
+    let mut properties = Vec::new();
+    visit(&readings[0], "ObjectProperty", &mut properties);
+    assert_eq!(properties[0]["object"], json!({"kind":"EventSubject"}));
+}
