@@ -633,8 +633,24 @@ villainous_draw_chaos ::= "you" "draw" card_count "and" "chaos" "ensues"
 villainous_sacrifice_filter ::= filter_phrase | filter_plural
 
 /* An "is" characteristic following a nontoken battlefield move applies as the
-   object enters (CR 611.2e). It belongs to entry, before enters triggers see it. */
-entry_subtype_instructions ::= entry_subtype_return | entry_subtype_put
+   object enters (CR 611.2e). It belongs to entry, before enters triggers see it;
+   a later "becomes" stays a continuous effect. */
+entry_subtype_instructions ::= entry_subtype_return | entry_subtype_put | entry_characteristics_move
+
+/* @sem Instruction::[Effect{result:@next, operation:@arrival_changes($operation, $entry_characteristics)}] */
+entry_characteristics_move ::= operation "." entry_characteristics
+
+entry_characteristics ::= entry_subtype_changes | entry_color_subtype_changes | entry_colored_subtype_changes
+
+/* @sem () */
+entry_subject ::= "it's" | ("it" | "that" "creature") "is"
+
+/* "Is black" sets its color; "a black Zombie in addition to its other colors" adds it. */
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}, CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
+entry_color_subtype_changes ::= entry_subject mana_color_word "and" "is" ("a" | "an") becomes_types "in" "addition" "to" "its" "other" "creature" "types"
+
+/* @sem Change::[Colors{mode:Add, colors:[$mana_color_word]}, CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
+entry_colored_subtype_changes ::= entry_subject ("a" | "an") mana_color_word becomes_types "in" "addition" "to" "its" "other" "colors" "and" "types"
 
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($target_card), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[Changes($entry_subtype_changes)]}}, qualifiers:[]}}] */
 entry_subtype_return ::= "return" target_card "to" "the" "battlefield" "." entry_subtype_changes
@@ -643,7 +659,7 @@ entry_subtype_return ::= "return" target_card "to" "the" "battlefield" "." entry
 entry_subtype_put ::= "put" target_card "onto" "the" "battlefield" "under" "your" "control" "." entry_subtype_changes
 
 /* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
-entry_subtype_changes ::= ("it's" | "it" "is") ("a" | "an")? becomes_types "in" "addition" "to" "its" "other" ("creature")? "types"
+entry_subtype_changes ::= entry_subject ("a" | "an")? becomes_types "in" "addition" "to" "its" "other" ("creature")? "types"
 
 /* Move an Aura to a different host sharing one of the printed host types.
    The destination is chosen on resolution, not a second announced target.
@@ -1053,7 +1069,7 @@ remove_from_combat_action ::= "remove" object_ref "from" "combat"
 instructions_exile_passive_card ::= "exile" target_card "." passive_exiled_card_trigger
 
 /* Keep the callback's lexical origin at When, after the parent's target. */
-/* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@prior, condition:Compare{left:CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, announcement:@announcement, body:$reflexive_callback_program})} */
+/* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@prior, condition:Compare{left:CountObjects(Matching{objects:Transition{result:@prior, phase:After}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, announcement:@announcement, body:$reflexive_callback_program})} */
 passive_exiled_card_trigger ::= "when" ("a" | "an") card_filter "card" "is" "exiled" "this" "way" "," reflexive_callback_program
 
 /* One-or-more cards is a single callback for this mill action, not one
@@ -1141,7 +1157,7 @@ card_exile_play_permission ::= "you" "may" "play" "that" "card" this_duration
 
 card_exile_value_reflexive ::= card_exile_plain_value_reflexive | card_exile_filtered_value_reflexive
 
-/* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:Before}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, announcement:@announcement, body:$card_exile_value_damage})} */
+/* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, announcement:@announcement, body:$card_exile_value_damage})} */
 card_exile_filtered_value_reflexive ::= "when" "you" "exile" ("a" | "an") card_filter "card" "this" "way" "," card_exile_value_damage
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_ref, recipients:$recipients, amount:Aggregate{objects:Transition{result:@marked, phase:After}, property:ManaValue, aggregation:Sum}, preventable:true}}]} */
@@ -1397,7 +1413,7 @@ clause_return_success_payment ::= "return" current_card_ref "to" "its" "owner's"
 
 /* An up-to-one target is an ordinary action. Both rewards read that card's
    current/last-known value, and their guard reads the performed exile result. */
-/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($exile_reward_target), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:Before}, filter:CardType(Creature)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:ObjectProperty{object:$exile_reward_target, property:ManaValue, information:CurrentOrLastKnown}}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:ObjectProperty{object:$exile_reward_target, property:ManaValue, information:CurrentOrLastKnown}, words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($exile_reward_target), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:CardType(Creature)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:ObjectProperty{object:$exile_reward_target, property:ManaValue, information:CurrentOrLastKnown}}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:ObjectProperty{object:$exile_reward_target, property:ManaValue, information:CurrentOrLastKnown}, words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
 clause_exile_card_value_rewards ::= "exile" exile_reward_target "." "if" "you" "do" "," "you" "lose" "X" "life" "and" "create" "X" token_named_recipe "tokens" "," "where" "X" "is" "that" "card's" "mana" "value"
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AllOf([CardType(Creature), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
 exile_reward_target ::= "up" "to" "one" "target" "creature" "card" "from" "your" "graveyard"

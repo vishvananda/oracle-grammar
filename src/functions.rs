@@ -3,6 +3,7 @@
 use crate::pattern::{Bindings, Pattern};
 use serde_json::Value;
 
+pub(crate) mod arrival;
 mod branches;
 pub(crate) mod capture_amount;
 pub(crate) mod class_levels;

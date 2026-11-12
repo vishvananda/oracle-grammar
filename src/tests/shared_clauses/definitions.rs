@@ -111,6 +111,42 @@ fn entry_subtypes_are_applied_on_arrival_and_becomes_is_later() {
 }
 
 #[test]
+fn colors_and_types_that_a_moved_creature_is_join_its_arrival() {
+    let black = json!({"kind":"Colors","args":{"mode":"Add","colors":["Black"]}});
+    let zombie =
+        json!({"kind":"CreatureTypes","args":{"mode":"Add","types":{"Listed":["Zombie"]}}});
+    let set_black = json!({"kind":"Colors","args":{"mode":"Set","colors":["Black"]}});
+    let nightmare =
+        json!({"kind":"CreatureTypes","args":{"mode":"Add","types":{"Listed":["Nightmare"]}}});
+    for (text, changes) in [
+        (
+            "Return target creature card from your graveyard to the battlefield. That creature is a black Zombie in addition to its other colors and types.",
+            json!([black, zombie]),
+        ),
+        (
+            "Put target creature card from a graveyard onto the battlefield under your control. That creature is black and is a Nightmare in addition to its other creature types.",
+            json!([set_black, nightmare]),
+        ),
+    ] {
+        let frame = parsed(text);
+        let body = frame[0]["args"]["body"]["instructions"].as_array().unwrap();
+        assert_eq!(body.len(), 1, "{text}");
+        let arrival =
+            &body[0]["args"]["operation"]["args"]["destination"]["Battlefield"]["arrival"];
+        assert_eq!(arrival["states"], json!([{"Changes": changes}]), "{text}");
+        printed_types(&frame, &["Sorcery"]);
+    }
+    // Only a move onto the battlefield has an arrival these characteristics can join.
+    let exiled = "Exile target creature card from a graveyard. That creature is a Zombie in addition to its other types.";
+    for reading in engine()
+        .parse("Context example", exiled)
+        .map_or_else(|_| Vec::new(), |p| p.readings)
+    {
+        assert!(!reading.to_string().contains("\"Changes\""), "{reading}");
+    }
+}
+
+#[test]
 fn every_creature_type_defines_only_its_own_holder() {
     let frame = parsed("This creature is every creature type.");
     let static_ = definition(&frame);

@@ -604,6 +604,9 @@ impl Pattern {
                     ("retain_animation", [operation]) => {
                         return crate::functions::retain_animation(operation);
                     }
+                    ("arrival_changes", [operation, changes]) => {
+                        return crate::functions::arrival::changes(operation, changes);
+                    }
                     ("times", [factor, count]) => return Ok(product(factor, count)),
                     ("repeated_damage_actor", [instruction]) => {
                         crate::functions::branch_bounds(instruction)?;
@@ -793,6 +796,7 @@ impl Pattern {
             "entering_controller" => {
                 return crate::functions::entering::unify(args, value, bindings);
             }
+            "arrival_changes" => return crate::functions::arrival::unify(args, value, bindings),
             "continuous_parts" => return unify_continuous_parts(args, value, bindings),
             "defining_static"
             | "defining_changes"

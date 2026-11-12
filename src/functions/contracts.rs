@@ -39,7 +39,7 @@ pub(crate) fn checked_call(
         "token_abilities" | "qualified_object" | "group_reference" => Some(2),
         "qualified_members" | "last_exiled" | "last_exiled_creature" => Some(1),
         "either_event" | "agree" | "payment_cost" | "announced_cost" => Some(2),
-        "kicker_branch" | "conditional_ability" => Some(2),
+        "kicker_branch" | "conditional_ability" | "arrival_changes" => Some(2),
         "fixed_mana"
         | "variable_mana"
         | "singular_count"
@@ -146,6 +146,9 @@ pub(crate) fn checked_call(
             ],
         )));
     }
+    if name == "arrival_changes" {
+        return arrival_call(args, ty, schema).map(Some);
+    }
     if name == "mana_options" {
         let expected = Ty::Vec(Box::new(Ty::Named("ManaColor".into())));
         if *ty != expected {
@@ -202,6 +205,21 @@ pub(crate) fn checked_call(
         return agreement_call(args, ty, schema).map(Some);
     }
     Ok(None)
+}
+
+fn arrival_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    let operation = Ty::Named("Operation".into());
+    if *ty != operation {
+        return Err("@arrival_changes produces an Operation".into());
+    }
+    let changes = Ty::Vec(Box::new(Ty::Named("Change".into())));
+    Ok(Pattern::Symbol(
+        "arrival_changes".into(),
+        vec![
+            elaborate(&args[0], &operation, schema)?,
+            elaborate(&args[1], &changes, schema)?,
+        ],
+    ))
 }
 
 fn operation_marker(name: &str) -> bool {
