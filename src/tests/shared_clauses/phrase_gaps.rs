@@ -489,3 +489,23 @@ fn that_player_beside_a_target_an_opponent_controls_is_its_controller() {
     let own = "Exile target creature you control and all other creatures that player controls.";
     assert!(engine().parse("Context example", own).is_err());
 }
+
+#[test]
+fn an_equipment_s_other_creatures_exclude_the_creature_it_damaged() {
+    let equipment = "Whenever equipped creature deals damage to a blocking creature, this Equipment deals that much damage to each other creature defending player controls.\nEquip {3}";
+    assert_eq!(
+        compared(equipment).last(),
+        Some(&json!({"kind":"Damage","args":"Recipient"}))
+    );
+    let unattached = equipment.trim_end_matches("\nEquip {3}");
+    let mut found = Vec::new();
+    for reading in engine()
+        .parse("Context example", unattached)
+        .unwrap()
+        .readings
+    {
+        visit(&reading, "SameObject", &mut found);
+    }
+    assert!(!found.is_empty());
+    assert!(!found.contains(&json!({"kind":"Damage","args":"Recipient"})));
+}

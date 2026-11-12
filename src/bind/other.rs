@@ -1,6 +1,6 @@
 //! An unqualified `other` contrasts with a prior compatible target, otherwise
 //! with the holder. Ordinary event/pronoun focus does not establish that contrast.
-use super::Scope;
+use super::{Scope, Step, at_path, symbol_name};
 use crate::model::ir::{DamageSubject, ObjectDomain, ObjectRef};
 use serde_json::{Value, json};
 
@@ -182,27 +182,104 @@ fn creature() -> Value {
     json!({"kind":"CardType","args":"Creature"})
 }
 
-/// A noncreature Aura is never among "other creatures"; its static contrasts
-/// them with the creature it enchants.
+/// A noncreature attachment is never among "other creatures". An Aura's
+/// static contrasts them with the creature it enchants; an attachment's
+/// trigger with the creature its event dealt damage to.
 fn holder_contrast(scope: &Scope, domain: &Value) -> Value {
-    if scope.attached_holder && implies(domain, &creature()) {
-        return json!({"kind":"AttachedTo","args":{"kind":"Source"}});
+    if implies(domain, &creature()) {
+        if scope.attached_holder {
+            return json!({"kind":"AttachedTo","args":{"kind":"Source"}});
+        }
+        if let Some(counterpart) = damaged_counterpart(scope) {
+            return counterpart;
+        }
     }
     source(scope)
 }
 
-/// The card is an Aura that enchants creatures and has no bestow creature form.
-pub(crate) fn noncreature_aura(abilities: &Value) -> bool {
-    let Some(items) = abilities.as_array() else {
-        return false;
+/// The creature a noncreature attachment's damage event names besides its subject.
+fn damaged_counterpart(scope: &Scope) -> Option<Value> {
+    let recipient = json!({"kind":"Damage","args":"Recipient"});
+    (scope.attached_trigger && scope.others.contains(&recipient)).then_some(recipient)
+}
+
+/// `each other creature`, spelled with a pronoun or a learned Source fallback:
+/// in a noncreature attachment's damage trigger the contrast is the damaged
+/// creature, as in Kusari-Gama. A distributive Pump count keeps its member.
+pub(super) fn counterpart_marker(
+    root: &mut Value,
+    scope: &Scope,
+    path: &[Step],
+    name: &str,
+) -> Result<bool, String> {
+    let Some(counterpart) = damaged_counterpart(scope) else {
+        return Ok(false);
     };
-    let enchants = items.iter().any(|item| {
+    let marker = match (name, path) {
+        ("it", [annotation @ .., Step::Key(args), Step::Index(0)]) if args == "args" => annotation,
+        ("pump_other_ref", _) => path,
+        _ => return Ok(false),
+    };
+    if marker.len() > 128 {
+        return Ok(false);
+    }
+    let mut node: &Value = root;
+    let mut domain = None;
+    for step in marker {
+        match node["kind"].as_str() {
+            Some("AllOf") => domain = Some(node),
+            Some("Pump") => return Ok(false),
+            _ => {}
+        }
+        node = match step {
+            Step::Key(key) => &node[key.as_str()],
+            Step::Index(index) => &node[*index],
+        };
+    }
+    let constant = name != "it" && super::pump_counts::constant_marker(node);
+    if !(constant || name == "it" && symbol_name(node) == Some("pump_other_ref"))
+        || !domain.is_some_and(|filter| implies(filter, &creature()))
+    {
+        return Ok(false);
+    }
+    *at_path(root, path).ok_or("damaged counterpart path")? = counterpart;
+    Ok(true)
+}
+
+/// What a card attaches to when it is not a creature itself.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Attachment {
+    #[default]
+    None,
+    /// Enchants creatures, without a bestow creature form.
+    Aura,
+    /// Equips creatures, without a reconfigure creature form.
+    Equipment,
+}
+
+pub(crate) fn attachment(abilities: &Value) -> Attachment {
+    let Some(items) = abilities.as_array() else {
+        return Attachment::None;
+    };
+    let mechanic = |name: &str| {
+        items
+            .iter()
+            .any(|item| item["kind"] == "Mechanic" && item["args"]["mechanic"] == name)
+    };
+    if items.iter().any(|item| {
         item["kind"] == "Enchant" && implies(&item["args"]["hosts"]["Permanents"], &creature())
-    });
-    let bestow = items
+    }) && !mechanic("Bestow")
+    {
+        return Attachment::Aura;
+    }
+    if items
         .iter()
-        .any(|item| item["kind"] == "Mechanic" && item["args"]["mechanic"] == "Bestow");
-    enchants && !bestow
+        .any(|item| item["kind"] == "Activated" && item["args"]["origin"] == "Equip")
+        && !mechanic("Reconfigure")
+    {
+        return Attachment::Equipment;
+    }
+    Attachment::None
 }
 
 #[cfg(test)]
