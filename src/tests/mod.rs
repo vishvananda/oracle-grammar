@@ -805,3 +805,6 @@ mod audit_derivations;
 
 #[path = "shared_clauses/self_words.rs"]
 mod self_words;
+
+#[path = "shared_clauses/searches.rs"]
+mod searches;

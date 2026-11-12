@@ -39,18 +39,24 @@ found_one ::= "it" | "that" "card"
 /* @sem () */
 found_many ::= "them" | "those" "cards"
 
-player_search_one_choice ::= player_search_any | player_search_filtered | player_search_optional_one
-player_search_many_choice ::= player_search_many | player_search_many_any
+player_search_one_choice ::= search_choice_any | search_choice_filtered | search_choice_optional_one
+player_search_many_choice ::= search_choice_many | search_choice_many_any
+
+/* What a search looks for: one find clause. */
+search_choice ::= search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many
 /* @sem SearchChoice::SearchChoice{filter:Any, count:AsManyAsCan(Constant(1))} */
-player_search_any ::= "a" "card"
+search_choice_any ::= "a" "card"
 /* @sem SearchChoice::SearchChoice{filter:$search_filter, count:UpTo(Constant(1))} */
-player_search_filtered ::= ("a" | "an") search_filter
+search_choice_filtered ::= ("a" | "an") search_filter
+/* A card described only by what follows the noun, as `a card named Jiang Yanggu`. */
+/* @sem SearchChoice::SearchChoice{filter:$modifier, count:UpTo(Constant(1))} */
+search_choice_modified ::= "a" "card" modifier
 /* @sem SearchChoice::SearchChoice{filter:Any, count:UpTo(Constant(1))} */
-player_search_optional_one ::= "up" "to" ("one" | "1") "card"
+search_choice_optional_one ::= "up" "to" ("one" | "1") "card"
 /* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:UpTo($count)} */
-player_search_many ::= "up" "to" count search_filter_many
+search_choice_many ::= "up" "to" count search_filter_many
 /* @sem SearchChoice::SearchChoice{filter:Any, count:UpTo($count)} */
-player_search_many_any ::= "up" "to" count "cards"
+search_choice_many_any ::= "up" "to" count "cards"
 
 /* A later paragraph offers an alternative destination for the same original
    selection. Selected retains those identities: the normal hand move follows
@@ -80,19 +86,28 @@ search_option_normal ::= "onto" "the" "battlefield"
 /* @sem BattlefieldArrival::BattlefieldArrival{tapped:true, counters:[], states:[]} */
 search_option_tapped ::= "onto" "the" "battlefield" "tapped"
 
-search ::= search_filtered | search_any | search_many | search_many_any | search_named_one | search_named_many
+search ::= search_library | search_library_graveyard
 
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[SearchChoice{filter:$search_filter, count:UpTo(Expr::Constant(1))}]} */
-search_filtered ::= "search" "your" "library" "for" ("a" | "an") search_filter
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice]} */
+search_library ::= "search" "your" "library" "for" search_choice
 
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[SearchChoice{filter:Any, count:AsManyAsCan(Expr::Constant(1))}]} */
-search_any ::= "search" "your" "library" "for" "a" "card"
+/* The graveyard is searched along with the library, which is still shuffled. */
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice], also:[Graveyard]} */
+search_library_graveyard ::= "search" "your" "library" "and" "graveyard" "for" search_choice
 
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[SearchChoice{filter:$search_filter_many, count:UpTo($count)}]} */
-search_many ::= "search" "your" "library" "for" "up" "to" count search_filter_many
+/* With `and/or` the searcher chooses where to look, and shuffles only if that
+   included the library. The search stays the referent until the shuffle. */
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice], also:[Graveyard], either:true}}, ...$search_either_follow, If{condition:Searched(@marked), then:Program{instructions:[Effect{result:@next, operation:Shuffle{players:One(PlayerRef::AbilityController)}}]}, otherwise:Program{}}] */
+clause_search_either ::= "search" "your" search_either_zones "for" search_choice search_either_follow "." "if" "you" "search" "your" "library" "this" "way" "," "shuffle"
 
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[SearchChoice{filter:Any, count:UpTo($count)}]} */
-search_many_any ::= "search" "your" "library" "for" "up" "to" count "cards"
+/* @sem () */
+search_either_zones ::= "library" "and" "/" "or" "graveyard" | "graveyard" "and" "/" "or" "library"
+
+search_either_follow ::= search_either_one | search_either_two
+/* @sem Instruction::[Effect{result:@next, operation:$found_action}] */
+search_either_one ::= "and" found_action
+/* @sem Instruction::[Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:$found_action_2}] */
+search_either_two ::= "," found_action "," "and" found_action
 
 search_filter ::= search_filter_plain | search_filter_modified
 
@@ -250,11 +265,11 @@ clause_shuffle_graveyards ::= shuffle_plural_players "shuffles" "their" "graveya
 shuffle_plural_players ::= players_each | players_each_opponent | players_each_other | players_each_other_opponent
 
 /* Names written after named denote a card name, independently of holder roles. */
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[SearchChoice{filter:Name(@card_name), count:UpTo(Expr::Constant(1))}]} */
-search_named_one ::= "search" "your" "library" "for" "a" "card" "named" SELF_NAME
+/* @sem SearchChoice::SearchChoice{filter:Name(@card_name), count:UpTo(Expr::Constant(1))} */
+search_named_one ::= "a" "card" "named" SELF_NAME
 
-/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[SearchChoice{filter:Name(@card_name), count:$named_search_count}]} */
-search_named_many ::= "search" "your" "library" "for" named_search_count "cards" "named" SELF_NAME
+/* @sem SearchChoice::SearchChoice{filter:Name(@card_name), count:$named_search_count} */
+search_named_many ::= named_search_count "cards" "named" SELF_NAME
 
 named_search_count ::= named_search_upto | named_search_any
 /* @sem Count::UpTo($number) */

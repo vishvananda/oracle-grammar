@@ -31,7 +31,6 @@ pub(super) fn unconstrained(name: &str) -> bool {
             | "next_slot"
             | "last_slot"
             | "last_result"
-            | "card_name"
     )
 }
 

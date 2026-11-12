@@ -59,6 +59,9 @@ pub enum Item {
     Splice(String, Ty),
 }
 
+/// What `@card_name` matched: no hole has this name.
+pub const CARD_NAME: &str = "@card_name";
+
 /// What holes hold: values borrowed from the one being matched wherever that can be, so
 /// that matching copies nothing. `'p` is the pattern's life, `'v` the values'.
 #[derive(Debug, Clone, Default)]
@@ -712,6 +715,12 @@ impl Pattern {
         bindings: Bindings<'p, 'v>,
     ) -> Vec<Bindings<'p, 'v>> {
         let name = crate::bind::damage_relative::ordinary_name(name);
+        if name == "card_name" {
+            // Only the printer knows the card it prints for: it holds this text to that name.
+            let mut bindings = bindings;
+            bindings.insert(CARD_NAME, Cow::Borrowed(value));
+            return vec![bindings];
+        }
         if unconstrained(name) || refers_to(name, value) {
             return vec![bindings];
         }

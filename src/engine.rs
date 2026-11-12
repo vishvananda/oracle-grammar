@@ -36,6 +36,7 @@ const PRINT_WEIGHTS: &str = include_str!("../grammar/print-weights.txt");
 const SYNTAX_MODULES: &[(&str, &str)] = &[
     ("card", "syntax/card.ebnf"),
     ("card_notes", "syntax/card_notes.ebnf"),
+    ("card_names", "syntax/card_names.ebnf"),
     ("actions", "syntax/actions.ebnf"),
     ("action_reminders", "syntax/action_reminders.ebnf"),
     ("conditions", "syntax/conditions.ebnf"),

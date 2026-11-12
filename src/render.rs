@@ -84,6 +84,8 @@ pub struct Renderer<'a> {
     /// The words of the card's name, when it is known: a seeded rule that calls the card
     /// by a name prints only for the card it names.
     name: Option<HashSet<String>>,
+    /// The card's name itself, which `named <this card>` says and no other name does.
+    card_name: Option<String>,
 }
 
 impl<'a> Renderer<'a> {
@@ -105,6 +107,7 @@ impl<'a> Renderer<'a> {
             contexts: vec![context],
             context: 0,
             name: None,
+            card_name: None,
         }
     }
 
@@ -117,6 +120,7 @@ impl<'a> Renderer<'a> {
     /// Print for the card of this name.
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = Some(words::name_words(name));
+        self.card_name = Some(name.to_string());
         self
     }
 
@@ -276,7 +280,13 @@ impl<'a> Renderer<'a> {
         let mut opens = Vec::new();
         match &definition.sem {
             Some(pattern) => {
-                let solutions = pattern.unify(value, Bindings::new());
+                let mut solutions = pattern.unify(value, Bindings::new());
+                // `named <this card>` says this card's name and no other.
+                solutions.retain(|bindings| {
+                    let said = bindings.get(crate::pattern::CARD_NAME);
+                    said.zip(self.card_name.as_deref())
+                        .is_none_or(|(said, name)| said.as_str() == Some(name))
+                });
                 self.work.unified += 1;
                 self.work.matched += u64::from(!solutions.is_empty());
                 if !solutions.is_empty() {
