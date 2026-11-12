@@ -379,3 +379,14 @@ fn a_distributive_count_s_other_is_each_member() {
         "{found:#?}"
     );
 }
+
+#[test]
+fn that_player_after_an_attacker_an_opponent_owns_is_its_owner() {
+    let text = "Whenever you attack with a creature an opponent owns, you gain 2 life and that player loses 2 life.";
+    let mut lost = Vec::new();
+    visit(&only_reading(text), "LoseLife", &mut lost);
+    assert_eq!(
+        lost[0]["players"],
+        json!({"kind":"One","args":{"kind":"OwnerOf","args":{"kind":"EventSubject"}}})
+    );
+}

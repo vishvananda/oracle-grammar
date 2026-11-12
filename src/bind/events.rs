@@ -253,6 +253,15 @@ fn event_referents(event: &Value, scope: &mut Scope, surfaced: bool) {
         Some(_) => scope
             .players
             .push(json!({"kind": "ControllerOf", "args": subject})),
+        // "Attack with a creature an opponent owns": that player owns the attacker.
+        None if event
+            .get("Attack")
+            .is_some_and(|attack| mentions(&attack["attackers"], "OwnedBy")) =>
+        {
+            scope
+                .players
+                .push(json!({"kind": "OwnerOf", "args": subject}));
+        }
         None if event.get("BecomesTarget").is_some() => scope.players.push(json!({
             "kind": "ControllerOf",
             "args": {"kind": "EventStackObject"},
