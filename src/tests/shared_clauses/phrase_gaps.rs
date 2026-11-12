@@ -470,3 +470,22 @@ fn it_after_a_random_graveyard_exile_is_the_exiled_card() {
     );
     assert_eq!(cast[0]["cards"]["args"]["args"]["phase"], json!("After"));
 }
+
+#[test]
+fn that_player_beside_a_target_an_opponent_controls_is_its_controller() {
+    let controller = json!({"kind":"One","args":{"kind":"ControllerOf","args":{"kind":"Target","args":{"slot":0,"index":0}}}});
+    for text in [
+        "Exile target nonland permanent an opponent controls and all other nonland permanents that player controls with the same name as that permanent.",
+        "When this creature enters, exile target nonland permanent an opponent controls and all other nonland permanents that player controls with the same name as that permanent until this creature leaves the battlefield.",
+    ] {
+        let readings = engine().parse("Context example", text).unwrap().readings;
+        assert!(!readings.is_empty(), "{text}");
+        for reading in &readings {
+            let mut controlled = Vec::new();
+            visit(reading, "ControlledBy", &mut controlled);
+            assert!(controlled.contains(&controller), "{text}: {controlled:#?}");
+        }
+    }
+    let own = "Exile target creature you control and all other creatures that player controls.";
+    assert!(engine().parse("Context example", own).is_err());
+}

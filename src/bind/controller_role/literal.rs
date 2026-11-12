@@ -39,8 +39,21 @@ pub(super) fn reference(
     scope: &Scope,
     contexts: &references::Contexts,
 ) -> Result<Value, String> {
-    let fallback = per_recipient::reference(root, path, introduced, scope, contexts)?;
     let prior = contexts.before(path, scope);
+    if let Some(role) = &prior.controller_role
+        && role.player_generation == prior.players.len()
+        && per_recipient::player(root, path, introduced, scope.target_base)?.is_none()
+        && co_object(
+            root,
+            path,
+            &json!(role.object),
+            introduced,
+            scope.target_base,
+        )?
+    {
+        return Ok(json!({"kind":"ControllerOf","args":role.object}));
+    }
+    let fallback = per_recipient::reference(root, path, introduced, scope, contexts)?;
     let Some(role) = &prior.controller_role else {
         return Ok(fallback);
     };
@@ -138,6 +151,52 @@ fn action(
         return Ok(None);
     }
     Ok(Some(actor))
+}
+
+/// `target X an opponent controls and all Y that player controls`: the player
+/// is written inside the one object set that also lists the role's target.
+fn co_object(
+    root: &Value,
+    path: &[Step],
+    object: &Value,
+    introduced: &[references::TargetIntroduction],
+    base: usize,
+) -> Result<bool, String> {
+    if path.len() > 128 {
+        return Err("controller co-object depth exceeds 128".into());
+    }
+    let mut node = root;
+    let mut set = None;
+    for step in path {
+        node = match step {
+            Step::Key(key) => {
+                let child = node.get(key);
+                if key == "objects" {
+                    set = child;
+                }
+                child
+            }
+            Step::Index(index) => node.get(*index),
+        }
+        .ok_or("controller co-object path")?;
+    }
+    let Some(set) = set else {
+        return Ok(false);
+    };
+    let set = plain(set, introduced, base)?;
+    let members = |value: &Value, member: Value| {
+        value["args"]
+            .as_array()
+            .is_some_and(|items| items.contains(&member))
+    };
+    Ok(match set["kind"].as_str() {
+        Some("Union") => members(&set, json!({"kind":"One","args":object})),
+        Some("Zone") => {
+            let filter = &set["args"]["filter"];
+            filter["kind"] == "AnyOf" && members(filter, json!({"kind":"SameObject","args":object}))
+        }
+        _ => false,
+    })
 }
 
 // Compare already introduced operands through their transparent lexical
