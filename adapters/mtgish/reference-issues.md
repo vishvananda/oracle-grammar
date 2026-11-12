@@ -478,3 +478,17 @@ requirement comes before any normal form is chosen.
   from "it" in each context, in opposite directions.
 - Review: decide whether a gendered pronoun reads like "it" in each event
   frame; a dies trigger needs the departed object either way.
+
+#### "Their life" after a named losing player
+
+- `Acting`: Personal Incarnation *(different)* ("its owner loses half their
+  life"), Scourge of the Skyclaves ("each player loses half their life") and
+  Ebonblade Reaper (retained above).
+- The named player itself: Blood Tribute, Revenge, Rush of Dread and Shard of
+  the Nightbringer (`Target`); Havoc Festival, Quietus Spike and Grievous Wound
+  (`EventSubject`). `Bound` under `ForEachPlayer`: Betor, Kin to All, Fraying
+  Omnipotence, Skull Storm and Shahrazad.
+- The grammar's `ControllerOf(Source)` for Personal Incarnation is a grammar
+  issue: "their" must name the owner who loses the life.
+- Review: choose `Acting` or the named player for a single loser; keep a loop
+  binding only for a player group.
