@@ -8,14 +8,16 @@ have no `###` heading, so they never excuse a lost match. After an upstream fix,
 advance `reference.json`, re-prepare the inputs and recount. Paths are IR paths
 inside the face's ability list.
 
-Entries were reported against `1cd0b57efcf32b842557a9bb74b985df98da3daa`.
-Upstream reviewed them in `docs/reference-decisions-20261111.md`; the current
-reference is `7228b84b2b9398976246b595098f7f5e5fb4fc88` (schema 190). Paths
-and statuses refer to that revision unless noted.
+The current reference is `0a8d67d968793f2aedade48349986b180d61d5a0` (schema
+190). Upstream reviewed the grammar's 53 differing faces at `1fe5782` in
+`docs/reference-decisions-20261112.md`, with a per-face ledger in
+`reference-decisions-20261112.json`, and closed the nine held for a witness in
+`docs/reference-nine-resolutions-20261112.md`. No face is disputed now, so no
+`###` heading remains.
 
 ## Resolved upstream
 
-Each named face matches at `7228b84`.
+At `7228b84` (`docs/reference-decisions-20261111.md`):
 
 - Balustrade Wurm, Resurrected Cultist: "and only as a sorcery" keeps
   `sorcery: true`.
@@ -37,327 +39,55 @@ Each named face matches at `7228b84`.
 - Veteran's Armaments: the grammar withdrew its dispute and reads `it` in a
   granted holder's own trigger as `EventSubject`, as upstream kept.
 
-## Perpetual effect after an ordinary return to hand
+At `cb24df1` (`docs/reference-decisions-20261112.md`):
 
-The producer's normal form puts `CreatePerpetualEffect` on the whole
-`Transition{result, phase:After}` of the return (Giant Regrowth, Nightclub
-Bouncer, Skyline Savior, Talion's Throneguard). Three faces whose Source names
-the card `TheCardPutInHandThisWay` instead of `TheCardReturnedToHandThisWay`
-keep the scalar `One(Result{..., index:0})`. The producer's put-in-hand branch
-needs a recorded return, and these Source actions do not record one. Candela,
-Aegis of Adagia has the same encoding and still matches through the grammar's
-general scalar reading. Upstream's decision of 2026-11-11 chose the full
-`Transition` for an ordinary return; these Source actions need that lowering.
+- Collective Voyage, Minds Aglow, Shared Trauma: every player reads
+  `PerformedTotal`, the total paid by all players, as Alliance of Arms does
+  (MTGish #139).
+- Leela, Sevateem Warrior and Xyris, the Writhing Storm: the trigger filters
+  `DrawsCard` by `Not(FirstDrawInOwnDrawStep(EventSubject))`, as Orcish
+  Bowmasters does (#270).
+- Paths of Tuinvale and Veko, Death's Doorkeeper: an ordinary return records
+  the full `Transition{result, phase:After}` for a perpetual change, and
+  "perpetually becomes a Spirit" sets creature types (#271).
+- Portal to Phyrexia: "is" or "has" after a move onto the battlefield describes
+  the object as it enters (CR 611.2e, 614.12), so the characteristics join the
+  arrival's `Changes`; a later "becomes" stays a continuous effect. Upstream
+  applied the same correction to Ascent of the Worthy; Ashiok, Nightmare
+  Weaver; Chainer, Dementia Master; Grave Betrayal; Liliana, Death's Majesty;
+  Lorcan, Warlock Collector and Sorin, Vengeful Bloodlord (#272). The grammar
+  reads all of them through `entry_characteristics_move`.
+- A card's characteristics after an exile come from `Transition{phase:After}`;
+  `Before` stays for a permanent exiled this way. Nyla and Negative Zone Portal
+  changed with it, and Omen Machine now matches (see the one-card exile group).
+- Lamplight Phoenix: "this card" after its own exile cost is
+  `CostObjects{payment:Resolution(0), component:[0], view:Performed, phase:After}`,
+  as in Estrid's Invocation, Hikari, Twilight Guardian and Obzedat, Ghost
+  Council.
+- Know Naught but Fire: `ForEachPlayer` binds each opponent to their own hand
+  count.
+- Old Man Willow: one optional `Sacrifice` of another creature or a token, then
+  one reflexive trigger, as in Gut, True Soul Zealot.
+- Jace, Cunning Castaway and Tale of Katara and Toph: "it" in the holder's own
+  trigger is `EventSubject`.
+- Goblin Snowman: one prevention whose event is `Either` of the two damage
+  branches.
+- Ward of Piety: "the next N damage" is `TotalDamage(N)` with `RedirectDamage`
+  (#273).
 
-### Paths of Tuinvale
+At `0a8d67d` (`docs/reference-reflecting-mirror-20261112.md`):
 
-- At `[0].args.announcement.modes.options[0].body.instructions[1].args.operation.args.objects`
-  and `options[1]`: reference `One(Result{result:0, phase:After, index:0})`
-  and `result:1`, expected `Transition{result:0, phase:After}` and `result:1`.
-- Status: open.
-
-### Veko, Death's Doorkeeper
-
-- At `[1].args.body.instructions[1].args.operation.args.objects`: reference
-  `One(Result{result:0, phase:After, index:0})`, expected
-  `Transition{result:0, phase:After}`.
-- At `[1].args.body.instructions[1].args.operation.args.changes[0]`: reference
-  `CreatureTypes{mode:Add, types:Listed([Spirit])}` for "perpetually becomes a
-  Spirit", expected `mode:Set`, as in Heir to Dragonfire ("perpetually becomes
-  a Dragon") and Second Little Pig. Only "in addition to its other types" adds
-  (The Grand Goatnapper, Prototype X-8).
-- Witness for `mode:Set`: return a Zombie creature card. After "becomes a
-  Spirit" it is no longer a Zombie, so an effect that counts or reduces Zombie
-  spells stops applying to it; `mode:Add` keeps it a Zombie Spirit.
-- Status: open.
-
-## "The total amount of mana paid this way" read per player
-
-`Expr::PerformedTotal` adds up every run of a `ForEachPlayer`; `Performed` read
-by a later instruction over the players is each player's own amount. Upstream
-retained Alliance of Arms's `PerformedTotal` on that contract, and the grammar
-now reads the sentence that way, so Alliance of Arms matches. Three faces with
-the same join-forces sentence read `Performed(0)` from a per-player
-instruction, so each player gets only their own payment instead of the total.
-
-### Collective Voyage
-
-- At `[0].args.body.instructions[1].args.body.instructions[0].args.operation.args.choices[0].count.UpTo`:
-  reference `Performed(0)` inside the per-player search, expected
-  `PerformedTotal(0)`.
-- Status: open.
-
-### Minds Aglow
-
-- At `[0].args.body.instructions[1].args.operation.args.amount`: reference
-  `Performed(0)` in `Draw{players:All}`, expected `PerformedTotal(0)`.
-- Status: open.
-
-### Shared Trauma
-
-- At `[0].args.body.instructions[1].args.operation.args.amount`: reference
-  `Performed(0)` in `Mill{players:All}`, expected `PerformedTotal(0)`.
-- Status: open.
-
-Witness for all three, under the `Performed` contract upstream kept for
-Alliance of Arms: in a two-player game you pay {3} and your opponent pays
-nothing. "The total amount of mana paid this way" is 3, so each player draws,
-mills or searches for 3. `Performed(0)` gives you 3 and your opponent 0.
-
-## A draw "except the first one they draw in each of their draw steps" read as a draw-step window
-
-The trigger fires on every draw except a player's first draw in their own draw
-step, so it fires on draws in any other step or turn. `Filtered{NthEachTurn{…,
-NotEqual 1}, Window(DrawStep)}` fires only during a draw step, and only after
-that turn's first draw. Orcish Bowmasters reads the trigger as
-`Filtered{Player{DrawsCard, …}, Not(FirstDrawInOwnDrawStep(EventSubject))}`,
-and the replacement wording uses `DrawExceptFirstInDrawStep`. The grammar now
-reads the trigger as Orcish Bowmasters does, so Orcish Bowmasters matches.
-
-### Leela, Sevateem Warrior
-
-- At `[0].args.event.Filtered`: reference `NthEachTurn` over
-  `Player{DrawsCard, OpponentsOf(AbilityController)}` with `NotEqual 1` and
-  `Window(DrawStep)`, expected `Player{DrawsCard, OpponentsOf(AbilityController)}`
-  with `Not(FirstDrawInOwnDrawStep(EventSubject))`.
-- Status: open.
-
-### Xyris, the Writhing Storm
-
-- At `[1].args.event.Filtered`: same reference and expected forms as Leela,
-  Sevateem Warrior.
-- Status: open.
-
-Witness for both: during your end step an opponent cycles a card and draws.
-That draw is not the first one in their own draw step, so the printed trigger
-fires; `Window(DrawStep)` does not. Likewise, an opponent's first draw of your
-turn fires the printed trigger but fails `NthEachTurn ... NotEqual 1`.
-
-## "Sacrifice another creature or a token" split into two sacrifices
-
-"Sacrifice <A> or <B>" sacrifices one permanent that is either. Gut, True Soul
-Zealot and the Wyll of the Blade, Elder and Fey Pact faces read "sacrifice
-another creature or an artifact" as one `Sacrifice` over
-`AnyOf([AllOf([Creature, Not(SameObject(Source))]), CardType(Artifact)])`.
-Old Man Willow alone reads the same disjunction as a choice among separate
-sacrifices.
-
-### Old Man Willow
-
-- At `[1].args.body.instructions[0]`: reference `ChooseOne` whose options are a
-  `Sacrifice` of another creature, a `Sacrifice` of a token and an empty
-  option, with the reflexive trigger repeated in both sacrifices; expected
-  `Optional` over one `Sacrifice` of
-  `AnyOf([AllOf([Creature, Not(SameObject(Source))]), Token])`, followed by the
-  reflexive trigger.
-- Finding: no witness exists. Each choice sacrifices one permanent that is
-  another creature or a token, or none, and the reflexive trigger follows the
-  same sacrifice. Consolidate to one `Sacrifice` of the disjunction, as in Gut,
-  True Soul Zealot.
-- Status: open.
-
-## "It" in a granted or token holder's own trigger read as `Source`
-
-In a holder's own trigger, `it` names the event's object, as in a printed
-self-trigger. The reference reads it as `EventSubject` in granted and token
-abilities such as Dismiss into Dream and Makeshift Mannequin ("When this
-creature becomes the target of a spell or ability, sacrifice it."), Vrondiss,
-Rage of Ancients ("When this token deals damage, sacrifice it."), Dionus,
-Elvish Archdruid ("Whenever this creature becomes tapped during your turn,
-untap it and put a +1/+1 counter on it."), Fungus Sliver and Veteran's
-Armaments. Two faces read the same `it` as `Source`.
-
-### Jace, Cunning Castaway
-
-- At `[1].args.body.instructions[0].args.operation.args.tokens[0].recipe.Defined.abilities[0].args.body.instructions[0].args.operation.args.objects.args`:
-  reference `{"kind":"Source"}`, expected `{"kind":"EventSubject"}`.
-- Status: open.
-
-### Tale of Katara and Toph
-
-- At `[0].args.changes[0].args.args.body.instructions[0].args.operation.args.placements[0].recipients.args.args`:
-  reference `{"kind":"Source"}`, expected `{"kind":"EventSubject"}`.
-- Status: open.
-
-## A written attack requirement moved after a later change
-
-The reference gives "attacks each combat if able" its own `Static` after the
-static holding the other changes, so merged statics list the requirement last.
-That keeps written order where the requirement is written last (Craving of
-Yeenoghu: "gets +3/+2, has haste, and attacks each combat if able"). Skeletal
-Swarming writes it between two changes, and the reference moves it after the
-later one.
-
-### Skeletal Swarming
-
-- At `[0].args.changes`: reference `[GrantKeyword(Trample), Pump{power:
-  CountObjects(...), toughness: Constant(0)}, Rule(RequireCombat{action:
-  Attack(Any), amount: AtLeast(Constant(1))})]`, merged from
-  `Static[GrantKeyword, Pump]` and `Static[Rule(RequireCombat)]`; expected the
-  written order `[GrantKeyword(Trample), Rule(RequireCombat), Pump]`.
-- Finding: no witness exists. Changes in one static apply by layer, not by
-  list order, so the orders agree. Consolidate to the written order.
-- Status: open.
-
-## Retained upstream pending a witness
-
-Upstream kept these encodings and named the test that would justify a change.
-Each entry stays open until that witness is supplied or the dispute is dropped.
-
-### Waterspout Warden
-
-- At `[0].args.intervening_if.args.left.args.event.ZoneChange.objects.args[2].args.args`:
-  reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
-- Witness: the history reader keeps the outer event frame; show that
-  `EventSubject` rebinds to the queried history event.
-- Finding: no witness exists under that contract. The outer subject is the
-  attacking Warden itself, so `EventSubject` and `Source` agree in every state.
-  Consolidate to `Source`.
-- Status: open.
-
-### Storm Entity
-
-- At `[1].args.body.instructions[0].args.operation.args.change.AddCounters.amount.args.event.Spell.spells.args.args`:
-  reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
-- Witness: the entry replacement's subject is the entering source; show where
-  it differs from `Source`.
-- Finding: no witness exists. The entering subject is the source in every
-  entry, cast or not, so the forms agree. Consolidate to `Source`.
-- Status: open.
-
-### Graven Dominator
-
-- At `[2].args.body.instructions[0].args.operation.args.affected.Objects.args.filter.args[1].args.args`:
-  reference `{"kind":"EventSubject"}`, expected `{"kind":"Source"}`.
-- Witness: review each `AnyOf` branch (source entry, haunted creature death)
-  and its source incarnation separately.
-- Finding: no witness exists. In the entry branch `EventSubject` is the
-  source. In the haunt branch the haunted creature is in a graveyard and the
-  haunting source is in exile, so neither exclusion removes a battlefield
-  creature. Consolidate to `Source`.
-- Status: open.
-
-### In Thrall to the Pit
-
-- At `[0].args.paid` and `[0].args.unpaid`: reference records the control
-  change as result `0` and names the creature `Recorded{result:0}` for untap,
-  haste and the delayed sacrifice, expected `Target{slot:0, index:0}` with no
-  recorded result.
-- Witness: a failed control change or moved target showing that `Recorded`
-  names something other than the target.
-- Finding: no witness exists. With one target, an illegal target stops the
-  whole spell, and a legal one is the object `Recorded{result:0}` names, even
-  when its controller does not change. Consolidate to `Target`.
-- Status: open.
-
-### Liliana, Death Mage
-
-- At `[2].args.body.instructions[0].args.operation.args.amount.args[1].args.args.scope.Players.players.args`:
-  reference `{"kind":"Prior","args":"That"}`, expected
-  `{"kind":"Target","args":{"slot":0,"index":0}}`, as in 22 of 24 controls.
-- Witness: verify the per-recipient reading of `Prior(That)`.
-- Finding: no witness exists. The one target opponent is the only player
-  `Prior(That)` can name here. Consolidate to `Target`.
-- Status: open.
-
-### Cryptic Coat
-
-- At `[0].args.body.instructions[1].args.operation.args.host`: reference
-  `{"kind":"Recorded","args":{"result":0,"by":null}}`, expected
-  `{"kind":"Result","args":{"result":0,"phase":"After","index":0}}`, as in 12
-  cloak and manifest controls.
-- Witness: a before/after mismatch between `Recorded` and the cloaked result.
-- Finding: no witness exists. Cloak makes at most one permanent; `Recorded`
-  names it when it exists and nothing otherwise, as `Result{index:0}` does.
-  Consolidate to `Result`.
-- Status: open.
-
-### Know Naught but Fire
-
-- At `[0].args.body.instructions[0]`: reference one `DealDamage` whose amount
-  reads the `Acting` player's hand, expected `ForEachPlayer` over
-  `OpponentsOf(AbilityController)` with `Bound(0)` as recipient and hand owner.
-- Witness: show that the implicit per-recipient row misreads the hand count.
-- Status: open.
-
-### Skybreen
-
-- At `[2].args.body.instructions[0].args.operation.args.amount.args.args.scope.Players.players.args`:
-  reference `{"kind":"Acting"}`, expected
-  `{"kind":"Target","args":{"slot":0,"index":0}}`, as in Balor and
-  Laquatus's Creativity.
-- Witness: verify the per-recipient reading of `Acting`.
-- Finding: no witness exists. With one target player, `Acting` is that
-  player for the life loss. Consolidate to `Target`.
-- Status: open.
-
-### Ward of Piety
-
-- At `[1].args.body.instructions[0].args.operation`: reference
-  `RedirectSomeDamage([Constant(1), Targets(0)])` with limit `NextOccurrence`,
-  expected `RedirectDamage(Targets(0))` with limit `TotalDamage(Constant(1))`,
-  as in 16 "the next N damage" controls.
-- Witness: a counterexample for N = 1, where the two forms may coincide.
-- Status: open.
-
-### Dream Thief
-
-- At `[1].args.body.instructions[0].args.condition`: reference
-  `ObjectMatches{object:Source, filter:Condition(PlayerDid ...)}`, expected
-  `Compare` over `EventHistory` of blue spells you cast this turn other than
-  this one, as in 12 controls.
-- Witness: show the history predicate or own-spell exclusion is wrong, not
-  only the wrapper.
-- Finding: both forms have the same history predicate and the same
-  `Not(SameObject(Source))` exclusion; only the `ObjectMatches(Source, ...)`
-  wrapper differs. If `ObjectMatches` fails once the source has left the
-  battlefield, a Dream Thief destroyed in response to its trigger is a witness:
-  the printed condition still lets you draw. Otherwise the forms agree;
-  consolidate to `Compare`.
-- Status: open.
-
-### Hit
-
-- At `[0].args.body.instructions[0]` and `[1]`: reference `PayCost` with
-  `If PaymentChosen` and `CostObjects`, expected a `Sacrifice` effect followed by
-  damage equal to the sacrificed permanent's mana value through
-  `Transition{result:0, phase:Before}`, as in 5 controls.
-- Witness: a failed-payment or replacement case where the mandatory payment
-  differs from an explicit sacrifice.
-- Status: open.
-
-### Deathbringer Regent
-
-- At `[1].args.intervening_if`: reference
-  `ObjectMatches{object:Source, filter:AllOf([Condition(Compare(CountObjects(Difference(creatures, Candidate)) >= 5)), Cast ...])}`,
-  expected `AllOf([ObjectMatches(Source, cast from hand), Compare(...)])` whose
-  count excludes the source with `Not(SameObject(Source))`, as in 6 "other
-  creatures" count controls and the split "if you cast it and ..." of
-  Inquisitor Captain.
-- Witness: a binding counterexample for `Candidate` inside the conjunction.
-- Finding: agreed that no binding counterexample exists; `Candidate` is the
-  source here. Consolidate to the split form of the controls.
-- Status: open.
-
-### Goblin Snowman
-
-- At `[0].args.body.instructions`: reference two `CreateReplacement` effects for
-  "dealt to" and "dealt by", expected one `CreateReplacement` whose event is
-  `Either` of the two damage branches, as in 23 "dealt to and dealt by"
-  controls such as Elvish Scout and Maze of Ith.
-- The grammar returns both `Either` branch orders here because the reference
-  writes the wording both ways (see the branch-order group below).
-- Witness: a damage or replacement interaction where the two effects differ
-  from one.
-- Status: open.
+- Reflecting Mirror: the target is any spell with a single target. The
+  reference had also required its mana value to equal X, which excludes every
+  nonzero target because X is twice that mana value (#274).
 
 ## Retained by the reference
 
-Upstream judged these encodings correct or equivalent and kept them. Each face
-is the only one with its encoding: matched faces with the same wording use the
-grammar's encoding, so the grammar keeps that encoding. These faces stay
-different until upstream unifies the wording. They are not reference errors,
-and the grammar adds no alias for them.
+Upstream judged these encodings valid contracts or equivalent forms and kept
+them. In each, matched faces with the same wording use the grammar's encoding,
+or the reference splits the wording with no majority, so the grammar keeps its
+encoding and the face stays different. They are not reference errors, and the
+grammar adds no alias for them. Faces in a group below are listed there.
 
 #### Karn's Touch
 
@@ -392,26 +122,84 @@ and the grammar adds no alias for them.
 #### Bloodroot Apothecary
 
 - `Not(SameObject(Source))` beside `[Not(CardType(Creature)), Token]` is
-  redundant, so no witness exists. The source is a nontoken creature card. A
-  token copy would be sacrificed only by its controller (CR 701.21a), who also
-  controls the look-back trigger (CR 603.10a) and is not their own opponent.
-  6 controls with the same event omit the exclusion.
+  redundant. A token copy would be sacrificed only by its controller (CR
+  701.21a), who also controls the look-back trigger (CR 603.10a) and is not
+  their own opponent. 6 controls with the same event omit the exclusion.
 
 #### Worzel, the Protector, Nemesis Mask, Molly Hayes, Runaway, Forbidden Crypt
 
 - Redundant or equivalent forms: Worzel's `CardType(Land)` beside a basic
-  Plains, Nemesis Mask's dual combat requirements, Molly Hayes's
-  `Transition{result:0, phase:After}` for a one-card exile, and Forbidden
-  Crypt's repeated graveyard scope.
+  Plains; Nemesis Mask's `Block` requirement on every able creature, where
+  Lure and 20 other statics require the creature to be `BeBlocked` by each;
+  Molly Hayes's `Transition{result:0, phase:After}` for a one-card exile, where
+  71 impulse faces read `One(Result{..., index:0})`; and Forbidden Crypt's
+  repeated graveyard scope.
+
+#### Hit
+
+- A mandatory resolving `PayCost` of the sacrifice, with the damage under
+  `If PaymentChosen` and the mana value read from
+  `CostObjects{payment:Resolution(0), view:Inputs, phase:Before}`. Five
+  controls read a `Sacrifice` effect and `Transition{result:0, phase:Before}`.
+  Upstream showed the forms agree for this sole-target, one-sacrifice damage
+  follow-up and kept the explicit cost receipt.
+
+#### Deathbringer Regent
+
+- `ObjectMatches{object:Source, filter:AllOf([Condition(Compare(...)), Cast ...])}`,
+  whose count excludes `Candidate`. The grammar splits the conjunction and
+  excludes `Source`, as 6 "other creatures" count controls and Inquisitor
+  Captain do. Upstream found no binding counterexample and kept its form.
+
+#### Dream Thief
+
+- `ObjectMatches{object:Source, filter:Condition(PlayerDid ...)}`; 12 controls
+  read `Compare` over `EventHistory`. The history predicate and own-spell
+  exclusion are the same, and `ObjectMatches` reads the source's last-known
+  identity after it leaves.
+
+#### Cryptic Coat
+
+- `Recorded{result:0}` names the cloaked permanent; 12 cloak and manifest
+  controls read `Result{result:0, phase:After, index:0}`. Cloak makes at most
+  one permanent, so the forms agree.
+
+#### In Thrall to the Pit
+
+- The control change is recorded as result `0`, and `Recorded{result:0}` names
+  the creature for untap, haste and the delayed sacrifice; the grammar reads
+  `Target{slot:0, index:0}`. With one target the two name the same object.
+
+#### Liliana, Death Mage
+
+- `One(Target)` for "up to one target creature card", and `Prior(That)` for
+  the player in the last ability, where 22 of 24 controls read `Target`.
+
+#### Skybreen
+
+- `Acting` for "their hand"; Balor and Laquatus's Creativity read
+  `Target{slot:0, index:0}`. With one target player the forms agree.
+
+#### Waterspout Warden, Storm Entity, Graven Dominator
+
+- `EventSubject` where the grammar reads `Source` for an excluded self. Nine
+  "another ... entered the battlefield this turn" faces read `Source`, as do
+  the spell-history counts of Thrasta, Tempest's Roar, Call Forth the Tempest
+  and Thunder Salvo. Upstream showed each event subject is the source here and
+  kept separate identities.
+
+#### Skeletal Swarming
+
+- The reference lists "attacks each combat if able" after the later pump; the
+  grammar keeps the written order. Changes in one static apply by layer, and
+  this is the only face whose requirement is written between two changes.
 
 ## Same wording encoded more than one way
 
-These are not single errors. The reference encodes the same wording in more
-than one way, and one encoding should be chosen everywhere. Groups use `####`
-headings and faces appear only in bullets, so these entries never excuse a lost
-match. Faces the grammar currently scores as different are marked
-*(different)*. Upstream kept every group at `7228b84`; each one's review
-requirement comes before any normal form is chosen.
+The reference encodes the same wording in more than one way, and upstream kept
+every encoding below. Groups use `####` headings and faces appear only in
+bullets, so these entries never excuse a lost match. Faces the grammar scores as
+different are marked *(different)*.
 
 #### Self references inside a reflexive "When you do" body
 
@@ -424,8 +212,8 @@ requirement comes before any normal form is chosen.
 - Direct counterparts: Passenger Ferry and Ambergris (attack trigger,
   "another target"); Electro and Leyline Tyrant (leave or die, "When you do,
   it/he deals").
-- Review: keep creator, source, granted holder and reflexive subject distinct;
-  use `Source` only where the event frame proves it is the same holder.
+- Upstream keeps `Source` in these three: a reflexive payment is not an object
+  event that rebinds `EventSubject`.
 
 #### "You may <action>." followed by sentences that depend on it
 
@@ -436,18 +224,20 @@ requirement comes before any normal form is chosen.
   Through the Breach, Swift Warkite, Vizier of Deferment, Purphoros,
   Bronze-Blooded, Dawn of the Dead *(different)*, Mirror Mockery *(different)*,
   Wandering Graybeard *(different)* and Ilharg, the Raze-Boar *(different)*.
-- Review: the guarded payment form for Dawn, Mirror and Ilharg was kept on
-  purpose; frequency alone does not reopen it.
+- Upstream keeps the guarded payment for Dawn, Mirror and Ilharg (CR 118.12)
+  and Wandering Graybeard's guarded look and reveal.
 
 #### Random return from a graveyard to a hand
 
-- "Return <a card> at random from your graveyard to your hand" uses
-  `WithSelections{chooser:Chance}` in triggered abilities (Ghoulraiser,
-  Woodland Sleuth, Viconia, Drow Apostate, Nephalia) and
-  `ChooseObjects{constraints:[AtRandom]}` in spells and activated abilities
-  (Fossil Find, Make a Wish, The Deck of Many Things, Haunted Fengraf
-  *(different)*).
-- Review: compare cardinality, batch and population before choosing one form.
+- `ChooseObjects{constraints:[AtRandom]}`: 19 faces of every ability kind, such
+  as Fossil Find, Surreal Memoir, Make a Wish, The Deck of Many Things and
+  Haunted Fengraf.
+- `WithSelections{chooser:Chance}`: Charmbreaker Devils, Exalted Flamer of
+  Tzeentch, Ghoulraiser, Nephalia, Viconia, Drow Apostate and Woodland Sleuth.
+- The grammar reads a written card filter with `ChooseObjects` and returns the
+  chance selection beside it, so the five faces among these that have a filter
+  carry both readings until one form is chosen. Upstream found both choose one
+  card uniformly at resolution.
 
 #### A targeted object's pronoun inside a delayed trigger
 
@@ -458,24 +248,31 @@ requirement comes before any normal form is chosen.
 - Long River Lurker's "you may exile it" follows the pronoun: a `Move` cost of
   the target under `Target`, and a `PlayerAction` exile of `EventSubject` read
   back through `Transition` under `EventSubject`.
-- Review: a delayed turn event has no object subject; show whether
-  `EventSubject` captures the outer trigger, and keep the target's identity.
+- Upstream keeps the captured target: the delayed event matches
+  `SameObject(Target(0))`, so its subject is that original target.
 
 #### "Another" in a compound "enters or attacks" self-trigger
 
-- `EventSubject`: Sephiroth, Fabled SOLDIER, Picard, Steadfast Captain,
-  Shredder, Unrelenting, Korvold, Fae-Cursed King *(different)* and 2 more.
-- `Source`: Hei Bai, Spirit of Balance, with the same wording as Sephiroth.
-- Review: check both event branches and any granted holder before unifying.
+- `EventSubject`: Arashin Foremost, Ellivere of the Wild Court, Picard,
+  Steadfast Captain, Shredder, Unrelenting, The Rani and Korvold, Fae-Cursed
+  King *(different)*.
+- `Source`: Hei Bai, Spirit of Balance. Sephiroth, Fabled SOLDIER reads both.
+- Among sacrifices the split is one each: Korvold `EventSubject`, Hei Bai
+  `Source`, Sephiroth both; the grammar reads a sacrifice's "another" as
+  `Source`.
 
-#### "If it's a <type> card" after a one-card exile
+#### "If it's a <type> card" after a one-card move
 
-- `Compare(CountObjects(Matching(Transition{result:0, phase:Before}, type)) > 0)`:
-  Audacious Swap, Kianne, Dean of Substance, Omen Machine *(different)*.
-- `ObjectMatches(Result{result:0, phase:After, index:0}, type)`: Bruse Tarl,
-  Roving Rancher, Deadbridge Chant, Search for Survivors.
-- Review: Before and After views can differ under replacements; the printed
-  sentence and actual receipt decide the view.
+- `Compare(CountObjects(Matching(Transition{result, phase:After}, type)) > 0)`:
+  23 faces, such as Audacious Swap, Bioplasm, Dimensional Infiltrator, Kianne,
+  Dean of Substance, Mind's Dilation and Omen Machine.
+- `ObjectMatches(Result{result, phase:After, index:0}, type)`: Bruse Tarl,
+  Roving Rancher, Rundvelt Hordemaster and Pep, Raucous Raider; Deadbridge
+  Chant and Search for Survivors after a random choice.
+- The grammar reads "<player> exiles the top card of their library. If it's a
+  <type> card" with the count, as every face with that wording does. After
+  "exile the top card of your library" both forms occur, so the general reading
+  is the scalar and one-card seeded rules supply the count.
 
 #### "Untap those creatures" after a per-opponent control change
 
@@ -484,33 +281,29 @@ requirement comes before any normal form is chosen.
 - Review: a failed control change must show whether the receipt names the
   attempted or the successful objects.
 
-#### A type added to a returned creature
-
-- Arrival-state `Changes` on the `Move`: Path of the Schemer, Spawning Pod.
-- A `CreateContinuousEffect` on the moved result after the `Move`: Lorcan,
-  Warlock Collector, Ashiok, Nightmare Weaver, Portal to Phyrexia *(different)*.
-- Review: arrival changes set entry characteristics and later effects do not;
-  review wording and entry replacements per card.
-
 #### A property of a single result
 
 - `ObjectProperty(Result{..., index:0})` in 32 controls such as Seek, and
   `Aggregate` sum over the result in 28, such as Daredevil, Fearless Fighter
   and Satya, Aetherflux Genius *(different)*.
-- Review: unify only for a proven zero-or-one set with the same empty case.
+- Satya is the only face that reads a property of created tokens. Upstream
+  rejected the scalar: token doubling can make one requested token several,
+  and the sacrifice already addresses all of them. The grammar reads "its" as
+  `Result{index:0}`; reading the whole batch needs a batch reference for "its"
+  with its own printing inverse.
 
 #### The last-known state of a sacrificed fixed object
 
 - `EventSubject` or `Source`: Foot Chopper, Riders of the Mark. `Recorded`:
   Ravenous Slime. `Transition{phase:Before}`: Myriad Construct *(different)*.
-- Review: these coincide only with the exact original incarnation and an
-  explicit last-known view.
+- Upstream keeps Myriad Construct's sacrifice receipt with `CurrentOrLastKnown`,
+  which pins the exact original object and its power.
 
 #### "This card" after the card exiled itself
 
 - `InZone(Source, Exile)`, `InZone(Transition, Exile)` and
   `InZone(CostObjects, Exile)` each appear (Lucius the Eternal, Liliana,
-  Heretical Healer, Reborn Hero, Lamplight Phoenix *(different)*).
+  Heretical Healer, Reborn Hero, Lamplight Phoenix).
 - Review: keep the post-cost or post-exile incarnation and its expected zone;
   Kogla shows a generic `Source` can be wrong.
 
@@ -518,9 +311,9 @@ requirement comes before any normal form is chosen.
 
 - No Quarter *(different)* names the event subject `BlockPair(Attacker)` in
   "becomes blocked by a creature with lesser power" and `EventSubject` in the
-  mirrored "blocks a creature with lesser power".
-- Review: attacker and blocker roles bind per event; mirrored clauses may need
-  different references.
+  mirrored "blocks a creature with lesser power"; the grammar reads
+  `BlockPair(Blocker)` there.
+- Upstream showed both spellings generate byte-identical code.
 
 #### Operand order of "N life more than your starting life total"
 
@@ -536,7 +329,6 @@ requirement comes before any normal form is chosen.
 - `OwnedBy(One(AbilityController))` beside `from: Graveyard`: Veteran
   Ghoulcaller *(different)* ("a card in your graveyard is put into your hand").
 - The grammar keeps `InZone` for this wording.
-- Review: choose one filter for a card named by the zone it leaves.
 
 #### Branch order of "dealt to and dealt by"
 
@@ -544,7 +336,6 @@ requirement comes before any normal form is chosen.
 - Dealt-by branch first: Cephalid Illusionist, Energy Arc, Soratami Cloud
   Chariot and Statecraft.
 - The grammar returns both orders for this wording until one is chosen.
-- Review: a normal-form choice for one two-branch event, not a rules defect.
 
 #### A perpetual effect on a creature that just died
 
@@ -562,12 +353,8 @@ requirement comes before any normal form is chosen.
 - `EventSubject`: Norman Osborn *(different)* ("Whenever Norman Osborn deals
   combat damage to a player, he connives") and Jack of Hearts, Volatile Hero
   ("When Jack of Hearts dies, he deals damage").
-- "It" in the same places is `EventSubject` in attack triggers (Atlantean
-  Skirmisher, Copycrook) and `Damage(Source)` in combat-damage triggers
-  (Cyclonus, the Saboteur, Security Bypass), so the gendered pronoun differs
-  from "it" in each context, in opposite directions.
-- Review: decide whether a gendered pronoun reads like "it" in each event
-  frame; a dies trigger needs the departed object either way.
+- Upstream keeps Norman Osborn's form: connive is object-directed (CR
+  701.50a-b), and the object's controller performs it.
 
 #### "Their life" after a named losing player
 
@@ -579,6 +366,5 @@ requirement comes before any normal form is chosen.
   (`EventSubject`). `Bound` under `ForEachPlayer`: Betor, Kin to All, Fraying
   Omnipotence, Skull Storm and Shahrazad.
 - The grammar reads the named loser for Personal Incarnation,
-  `OwnerOf(Source)`, and `Acting` for a player group.
-- Review: choose `Acting` or the named player for a single loser; keep a loop
-  binding only for a player group.
+  `OwnerOf(Source)`, and `Acting` for a player group. Upstream keeps `Acting`
+  as the player receiving the life loss.
