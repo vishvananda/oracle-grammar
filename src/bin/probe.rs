@@ -1,5 +1,6 @@
 //! Parses one card's text and prints each reading and its first prints.
 use oracle_ir_grammar::engine::Engine;
+use oracle_ir_grammar::parse::RuleSet;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args()
@@ -19,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let done = worker.spawn(move || -> Result<(), String> {
         if std::env::var_os("PROBE_MINED").is_some() {
-            let audited = engine.audited(&name, &text)?;
+            let audited = engine.audited(&name, &text, &RuleSet::default())?;
             for (_, abilities) in &audited {
                 println!("mined {abilities:?}");
             }

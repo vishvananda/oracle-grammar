@@ -17,7 +17,7 @@ import pin
 
 ROOT = Path(__file__).resolve().parent.parent
 WORK = ROOT/'.cache/dev'
-BINS = ('family-check', 'probe', 'inspect', 'score', 'validate-readings')
+BINS = ('family-check', 'probe', 'inspect', 'score', 'validate-readings', 'rule-audit')
 
 
 def source(root=ROOT):

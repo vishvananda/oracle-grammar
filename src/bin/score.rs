@@ -226,33 +226,14 @@ fn judge(
     options: &Options,
 ) -> Result<Judged, String> {
     let name = face["name"].as_str().unwrap_or_default();
-    let original = source::original(oracle, face)
-        .ok_or("original source metadata missing for this card and face")?;
-    let source = original.text.as_str();
-    let empty = oracle_ir_grammar::engine::empty_card_characteristics();
-    let (mut source_context, source_error) = match engine.card_input_context(
-        name,
-        source,
-        &empty,
-        original.printed_power_toughness.clone(),
-    ) {
-        Ok(context) => (context, None),
-        Err(why) => (
-            oracle_ir_grammar::engine::CardInputContext {
-                characteristics: empty,
-                printed_power_toughness:
-                    oracle_ir_grammar::engine::PrintedPowerToughness::Unavailable,
-                station_nonanimating: false,
-                station_animation: None,
-                station_present: true,
-            },
-            Some(why),
-        ),
-    };
+    let source::Input {
+        text: source,
+        context: source_context,
+        error: source_error,
+    } = source::input(engine, oracle, face)?;
+    let source = source.as_str();
     let contextual_face = if source_context.station_present {
         let mut contextual_face = face.clone();
-        source_context.characteristics =
-            serde_json::from_value(face["characteristics"].clone()).map_err(|e| e.to_string())?;
         contextual_face["_source_context"] =
             serde_json::to_value(&source_context).map_err(|e| e.to_string())?;
         Some(contextual_face)

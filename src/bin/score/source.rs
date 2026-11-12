@@ -1,5 +1,7 @@
 //! Original printed fields remain independent of native game characteristics.
-use oracle_ir_grammar::engine::PrintedPowerToughness;
+use oracle_ir_grammar::engine::{
+    CardInputContext, Engine, PrintedPowerToughness, empty_card_characteristics,
+};
 use serde_json::Value;
 use std::collections::{BTreeSet, HashMap, hash_map::Entry};
 use std::io::{BufRead, BufReader};
@@ -46,6 +48,48 @@ pub(super) fn original<'a>(sources: &'a Sources, face: &Value) -> Option<&'a Sou
         .map(|name| name.as_str().map(str::to_owned))
         .collect::<Option<Vec<_>>>()?;
     sources.get(&(names, face["name"].as_str()?.to_owned()))
+}
+
+/// What a face is read from: its original text and, for a Station card, the printed layout
+/// with the face's characteristics. A layout that cannot be read is kept as the error.
+pub(super) struct Input {
+    pub text: String,
+    pub context: CardInputContext,
+    pub error: Option<String>,
+}
+
+pub(super) fn input(engine: &Engine, sources: &Sources, face: &Value) -> Result<Input, String> {
+    let name = face["name"].as_str().unwrap_or_default();
+    let original =
+        original(sources, face).ok_or("original source metadata missing for this card and face")?;
+    let empty = empty_card_characteristics();
+    let (mut context, error) = match engine.card_input_context(
+        name,
+        &original.text,
+        &empty,
+        original.printed_power_toughness.clone(),
+    ) {
+        Ok(context) => (context, None),
+        Err(why) => (
+            CardInputContext {
+                characteristics: empty,
+                printed_power_toughness: PrintedPowerToughness::Unavailable,
+                station_nonanimating: false,
+                station_animation: None,
+                station_present: true,
+            },
+            Some(why),
+        ),
+    };
+    if context.station_present {
+        context.characteristics =
+            serde_json::from_value(face["characteristics"].clone()).map_err(|e| e.to_string())?;
+    }
+    Ok(Input {
+        text: original.text.clone(),
+        context,
+        error,
+    })
 }
 
 #[derive(Debug, PartialEq, Eq)]

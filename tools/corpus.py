@@ -216,6 +216,23 @@ def audit(args):
         raise ValueError(f'native audit failed; see {out/"audit.json"}')
 
 
+def rules(args):
+    """Which seeded rules a slice needs; every other seeded rule is a deletion candidate."""
+    data = inputs()
+    prepared = prepare(data)
+    out = WORK/'runs'/args.name
+    out.mkdir(parents=True, exist_ok=True)
+    flags = ['--credit'] if args.credit else []
+    with dev.lock(shared=True), (out/'rules.log').open('w') as log:
+        dev.run('rule-audit', [str(prepared/'gold.jsonl'), str(prepared/'oracle.json'),
+                               str(slice_path(args.name)), str(out/'rules.json'), *flags],
+                stdout=log)
+    report = json.loads((out/'rules.json').read_text())
+    print(json.dumps(report['summary']))
+    for face in report['unresolved'][:12]:
+        print(f"unresolved: {face['name']}: {face['why']}")
+
+
 def differences(gold, ours, path=()):
     """Minimal differing nodes: a kind change stops descent; lists compare by position."""
     if isinstance(gold, dict) and isinstance(ours, dict) and gold.get('kind') == ours.get('kind'):
@@ -316,6 +333,9 @@ def main():
     for command, help_text in (('audit', 'native validity and baseline-meaning preservation'),
                                ('accept', 'overlay a passing run onto the baseline')):
         commands.add_parser(command, help=help_text).add_argument('name')
+    needs = commands.add_parser('rules', help='seeded rules a slice needs, and the unused rest')
+    needs.add_argument('name')
+    needs.add_argument('--credit', action='store_true', help='also tally right and wrong faces')
     ranking = commands.add_parser('queue', help='cluster unmatched rows by shared mechanism')
     ranking.add_argument('name', nargs='?')
     commands.add_parser('prepare', help='verify inputs and filter them to the population')
@@ -323,7 +343,7 @@ def main():
     if args.command == 'prepare':
         print(prepare(inputs()))
     else:
-        {'slice': make_slice, 'score': score, 'audit': audit,
+        {'slice': make_slice, 'score': score, 'audit': audit, 'rules': rules,
          'queue': queue, 'accept': accept}[args.command](args)
 
 

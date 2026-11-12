@@ -316,14 +316,17 @@ impl Engine {
             .collect()
     }
 
-    /// Readings with the mined rules behind each ability. Tags keep readings of one value
-    /// apart, so a card can hit the reading limit here and not in [`Engine::parse`].
-    pub fn audited(&self, name: &str, text: &str) -> Result<Vec<Audited>, String> {
+    /// Readings with the mined rules behind each ability, as if the rules in `off` were
+    /// not in the grammar. Tags keep readings of one value apart, so a card can hit the
+    /// reading limit here and not in [`Engine::parse`].
+    pub fn audited(&self, name: &str, text: &str, off: &RuleSet) -> Result<Vec<Audited>, String> {
         let names = Names::of(name);
         let Ok(tokens) = tokens::tokenize(text, &names, &self.grammar.vocabulary) else {
             return Ok(Vec::new());
         };
-        let mut parser = Parser::new(&self.grammar, &tokens, self.limits).with_audit();
+        let mut parser = Parser::new(&self.grammar, &tokens, self.limits)
+            .without(off)
+            .with_audit();
         let values = parser.whole(self.root)?;
         let mut out = Vec::new();
         for value in values {
