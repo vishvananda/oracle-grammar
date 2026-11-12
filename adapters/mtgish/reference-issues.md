@@ -514,7 +514,7 @@ requirement comes before any normal form is chosen.
   the Nightbringer (`Target`); Havoc Festival, Quietus Spike and Grievous Wound
   (`EventSubject`). `Bound` under `ForEachPlayer`: Betor, Kin to All, Fraying
   Omnipotence, Skull Storm and Shahrazad.
-- The grammar's `ControllerOf(Source)` for Personal Incarnation is a grammar
-  issue: "their" must name the owner who loses the life.
+- The grammar reads the named loser for Personal Incarnation,
+  `OwnerOf(Source)`, and `Acting` for a player group.
 - Review: choose `Acting` or the named player for a single loser; keep a loop
   binding only for a player group.

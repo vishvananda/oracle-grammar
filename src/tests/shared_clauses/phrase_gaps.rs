@@ -521,3 +521,22 @@ fn a_spell_s_other_creatures_after_a_group_exclude_that_group() {
     let alone = "Other creatures you control get +1/+1 until end of turn.";
     assert_eq!(compared(alone), vec![json!({"kind":"Source"})]);
 }
+
+#[test]
+fn half_their_life_is_the_life_of_the_player_who_loses_it() {
+    let life = |text: &str| {
+        let mut found = Vec::new();
+        visit(&only_reading(text), "PlayerNumber", &mut found);
+        found
+            .iter()
+            .map(|number| number["player"].clone())
+            .collect::<Vec<_>>()
+    };
+    let owner = "When this creature dies, its owner loses half their life, rounded up.";
+    assert_eq!(
+        life(owner),
+        vec![json!({"kind":"OwnerOf","args":{"kind":"Source"}})]
+    );
+    let target = "Target opponent loses half their life, rounded up.";
+    assert_eq!(life(target)[0]["kind"], "Target");
+}
