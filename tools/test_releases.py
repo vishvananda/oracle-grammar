@@ -112,6 +112,12 @@ class ReleaseTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 releases.face_spec('../escape', self.root)
 
+    def test_release_checkout_must_remain_immutable_during_build(self):
+        with patch.object(releases, 'metadata', return_value=self.meta):
+            releases.unchanged(self.meta)
+            with self.assertRaisesRegex(ValueError, 'checkout changed'):
+                releases.unchanged({**self.meta, 'grammar': {'commit': 'b'*40}})
+
 
 if __name__ == '__main__':
     unittest.main()
