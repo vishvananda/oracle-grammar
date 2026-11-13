@@ -21,12 +21,13 @@ import tempfile
 
 import dev
 import pin
+import updates
 
 WORK = dev.ROOT/'.cache/corpus'
 MANIFEST = WORK/'inputs.json'
 ISSUES = dev.ROOT/'adapters/mtgish/reference-issues.md'
 INPUTS = ('allowed', 'oracle', 'reference', 'baseline')
-TRANSFORM = 1  # Bump when the allowed-population filter changes.
+TRANSFORM = 2  # Bump when the allowed-population filter or update application changes.
 
 
 def rows(path):
@@ -62,9 +63,11 @@ def allowed(data):
 
 
 def prepare(data):
-    """Filter Oracle and reference to the allowed faces once; verify derived bytes on reuse."""
+    """Filter Oracle and reference to the allowed faces once, applying the recorded export
+    updates to the reference; verify derived bytes on reuse."""
     identity = {name: data[name]['sha256'] for name in ('allowed', 'oracle', 'reference')}
     identity['transform'] = TRANSFORM
+    identity['updates'] = pin.digest(updates.UPDATES)
     key = pin.hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     destination = WORK/'prepared'/key
     if destination.exists():
@@ -84,14 +87,28 @@ def prepare(data):
             if cards:
                 records.append({'cards': cards})
         write(temporary/'oracle.json', records)
+        recorded = updates.load()
+        changes = updates.pending(recorded)
+        applied, seen = defaultdict(list), Counter()
         with resolve(data['reference']).open() as source, (temporary/'gold.jsonl').open('w') as out:
             for line in source:
                 record = json.loads(line)
                 faces = [face for face in record.get('faces', []) if face.get('name') in wanted]
+                for face in faces:
+                    seen[face['name']] += 1
+                    for update in updates.apply(face, changes.get(face['name'], ())):
+                        applied[update].append(face['name'])
                 if faces:
                     record['faces'] = faces
                     out.write(json.dumps(record)+'\n')
-        files = {name: pin.digest(temporary/name) for name in ('oracle.json', 'gold.jsonl')}
+        missing = sorted(name for name in changes if seen[name] != 1)
+        if missing:
+            raise ValueError('export updates name faces missing from, or repeated in, the '
+                             'allowed reference: ' + '; '.join(missing))
+        write(temporary/'updates.json', {'reference': recorded['reference'],
+                                          'applied': dict(sorted(applied.items()))})
+        files = {name: pin.digest(temporary/name)
+                 for name in ('oracle.json', 'gold.jsonl', 'updates.json')}
         write(temporary/'manifest.json', {'inputs': identity, 'files': files})
         temporary.rename(destination)
     return destination
@@ -137,6 +154,18 @@ def compare(before, after, issues=frozenset()):
                                    if name in issues and name not in report['lost_parses']]
     unexplained = [name for name in report['lost_matches'] if name not in report['documented_losses']]
     report['passed'] = not (unexplained or report['lost_parses'] or report['limits'])
+    return report
+
+
+def updated(prepared, after):
+    """For each applied export update, the statuses of the faces it changed in this run."""
+    applied = json.loads((prepared/'updates.json').read_text())['applied']
+    status = {row['name']: row['status'] for row in after}
+    report = {}
+    for identity, faces in applied.items():
+        counts = Counter(status[name] for name in faces if name in status)
+        if counts:
+            report[identity] = dict(sorted(counts.items()))
     return report
 
 
@@ -191,11 +220,14 @@ def score(args):
         return
     before = cohort(rows(resolve(data['baseline'])), cards)
     write_rows(out/'before.jsonl', before)
-    report = compare(before, rows(out/'rows.jsonl'), documented())
+    after = rows(out/'rows.jsonl')
+    report = compare(before, after, documented())
     report.update(slice=args.name, baseline_sha256=data['baseline']['sha256'],
-                  rows_sha256=pin.digest(out/'rows.jsonl'))
+                  rows_sha256=pin.digest(out/'rows.jsonl'), updates=updated(prepared, after))
     write(out/'changes.json', report)
     print(json.dumps({'before': report['before'], 'after': report['after']}))
+    for identity, statuses in report['updates'].items():
+        print(f'export update {identity}: ' + ', '.join(f'{n} {s}' for s, n in statuses.items()))
     for field in ('gained_matches', 'lost_matches', 'documented_losses', 'lost_parses',
                   'new_parses', 'reading_counts', 'limits'):
         if report[field]:

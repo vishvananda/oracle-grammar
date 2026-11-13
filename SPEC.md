@@ -119,6 +119,16 @@ Reference updates do not change the model or invalidate compiler inputs. If an
 upstream schema changes, an explicit adapter change or model migration is
 required; no implicit coercion is allowed.
 
+The pinned export is never edited in place. `adapters/mtgish/updates.json` holds
+the only local changes to reference records: each update is a correction or a
+normalization with evidence, naming every face it changes, the IR path, the value
+it replaces and its replacement. Updates are written against one reference
+revision and apply when corpus inputs are prepared. A missing face, an ambiguous
+name, a value that no longer matches or one upstream already adopted fails
+preparation, so advancing the reference reviews every update again. Scores report
+the faces each update changed. An update is a reviewed change to the expected
+meaning, never an equality alias or a scorer exception.
+
 Release assets are the intended distribution format for validation snapshots
 when available. Pin the artifact URL, SHA-256, schema version and producer
 revision. A tag alone is insufficient artifact identity. Keep downloaded corpora

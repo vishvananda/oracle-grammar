@@ -23,6 +23,7 @@ owns validation, canonicalization, binding contracts and compact authoring.
 `pins/model.json` records owned packages and extraction provenance. The MTGish
 reference lock lives separately in `adapters/mtgish/reference.json`;
 reference-only changes must not move the model or trigger a compiler rebuild.
+Change reference records only through `adapters/mtgish/updates.json`, with evidence.
 No local dependency patches or replacements. Normal builds must not depend on
 MTGish packages. Keep upstream-specific Source translation out of grammar rules.
 Use isolated checkouts for upstream experiments; preserve other workers' changes.

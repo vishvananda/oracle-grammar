@@ -1,7 +1,9 @@
 # Reference issues
 
-Disagreements between the pinned MTGish reference and the grammar. Gold is
-never edited locally. Each `###` heading names one face whose reference encoding
+Disagreements between the pinned MTGish reference and the grammar. The pinned
+export is never edited in place: [`updates.json`](updates.json) records the only
+local changes to it, applied when corpus inputs are prepared (see
+[README](README.md#export-updates)). Each `###` heading names one face whose reference encoding
 is still disputed; corpus comparisons accept a lost match only for a face listed
 under a `###` heading that still parses. Resolved and reference-retained faces
 have no `###` heading, so they never excuse a lost match. After an upstream fix,
@@ -256,19 +258,18 @@ At `54abf45` (`docs/ordered-zone-audit-20261113.md`):
 The reference encodes the same wording in more than one way, and upstream kept
 every encoding below. Groups use `####` headings and faces appear only in
 bullets, so these entries never excuse a lost match. Faces the grammar scores as
-different are marked *(different)*.
+different are marked *(different)*. No group is open at this reference.
 
-#### "If you've cast another <color> spell this turn"
+## Updated locally
 
-- `Compare(EventHistory(Spell Cast ...) > 0)`: Dream Thief *(different)* ("draw
-  a card if you've cast another blue spell this turn") and Hotheaded Giant
-  ("unless you've cast another red spell this turn"), the two former
-  `PlayerDid` forms.
-- `Compare(EventHistory(Spell Cast ...) >= 1)`: Patrician's Scorn, Soul Reap
-  ("Its controller loses 3 life if you've cast another black spell this turn")
-  and Talara's Battalion.
-- Both thresholds test the same count; the grammar reads `>= 1`, as the three
-  templates that always counted do.
+Export updates in [`updates.json`](updates.json), by id. Each names its faces,
+the IR path, the value it replaces and why.
+
+- `U0001` (normalization): a count of spells cast is tested `>= 1`, as every other
+  event history count is. Dream Thief ("draw a card if you've cast another blue
+  spell this turn"), Hotheaded Giant, I Bask in Your Silent Awe, Laboratory
+  Drudge and Spider-Man 2099 tested `> 0`; Patrician's Scorn, Soul Reap and
+  Talara's Battalion already read Dream Thief's wording with `>= 1`.
 
 ## Open in the grammar
 

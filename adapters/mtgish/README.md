@@ -37,6 +37,30 @@ lock entry, preserving the SHA-256 and producer revision. Prefer a release
 bundle containing native data, schema/version metadata and checksums over a
 submodule checkout or a platform-specific producer executable.
 
+## Export updates
+
+`updates.json` records the only local changes to reference records. The pinned
+export stays byte-identical to its checksum; `tools/corpus.py prepare` applies
+the updates while filtering it to the allowed population, and writes a receipt
+of the faces each update changed. Every score prints those faces' statuses.
+
+Each update has an id (`U0001`), a kind (`correction` when the reference meaning
+is wrong, `normalization` when one wording has more than one encoding), a summary,
+the evidence, and its changes. A change names a face, a path of keys and indexes
+inside its ability list, the value expected there and the replacement. The record
+names the reference revision it was written against.
+
+Preparation fails when a named face is missing or repeated, when a path no longer
+holds the recorded value, or when it already holds the replacement because
+upstream adopted it. After advancing `reference.json`, drop adopted changes,
+re-derive stale paths from the new export, and set the record's revision. List
+each update under "Updated locally" in `reference-issues.md`, and report it
+upstream so the reference can adopt it.
+
+```sh
+python3 tools/updates.py   # validate the record against the pinned reference
+```
+
 ## IR ownership
 
 Ownership has moved to `../../crates/oracle-ir` and

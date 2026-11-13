@@ -136,6 +136,10 @@ def main():
         ref = reference()
         print(f"owned model schema {model['schema_version']}; extracted from {model['extracted_from']['revision']}")
         print(f"reference schema {ref['schema_version']} at {ref['revision']}")
+        import updates  # It reads the reference pin, so it loads after this module.
+        recorded = updates.load()
+        changed = sum(len(update['changes']) for update in recorded['updates'])
+        print(f"{len(recorded['updates'])} export updates changing {changed} reference faces")
     elif args.command == 'verify':
         print(verify(args.path, args.kind))
     else:

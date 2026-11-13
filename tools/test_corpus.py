@@ -23,6 +23,12 @@ class CorpusTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
         (self.root/'work').mkdir()
+        revision = corpus.pin.reference()['revision']
+        self.updates = self.root/'updates.json'
+        self.updates.write_text(json.dumps({'version': 1, 'reference': revision, 'updates': []}))
+        patcher = patch.object(corpus.updates, 'UPDATES', self.updates)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         (self.root/'allowed.json').write_text(json.dumps({'cards': ['A', 'B', 'Split']}))
         (self.root/'oracle.json').write_text(json.dumps([
             {'cards': [{'name': 'A', 'text': 'Draw a card.'}]},
@@ -30,7 +36,8 @@ class CorpusTests(unittest.TestCase):
             {'cards': [{'name': 'Split', 'text': 'One.'}, {'name': 'Sealed', 'text': 'Two.'}]},
             {'cards': [{'name': 'B', 'text': 'Discard a card.'}]}]))
         corpus.write_rows(self.root/'reference.jsonl', [
-            {'faces': [{'name': 'A'}]}, {'faces': [{'name': 'Sealed'}]},
+            {'faces': [{'name': 'A', 'abilities': [{'kind': 'Draw', 'args': 1}]}]},
+            {'faces': [{'name': 'Sealed'}]},
             {'faces': [{'name': 'Split'}, {'name': 'Sealed'}]}, {'faces': [{'name': 'B'}]}])
         corpus.write_rows(self.root/'baseline.jsonl', [row('A', 'equal'), row('Split', 'refused'),
                                                         row('B', 'different')])
@@ -49,6 +56,27 @@ class CorpusTests(unittest.TestCase):
         (prepared/'gold.jsonl').write_text('{}\n')
         with self.assertRaisesRegex(ValueError, 'prepared inputs changed'):
             corpus.prepare(corpus.inputs())
+
+    def test_prepare_applies_recorded_export_updates(self):
+        revision = corpus.pin.reference()['revision']
+        def record(face, before, after):
+            return {'version': 1, 'reference': revision, 'updates': [{
+                'id': 'U0001', 'kind': 'correction', 'summary': 'Draw two.',
+                'evidence': 'The card says two.', 'changes': [
+                    {'face': face, 'path': [0, 'args'], 'from': before, 'to': after}]}]}
+        self.updates.write_text(json.dumps(record('A', 1, 2)))
+        prepared = corpus.prepare(corpus.inputs())
+        self.assertEqual(corpus.prepare(corpus.inputs()), prepared)
+        gold = corpus.rows(prepared/'gold.jsonl')
+        self.assertEqual(gold[0]['faces'][0]['abilities'], [{'kind': 'Draw', 'args': 2}])
+        self.assertEqual(json.loads((prepared/'updates.json').read_text())['applied'],
+                         {'U0001': ['A']})
+        self.assertEqual(corpus.updated(prepared, [row('A', 'equal')]), {'U0001': {'equal': 1}})
+        for face, before, after, message in (('A', 3, 4, 'stale'), ('A', 0, 1, 'adopted upstream'),
+                                             ('Sealed', 1, 2, 'missing from')):
+            self.updates.write_text(json.dumps(record(face, before, after)))
+            with self.assertRaisesRegex(ValueError, message):
+                corpus.prepare(corpus.inputs())
 
     def test_inputs_reject_a_changed_pinned_file(self):
         (self.root/'baseline.jsonl').write_text('')
