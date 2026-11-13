@@ -37,6 +37,14 @@ python3 tools/releases.py github .cache/release-code --repo OWNER/REPO --publish
 
 Publication proceeds `oracle-ir`, `oracle-ir-contract`, then `oracle-ir-grammar`.
 A dry run must reproduce the reviewed `.crate` checksum before each upload.
+Cargo 1.98 stages `publish --dry-run` candidates under
+`target/package/tmp-crate/`; the checksum check reads that fresh candidate, not
+a previous `cargo package` archive. If the publisher needs repair after a code
+tag is prepared, `publish-crates --root /path/to/clean/tag-checkout DIRECTORY`
+can use that exact immutable producer with the repaired tool. Its commit and
+grammar-input identity must match the reviewed manifest. The tag and prepared
+assets are not moved or replaced.
+
 Unchanged published model versions are reused as their exact registry archives.
 Their source and dependency declarations must match the current checkout;
 regenerated Cargo provenance, manifest formatting and library lockfiles do not force a

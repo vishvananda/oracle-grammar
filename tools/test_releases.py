@@ -161,6 +161,54 @@ class ReleaseTests(unittest.TestCase):
         selected = command.call_args_list[-1].args[0]
         self.assertEqual(selected, ['cargo', 'package', '--locked', '-p', 'oracle-ir-contract', '-p', 'oracle-ir-grammar'])
 
+    def publish_fixture(self):
+        source = self.root/'producer'; source.mkdir()
+        target = self.root/'target'; staged = target/'package'/'tmp-crate'; staged.mkdir(parents=True)
+        versions = dict.fromkeys(releases.PACKAGES, '0.2.0')
+        assets = {}
+        for package in releases.PACKAGES:
+            name = package+'-0.2.0.crate'
+            (staged/name).write_bytes(('verified '+package).encode())
+            (staged.parent/name).write_bytes(b'stale package archive')
+            assets[name] = {'sha256': releases.digest(staged/name)}
+        return source, target, {'kind': 'oracle-grammar-code', 'grammar': self.meta['grammar'],
+                                'model': {'packages': versions}, 'assets': assets}
+
+    def test_publish_checks_the_actual_staged_candidate_in_the_exact_producer(self):
+        source, target, manifest = self.publish_fixture()
+        uploaded = set()
+
+        def command(args, **kwargs):
+            self.assertEqual(kwargs['cwd'], source)
+            if '--dry-run' not in args:
+                uploaded.add(args[-1])
+
+        def checksum(package, version):
+            self.assertEqual(version, '0.2.0')
+            return manifest['assets'][package+'-0.2.0.crate']['sha256'] if package in uploaded else None
+
+        with patch.object(releases, 'verify', return_value=manifest), \
+             patch.object(releases, 'metadata', return_value=self.meta) as metadata, \
+             patch.object(releases, 'registry_checksum', side_effect=checksum), \
+             patch.object(releases, 'run', return_value=json.dumps({'target_directory': str(target)})), \
+             patch.object(releases.subprocess, 'run', side_effect=command):
+            releases.publish_crates(self.root, source)
+        metadata.assert_called_once_with(source)
+        self.assertEqual(uploaded, set(releases.PACKAGES))
+
+    def test_mismatched_staged_candidate_is_never_uploaded(self):
+        source, target, manifest = self.publish_fixture()
+        (target/'package'/'tmp-crate'/'oracle-ir-0.2.0.crate').write_bytes(b'wrong candidate')
+        with patch.object(releases, 'verify', return_value=manifest), \
+             patch.object(releases, 'metadata', return_value=self.meta), \
+             patch.object(releases, 'registry_checksum', return_value=None), \
+             patch.object(releases, 'run', return_value=json.dumps({'target_directory': str(target)})), \
+             patch.object(releases.subprocess, 'run') as command:
+            with self.assertRaisesRegex(ValueError, 'dry-run package differs'):
+                releases.publish_crates(self.root, source)
+        self.assertEqual(len(command.call_args_list), 1)
+        self.assertIn('--dry-run', command.call_args.args[0])
+
 
 if __name__ == '__main__':
     unittest.main()

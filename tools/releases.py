@@ -62,7 +62,8 @@ def metadata(root=ROOT, clean=True):
     return {'grammar': {'crate': 'oracle-ir-grammar', 'version': version, 'commit': commit,
                         'inputs_sha256': hashlib.sha256(json_bytes(inputs)).hexdigest()},
             'grammar_inputs': inputs, 'model': {'schema_version': pin['schema_version'], 'packages': versions},
-            'toolchain': {'rustc': run('rustc', '-V'), 'cargo': run('cargo', '-V')}}
+            'toolchain': {'rustc': run('rustc', '-V', cwd=root),
+                          'cargo': run('cargo', '-V', cwd=root)}}
 
 
 def unchanged(meta, root=ROOT):
@@ -337,9 +338,9 @@ def registry_checksum(package, version):
         raise
 
 
-def publish_crates(out):
+def publish_crates(out, root=ROOT):
     manifest = verify(out)
-    if manifest['kind'] != 'oracle-grammar-code' or metadata()['grammar'] != manifest['grammar']:
+    if manifest['kind'] != 'oracle-grammar-code' or metadata(root)['grammar'] != manifest['grammar']:
         raise ValueError('publish must use the exact clean code release checkout')
     for package in PACKAGES:
         version = manifest['model']['packages'][package]
@@ -350,11 +351,14 @@ def publish_crates(out):
             if published != expected:
                 raise ValueError(f'existing {package} {version} differs; use a new version')
             continue
-        subprocess.run(['cargo', 'publish', '--locked', '--dry-run', '-p', package], cwd=ROOT, check=True)
-        target = Path(json.loads(run('cargo', 'metadata', '--locked', '--no-deps', '--format-version=1'))['target_directory'])
-        if digest(target/'package'/asset) != expected:
+        subprocess.run(['cargo', 'publish', '--locked', '--dry-run', '-p', package], cwd=root, check=True)
+        target = Path(json.loads(run('cargo', 'metadata', '--locked', '--no-deps',
+                                     '--format-version=1', cwd=root))['target_directory'])
+        # Cargo 1.98 publish stages its candidate separately from cargo package.
+        # A previous package archive at the parent path is not dry-run evidence.
+        if digest(target/'package'/'tmp-crate'/asset) != expected:
             raise ValueError(f'dry-run package differs from reviewed release: {asset}')
-        subprocess.run(['cargo', 'publish', '--locked', '-p', package], cwd=ROOT, check=True)
+        subprocess.run(['cargo', 'publish', '--locked', '-p', package], cwd=root, check=True)
         # cargo publish waits for index availability. A retry verifies exact bytes.
         if registry_checksum(package, version) != expected:
             raise ValueError(f'published registry checksum differs: {asset}')
@@ -417,6 +421,8 @@ def main():
     p = subs.add_parser('fetch'); p.add_argument('--url', required=True); p.add_argument('--out', required=True); p.add_argument('--sha256', required=True)
     p = subs.add_parser('verify'); p.add_argument('directory')
     p = subs.add_parser('publish-crates'); p.add_argument('directory')
+    p.add_argument('--root', type=Path, default=ROOT,
+                   help='exact clean producer checkout for the prepared release')
     p = subs.add_parser('github'); p.add_argument('directory'); p.add_argument('--repo', required=True)
     p.add_argument('--publish', action='store_true', help='publish after verifying uploaded draft assets')
     args = parser.parse_args()
@@ -428,7 +434,7 @@ def main():
     elif args.command == 'faces': faces(args.source, args.source_manifest, args.out, args.revision)
     elif args.command == 'fetch': fetch(args.url, args.out, args.sha256)
     elif args.command == 'verify': verify(args.directory)
-    elif args.command == 'publish-crates': publish_crates(args.directory)
+    elif args.command == 'publish-crates': publish_crates(args.directory, args.root.resolve())
     elif args.command == 'github': github(args.directory, args.repo, not args.publish)
 
 
