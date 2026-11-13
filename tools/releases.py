@@ -65,6 +65,11 @@ def metadata(root=ROOT, clean=True):
             'toolchain': {'rustc': run('rustc', '-V'), 'cargo': run('cargo', '-V')}}
 
 
+def unchanged(meta, root=ROOT):
+    if metadata(root) != meta:
+        raise ValueError('release checkout changed during artifact preparation')
+
+
 def fresh(path):
     path = Path(path).resolve()
     path.mkdir(parents=True, exist_ok=False)
@@ -144,6 +149,7 @@ def code(out, tag):
     with (out/'grammar.ebnf').open('w') as file:
         subprocess.run([str(binaries/'grammar-export')], cwd=out, stdout=file, env=env, check=True)
     # Executables are omitted until platform archives and their licenses are shipped.
+    unchanged(meta)
     finish(out, {'format_version': 1, 'kind': 'oracle-grammar-code', 'tag': tag, **meta,
                  'build': {'locked': True, 'features': ['cli', 'embedded-grammar']}})
 
@@ -214,6 +220,7 @@ def bundle(out, rows, meta, spec, revision, exporter_commit=None):
 
 def faces(source, spec_path, out, revision):
     meta = metadata()
+    producer = json.loads(json.dumps(meta))
     # Data releases can only use a reviewed, immutable code-release commit.
     tag = 'grammar-v'+meta['grammar']['version']
     grammar_commit = run('git', 'rev-parse', tag+'^{commit}')
@@ -245,6 +252,7 @@ def faces(source, spec_path, out, revision):
         rows = [json.loads(line) for line in output.read_text().splitlines()]
     if len(rows) != expected:
         raise ValueError('missing input face outcomes')
+    unchanged(producer)
     bundle(out, rows, meta, spec, revision, exporter_commit)
 
 
