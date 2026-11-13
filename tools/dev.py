@@ -296,10 +296,13 @@ def check(force=False):
     """Every contribution gate, sharing one build cache; unchanged passed gates are reused."""
     pin.check_model()
     (WORK/'check').mkdir(parents=True, exist_ok=True)
-    environment = {**build_environment(), 'ORACLE_GRAMMAR_THREADS': str(threads())}
+    # Gates that are dev.py commands choose their own Cargo environment. Passing this
+    # one's incremental setting would change the helpers' recorded compiler identity.
+    environment = {**os.environ, 'ORACLE_GRAMMAR_THREADS': str(threads())}
     tool = [sys.executable, str(ROOT/'tools/dev.py')]
     fast = [Gate(name, command) for name, command in FAST_GATES]
-    results = [Gate('clippy', CLIPPY, environment).wait()]
+    clippy = {**build_environment(), 'ORACLE_GRAMMAR_THREADS': environment['ORACLE_GRAMMAR_THREADS']}
+    results = [Gate('clippy', CLIPPY, clippy).wait()]
     built = Gate('build', [*tool, 'build'], environment).wait()
     results.append(built)
     slow = []

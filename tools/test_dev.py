@@ -259,10 +259,12 @@ class ReceiptTests(unittest.TestCase):
 
     def test_check_reuses_passed_gates_and_reports_every_failure(self):
         launched = []
+        environments = {}
 
         class Gate:
             def __init__(self, name, command, environment=None):
                 launched.append(name)
+                environments[name] = environment
                 self.name = name
                 (dev.WORK/'check').mkdir(exist_ok=True)
                 (dev.WORK/'check'/f'{name}.log').write_text(f'{name} output')
@@ -272,12 +274,17 @@ class ReceiptTests(unittest.TestCase):
 
         (self.work/'build.json').write_text(json.dumps({'binaries': {'family-check': 'x'}}))
         with patch.object(dev, 'Gate', Gate), patch.object(dev.pin, 'check_model'), \
-             patch.object(dev, 'build_environment', return_value={}), \
+             patch.object(dev, 'build_environment', return_value={'CARGO_INCREMENTAL': '1'}), \
              patch.object(dev, 'passed', side_effect=lambda gate, extra: gate == 'test'), \
              patch('builtins.print') as shown, \
              self.assertRaisesRegex(ValueError, '2 gates failed: hygiene, clippy'):
             dev.check()
         self.assertEqual(sorted(launched), ['build', 'clippy', 'families', 'fmt', 'hygiene', 'pin', 'tools'])
+        # Only the direct Cargo gate takes the build environment; dev.py gates pick their own,
+        # so a helper build from check is the same build a plain dev.py command expects.
+        self.assertEqual(environments['clippy']['CARGO_INCREMENTAL'], '1')
+        for name in ('build', 'families'):
+            self.assertEqual(environments[name].get('CARGO_INCREMENTAL'), os.environ.get('CARGO_INCREMENTAL'))
         summary = [call.args[0] for call in shown.call_args_list]
         self.assertTrue(any(line.startswith('test') and 'reused' in line for line in summary))
         with patch.object(dev, 'Gate', Gate), patch.object(dev.pin, 'check_model'), \
