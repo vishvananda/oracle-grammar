@@ -14,14 +14,14 @@ witnesses are identified separately.
 | [#4](https://github.com/vishvananda/oracle-grammar/issues/4) | Fixed locally: nine reversed damage events in both pinned IR and seeded grammar. U0015 corrects the written source/recipient direction. |
 | [#5](https://github.com/vishvananda/oracle-grammar/issues/5) | Fixed locally: the missing Aura subtype on Gauntlets' attachment population. U0016 conjoins it with the existing two-target attachment disjunction. |
 | [#6](https://github.com/vishvananda/oracle-grammar/issues/6) | Fixed locally: Mercenaries' omitted source in reference and grammar. U0017 preserves its same-creature source and activating-player recipient. |
-| [#7](https://github.com/vishvananda/oracle-grammar/issues/7) | Pending the independent artifact-exchange correction and validation. |
+| [#7](https://github.com/vishvananda/oracle-grammar/issues/7) | Fixed locally: U0020 adds the independent artifact exchange; shared grammar replaces three incorrect fragments. |
 | [#8](https://github.com/vishvananda/oracle-grammar/issues/8) | Fixed locally: U0018 corrects 17 named-player step/expiration pairs; U0019 normalizes five equivalent live-population forms. Both controller-following controls are preserved. |
 | [#9](https://github.com/vishvananda/oracle-grammar/issues/9) | Pending target identity versus successful-destroy receipt review. |
-| [#10](https://github.com/vishvananda/oracle-grammar/issues/10) | Pending actual-reveal existence guard review. |
+| [#10](https://github.com/vishvananda/oracle-grammar/issues/10) | Fixed locally: U0021 guards both name branches by an actual observation and moves the observed card. |
 | [#11](https://github.com/vishvananda/oracle-grammar/issues/11) | Confirmed; awaiting model publication. Open PR #3 adds the missing named-player history window in schema 191 / version 0.2.0. Current main and both registry releases remain schema 190 / version 0.1.0; no reference amendment is claimed. |
 | [#12](https://github.com/vishvananda/oracle-grammar/issues/12) | Pending direct destroy-choice legality review; retain Imperial Edict's independent choice as a control. |
 | [#13](https://github.com/vishvananda/oracle-grammar/issues/13) | Pending effect completion and actual exile-arrival receipt review. |
-| [#14](https://github.com/vishvananda/oracle-grammar/issues/14) | Pending adoption of the damage-time history population from upstream commit 123fb912, preserving mana cost rather than mana value. |
+| [#14](https://github.com/vishvananda/oracle-grammar/issues/14) | Fixed locally: U0022 adopts historical damage participants; U0023 preserves both positive copy-type tests and relative payment printing. |
 
 ## Prevention direction and filters: #4–#6
 
@@ -129,3 +129,72 @@ faces keep exact keyed and verified default prints; exact defaults improve from
 2 to 16. Seventeen default texts change. The new search generates 308 candidates
 and verifies 240, versus 312/244 previously; no assertion is made that every
 candidate verifies or that these quick helper runs measure a speed improvement.
+
+## Independent exchanges, observations and history: #7, #10, #14
+
+U0020 appends Juxtapose's independent artifact choices and exchange after the
+complete creature exchange. Each player chooses within their own greatest-mana-
+value population, with AsManyAsCan(1) handling absent objects. The artifact
+sequence remains unconditional even when the creature exchange cannot happen.
+A shared grammar production handles two explicit permanent kinds, their tie
+choices and both complete exchanges. It uses relative result addresses, so an
+instruction prefix cannot redirect the exchange receipts. The three old mined
+fragments incorrectly distributed a single creature exchange across all three
+sentences; they are removed rather than retained as extra incorrect readings.
+
+U0021 preserves Vexing Arcanix's naming/reveal instructions outside a new
+actual-reveal existence guard. Both name-comparison outcomes sit inside that
+guard; an empty library cannot enter the wrong-name damage branch. Both moves
+read the Observed reveal receipt, preserving the named card rather than querying
+the library's top again. A marked receipt anchors the condition and both moves
+across branch-local result definitions. Costs, recipient, source, name domain and
+damage amount remain intact.
+
+U0022 replaces Maelstrom Archangel Avatar's fresh battlefield query with a
+Union of FromHistory damage participants. Creature and controller restrictions
+sit inside the historical event; recipients are all players, damage is Combat,
+grouping/subject are Source, and the window remains ThisTurn. The union deduplicates
+repeated events for the same object identity. Departed sources and subsequent
+control changes cannot change that population. The loop still matches complete
+ManaCosts, with the original random choice, rather than converting costs to
+mana values.
+
+Review of the same body found another incorrect lowering. U0023 preserves the
+two printed positive chosen-copy type tests as independent If instructions,
+each with an empty otherwise. Failure of the permanent test, including no chosen
+copy, no longer offers the spell-casting branch. The latter requires the actual
+Instant-or-Sorcery test. The repeated loop noun must agree with its introduction;
+formerly unrepresented article/count words are limited to the source's one-copy
+wording. The permanent-type test is independent of the loop's kind. Printing
+also reads the actual preceding PayCost receipt instead of requiring literal
+result ID 1: the old literal failed after ordinary canonical ID renumbering.
+These corrections use existing schema-190 types; AST operands/program structure
+change, while the model pin and reference lock remain unchanged.
+
+Primary implementation/witness evidence for the reported defects is in the
+published MTGish commits [4ba5c00f](https://github.com/vishvananda/mtgish/commit/4ba5c00f6e5a1b5f32abf8e017a10ccf74bd9fff),
+[06de9c78](https://github.com/vishvananda/mtgish/commit/06de9c786d700414985cb9cf960402169039b830)
+and [123fb912](https://github.com/vishvananda/mtgish/commit/123fb91240db27e8396a24bd10274ce9d1618183).
+Local regressions independently check native operands, exact printing, edited
+kinds/costs/amounts, relative receipts after a prefix, and refusal of unsupported
+copy counts or disagreeing repeated nouns. Runtime backend witnesses are not
+rerun or represented as local executions.
+
+All eight repository gates pass; 772 frontend tests pass and one remains ignored.
+All three original-wording fixtures have their sole corrected native reading,
+exact keyed printing and a verified default, including canonical result IDs.
+The four regressions also pass for edited operands and a prefixed exchange.
+Juxtapose is now compositional. Three incorrect seeds are retired, bringing the
+cumulative total to 163; 12,044 remain (12,042 needed and two protected unused).
+Compositional coverage is 19,867, with the same four attribution limitations and
+no at-risk face.
+
+Full coverage remains 32,755 equal, 31,681 single-reading faces and 33,920
+readings. The strict native audit intentionally rejects exactly the three old
+incorrect meanings, replacing one reading on each reported face, with no other
+missing or added meanings. Raw/canonical gold and all current readings validate;
+canonical gold is idempotent and native failure output is empty. Audit hashes
+were rechecked. Against the actual frozen 0fe30bd executable, the three-face
+cohort retains all three exact keyed prints and improves exact defaults and
+verified defaults from two to three. No backend runtime or speed measurement is
+claimed.

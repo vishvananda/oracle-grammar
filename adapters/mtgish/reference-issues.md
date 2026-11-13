@@ -314,6 +314,16 @@ the IR path, the value it replaces and why.
   rule. A bounded typed proof preserves the equivalent legacy predicate; fixed,
   snapshot, unfiltered and controller-following contexts are excluded.
 
+- `U0020` (correction, issue #7): Juxtapose performs its independent artifact
+  exchange after its creature exchange, retaining each controller's tie choices.
+- `U0021` (correction, issue #10): Vexing Arcanix guards both name branches by
+  an actual reveal and moves the observed card; naming remains outside the guard.
+- `U0022` (correction, issue #14): Maelstrom Archangel Avatar queries distinct
+  damage-time creature sources with historical controller filtering; it retains
+  mana-cost matching and the ThisTurn window.
+- `U0023` (correction): that Avatar's two positive chosen-copy type checks remain
+  independent; absence of a chosen copy cannot enter an unconditional cast else.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their
 open status does not create a corpus equality exception.

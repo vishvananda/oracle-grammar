@@ -897,3 +897,5 @@ mod top_permissions;
 mod prevention_reference;
 
 mod untap_reference;
+
+mod exchange_reveal_history;
