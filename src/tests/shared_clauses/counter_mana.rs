@@ -88,8 +88,9 @@ fn additional_mana_keeps_the_named_recipient_and_complete_bundle() {
         "kind":"ControllerOf","args":{"kind":"EventSubject"}}})
     );
     assert_eq!(
-        operation["args"]["mana"]["All"].as_array().unwrap().len(),
-        2
+        operation["args"]["mana"],
+        json!({"Amount":{
+        "color":"Green","amount":{"kind":"Constant","args":2}}})
     );
     let mut edited = reading.clone();
     edited[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["players"] =

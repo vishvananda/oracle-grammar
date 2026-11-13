@@ -713,3 +713,118 @@ without "an additional"; its exact wording remains available with a key. No othe
 sample default changes. Candidate enumeration is 43,410 generated / 31,365
 semantically reparsed. Failed alternatives remain separately reported. No timing
 or allocation improvement is claimed; diagnostic helpers use the quick profile.
+
+## Fixed mana has one representation, with current-operand printing
+
+U0012 normalizes Yurlok of Scorch Thrash's unobserved universal mana loop to
+one AddMana(All) instruction. The native ForEachPlayer contract makes its
+per-player actions simultaneous after APNAP choices. This body contains only
+one unrestricted fixed production, addressed to the bound player, with no
+ordering directive or consumer of its result. Its child effect can therefore
+address All directly. Preserve that child's result ID and source provenance;
+remove only the local player binding and its recipient reference. Other
+abilities, activation cost, mana and identities are unchanged.
+
+The proof uses schema-typed result definitions and uses across the whole owning
+ability, including future Programs. It keeps observed receipts, descendant
+Ability scopes, choices, dynamic amounts, restrictions, ordering directives,
+other recipients and invalid duplicate bindings. Sibling scopes can reuse a
+binding label independently. Typed lossless matching preserves undeclared fields
+and does not trust public values that imitate private origin metadata. Mapped
+canonicalization proves the moved result's original site and the deletion of
+only the binding sites, with no invented ID origins. The grammar retains its
+loop production for cases that observe its receipt; unobserved loop/direct forms
+now have one canonical reading.
+
+An edited-operand test exposed another representation gap: Amount(Blue, 2)
+was valid native IR but could not print as the grammar's two separate blue
+units. U0013 normalizes positive fixed literal mana to totals by color. All
+explicitly describes one production, so repeated units, nested literal bundles
+and one amount per color have the same counts and colors. The owned reduction
+uses checked i64 addition and a fixed internal color order. It excludes zero
+amounts, chosen colors, choices, dynamic expressions, empty bundles, overflow
+and unknown fields. Instructions, recipients, restrictions, receipt identities
+and observers remain intact. No AST type/schema, model pin or reference lock
+changes; these are shape normalizations, not new semantic corrections.
+
+The reference update changes 249 schema-typed ManaProduction roots on 244 allowed
+faces, covering 263 literal-bundle reduction sites. The separate Yurlok update
+brings the affected population to 245 faces. A frozen-schema visitor selects
+only native ManaProduction positions and leaves opaque metadata alone. Nested
+changes are recorded at their containing production root without overlapping
+updates. A second typed scan finds no residual matching literal sites. Old
+implicit singleton operands on 240 affected faces were materialized from the
+hash-verified pre-update gold for independent preservation checks.
+
+The literal grammar replaces its separate unit-list productions with one
+recursive @literal_mana_sequence declaration. Forward construction folds each
+step to at most six color components using the owned contract. It does not
+build an ever-deeper All tree. Inverse construction removes one current unit
+and offers every available first color, with at most six local alternatives;
+it does not materialize every full permutation up front. This prints edited
+amounts and preserves exact keyed symbol order. Existing render/work/depth
+limits still apply. Default style groups repeated units and reuses the existing
+color-cycle preference for mana productions; costs retain their own order and
+keys retain other valid production orders. This is a structural work reduction,
+not a measured timing or allocation claim.
+
+Snapshot and mana reductions share one bounded schema walker and result-use
+analysis. Only abilities containing relevant candidates need the extra use
+scan. The lossless typed matcher bounds raw candidate bytes, nodes and depth
+before cloning, including unknown fields; private ID-origin bookkeeping does
+not change that semantic budget. Snapshot scope, capture and invalid-operand
+regressions continue to pass.
+
+All eight repository gates pass: 755 frontend tests pass, one remains ignored;
+model-package ignores are unchanged. Python's 70 tests, formatting, Clippy,
+pins, hygiene and all registered families pass. Thirteen new frontend regressions
+cover edited amounts and colors, all six colors in keyed orders, result and
+future-program observers, binding reuse and invalid bindings, restrictions,
+choices, dynamic/zero/overflow cases, undeclared fields, forged origins, mapped
+IDs and style. The new compositional family passes ten cases: eight expected
+native IRs with exact keyed and verified default prints, plus two refusals.
+The existing thirteen counter-mana family cases also pass.
+
+The full allowed population remains 32,755 equal. Single-reading faces increase
+31,680 to 31,681 and readings decrease 33,921 to 33,920: Yurlok's two equivalent
+forms merge. Compositional coverage remains 19,803. No additional seed retirement
+is credited to this batch: 12,085 remain, 12,083 are needed, and the two protected
+edited-print rules remain unused. The four existing attribution limitations and
+zero at-risk faces are unchanged.
+
+Closed literal ManaProduction constants in semantic declarations use the same
+owned normal form at grammar load. This preserves seeded templates that spell
+several fixed mana units explicitly. The bounded compiler step changes neither
+holes nor semantic functions, and its normalized declaration is shared by forward
+construction and inverse matching. A regression checks a closed two-green-unit
+pattern against the current Amount(Green, 2) form. No original wording supplies
+an operand.
+
+The final native audit is a strict preservation pass from 3632563. All 32,755
+raw and canonical gold records validate and canonical gold is idempotent. All
+33,920 current readings are valid and canonical. All 33,921 previous readings
+remain represented after native canonicalization: exactly one face merges one
+redundant reading, with no missing or added meanings. The 2,481 explicit old
+operands validate before canonicalization; 31,440 implicit equal singletons use
+unchanged gold. This batch's green audit does not erase earlier documented
+semantic corrections in other batches.
+
+The final 3,275-face print sample retains all statuses, reading counts, exact
+flags and default text against 3632563: 3,196 exact keyed prints, 2,231 exact
+defaults and 3,221 verified defaults. Its 3,394 readings include 3,164 single-reading
+faces. Enumeration remains 43,410 generated / 31,365 semantically reparsed
+candidates. No claim is made that every generated alternative verifies.
+
+The isolated 3632563 executable supplies an independent functional baseline for
+all 245 affected faces, using the same immutable Oracle population and the old
+verified gold. This comparison uses quick release helpers and makes no timing
+claim. Literal-fragment ranking keeps grouped color bundles available before
+beam pruning, including long five-color sequences. Full costs retain their
+operand order; keyed production orders remain available.
+
+Against the isolated old executable, all 245 affected faces retain the same
+exact keyed flags, exact default flags, verified-default availability and default
+text. They remain 245 equal, with 240 exact keyed prints, 178 exact defaults and
+244 verified defaults. Yurlok raises single-reading faces 240 to 241. The new
+search generates 2,416 candidates, of which 1,870 reparse semantically (old search:
+2,411 / 1,862). The five existing keyed gaps and one default gap are unchanged.

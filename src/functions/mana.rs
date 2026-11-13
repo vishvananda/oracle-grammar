@@ -64,3 +64,17 @@ pub(crate) fn unify_mana_options<'p, 'v>(
         .flat_map(|order| inner.unify_made(order, &bindings))
         .collect()
 }
+
+pub(crate) fn unify_mana<'p, 'v>(
+    name: &str,
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    match name {
+        "mana_options" => unify_mana_options(args, value, bindings),
+        "literal_mana_sequence" => super::literal_mana::unify(args, value, bindings),
+        "fixed_mana" | "variable_mana" => super::unify_cost_guard(name, args, value, bindings),
+        _ => Vec::new(),
+    }
+}

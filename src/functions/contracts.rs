@@ -208,6 +208,20 @@ pub(crate) fn checked_call(
     Ok(None)
 }
 
+fn literal_mana_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    if args.len() != 2 || *ty != Ty::Named("ManaProduction".into()) {
+        return Err(
+            "@literal_mana_sequence takes two ManaProductions and produces ManaProduction".into(),
+        );
+    }
+    Ok(Pattern::Symbol(
+        "literal_mana_sequence".into(),
+        args.iter()
+            .map(|arg| elaborate(arg, ty, schema))
+            .collect::<Result<_, _>>()?,
+    ))
+}
+
 fn counter_payment_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
     let [kind] = args else {
         return Err("@activation_removed_counters needs one CounterKind".into());
@@ -535,6 +549,7 @@ fn specialized_call(
 
     match name {
         "activation_removed_counters" => counter_payment_call(args, ty, schema).map(Some),
+        "literal_mana_sequence" => literal_mana_call(args, ty, schema).map(Some),
         "enchanted_creature_operand" => {
             let [reference] = args else {
                 return Err("@enchanted_creature_operand needs one ObjectRef".into());

@@ -13,17 +13,21 @@ use std::sync::OnceLock;
 
 mod entry;
 mod events;
+mod fixed_mana;
 mod joins;
 mod keywords;
 #[cfg(test)]
 mod mode_results;
 mod movement;
+mod programs;
 #[cfg(test)]
 mod result_scopes;
 mod sets;
 mod snapshots;
 mod trace;
 mod visibility;
+mod walk;
+pub use fixed_mana::literal as literal_mana;
 use movement::groups as movement_groups;
 pub use trace::MappedCard;
 pub use visibility::branch_sites as branch_receipt_sites;
@@ -1122,9 +1126,9 @@ fn normalize_with_trace(value: &mut Value, keep_order: bool, tracing: bool) -> R
         movement_groups(value)?;
     }
     walk_normal_form(value, keep_order, tracing)?;
-    if snapshots::inline(value, schema()?, tracing)? && !keep_order {
-        // Removing a definition changes canonical result numbering. The pump
-        // rule introduces no new candidates, so one final walk is sufficient.
+    if programs::normalize(value, schema()?, tracing, keep_order)? && !keep_order {
+        // Program reductions can remove definitions or their local scopes.
+        // Their independent proofs need one final canonical numbering pass.
         walk_normal_form(value, keep_order, tracing)?;
     }
     Ok(())

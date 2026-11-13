@@ -293,7 +293,7 @@ pub fn elaborate(syntax: &Syntax, ty: &Ty, schema: &Schema) -> Result<Pattern, S
     {
         return Err(format!("@target fills a slot number, not a {reference}"));
     }
-    match (syntax, ty) {
+    let pattern = match (syntax, ty) {
         (Syntax::Hole(name), _) => Ok(Pattern::Hole(name.clone(), ty.clone())),
         (Syntax::Typed(name, inner), _) => elaborate(inner, &Ty::Named(name.clone()), schema),
         (Syntax::Symbol(name, args), _) => Ok(Pattern::Symbol(
@@ -330,7 +330,11 @@ pub fn elaborate(syntax: &Syntax, ty: &Ty, schema: &Schema) -> Result<Pattern, S
             }
         }
         _ => Err(format!("pattern {syntax:?} does not fit {ty:?}")),
+    }?;
+    if matches!(ty, Ty::Named(name) if name == "ManaProduction") {
+        return Ok(crate::functions::literal_mana::constant_pattern(pattern));
     }
+    Ok(pattern)
 }
 
 /// Binder symbols take arguments of any type, so each names its own.
@@ -585,6 +589,9 @@ impl Pattern {
                     ("either_event", [left, right]) => return Ok(either_event(left, right)),
                     ("agree", [first, repeated]) => return agreed(first, repeated),
                     ("mana_options", [colors]) => return crate::functions::mana_options(colors),
+                    ("literal_mana_sequence", [first, rest]) => {
+                        return crate::functions::literal_mana::join(first, rest);
+                    }
                     ("singular_count" | "plural_count" | "plural_amount", [count]) => {
                         return crate::functions::counts::guard(name, count);
                     }
@@ -847,9 +854,8 @@ impl Pattern {
             "and" => return unify_and(args, value, bindings),
             "either_event" => return unify_either_event(args, value, bindings),
             "agree" => return unify_agree(args, value, bindings),
-            "mana_options" => return crate::functions::unify_mana_options(args, value, bindings),
-            "fixed_mana" | "variable_mana" => {
-                return crate::functions::unify_cost_guard(name, args, value, bindings);
+            "mana_options" | "literal_mana_sequence" | "fixed_mana" | "variable_mana" => {
+                return crate::functions::unify_mana(name, args, value, bindings);
             }
             "inline_counter_price" | "captured_counter_price" => {
                 return crate::functions::unify_counter_price(name, args, value, bindings);

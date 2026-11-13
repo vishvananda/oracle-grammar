@@ -858,6 +858,9 @@ mod linked_stats;
 #[path = "shared_clauses/counter_mana.rs"]
 mod counter_mana;
 
+#[path = "shared_clauses/fixed_mana.rs"]
+mod fixed_mana;
+
 #[path = "shared_clauses/snapshot_pumps.rs"]
 mod snapshot_pumps;
 

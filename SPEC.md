@@ -101,6 +101,18 @@ Keep captures used later, nonlocal or choice-dependent expressions, live effects
 and enclosing abilities with descendant Ability scopes. Invalid operands must
 remain invalid, and cloned identifier leaves retain their source provenance.
 
+A universal player loop containing only one unrestricted fixed mana action can
+use AddMana(All) when its result is unobserved. The actions are simultaneous in
+both forms. Keep loops with choices, dynamic amounts, restrictions, ordering or
+observed results; preserve invalid duplicate bindings and undeclared operands.
+The moved effect retains its result identity and source provenance.
+
+Positive fixed literal mana in one production uses totals by color. Repeated
+units and nested literal bundles have the same meaning as one amount per color;
+choices, dynamic values, chosen colors, zero amounts and overflow are excluded.
+Printing can remove one unit at a time in every available color order, so keys
+retain exact symbol order while edited counts print from their current values.
+
 ## Printing
 
 Printing uses the current operands of an edited or synthesized IR. A saved

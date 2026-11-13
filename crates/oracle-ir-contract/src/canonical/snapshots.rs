@@ -1,46 +1,7 @@
 //! A sole-use scalar capture immediately before a pure Snapshot pump is inline.
-mod walk;
-use crate::ir::Instruction;
+use super::walk::{Uses, Visit, Walker, lossless};
 use crate::ir_schema::Ty;
 use serde_json::{Value, json};
-use std::collections::HashMap;
-use walk::{Visit, Walker};
-
-#[derive(Default)]
-struct Uses {
-    total: HashMap<u64, usize>,
-    definitions: HashMap<u64, usize>,
-    programs: Vec<String>,
-    abilities: usize,
-}
-impl Visit for Uses {
-    fn leave(
-        &mut self,
-        value: &mut Value,
-        ty: &Ty,
-        defining: bool,
-        path: &str,
-        _: &mut Walker<'_>,
-    ) -> Result<(), String> {
-        if matches!(ty, Ty::Named(name) if name == "Ability") {
-            self.abilities += 1;
-        }
-        if matches!(ty, Ty::Named(name) if name == "ResultId")
-            && let Some(id) = super::trace::number(value)
-        {
-            *self.total.entry(id).or_default() += 1;
-            if defining {
-                *self.definitions.entry(id).or_default() += 1;
-            }
-        }
-        if matches!(ty, Ty::Vec(inner) if matches!(inner.as_ref(), Ty::Named(name) if name == "Instruction"))
-        {
-            // Postorder paths keep inner arrays stable until their parent is edited.
-            self.programs.push(path.into());
-        }
-        Ok(())
-    }
-}
 
 struct Pure {
     safe: bool,
@@ -159,22 +120,13 @@ fn signed_use(value: &Value, id: u64) -> Option<i64> {
 fn constant(value: &Value) -> bool {
     value["kind"] == "Constant" && value["args"].as_i64().is_some()
 }
-fn lossless(instruction: &Value, tracing: bool) -> bool {
-    let value = if tracing {
-        super::trace::plain(instruction)
-    } else {
-        instruction.clone()
-    };
-    serde_json::from_value::<Instruction>(value.clone())
-        .is_ok_and(|typed| serde_json::to_value(typed).is_ok_and(|roundtrip| roundtrip == value))
-}
 fn candidate(first: &Value, next: &Value, uses: &Uses, tracing: bool) -> Option<(u64, Value)> {
     if first["kind"] != "Effect"
         || first["args"]["operation"]["kind"] != "BindValue"
         || next["kind"] != "Effect"
         || next["args"]["operation"]["kind"] != "CreateContinuousEffect"
-        || !lossless(first, tracing)
-        || !lossless(next, tracing)
+        || lossless::<crate::ir::Instruction>(first, tracing).is_none()
+        || lossless::<crate::ir::Instruction>(next, tracing).is_none()
     {
         return None;
     }
@@ -218,7 +170,7 @@ fn amount(value: &Value, sign: i64) -> Option<Value> {
     }
     Some(json!({"kind":"Multiply","args":[{"kind":"Constant","args":-1},value]}))
 }
-fn inline_array(
+pub(super) fn inline_array(
     items: &mut Vec<Value>,
     uses: &Uses,
     walker: &mut Walker<'_>,
@@ -266,73 +218,4 @@ fn inline_array(
         index += 1;
     }
     Ok(changed)
-}
-
-#[derive(Default)]
-struct Normalize {
-    changed: bool,
-    owners: Vec<bool>,
-    tracing: bool,
-}
-impl Visit for Normalize {
-    fn enter(&mut self, value: &Value, ty: &Ty) {
-        if matches!(ty, Ty::Named(name) if name == "Ability") {
-            self.owners.push(false);
-        } else if matches!(ty, Ty::Named(name) if name == "Operation")
-            && value["kind"] == "BindValue"
-            && let Some(needed) = self.owners.last_mut()
-        {
-            *needed = true;
-        }
-    }
-    fn leave(
-        &mut self,
-        value: &mut Value,
-        ty: &Ty,
-        _: bool,
-        _: &str,
-        walker: &mut Walker<'_>,
-    ) -> Result<(), String> {
-        if !matches!(ty, Ty::Named(name) if name == "Ability") {
-            return Ok(());
-        }
-        if self.owners.pop() != Some(true) {
-            return Ok(());
-        }
-        let mut uses = Uses::default();
-        walker.walk(value, ty, false, "", 0, &mut uses)?;
-        // Descendant Ability scopes may both shadow and capture outer labels.
-        // Leave their enclosing ability alone, independent of numeric spelling;
-        // inner abilities were already processed. Delayed Programs stay in this
-        // proof so their captures count as later uses.
-        if uses.abilities != 1 {
-            return Ok(());
-        }
-        for path in &uses.programs {
-            if let Some(items) = value.pointer_mut(path).and_then(Value::as_array_mut) {
-                self.changed |= inline_array(items, &uses, walker, self.tracing)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-pub(super) fn inline(
-    value: &mut Value,
-    schema: &crate::ir_schema::Schema,
-    tracing: bool,
-) -> Result<bool, String> {
-    let mut visitor = Normalize {
-        tracing,
-        ..Normalize::default()
-    };
-    Walker::new(schema).walk(
-        value,
-        &Ty::Vec(Box::new(Ty::Named("Ability".into()))),
-        false,
-        "",
-        0,
-        &mut visitor,
-    )?;
-    Ok(visitor.changed)
 }
