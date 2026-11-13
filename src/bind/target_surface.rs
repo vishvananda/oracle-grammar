@@ -187,8 +187,36 @@ mod tests {
             }));
         }
         // Old slot0 has three parent variants. At slot1 the first produces
-        // 64+chosen, each remaining parent produces one+chosen: exactly69.
-        assert_eq!(slot_forms(&root, &[spec(0), spec(1)], &body).len(), 69);
+        // 64+chosen and the second one+chosen. The third already gave slot0
+        // its own choose sentence, so it produces one: exactly 68.
+        assert_eq!(slot_forms(&root, &[spec(0), spec(1)], &body).len(), 68);
+    }
+
+    #[test]
+    fn at_most_one_target_gets_its_own_choose_sentence() {
+        let body = path_of(&["args", "body"]);
+        let mut root = frame(0, 0);
+        let instructions = root["args"]["body"]["instructions"].as_array_mut().unwrap();
+        instructions.clear();
+        for slot in 0..5 {
+            instructions.push(json!({"kind":"Effect","args":{"result":slot,"operation":{
+                "kind":"Destroy","args":{"objects":{"kind":"One","args":target(slot)},"regeneration":true}
+            }}}));
+        }
+        let specs: Vec<Value> = (0..5).map(spec).collect();
+        let forms = slot_forms(&root, &specs, &body);
+        // Each slot is written in place, or one of the five gets a choose sentence:
+        // six forms, where combining choices would make thirty-two.
+        assert_eq!(forms.len(), 6);
+        for form in &forms {
+            let chosen = form["args"]["body"]["instructions"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|instruction| instruction["$sym"] == "choose")
+                .count();
+            assert!(chosen <= 1, "{form}");
+        }
     }
 
     #[test]

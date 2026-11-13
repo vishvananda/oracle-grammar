@@ -823,11 +823,12 @@ fn slot_forms(root: &Value, specs: &[Value], body: &[Step]) -> Vec<Value> {
     let Some(order) = references::surface_order(specs) else {
         return Vec::new();
     };
-    let mut forms = vec![root.clone()];
+    // Each form records whether a target already has its own `choose` sentence.
+    let mut forms = vec![(root.clone(), false)];
     for slot in order {
         let spec = &specs[slot];
         let mut next = Vec::new();
-        for form in &forms {
+        for (form, chose) in &forms {
             let mut copy = form.clone();
             let Some(program) = at_path(&mut copy, body) else {
                 continue;
@@ -840,20 +841,24 @@ fn slot_forms(root: &Value, specs: &[Value], body: &[Step]) -> Vec<Value> {
                 let node = at_path(&mut copy, body).and_then(|b| at_path(b, &path));
                 if let Some(node) = node {
                     *node = json!({"$sym": "target", "args": [spec], "at": 0});
-                    next.push(copy);
+                    next.push((copy, *chose));
                 }
                 if next.len() >= 64 {
                     break;
                 }
             }
-            if let Some(chosen) = chosen_form(form, slot, spec, body) {
-                next.push(chosen);
+            // Oracle text gives at most one target its own `choose` sentence. Two or more
+            // multiply the surfaces by every combination and print pronoun lists that
+            // cannot say which target each pronoun means.
+            if !*chose && let Some(chosen) = chosen_form(form, slot, spec, body) {
+                next.push((chosen, true));
             }
         }
         if !next.is_empty() {
             forms = next;
         }
     }
+    let mut forms: Vec<Value> = forms.into_iter().map(|(form, _)| form).collect();
     // Keep the complete original cross-slot enumeration first. An added form
     // must never become a parent of the old per-slot loops or amplify their
     // pre-existing cap overshoot.
