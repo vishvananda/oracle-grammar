@@ -3,6 +3,8 @@ import gzip
 import json
 from pathlib import Path
 import tempfile
+import tarfile
+import io
 import unittest
 from unittest.mock import patch
 
@@ -117,6 +119,47 @@ class ReleaseTests(unittest.TestCase):
             releases.unchanged(self.meta)
             with self.assertRaisesRegex(ValueError, 'checkout changed'):
                 releases.unchanged({**self.meta, 'grammar': {'commit': 'b'*40}})
+
+    def crate(self, name, *, source=b'pub struct Card;', commit=b'old', lock=b'old', manifest=b'name = "model"', normalized=None):
+        path = self.root/name
+        with tarfile.open(path, 'w:gz') as archive:
+            for filename, data in {'src/lib.rs': source, '.cargo_vcs_info.json': commit,
+                                   'Cargo.lock': lock, 'Cargo.toml': normalized or manifest+b'\n# Cargo-generated normalization',
+                                   'Cargo.toml.orig': manifest}.items():
+                info = tarfile.TarInfo('model-0.1.0/'+filename); info.size = len(data)
+                archive.addfile(info, io.BytesIO(data))
+        return path
+
+    def test_model_reuse_ignores_regenerated_provenance_but_preserves_sources(self):
+        published = self.crate('published.crate')
+        current = self.crate('current.crate', commit=b'new grammar commit', lock=b'new workspace lock')
+        releases.compare_crate_sources(current, published)
+        self.assertNotEqual(releases.digest(current), releases.digest(published))
+        for current in (self.crate('changed-source.crate', source=b'pub struct DifferentCard;'),
+                        self.crate('changed-dependencies.crate', manifest=b'name = "model"\nserde = "2"'),
+                        self.crate('changed-inherited-dependencies.crate', normalized=b'name = "model"\nserde = "2"')):
+            with self.assertRaisesRegex(ValueError, 'bump its package version'):
+                releases.compare_crate_sources(current, published)
+
+    def test_reused_models_are_not_replaced_by_temporary_registry_versions(self):
+        published = self.crate('published.crate')
+        target = self.root/'target'; (target/'package').mkdir(parents=True)
+        candidate = self.crate('candidate.crate', commit=b'new grammar commit')
+        import shutil
+        shutil.copyfile(candidate, target/'package/oracle-ir-0.1.0.crate')
+        reused = self.root/'reused'; reused.mkdir()
+        versions = dict.fromkeys(releases.PACKAGES, '0.1.0')
+        def download(url, path, checksum):
+            self.assertEqual(checksum, releases.digest(published))
+            shutil.copyfile(published, path)
+        with patch.object(releases, 'run', return_value=json.dumps({'target_directory': str(target)})), \
+             patch.object(releases, 'registry_checksum', side_effect=lambda p, v: releases.digest(published) if p == 'oracle-ir' else None), \
+             patch.object(releases, 'fetch', side_effect=download), \
+             patch.object(releases.subprocess, 'run') as command:
+            archives = releases.package_archives({'model': {'packages': versions}}, reused)
+        self.assertEqual(releases.digest(archives['oracle-ir']), releases.digest(published))
+        selected = command.call_args_list[-1].args[0]
+        self.assertEqual(selected, ['cargo', 'package', '--locked', '-p', 'oracle-ir-contract', '-p', 'oracle-ir-grammar'])
 
 
 if __name__ == '__main__':

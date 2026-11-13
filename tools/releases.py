@@ -148,29 +148,79 @@ def native_smoke(binaries):
         raise ValueError('packaged native CLI recognition/refusal smoke test failed')
 
 
+def crate_sources(path):
+    # Cargo regenerates provenance and library lockfiles at each workspace
+    # commit. Compare actual source/dependency declarations, then reuse the
+    # original registry archive rather than relabel an existing version.
+    generated = {'.cargo_vcs_info.json', 'Cargo.lock'}
+    files = {}
+    with tarfile.open(path) as archive:
+        for member in archive.getmembers():
+            if not member.isfile():
+                continue
+            name = member.name.split('/', 1)[-1]
+            if name not in generated:
+                data = archive.extractfile(member).read()
+                files[name] = json_bytes(tomllib.loads(data.decode())) if name == 'Cargo.toml' else data
+    if 'Cargo.toml.orig' not in files:
+        raise ValueError('published package lacks original dependency declarations')
+    return files
+
+
+def compare_crate_sources(candidate, published):
+    current, prior = crate_sources(candidate), crate_sources(published)
+    changed = sorted(name for name in current.keys() | prior.keys() if current.get(name) != prior.get(name))
+    if changed:
+        raise ValueError('published model sources differ; bump its package version: '+', '.join(changed[:8]))
+
+
+def package_archives(meta, reused):
+    env = environment()
+    target = Path(json.loads(run('cargo', 'metadata', '--locked', '--no-deps', '--format-version=1'))['target_directory'])/'package'
+    versions = meta['model']['packages']
+    published = {p: checksum for p in PACKAGES[:-1]
+                 if (checksum := registry_checksum(p, versions[p])) is not None}
+    archives = {}
+    if published:
+        subprocess.run(['cargo', 'package', '--locked', '--workspace', '--no-verify'], cwd=ROOT, env=env, check=True)
+        for package, checksum in published.items():
+            name = f'{package}-{versions[package]}.crate'
+            path = reused/name
+            fetch(f'https://crates.io/api/v1/crates/{package}/{versions[package]}/download', path, checksum)
+            compare_crate_sources(target/name, path)
+            archives[package] = path
+    # Only unpublished prerequisites enter Cargo's temporary registry. Reused
+    # versions resolve against their real registry checksums in dependent locks.
+    selected = [p for p in PACKAGES if p not in published]
+    command = ['cargo', 'package', '--locked']
+    for package in selected:
+        command += ['-p', package]
+    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    archives.update({p: target/f'{p}-{versions[p]}.crate' for p in selected})
+    return archives
+
+
 def code(out, tag):
     meta = metadata()
     if tag != 'grammar-v'+meta['grammar']['version']:
         raise ValueError('code tag must match grammar package version')
     env = environment()
-    subprocess.run(['cargo', 'package', '--locked', '--workspace'], cwd=ROOT, env=env, check=True)
-    binaries = build()
-    families = json.loads((ROOT/'tests/families.json').read_text())
-    subprocess.run([str(binaries/'family-check'), *families, '--compositional'],
-                   cwd=ROOT, env=env, check=True)
-    native_smoke(binaries)
-    target = binaries.parent
-    out = fresh(out)
-    for package, version in meta['model']['packages'].items():
-        name = f'{package}-{version}.crate'
-        shutil.copyfile(target/'package'/name, out/name)
-    archive(out/'grammar-sources.tar.gz', [p for p in (ROOT/'grammar').rglob('*') if p.is_file()]+[ROOT/'LICENSE-MIT', ROOT/'LICENSE-APACHE'])
-    with (out/'grammar.ebnf').open('w') as file:
-        subprocess.run([str(binaries/'grammar-export')], cwd=out, stdout=file, env=env, check=True)
-    # Executables are omitted until platform archives and their licenses are shipped.
-    unchanged(meta)
-    finish(out, {'format_version': 1, 'kind': 'oracle-grammar-code', 'tag': tag, **meta,
-                 'build': {'locked': True, 'features': ['cli', 'embedded-grammar']}})
+    with tempfile.TemporaryDirectory() as directory:
+        archives = package_archives(meta, Path(directory))
+        binaries = build()
+        families = json.loads((ROOT/'tests/families.json').read_text())
+        subprocess.run([str(binaries/'family-check'), *families, '--compositional'],
+                       cwd=ROOT, env=env, check=True)
+        native_smoke(binaries)
+        out = fresh(out)
+        for source in archives.values():
+            shutil.copyfile(source, out/source.name)
+        archive(out/'grammar-sources.tar.gz', [p for p in (ROOT/'grammar').rglob('*') if p.is_file()]+[ROOT/'LICENSE-MIT', ROOT/'LICENSE-APACHE'])
+        with (out/'grammar.ebnf').open('w') as file:
+            subprocess.run([str(binaries/'grammar-export')], cwd=out, stdout=file, env=env, check=True)
+        unchanged(meta)
+        finish(out, {'format_version': 1, 'kind': 'oracle-grammar-code', 'tag': tag, **meta,
+                     'build': {'locked': True, 'features': ['cli', 'embedded-grammar']}})
 
 
 def source_spec(path, source):
