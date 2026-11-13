@@ -17,7 +17,9 @@ different face, Satya, Aetherflux Genius. Two unrelated deletion candidates were
 retained; edited-operand tests still need useful phrasing beyond the original
 corpus inputs. Removing the initial 54 candidates preserved every full-population
 parse and reading count, but changed edited prints in two tests. The final 52-rule
-pass keeps those tests passing without weakening their assertions.
+pass keeps those tests passing without weakening their assertions. A second pass
+retires four shared-X tail rules and the computed-energy payment rule, bringing
+the total removed to 57.
 
 ## Shared-X lowering correction
 
@@ -58,6 +60,30 @@ result IDs. It allocates a fresh result only for the definition. The pinned
 export and reference lock remain untouched. The owned AST already provides
 `BindValue` and `BoundValue`; no AST or schema update is needed.
 
+## Satya and created-token values
+
+Satya, Aetherflux Genius previously selected `Result{index:0}` for the mana value
+in its delayed energy payment. Its retained reference correctly uses
+`Aggregate{objects:Created, property:ManaValue, aggregation:Sum}`: replacement
+effects can produce several tokens from the request for one. The new generic
+token possessive value constructs that aggregate directly from its current
+property and batch reference, and the same declaration supplies its print.
+The scalar token-reference guard excludes the competing first-token property.
+
+Implicit `its` requires current token focus. An explicit `that token's` can still
+name the batch after a new target. Separate abilities and later unrelated target
+pronouns cannot borrow the token. Tests cover the full Satya text, edited power
+and toughness values, later actions, explicit token possessives, singular/plural
+refusal and semantic reparse. The allowed reference contains no scalar
+`ObjectProperty(Result)` tied to a token-creation result, so this audit found no
+further face normalization in that shape family.
+
+Energy costs now share one production for symbols, worded energy counters and
+computed amounts. Satya and one further face gain compositional reference
+agreement. Satya has one reading, a verified default print, exact wording with
+a key, and 22 of 23 enumerated candidates retain its semantics. Its reference
+and the AST schema are unchanged.
+
 ## Validation population
 
 All corpus work uses the manifest's explicitly allowed, hash-verified population
@@ -67,19 +93,20 @@ of 32,755 faces. Held-out inputs were not inspected. Input identities:
 - Prepared Oracle source: `2281f3d715e8ee6127825154b31202918ef83a9d9a3641a0d23b0163ebea3065`.
 - Pinned native reference: `68c1f37c748a09a1b4edc60a110ebad8f75100ae11334060515098bd9b40bd76`.
 
-After `U0002`, all 32,755 faces remain recognized: 32,754 equal and the existing
-Satya difference. Relative to the inherited where-X batch, single-reading faces
+After `U0002` and the Satya correction, all 32,755 faces remain recognized and
+match the reference. Relative to the inherited where-X batch, single-reading faces
 increase from 31,527 to 31,531 and total readings decrease from 34,080 to 34,076.
 These are semantic and structural results, not timing benchmarks.
 
 With all `m_` and `t_` productions disabled, the 484-face where-X cohort has 32
 reference matches, up from 29 in the inherited batch. The full rule audit reports
-19,700 compositional reference matches and 12,155 remaining seeded productions.
-The shared-X correction makes four further tail rules retirement candidates:
+19,702 compositional reference matches. The two retirement passes leave 12,150
+seeded productions. The shared-X correction retires four further tail rules:
 `t_operation_then_you_draw_x_cards_and`,
 `t_operation_you_draw_x_cards_and_you`,
 `t_players_singular_loses_x_life_and_you_gain`, and
-`t_you_gain_x_life_and_draw_x`. They remain for the next retirement pass.
+`t_you_gain_x_life_and_draw_x`. The energy-payment simplification also retires
+`m_pay_an_amount_of_e_equal_to`.
 
 ## Remaining print issues
 
