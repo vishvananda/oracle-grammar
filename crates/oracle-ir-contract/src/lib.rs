@@ -8,7 +8,7 @@ mod binding_roles;
 pub mod canonical;
 pub mod change_lists;
 pub mod coin_policies;
-mod complete;
+pub mod complete;
 pub mod copying;
 pub mod cost_history;
 pub mod human;
@@ -22,8 +22,8 @@ pub mod presentation;
 pub mod primitive_spec;
 pub mod result_reads;
 pub mod semantics;
-mod source_values;
-mod subtype;
+pub mod source_values;
+pub mod subtype;
 pub mod validate;
 
 #[cfg(test)]

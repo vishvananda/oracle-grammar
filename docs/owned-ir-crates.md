@@ -16,6 +16,11 @@ license and copyright in each package. `pins/model.json` records this provenance
 it does not freeze owned code against future reviewed edits. The reference pin
 is unchanged. No corpus or machine-specific dependency path is bundled.
 
+The optional `oracle-ir/typescript` feature retains vocabulary TypeScript exports
+for legacy consumers without adding that dependency to normal frontend builds.
+Source-boundary utilities are exported for adapters; their types and validation
+continue to use this same owned model.
+
 ## Initial compatibility boundary
 
 The extraction preserves schema 190, enum order, numeric domains and AST payload
