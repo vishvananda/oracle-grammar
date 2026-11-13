@@ -837,6 +837,9 @@ mod counts;
 #[path = "shared_clauses/where_values.rs"]
 mod where_values;
 
+#[path = "shared_clauses/token_values.rs"]
+mod token_values;
+
 #[path = "shared_clauses/turn_history.rs"]
 mod turn_history;
 

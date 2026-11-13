@@ -102,7 +102,8 @@ pub(super) fn reference(scope: &Scope, singular: bool, explicit: bool) -> Result
     Ok(json!({"kind":"Created","args":result}))
 }
 
-/// Scalar uses can name one token, but a recipient phrase applies to the batch.
+/// Scalar roles can name one token, but recipients and characteristic totals
+/// apply to the produced batch even when one token was requested.
 /// A One(Result(..., index=0)) recipient would select only one created object.
 pub(super) fn check_scalar(
     root: &mut Value,
@@ -129,10 +130,10 @@ pub(super) fn check_scalar(
     for depth in (0..path.len()).rev() {
         let parent = at_path(root, &path[..depth]).ok_or("token reference path")?;
         if let Some(kind) = parent["kind"].as_str() {
-            return if kind == "One" {
-                Err("a token recipient names the created batch".into())
-            } else {
-                Ok(())
+            return match kind {
+                "One" => Err("a token recipient names the created batch".into()),
+                "ObjectProperty" => Err("a token characteristic measures the created batch".into()),
+                _ => Ok(()),
             };
         }
     }

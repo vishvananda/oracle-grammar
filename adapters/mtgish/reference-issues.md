@@ -229,7 +229,7 @@ At `35d1f2b` (`docs/reference-followups-20261112.md`):
 - A proven one-card receipt is tested with `ObjectMatches(Result{phase,
   index:0}, filter)` and measured with `ObjectProperty(Result{phase, index:0})`.
   The grammar lowers the counted spelling at binding and restores it for the
-  printer. Satya keeps its batch; see below.
+  printer. Created-token properties keep their whole batch, including Satya.
 - In the Darkness Bind Them untaps the announced targets, as Hideous Taskmaster
   does.
 - "This card" after its own exile keeps distinct action, cost and event
@@ -280,11 +280,10 @@ the IR path, the value it replaces and why.
 
 ## Open in the grammar
 
-These faces differ because the grammar reads them differently; upstream's form
-stands. They have no `###` heading.
+No face differs in the explicitly allowed population at this checkpoint.
 
-- Satya, Aetherflux Genius: "sacrifice that token unless you pay an amount of
-  {E} equal to its mana value" sums over every token created, because a doubling
-  replacement can create several. The grammar reads "its" as `Result{index:0}`;
-  reading the whole batch needs a batch reference for "its" with its own printing
-  inverse.
+Satya, Aetherflux Genius now reads "its mana value" as the sum over `Created`,
+matching the retained reference. A request to create one token can produce
+several after replacements. The grammar supplies the batch property directly,
+with a printing inverse; it rejects a competing `ObjectProperty(Result{index:0})`
+reading. No reference update or AST schema change was needed for this fix.

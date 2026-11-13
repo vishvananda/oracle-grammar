@@ -251,7 +251,7 @@ value_atom ::= value_cast_since_last_turn | value_chosen_creature_population | v
     | value_excess | value_colors_spent | value_damage_to_you | value_life_lost_all | value_damage_already_it
     | value_as_cast | value_graveyards_same_name | value_destroyed_yours | value_died_this_way | value_cards_with_cycling | value_spells_cast_by
     | value_total_population | value_total_mana_other_cast
-    | value_counters_on_object | value_all_counters_on_object | value_player_counters | value_opponents
+    | value_counters_on_object | value_all_counters_on_object | value_player_counters | value_opponents | value_created_stat
     | value_differently_named | value_spells_you_cast | value_tokens_created
 
 /* Live objects and cast-event history are different populations. */
@@ -275,6 +275,18 @@ value_toughness ::= "its" "toughness"
 
 /* @sem Expr::ObjectProperty{object:@move_after_property(ObjectRef::@it), property:ManaValue, information:CurrentOrLastKnown} */
 value_mana_value ::= "its" "mana" "value"
+
+/* A requested single token can become several through replacement effects.
+   Its characteristic measures the produced batch, not an arbitrary first token. */
+/* @sem Expr::Aggregate{objects:$created_stat_possessive, property:$stat, aggregation:Sum} */
+value_created_stat ::= created_stat_possessive stat
+
+created_stat_possessive ::= created_stat_implicit | created_stat_named
+/* @sem ObjectSet::@created_reference_single */
+created_stat_implicit ::= "its"
+/* @sem ObjectSet::@created_named_reference */
+/* @prefer value(Created) */
+created_stat_named ::= ("that" | "the") "token's"
 
 /* @sem @that_much */
 value_that_much ::= "that" "much"
