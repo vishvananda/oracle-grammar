@@ -834,6 +834,9 @@ mod payments;
 #[path = "shared_clauses/counts.rs"]
 mod counts;
 
+#[path = "shared_clauses/look_where.rs"]
+mod look_where;
+
 #[path = "shared_clauses/where_values.rs"]
 mod where_values;
 

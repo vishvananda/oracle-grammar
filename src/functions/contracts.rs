@@ -649,6 +649,18 @@ fn specialized_call(
         | "announced_targets"
         | "optional_program"
         | "optional_action_program" => optional_scope_call(name, args, ty, schema).map(Some),
+        "look_inline" => {
+            let [operation] = args else {
+                return Err("@look_inline needs one Operation".into());
+            };
+            if *ty != Ty::Named("Operation".into()) {
+                return Err("@look_inline produces Operation".into());
+            }
+            Ok(Some(Pattern::Symbol(
+                name.into(),
+                vec![elaborate(operation, ty, schema)?],
+            )))
+        }
         "where_snapshot" => snapshot_call(args, ty, schema).map(Some),
         "capture_amount" => capture_amount_call(args, ty, schema).map(Some),
         _ => Ok(None),

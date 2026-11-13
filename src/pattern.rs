@@ -622,9 +622,7 @@ impl Pattern {
                     }
                     ("apply", [subject, body]) => return Ok(applied(subject, body.clone())),
                     ("where", [body, value]) => {
-                        if crate::functions::value_snapshot::shared(body)
-                            && crate::functions::value_snapshot::shared_definition(value)
-                        {
+                        if crate::functions::value_snapshot::required(body, value) {
                             return crate::functions::value_snapshot::snapshot(body, value, at);
                         }
                         return Ok(substituted(body.clone(), value));
@@ -868,6 +866,10 @@ impl Pattern {
                 return crate::functions::repeated_damage_actor::unify(args, value, bindings);
             }
             "apply" => return unify_apply(args, value, bindings),
+            "look_inline" => {
+                let [operation] = args else { return Vec::new() };
+                return operation.unify(value, bindings);
+            }
             "where" => return unify_where(args, value, bindings),
             "where_snapshot" => {
                 return crate::functions::value_snapshot::unify(args, value, bindings);

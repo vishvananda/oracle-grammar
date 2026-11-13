@@ -57,6 +57,7 @@ mod holder;
 mod move_after;
 mod movement;
 mod objects;
+mod observed;
 mod other;
 mod owner_return;
 mod paid_self_exile;
@@ -372,6 +373,7 @@ fn result_reference(
 
 fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
     let root = presentation::core_mut(root);
+    observed::inline(root)?;
     attached_counter_other::prepare(root)?;
     holder::mark(root, scope.holders);
     events::bind_controller_turn_header(root, scope)?;

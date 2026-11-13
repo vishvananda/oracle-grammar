@@ -239,8 +239,11 @@ clause_look_put_then ::= ("you")? look_top "," "then" look_put_split
 
 look_count ::= number
 
-/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$look_top}, Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$card_filter}, count:UpTo(Expr::Constant(1)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Reveal{objects:Selected(@prior)}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Instruction::Effect{result:@next, operation:$rest_bottom}] */
-instructions_look_reveal ::= look_top "." "you" "may" "reveal" ("a" | "an") card_filter "card" "from" "among" "them" "and" "put" ("it" | "that" "card") "into" "your" "hand" "." "then"? "put" rest_bottom
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$look_top}, ...$look_reveal_split] */
+instructions_look_reveal ::= look_top "." look_reveal_split
+
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$card_filter}, count:UpTo(Expr::Constant(1)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Reveal{objects:Selected(@prior)}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Instruction::Effect{result:@next, operation:$rest_bottom}] */
+look_reveal_split ::= "you" "may" "reveal" ("a" | "an") card_filter "card" "from" "among" "them" "and" "put" ("it" | "that" "card") "into" "your" "hand" "." "then"? "put" rest_bottom
 
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::RevealUntil{library:AbilityController, filter:$card_filter, count:Expr::Constant(1)}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:$until_destination, qualifiers:[]}}, Instruction::Effect{result:@next, operation:$rest_bottom}] */
 instructions_reveal_until ::= "reveal" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "reveal" ("a" | "an") card_filter "card" "." "put" "that" "card" until_destination "and" rest_bottom
@@ -583,8 +586,17 @@ exile_top_cards_of_your_library ::= "exile" "the" "top" card_count "of" "your" "
 /* @sem Operation::Shuffle{players:$players_singular} */
 then_players_shuffle ::= "then" players_singular "shuffles"
 
-/* Looking at the top X cards. */
-/* @sem Operation::LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$value, from:Top}} */
+/* The where clause owns the observed program, including later X selections.
+   Bind a repeated value before looking, while preserving the look mark and
+   every selection and move receipt. */
+/* @sem @where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_where_follow]}, $value) */
+program_look_where ::= ("you")? look_top "," "where" "X" "is" value "." look_where_follow
+
+look_where_follow ::= look_put_split | look_reveal_split
+
+/* A standalone look definition cannot leave later X amounts unresolved. Whole
+   look/selection programs above own those uses together. */
+/* @sem Operation::@look_inline(Operation::LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$value, from:Top}}) */
 look_at_top_x_cards ::= "look" "at" "the" "top" "X" "cards" "of" "your" "library" "," "where" "X" "is" value
 
 /* Shuffling your library. */

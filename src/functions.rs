@@ -312,6 +312,14 @@ pub(crate) fn computed_numbers(node: &Value, out: &mut Vec<Value>) {
                     }
                 }
             }
+            // A LookAt slice owns this where-clause count. Do not widen every
+            // other Take consumer's inverse with unrelated count spellings.
+            if node["kind"] == "LookAt" && node["args"]["objects"]["kind"] == "Take" {
+                let item = &node["args"]["objects"]["args"]["count"];
+                if item.get("kind").is_some() && constant(item).is_none() && !out.contains(item) {
+                    out.push(item.clone());
+                }
+            }
             // Conjure's count is an Expr, unlike arbitrary count metadata.
             if node["kind"] == "Conjure" {
                 let item = &node["args"]["count"];
@@ -369,7 +377,7 @@ pub(crate) fn unify_where<'p, 'v>(
             continue;
         }
         let abstracted = replaced(value.clone(), &candidate, &x);
-        if value_snapshot::shared(&abstracted) && value_snapshot::shared_definition(&candidate) {
+        if value_snapshot::required(&abstracted, &candidate) {
             continue;
         }
         for b in amount.unify_made(&candidate, &bindings) {

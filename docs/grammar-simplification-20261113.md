@@ -204,3 +204,64 @@ The inherited every-tenth-face print results still expose these followups:
   separate measurements.
 
 These printer issues do not justify changing the corresponding face meanings.
+
+## Observed cards and where-X selection
+
+The shared library grammar now attaches a where-X definition to the complete
+look-and-select program. Hand selection and optional filtered reveal share their
+existing tails. A single X use stays inline; repeated uses capture once before
+LookAt and refer to that BindValue for the look count and later choice. The
+synthetic repeated-count regression deliberately counts cards in hand, so moving
+the chosen cards cannot turn another X use into a second evaluation. A property
+definition is also supported at this exact capture point.
+
+Synthetic captures keep LookAt's mark distinct from the synthetic definition,
+the ChooseObjects receipt and the Move receipt. Edited definitions are printed
+from current operands and reparsed. Inverse matching refuses moving the capture
+past LookAt. Scope tests keep independent granted/created abilities separate from
+the enclosing X definition.
+
+The existing atomic look production is retained for other library tails. Its
+private binding annotation rejects residual owned or inherited AnnouncedX uses:
+an explicit local definition must not leave a later X as the spell's casting
+value. Independent ability definitions keep their own X. This is a lowering
+correction, with no AST schema or reference-record change. Retiring the old direct
+look-and-put template also removes its incorrect mixed-definition reading on the
+synthetic repeated-X example.
+
+The allowed 47-face look-at-top-X cohort retains 47 equal, single-reading faces,
+47 exact keyed wordings and 47 verified default prints. Default wording is exact
+for 28; 284 of 385 enumerated candidates reparse semantically. Compositional
+coverage for that cohort is 16. The full audit gains 11 compositional matches,
+from 19,705 to 19,716. Its four pre-existing attribution-unresolved faces are
+unchanged and protected (zero at risk); those are distinct from semantic matches.
+The full score remains 32,755 equal, 31,548 single-reading faces and 34,059 total
+readings, with no status or reading-count changes against the preceding commit.
+
+Four newly redundant productions are retired:
+`m_look_at_the_top_x_cards_of`, `m_operation_put_value_of_those_cards_into`,
+`t_look_at_the_top_x_cards_of_7` and
+`t_operation_put_value_of_them_into_your_7`. Total retirements reach 66, with
+12,141 seeded productions remaining. The two older retained candidates stay.
+
+A follow-up reference audit records another representation difference to prove
+and normalize: Keldon Flamesage captures the look quantity, while Emergent
+Woodwurm (including its granted Backup ability), Kiora and Thassa's Oracle repeat
+the defining expression in later operands. Those larger tails still use seeded
+productions. Any normalization must preserve when the definition is read,
+optional choices, inherited ability holders, cast receipts and library remainder
+identities. No speculative equality alias or reference edit was made in this
+batch; the immutable audit evidence is reproducible from the allowed population.
+
+Final repository validation passes all eight gates (fmt, pin, hygiene, Python
+tools, clippy, build, families and release tests): 703 frontend tests pass and one
+is ignored. The inverse enumerates a LookAt slice's quantity explicitly, rather
+than widening all other uses of Take with extra where-clause spellings.
+
+The final every-tenth-face print audit preserves all 3,275 statuses, reading
+counts, default texts and exact-wording flags against the pre-batch render rows.
+It retains 3,221 verified defaults and 3,196 exact keyed wordings. Enumerated
+candidates change from 43,371/31,339 generated/verified to 43,372/31,338: Cream of
+the Crop and Nessian Game Warden each have one fewer verified beam candidate,
+while The Mana Rig gains one. Failed candidates are discarded by semantic reparse;
+these counts do not change the verified default or exact-wording results.

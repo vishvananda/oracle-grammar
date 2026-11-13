@@ -2,6 +2,7 @@
 use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
 
+mod observed;
 #[cfg(test)]
 mod shared_tests;
 
@@ -12,19 +13,26 @@ pub(crate) fn shared(body: &Value) -> bool {
     let Some(instructions) = body["instructions"].as_array() else {
         return false;
     };
-    instructions
-        .iter()
-        .filter(|instruction| {
-            instruction["kind"] == "Effect"
-                && matches!(
-                    instruction["args"]["operation"]["kind"].as_str(),
-                    Some("DealDamage" | "GainLife" | "LoseLife" | "Draw" | "Mill")
-                )
-                && super::is_x(&instruction["args"]["operation"]["args"]["amount"])
-        })
-        .count()
-        == 2
-        && x_count(body) == 2
+    observed::shared(body)
+        || instructions
+            .iter()
+            .filter(|instruction| {
+                instruction["kind"] == "Effect"
+                    && matches!(
+                        instruction["args"]["operation"]["kind"].as_str(),
+                        Some("DealDamage" | "GainLife" | "LoseLife" | "Draw" | "Mill")
+                    )
+                    && super::is_x(&instruction["args"]["operation"]["args"]["amount"])
+            })
+            .count()
+            == 2
+            && x_count(body) == 2
+}
+
+/// Repeated observed amounts share the definition even when it is an object
+/// property: capture occurs immediately before looking, before any card moves.
+pub(crate) fn required(body: &Value, amount: &Value) -> bool {
+    shared(body) && (shared_definition(amount) || observed::shared(body) && x_count(amount) == 0)
 }
 
 /// Pumps retain their existing scalar/aggregate definition contract.
@@ -349,6 +357,9 @@ fn paired_pumps(body: &Value) -> bool {
 /// Exactly the same definition gate serves forward capture and inverse view.
 /// Paired pumps do not borrow the sacrifice/property exception of eager amounts.
 fn definition_eligible(body: &Value, amount: &Value) -> bool {
+    if observed::shared(body) {
+        return x_count(amount) == 0;
+    }
     if paired_pumps(body) {
         return aggregate_definition(amount);
     }
