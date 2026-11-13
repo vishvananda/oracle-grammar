@@ -1,0 +1,61 @@
+name: Release native faces
+on:
+  push:
+    tags: ['faces-*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Face tag matching a checked-in releases/faces/TAG.json specification
+        required: true
+        type: string
+      publish:
+        description: Publish GitHub release after verifying uploaded draft assets
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: grammar-faces-release
+  cancel-in-progress: false
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@1.98.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: Swatinem/rust-cache@v2
+      - name: Download pinned source and export the specified population
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+        run: python3 tools/releases.py faces-tag --tag "$RELEASE_TAG" --out .cache/release-faces
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-faces
+          path: .cache/release-faces/
+          if-no-files-found: error
+  publish:
+    if: github.event_name == 'push' || inputs.publish
+    needs: export
+    runs-on: ubuntu-latest
+    environment: grammar-releases
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-faces
+          path: .cache/release-faces
+      - name: Upload, verify and publish native face bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+        run: python3 tools/releases.py github .cache/release-faces --repo "$RELEASE_REPOSITORY" --publish

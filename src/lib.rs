@@ -1,8 +1,9 @@
-//! Phrase-level Oracle grammar over MTGish's normalized IR. See SPEC.md.
+//! Phrase-level Oracle grammar over the owned Oracle IR. See SPEC.md.
 pub mod bind;
 pub mod corpus;
 pub mod derivation;
 pub mod engine;
+pub mod export;
 pub mod functions;
 pub mod grammar;
 pub mod heads;

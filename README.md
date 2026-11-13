@@ -117,3 +117,9 @@ comparisons use optimized release binaries and immutable inputs; the helper's
 quick build is for correctness and iteration.
 
 Licensed under MIT OR Apache-2.0.
+
+## Distribution
+
+See [release instructions](docs/releases.md) for independently versioned grammar
+crates, AST schemas and native face bundles, including reproducible manifests
+and the GitHub/crates.io publication workflows.

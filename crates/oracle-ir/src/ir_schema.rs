@@ -6,6 +6,46 @@ use syn::{Fields as SynFields, GenericArgument, Item, PathArguments, Type};
 #[cfg(test)]
 mod contract;
 
+/// Immutable historical wire descriptors used by portable migration tooling.
+/// Unknown epochs return `None`; callers must not substitute the current schema.
+pub fn frozen_json(version: u32) -> Option<&'static str> {
+    Some(match version {
+        180 => include_str!("../schema/180.json"),
+        181 => include_str!("../schema/181.json"),
+        182 => include_str!("../schema/182.json"),
+        183 => include_str!("../schema/183.json"),
+        184 => include_str!("../schema/184.json"),
+        185 => include_str!("../schema/185.json"),
+        186 => include_str!("../schema/186.json"),
+        187 => include_str!("../schema/187.json"),
+        188 => include_str!("../schema/188.json"),
+        189 => include_str!("../schema/189.json"),
+        190 => include_str!("../schema/190.json"),
+        _ => return None,
+    })
+}
+
+/// Frozen signatures retained for contract verification.
+pub fn frozen_signature(version: u32) -> Option<&'static str> {
+    Some(match version {
+        177 => include_str!("../schema/177.txt"),
+        178 => include_str!("../schema/178.txt"),
+        179 => include_str!("../schema/179.txt"),
+        180 => include_str!("../schema/180.txt"),
+        181 => include_str!("../schema/181.txt"),
+        182 => include_str!("../schema/182.txt"),
+        183 => include_str!("../schema/183.txt"),
+        184 => include_str!("../schema/184.txt"),
+        185 => include_str!("../schema/185.txt"),
+        186 => include_str!("../schema/186.txt"),
+        187 => include_str!("../schema/187.txt"),
+        188 => include_str!("../schema/188.txt"),
+        189 => include_str!("../schema/189.txt"),
+        190 => include_str!("../schema/190.txt"),
+        _ => return None,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Ty {
     Named(String),
