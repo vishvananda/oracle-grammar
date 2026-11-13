@@ -857,3 +857,6 @@ mod declined_payments;
 
 #[path = "shared_clauses/planeswalks.rs"]
 mod planeswalks;
+
+#[path = "shared_clauses/ordered_zones.rs"]
+mod ordered_zones;

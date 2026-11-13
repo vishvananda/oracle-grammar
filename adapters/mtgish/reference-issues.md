@@ -8,7 +8,7 @@ have no `###` heading, so they never excuse a lost match. After an upstream fix,
 advance `reference.json`, re-prepare the inputs and recount. Paths are IR paths
 inside the face's ability list.
 
-The current reference is `19e317a12aa88a6a1a005497e9643c13dc47d978` (schema
+The current reference is `d4b172343b06f8887f700b425ebf69a67acf8efa` (schema
 190). Upstream reviewed the grammar's 53 differing faces at `1fe5782` in
 `docs/reference-decisions-20261112.md`, with a per-face ledger in
 `reference-decisions-20261112.json`, and closed the nine held for a witness in
@@ -18,7 +18,8 @@ closed all 36 by `5c1abe1` in `docs/reference-self-frames-20261112.md` and
 `docs/reference-remaining30-20261112.md`. At `35d1f2b` it closed the disputes
 and same-wording groups this report listed at `5408607`, in
 `docs/reference-followups-20261112.md` with a ledger in
-`reference-followups-20261112.json`.
+`reference-followups-20261112.json`. At `54abf45` it gave one positional form to
+a single player's library or graveyard in `docs/ordered-zone-audit-20261113.md`.
 
 ## Disputed
 
@@ -236,6 +237,19 @@ At `35d1f2b` (`docs/reference-followups-20261112.md`):
   branch.
 - Forgeborn Phoenix and Hook Horror apply `CreatePerpetualEffect` to the guarded
   `EventDestination` in the graveyard, as Consumed by History does.
+
+At `54abf45` (`docs/ordered-zone-audit-20261113.md`):
+
+- A set read from one end of one player's library or graveyard is
+  `Take{objects:Zone, count, from:Top|Bottom}`. `LibraryTops(One(player))` and a
+  positional `One(Query(Zone, 0))` become that form; the grammar lowers the
+  second at binding. A scalar top card is `Query{objects:Zone, index:0}`.
+- "The top creature card" filters the zone before taking (Corpse Dance); "the top
+  card, if it's a creature card" takes and then tests (Guiding Spirit). Bottom
+  keeps `Bottom` (Phyrexian Furnace).
+- `LibraryTops(All)` and `LibraryTops(OpponentsOf(...))` stay one card per
+  library.
+- Wand of Denial tests and moves its `Observed` look receipt.
 
 ## Same wording encoded more than one way
 

@@ -138,6 +138,53 @@ pub(super) fn blocks_itself(value: &Value) -> bool {
     }
 }
 
+/// "Look at the top three cards of target player's library, then put them back in any
+/// order": the cards looked at go back into the library they came from.
+pub(super) fn reorders_another_library(value: &Value) -> bool {
+    let wrong = |items: &[Value]| {
+        items.iter().enumerate().any(|(at, item)| {
+            let reorder = &item["args"]["operation"];
+            let mut objects = &reorder["args"]["objects"];
+            if objects["kind"] == "InZone" {
+                objects = &objects["args"]["objects"];
+            }
+            item["kind"] == "Effect"
+                && reorder["kind"] == "ReorderLibrary"
+                && objects["kind"] == "Observed"
+                && items[..at].iter().any(|look| {
+                    let seen = &look["args"]["operation"];
+                    look["kind"] == "Effect"
+                        && look["args"]["result"] == objects["args"]
+                        && matches!(seen["kind"].as_str(), Some("LookAt" | "Reveal"))
+                        && library_owner(&seen["args"]["objects"])
+                            .is_some_and(|owner| *owner != reorder["args"]["library_owner"])
+                })
+        })
+    };
+    match value {
+        Value::Object(object) => {
+            value["instructions"]
+                .as_array()
+                .is_some_and(|items| wrong(items))
+                || object.values().any(reorders_another_library)
+        }
+        Value::Array(items) => items.iter().any(reorders_another_library),
+        _ => false,
+    }
+}
+
+/// The one player whose library an ordered slice or zone reads.
+fn library_owner(objects: &Value) -> Option<&Value> {
+    let set = if objects["kind"] == "Take" {
+        &objects["args"]["objects"]
+    } else {
+        objects
+    };
+    let scope = &set["args"]["scope"]["Players"];
+    (set["kind"] == "Zone" && scope["zone"] == "Library" && scope["players"]["kind"] == "One")
+        .then(|| &scope["players"]["args"])
+}
+
 /// "Sacrifice a creature. Rupture deals damage equal to that creature's power": damage
 /// measured by a sacrificed permanent follows a required sacrifice payment and reads the
 /// paid permanent. An ordinary sacrifice measured that way only gains life or draws.

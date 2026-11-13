@@ -158,7 +158,37 @@ found_battlefield ::= "put" found "onto" "the" "battlefield"
 /* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}) */
 found_battlefield_tapped ::= "put" found "onto" "the" "battlefield" "tapped"
 
-/* The top of a library, looked at or shown. */
+/* An end of one player's library or graveyard: "the top two cards of target player's
+   library", "the bottom card of your graveyard". */
+ordered_cards ::= ordered_slice | library_tops
+
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:$ordered_zone, players:One($player_possessive)}, kind:Card, filter:Any}, count:$top_count, from:$ordered_end} */
+ordered_slice ::= "the" ordered_end top_count "of" player_possessive ordered_zone
+
+/* "The top card of each player's library" is one card from each library, not the top
+   card of all of them together. */
+/* @sem ObjectSet::LibraryTops($players_possessive) */
+library_tops ::= "the" "top" "card" "of" players_possessive "library"
+
+/* The top card itself, read where it is: "if the top card of your library is a land
+   card". */
+/* @sem ObjectRef::Query{objects:Zone{scope:Players{zone:$ordered_zone, players:One($player_possessive)}, kind:Card, filter:Any}, index:0} */
+ordered_top_card ::= "the" "top" "card" "of" player_possessive ordered_zone
+
+ordered_end ::= ordered_top | ordered_bottom
+/* @sem SequenceEnd::Top */
+ordered_top ::= "top"
+/* @sem SequenceEnd::Bottom */
+ordered_bottom ::= "bottom"
+
+ordered_zone ::= ordered_library | ordered_graveyard
+/* @sem EventZone::Library */
+ordered_library ::= "library"
+/* @sem EventZone::Graveyard */
+ordered_graveyard ::= "graveyard"
+
+/* The top of your library, looked at or shown. What follows the look names your own
+   library and hand. */
 /* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:$top_count, from:Top} */
 your_top ::= "the" "top" top_count "of" "your" "library"
 
@@ -241,7 +271,7 @@ clause_top_card_revealed_taken ::= top_card_reveal_payment "." "if" "you" "put" 
 /* Kinship: an optional look at the top card; if it shares a creature type with this
    creature, an optional reveal of it; and what follows only once it is revealed. Each
    optional action is a payment with its own guard, as in Wandering Graybeard. */
-/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[If{condition:ObjectMatches{object:Query{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, index:0}, filter:Shares{property:CreatureTypes, with:$self_ref}}, then:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$kinship_revealed, otherwise:Program{}}]}, otherwise:Program{}}]}, otherwise:Program{}}] */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[If{condition:ObjectMatches{object:Query{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), index:0}, filter:Shares{property:CreatureTypes, with:$self_ref}}, then:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$kinship_revealed, otherwise:Program{}}]}, otherwise:Program{}}]}, otherwise:Program{}}] */
 instructions_kinship_reveal ::= "you" "may" "look" "at" "the" "top" "card" "of" "your" "library" "." "if" "it" "shares" "a" "creature" "type" "with" self_ref "," "you" "may" "reveal" "it" "." "if" "you" "do" "," kinship_revealed
 
 kinship_revealed ::= kinship_free_play | program
@@ -367,14 +397,9 @@ graveyard_scope_opponents ::= ("from" | "in") "your" "opponents'" "graveyards"
 
 /* The zone owner is its own announced player, independently of the card
    targets whose eligibility uses that player's graveyard. */
-/* @sem ObjectFilter::InZone(Players{zone:Graveyard, players:One($graveyard_target_owner)}) */
-graveyard_scope_target ::= ("from" | "in") graveyard_target_owner "graveyard"
+/* @sem ObjectFilter::InZone(Players{zone:Graveyard, players:One($target_possessive)}) */
+graveyard_scope_target ::= ("from" | "in") target_possessive "graveyard"
 
-graveyard_target_owner ::= graveyard_target_player | graveyard_target_opponent
-/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0} */
-graveyard_target_player ::= "target" "player's"
-/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}), index:0} */
-graveyard_target_opponent ::= "target" "opponent's"
 
 /* One opponent's graveyard is a common owner, not an independent opponent
    choice for each targeted card. A single graveyard has the same constraint. */
@@ -406,13 +431,7 @@ library_depth_fifth ::= "fifth"
 /* @sem Instruction::[Group(Program{instructions:[Effect{result:@mark, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One($reorder_library_owner)}, kind:Card, filter:Any}, count:$top_count, from:Top}}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:$reorder_library_owner, objects:InZone{objects:Observed(@marked), zone:Library}, end:Top, order:Chosen}}]})] */
 clause_library_reorder ::= "look" "at" "the" "top" top_count "of" reorder_library_owner "library" "," "then" "put" "them" "back" "in" "any" "order"
 
-reorder_library_owner ::= reorder_own_library | reorder_target_library | reorder_opponent_library
-/* @sem PlayerRef::AbilityController */
-reorder_own_library ::= "your"
-/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:All}), index:0} */
-reorder_target_library ::= "target" "player's"
-/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:OpponentsOf(PlayerRef::AbilityController)}), index:0} */
-reorder_opponent_library ::= "target" "opponent's"
+reorder_library_owner ::= zone_your | target_possessive
 
 /* A printed total constrains the announced target group. It is not a
    per-card property filter or a resolution-time selection. */
@@ -495,8 +514,8 @@ seek_delayed_discard ::= "discard" current_card_ref "at" "the" "beginning" "of" 
 
 /* The reveal choice gates both moving the top card and its later life loss.
    The amount reads the card's pre-move information, not the new top card. */
-/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:$own_single_top_card}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@mark, operation:Move{objects:$own_single_top_card, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:$top_card_life_loss_amount}}]}, otherwise:Program{}}] */
-clause_optional_top_card_life ::= "you" "may" "reveal" own_single_top_card "and" "put" "it" "into" "your" "hand" "." "if" "you" "do" "," "you" "lose" top_card_life_loss_amount
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:$your_top}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@mark, operation:Move{objects:$your_top, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:$top_card_life_loss_amount}}]}, otherwise:Program{}}] */
+clause_optional_top_card_life ::= "you" "may" "reveal" your_top "and" "put" "it" "into" "your" "hand" "." "if" "you" "do" "," "you" "lose" top_card_life_loss_amount
 
 /* Copying a revealed card does not move it. The final reorder retains the
    owning reveal receipt across that intervening continuous effect. */
@@ -512,8 +531,6 @@ instructions_reveal_any_battlefield_remainder ::= reveal_top "." "you" "may" "pu
    Its nested holder scope remains separate from the revealing source. */
 /* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$card_filter}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:$revealed_entry_grants, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(3), phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}}] */
 instructions_reveal_grant_remainder ::= reveal_top "." "you" "may" "put" ("a" | "an") card_filter "card" "from" "among" "them" "onto" "the" "battlefield" "." "it" "gains" revealed_entry_grants "then" "put" "the" "rest" "of" "the" "cards" "revealed" "this" "way" "on" "the" "bottom" "of" "your" "library" library_order
-/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
-own_single_top_card ::= "the" "top" "card" "of" "your" "library"
 top_card_life_loss_amount ::= moved_card_mana_life | life_number
 /* @sem Expr::ObjectProperty{object:Query{objects:Transition{result:@marked, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown} */
 moved_card_mana_life ::= "life" "equal" "to" "its" "mana" "value"

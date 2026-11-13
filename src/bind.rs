@@ -28,6 +28,7 @@ pub(crate) mod group_contrast;
 mod optional_entered_card;
 mod optional_entries;
 mod optional_exile_target;
+mod ordered_zones;
 mod payment_move_after;
 mod player_event;
 pub(crate) mod return_grants;
@@ -48,7 +49,8 @@ mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{
     blocks_itself, cancels_before_choice, condition_placement, damage_after_unpaid_sacrifice,
-    has_cost_as_action, life_margin_order, protection_domain_mismatch, single_holder_affected,
+    has_cost_as_action, life_margin_order, protection_domain_mismatch, reorders_another_library,
+    single_holder_affected,
 };
 mod coin_protocol;
 mod holder;
@@ -308,6 +310,9 @@ pub fn bind_held_ability(
     if single_holder_affected(ability) {
         return Err("a single holder's pump names that holder".into());
     }
+    if reorders_another_library(ability) {
+        return Err("cards put back go into the library they came from".into());
+    }
     if blocks_itself(ability) {
         return Err("a creature cannot be required to block itself".into());
     }
@@ -335,6 +340,7 @@ pub fn bind_held_ability(
     optional_entries::lower(ability);
     reflexive_exiled_card::lower(ability);
     target_populations::lower(ability);
+    ordered_zones::lower(ability);
     single_receipts::lower(ability);
     spell_focus::check_spell_grants(ability)
 }
@@ -1014,6 +1020,7 @@ pub(crate) fn lowered(abilities: &Value) -> Value {
     optional_entries::lower(&mut abilities);
     reflexive_exiled_card::lower(&mut abilities);
     target_populations::lower(&mut abilities);
+    ordered_zones::lower(&mut abilities);
     single_receipts::lower(&mut abilities);
     abilities
 }
