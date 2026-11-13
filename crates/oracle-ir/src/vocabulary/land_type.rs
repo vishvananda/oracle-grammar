@@ -1,0 +1,20 @@
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode)]
+pub enum LandType {
+    Cave,
+    Desert,
+    Forest,
+    Gate,
+    Island,
+    Lair,
+    Locus,
+    Mine,
+    Mountain,
+    Plains,
+    Planet,
+    PowerPlant,
+    Sphere,
+    Swamp,
+    Tower,
+    Town,
+    Urzas,
+}
