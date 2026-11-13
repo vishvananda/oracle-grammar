@@ -81,7 +81,7 @@ further face normalization in that shape family.
 Energy costs now share one production for symbols, worded energy counters and
 computed amounts. Satya and one further face gain compositional reference
 agreement. Satya has one reading, a verified default print, exact wording with
-a key, and 22 of 23 enumerated candidates retain its semantics. Its reference
+a key, and all 23 enumerated candidates retain its semantics. Its reference
 and the AST schema are unchanged.
 
 ## Validation population
@@ -107,6 +107,28 @@ seeded productions. The shared-X correction retires four further tail rules:
 `t_players_singular_loses_x_life_and_you_gain`, and
 `t_you_gain_x_life_and_draw_x`. The energy-payment simplification also retires
 `m_pay_an_amount_of_e_equal_to`.
+
+## Shared card populations
+
+One `card_population` declaration now serves counts, card-type counts, greatest
+statistics, total statistics and private-zone static subjects. It owns the
+plain, filtered, named, cycling and same-name card phrases, each composed with
+`card_zone_scope`. Separate count-only and aggregate-only copies of the same
+zone queries are removed. Named cards, cycling cards and card types can retain
+the same meaning in other supported zones and player scopes.
+
+Tests cover a targeted player's library, all players' hands, all graveyards,
+the cast spell's identity in a same-name query, and changing a named population's
+graveyard operand to a library before printing and reparsing. All allowed faces
+still match; compositional reference matches increase to 19,703. No reference
+record or AST schema change was needed for this consolidation.
+
+The pass retires `m_affected_gets_x_x_until_end_of_p2` and
+`m_affected_s_power_is_equal_to_the`, bringing the retirement total to 59 and
+leaving 12,148 seeded productions. Altar of the Goyf gains the existing explicit
+snapshot alternative to its inline Snapshot pump. The two representations
+evaluate at the same point; this is a canonicalization followup, rather than a
+new Oracle interpretation or a reason to alter its reference meaning.
 
 ## Remaining print issues
 

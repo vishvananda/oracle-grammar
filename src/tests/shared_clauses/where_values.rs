@@ -163,3 +163,92 @@ fn kinded_counter_definitions_share_the_same_snapshot_contract() {
         printed_types(&reading, &["Creature"]);
     }
 }
+
+#[test]
+fn card_populations_share_zones_without_losing_their_filters() {
+    for (population, kind, zone, player, filter) in [
+        (
+            "cards named Context example in target player's library",
+            "CountObjects",
+            "Library",
+            "Target",
+            "Name",
+        ),
+        (
+            "cards with a cycling ability in all players' hands",
+            "CountObjects",
+            "Hand",
+            "All",
+            "HasActivatedAbility",
+        ),
+        (
+            "card types among creature cards in all graveyards",
+            "CountDistinct",
+            "Graveyard",
+            "All",
+            "CardType",
+        ),
+    ] {
+        let text =
+            format!("You draw X cards and you lose X life, where X is the number of {population}.");
+        let reading = compositional(&text);
+        let values = amounts(&reading, kind);
+        assert_eq!(values.len(), 1);
+        let objects = if kind == "CountObjects" {
+            &values[0]
+        } else {
+            &values[0]["objects"]
+        };
+        assert_eq!(objects["kind"], "Zone");
+        assert_eq!(objects["args"]["scope"]["Players"]["zone"], zone);
+        let players = &objects["args"]["scope"]["Players"]["players"];
+        assert_eq!(
+            if player == "All" {
+                &players["kind"]
+            } else {
+                &players["args"]["kind"]
+            },
+            player
+        );
+        assert_eq!(objects["args"]["filter"]["kind"], filter);
+        printed(&reading);
+    }
+}
+
+#[test]
+fn editing_a_named_card_population_prints_its_current_zone() {
+    let mut reading = compositional(
+        "This creature enters with X +1/+1 counters on it, where X is the number of \
+         cards named Context example in your graveyard.",
+    );
+    // The shared value can occur inside the replacement tree; edit its typed zone.
+    fn library(value: &mut Value) {
+        if value["kind"] == "Zone" && value["args"]["filter"]["kind"] == "Name" {
+            value["args"]["scope"]["Players"]["zone"] = json!("Library");
+        }
+        match value {
+            Value::Object(fields) => fields.values_mut().for_each(library),
+            Value::Array(items) => items.iter_mut().for_each(library),
+            _ => {}
+        }
+    }
+    library(&mut reading);
+    let text = printed(&reading);
+    assert!(text.contains("your library"), "{text}");
+    assert!(!text.contains("graveyard"), "{text}");
+}
+
+#[test]
+fn a_same_name_population_keeps_the_cast_spell_and_its_own_zone() {
+    let text = "Whenever you cast a spell, you draw X cards and you lose X life, where X \
+                is the number of cards in your library with the same name as that spell.";
+    let reading = compositional(text);
+    let counted = amounts(&reading, "CountObjects");
+    assert_eq!(counted.len(), 1);
+    assert_eq!(counted[0]["args"]["scope"]["Players"]["zone"], "Library");
+    assert_eq!(
+        counted[0]["args"]["filter"],
+        json!({"kind":"SharesNameWith","args":{"kind":"EventSubject"}})
+    );
+    printed(&reading);
+}

@@ -242,14 +242,14 @@ value_difference ::= value_atom "minus" value
 value_constant ::= number_digits | number_words | number_x
 
 value_atom ::= value_cast_since_last_turn | value_chosen_creature_population | value_shared_countered | value_shared_other_four_subtypes | value_shared_saga_mana | value_times_mutated | value_your_life | mined_value | value_constant | value_number_of | value_power | value_toughness | value_mana_value | value_that_much | value_twice
-    | value_number_cards | value_number_filtered_cards
+    | value_number_cards
     | value_life_lost | value_life_gained_turn | value_mana_spent | value_sacrificed | value_sacrificed_result | value_stat_of | value_number_on_battlefield | value_number_other
-    | value_greatest | value_greatest_pair | value_colors_among | value_land_types_among | value_card_types_graveyard | value_devotion
-    | value_party | value_number_died | value_named_all | value_named_yours
+    | value_greatest | value_greatest_pair | value_colors_among | value_land_types_among | value_card_types | value_devotion
+    | value_party | value_number_died
     | value_half | value_damage_dealt | value_self_stat | value_power_of_target | value_damage_already
     | value_cards_drawn | value_cards_discarded | value_died_yours | value_sacrificed_count | value_noun_stat | value_turns_begun
     | value_excess | value_colors_spent | value_damage_to_you | value_life_lost_all | value_damage_already_it
-    | value_as_cast | value_graveyards_same_name | value_destroyed_yours | value_died_this_way | value_cards_with_cycling | value_spells_cast_by
+    | value_as_cast | value_destroyed_yours | value_died_this_way | value_spells_cast_by
     | value_total_population | value_total_mana_other_cast
     | value_counters_on_object | value_all_counters_on_object | value_player_counters | value_opponents | value_created_stat
     | value_differently_named | value_spells_you_cast | value_tokens_created
@@ -294,11 +294,21 @@ value_that_much ::= "that" "much"
 /* @sem @times(Expr::Constant(2), $value) */
 value_twice ::= "twice" value
 
-/* @sem Expr::CountObjects(Zone{scope:$card_zone_scope, kind:Card, filter:Any}) */
-value_number_cards ::= "the" "number" "of" "cards" "in" card_zone_scope
+/* Counts, distinct properties and aggregates share the same card population. */
+/* @sem Expr::CountObjects($card_population) */
+value_number_cards ::= "the" "number" "of" card_population
 
-/* @sem Expr::CountObjects(Zone{scope:$card_zone_scope, kind:Card, filter:$card_filter}) */
-value_number_filtered_cards ::= "the" "number" "of" card_filter "cards" "in" card_zone_scope
+card_population ::= card_population_plain | card_population_filtered | card_population_named | card_population_cycling | card_population_same_name
+/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:Any} */
+card_population_plain ::= "cards" "in" card_zone_scope
+/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:$card_filter} */
+card_population_filtered ::= card_filter "cards" "in" card_zone_scope
+/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:Name(@card_name)} */
+card_population_named ::= "cards" "named" SELF_NAME "in" card_zone_scope
+/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:HasActivatedAbility(Cycling)} */
+card_population_cycling ::= "cards" "with" "a" "cycling" "ability" "in" card_zone_scope
+/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:SharesNameWith(@it)} */
+card_population_same_name ::= "cards" "in" card_zone_scope "with" "the" "same" "name" "as" "that" "spell"
 
 /* The cards of one player's named zone, or of every player's graveyard or hand. */
 card_zone_scope ::= card_zone_one | card_zone_all_graveyards | card_zone_all_hands
@@ -342,16 +352,11 @@ value_greatest ::= "the" "greatest" stat "among" greatest_population
 /* @sem Expr::Maximum(Aggregate{objects:$greatest_population, property:$stat, aggregation:Maximum}, Aggregate{objects:$greatest_population, property:$stat_2, aggregation:Maximum}) */
 value_greatest_pair ::= "the" "greatest" stat "and/or" stat "among" greatest_population
 
-greatest_population ::= greatest_battlefield | greatest_other_battlefield | greatest_cards | greatest_filtered_cards
+greatest_population ::= greatest_battlefield | greatest_other_battlefield | card_population
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
 greatest_battlefield ::= filter_plural
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(@it)), $filter_plural)} */
 greatest_other_battlefield ::= "other" filter_plural
-/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:Any} */
-greatest_cards ::= "cards" "in" card_zone_scope
-/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:$card_filter} */
-greatest_filtered_cards ::= card_filter "cards" "in" card_zone_scope
-
 greatest_card_zone ::= greatest_hand | greatest_graveyard | greatest_library
 /* @sem ZoneName::Hand */
 greatest_hand ::= "hand"
@@ -366,8 +371,8 @@ value_colors_among ::= "the" "number" "of" "colors" "among" filter_plural
 /* @sem Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, property:BasicLandTypes} */
 value_land_types_among ::= "the" "number" "of" "basic" "land" "types" "among" filter_plural
 
-/* @sem Expr::CountDistinct{objects:Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, property:CardTypes} */
-value_card_types_graveyard ::= "the" "number" "of" "card" "types" "among" "cards" "in" "your" "graveyard"
+/* @sem Expr::CountDistinct{objects:$card_population, property:CardTypes} */
+value_card_types ::= "the" "number" "of" "card" "types" "among" card_population
 
 /* @sem Expr::CountManaSymbols{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:ControlledBy(One(PlayerRef::AbilityController))}, colors:[$devotion_color]} */
 value_devotion ::= "your" "devotion" "to" devotion_color
@@ -390,12 +395,6 @@ value_party ::= "the" "number" "of" "creatures" "in" "your" "party"
 
 /* @sem Expr::EventHistory{event:ZoneChange{objects:$filter_plural, from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences} */
 value_number_died ::= "the" "number" "of" filter_plural "that" "died" "this" "turn"
-
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:Name(@card_name)}) */
-value_named_all ::= "the" "number" "of" "cards" "named" SELF_NAME "in" "all" "graveyards"
-
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Name(@card_name)}) */
-value_named_yours ::= "the" "number" "of" "cards" "named" SELF_NAME "in" "your" "graveyard"
 
 /* @sem Expr::Divide{numerator:$value_atom, denominator:Expr::Constant(2), rounding:$rounding_words} */
 value_half ::= "half" value_atom "," rounding_words
@@ -503,14 +502,8 @@ value_destroyed_yours ::= "the" "number" "of" filter_plural "you" "controlled" "
 /* @sem Expr::CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:$filter_plural}) */
 value_died_this_way ::= "the" "number" "of" filter_plural "that" "died" "this" "way"
 
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:ObjectFilter::HasActivatedAbility(Cycling)}) */
-value_cards_with_cycling ::= "the" "number" "of" "cards" "with" "a" "cycling" "ability" "in" "your" "graveyard"
-
 /* @sem Expr::EventHistory{event:Spell{event:Cast, players:One(@that_player), spells:$spell_adjectives}, window:ThisTurn, measure:Occurrences} */
 value_spells_cast_by ::= "the" "number" "of" spell_adjectives "spells" "they've" "cast" "this" "turn"
-
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:SharesNameWith(@it)}) */
-value_graveyards_same_name ::= "the" "number" "of" "cards" "in" "all" "graveyards" "with" "the" "same" "name" "as" "that" "spell"
 
 /* @sem Expr::PlayerNumber{player:PlayerRef::AbilityController, number:Life} */
 value_your_life ::= "your" "life" "total"
