@@ -1,18 +1,20 @@
-//! An explicit where-clause snapshots its value at its owning program's entry.
+//! An explicit where-clause snapshots its value immediately before its first use.
 use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
 
 #[cfg(test)]
 mod shared_tests;
 
-/// Two consecutive eager X amounts share the definition named by their clause.
+/// Two eager X amounts share the definition named by their clause, including
+/// after an unrelated instruction or with unrelated instructions between them.
 /// Re-evaluating the expression after the first action can change its meaning.
 pub(crate) fn shared(body: &Value) -> bool {
     let Some(instructions) = body["instructions"].as_array() else {
         return false;
     };
-    instructions.len() >= 2
-        && instructions[..2].iter().all(|instruction| {
+    instructions
+        .iter()
+        .filter(|instruction| {
             instruction["kind"] == "Effect"
                 && matches!(
                     instruction["args"]["operation"]["kind"].as_str(),
@@ -20,6 +22,8 @@ pub(crate) fn shared(body: &Value) -> bool {
                 )
                 && super::is_x(&instruction["args"]["operation"]["args"]["amount"])
         })
+        .count()
+        == 2
         && x_count(body) == 2
 }
 
@@ -41,7 +45,7 @@ fn aggregate_definition(amount: &Value) -> bool {
 /// value. Other properties still require the independent sacrifice/LKI proof.
 pub(crate) fn shared_definition(amount: &Value) -> bool {
     match amount["kind"].as_str() {
-        Some("PartySize" | "TimesMutated") => true,
+        Some("PartySize" | "TimesMutated" | "CountCounters") => true,
         Some("ObjectProperty") => {
             let args = &amount["args"];
             let object = &args["object"];
@@ -73,6 +77,10 @@ pub(crate) fn snapshot(body: &Value, amount: &Value, at: usize) -> Result<Value,
     if !definition_eligible(body, amount) {
         return Err("shared snapshot requires a supported definition".into());
     }
+    let first_use = body["instructions"]
+        .as_array()
+        .and_then(|items| items.iter().position(|item| x_count(item) > 0))
+        .ok_or("where snapshot has no X use")?;
     let reference = json!({"$sym":"snapshot_ref", "args":[at], "at":at});
     let mut program = super::substituted(body.clone(), &reference);
     if &program == body {
@@ -89,7 +97,7 @@ pub(crate) fn snapshot(body: &Value, amount: &Value, at: usize) -> Result<Value,
         marked
     };
     instructions.insert(
-        0,
+        first_use,
         json!({"kind":"Effect","args":{
             "result":{"$sym":"snapshot_next","args":[at],"at":at},
             "operation":{"kind":"BindValue","args":{"value":marked}}
@@ -128,22 +136,43 @@ fn unify_inner<'p, 'v>(
     let Some(instructions) = value["instructions"].as_array() else {
         return Vec::new();
     };
-    let Some(first) = instructions.first() else {
+    instructions
+        .iter()
+        .enumerate()
+        .filter(|(_, instruction)| {
+            instruction["kind"] == "Effect"
+                && instruction["args"]["operation"]["kind"] == "BindValue"
+        })
+        .flat_map(|(index, _)| unify_at(body, amount, value, &bindings, shared_only, index))
+        .collect()
+}
+
+fn unify_at<'p, 'v>(
+    body: &'p Pattern,
+    amount: &'p Pattern,
+    value: &'v Value,
+    bindings: &Bindings<'p, 'v>,
+    shared_only: bool,
+    index: usize,
+) -> Vec<Bindings<'p, 'v>> {
+    let instruction = &value["instructions"][index];
+    let Some(id) = instruction["args"]["result"].as_u64() else {
         return Vec::new();
     };
-    if first["kind"] != "Effect" || first["args"]["operation"]["kind"] != "BindValue" {
-        return Vec::new();
-    }
-    let Some(id) = first["args"]["result"].as_u64() else {
-        return Vec::new();
-    };
-    let definition = &first["args"]["operation"]["args"]["value"];
+    let definition = &instruction["args"]["operation"]["args"]["value"];
     let mut abstracted = value.clone();
-    abstracted["instructions"].as_array_mut().unwrap().remove(0);
+    abstracted["instructions"]
+        .as_array_mut()
+        .unwrap()
+        .remove(index);
     let reference = json!({"kind":"BoundValue","args":id});
     let before = abstracted.clone();
     crate::traverse::replace(&mut abstracted, &reference, &json!({"kind":"AnnouncedX"}));
     if before == abstracted
+        || abstracted["instructions"]
+            .as_array()
+            .and_then(|items| items.iter().position(|item| x_count(item) > 0))
+            != Some(index)
         || !eligible(&abstracted)
         || shared_only && !shared(&abstracted)
         || !definition_eligible(&abstracted, definition)
@@ -151,7 +180,7 @@ fn unify_inner<'p, 'v>(
         return Vec::new();
     }
     amount
-        .unify_made(definition, &bindings)
+        .unify_made(definition, bindings)
         .into_iter()
         .flat_map(|b| body.unify_made(&abstracted, &b))
         .collect()
@@ -438,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn paired_eager_uses_capture_once_and_reject_moving_the_capture_earlier() {
+    fn paired_eager_uses_capture_once_after_an_unrelated_prefix() {
         let x = json!({"kind":"AnnouncedX"});
         let amount = json!({"kind":"Constant","args":4});
         let mut repeated = draw(x.clone());
@@ -456,8 +485,13 @@ mod tests {
             .as_array_mut()
             .unwrap()
             .insert(0, draw(amount.clone())["instructions"][0].clone());
-        assert!(!shared(&repeated));
-        assert!(snapshot(&repeated, &amount, 0).is_err());
+        assert!(shared(&repeated));
+        let captured = snapshot(&repeated, &amount, 0).unwrap();
+        assert_eq!(captured["instructions"][0], repeated["instructions"][0]);
+        assert_eq!(
+            captured["instructions"][1]["args"]["operation"]["kind"],
+            "BindValue"
+        );
     }
 
     #[test]
@@ -481,13 +515,9 @@ mod tests {
             .as_array_mut()
             .unwrap()
             .push(draw(x.clone())["instructions"][0].clone());
-        for definition in [
-            json!({"kind":"ObjectProperty","args":{"object":{"kind":"Source"},"property":"Power","information":"CurrentOrLastKnown"}}),
-            json!({"kind":"CountCounters","args":{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"Source"}}},"kind":null,"information":"CurrentOrLastKnown"}}),
-        ] {
-            assert!(!shared_definition(&definition));
-            assert!(snapshot(&pair, &definition, 0).is_err());
-        }
+        let definition = json!({"kind":"ObjectProperty","args":{"object":{"kind":"Source"},"property":"Power","information":"CurrentOrLastKnown"}});
+        assert!(!shared_definition(&definition));
+        assert!(snapshot(&pair, &definition, 0).is_err());
         let future = json!({"kind":"Effect","args":{"operation":{"kind":"CreateDelayedTrigger","args":{"body":draw(x)}}}});
         pair["instructions"].as_array_mut().unwrap().push(future);
         assert!(!shared(&pair));

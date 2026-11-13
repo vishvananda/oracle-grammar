@@ -270,6 +270,13 @@ the IR path, the value it replaces and why.
   spell this turn"), Hotheaded Giant, I Bask in Your Silent Awe, Laboratory
   Drudge and Spider-Man 2099 tested `> 0`; Patrician's Scorn, Soul Reap and
   Talara's Battalion already read Dream Thief's wording with `>= 1`.
+- `U0002` (normalization): Bone Devourer and Necropotence Avatar capture their
+  explicitly defined counter count once, then draw and lose life using the same
+  `BoundValue`. This matches Parting Thoughts and Savanti Romero, Time's Exile.
+  Necropotence Avatar captures after placing its death counter. The update keeps
+  the original counter kinds, object identities, last-known information and action
+  result IDs; the AST schema stays unchanged. See the
+  [grammar work notes](../../docs/grammar-simplification-20261113.md).
 
 ## Open in the grammar
 

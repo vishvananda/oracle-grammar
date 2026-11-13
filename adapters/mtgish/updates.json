@@ -39,6 +39,42 @@
           "to": {"kind": "Compare", "args": {"comparison": "GreaterOrEqual", "value": {"kind": "Constant", "args": 1}}}
         }
       ]
+    },
+    {
+      "id": "U0002",
+      "kind": "normalization",
+      "summary": "One explicitly defined X is captured once before drawing and losing life, including kinded counter counts.",
+      "evidence": "Bone Devourer says \"you draw X cards and you lose X life, where X is the number of +1/+1 counters on it\". Necropotence Avatar says \"put a death counter on Necropotence Avatar. You draw X cards and you lose X life, where X is the number of death counters on Necropotence Avatar\". Both uses name the same defined quantity; the latter definition is evaluated after counter placement. The pinned reference already uses BindValue followed by two BoundValue reads for Parting Thoughts (all counters on the destroyed target) and Savanti Romero, Time's Exile (all counters on the source after counter placement). These two kinded counts use duplicate inline CountCounters operands. Normalize them to that existing shared-X form; retain the reference's object identity (EventSubject for Bone Devourer, Source for Necropotence Avatar), counter kind, CurrentOrLastKnown, the preceding placement and original action result IDs. No source/holder alias, AST schema change or equality exception is introduced. See docs/grammar-simplification-20261113.md.",
+      "changes": [
+        {
+          "face": "Bone Devourer",
+          "path": [3, "args", "body", "instructions"],
+          "from": [
+            {"kind":"Effect","args":{"result":0,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"CountCounters","args":{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"EventSubject"}}},"kind":{"PowerToughness":[1,1]},"information":"CurrentOrLastKnown"}}}}}},
+            {"kind":"Effect","args":{"result":1,"operation":{"kind":"LoseLife","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"CountCounters","args":{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"EventSubject"}}},"kind":{"PowerToughness":[1,1]},"information":"CurrentOrLastKnown"}}}}}}
+          ],
+          "to": [
+            {"kind":"Effect","args":{"result":2,"operation":{"kind":"BindValue","args":{"value":{"kind":"CountCounters","args":{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"EventSubject"}}},"kind":{"PowerToughness":[1,1]},"information":"CurrentOrLastKnown"}}}}}},
+            {"kind":"Effect","args":{"result":0,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"BoundValue","args":2}}}}},
+            {"kind":"Effect","args":{"result":1,"operation":{"kind":"LoseLife","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"BoundValue","args":2}}}}}
+          ]
+        },
+        {
+          "face": "Necropotence Avatar",
+          "path": [1, "args", "body", "instructions"],
+          "from": [
+            {"kind":"Effect","args":{"result":0,"operation":{"kind":"PutCounters","args":{"placements":[{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"Source"}}},"kind":{"Named":"DeathCounter"},"amount":{"kind":"Constant","args":1},"selection":null}]}}}},
+            {"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"CountCounters","args":{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"Source"}}},"kind":{"Named":"DeathCounter"},"information":"CurrentOrLastKnown"}}}}}},
+            {"kind":"Effect","args":{"result":2,"operation":{"kind":"LoseLife","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"CountCounters","args":{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"Source"}}},"kind":{"Named":"DeathCounter"},"information":"CurrentOrLastKnown"}}}}}}
+          ],
+          "to": [
+            {"kind":"Effect","args":{"result":0,"operation":{"kind":"PutCounters","args":{"placements":[{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"Source"}}},"kind":{"Named":"DeathCounter"},"amount":{"kind":"Constant","args":1},"selection":null}]}}}},
+            {"kind":"Effect","args":{"result":3,"operation":{"kind":"BindValue","args":{"value":{"kind":"CountCounters","args":{"recipients":{"kind":"Objects","args":{"kind":"One","args":{"kind":"Source"}}},"kind":{"Named":"DeathCounter"},"information":"CurrentOrLastKnown"}}}}}},
+            {"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"BoundValue","args":3}}}}},
+            {"kind":"Effect","args":{"result":2,"operation":{"kind":"LoseLife","args":{"players":{"kind":"One","args":{"kind":"AbilityController"}},"amount":{"kind":"BoundValue","args":3}}}}}
+          ]
+        }
+      ]
     }
   ]
 }

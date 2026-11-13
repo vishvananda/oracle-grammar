@@ -73,3 +73,93 @@ fn counts_of_players_names_counters_and_totals_are_values() {
         }
     }
 }
+
+#[test]
+fn shared_x_is_captured_after_the_prefix_and_prints_from_edited_operands() {
+    for (text, prefix, object) in [
+        (
+            "Destroy target creature. You draw X cards and you lose X life, where X is the \
+             number of counters on that creature.",
+            "Destroy",
+            json!({"kind":"Target","args":{"slot":0,"index":0}}),
+        ),
+        (
+            "Put a +1/+1 counter on this creature. Then you draw X cards and lose X life, \
+             where X is the number of counters on this creature.",
+            "PutCounters",
+            json!({"kind":"Source"}),
+        ),
+    ] {
+        let mut reading = compositional(text);
+        let instructions = reading[0]["args"]["body"]["instructions"]
+            .as_array_mut()
+            .unwrap();
+        let kinds: Vec<_> = instructions
+            .iter()
+            .map(|i| i["args"]["operation"]["kind"].as_str().unwrap())
+            .collect();
+        assert_eq!(kinds, [prefix, "BindValue", "Draw", "LoseLife"]);
+        let definition = &instructions[1]["args"]["operation"]["args"]["value"];
+        assert_eq!(definition["kind"], "CountCounters");
+        assert_eq!(definition["args"]["recipients"]["args"]["args"], object);
+        assert_eq!(definition["args"]["information"], "CurrentOrLastKnown");
+        for instruction in &instructions[2..] {
+            assert_eq!(
+                instruction["args"]["operation"]["args"]["amount"],
+                json!({"kind":"BoundValue","args":instructions[1]["args"]["result"]})
+            );
+        }
+        printed_types(&reading, &["Sorcery"]);
+        reading[0]["args"]["body"]["instructions"][1]["args"]["operation"]["args"]["value"]["args"]
+            ["kind"] = json!({"Named":"ChargeCounter"});
+        let edited = printed_types(&reading, &["Sorcery"]);
+        assert!(edited.contains("charge counters"), "{edited}");
+    }
+}
+
+#[test]
+fn shared_snapshot_inverse_preserves_capture_position_and_unrelated_results() {
+    use crate::pattern::{Bindings, Pattern};
+    let text = "Draw a card. You draw X cards. Destroy target artifact. You lose X life, \
+                where X is the number of cards in your hand.";
+    let reading = compositional(text);
+    let body = &reading[0]["args"]["body"];
+    let instructions = body["instructions"].as_array().unwrap();
+    assert_eq!(instructions[0]["args"]["operation"]["kind"], "Draw");
+    assert_eq!(instructions[1]["args"]["operation"]["kind"], "BindValue");
+    assert_eq!(instructions[3]["args"]["operation"]["kind"], "Destroy");
+    printed_types(&reading, &["Sorcery"]);
+
+    let holes = [
+        Pattern::Hole("program".into(), crate::model::ir_schema::Ty::Opaque),
+        Pattern::Hole("value".into(), crate::model::ir_schema::Ty::Opaque),
+    ];
+    let inverse = |program: &Value| {
+        crate::functions::value_snapshot::unify(&holes, program, Bindings::new()).len()
+    };
+    assert_eq!(inverse(body), 1);
+    let mut moved = body.clone();
+    moved["instructions"].as_array_mut().unwrap().swap(0, 1);
+    assert_eq!(inverse(&moved), 0, "a capture cannot cross the first draw");
+    let mut moved = body.clone();
+    moved["instructions"].as_array_mut().unwrap().swap(1, 2);
+    assert_eq!(inverse(&moved), 0, "a capture cannot follow its first use");
+}
+
+#[test]
+fn kinded_counter_definitions_share_the_same_snapshot_contract() {
+    for text in [
+        "When this creature dies, you draw X cards and you lose X life, where X is the \
+         number of +1/+1 counters on it.",
+        "Put a death counter on this creature. You draw X cards and you lose X life, \
+         where X is the number of death counters on this creature.",
+    ] {
+        let reading = compositional(text);
+        assert_eq!(amounts(&reading, "CountCounters").len(), 1);
+        assert_eq!(amounts(&reading, "BindValue").len(), 1);
+        let uses = amounts(&reading, "BoundValue");
+        assert_eq!(uses.len(), 2);
+        assert_eq!(uses[0], uses[1]);
+        printed_types(&reading, &["Creature"]);
+    }
+}
