@@ -70,3 +70,17 @@ The PR retains the frozen schema tests and canonicalization regressions and runs
 the frontend tests against the owned crates. Additional extraction and corpus
 parity evidence is recorded with the final PR validation results. Full corpora
 stay outside the repository and are not required for ordinary builds or tests.
+
+The [extraction proof](owned-ir-extraction-proof.json) records the checks. All
+33,529 records retain byte-identical JSON, binary and canonical output, and
+266 AST type sizes match the original model. Validation allocations and bytes
+match exactly. Seven interleaved release validation runs measured a median
+ratio of 1.0365 (about 4% slower); this is an observed result, not a statistical
+claim. Allocation-instrumented timings are kept separate.
+
+CI on the worker's published base passes 4 model tests, 94 contract tests and
+667 frontend tests (5 ignored), all 39 Python tests, workspace Clippy with
+warnings denied, formatting/hygiene/provenance, and the compositional families.
+The independent 40-record fixture checks current JSON, binary roundtrips,
+canonical output and compact authoring against the original implementation.
+The shared contracts also compile for wasm32.
