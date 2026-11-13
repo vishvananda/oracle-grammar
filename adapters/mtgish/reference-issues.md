@@ -297,6 +297,19 @@ the IR path, the value it replaces and why.
   mixed payment actions and ability source domains remain distinct. No AST
   schema change or semantic correction is introduced.
 
+- `U0015` (correction, issue #4): nine damage-prevention events retain their
+  written “to” versus “by” direction; the matching seeded grammar meanings are
+  corrected too. Eight creatures are recipients, while Barbed Wire is a source.
+- `U0016` (correction, issue #5): Gauntlets of Chaos destroys only Auras attached
+  to either exchanged permanent; the Aura restriction surrounds the full
+  attachment disjunction.
+- `U0017` (correction, issue #6): Mercenaries' shield matches its source creature
+  and the activating player, preserving both identities and the next-time limit.
+
+The remaining reported reference/lowering issues and their current dispositions
+are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their
+open status does not create a corpus equality exception.
+
 ## Open in the grammar
 
 No face differs in the explicitly allowed population at this checkpoint.
