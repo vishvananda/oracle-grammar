@@ -94,6 +94,13 @@ Canonicalization may remove irrelevant ordering and identifier spelling only
 where the schema defines equivalence. It may not replace identity, change scope,
 weaken predicates or turn an unsupported structure into agreement.
 
+A sole-use scalar capture immediately before a pure Snapshot pump may be inlined:
+that effect evaluates both stat operands when it resolves, with no intervening
+state change. Count every typed result use, including delayed program captures.
+Keep captures used later, nonlocal or choice-dependent expressions, live effects,
+and enclosing abilities with descendant Ability scopes. Invalid operands must
+remain invalid, and cloned identifier leaves retain their source provenance.
+
 ## Printing
 
 Printing uses the current operands of an edited or synthesized IR. A saved

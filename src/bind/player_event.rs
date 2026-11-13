@@ -107,12 +107,14 @@ mod tests {
             let actual = engine
                 .parse(name, &text)
                 .unwrap_or_else(|why| panic!("{name}: {why:?}"));
-            let expected: Vec<_> = case["expected_readings"]
+            let mut expected: Vec<_> = case["expected_readings"]
                 .as_array()
                 .unwrap()
                 .iter()
                 .map(crate::bind::normal_form)
                 .collect();
+            expected.sort_by_key(Value::to_string);
+            expected.dedup();
             assert_eq!(actual.readings.len(), expected.len(), "{name}");
             for reading in expected {
                 assert!(actual.readings.contains(&reading), "{name}");

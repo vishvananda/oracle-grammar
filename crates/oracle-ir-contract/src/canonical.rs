@@ -21,6 +21,7 @@ mod movement;
 #[cfg(test)]
 mod result_scopes;
 mod sets;
+mod snapshots;
 mod trace;
 mod visibility;
 use movement::groups as movement_groups;
@@ -1120,6 +1121,16 @@ fn normalize_with_trace(value: &mut Value, keep_order: bool, tracing: bool) -> R
     } else {
         movement_groups(value)?;
     }
+    walk_normal_form(value, keep_order, tracing)?;
+    if snapshots::inline(value, schema()?, tracing)? && !keep_order {
+        // Removing a definition changes canonical result numbering. The pump
+        // rule introduces no new candidates, so one final walk is sufficient.
+        walk_normal_form(value, keep_order, tracing)?;
+    }
+    Ok(())
+}
+
+fn walk_normal_form(value: &mut Value, keep_order: bool, tracing: bool) -> Result<(), String> {
     let mut walker = Walker {
         schema: schema()?,
         binding_namespace: "binding",

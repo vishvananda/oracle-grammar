@@ -373,6 +373,32 @@ static_pump_changes_more ::= static_pump_change ("and" | "," "and"?) static_pump
 /* @sem Ability::@where(Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_numeric_x}), $value) */
 static_ability_where ::= affected static_numeric_x "," "where" "X" "is" value "."
 
+/* Define X over the complete change list, including earlier bonuses.
+   Require a written numeric X; a mana symbol alone does not define a bonus. */
+/* @sem @where($static_numeric_changes, $value) */
+defined_changes ::= static_numeric_changes "," "where" "X" "is" value
+
+static_numeric_changes ::= static_numeric_x | static_numeric_prefix | static_numeric_suffix
+/* @sem Change::[...$static_change, ...$static_numeric_changes] */
+static_numeric_prefix ::= static_change ("and" | "," "and"?) static_numeric_changes
+/* @sem Change::[...$static_numeric_x, ...$static_changes_plain] */
+static_numeric_suffix ::= static_numeric_x ("and" | "," "and"?) static_changes_plain
+
+/* Independent written definitions apply only to their own stat operand. */
+/* @sem Change::[Pump{power:@times($defined_x_sign, $value), toughness:@times($defined_y_sign, $value_2)}] */
+change_independent_stats_where ::= ("gets" | "get") defined_x_sign "/" defined_y_sign "," "where" "X" "is" value "," "and" "Y" "is" value
+
+defined_x_sign ::= defined_positive_x | defined_negative_x
+defined_y_sign ::= defined_positive_y | defined_negative_y
+/* @sem Expr::Constant(1) */
+defined_positive_x ::= "+" "X"
+/* @sem Expr::Constant(-1) */
+defined_negative_x ::= "-" "X"
+/* @sem Expr::Constant(1) */
+defined_positive_y ::= "+" "Y"
+/* @sem Expr::Constant(-1) */
+defined_negative_y ::= "-" "Y"
+
 static_numeric_x ::= static_power_x | static_toughness_x
 /* @sem Change::[Pump{power:$static_signed_x, toughness:$signed}] */
 static_power_x ::= ("gets" | "get") static_signed_x "/" signed
@@ -390,7 +416,8 @@ static_negative_x ::= "-" "X"
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($object_ref), changes:$static_changes}}] */
 clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 
-static_changes ::= static_change | static_changes_and
+static_changes ::= static_changes_plain | defined_changes | change_independent_stats_where
+static_changes_plain ::= static_change | static_changes_and
 
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[CopyOf{object:$copy_model_ref, exceptions:[]}], duration:$duration, evaluation:Snapshot}}] */
 clause_copy_for_duration ::= affected "becomes" "a" "copy" "of" copy_model_ref duration
@@ -401,8 +428,8 @@ copy_model_ref ::= copy_model_pronoun | object_ref
 /* @sem ObjectRef::@it */
 copy_model_pronoun ::= "it"
 
-/* @sem Change::[...$static_change, ...$static_changes] */
-static_changes_and ::= static_change ("and" | "," "and"?) static_changes
+/* @sem Change::[...$static_change, ...$static_changes_plain] */
+static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
 static_change ::= change_lose_all_abilities | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | mined_change
     | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap
@@ -1478,6 +1505,14 @@ skip_controllers_next_untap ::= affected "doesn't" "untap" "during" "its" "contr
 /* Skipping your next untap. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
 skip_your_next_untap ::= affected "doesn't" "untap" "during" "your" "next" "untap" "step"
+
+/* A stated leading duration scopes both literal bonuses. Computed shared
+   values retain their separate capture contract. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$change_literal_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected_2), changes:$change_literal_pump_2, duration:$duration, evaluation:Snapshot}}] */
+clause_shared_duration_changes ::= duration "," affected change_literal_pump "and" affected change_literal_pump
+
+/* @sem Change::[Pump{power:$signed_literal, toughness:$signed_literal_2}] */
+change_literal_pump ::= ("gets" | "get") signed_literal "/" signed_literal
 
 /* A leading duration over static changes. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$static_changes, duration:$duration, evaluation:Snapshot} */

@@ -404,3 +404,115 @@ verified defaults. Cream of the Crop is the only changed default against the
 retained baseline: `those cards` becomes `them`; its explicit `If you do` remains.
 Of 43,404 enumerated candidates, 31,366 reparse semantically. These are semantic
 and structural measurements; no timing improvement is claimed.
+
+## Immediate Snapshot pump captures
+
+U0007 records ten reference normalizations: Charix, the Raging Isle; Conifer Wurm;
+Glister Bairn; Hellkite Igniter; Kitsune Loreweaver; Loxodon Lifechanter; Radha,
+Coalition Warlord; Radha, Heart of Keld; Raffine's Silencer; and Sokenzan Spellblade.
+Each binds one deterministic scalar immediately before a pure Snapshot pump,
+whose stat operands are its only consumers. The existing Snapshot contract fixes
+both values when the instruction resolves. These sites therefore use the same
+inline expression form already found on other reference pumps. Charix retains
+its negative toughness expression; Raffine's Silencer retains both negatives and
+CurrentOrLastKnown information. Every expression subtree, affected population,
+source, player/target reference, duration and remaining result ID is preserved.
+No lowering correction or AST/schema change is needed.
+
+The owned canonicalizer proves the rewrite using the IR type table: there must
+be one result definition, and every typed use must be one of the pump's signed
+stat operands. Both instructions must decode and serialize without dropping any
+operand. Only deterministic expressions without result references are allowed;
+free Candidate and Affected references are excluded, while locally bound filter
+candidates retain their query scope. It handles one Pump change with Snapshot
+evaluation and constant or same-capture stat operands. It preserves unknown
+fields for validation, checks constant negation, and retains ID origins when a
+query is cloned into both stats. A final canonical walk renumbers surviving
+results. Schema traversal has explicit work and depth bounds.
+
+Gloom Ripper and Monoist Circuit-Feeder retain their capture: a second continuous
+effect uses it. Myr Battlesphere retains its capture for later damage. No capture
+moves across another action, and delayed-program reads count as later uses.
+Live and LiveObjects evaluations remain separate. Enclosing abilities containing
+descendant Ability scopes are conservatively excluded so that shadowing/captures
+and raw numeric label spelling cannot change the normalization decision. Mode
+labels are renumbered before the proof; reduced authoring forms may conservatively
+retain a capture, then reach the same canonical form.
+
+Defined bonuses now compose as complete static/perpetual change lists. The
+shared grammar requires a written numeric X and substitutes its definition over
+the whole list, including earlier bonuses. The unannotated list recursion stays
+separate so a trailing definition cannot leave an earlier X unbound. Independent
+X/Y stat definitions compose their own signed operands directly, without adding
+an AnnouncedY AST variant or sharing the two values. Eight synthetic family cases
+check native meaning, exact keyed and default semantic printing, two bonuses
+sharing X, both signs, different populations, attached-host identity, and missing
+or unused definitions. Three affected families pass all 31 cases.
+
+Five seeded productions retire: `m_gets_x_value_where_x_is_value_2`,
+`m_gets_x_x_where_x_is_value`, `m_gets_x_y_where_x_is_value`, and
+`t_each_other_filter_phrase_you_control_that_s_3`, and
+`m_operation_and_affected_static_changes`. The cumulative retirement is
+109 rules, leaving 12,098. The two protected edited-print productions remain.
+The final full rule audit has 19,764 compositional matches (previously 19,757),
+with the same four attribution limitations and zero at-risk faces.
+
+After retirement, all 32,755 allowed faces still match the reference. There are
+31,681 single-reading faces and 33,920 total readings, compared with 31,549 and
+34,056 before this batch. Native canonicalization merges 136 redundant readings
+on 135 faces. Strict preservation validates the 2,507 explicit old readings
+before normalization, uses unchanged gold for 31,549 implicit singletons, and
+reports no lost readings and no additions. All 32,755 source and canonical gold
+records validate, canonical gold is idempotent, and all 33,920 current readings
+validate and are canonical. The archived validator, frozen rows, old operands
+and prepared gold have verified hashes in the ignored native audit manifest.
+
+The 13-face captured-pump cohort retains all reference matches, 13 exact keyed
+prints, seven exact defaults and 13 verified defaults. Its three later-use cases
+remain captured; ten equivalent pairs merge. The six-face defined-stat cohort
+retains all matches, six exact keyed prints, three exact defaults and six verified
+defaults. Three of those faces now match compositionally. No timing or allocation
+improvement is claimed; the helpers use the quick profile.
+
+The sampled printer exposed an incorrect lowering in the retained
+`m_operation_and_affected_static_changes` rule: an arbitrary preceding operation
+could manufacture EndOfTurn for a second effect with no stated duration. Its
+four allowed reference cards (Rookie Mistake, Sigil Blessing, Skulduggery and
+Zealous Persecution) all explicitly lead with `Until end of turn`. A shared
+clause for literal bonuses now reads the leading duration and applies that exact operand to both
+continuous effects. The old seeded rule retires. Five synthetic cases check
+EndOfTurn, UntilNextTurn, EndOfCombat, separate hosts and refusal of the
+missing-duration wording. All five original faces in the duration cohort,
+including Essence Pulse, match compositionally with five exact keyed prints,
+five verified defaults and zero exact defaults. No actual reference face or AST schema needs correction;
+the defect was a grammar lowering/printing path for synthesized text.
+
+Compatibility tests now compare distinct canonical native reading sets, retaining
+all old fixture operands. Two sacrificed-receipt family counts and the departure
+controller fixture count change from two to one because the equivalent pump
+capture disappears. This does not remove a distinct supported meaning. The new
+schema visitor compares borrowed type names instead of allocating temporary
+`Ty` values for every visited node.
+
+Public canonicalization also preserves invalid forged internal origin annotations
+for rejection. Only the private mapped-canonicalization pass may strip its own
+origin wrappers for the lossless decode check; a public input cannot use those
+wrappers to turn an invalid capture ID into removable valid IR. A regression
+checks this separately from the successful mapped-ID cloning test.
+
+Final sampled printing: all 3,275 faces still match; 3,164 have one reading and
+there are 3,394 readings. Exact keyed prints remain 3,196, exact defaults 2,232,
+and verified defaults 3,221. Every status and exact-wording flag agrees with the
+retained pre-batch sample. Two defaults change: Kaito's Pursuit now explicitly
+prints `until end of turn`, correcting the old invented-duration path's misleading
+bare grant; Luxior, Giada's Gift uses `for each counter` instead of a redundant
+X/Y formula. Essence Pulse retains its prior explicit-duration default. Of
+43,405 enumerated candidates, 31,369 reparse semantically; candidate enumeration
+still includes known unverified print alternatives.
+
+Final required checks: all eight `tools/dev.py check` gates pass. The frontend
+has 726 passing tests and one ignored test; the two model packages pass their
+locked release library tests with their existing ignores. All 70 Python tool
+tests, formatting, Clippy, model/reference pin checks, hygiene and every
+registered compositional family pass. The latest `origin/main` remains an
+ancestor of this checkout; no push was performed.

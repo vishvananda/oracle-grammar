@@ -318,6 +318,7 @@ mod tests {
                 .map(|v| semantic_abilities(v).unwrap())
                 .collect();
             expected.sort_by_key(Value::to_string);
+            expected.dedup();
             actual.sort_by_key(Value::to_string);
             assert_eq!(
                 actual, expected,
