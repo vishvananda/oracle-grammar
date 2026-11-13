@@ -13,6 +13,7 @@ class PinTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
+        shutil.copytree(pin.ROOT/'crates', self.root/'crates')
         for name in ('pins/model.json', 'adapters/mtgish/reference.json', 'Cargo.toml', 'Cargo.lock'):
             path = self.root/name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -28,21 +29,29 @@ class PinTests(unittest.TestCase):
         pin.check_model(self.root)
         pin.reference(self.root)
 
-    def test_model_revision_and_lock_cannot_drift(self):
-        self.edit('pins/model.json', lambda p: p.update(revision='a'*40))
+    def test_model_manifest_and_lock_cannot_drift(self):
+        self.edit('pins/model.json', lambda p: p['packages']['oracle-ir'].update(version='0.2.0'))
         with self.assertRaisesRegex(ValueError, 'dependency differs'):
             pin.check_model(self.root)
 
     def test_rejects_local_model_override(self):
         path = self.root/'Cargo.toml'
-        path.write_text(path.read_text()+'\n[patch."https://github.com/vishvananda/mtgish.git"]\nmtgish-ast = { path = "elsewhere" }\n')
+        path.write_text(path.read_text()+'\n[patch.crates-io]\nserde = { path = "elsewhere" }\n')
         with self.assertRaisesRegex(ValueError, 'without overrides'):
             pin.check_model(self.root)
 
     def test_rejects_lock_identity_drift(self):
         path = self.root/'Cargo.lock'
-        path.write_text(path.read_text().replace('#7228b84b2b9398976246b595098f7f5e5fb4fc88', '#'+('b'*40)))
+        text = path.read_text().replace('name = "oracle-ir"\nversion = "0.1.0"',
+                                        'name = "oracle-ir"\nversion = "0.2.0"')
+        path.write_text(text)
         with self.assertRaisesRegex(ValueError, 'Cargo.lock differs'):
+            pin.check_model(self.root)
+
+    def test_rejects_mtgish_dependency_reintroduction(self):
+        path = self.root/'Cargo.lock'
+        path.write_text(path.read_text()+'\n[[package]]\nname = "mtgish-ast"\nversion = "0.1.0"\n')
+        with self.assertRaisesRegex(ValueError, 'must not depend on MTGish'):
             pin.check_model(self.root)
 
     def test_checksum_verification_never_modifies_supplied_data(self):

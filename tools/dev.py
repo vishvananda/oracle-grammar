@@ -22,6 +22,10 @@ BINS = ('family-check', 'probe', 'inspect', 'score', 'validate-readings', 'rule-
 
 def source(root=ROOT):
     paths = sorted((root/'src').rglob('*.rs'))
+    # Local model code and embedded wire/compatibility assets are compiled inputs.
+    paths += sorted(p for p in (root/'crates').rglob('*')
+                    if p.is_file() and p.suffix in ('.rs', '.toml', '.json', '.json5', '.txt')
+                    and not {'target', '.cache'}.intersection(p.relative_to(root/'crates').parts))
     paths += [root/p for p in ('Cargo.toml', 'Cargo.lock', 'pins/model.json',
               '.cargo/config.toml', 'rust-toolchain.toml', 'clippy.toml',
               'grammar/lexical.ebnf', 'grammar/print-model.txt', 'grammar/print-weights.txt',
@@ -170,7 +174,7 @@ def run(action, args, stdout=None):
 
 def test(args):
     pin.check_model()
-    command = ['cargo', 'test', '--locked', '--release', '--lib', '--features', 'cli', *args]
+    command = ['cargo', 'test', '--locked', '--release', '--workspace', '--lib', '--features', 'cli', *args]
     subprocess.run(command, cwd=ROOT, env=build_environment(), check=True)
 
 

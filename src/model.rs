@@ -1,11 +1,9 @@
 //! Model boundary used by the grammar, binder, renderer and diagnostics.
 //!
-//! The current schema implementation is pinned in `pins/model.json`. This
-//! compatibility bridge keeps its provenance explicit while local IR ownership
-//! and the optional MTGish validation adapter are developed independently.
-pub use mtgish_ast::{
-    canonical, cost_history, human, ir, ir_schema, mtg_types, semantics, validate,
-};
+//! Oracle Grammar owns these workspace crates. MTGish reference snapshots are
+//! independently pinned data; they are not a compiled model dependency.
+pub use oracle_ir::{ir, ir_schema, mtg_types};
+pub use oracle_ir_contract::{canonical, cost_history, human, semantics, validate};
 
 #[cfg(test)]
 mod tests {

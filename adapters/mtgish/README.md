@@ -3,14 +3,14 @@
 The MTGish fork supplies reference card semantics. Its reference revision is
 independent of the schema implementation currently used by the frontend.
 
-- `../../pins/model.json` and `../../Cargo.lock` pin the compiled model provider.
-- `reference.json` pins optional validation data and the producer that emitted it.
-- `../../src/model.rs` is the frontend's single model import boundary.
+- `../../pins/model.json` identifies the owned model packages and extraction origin.
+- `reference.json` independently pins validation data and its producer.
+- `../../src/model.rs` imports the owned workspace model, not MTGish code.
 
-The current reference uses schema 190 and can be validated against the current
-model without translation. A local IR schema and a Rust upstream-to-local
-translator have not yet been extracted. Keeping this explicit avoids treating
-reference corrections as schema migrations.
+The current reference and owned model share schema 190, so decoding current
+native JSON needs no schema translation. Older or divergent reference schemas
+must be handled explicitly; unmapped constructs must fail. The adapter is a
+data boundary, not a dependency of the owned model crates.
 
 ## Artifacts
 
@@ -37,22 +37,16 @@ lock entry, preserving the SHA-256 and producer revision. Prefer a release
 bundle containing native data, schema/version metadata and checksums over a
 submodule checkout or a platform-specific producer executable.
 
-## Moving IR ownership here
+## IR ownership
 
-1. Extract the schema, canonicalization, validation and binding contracts into a
-   local crate, preserving existing fixtures and wire semantics first. Today
-   those pieces span MTGish's IR and normalizer crates; changing only a dependency
-   name does not separate them.
-2. Route `src/model.rs` to the local crate. The parser and printer continue to
-   consume the same local model boundary.
-3. Put MTGish decoding and translation in an optional adapter crate or feature.
-   Normal parsing, printing and tests then build without MTGish source packages.
-4. Let the adapter support upstream schema revisions explicitly. Reject unmapped
-   constructs; never discard meaning to improve an agreement count.
-5. Publish validation snapshots from the owned fork, with reproducible producer
-   instructions and artifact checksums. Reference fixes advance this lock without
-   changing the local IR version or recompiling the grammar.
+Ownership has moved to `../../crates/oracle-ir` and
+`../../crates/oracle-ir-contract`. The initial extraction preserves the current
+wire format and contracts. Historical wire readers and authoring compatibility
+helpers are retained, but neither the legacy Source compiler nor a Cantrip
+backend is a frontend dependency. See
+[the migration record](../../docs/owned-ir-crates.md).
 
-Changes in the fork are available when needed for that split or artifact
-publication. They should preserve a buildable upstream reference and avoid
-coupling its release schedule to the grammar's normal edit/test loop.
+The MTGish fork can depend on these packages directly at an immutable commit.
+It should re-export shared types rather than keep a second local definition.
+Reference snapshots remain independently pinned artifacts. Advancing a reference
+revision must not change the owned model or rebuild ordinary grammar helpers.

@@ -17,13 +17,14 @@ focused on that pipeline and make coherent commits.
 
 ## Model and reference
 
-`src/model.rs` is the schema compatibility boundary. `pins/model.json` and
-`Cargo.lock` pin its implementation. The MTGish reference lock lives separately
-in `adapters/mtgish/reference.json`; reference-only changes must not move the
-model or trigger a compiler rebuild. No local dependency patches or replacements.
-
-The intended architecture has local IR ownership and an optional MTGish adapter
-for validation. Keep upstream-specific Source translation out of grammar rules.
+`src/model.rs` is the frontend's model import boundary. `crates/oracle-ir`
+owns the typed AST, vocabulary and wire schemas; `crates/oracle-ir-contract`
+owns validation, canonicalization, binding contracts and compact authoring.
+`pins/model.json` records owned packages and extraction provenance. The MTGish
+reference lock lives separately in `adapters/mtgish/reference.json`;
+reference-only changes must not move the model or trigger a compiler rebuild.
+No local dependency patches or replacements. Normal builds must not depend on
+MTGish packages. Keep upstream-specific Source translation out of grammar rules.
 Use isolated checkouts for upstream experiments; preserve other workers' changes.
 
 Full corpora and held-out data are not bundled here. During rule authoring, do
@@ -44,7 +45,7 @@ Add regression tests under `src/tests/`; root `tests/` holds data fixtures. Resp
 Do not run a whole corpus or rebuild at every grammar-only checkpoint.
 
 Run `cargo fmt --check`, `python3 tools/dev.py test` (the locked release library test preset), and
-`cargo clippy --locked --all-targets --all-features -- -D warnings`, plus
+`cargo clippy --locked --workspace --all-targets --all-features -- -D warnings`, plus
 `python3 -m unittest discover -s tools -p 'test_*.py'`,
 `python3 tools/pin.py check` and `python3 tools/hygiene.py`.
 Run affected families after rule changes. Keep generated output under ignored

@@ -3,15 +3,16 @@
 ## Purpose and ownership
 
 Oracle Grammar maps Oracle text to structured rules IR and maps that IR back
-to Oracle text. The repository owns the grammar and is intended to own the IR
+to Oracle text. The repository owns the grammar and the IR
 contract. MTGish supplies an independently versioned validation reference.
 Rules execution and game-state simulation are outside this repository's scope.
 
-The current implementation uses a pinned schema through `src/model.rs`.
-That boundary also exposes canonicalization, validation and binding helpers
-required by the frontend. This is an explicit compatibility bridge, not yet an
-independent local schema. The move to local IR must preserve the existing
-semantic, ambiguity, refusal and printing checks.
+`crates/oracle-ir` owns the typed model, closed vocabulary, traversal and wire
+schema. `crates/oracle-ir-contract` owns validation, canonicalization, binding
+contracts and the compact authoring codec. `src/model.rs` is the frontend's
+single import boundary. MTGish Source lowering and execution backends are not
+compiled model dependencies. Ownership changes preserve semantic, ambiguity,
+refusal and printing checks.
 
 The intended dependency direction is:
 
@@ -105,10 +106,12 @@ meaning-preserving canonical spelling need not be byte-identical to Oracle.
 
 ## Validation and reference inputs
 
-The model and validation reference have separate locks. `Cargo.lock` owns the
-resolved dependency graph; `pins/model.json` records the current schema provider,
-immutable revision and package identities. Builds use published source without
-local patch or replacement overrides.
+The model and validation reference have separate provenance. `Cargo.lock` owns
+the resolved dependency graph; `pins/model.json` records owned package names,
+versions, paths, schema version and the immutable extraction origin. Model
+crates are workspace members, without dependency patches or replacement
+providers. Model changes are ordinary reviewed repository changes; downstream
+consumers pin an immutable repository revision.
 
 `adapters/mtgish/reference.json` records reference provenance, schema and artifact
 checksums. Downloads are optional, explicitly invoked and verified before use.

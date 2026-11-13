@@ -18,6 +18,7 @@ class BuildInputTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         shutil.copytree(dev.ROOT/'src', self.root/'src')
+        shutil.copytree(dev.ROOT/'crates', self.root/'crates')
         for name in ('Cargo.toml', 'Cargo.lock', 'pins/model.json', '.cargo/config.toml',
                      'rust-toolchain.toml', 'clippy.toml', 'grammar/lexical.ebnf',
                      'grammar/print-model.txt', 'grammar/print-weights.txt',
@@ -54,6 +55,15 @@ class BuildInputTests(unittest.TestCase):
         self.before = dev.source(self.root)
         self.append('grammar/lexical.ebnf')
         self.assertNotEqual(dev.source(self.root), self.before)
+
+    def test_owned_model_sources_and_embedded_assets_require_recompilation(self):
+        for name in ('crates/oracle-ir/src/ir.rs',
+                     'crates/oracle-ir-contract/src/validate.rs',
+                     'crates/oracle-ir-contract/rewrites/primitives.json5',
+                     'crates/oracle-ir/schema/190.json'):
+            before = dev.source(self.root)
+            self.append(name)
+            self.assertNotEqual(dev.source(self.root), before, name)
 
     def test_cache_location_does_not_change_compiler_identity(self):
         with patch.dict('os.environ', {'CARGO_TARGET_DIR': '/tmp/cache-a'}):

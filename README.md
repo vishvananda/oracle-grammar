@@ -80,7 +80,9 @@ a print template, so also run the library tests and compare a render run.
 - `grammar/`: Oracle terminals, phrase composition and inverse semantics.
 - `src/`: grammar loader, parser, binder, renderer and model boundary.
 - `src/tests/`, `tests/fixtures/` and `families/`: regression tests and phrase assets.
-- `pins/model.json`: provenance of the current schema implementation.
+- `crates/oracle-ir/`: owned typed AST, vocabulary, traversal and frozen wire schemas.
+- `crates/oracle-ir-contract/`: shared validation, binding, canonicalization and authoring.
+- `pins/model.json`: owned package identities and extraction provenance.
 - `adapters/mtgish/`: independently pinned optional validation reference.
 - `tools/`: reusable diagnostics and pin/artifact checks.
 
@@ -89,15 +91,15 @@ a print template, so also run the library tests and compare a render run.
 
 ## Model and validation reference
 
-This project is intended to own its IR. Today, [`src/model.rs`](src/model.rs)
-provides a single compatibility boundary to a pinned MTGish schema and its
-validation/canonicalization helpers. The grammar does not use MTGish's source
-lowering or text rewrites.
+This project owns its IR in two workspace crates: `oracle-ir` defines the types
+and wire contract; `oracle-ir-contract` defines validation, canonicalization and
+binding semantics. [`src/model.rs`](src/model.rs) is the frontend import boundary.
+Normal builds have no MTGish package dependencies. The initial extraction
+preserves schema 190; see [the ownership migration](docs/owned-ir-crates.md).
 
 MTGish reference data has a separate lock. Moving its reference revision does
 not move the model or change the compiler inputs. See the
-[adapter contract](adapters/mtgish/README.md) for the transition to local IR and
-an explicit upstream-to-local adapter. Full corpora and held-out data are not
+[adapter contract](adapters/mtgish/README.md) for independently versioned reference artifacts and schema compatibility. Full corpora and held-out data are not
 bundled in this repository.
 
 ## Verification
@@ -105,7 +107,7 @@ bundled in this repository.
 ```sh
 cargo fmt --check
 python3 tools/dev.py test
-cargo clippy --locked --all-targets --all-features -- -D warnings
+cargo clippy --locked --workspace --all-targets --all-features -- -D warnings
 python3 -m unittest discover -s tools -p 'test_*.py'
 python3 tools/pin.py check
 ```
