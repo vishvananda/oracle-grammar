@@ -37,7 +37,13 @@ python3 tools/releases.py github .cache/release-code --repo OWNER/REPO --publish
 
 Publication proceeds `oracle-ir`, `oracle-ir-contract`, then `oracle-ir-grammar`.
 A dry run must reproduce the reviewed `.crate` checksum before each upload.
-Already published versions are reused only when their registry checksums match.
+Unchanged published model versions are reused as their exact registry archives.
+Their source and dependency declarations must match the current checkout;
+regenerated Cargo provenance, manifest formatting and library lockfiles do not force a
+model version bump. A changed model source requires a new model version. Only
+new prerequisite versions enter Cargo's temporary registry, so dependent package
+locks retain the real checksums of reused dependencies. Already published grammar
+versions must match their exact release checksum.
 GitHub uploads go to a draft, are downloaded and verified, then published.
 An interrupted existing GitHub draft requires inspection rather than replacement.
 
