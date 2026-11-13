@@ -487,7 +487,8 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                 "defined_player" => scope.player().ok_or("no player at the value definition")?,
                 "loop_card_it" => loop_card_focus::reference(prior.before(&item.path, scope))?,
                 "it" | "current_it" => {
-                    scope.damage_pronoun(&name, root, &item, &introduced, &prior)?
+                    let it = scope.damage_pronoun(&name, root, &item, &introduced, &prior)?;
+                    exiled_card::tested(root, &item.path, it, scope)?
                 }
                 "another_target_reference" | "other_reference" => {
                     other::resolve_marker(&name, prior.before(&item.path, scope), &node["args"][0])?

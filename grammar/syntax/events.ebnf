@@ -22,7 +22,7 @@ event ::= event_controlled_self_or_a_enters | event_controller_attacks | event_c
     | event_card_to_graveyard_opponent | event_returned_to_hand | event_first_spell_player
     | event_self_enters_or_cast | event_attack_with_others | event_owned_by_other_to_graveyard
     | event_shuffle_caused | event_enters_or_unlock | event_card_from_elsewhere | event_counter_threshold
-    | event_chaos_ensues | event_group_combat_damage_to_player | event_second_draw_each_turn
+    | event_chaos_ensues | event_planeswalk_to | event_planeswalk_away | event_planeswalk_or_turn | event_group_combat_damage_to_player | event_second_draw_each_turn
     | event_a_attacks_alone | event_object_attacks_alone | event_unlock_this_door
     | event_attacks_while_saddled | event_control_none | event_combat_damage_to_player_or
     | event_damaged_by_dies | event_exploits | event_transforms_into_self | event_object_dies
@@ -938,6 +938,20 @@ counter_echo_threshold ::= number_digits | number_words
 /* Chaos ensues for every player. */
 /* @sem EventSpec::Player{event:ChaosEnsues, players:All} */
 event_chaos_ensues ::= "chaos" "ensues"
+
+/* Planes. "When you planeswalk to Littjara and at the beginning of your upkeep" is one
+   trigger whose event is either moment, unlike two repeated trigger headers. */
+/* @sem EventSpec::Player{event:Planeswalks, players:One(PlayerRef::AbilityController), objects:SameObject($self_explicit_ref)} */
+event_planeswalk_to ::= "you" "planeswalk" "to" self_explicit_ref
+/* @sem EventSpec::Player{event:PlaneswalksAway, players:One(PlayerRef::AbilityController), objects:SameObject($self_explicit_ref)} */
+event_planeswalk_away ::= "you" "planeswalk" "away" "from" self_explicit_ref
+/* @sem EventSpec::AnyOf([Player{event:Planeswalks, players:One(PlayerRef::AbilityController), objects:SameObject($self_explicit_ref)}, $planeswalk_turn]) */
+event_planeswalk_or_turn ::= "you" "planeswalk" "to" self_explicit_ref "and" "at" planeswalk_turn
+planeswalk_turn ::= turn_event | turn_first_main | turn_first_upkeep
+/* @sem EventSpec::Turn{point:FirstMainPhaseBegins, players:One(PlayerRef::AbilityController)} */
+turn_first_main ::= "the" "beginning" "of" "your" "first" "main" "phase"
+/* @sem EventSpec::FirstEachGame(Turn{point:UpkeepBegins, players:All}) */
+turn_first_upkeep ::= "the" "beginning" "of" "the" "first" "upkeep" "of" "the" "game"
 
 /* One trigger per player dealt combat damage by the group. */
 /* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$filter_plural, recipients:Players(All), kind:Combat, grouping:Recipient, subject:Source}) */

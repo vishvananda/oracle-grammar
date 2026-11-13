@@ -854,3 +854,6 @@ mod discard_causes;
 
 #[path = "shared_clauses/declined_payments.rs"]
 mod declined_payments;
+
+#[path = "shared_clauses/planeswalks.rs"]
+mod planeswalks;
