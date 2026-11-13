@@ -11,8 +11,6 @@ pub(super) struct Receipt {
     result: ResultId,
     sequence: Vec<Step>,
     instruction: usize,
-    /// The card left another player's library rather than yours.
-    foreign: bool,
 }
 
 impl Receipt {
@@ -40,18 +38,13 @@ impl Receipt {
 /// This intentionally excludes multi-library, plural, filtered and unknown-count
 /// selectors. Missing/unsuccessful movement leaves the native After set empty.
 fn single_top_card(operation: Operation) -> bool {
-    top_card_owner(operation).is_some()
-}
-
-/// Whose library a single exiled top card leaves.
-fn top_card_owner(operation: Operation) -> Option<crate::model::ir::PlayerRef> {
     let Operation::Move {
         objects,
         destination: MovementDestination::Exile { .. },
         ..
     } = operation
     else {
-        return None;
+        return false;
     };
     let ObjectSet::Take {
         objects,
@@ -59,20 +52,19 @@ fn top_card_owner(operation: Operation) -> Option<crate::model::ir::PlayerRef> {
         from: SequenceEnd::Top,
     } = objects
     else {
-        return None;
+        return false;
     };
-    match *objects {
+    matches!(
+        *objects,
         ObjectSet::Zone {
-            scope:
-                ZoneScope::Players {
-                    zone: EventZone::Library,
-                    players: PlayerSet::One(owner),
-                },
+            scope: ZoneScope::Players {
+                zone: EventZone::Library,
+                players: PlayerSet::One(_)
+            },
             kind: ObjectKind::Card,
-            filter: ObjectFilter::Any,
-        } => Some(owner),
-        _ => None,
-    }
+            filter: ObjectFilter::Any
+        }
+    )
 }
 
 pub(super) fn marker(
@@ -94,8 +86,9 @@ pub(super) fn marker(
     let plain = super::references::bound_reference(wrapped, introduced, scope.target_base)?;
     let operation: Operation =
         serde_json::from_value(plain).map_err(|why| format!("exiled card operation: {why}"))?;
-    let owner = top_card_owner(operation)
-        .ok_or("exiled card needs one top card of one library moved to exile")?;
+    if !single_top_card(operation) {
+        return Err("exiled card needs one top card of one library moved to exile".into());
+    }
     let (depth, instruction) = path.iter().enumerate().rev().find_map(|(depth, step)| {
         if let Step::Index(index) = step
             && matches!(depth.checked_sub(1).and_then(|i| path.get(i)), Some(Step::Key(key)) if key == "instructions")
@@ -107,7 +100,6 @@ pub(super) fn marker(
         result: ResultId(u32::try_from(result).map_err(|_| "exiled card result address")?),
         sequence: path[..depth].to_vec(),
         instruction,
-        foreign: !matches!(owner, crate::model::ir::PlayerRef::AbilityController),
     };
     let reference = receipt.scalar();
     scope.exiled_card = Some(receipt);
@@ -133,38 +125,6 @@ pub(super) fn reference(scope: &Scope, path: &[Step]) -> Result<Value, String> {
         return Err("the exile receipt is outside this lexical continuation".into());
     }
     Ok(reference)
-}
-
-/// "Exile the top card of that player's library. If it's a land card, …" counts the
-/// moved card with that type, as for a player who exiles their own top card. Only
-/// your own exiled card is tested in place (Bruse Tarl, Rundvelt Hordemaster). Returns
-/// the resolved pronoun when this use is allowed.
-pub(super) fn tested(
-    root: &Value,
-    path: &[Step],
-    value: Value,
-    scope: &Scope,
-) -> Result<Value, String> {
-    let Some(receipt) = &scope.exiled_card else {
-        return Ok(value);
-    };
-    let tested = matches!(path, [.., Step::Key(args), Step::Key(object)] if args == "args" && object == "object")
-        && node_at(root, &path[..path.len() - 2])
-            .is_some_and(|node| node["kind"] == "ObjectMatches");
-    if receipt.foreign && tested && value == receipt.scalar() {
-        return Err("another player's exiled card is tested by counting the moved card".into());
-    }
-    Ok(value)
-}
-
-fn node_at<'a>(mut value: &'a Value, path: &[Step]) -> Option<&'a Value> {
-    for step in path {
-        value = match step {
-            Step::Key(key) => value.get(key)?,
-            Step::Index(index) => value.get(*index)?,
-        };
-    }
-    Some(value)
 }
 
 pub(super) fn check_scalar(value: &Value, path: &[Step], scope: &Scope) -> Result<(), String> {
@@ -212,7 +172,6 @@ pub(super) fn surface(ability: &mut Value) -> bool {
             result: ResultId(result),
             sequence: Vec::new(),
             instruction: index,
-            foreign: false,
         }
         .scalar();
         let next = &instructions[index + 1];
@@ -271,7 +230,6 @@ mod tests {
             result: ResultId(7),
             sequence: sequence.clone(),
             instruction: 0,
-            foreign: false,
         });
         let reference = scope.exiled_card.as_ref().unwrap().scalar();
         scope.objects.push(reference.clone());
@@ -327,7 +285,6 @@ mod tests {
             result: ResultId(2),
             sequence: sequence.clone(),
             instruction: 0,
-            foreign: false,
         };
         let mut local = sequence;
         local.push(Step::Index(1));

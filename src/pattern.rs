@@ -1013,6 +1013,7 @@ fn transparent_symbol(name: &str) -> bool {
             | "leading_if"
             | "announced_x"
             | "sacrificed_result"
+            | "measured_sacrifice"
     )
 }
 

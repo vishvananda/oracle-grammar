@@ -369,6 +369,20 @@ clause_if_you_do ::= "you" "may" payment "." "if" "you" "do" "," conjoined
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:false}}, Instruction::If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
 clause_required_if_you_do ::= payment "." "if" "you" "do" "," conjoined
 
+/* "Sacrifice a creature. Rupture deals damage equal to that creature's power …" and
+   "Target player sacrifices an artifact or creature of their choice. Hit deals damage
+   to that player equal to that permanent's mana value": damage measured by the
+   sacrificed permanent follows a required sacrifice and reads its payment. The damage
+   must measure that permanent: an implicit actor its noun proves, or a possessive that
+   names it. A written actor's bare "its" reads that actor, so that sacrifice stays a
+   plain action. Life or cards measured that way read the sacrifice itself. */
+clause_sacrifice_then_damage ::= sacrifice_then_damage_own | sacrifice_then_damage_player
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::@measured_sacrifice(Operation::PayCost{player:AbilityController, cost:Cost{parts:[$cost_sacrifice]}, optional:false})}, Instruction::If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:$sacrificed_damage}]}, otherwise:Program{}}] */
+sacrifice_then_damage_own ::= cost_sacrifice "." sacrificed_damage
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::@measured_sacrifice(Operation::PayCost{player:$player_ref, cost:Cost{parts:[CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))}]}, optional:false})}, Instruction::If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:$sacrificed_damage}]}, otherwise:Program{}}] */
+sacrifice_then_damage_player ::= player_ref "sacrifices" ("a" | "an") filter_phrase "of" "their" "choice" "." sacrificed_damage
+sacrificed_damage ::= deal_damage_equal | deal_damage_equal_first
+
 /* "You may sacrifice a creature. If you don't, tap this creature": what follows
    happens only when the offered payment is declined. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:true}}, Instruction::If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:$conjoined}, otherwise:Program{}}] */

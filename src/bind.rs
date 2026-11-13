@@ -34,6 +34,7 @@ pub(crate) mod return_grants;
 pub(crate) mod returned_conditionals;
 mod search_move;
 mod selections;
+mod single_receipts;
 pub(crate) mod target_contrast;
 mod target_populations;
 mod target_surface;
@@ -46,8 +47,8 @@ mod presentation;
 mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{
-    blocks_itself, cancels_before_choice, condition_placement, has_cost_as_action,
-    life_margin_order, protection_domain_mismatch, single_holder_affected,
+    blocks_itself, cancels_before_choice, condition_placement, damage_after_unpaid_sacrifice,
+    has_cost_as_action, life_margin_order, protection_domain_mismatch, single_holder_affected,
 };
 mod coin_protocol;
 mod holder;
@@ -313,8 +314,11 @@ pub fn bind_held_ability(
     if protection_domain_mismatch(ability) {
         return Err("protection names the domain its quality proves".into());
     }
-    if life_margin_order(ability, false) {
-        return Err("a life margin keeps its restriction's operand order".into());
+    if life_margin_order(ability) {
+        return Err("a life margin names the starting life total first".into());
+    }
+    if damage_after_unpaid_sacrifice(ability) {
+        return Err("damage measured by a sacrifice follows its required payment".into());
     }
     variables::bind(ability)?;
     exile_followups::lower(ability)?;
@@ -331,6 +335,7 @@ pub fn bind_held_ability(
     optional_entries::lower(ability);
     reflexive_exiled_card::lower(ability);
     target_populations::lower(ability);
+    single_receipts::lower(ability);
     spell_focus::check_spell_grants(ability)
 }
 
@@ -487,8 +492,7 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                 "defined_player" => scope.player().ok_or("no player at the value definition")?,
                 "loop_card_it" => loop_card_focus::reference(prior.before(&item.path, scope))?,
                 "it" | "current_it" => {
-                    let it = scope.damage_pronoun(&name, root, &item, &introduced, &prior)?;
-                    exiled_card::tested(root, &item.path, it, scope)?
+                    scope.damage_pronoun(&name, root, &item, &introduced, &prior)?
                 }
                 "another_target_reference" | "other_reference" => {
                     other::resolve_marker(&name, prior.before(&item.path, scope), &node["args"][0])?
@@ -1010,6 +1014,7 @@ pub(crate) fn lowered(abilities: &Value) -> Value {
     optional_entries::lower(&mut abilities);
     reflexive_exiled_card::lower(&mut abilities);
     target_populations::lower(&mut abilities);
+    single_receipts::lower(&mut abilities);
     abilities
 }
 
@@ -1025,11 +1030,12 @@ pub fn unbind_ability(ability: &Value) -> Vec<Value> {
     // hidden arrival's duplicate as a duplicate of that card, a guarded entry as an
     // optional action and a reflexive receipt as the linked exiled card.
     let mut scalar = ability.clone();
+    let singles = single_receipts::surface(&mut scalar);
     let populations = target_populations::surface(&mut scalar);
     let duplicates = event_subjects::duplicate_hidden_arrivals(&mut scalar, false);
     let entries = optional_entries::surface(&mut scalar);
     let receipts = reflexive_exiled_card::surface(&mut scalar);
-    if !(populations || duplicates || entries || receipts) {
+    if !(singles || populations || duplicates || entries || receipts) {
         return unbind_view(ability);
     }
     let mut forms = unbind_view(&scalar);

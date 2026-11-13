@@ -82,7 +82,7 @@ replacement_draw_instead ::= "if" draw_event "," instructions "instead" "."
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= prevent_distributed_targets | prevent_bidirectional_combat | prevent_next | prevent_all | prevent_all_combat | prevent_radiance
+prevent_clause ::= prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_combat | prevent_radiance
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -477,16 +477,9 @@ instructions_payment_otherwise ::= "you" "may" payment "." "if" "you" "do" "," c
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost::Cost{parts:[Move{selections:[_{objects:One($target_object)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, zone:Exile}, destination:$battlefield_control, qualifiers:[]}}]}, otherwise:Program{}}] */
 clause_optional_target_blink ::= "you" "may" "exile" target_object "," "then" "return" "that" "card" "to" "the" "battlefield" battlefield_control
 
-/* Both explicit orders are retained for this pure two-leaf combat shield.
-   The event payload is the recipient in both leaves; the callback reads no
-   branch data. No event comparator or general Either ordering changes. */
-prevent_bidirectional_combat ::= prevent_combat_to_by | prevent_combat_by_to
-
+/* A pure two-leaf combat shield names the recipient leaf before the source leaf. */
 /* @sem Operation::CreateReplacement{event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:Combat, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient})]), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
 prevent_combat_to_by ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref this_duration
-
-/* @sem Operation::CreateReplacement{event:Either([Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:Combat, grouping:SourceRecipient, subject:Recipient})]), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
-prevent_combat_by_to ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref this_duration
 
 /* Plural card wording follows every actual card from this exact exile Move. */
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$exile_objects}, Instruction::Effect{result:@next, operation:Operation::Move{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, destination:$battlefield_control, qualifiers:[]}}] */

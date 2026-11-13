@@ -192,8 +192,16 @@ rest_graveyard ::= ("the" "rest" | "the" "other") "into" "your" "graveyard"
 
 look_rest ::= rest_bottom | rest_graveyard
 
-/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$look_top}, Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($look_count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Instruction::Effect{result:@next, operation:$look_rest}] */
-instructions_look_put ::= ("you")? look_top ("." | "," "then") "put" look_count "of" ("them" | "those" "cards") "into" "your" "hand" "and" look_rest
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($look_count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Instruction::Effect{result:@next, operation:$look_rest}] */
+look_put_split ::= "put" look_count "of" ("them" | "those" "cards") "into" "your" "hand" "and" look_rest
+
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$look_top}, ...$look_put_split] */
+instructions_look_put ::= ("you")? look_top "." look_put_split
+
+/* "Look ..., then put ..." is one sentence, so a condition before it governs the
+   whole look and split; the two-sentence form above is not a clause. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$look_top}, ...$look_put_split] */
+clause_look_put_then ::= ("you")? look_top "," "then" look_put_split
 
 look_count ::= number
 

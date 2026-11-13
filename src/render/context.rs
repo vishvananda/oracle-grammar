@@ -207,6 +207,7 @@ fn walk<'p>(
                     | "selected_result"
                     | "owner_return"
                     | "sacrificed_result"
+                    | "measured_sacrifice"
                     | "resolution"
                     | "leading_if"
                     | "distributive_pump_subject"

@@ -1,12 +1,16 @@
 //! A local selected sacrifice is an information subject, never general action focus.
 use super::{Step, symbol_name};
 use crate::model::ir::{
-    Count, EventZone, Expr, ObjectKind, ObjectRef, ObjectSet, Operation, PlayerSet, ResultId,
-    ZoneScope,
+    CostObjectView, Count, EventZone, Expr, ObjectKind, ObjectPhase, ObjectRef, ObjectSet,
+    Operation, PaymentRef, PlayerSet, ResultId, ZoneScope,
 };
 use serde_json::{Value, json};
 
 pub(super) const ACTOR: &str = "selected_sacrifice_actor";
+/// A required sacrifice written without "if you do", whose damage must read it.
+const MEASURED: &str = "measured_sacrifice";
+const MEASURED_WORK: usize = 1 << 20;
+const MEASURED_DEPTH: usize = 256;
 
 fn operation(item: &Value) -> Option<&Value> {
     (item["kind"] == "Effect").then_some(&item["args"]["operation"])
@@ -215,7 +219,193 @@ fn prepare_owner(
     Ok(())
 }
 pub(super) fn prepare(root: &mut Value) -> Result<(), String> {
+    let mut work = MEASURED_WORK;
+    measured(root, 0, &mut work)?;
     prepare_owner(root, true, 0, &mut 4096)
+}
+/// The one selected permanent a single-sacrifice payment pays with.
+fn paid_filter(op: &Value) -> Option<&Value> {
+    let args = &op["args"];
+    let [part] = args["cost"]["parts"].as_array()?.as_slice() else {
+        return None;
+    };
+    let objects = &part["Sacrifice"]["objects"];
+    (op["kind"] == "PayCost"
+        && part["Sacrifice"]["choose"] == json!({"Exactly":{"kind":"Constant","args":1}})
+        && objects["kind"] == "Zone"
+        && objects["args"]["kind"] == "Permanent"
+        && objects["args"]["scope"] == json!({"Shared":"Battlefield"}))
+    .then_some(&objects["args"]["filter"])
+}
+/// A possessive noun ("that creature's", "the sacrificed creature's") names the
+/// sacrificed permanent beside a written actor; a bare "its" belongs to that actor.
+fn names_object(value: &Value, depth: usize, work: &mut usize) -> bool {
+    if depth > 32 || *work == 0 {
+        return false;
+    }
+    *work -= 1;
+    if matches!(
+        symbol_name(value),
+        Some(
+            "qualified_object"
+                | "named_object"
+                | "current_named_object"
+                | "that_object"
+                | "defined_object"
+                | "defined_named_object"
+                | "sacrificed_object"
+        )
+    ) {
+        return true;
+    }
+    match value {
+        Value::Object(fields) => fields.values().any(|v| names_object(v, depth + 1, work)),
+        Value::Array(items) => items.iter().any(|v| names_object(v, depth + 1, work)),
+        _ => false,
+    }
+}
+/// A one-object sacrifice payment's PaymentChosen damage names its input as an
+/// implicit actor proved by its noun. "Sacrifice X. <damage>" without "if you do"
+/// pays X only when that damage reads X: such an actor, or a possessive naming it.
+fn measured_list(items: &mut [Value]) -> Result<(), String> {
+    for index in 0..items.len() {
+        let (head, tail) = items.split_at_mut(index + 1);
+        let payment = &mut head[index];
+        if payment["kind"] != "Effect" {
+            continue;
+        }
+        let marked = symbol_name(&payment["args"]["operation"]) == Some(MEASURED);
+        if marked {
+            let inner = match payment["args"]["operation"]["args"].as_array_mut() {
+                Some(args) if args.len() == 1 => args[0].take(),
+                _ => return Err("a measured sacrifice wraps one payment".into()),
+            };
+            payment["args"]["operation"] = inner;
+        }
+        let Some(selected) = paid_filter(&payment["args"]["operation"]).cloned() else {
+            if marked {
+                return Err("a measured sacrifice pays with one selected permanent".into());
+            }
+            continue;
+        };
+        let damage = tail
+            .first_mut()
+            .filter(|next| {
+                next["kind"] == "If" && next["args"]["condition"]["kind"] == "PaymentChosen"
+            })
+            .and_then(|next| next.pointer_mut("/args/then/instructions/0"))
+            .filter(|effect| operation(effect).is_some_and(|op| op["kind"] == "DealDamage"));
+        let Some(damage) = damage else {
+            if marked {
+                return Err("a measured sacrifice needs its paid damage".into());
+            }
+            continue;
+        };
+        let args = &mut damage["args"]["operation"]["args"];
+        if !bounded(&selected, 0, &mut 4096)
+            || !bounded(&args["source"], 0, &mut 4096)
+            || !bounded(&args["amount"], 0, &mut 4096)
+        {
+            return Err("paid sacrifice actor proof work/depth limit".into());
+        }
+        match lexical(&args["source"], &selected) {
+            Some((proved, at)) => args["source"] = json!({"$sym":ACTOR,"args":[proved],"at":at}),
+            None if !marked || names_object(&args["amount"], 0, &mut 4096) => {}
+            None => {
+                return Err(
+                    "a written damage actor's own property does not measure its sacrifice".into(),
+                );
+            }
+        }
+    }
+    Ok(())
+}
+/// Holders and branches can write the sentence too, so every program is visited.
+fn measured(value: &mut Value, depth: usize, work: &mut usize) -> Result<(), String> {
+    if depth > MEASURED_DEPTH || *work == 0 {
+        return Err("measured sacrifice scan work/depth limit".into());
+    }
+    *work -= 1;
+    match value {
+        Value::Object(fields) => {
+            if let Some(items) = fields.get_mut("instructions").and_then(Value::as_array_mut) {
+                measured_list(items)?;
+            }
+            for child in fields.values_mut() {
+                measured(child, depth + 1, work)?;
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                measured(child, depth + 1, work)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+/// The actor under a required payment's PaymentChosen branch is that payment's input.
+fn paid_reference(root: &Value, path: &[Step]) -> Result<Option<Value>, String> {
+    let [
+        prefix @ ..,
+        Step::Index(index),
+        Step::Key(a),
+        Step::Key(then),
+        Step::Key(list),
+        Step::Index(0),
+        Step::Key(b),
+        Step::Key(c),
+        Step::Key(d),
+        Step::Key(e),
+    ] = path
+    else {
+        return Ok(None);
+    };
+    let keys = [a, then, list, b, c, d, e].map(String::as_str);
+    if keys
+        != [
+            "args",
+            "then",
+            "instructions",
+            "args",
+            "operation",
+            "args",
+            "source",
+        ]
+        || *index == 0
+    {
+        return Ok(None);
+    }
+    let items = get(root, prefix)
+        .and_then(Value::as_array)
+        .ok_or("paid sacrifice actor program")?;
+    let payment = &items[*index - 1];
+    if operation(payment).and_then(paid_filter).is_none() {
+        return Ok(None);
+    }
+    let result = payment["args"]["result"]
+        .as_u64()
+        .and_then(|id| u32::try_from(id).ok())
+        .ok_or("paid sacrifice actor actual result address")?;
+    let condition = &items[*index]["args"]["condition"];
+    if condition["kind"] != "PaymentChosen"
+        || condition["args"]
+            .as_u64()
+            .is_some_and(|id| id != u64::from(result))
+    {
+        return Err("a paid sacrifice actor needs its own PaymentChosen branch".into());
+    }
+    serde_json::to_value(ObjectRef::Query {
+        objects: Box::new(ObjectSet::CostObjects {
+            payment: PaymentRef::Resolution(ResultId(result)),
+            component: vec![0],
+            view: CostObjectView::Inputs,
+            phase: ObjectPhase::Before,
+        }),
+        index: 0,
+    })
+    .map(Some)
+    .map_err(|e| e.to_string())
 }
 fn get<'a>(mut value: &'a Value, path: &[Step]) -> Option<&'a Value> {
     for step in path {
@@ -232,6 +422,9 @@ pub(super) fn reference(root: &Value, path: &[Step]) -> Result<Value, String> {
         return Err(
             "selected sacrifice source noun/provenance is not positively established".into(),
         );
+    }
+    if let Some(paid) = paid_reference(root, path)? {
+        return Ok(paid);
     }
     let [
         prefix @ ..,
@@ -290,7 +483,7 @@ pub(super) fn reference(root: &Value, path: &[Step]) -> Result<Value, String> {
     serde_json::to_value(ObjectRef::Query {
         objects: Box::new(ObjectSet::Transition {
             result: ResultId(result),
-            phase: crate::model::ir::ObjectPhase::Before,
+            phase: ObjectPhase::Before,
         }),
         index: 0,
     })

@@ -256,22 +256,17 @@ fn an_optional_reveal_before_a_reflexive_trigger_is_an_action() {
 }
 
 #[test]
-fn an_activation_restriction_names_starting_life_before_its_margin() {
-    for (text, first) in [
-        (
-            "{1}: Draw a card. Activate only if you have at least 10 life more than your starting life total.",
-            "StartingLife",
-        ),
-        (
-            "At the beginning of your upkeep, if you have at least 15 life more than your starting life total, draw a card.",
-            "Constant",
-        ),
+fn a_life_margin_names_starting_life_before_its_margin() {
+    // An activation restriction and a trigger condition share one margin order.
+    for text in [
+        "{1}: Draw a card. Activate only if you have at least 10 life more than your starting life total.",
+        "At the beginning of your upkeep, if you have at least 15 life more than your starting life total, draw a card.",
     ] {
         let readings = engine().parse("Context example", text).unwrap().readings;
         assert_eq!(readings.len(), 1, "{text}: {readings:#?}");
         let mut sums = Vec::new();
         visit(&readings[0], "Add", &mut sums);
-        assert_eq!(sums[0][0]["kind"], first, "{text}");
+        assert_eq!(sums[0][0]["kind"], "StartingLife", "{text}");
         printed(&readings[0]);
     }
 }

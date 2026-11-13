@@ -107,7 +107,8 @@ fn life_margin_and_the_first_bonus_print_independent_new_values() {
     let mut frame = expected("Elenda, Saint of Dusk");
     frame[2]["args"]["then"][0]["args"]["changes"][0]["args"]["power"] =
         json!({"kind":"Constant","args":2});
-    frame[3]["args"]["condition"]["args"]["test"]["args"]["value"]["args"][0] =
+    // The margin follows the starting life total it adds to.
+    frame[3]["args"]["condition"]["args"]["test"]["args"]["value"]["args"][1] =
         json!({"kind":"Constant","args":7});
     let text = printed(&frame).to_lowercase();
     assert!(

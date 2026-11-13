@@ -8,71 +8,21 @@ have no `###` heading, so they never excuse a lost match. After an upstream fix,
 advance `reference.json`, re-prepare the inputs and recount. Paths are IR paths
 inside the face's ability list.
 
-The current reference is `5408607bc4342aa3cdde1e764e2f405e71dccd39` (schema
+The current reference is `19e317a12aa88a6a1a005497e9643c13dc47d978` (schema
 190). Upstream reviewed the grammar's 53 differing faces at `1fe5782` in
 `docs/reference-decisions-20261112.md`, with a per-face ledger in
 `reference-decisions-20261112.json`, and closed the nine held for a witness in
 `docs/reference-nine-resolutions-20261112.md`. It reopened 36 retained forms for
 one producer form per wording in `docs/reference-consistency-20261112.md` and
 closed all 36 by `5c1abe1` in `docs/reference-self-frames-20261112.md` and
-`docs/reference-remaining30-20261112.md`. The faces below with a `###` heading
-are disputed now.
+`docs/reference-remaining30-20261112.md`. At `35d1f2b` it closed the disputes
+and same-wording groups this report listed at `5408607`, in
+`docs/reference-followups-20261112.md` with a ledger in
+`reference-followups-20261112.json`.
 
 ## Disputed
 
-### Cauldron Dance
-
-- "Return target creature card from your graveyard to the battlefield. ... You
-  may put a creature card from your hand onto the battlefield. That creature
-  gains haste. Its controller sacrifices it at the beginning of the next end
-  step." The second paragraph's haste and sacrifice under `If PaymentChosen(2)`
-  name the first paragraph's returned creature, `Result{result:0, phase:After,
-  index:0}`, at
-  `1/args/body/instructions/4/args/then/instructions/0/args/operation/args/affected/Objects/args`
-  and
-  `1/args/body/instructions/4/args/then/instructions/1/args/operation/args/body/instructions/0/args/operation/args/objects/args`.
-  "That creature" is the card put from the hand, the payment's
-  `CostObjects{payment:Resolution(2), component:[0], view:Performed,
-  phase:After}`, as in Meek Attack.
-
-### Lieutenants of the Guard
-
-- "Starting with you, each player votes for strength or numbers. Put a +1/+1
-  counter on this creature for each strength vote and create a 1/1 white
-  Soldier creature token for each numbers vote." The counter amount counts
-  `Votes(Word("Feather"))`, a word not on this ballot (`Words(["Strength",
-  "Numbers"])`), at
-  `0/args/body/instructions/1/args/operation/args/placements/0/amount/args/Word`;
-  it reads `Votes(Word("Strength"))`. Messenger Jays' "for each feather vote"
-  has the same shape.
-
-### Phage the Untouchable Avatar
-
-- "Until end of turn, whenever target creature you control deals combat damage
-  to a creature, destroy the damaged creature." The created trigger captures the
-  target as the damage source, so the captured-target rule (Delif's Cube) names
-  `Target{slot:0, index:0}` at
-  `1/args/body/instructions/0/args/operation/args/body/instructions/0/args/operation/args/objects/args`
-  and destroys the attacker. The damaged creature is the event's recipient,
-  `Damage(Recipient)`, which the grammar reads.
-
-### Seizures
-
-- "Whenever enchanted creature becomes tapped, this Aura deals 3 damage to that
-  creature's controller unless that player pays {3}." The reference damages
-  `AbilityController` at
-  `1/args/body/instructions/1/args/then/instructions/0/args/operation/args/recipients/args/args`;
-  "that creature's controller" is `ControllerOf(EventSubject)`, as the payment's
-  player already is.
-
-### Woodland Bellower
-
-- "Search your library for a nonlegendary green creature card with mana value 3
-  or less": the reference's `Search` choice filter is
-  `AllOf([Not(Supertype(Legendary)), Color(Green), Property(ManaValue <= 3)])`,
-  without `CardType(Creature)`, so it also finds green noncreature cards. The
-  face matches today only through a seeded rule that copies this filter; a
-  compositional "nonlegendary" adjective reads the creature card.
+No face is disputed at this reference.
 
 ## Resolved upstream
 
@@ -235,6 +185,58 @@ At `5408607` (`docs/reference-other-targets-20261112.md`):
   targets and required payments keep their forms. The grammar lowers the scalar
   spelling at binding and restores it for the printer.
 
+At `d67e6d0` (`docs/reference-random-damage-20261112.md`) and `6f9f2ef`
+(`docs/reference-defending-player-20261112.md`):
+
+- Phage the Untouchable Avatar: the created trigger destroys
+  `Damage(Recipient)`, not the captured attacker.
+- A random return from a graveyard is one `Move` of a `WithSelections{chooser:
+  Chance}` selection counting `AsManyAsCan(1)`, with no redundant same-zone
+  filter: Charmbreaker Devils, Exalted Flamer of Tzeentch, Fossil Find,
+  Ghoulraiser, Nephalia, The Deck of Many Things, Trash Bin, Viconia, Drow
+  Apostate and Woodland Sleuth.
+- "Defending player" in a spell's target filter is the `PossibleDefender` combat
+  role: False Orders, Blaze of Glory and Yare, as Stand or Fall.
+
+At `35d1f2b` (`docs/reference-followups-20261112.md`):
+
+- Cauldron Dance: haste and the delayed sacrifice name the creature put from the
+  hand, the payment's `CostObjects{view:Performed, phase:After}`.
+- Lieutenants of the Guard: the counter counts `Strength` votes.
+- Seizures: the damage goes to the enchanted creature's controller.
+- Woodland Bellower: the search filter includes `CardType(Creature)`.
+- Grab the Reins shares Hit and Rupture's required sacrifice payment. The
+  grammar reads "Sacrifice X. <damage>" as that payment only when the damage
+  measures the sacrificed permanent: an implicit actor ("It deals"), which is the
+  payment's input, or a possessive that names it. A written actor's bare "its"
+  reads that actor, so that sacrifice stays a plain action, as for constant
+  damage (Mogg Bombers) or a count (Landslide).
+- Surprise Deployment shares the optional hand-entry payment of Ilharg, the
+  Raze-Boar, Meek Attack and Planebound Accomplice.
+- "Becomes an artifact creature" adds Artifact, then Creature, in every
+  template; Start Your Engines matches Armed and Armored.
+- Every "starting with you, each player votes" ballot is a
+  `ForEachPlayer{players:All, starting_with:AbilityController}` loop, including
+  Coercive Portal, Messenger Jays and Orchard Elemental. The grammar reads word
+  and color ballots compositionally.
+- Spirit Flare lost its invented target exclusion; Uchuulon keeps its exact
+  payment selection.
+- A cast history is `Compare(EventHistory(Spell Cast ...))`; see the threshold
+  group below.
+- A proven one-card receipt is tested with `ObjectMatches(Result{phase,
+  index:0}, filter)` and measured with `ObjectProperty(Result{phase, index:0})`.
+  The grammar lowers the counted spelling at binding and restores it for the
+  printer. Satya keeps its batch; see below.
+- In the Darkness Bind Them untaps the announced targets, as Hideous Taskmaster
+  does.
+- "This card" after its own exile keeps distinct action, cost and event
+  namespaces; no change.
+- A life margin names `StartingLife` before the constant it adds.
+- A pure two-branch prevention names the recipient branch before the source
+  branch.
+- Forgeborn Phoenix and Hook Horror apply `CreatePerpetualEffect` to the guarded
+  `EventDestination` in the graveyard, as Consumed by History does.
+
 ## Same wording encoded more than one way
 
 The reference encodes the same wording in more than one way, and upstream kept
@@ -242,148 +244,25 @@ every encoding below. Groups use `####` headings and faces appear only in
 bullets, so these entries never excuse a lost match. Faces the grammar scores as
 different are marked *(different)*.
 
-#### A sacrifice followed by damage equal to its property
-
-- `PayCost` of the sacrifice, the damage under `If PaymentChosen` and the
-  property read from `CostObjects{payment:Resolution(0), view:Inputs, phase:Before}`:
-  Hit *(different)* and Rupture *(different)*.
-- A `Sacrifice` effect read through `Transition{result:0, phase:Before}`: Grab
-  the Reins ("Sacrifice a creature. Grab the Reins deals damage equal to that
-  creature's power to any target").
-- Rupture and Grab the Reins have the same two sentences up to the damage
-  recipients. Upstream's Hit contract says Rupture now shares the payment form;
-  Grab the Reins still reads the effect.
-
-#### An optional put from a hand followed by a delayed return
-
-- `PayCost` of the put from the hand, the delayed trigger under
-  `If PaymentChosen` and the creature read from the payment's `CostObjects`:
-  Ilharg, the Raze-Boar ("you may put a creature card from your hand onto the
-  battlefield tapped and attacking. Return that creature to your hand at the
-  beginning of the next end step"), Meek Attack and Planebound Accomplice.
-- An `Optional` put followed by an unguarded delayed trigger reading
-  `Result{result:1, phase:After}`: Surprise Deployment *(different)* ("You may
-  put a nonwhite creature card from your hand onto the battlefield. At the
-  beginning of the next end step, return that creature to your hand").
-- The source spells Surprise Deployment with `MayAction` and the others with
-  `MayCost` and `If(CostWasPaid)`. The grammar guards every such entry.
-
-#### "Vehicles you control become artifact creatures until end of turn"
-
-- `AddCardType(Artifact)` and `AddCardType(Creature)`, as for a crewed Vehicle
-  that "becomes an artifact creature": Armed and Armored and The Thanos-Copter.
-- `SetCardTypes([Artifact, Creature])`: Start Your Engines, with the same
-  sentence followed by "Creatures you control get +2/+0 until end of turn".
-- One-card seeded rules keep both until upstream chooses; a hand rule for the
-  plural would give Start Your Engines both readings.
-
-#### "Starting with you, each player votes for <word> or <word>"
-
-- `ForEachPlayer{players:All, starting_with:AbilityController}` around a
-  `Vote{actor:Bound(0)}`: 17 faces, such as Tyrant's Choice, Plea for Power,
-  Magister of Worth and Emissary Green.
-- One `Vote{actor:AbilityController}`: Coercive Portal, Lieutenants of the
-  Guard, Messenger Jays and Orchard Elemental, all triggered abilities, as are
-  Magister of Worth, Emissary Green, Galadriel, Elven-Queen and Tivit, Seller of
-  Secrets.
-- The grammar reads the loop; one-card seeded rules keep the single vote, so
-  Coercive Portal and Orchard Elemental have both readings.
-
-#### A target constraint one card adds to its wording
-
-- Spirit Flare ("Tap target untapped creature you control. If you do, it deals
-  damage equal to its power to target attacking or blocking creature an
-  opponent controls") adds `Not(SameObject(Target{slot:0}))` to the second
-  target, though "you control" and "an opponent controls" are already disjoint.
-- Uchuulon ("exile up to one target creature card from an opponent's
-  graveyard. If you do, ...") adds `CommonProperty(Owners)` and an unchosen
-  count; the 25 faces exiling "target creature card from an opponent's
-  graveyard" have neither.
-- Both faces are equal through one-card seeded rules, and the compositional
-  required payment ("<action>. If you do, ...") gives each a second reading
-  without the constraint.
-
 #### "If you've cast another <color> spell this turn"
 
-- `PlayerDid{event:CastSpell(...), window:ThisTurn}`: Dream Thief *(different)*
-  ("draw a card if you've cast another blue spell this turn") and Hotheaded
-  Giant ("unless you've cast another red spell this turn").
-- `Compare(EventHistory(Spell Cast ...) > 0)`: Soul Reap ("Its controller loses
-  3 life if you've cast another black spell this turn"), Patrician's Scorn,
-  Talara's Battalion and Mage Duel.
-- Dream Thief and Soul Reap both put the condition on a body effect; the grammar
-  reads the history count for both.
+- `Compare(EventHistory(Spell Cast ...) > 0)`: Dream Thief *(different)* ("draw
+  a card if you've cast another blue spell this turn") and Hotheaded Giant
+  ("unless you've cast another red spell this turn"), the two former
+  `PlayerDid` forms.
+- `Compare(EventHistory(Spell Cast ...) >= 1)`: Patrician's Scorn, Soul Reap
+  ("Its controller loses 3 life if you've cast another black spell this turn")
+  and Talara's Battalion.
+- Both thresholds test the same count; the grammar reads `>= 1`, as the three
+  templates that always counted do.
 
-#### Random return from a graveyard to a hand
+## Open in the grammar
 
-- Haunted Fengraf's contract is one `Move` of a `WithSelections{chooser:Chance}`
-  selection whose count `AsManyAsCan(1)` handles an empty pool. Fossil Find,
-  Make a Wish, Reap the Past, Surreal Memoir, The Deck of Many Things and Trash
-  Bin match it.
-- The same template has `Exactly(1)` in Charmbreaker Devils, Exalted Flamer of
-  Tzeentch, Ghoulraiser, Nephalia, Viconia, Drow Apostate and Woodland Sleuth.
-- A single untyped card keeps a redundant `InZone(your graveyard)` filter in
-  Fossil Find, The Deck of Many Things and Trash Bin, but not in Nephalia.
-- The grammar returns both counts for this template until one is chosen.
+These faces differ because the grammar reads them differently; upstream's form
+stands. They have no `###` heading.
 
-#### "If it's a <type> card" after a one-card move
-
-- `Compare(CountObjects(Matching(Transition{result, phase:After}, type)) > 0)`:
-  23 faces, such as Audacious Swap, Bioplasm, Dimensional Infiltrator, Kianne,
-  Dean of Substance, Mind's Dilation and Omen Machine.
-- `ObjectMatches(Result{result, phase:After, index:0}, type)`: Bruse Tarl,
-  Roving Rancher, Rundvelt Hordemaster and Pep, Raucous Raider; Deadbridge
-  Chant and Search for Survivors after a random choice.
-- The grammar reads "<player> exiles the top card of their library. If it's a
-  <type> card" with the count, as every face with that wording does. After
-  "exile the top card of your library" both forms occur, so the general reading
-  is the scalar and one-card seeded rules supply the count.
-
-#### "Untap those creatures" after a per-opponent control change
-
-- `Targets(0)`: Hideous Taskmaster. `Affected(0)`: In the Darkness Bind Them,
-  with the same two sentences.
-- Review: a failed control change must show whether the receipt names the
-  attempted or the successful objects.
-
-#### A property of a single result
-
-- `ObjectProperty(Result{..., index:0})` in 32 controls such as Seek, and
-  `Aggregate` sum over the result in 28, such as Daredevil, Fearless Fighter
-  and Satya, Aetherflux Genius *(different)*.
-- Satya is the only face that reads a property of created tokens. Upstream
-  rejected the scalar: token doubling can make one requested token several,
-  and the sacrifice already addresses all of them. The grammar reads "its" as
-  `Result{index:0}`; reading the whole batch needs a batch reference for "its"
-  with its own printing inverse.
-
-#### "This card" after the card exiled itself
-
-- `InZone(Source, Exile)`, `InZone(Transition, Exile)` and
-  `InZone(CostObjects, Exile)` each appear (Lucius the Eternal, Liliana,
-  Heretical Healer, Reborn Hero, Lamplight Phoenix).
-- Review: keep the post-cost or post-exile incarnation and its expected zone;
-  Kogla shows a generic `Source` can be wrong.
-
-#### Operand order of "N life more than your starting life total"
-
-- `Add([N, StartingLife])` in conditions (Chalice of Life, Doctor Strange,
-  Surgeon, Leyline of Hope) and `Add([StartingLife, N])` in activation
-  restrictions (Speaker of the Heavens, Ayli, Eternal Pilgrim).
-- Review: a normal-form choice under identical arithmetic, not a rules defect.
-
-#### Branch order of "dealt to and dealt by"
-
-- Dealt-to branch first: 19 faces, such as Elvish Scout and Maze of Ith.
-- Dealt-by branch first: Cephalid Illusionist, Energy Arc, Soratami Cloud
-  Chariot and Statecraft.
-- The grammar returns both orders for this wording until one is chosen.
-
-#### A perpetual effect on a creature that just died
-
-- `EventSubject`: Forgeborn Phoenix ("whenever ... creature dies, it
-  perpetually gains").
-- `Query(InZone(One(EventDestination), Graveyard))`: Consumed by History,
-  with the same wording.
-- `Source`: Hook Horror (its own "it perpetually gets"), whose later "that
-  card's toughness" and "return it" use the `Query`.
+- Satya, Aetherflux Genius: "sacrifice that token unless you pay an amount of
+  {E} equal to its mana value" sums over every token created, because a doubling
+  replacement can create several. The grammar reads "its" as `Result{index:0}`;
+  reading the whole batch needs a batch reference for "its" with its own printing
+  inverse.

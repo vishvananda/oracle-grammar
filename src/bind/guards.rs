@@ -138,38 +138,50 @@ pub(super) fn blocks_itself(value: &Value) -> bool {
     }
 }
 
-/// An activation restriction adds the margin to the starting life total; any
-/// other life-margin condition adds the starting life total to the margin.
-pub(super) fn life_margin_order(value: &Value, activation: bool) -> bool {
+/// "Sacrifice a creature. Rupture deals damage equal to that creature's power": damage
+/// measured by a sacrificed permanent follows a required sacrifice payment and reads the
+/// paid permanent. An ordinary sacrifice measured that way only gains life or draws.
+pub(super) fn damage_after_unpaid_sacrifice(value: &Value) -> bool {
+    let measured = |sacrifice: &Value, damage: &Value| {
+        let result = &sacrifice["args"]["result"];
+        let before = json!({"kind":"Query","args":{"objects":{"kind":"Transition",
+            "args":{"result":result,"phase":"Before"}},"index":0}});
+        sacrifice["args"]["operation"]["kind"] == "Sacrifice"
+            && damage["args"]["operation"]["kind"] == "DealDamage"
+            && contains(&damage["args"]["operation"]["args"]["amount"], &before)
+    };
     match value {
         Value::Object(object) => {
-            let parts = value["args"].as_array().filter(|_| value["kind"] == "Add");
-            let wrong = parts.is_some_and(|parts| {
-                let starting = |part: &Value| part["kind"] == "StartingLife";
-                parts.len() == 2
-                    && starting(&parts[0]) != starting(&parts[1])
-                    && starting(&parts[1]) == activation
-            });
-            if wrong {
-                return true;
-            }
-            if value["kind"] == "Activated" {
-                return object.iter().any(|(key, child)| {
-                    if key == "args" {
-                        child.as_object().is_some_and(|args| {
-                            args.iter()
-                                .any(|(field, inner)| life_margin_order(inner, field == "limits"))
-                        })
-                    } else {
-                        life_margin_order(child, activation)
-                    }
-                });
-            }
-            object
-                .values()
-                .any(|child| life_margin_order(child, activation))
+            let pairs = value["instructions"].as_array();
+            pairs.is_some_and(|items| items.windows(2).any(|pair| measured(&pair[0], &pair[1])))
+                || object.values().any(damage_after_unpaid_sacrifice)
         }
-        Value::Array(items) => items.iter().any(|item| life_margin_order(item, activation)),
+        Value::Array(items) => items.iter().any(damage_after_unpaid_sacrifice),
+        _ => false,
+    }
+}
+
+fn contains(value: &Value, part: &Value) -> bool {
+    value == part
+        || match value {
+            Value::Object(object) => object.values().any(|v| contains(v, part)),
+            Value::Array(items) => items.iter().any(|v| contains(v, part)),
+            _ => false,
+        }
+}
+
+/// A life margin adds the margin to the starting life total: `StartingLife` comes
+/// first in a two-operand sum with it.
+pub(super) fn life_margin_order(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => {
+            let starting = |part: &Value| part["kind"] == "StartingLife";
+            let parts = value["args"].as_array().filter(|_| value["kind"] == "Add");
+            parts.is_some_and(|parts| {
+                matches!(parts.as_slice(), [first, second] if starting(second) && !starting(first))
+            }) || object.values().any(life_margin_order)
+        }
+        Value::Array(items) => items.iter().any(life_margin_order),
         _ => false,
     }
 }

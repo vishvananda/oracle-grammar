@@ -384,10 +384,12 @@ mod native_preflight {
     use crate::engine::canonical_abilities;
 
     /// The reviewed meaning in the reference's normal form: an optional target is its
-    /// whole population, so its scalar and set views are one reading.
+    /// whole population, so its scalar and set views are one reading, and one moved
+    /// card is tested in place.
     fn normal(value: &Value) -> Value {
         let mut value = value.clone();
         super::super::target_populations::lower(&mut value);
+        super::super::single_receipts::lower(&mut value);
         canonical_abilities(&value).unwrap()
     }
     fn canonical_set(values: Vec<Value>) -> Vec<Value> {

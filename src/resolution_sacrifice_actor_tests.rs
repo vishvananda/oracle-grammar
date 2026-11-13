@@ -122,8 +122,10 @@ fn typed_and_untyped_synthesized_native_actor_never_uses_receipt_pronouns() {
         .unwrap();
     let mut synthesized = edited["expected_readings"][0].clone();
     for branch in ["paid", "unpaid"] {
+        // The damage follows its required sacrifice inside the PaymentChosen branch.
         synthesized[0]["args"][branch]["args"]["announcement"]["modes"]["options"][1]["body"]["instructions"]
-            [1]["args"]["operation"]["args"]["source"] = json!({"kind":"Source"});
+            [1]["args"]["then"]["instructions"][0]["args"]["operation"]["args"]["source"] =
+            json!({"kind":"Source"});
     }
     let synthesized = canonical_abilities(&synthesized).unwrap();
     native_print("Grab the Reins", &synthesized, "toughness");

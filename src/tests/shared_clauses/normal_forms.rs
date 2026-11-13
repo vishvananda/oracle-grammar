@@ -47,7 +47,8 @@ fn cards_at_random_are_one_move_of_a_chance_selection() {
     assert!(printed.ends_with("two cards at random from your graveyard to your hand."));
     let single = compositional("Return a card at random from your graveyard to your hand.");
     let pool = &operation(&single, 0)["args"]["steps"][0]["objects"]["args"];
-    assert_eq!(pool["filter"]["kind"], "InZone");
+    // The zone already bounds the pool; one random card repeats no zone filter.
+    assert_eq!(pool["filter"], json!({"kind":"Any"}));
 }
 
 #[test]

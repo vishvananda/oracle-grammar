@@ -1,6 +1,6 @@
 //! A plane names itself in its planeswalk triggers. "When you planeswalk to X and at the
 //! beginning of your upkeep" is one trigger whose event is either moment. A card exiled
-//! from another player's library is tested by counting the moved card.
+//! from another player's library is tested in place as the one moved card.
 use super::*;
 
 #[test]
@@ -30,12 +30,15 @@ fn a_planeswalk_and_a_turn_moment_share_one_trigger() {
 }
 
 #[test]
-fn another_players_exiled_top_card_is_counted() {
+fn another_players_exiled_top_card_is_tested_in_place() {
     let text = "Target opponent exiles the top card of their library. If it's a land card, you \
                 gain 3 life.";
     let reading = compositional(text);
     let condition = &reading[0]["args"]["body"]["instructions"][1]["args"]["condition"];
-    assert_eq!(condition["kind"], "Compare");
-    assert_eq!(condition["args"]["left"]["kind"], "CountObjects");
+    assert_eq!(condition["kind"], "ObjectMatches");
+    assert_eq!(
+        condition["args"]["object"],
+        json!({"kind":"Result","args":{"result":0,"phase":"After","index":0}})
+    );
     assert_eq!(printed_types(&reading, &["Sorcery"]), text);
 }

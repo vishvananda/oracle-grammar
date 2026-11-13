@@ -1,4 +1,4 @@
-//! Property anaphora after a positively chosen resolution sacrifice.
+//! Property anaphora after a positively chosen resolution sacrifice, offered or required.
 use super::{Scope, Step, sacrificed::Information};
 use crate::model::ir::{Condition, CostPart, Count, Expr, ResultId};
 use serde::Deserialize;
@@ -35,10 +35,7 @@ pub(super) fn record(
         return Ok(());
     };
     let operation = &effect["args"]["operation"];
-    if effect["kind"] != "Effect"
-        || operation["kind"] != "PayCost"
-        || operation["args"]["optional"] != true
-    {
+    if effect["kind"] != "Effect" || operation["kind"] != "PayCost" {
         return Ok(());
     }
     let Some(parts) = operation["args"]["cost"]["parts"].as_array() else {
