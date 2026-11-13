@@ -1573,9 +1573,57 @@ static_look_at_top_card ::= "you" "may" "look" "at" "the" "top" "card" "of" "you
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:Everyone})]}) */
 static_top_card_revealed ::= "play" "with" "the" "top" "card" "of" "your" "library" "revealed" "."
 
-/* Casting spells of a kind from your library's top. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$filter_phrase})]}) */
-static_cast_from_top ::= "you" "may" "cast" filter_phrase "spells" "from" "the" "top" "of" "your" "library" "."
+/* Playing or casting from your library's top. "Play lands", "cast creature spells" and
+   "play cards" are one permission each; "and" joins two of them. A condition governs
+   the whole static. For a duration, looking at the top card any time adds its visibility
+   first; a static joined that way stays seeded, since canonical form joins two separate
+   same-player lines into the same static and the joined sentence would print for both. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$top_play_permissions}) */
+static_cast_from_top ::= top_play_permissions "."
+/* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$top_play_permissions})]} */
+static_cast_from_top_if ::= "as" "long" "as" condition "," top_play_permissions "."
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$top_look_and_play, duration:$duration, evaluation:LiveObjects} */
+effect_look_and_play_from_top ::= duration "," top_look_and_play
+
+/* @sem Change::[PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:AffectedPlayer}), ...$top_play_permissions] */
+top_look_and_play ::= "you" "may" "look" "at" "the" "top" "card" "of" "your" "library" "any" "time" ","? "and" top_play_permissions
+
+/* @sem Change::[...$top_permissions] */
+top_play_permissions ::= "you" "may" top_permissions "from" "the" "top" "of" "your" "library"
+top_permissions ::= top_permission | top_permission_pair
+/* @sem Change::[...$top_permission, ...$top_permission_2] */
+top_permission_pair ::= top_permission "and" top_permission
+top_permission ::= top_play_lands | top_play_kind_lands | top_cast_spells | top_play_cards
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:PlayLand, filter:Any})] */
+top_play_lands ::= "play" "lands"
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:PlayLand, filter:$plural_kind})] */
+top_play_kind_lands ::= "play" plural_kind "lands"
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_spells_filter})] */
+top_cast_spells ::= "cast" cast_spells_filter
+/* @sem Change::[PlayerRule(PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:Either, filter:Any})] */
+top_play_cards ::= "play" "cards"
+
+/* Plural spells of a kind: "spells", "creature spells", "noncreature spells", "Cleric,
+   Rogue, and Wizard spells", "artifact spells and colorless spells", "spells with mana
+   value 4 or greater", "creature spells of the chosen type". */
+cast_spells_filter ::= cast_any_spells | cast_kind_spells | cast_kind_pair_spells | cast_kind_list_spells | cast_two_kinds_spells | cast_modified_spells | cast_kind_modified_spells | cast_chosen_type_spells
+plural_kind ::= filter_phrase | quality
+/* @sem ObjectFilter::Any */
+cast_any_spells ::= "spells"
+/* @sem $plural_kind */
+cast_kind_spells ::= plural_kind "spells"
+/* @sem ObjectFilter::AnyOf([$spell_adjective, $spell_adjective_2]) */
+cast_kind_pair_spells ::= spell_adjective "and" spell_adjective "spells"
+/* @sem ObjectFilter::AnyOf([...$noun_commas, $noun]) */
+cast_kind_list_spells ::= noun_commas union_and noun "spells"
+/* @sem ObjectFilter::AnyOf([$plural_kind, $plural_kind_2]) */
+cast_two_kinds_spells ::= plural_kind "spells" "and" plural_kind "spells"
+/* @sem $modifiers */
+cast_modified_spells ::= "spells" modifiers
+/* @sem @and($filter_phrase, $modifiers) */
+cast_kind_modified_spells ::= filter_phrase "spells" modifiers
+/* @sem @and($filter_phrase, ObjectFilter::Chosen(CreatureType)) */
+cast_chosen_type_spells ::= filter_phrase "spells" "of" "the" "chosen" "type"
 
 /* Your spells of a kind cost less. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$filter_phrase, modifier:Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true}})]}) */
