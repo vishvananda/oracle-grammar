@@ -516,3 +516,110 @@ locked release library tests with their existing ignores. All 70 Python tool
 tests, formatting, Clippy, model/reference pin checks, hygiene and every
 registered compositional family pass. The latest `origin/main` remains an
 ancestor of this checkout; no push was performed.
+
+## Linked card statistics and branch-local definitions
+
+The linked-card phrase family now composes a singular X/Y stat definition and
+explicit linked populations with shared numeric expressions. Singular linked
+answers sum over matching cards in exile; plural populations such as `creature
+cards exiled with enchanted creature` also compose with count, total and maximum.
+The explicit anchor remains an operand, independent of the stat recipient.
+Edited filters, properties and anchors print from their current values and pass
+semantic reparse. Eight new frontend tests and ten runtime family cases cover
+these contracts, missing definitions, full input consumption, signed independent
+properties, distinct holder/recipient identities and bounded scope detection.
+Two standalone draw examples retain their existing inline/captured readings;
+this batch introduces no new canonical equality alias for those shapes.
+
+U0008 corrects Phyrexian Ingester's static Pump operands. The old power expression
+selected index zero from an unordered unfiltered linked population; toughness
+used a different implicit history measure. Both now use live Aggregate(Sum)
+expressions over creature cards in exile linked to the source. The triggered
+exile, affected object and source identity remain unchanged. The official
+[Commander Masters release notes](https://magic.wizards.com/en/news/feature/commander-masters-release-notes)
+require current characteristics in exile and exclude noncreature cards.
+[CR 607.3](https://media.wizards.com/2026/downloads/MagicCompRules%2020260619.pdf)
+requires adding variable answers when the linked exile ability has exiled
+multiple cards. Existing Aggregate/Zone/ExiledWith types express the correction;
+no AST schema or model pin change is needed. This is a reference/IR lowering
+correction: a first-member query remains distinct from a whole-population sum.
+
+U0009 corrects Creeping Inn's count by adding the explicitly written Creature
+predicate to the same linked exile population. Payment, player, movement,
+conditional receipt, capture after successful payment, both bound life amounts
+and the independent phasing ability remain unchanged. Its old seeded clause
+omitted that predicate and hardcoded a later result address. The shared numeric
+rules now supply the count and native capture contract.
+
+The new linked population exposed a competing outer `where X is` derivation
+that inlined both life amounts into the paid branch. For supported shared numeric definitions, capture classification now
+finds required captures in nested programs with explicit work/depth
+bounds. An unsupported outer capture shape refuses; it cannot fall back to
+reevaluation. The inner program captures immediately before its first use after
+payment. Independent abilities, holders, modes and lexical scopes retain their
+own definitions. Forward construction propagates bound failures; inverse search
+applies the same guard. Creeping Inn keeps two distinct native payment forms,
+strict movement and the offered action, both with one inner capture. They are
+not equated by canonicalization.
+
+Four more seeded rules retire: `m_gets_x_y_where_x_is_the`,
+`m_the_number_of_cards_exiled_with_object_ref`,
+`m_create_x_value_value_black_dalek_artifact`, and
+`t_players_singular_loses_x_life_and_you_gain_2`. Cumulative retirement is 113,
+leaving 12,094. Compositional matches rise from 19,764 to 19,768. The final rule
+audit retains the same four attribution limitations, zero at-risk faces and
+only the two protected edited-print rules as unused candidates.
+
+All 32,755 allowed faces match the updated reference; 31,680 have one reading
+and there are 33,921 readings. All raw/canonical gold records validate, all
+canonical gold is idempotent, and every current reading validates and is
+canonical. The eight affected faces retain eight exact keyed prints, four exact
+defaults and eight verified defaults; six are single-reading. All 27 affected
+runtime family cases pass, as do every registered compositional family and all
+eight required repository gates. The locked release frontend suite has 734
+passing tests and one ignored test; model-package ignores remain unchanged.
+
+Strict preservation against c5fdc9a intentionally exits nonzero: the old
+Phyrexian Ingester and Creeping Inn meanings are replaced by the two recorded
+corrections. These are the only two old missing readings. The corresponding
+additions are one corrected Ingester reading and two corrected Creeping Inn
+payment views. There are no other losses, additions or canonical shape merges.
+The 2,630 explicit old operands validate before canonicalization; 31,290 implicit
+singletons use unchanged gold. The old implicit singletons for both changed
+faces were materialized from the hash-verified pre-correction reference. Frozen
+rows, both correction operands, prepared gold, runtime grammar, export updates
+and the archived native validator have checked hashes. Do not describe strict
+preservation as green or turn these corrections into equality aliases.
+
+No timing or allocation improvement is claimed. The helpers still use the quick
+profile, rather than immutable optimized timing baselines.
+
+U0010 normalizes 495 exact current-zone sites on 424 reference faces. A Zone
+scope over all players, filtered to the ability controller's same zone, now
+uses that controller's zone directly. Only the corresponding redundant InZone
+term is removed; all other filters, object kinds, zone names, players, operations
+and timing remain intact. Direct membership filters become Any; conjunctions
+retain their other terms. Multiple same-zone membership clauses, unknown fields,
+different controllers and other selector types are excluded. All matching sites
+in the pinned allowed population have been updated. Creeping Inn's strict cost
+selection is one such site; its payment meaning is unchanged by this step.
+
+The existing owned `canonical::narrow_zone_scope` already proves this shape
+equality. No new runtime reduction or compiler/model change accompanies U0010.
+Old singleton operands for 389 additional affected faces were materialized from
+the hash-verified c5fdc9a reference, preserving independent old inputs for the
+native comparison. This normalization is separate from the two semantic
+corrections in U0008/U0009.
+
+The final 3,275-face print sample has unchanged statuses, reading counts, exact
+flags and defaults against the retained c5fdc9a sample: 3,196 exact keyed prints,
+2,232 exact defaults and 3,221 verified defaults. Its 3,394 readings include
+3,164 single-reading faces. Enumeration generates 43,405 candidates, of which
+31,369 reparse semantically. These print checks do not claim every generated
+candidate verifies, nor do they turn the two corrected meanings into aliases.
+
+The final post-U0010 native audit confirms the same two recorded corrections
+and no additional semantic differences. All 495 normalized sites preserve their
+meanings, every current reading remains valid/canonical, and all current gold
+is valid and canonically idempotent. Final `tools/dev.py check` passes all eight
+gates after U0010, reusing the compiled helpers without a compiler/model change.

@@ -349,7 +349,15 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if
+static_ability ::= static_linked_card_stats | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if
+
+/* Linked card variables read current characteristics in exile. A copied exile
+   trigger may link several cards; CR 607.3 adds all their answers. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[Pump{power:@times($defined_x_sign, Expr::Aggregate{objects:$linked_stat_cards, property:$stat, aggregation:Sum}), toughness:@times($defined_y_sign, Expr::Aggregate{objects:$linked_stat_cards, property:$stat_2, aggregation:Sum})}]} */
+static_linked_card_stats ::= affected ("gets" | "get") defined_x_sign "/" defined_y_sign "," "where" "X" "is" linked_stat_cards stat "and" "Y" "is" "its" stat "."
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:@and(ObjectFilter::ExiledWith(Source), $card_filter)} */
+linked_stat_cards ::= "the" "exiled" card_filter "card's"
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes}) */
 static_ordinary_ability ::= affected static_changes "."

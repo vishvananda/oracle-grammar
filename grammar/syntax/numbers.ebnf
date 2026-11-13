@@ -298,7 +298,7 @@ value_twice ::= "twice" value
 /* @sem Expr::CountObjects($card_population) */
 value_number_cards ::= "the" "number" "of" card_population
 
-card_population ::= card_population_plain | card_population_filtered | card_population_named | card_population_cycling | card_population_same_name
+card_population ::= card_population_plain | card_population_filtered | card_population_named | card_population_cycling | card_population_same_name | card_population_linked | card_population_linked_any
 /* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:Any} */
 card_population_plain ::= "cards" "in" card_zone_scope
 /* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:$card_filter} */
@@ -309,6 +309,14 @@ card_population_named ::= "cards" "named" SELF_NAME "in" card_zone_scope
 card_population_cycling ::= "cards" "with" "a" "cycling" "ability" "in" card_zone_scope
 /* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:SharesNameWith(@it)} */
 card_population_same_name ::= "cards" "in" card_zone_scope "with" "the" "same" "name" "as" "that" "spell"
+
+/* A linked exile population names its anchor explicitly. Costs that merely
+   exile cards do not silently become source-linked permanent queries. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:@and(ObjectFilter::ExiledWith($object_ref), $card_filter)} */
+card_population_linked ::= card_filter "cards" "exiled" "with" object_ref
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)} */
+card_population_linked_any ::= "cards" "exiled" "with" object_ref
 
 /* The cards of one player's named zone, or of every player's graveyard or hand. */
 card_zone_scope ::= card_zone_one | card_zone_all_graveyards | card_zone_all_hands

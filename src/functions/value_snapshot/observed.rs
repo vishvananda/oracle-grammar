@@ -85,7 +85,7 @@ mod tests {
             let amount = json!({"kind":"Constant","args":3});
             assert!(repeated(&body));
             assert!(!shared(&body));
-            assert!(super::super::required(&body, &amount));
+            assert!(super::super::required(&body, &amount).unwrap());
             assert!(super::super::snapshot(&body, &amount, 7).is_err());
         }
     }

@@ -625,7 +625,7 @@ impl Pattern {
                         return crate::functions::computed_condition::guard(condition).cloned();
                     }
                     ("where", [body, value]) => {
-                        if crate::functions::value_snapshot::required(body, value) {
+                        if crate::functions::value_snapshot::required(body, value)? {
                             return crate::functions::value_snapshot::snapshot(body, value, at);
                         }
                         return Ok(substituted(body.clone(), value));

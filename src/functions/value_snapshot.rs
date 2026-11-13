@@ -2,6 +2,7 @@
 use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
 
+mod nested;
 mod observed;
 #[cfg(test)]
 mod shared_tests;
@@ -29,10 +30,11 @@ pub(crate) fn shared(body: &Value) -> bool {
             && x_count(body) == 2
 }
 
-/// Repeated observed amounts share the definition even when it is an object
-/// property: capture occurs immediately before looking, before any card moves.
-pub(crate) fn required(body: &Value, amount: &Value) -> bool {
-    observed::repeated(body) || shared(body) && shared_definition(amount)
+/// Repeated observed or eager amounts need a capture in their own program.
+/// An outer clause must refuse rather than inline across a nested branch;
+/// unsupported scopes and exhausted work never fall back to reevaluation.
+pub(crate) fn required(body: &Value, amount: &Value) -> Result<bool, String> {
+    nested::required(body, amount)
 }
 
 /// Pumps retain their existing scalar/aggregate definition contract.

@@ -849,6 +849,12 @@ mod turn_history;
 #[path = "shared_clauses/condition_values.rs"]
 mod condition_values;
 
+#[path = "shared_clauses/where_branches.rs"]
+mod where_branches;
+
+#[path = "shared_clauses/linked_stats.rs"]
+mod linked_stats;
+
 #[path = "shared_clauses/snapshot_pumps.rs"]
 mod snapshot_pumps;
 

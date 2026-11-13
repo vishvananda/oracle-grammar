@@ -378,7 +378,7 @@ pub(crate) fn unify_where<'p, 'v>(
             continue;
         }
         let abstracted = replaced(value.clone(), &candidate, &x);
-        if value_snapshot::required(&abstracted, &candidate) {
+        if !matches!(value_snapshot::required(&abstracted, &candidate), Ok(false)) {
             continue;
         }
         for b in amount.unify_made(&candidate, &bindings) {
