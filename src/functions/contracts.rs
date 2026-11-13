@@ -39,7 +39,7 @@ pub(crate) fn checked_call(
         "token_abilities" | "qualified_object" | "group_reference" => Some(2),
         "qualified_members" | "last_exiled" | "last_exiled_creature" => Some(1),
         "either_event" | "agree" | "payment_cost" | "announced_cost" => Some(2),
-        "kicker_branch" | "conditional_ability" | "arrival_changes" => Some(2),
+        "kicker_branch" | "gift_branch" | "conditional_ability" | "arrival_changes" => Some(2),
         "fixed_mana"
         | "variable_mana"
         | "singular_count"
@@ -163,22 +163,11 @@ pub(crate) fn checked_call(
     if let Some(pattern) = cost_marker(name, args, ty, schema)? {
         return Ok(Some(pattern));
     }
-    if matches!(name, "conditional_ability" | "kicker_branch") {
-        if *ty != Ty::Named("Ability".into()) {
-            return Err(format!("@{name} produces an Ability"));
-        }
-        let first = if name == "kicker_branch" {
-            "Cost"
-        } else {
-            "Condition"
-        };
-        return Ok(Some(Pattern::Symbol(
-            name.into(),
-            vec![
-                elaborate(&args[0], &Ty::Named(first.into()), schema)?,
-                elaborate(&args[1], ty, schema)?,
-            ],
-        )));
+    if matches!(
+        name,
+        "conditional_ability" | "kicker_branch" | "gift_branch"
+    ) {
+        return branch_call(name, args, ty, schema).map(Some);
     }
     if let Some(expected) = crate::functions::keyword_list_type(name) {
         if *ty != expected {
@@ -206,6 +195,24 @@ pub(crate) fn checked_call(
         return agreement_call(args, ty, schema).map(Some);
     }
     Ok(None)
+}
+
+fn branch_call(name: &str, args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    if *ty != Ty::Named("Ability".into()) {
+        return Err(format!("@{name} produces an Ability"));
+    }
+    let first = match name {
+        "kicker_branch" => "Cost",
+        "gift_branch" => "Ability",
+        _ => "Condition",
+    };
+    Ok(Pattern::Symbol(
+        name.into(),
+        vec![
+            elaborate(&args[0], &Ty::Named(first.into()), schema)?,
+            elaborate(&args[1], ty, schema)?,
+        ],
+    ))
 }
 
 fn filter_union_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {

@@ -23,7 +23,7 @@ pub(crate) fn boundary(value: &Value) -> Boundary {
         Some("holder") => return Boundary::Holder,
         Some("scope") => return Boundary::Lexical,
         Some("reflexive") => return Boundary::Reflexive,
-        Some("kicker_branch") => return Boundary::Branch,
+        Some("kicker_branch" | "gift_branch") => return Boundary::Branch,
         Some("conditional_ability") => return Boundary::Conditional,
         _ => {}
     }

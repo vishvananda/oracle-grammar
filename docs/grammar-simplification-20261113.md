@@ -933,3 +933,14 @@ Compositional coverage is 19,871. All 32,755 allowed faces remain equal, with
 alternatives were removed while their correct target readings were retained.
 All eight gates pass, including 784 frontend tests with one ignored. No speed
 improvement is claimed for these semantic corrections or quick-helper runs.
+
+## Gift and sentence-scoped conditions
+
+The next unpublished grammar patch shares Gift definitions and specialization
+with kicker, preserves branch-local targets and recipients, and replaces the
+paragraph-wide then-if seed with conjunctions and closed dependent continuations.
+The [Gift notes](gift-branches.md) record the corrected Octomancer operands,
+Betor's equivalent source regroupings, preserved direct/captured where-X forms,
+printing evidence and the explicitly scoped native-preservation delta.
+Forty more seeds retire: 205 cumulatively, with 12,002 remaining. Compositional
+coverage reaches 19,918; all 32,755 allowed faces remain reference-equal.

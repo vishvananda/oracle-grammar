@@ -663,3 +663,30 @@ mechanic_escape_exile_others ::= "escape" "―" mana_symbols "," "↑" "exile" v
 /* Splice onto a kind of spell. */
 /* @sem Ability::Mechanic{mechanic:SpliceOnto, cost:$cost, filter:$filter_phrase} */
 mechanic_splice_onto ::= "splice" "onto" filter_phrase cost
+
+/* Gift programs use the promised opponent, never the caster. The two spell
+   outcomes are specialized after binding, each with its own announced targets. */
+/* @sem Ability::Gift{gift:[$gift_program]} */
+gift_header ::= "gift" gift_program
+
+gift_program ::= gift_card | gift_fish | gift_octopus | gift_named_token | gift_extra_turn | gift_rhystic_study
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Draw{players:One(GiftedPlayer), amount:Constant(1)}}]} */
+gift_card ::= "a" "card"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(GiftedPlayer), tokens:[_{amount:Constant(1), words:Rules, recipe:Defined{name:FromSubtypes, colors:[Blue], card_types:[Creature], subtypes:[Fish], power_toughness:[Constant(1), Constant(1)]}}], entry:BattlefieldArrival{tapped:true}}}]} */
+gift_fish ::= "a" "tapped" "Fish"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(GiftedPlayer), tokens:[_{amount:Constant(1), words:Rules, recipe:Defined{name:FromSubtypes, colors:[Blue], card_types:[Creature], subtypes:[Octopus], power_toughness:[Constant(8), Constant(8)]}}], entry:BattlefieldArrival{tapped:false}}}]} */
+gift_octopus ::= "an" "Octopus"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(GiftedPlayer), tokens:[_{amount:Constant(1), words:Rules, recipe:$gift_named_recipe}], entry:BattlefieldArrival{tapped:false}}}]} */
+gift_named_token ::= "a" gift_named_recipe
+gift_named_recipe ::= tn_food | tn_treasure
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(GiftedPlayer), action:KeywordAction::TakeExtraTurn{}}}]} */
+gift_extra_turn ::= "an" "extra" "turn"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Conjure{actor:One(GiftedPlayer), card:Named('Rhystic Study'), count:Constant(1), destination:Battlefield(BattlefieldArrival{tapped:false})}}]} */
+gift_rhystic_study ::= "a" "Rhystic" "Study"
+
+/* @sem Ability::@gift_branch($gift_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program}) */
+spell_gift ::= gift_header NEWLINE kicker_branch_program
+
+/* A casting cost is paid before either gift outcome resolves. */
+/* @sem Ability::[$casting_additional_cost, @gift_branch($gift_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})] */
+line_gift_additional_cost ::= gift_header NEWLINE casting_additional_cost NEWLINE kicker_branch_program

@@ -414,7 +414,7 @@ named_search_upto ::= "up" "to" number
 named_search_any ::= "any" "number" "of"
 
 /* Card targets keep their graveyard domain, quantity and owner restrictions. */
-graveyard_target_cards ::= graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many
+graveyard_target_cards ::= graveyard_typed_modified_many | graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many
     | graveyard_common_any_one | graveyard_common_any_many | graveyard_common_typed_one | graveyard_common_typed_many
     | graveyard_target_owner_one | graveyard_target_owner_typed_one
 
@@ -442,6 +442,10 @@ graveyard_typed_one ::= graveyard_singular_count "target" card_filter "card" gra
 
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:$graveyard_plural_count, filter:@and($card_filter, $graveyard_scope)})) */
 graveyard_typed_many ::= graveyard_plural_count "target" card_filter "cards" graveyard_scope
+
+/* Each announced card must satisfy the written characteristic restriction. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:$graveyard_plural_count, filter:@and($card_filter, @and($modifiers, $graveyard_scope))})) */
+graveyard_typed_modified_many ::= graveyard_plural_count "target" card_filter "cards" modifiers graveyard_scope
 
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:$graveyard_singular_count, filter:$graveyard_common_scope, constraints:[CommonProperty(Owners)]})) */
 graveyard_common_any_one ::= graveyard_singular_count "target" "card" graveyard_common_scope
@@ -587,6 +591,12 @@ a_card_any_with ::= "a" "card" modifiers
    Both instructions use fresh result addresses, including after a prefix. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:@seek_move_result(Operation::Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]})}] */
 clause_seek_card ::= "you"? "seek" a_card
+
+/* Seeking several qualifying cards makes one random selection of that size. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:$seek_plural_count, constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+clause_seek_cards ::= "you"? "seek" seek_plural_count card_filter "cards"
+/* @sem Count::AsManyAsCan(@plural_amount($number)) */
+seek_plural_count ::= number
 
 /* The named ability's exclamation mark also closes this seek sentence. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:HasKeywordFamily(StartYourEngines)}, count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:@seek_move_result(Operation::Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]})}]} */

@@ -85,23 +85,54 @@ pub(crate) fn unify_kicker_branch<'p, 'v>(
     value: &'v Value,
     bindings: Bindings<'p, 'v>,
 ) -> Vec<Bindings<'p, 'v>> {
-    let [cost, source] = args else {
+    unify_branch(false, args, value, bindings)
+}
+
+pub(crate) fn unify_gift_branch<'p, 'v>(
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    unify_branch(true, args, value, bindings)
+}
+
+fn unify_branch<'p, 'v>(
+    gift: bool,
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    let [choice, source] = args else {
         return Vec::new();
     };
-    if value["kind"] != "CostBranch"
-        || value["args"]["keyword"] != "Kicker"
-        || branch_bounds(value).is_err()
+    if branch_bounds(value).is_err()
+        || if gift {
+            value["kind"] != "Gift"
+        } else {
+            value["kind"] != "CostBranch" || value["args"]["keyword"] != "Kicker"
+        }
     {
         return Vec::new();
     }
-    let Some(paid) = spell(&value["args"]["paid"]) else {
+    let (paid_key, unpaid_key) = if gift {
+        ("promised", "unpromised")
+    } else {
+        ("paid", "unpaid")
+    };
+    let Some(paid) = spell(&value["args"][paid_key]) else {
         return Vec::new();
     };
-    let Some(unpaid) = spell(&value["args"]["unpaid"]) else {
+    let Some(unpaid) = spell(&value["args"][unpaid_key]) else {
         return Vec::new();
     };
     if paid.len() + unpaid.len() > 128 {
         return Vec::new();
+    }
+    let mut head = value["args"]["cost"].clone();
+    if gift {
+        head = value.clone();
+        head["args"]["promised"] = Value::Null;
+        head["args"]["unpromised"] = Value::Null;
     }
     let prefix = paid
         .iter()
@@ -114,27 +145,75 @@ pub(crate) fn unify_kicker_branch<'p, 'v>(
         .zip(unpaid.iter().rev())
         .take_while(|(p, u)| same_spelling(p, u))
         .count();
-    let mut found = Vec::new();
-    let mut candidates = 0;
+    let mut candidates = Vec::new();
+    if gift && paid.len() == unpaid.len() && prefix == paid.len() {
+        candidates.push(paid.to_vec());
+    }
     for start in (0..=prefix).rev() {
         for end in (0..=suffix.min(paid.len().min(unpaid.len()) - start)).rev() {
-            if candidates == 64 {
-                return found;
+            for positive in if gift {
+                &[true, false][..]
+            } else {
+                &[true][..]
+            } {
+                if candidates.len() == 64 {
+                    return unify_candidates(choice, source, &head, &candidates, &bindings);
+                }
+                let condition = if gift {
+                    json!({"kind":"GiftPromised","args":positive})
+                } else {
+                    json!({"kind":"ObjectMatches","args":{"object":{"kind":"Source"},"filter":{"kind":"State","args":"Kicked"}}})
+                };
+                let (yes, no) = if *positive {
+                    (
+                        &paid[start..paid.len() - end],
+                        &unpaid[start..unpaid.len() - end],
+                    )
+                } else {
+                    (
+                        &unpaid[start..unpaid.len() - end],
+                        &paid[start..paid.len() - end],
+                    )
+                };
+                let mut instructions = paid[..start].to_vec();
+                if gift
+                    && no.is_empty()
+                    && yes.len() == 1
+                    && yes[0]["kind"] == "If"
+                    && yes[0]["args"]["otherwise"]["instructions"] == json!([])
+                {
+                    let mut combined = instructions.clone();
+                    let mut inner = yes[0].clone();
+                    inner["args"]["condition"] =
+                        json!({"kind":"AllOf","args":[condition, inner["args"]["condition"]]});
+                    combined.push(inner);
+                    combined.extend_from_slice(&paid[paid.len() - end..]);
+                    candidates.push(combined);
+                    if candidates.len() == 64 {
+                        return unify_candidates(choice, source, &head, &candidates, &bindings);
+                    }
+                }
+                instructions.push(json!({"kind":"If","args":{"condition":condition,"then":{"instructions":yes},"otherwise":{"instructions":no}}}));
+                instructions.extend_from_slice(&paid[paid.len() - end..]);
+                candidates.push(instructions);
             }
-            candidates += 1;
-            let mut instructions = paid[..start].to_vec();
-            instructions.push(json!({"kind":"If", "args":{
-                "condition":{"kind":"ObjectMatches", "args":{"object":{"kind":"Source"}, "filter":{"kind":"State", "args":"Kicked"}}},
-                "then":{"instructions":&paid[start..paid.len()-end]},
-                "otherwise":{"instructions":&unpaid[start..unpaid.len()-end]}
-            }}));
-            instructions.extend_from_slice(&paid[paid.len() - end..]);
-            let made = json!({"kind":"Spell", "args":{
-                "announcement":{"targets":[], "modes":null}, "body":{"instructions":instructions}
-            }});
-            for bound in cost.unify(&value["args"]["cost"], bindings.clone()) {
-                found.extend(source.unify_made(&made, &bound));
-            }
+        }
+    }
+    unify_candidates(choice, source, &head, &candidates, &bindings)
+}
+
+fn unify_candidates<'p, 'v>(
+    choice: &'p Pattern,
+    source: &'p Pattern,
+    head: &Value,
+    candidates: &[Vec<Value>],
+    bindings: &Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    let mut found = Vec::new();
+    for instructions in candidates {
+        let made = json!({"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},"body":{"instructions":instructions}}});
+        for bound in choice.unify_made(head, bindings) {
+            found.extend(source.unify_made(&made, &bound));
         }
     }
     found

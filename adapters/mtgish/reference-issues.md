@@ -347,6 +347,13 @@ the IR path, the value it replaces and why.
   alternative and controller-based entry forms remain distinct. Preparation
   explicitly migrates the allowed schema-190 reference before amendments.
 
+- `U0032` (correction): Octomancer's gift creates one 8/8 blue Octopus, as its
+  original Oracle reminder and CR702.174i specify. The old lowering reused the
+  article's count as both power and toughness, incorrectly making a 1/1. Only
+  those stat operands change; the recipient and separate end-step ability stay
+  intact. This is an AST operand correction, with no schema change or equality
+  normalization. See [Gift branches](../../docs/gift-branches.md).
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their
 open status does not create a corpus equality exception.

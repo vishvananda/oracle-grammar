@@ -147,6 +147,19 @@ postfix_join ::= "," "then"
 
 condition_consequent ::= may_body | clause_you | clause_you_life | clause_third | clause_they | clause_may
 
+/* A then-condition owns its conjunction or a closed dependent instruction,
+   never an arbitrary program extending across independent later sentences. */
+/* @sem Instruction::[If{condition:$condition, then:$then_condition_program, otherwise:Program{}}] */
+clause_then_if ::= "then" "if" condition "," then_condition_program
+then_condition_program ::= then_condition_plain | then_condition_where | then_condition_where_snapshot
+/* @sem Program::Program{instructions:$then_condition_body} */
+then_condition_plain ::= then_condition_body
+/* @sem Program::@where($then_condition_plain, $value) */
+then_condition_where ::= then_condition_plain "," "where" "X" "is" value
+/* @sem Program::@where_snapshot($then_condition_plain, $value) */
+then_condition_where_snapshot ::= then_condition_plain "," "where" "X" "is" value
+then_condition_body ::= conjoined | clause_closed | instructions_reveal_until
+
 /* A postposed condition tests at resolution, even as a trigger's first instruction. */
 /* @sem Instruction::[@resolution(Instruction::If{condition:$condition, then:Program{instructions:$condition_consequent}, otherwise:Program{}})] */
 clause_if_after ::= condition_consequent "if" condition

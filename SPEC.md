@@ -82,6 +82,14 @@ of the grammar.
 Context binding and spelling metadata remain separate. Retained text, labels,
 JSON key order and debug names cannot act as hidden semantic operands.
 
+Gift spell text specializes one bound spell into promised and unpromised
+resolution branches, each with its own target announcement. The gift recipient
+remains GiftedPlayer, independently of the caster and other targets. Only pure
+promise predicates are projected; remaining conditions and descendant ability
+frames keep their identities. Permanent gift headers retain their separate
+entry/trigger abilities. A bare gift header beside an independent root spell
+cannot represent the spell's promise alternatives. See [Gift branches](docs/gift-branches.md).
+
 Preserve distinctions among:
 
 - source, granting object and ability holder;

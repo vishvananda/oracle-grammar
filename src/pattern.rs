@@ -802,6 +802,7 @@ impl Pattern {
                 return crate::functions::counts::unify(name, args, value, bindings);
             }
             "kicker_branch" => return crate::functions::unify_kicker_branch(args, value, bindings),
+            "gift_branch" => return crate::functions::unify_gift_branch(args, value, bindings),
             "conditional_ability" => {
                 return crate::functions::conditional::unify(args, value, bindings);
             }

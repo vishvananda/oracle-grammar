@@ -15,7 +15,7 @@ pub(crate) mod counts;
 pub(crate) mod definitions;
 pub(crate) mod payment;
 pub(crate) mod unordered;
-pub(crate) use branches::{branch_bounds, unify_kicker_branch};
+pub(crate) use branches::{branch_bounds, unify_gift_branch, unify_kicker_branch};
 pub(crate) use costs::{guard_cost, guard_counter_price, unify_cost_guard, unify_counter_price};
 mod contracts;
 pub(crate) mod entering;

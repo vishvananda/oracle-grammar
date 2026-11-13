@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 pub(crate) mod activation_property;
 mod addresses;
 pub(crate) mod attached_counter_other;
-mod branches;
+pub(crate) mod branches;
 pub(crate) mod chosen_kinds;
 mod combat;
 mod conditional;
@@ -562,7 +562,7 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                 }
                 "holder" => holder::bind(node, scope)?,
                 "scope" => events::bind_nested(node, scope)?,
-                "kicker_branch" => branches::bind(node, scope)?,
+                "kicker_branch" | "gift_branch" => branches::bind(node, scope)?,
                 "conditional_ability" => conditional::bind(node, scope)?,
                 // A reflexive trigger has its own targets but shares the ability's results.
                 "reflexive" => events::bind_reflexive(node, scope)?,

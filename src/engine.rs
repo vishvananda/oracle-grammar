@@ -407,6 +407,7 @@ fn bind_surface(value: &Value, name: &str) -> Result<Value, String> {
     }
     bind::linked_card_actions::lower(&mut bound, &linked_card_sites)?;
     bind::chosen_kinds::check(&bound)?;
+    bind::branches::check_gift_frames(&bound)?;
     Ok(bound)
 }
 
