@@ -21,7 +21,7 @@ witnesses are identified separately.
 | [#8](https://github.com/vishvananda/oracle-grammar/issues/8) | Fixed locally: U0018 corrects 17 named-player step/expiration pairs; U0019 normalizes five equivalent live-population forms. Both controller-following controls are preserved. |
 | [#9](https://github.com/vishvananda/oracle-grammar/issues/9) | Fixed locally: U0026 retains the original target in post-destroy characteristic tests, removing the competing successful-destroy receipt reading. |
 | [#10](https://github.com/vishvananda/oracle-grammar/issues/10) | Fixed locally: U0021 guards both name branches by an actual observation and moves the observed card. |
-| [#11](https://github.com/vishvananda/oracle-grammar/issues/11) | Confirmed; awaiting model publication. Open PR #3 adds the missing named-player history window in schema 191 / version 0.2.0. Current main and both registry releases remain schema 190 / version 0.1.0; no reference amendment is claimed. |
+| [#11](https://github.com/vishvananda/oracle-grammar/issues/11) | Fixed locally: PR #3 is integrated; U0031 tests the putting actor during the named player's last completed turn. Schema 191 / version 0.2.0 supplies the window, with explicit reference migration before amendment. |
 | [#12](https://github.com/vishvananda/oracle-grammar/issues/12) | Fixed locally: U0024 filters indestructibility after computing the complete least-power pool; Imperial Edict's independent choice is unchanged. |
 | [#13](https://github.com/vishvananda/oracle-grammar/issues/13) | Fixed locally: U0025 performs a partial exile effect and tests actual recorded exile arrivals, preserving completion, creature counts and entry redirection. |
 | [#14](https://github.com/vishvananda/oracle-grammar/issues/14) | Fixed locally: U0022 adopts historical damage participants; U0023 preserves both positive copy-type tests and relative payment printing. |
@@ -323,15 +323,15 @@ No measured speed improvement is claimed.
 
 ## Publication and remaining dependency
 
-Fourteen reported issues are fixed in local commits. Their GitHub comments identify
-the exact unpublished commit and validation; Fixes footers provide closure when
-those commits are published. They remain open pending publication. No push or
-merge is claimed. Issue #11 has a dependency comment rather than a fix claim:
-PR #3 remains open, and refreshed registry metadata still shows only 0.1.0 of
-both owned packages. Its prepared LastTurnOf(PlayerRef) addition requires schema
-191 / package 0.2.0 and a proper adoption checkpoint. Current main remains on the
-published schema-190 boundary. The independent working tree for that PR is
-preserved.
+All fifteen reported issues are fixed in local commits. The user has authorized
+integrating the open PR and all issue fixes into main, then tagging a new release.
+PR #3 is integrated in merge commit a775797. The AST addition advances schema to
+191 and all three packages to 0.2.0. U0031 adopts the Arboria correction after the
+owned frozen-schema migration; the former dependency block is resolved. The
+release target is grammar-v0.2.0, with its automatic matching native face bundle.
+Published 0.1.0 packages and old tags/assets remain immutable. GitHub comments
+identify each fix; Fixes footers close the issues when main is published. The
+separate PR working tree is preserved.
 
 The aggregate native audit through U0028 uses the immutable 8662bc2 executable/reference
 checkpoint and explicitly materializes 42 previously implicit old singleton
@@ -415,3 +415,41 @@ non-replacement removals are the already-corrected post-destroy alternatives.
 All 33,914 current readings and all raw/canonical gold validate, canonical gold
 is idempotent, and native failure output is empty. All audited source, runtime
 grammar, executable, data and reference hashes were rechecked.
+
+
+## Named completed turn and release adoption: #11
+
+PR #3 is merged locally in a775797. U0031 replaces Arboria's controller-based
+PermanentEntered predicate with an occurrence test over Player::PutsOntoBattlefield
+for the same bound player, over HistoryWindow::LastTurnOf(that player). It retains
+the cast-spell alternative, nontoken population, creature attack restriction and
+player matching scopes. Entering controller, putting actor, preceding global
+turn, since-last-turn interval and named last completed turn remain distinct.
+The corrected predicate and edited artifact filter have verified native prints.
+
+The public enum addition requires schema 191 and 0.2.0 of the grammar and both
+owned packages. A bounded migration CLI invokes the owned frozen-schema reader
+on the explicitly allowed records before applying current-epoch amendments.
+The cache records the model pin and exact migration executable; failures or a
+model/helper change cannot publish a reusable prepared directory. The original
+reference/lock and extraction provenance remain unchanged at schema 190.
+An actual CLI control rejects the new variant under a schema-190 header without
+changing input bytes. Across all 32,755 allowed faces, the owned migration
+preserves every operand and identity except the explicit header upgrade and
+U0031's one documented predicate correction.
+
+All eight gates pass: 787 frontend tests pass with one ignored, 102 model/contract
+tests pass with four ignored, and all 73 Python tests pass. Arboria has its sole
+corrected native reading, an exact keyed print and a verified default. Full
+coverage remains 32,755 equal, 31,687 single-reading faces and 33,914 readings.
+Seed count and compositional metrics remain 12,042 and 19,871. The per-batch native
+preservation audit intentionally rejects one old wrong Arboria reading and adds
+its corrected replacement, with no unrelated delta. The complete aggregate
+audit intentionally rejects 48 documented old incorrect readings on 47 faces,
+adds 42 corrected readings on 41 faces, and has no other missing/addition. All
+current readings and current-epoch gold validate; canonical gold is idempotent,
+native failure output is empty and input hashes were rechecked. This accounts
+for every semantic correction; it is not an unconditional preservation pass.
+The combined 53-face cohort retains exact keyed and verified default printing
+for every face, including both retained Deep Spawn cost readings. No backend
+runtime execution or timing improvement is claimed.

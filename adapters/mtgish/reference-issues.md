@@ -342,6 +342,11 @@ the IR path, the value it replaces and why.
   definition is a CDA with SetBasePowerToughness and its symbolic subtraction.
   Ordinary, granted and conditional setters keep their context classification.
 
+- `U0031` (correction, issue #11): Arboria tests the putting actor with the named
+  player's most recent completed turn, using schema-191 LastTurnOf. The cast
+  alternative and controller-based entry forms remain distinct. Preparation
+  explicitly migrates the allowed schema-190 reference before amendments.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their
 open status does not create a corpus equality exception.

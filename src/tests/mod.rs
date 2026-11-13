@@ -905,3 +905,5 @@ mod destroy_exile_completion;
 mod wand_shuffle;
 
 mod history_cda;
+
+mod arboria;

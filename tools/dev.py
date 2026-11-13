@@ -18,7 +18,8 @@ import pin
 
 ROOT = Path(__file__).resolve().parent.parent
 WORK = ROOT/'.cache/dev'
-BINS = ('family-check', 'probe', 'inspect', 'score', 'validate-readings', 'rule-audit')
+BINS = ('family-check', 'probe', 'inspect', 'score', 'validate-readings', 'rule-audit',
+        'migrate-reference')
 # Library tests and families cannot read documentation, CI definitions or the other tools.
 NOT_GATE_INPUTS = ('docs/', '.github/', 'tools/')
 GATE_TOOLS = ('tools/dev.py', 'tools/pin.py')
@@ -343,7 +344,8 @@ def main():
         check('--force' in args)
     elif args and args[0] == 'test':
         test(args[1:])
-    elif args and args[0] in ('family', 'families', 'probe', 'inspect', 'score', 'validate-readings'):
+    elif args and args[0] in ('family', 'families', 'probe', 'inspect', 'score', 'validate-readings',
+                             'migrate-reference'):
         with lock(shared=True):
             run(args[0], args[1:])
     else:

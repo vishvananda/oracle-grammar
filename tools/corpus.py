@@ -26,8 +26,9 @@ import updates
 WORK = dev.ROOT/'.cache/corpus'
 MANIFEST = WORK/'inputs.json'
 ISSUES = dev.ROOT/'adapters/mtgish/reference-issues.md'
+MODEL = dev.ROOT/'pins/model.json'
 INPUTS = ('allowed', 'oracle', 'reference', 'baseline')
-TRANSFORM = 2  # Bump when the allowed-population filter or update application changes.
+TRANSFORM = 3  # Filter, explicitly migrate the source epoch, then amend operands.
 
 
 def rows(path):
@@ -62,12 +63,24 @@ def allowed(data):
     return set(json.loads(resolve(data['allowed']).read_text())['cards'])
 
 
+def migrate_reference(source, destination):
+    """Use the owned frozen-schema migration before applying current-epoch amendments."""
+    with destination.open('w') as output, dev.lock(shared=True):
+        dev.run('migrate-reference', [str(source)], stdout=output)
+
+
+def migration_identity():
+    return dev.ready('migrate-reference')['binaries']['migrate-reference']
+
+
 def prepare(data):
-    """Filter Oracle and reference to the allowed faces once, applying the recorded export
-    updates to the reference; verify derived bytes on reuse."""
+    """Filter allowed faces, migrate the source epoch, then apply recorded amendments;
+    verify derived bytes and model/helper identity on reuse."""
     identity = {name: data[name]['sha256'] for name in ('allowed', 'oracle', 'reference')}
     identity['transform'] = TRANSFORM
     identity['updates'] = pin.digest(updates.UPDATES)
+    identity['model'] = pin.digest(MODEL)
+    identity['migration'] = migration_identity()
     key = pin.hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     destination = WORK/'prepared'/key
     if destination.exists():
@@ -90,17 +103,28 @@ def prepare(data):
         recorded = updates.load()
         changes = updates.pending(recorded)
         applied, seen = defaultdict(list), Counter()
-        with resolve(data['reference']).open() as source, (temporary/'gold.jsonl').open('w') as out:
+        legacy = temporary/'source-gold.jsonl'
+        with resolve(data['reference']).open() as source, legacy.open('w') as out:
             for line in source:
                 record = json.loads(line)
                 faces = [face for face in record.get('faces', []) if face.get('name') in wanted]
+                if faces:
+                    record['faces'] = faces
+                    out.write(json.dumps(record)+'\n')
+        migrated = temporary/'migrated-gold.jsonl'
+        migrate_reference(legacy, migrated)
+        with migrated.open() as source, (temporary/'gold.jsonl').open('w') as out:
+            for line in source:
+                record = json.loads(line)
+                faces = record['faces']
                 for face in faces:
                     seen[face['name']] += 1
                     for update in updates.apply(face, changes.get(face['name'], ())):
                         applied[update].append(face['name'])
                 if faces:
-                    record['faces'] = faces
                     out.write(json.dumps(record)+'\n')
+        legacy.unlink()
+        migrated.unlink()
         missing = sorted(name for name in changes if seen[name] != 1)
         if missing:
             raise ValueError('export updates name faces missing from, or repeated in, the '
@@ -109,6 +133,9 @@ def prepare(data):
                                           'applied': dict(sorted(applied.items()))})
         files = {name: pin.digest(temporary/name)
                  for name in ('oracle.json', 'gold.jsonl', 'updates.json')}
+        if (pin.digest(MODEL) != identity['model']
+                or migration_identity() != identity['migration']):
+            raise ValueError('model or migration helper changed during preparation')
         write(temporary/'manifest.json', {'inputs': identity, 'files': files})
         temporary.rename(destination)
     return destination

@@ -1,6 +1,7 @@
 """Cohort inputs stay hash-pinned and comparisons stay by occurrence."""
 import json
 from pathlib import Path
+import shutil
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -23,6 +24,17 @@ class CorpusTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
         (self.root/'work').mkdir()
+        self.model = self.root/'model.json'
+        self.model.write_text('{"schema_version":190}')
+        patcher = patch.object(corpus, 'MODEL', self.model)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = patch.object(corpus, 'migrate_reference', side_effect=shutil.copyfile)
+        self.migration = patcher.start()
+        self.addCleanup(patcher.stop)
+        patcher = patch.object(corpus, 'migration_identity', return_value='frozen-test-migration')
+        self.migration_identity = patcher.start()
+        self.addCleanup(patcher.stop)
         revision = corpus.pin.reference()['revision']
         self.updates = self.root/'updates.json'
         self.updates.write_text(json.dumps({'version': 1, 'reference': revision, 'updates': []}))
@@ -77,6 +89,53 @@ class CorpusTests(unittest.TestCase):
             self.updates.write_text(json.dumps(record(face, before, after)))
             with self.assertRaisesRegex(ValueError, message):
                 corpus.prepare(corpus.inputs())
+
+    def test_migration_precedes_amendments_and_receipts_include_the_model(self):
+        revision = corpus.pin.reference()['revision']
+        self.updates.write_text(json.dumps({'version': 1, 'reference': revision, 'updates': [{
+            'id': 'U0001', 'kind': 'correction', 'summary': 'Current-epoch amendment.',
+            'evidence': 'Apply after the owned migration.', 'changes': [
+                {'face': 'A', 'path': [0, 'args'], 'from': 5, 'to': 9}]}]}))
+
+        def migrate(source, destination):
+            values = corpus.rows(source)
+            self.assertNotIn('Sealed', source.read_text())
+            values[0]['faces'][0]['abilities'][0]['args'] = 5
+            for record in values:
+                record['schema_version'] = 191
+                for face in record['faces']:
+                    face['schema_version'] = 191
+            corpus.write_rows(destination, values)
+
+        self.migration.side_effect = migrate
+        first = corpus.prepare(corpus.inputs())
+        self.assertEqual(corpus.rows(first/'gold.jsonl')[0]['faces'][0]['abilities'][0]['args'], 9)
+        self.assertEqual(corpus.rows(first/'gold.jsonl')[0]['schema_version'], 191)
+        self.assertEqual(corpus.prepare(corpus.inputs()), first)
+        self.assertEqual(self.migration.call_count, 1)
+        self.model.write_text('{"schema_version":191}')
+        self.assertNotEqual(corpus.prepare(corpus.inputs()), first)
+        self.assertEqual(self.migration.call_count, 2)
+        self.migration_identity.return_value = 'updated-test-migration'
+        third = corpus.prepare(corpus.inputs())
+        self.assertNotEqual(third, first)
+        self.assertEqual(self.migration.call_count, 3)
+
+    def test_failed_migration_cannot_publish_a_prepared_cache(self):
+        self.migration.side_effect = ValueError('invalid frozen input')
+        with self.assertRaisesRegex(ValueError, 'invalid frozen input'):
+            corpus.prepare(corpus.inputs())
+        self.assertEqual(list((corpus.WORK/'prepared').iterdir()), [])
+
+    def test_model_change_during_migration_cannot_publish_a_prepared_cache(self):
+        def changed_model(source, destination):
+            shutil.copyfile(source, destination)
+            self.model.write_text('{"schema_version":191}')
+
+        self.migration.side_effect = changed_model
+        with self.assertRaisesRegex(ValueError, 'changed during preparation'):
+            corpus.prepare(corpus.inputs())
+        self.assertEqual(list((corpus.WORK/'prepared').iterdir()), [])
 
     def test_inputs_reject_a_changed_pinned_file(self):
         (self.root/'baseline.jsonl').write_text('')

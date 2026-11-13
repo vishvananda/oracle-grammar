@@ -44,3 +44,17 @@ prove the differing-player case in a native scenario. The grammar's MTGish
 reference update belongs to that consumer adoption, with explicit changed-face
 evidence. The original Source parse for Arboria is correct and does not require
 an upstream MTGish parser bug report.
+
+
+## Grammar 0.2.0 adoption
+
+The model PR is integrated with the current grammar work. U0031 in the reference
+update ledger corrects Arboria's put predicate to an occurrence test over
+PutsOntoBattlefield and LastTurnOf(the same bound player). Its cast-spell
+alternative and nontoken restriction remain intact. Reference preparation now
+filters the allowed population, invokes the owned frozen-schema migration, then
+applies current-epoch amendments. Both parent and face headers become 191 before
+the new variant is introduced; the original schema-190 export stays immutable.
+The migration cache includes the model pin, so an old prepared reference cannot
+be reused across this schema change. Publication uses grammar-v0.2.0 and matching
+0.2.0 model packages; the automatic face bundle records schema 191.

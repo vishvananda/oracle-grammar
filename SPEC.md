@@ -176,6 +176,15 @@ grammar's context contract keeps ordinary setters, granted abilities and
 conditional effects distinct.
 
 
+A named player's most recent completed turn is HistoryWindow::LastTurnOf(player),
+including multiplayer and extra-turn distinctions. It is empty before that
+player's first turn, and differs from LastTurn and SinceLastTurnOf. A put-action
+history event records the actor; entering under a player's control records the
+controller. Reference preparation uses the owned frozen-schema migration before
+current-epoch amendments, with both parent and face headers upgraded explicitly.
+The immutable source reference and its extraction provenance retain epoch 190;
+this release's model and native outputs use schema 191.
+
 ## Printing
 
 Printing uses the current operands of an edited or synthesized IR. A saved

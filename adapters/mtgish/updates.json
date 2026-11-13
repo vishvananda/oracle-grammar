@@ -1254,6 +1254,15 @@
       "changes": [
         {"face":"Shapeshifter","path":[2],"from":{"kind":"Static","args":{"kind":"Ordinary","affected":{"Objects":{"kind":"One","args":{"kind":"Source"}}},"changes":[{"kind":"SetPower","args":{"kind":"ChosenNumber"}},{"kind":"SetToughness","args":{"kind":"Subtract","args":[{"kind":"Constant","args":7},{"kind":"ChosenNumber"}]}}]}},"to":{"kind":"Static","args":{"kind":{"CharacteristicDefining":{"keyword":null,"contributes_to_color_identity":true}},"affected":{"Objects":{"kind":"One","args":{"kind":"Source"}}},"changes":[{"kind":"SetBasePowerToughness","args":{"power":{"kind":"ChosenNumber"},"toughness":{"kind":"Subtract","args":[{"kind":"Constant","args":7},{"kind":"ChosenNumber"}]}}}]}}}
       ]
+    },
+    {
+      "id": "U0031",
+      "kind": "correction",
+      "summary": "Arboria tests who put the permanent onto the battlefield during the named player's last completed turn.",
+      "evidence": "Repository issue #11 and merged model PR #3: PlayerHistory::PermanentEntered observes the entering controller, whereas the printed put action observes the actor. Replace only that second predicate with EventHistory(Player{PutsOntoBattlefield, players:One(the_bound_player), objects:Not(Token)}, HistoryWindow::LastTurnOf(the_same_player), Occurrences) >= 1. Keep the cast-spell alternative, creature attack restriction, player matching scopes and nontoken population. LastTurnOf denotes that player's most recent completed turn, not the preceding global turn or SinceLastTurnOf; no previous turn yields no occurrence. This requires schema191 / packages0.2.0. Corpus preparation first uses the owned frozen-schema migration from190 to191, then applies this amendment, so the new variant never carries a190 header. Published0.1.0 and pinnedexport/reference-lock remain immutable. See docs/named-player-history.md and docs/reported-issues-20261113.md. Source's put form was already correct; no upstream text rewrite or controller/actor equality alias is introduced.",
+      "changes": [
+        {"face":"Arboria","path":[0,"args","changes",0,"args","Prohibit","Attack","Players","args","condition","args","args","players","args",1,"args","condition"],"from":{"kind":"PlayerDid","args":{"player":{"kind":"Bound","args":1},"event":{"PermanentEntered":{"kind":"Not","args":{"kind":"Token"}}},"window":{"LastTurnOf":{"kind":"Bound","args":1}}}},"to":{"kind":"Compare","args":{"left":{"kind":"EventHistory","args":{"event":{"Player":{"event":"PutsOntoBattlefield","players":{"kind":"One","args":{"kind":"Bound","args":1}},"objects":{"kind":"Not","args":{"kind":"Token"}}}},"window":{"LastTurnOf":{"kind":"Bound","args":1}},"measure":"Occurrences"}},"test":{"kind":"Compare","args":{"comparison":"GreaterOrEqual","value":{"kind":"Constant","args":1}}}}}}
+      ]
     }
   ]
 }

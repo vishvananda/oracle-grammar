@@ -3,7 +3,7 @@
 //! Oracle Grammar owns these workspace crates. MTGish reference snapshots are
 //! independently pinned data; they are not a compiled model dependency.
 pub use oracle_ir::{ir, ir_schema, mtg_types};
-pub use oracle_ir_contract::{canonical, cost_history, human, semantics, validate};
+pub use oracle_ir_contract::{canonical, cost_history, human, migrate, semantics, validate};
 
 #[cfg(test)]
 mod tests {
