@@ -47,19 +47,21 @@ versions must match their exact release checksum.
 GitHub uploads go to a draft, are downloaded and verified, then published.
 An interrupted existing GitHub draft requires inspection rather than replacement.
 
-After bootstrap configure each crate's crates.io Trusted Publisher with this
-repository, `release-grammar.yml`, and environment `crates-io`. Configure that
-GitHub environment's access policy. Pushing a `grammar-v*` tag runs **Release grammar** and publishes after all gates
-pass. Manual dispatch defaults to preparation only. The first registration can
-use repository secret `CRATES_IO_BOOTSTRAP_TOKEN`; remove that secret once all
-three Trusted Publishers are configured. Later releases use a short-lived OIDC
-token.
+After initial local registration, CI uses the scoped, update-only repository
+secret `CRATES_IO_PUBLISH_TOKEN`. If that secret is absent, configure each crate's
+Trusted Publisher for this repository, `release-grammar.yml`, and environment
+`crates-io`; CI then obtains a short-lived OIDC token. The broad bootstrap token
+is not used or required by CI. Pushing a `grammar-v*` tag publishes after all
+checks and matching native face preparation pass. Manual dispatch defaults to
+preparation only. The code release is followed by its face tag/release in the
+same workflow, avoiding GitHub's suppression of token-generated push events.
 Enable GitHub release immutability in repository settings for immutable tags and
 assets. Cargo registry publication is permanent.
 
 ## Native face exports
 
-The initial provider adapter reads **original Scryfall Oracle bulk JSON**. It
+The provider adapter reads **original Scryfall Oracle bulk JSON**, either an
+array or gzip-compressed JSON Lines (`encoding: "jsonl-gzip"`). It
 converts source characteristics separately from rules and never reads MTGish
 reference IR. Unrepresentable source metadata (for example symbolic printed P/T)
 is an explicit per-face `unsupported_source` outcome. This first adapter does
@@ -107,11 +109,20 @@ counts; deterministic ordering, JSON and gzip headers give reproducible assets.
 Printing, semantic reparse, exact wording and reference agreement are labeled
 `not_run`; parsing success does not imply those additional gates.
 
-For CI, commit a SHA-pinned source/population specification under
+Code releases automatically use the SHA-pinned `releases/oracle-source.json`.
+The source snapshot is fixed until that file is deliberately updated. Each
+bundle retains the original source asset with its original checksum.
+
+For an independent data release, commit a source/population specification under
 `releases/faces/<TAG>.json`, then push the corresponding `faces-*` tag. The
 **Release native faces** workflow downloads and verifies that source, requires
-compiled grammar inputs to match the existing code tag, and publishes the
+the exporter to build the exact existing grammar tag in an isolated worktree, and publishes the
 verified GitHub bundle. See [the tag specification](../releases/README.md).
 Manual dispatch defaults to artifact preparation only. Data releases do not
 require a crates.io release or token. Export revision increments are for
 packaging changes, never hidden grammar changes.
+
+For an existing code release whose original workflow had no automatic face job,
+dispatch **Release native faces** on main with `grammar_tag=grammar-v0.1.0`
+and no face `tag`. This uses the default source pin with that exact old grammar;
+it does not republish crates. Use `publish=false` to inspect CI artifacts first.

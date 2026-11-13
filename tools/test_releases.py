@@ -103,16 +103,16 @@ class ReleaseTests(unittest.TestCase):
         directory = self.root/'releases/faces'; directory.mkdir(parents=True)
         path = directory/(tag+'.json')
         spec = {'format_version': 1, 'grammar_tag': 'grammar-v0.1.0', 'revision': 1,
-                'source': {**self.spec, 'url': 'https://example.invalid/oracle.json'}}
+                'source': {'format_version': 1, **self.spec, 'url': 'https://example.invalid/oracle.json'}}
         path.write_text(json.dumps(spec))
-        with patch.object(releases, 'metadata', return_value=self.meta):
-            self.assertEqual(releases.face_spec(tag, self.root), spec)
-            for change in ({'grammar_tag': 'grammar-v0.2.0'}, {'revision': 2}):
-                path.write_text(json.dumps({**spec, **change}))
-                with self.assertRaisesRegex(ValueError, 'disagree'):
-                    releases.face_spec(tag, self.root)
-            with self.assertRaises(ValueError):
-                releases.face_spec('../escape', self.root)
+        from face_releases import specification
+        self.assertEqual(specification(tag=tag, root=self.root, meta=self.meta), spec)
+        for change in ({'grammar_tag': 'grammar-v0.2.0'}, {'revision': 2}):
+            path.write_text(json.dumps({**spec, **change}))
+            with self.assertRaisesRegex(ValueError, 'disagree'):
+                specification(tag=tag, root=self.root, meta=self.meta)
+        with self.assertRaises(ValueError):
+            specification(tag='../escape', root=self.root, meta=self.meta)
 
     def test_release_checkout_must_remain_immutable_during_build(self):
         with patch.object(releases, 'metadata', return_value=self.meta):

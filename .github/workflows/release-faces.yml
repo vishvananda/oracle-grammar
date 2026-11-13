@@ -6,7 +6,11 @@ on:
     inputs:
       tag:
         description: Face tag matching a checked-in releases/faces/TAG.json specification
-        required: true
+        required: false
+        type: string
+      grammar_tag:
+        description: Backfill a code release using releases/oracle-source.json (leave face tag empty)
+        required: false
         type: string
       publish:
         description: Publish GitHub release after verifying uploaded draft assets
@@ -24,15 +28,32 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.sha }}
       - uses: dtolnay/rust-toolchain@1.98.0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Validate manual selector
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          FACE_TAG: ${{ inputs.tag }}
+          GRAMMAR_TAG: ${{ inputs.grammar_tag }}
+        run: |
+          if { [ -z "$FACE_TAG" ] && [ -z "$GRAMMAR_TAG" ]; } || { [ -n "$FACE_TAG" ] && [ -n "$GRAMMAR_TAG" ]; }; then
+            echo 'Specify exactly one face tag or grammar tag' >&2
+            exit 1
+          fi
       - uses: Swatinem/rust-cache@v2
       - name: Download pinned source and export the specified population
+        if: github.event_name == 'push' || inputs.tag != ''
         env:
           RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
         run: python3 tools/releases.py faces-tag --tag "$RELEASE_TAG" --out .cache/release-faces
+      - name: Backfill faces for an existing code release
+        if: github.event_name == 'workflow_dispatch' && inputs.tag == ''
+        env:
+          GRAMMAR_TAG: ${{ inputs.grammar_tag }}
+        run: python3 tools/releases.py faces-code --tag "$GRAMMAR_TAG" --out .cache/release-faces
       - uses: actions/upload-artifact@v4
         with:
           name: native-faces
@@ -47,6 +68,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'

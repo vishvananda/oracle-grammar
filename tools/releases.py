@@ -125,11 +125,11 @@ def environment():
     return env
 
 
-def build():
+def build(root=ROOT):
     env = environment()
     subprocess.run(['cargo', 'build', '--locked', '--release', '--features', 'cli,embedded-grammar',
-                    '--bin', 'native-export', '--bin', 'grammar-export', '--bin', 'family-check'], cwd=ROOT, env=env, check=True)
-    info = json.loads(run('cargo', 'metadata', '--locked', '--no-deps', '--format-version=1'))
+                    '--bin', 'native-export', '--bin', 'grammar-export', '--bin', 'family-check'], cwd=root, env=env, check=True)
+    info = json.loads(run('cargo', 'metadata', '--locked', '--no-deps', '--format-version=1', cwd=root))
     return Path(info['target_directory'])/'release'
 
 
@@ -249,7 +249,7 @@ def gzip_rows(path, rows):
                 zipped.write(json_bytes(row))
 
 
-def bundle(out, rows, meta, spec, revision, exporter_commit=None):
+def bundle(out, rows, meta, spec, revision, exporter_commit=None, source=None):
     if revision < 1:
         raise ValueError('export revision must be positive')
     identities = [json_bytes(row['identity']) for row in rows]
@@ -272,6 +272,11 @@ def bundle(out, rows, meta, spec, revision, exporter_commit=None):
         counts[status] += 1
     rows = sorted(rows, key=lambda row: (row['identity']['record_index'], row['identity']['face_index']))
     out = fresh(out)
+    if source is not None:
+        filename = 'oracle-source.jsonl.gz' if spec.get('encoding') == 'jsonl-gzip' else 'oracle-source.json'
+        if digest(source) != spec['sha256']:
+            raise ValueError('Oracle source checksum mismatch')
+        shutil.copyfile(source, out/filename)
     gzip_rows(out/'outcomes.jsonl.gz', rows)
     gzip_rows(out/'faces.jsonl.gz', (r for r in rows if r['status'] == 'unique'))
     coverage = {'input_faces': len(rows), 'counts': counts,
@@ -280,7 +285,7 @@ def bundle(out, rows, meta, spec, revision, exporter_commit=None):
     (out/'coverage.json').write_bytes(json_bytes(coverage))
     tag = f"faces-oracle-{spec['snapshot_id']}-s{meta['model']['schema_version']}-g{meta['grammar']['version']}-r{revision}"
     finish(out, {'format_version': 1, 'kind': 'oracle-grammar-native-faces', 'tag': tag, **meta,
-                 'source_oracle': {k: spec[k] for k in ('provider', 'snapshot_id', 'sha256')},
+                 'source_oracle': {k: spec[k] for k in ('provider', 'snapshot_id', 'sha256', 'url', 'encoding') if k in spec},
                  'population': {**spec['population'], 'sha256': hashlib.sha256(json_bytes(spec['population'])).hexdigest()},
                  'exporter': {'commit': exporter_commit or meta['grammar']['commit'], 'revision': revision},
                  'options': {'source_format': 'scryfall-oracle-json', 'features': ['cli', 'embedded-grammar'],
@@ -398,38 +403,20 @@ def fetch(url, path, checksum):
 
 
 def face_spec(tag, root=ROOT):
-    slug(tag)
-    spec = json.loads((root/'releases'/'faces'/(tag+'.json')).read_text())
-    if spec.get('format_version') != 1:
-        raise ValueError('unsupported face release specification')
-    source, revision = spec.get('source', {}), spec.get('revision')
-    if not isinstance(revision, int) or isinstance(revision, bool) or revision < 1:
-        raise ValueError('release specification requires a positive integer revision')
-    meta = metadata(root)
-    expected = f"faces-oracle-{slug(source.get('snapshot_id'))}-s{meta['model']['schema_version']}-g{meta['grammar']['version']}-r{revision}"
-    if tag != expected or spec.get('grammar_tag') != 'grammar-v'+meta['grammar']['version']:
-        raise ValueError('face tag, grammar tag and release specification disagree')
-    if not str(source.get('url', '')).startswith('https://'):
-        raise ValueError('source URL must use HTTPS')
-    sha(source.get('sha256'))
-    return spec
+    from face_releases import specification
+    return specification(tag=tag, root=root)
 
 
 def faces_tag(tag, out):
-    spec = face_spec(tag)
-    with tempfile.TemporaryDirectory() as directory:
-        source, manifest = Path(directory)/'oracle.json', Path(directory)/'source.json'
-        fetch(spec['source']['url'], source, spec['source']['sha256'])
-        manifest.write_bytes(json_bytes(spec['source']))
-        faces(source, manifest, out, spec['revision'])
-    if verify(out)['tag'] != tag:
-        raise ValueError('export identity differs from requested tag')
+    from face_releases import export
+    export(out, tag=tag)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     subs = parser.add_subparsers(dest='command', required=True)
     p = subs.add_parser('code'); p.add_argument('--out', required=True); p.add_argument('--tag', required=True)
+    p = subs.add_parser('faces-code'); p.add_argument('--tag', required=True); p.add_argument('--out', required=True)
     p = subs.add_parser('faces-tag'); p.add_argument('--tag', required=True); p.add_argument('--out', required=True)
     p = subs.add_parser('faces'); p.add_argument('--source', required=True); p.add_argument('--source-manifest', required=True)
     p.add_argument('--out', required=True); p.add_argument('--revision', type=int, default=1)
@@ -440,6 +427,9 @@ def main():
     p.add_argument('--publish', action='store_true', help='publish after verifying uploaded draft assets')
     args = parser.parse_args()
     if args.command == 'code': code(args.out, args.tag)
+    elif args.command == 'faces-code':
+        from face_releases import export
+        export(args.out, grammar_tag=args.tag)
     elif args.command == 'faces-tag': faces_tag(args.tag, args.out)
     elif args.command == 'faces': faces(args.source, args.source_manifest, args.out, args.revision)
     elif args.command == 'fetch': fetch(args.url, args.out, args.sha256)
