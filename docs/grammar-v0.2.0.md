@@ -59,3 +59,9 @@ alternatives already had a retained correct target reading. Schema migration
 preserves all other operands and identities; canonical gold is idempotent.
 These audits use the explicitly allowed population; the complete release-source
 export reports its own scope and outcomes independently.
+
+The subsequent [complete allowed-population printing audit](printing-0.2.0-20261113.md)
+finds at least one verified generated text for 32,313 faces (98.65%) and exact
+original rules wording for 31,905 (97.40%). The default printer alone produces
+verified text for 32,233 and exact original wording for 22,261. Reminder text and
+decorative presentation are excluded; these counts include seeded rules.
