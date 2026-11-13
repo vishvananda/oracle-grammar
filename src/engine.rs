@@ -32,51 +32,65 @@ const LEXICAL: &str = include_str!("../grammar/lexical.ebnf");
 const PRINT_MODEL: &str = include_str!("../grammar/print-model.txt");
 const PRINT_WEIGHTS: &str = include_str!("../grammar/print-weights.txt");
 
-// Syntax is input data: editing EBNF must not invalidate compiled Rust.
-const SYNTAX_MODULES: &[(&str, &str)] = &[
-    ("card", "syntax/card.ebnf"),
-    ("card_notes", "syntax/card_notes.ebnf"),
-    ("card_names", "syntax/card_names.ebnf"),
-    ("actions", "syntax/actions.ebnf"),
-    ("action_reminders", "syntax/action_reminders.ebnf"),
-    ("conditions", "syntax/conditions.ebnf"),
-    ("continuous", "syntax/continuous.ebnf"),
-    ("animation_types", "syntax/animation_types.ebnf"),
-    ("costs", "syntax/costs.ebnf"),
-    ("cost_reminders", "syntax/cost_reminders.ebnf"),
-    ("copy_next", "syntax/copy_next.ebnf"),
-    ("copy_entry", "syntax/copy_entry.ebnf"),
-    ("defender", "syntax/defender.ebnf"),
-    ("library", "syntax/library.ebnf"),
-    ("land_mana", "syntax/land_mana.ebnf"),
-    ("mechanics", "syntax/mechanics.ebnf"),
-    ("replacements", "syntax/replacements.ebnf"),
-    ("counters_named", "syntax/counters_named.ebnf"),
-    ("effects", "syntax/effects.ebnf"),
-    ("energy", "syntax/energy.ebnf"),
-    ("events", "syntax/events.ebnf"),
-    ("keywords", "syntax/keywords.ebnf"),
-    ("keyword_actions", "syntax/keyword_actions.ebnf"),
-    ("cost_branches", "syntax/cost_branches.ebnf"),
-    ("cost_continuations", "syntax/cost_continuations.ebnf"),
-    ("face_cost_reminders", "syntax/face_cost_reminders.ebnf"),
-    ("labels", "syntax/labels.ebnf"),
-    ("reminder_groups", "syntax/reminder_groups.ebnf"),
-    ("reminders", "syntax/reminders.ebnf"),
-    ("players", "syntax/players.ebnf"),
-    ("mined", "syntax/mined.ebnf"),
-    ("tail", "tail/mined.ebnf"),
-    ("nouns", "syntax/nouns.ebnf"),
-    ("numbers", "syntax/numbers.ebnf"),
-    ("sagas", "syntax/sagas.ebnf"),
-    ("subtypes", "syntax/subtypes.ebnf"),
-    ("tokens", "syntax/tokens.ebnf"),
-    ("quoted", "syntax/quoted.ebnf"),
-    ("comparisons", "syntax/comparisons.ebnf"),
-    ("votes", "syntax/votes.ebnf"),
+// Development hot-loads syntax. Portable release binaries explicitly embed it.
+macro_rules! syntax_module {
+    ($name:literal, $path:literal) => {{
+        #[cfg(feature = "embedded-grammar")]
+        const TEXT: Option<&str> = Some(include_str!(concat!("../grammar/", $path)));
+        #[cfg(not(feature = "embedded-grammar"))]
+        const TEXT: Option<&str> = None;
+        ($name, $path, TEXT)
+    }};
+}
+const SYNTAX_MODULES: &[(&str, &str, Option<&str>)] = &[
+    syntax_module!("card", "syntax/card.ebnf"),
+    syntax_module!("card_notes", "syntax/card_notes.ebnf"),
+    syntax_module!("card_names", "syntax/card_names.ebnf"),
+    syntax_module!("actions", "syntax/actions.ebnf"),
+    syntax_module!("action_reminders", "syntax/action_reminders.ebnf"),
+    syntax_module!("conditions", "syntax/conditions.ebnf"),
+    syntax_module!("continuous", "syntax/continuous.ebnf"),
+    syntax_module!("animation_types", "syntax/animation_types.ebnf"),
+    syntax_module!("costs", "syntax/costs.ebnf"),
+    syntax_module!("cost_reminders", "syntax/cost_reminders.ebnf"),
+    syntax_module!("copy_next", "syntax/copy_next.ebnf"),
+    syntax_module!("copy_entry", "syntax/copy_entry.ebnf"),
+    syntax_module!("defender", "syntax/defender.ebnf"),
+    syntax_module!("library", "syntax/library.ebnf"),
+    syntax_module!("land_mana", "syntax/land_mana.ebnf"),
+    syntax_module!("mechanics", "syntax/mechanics.ebnf"),
+    syntax_module!("replacements", "syntax/replacements.ebnf"),
+    syntax_module!("counters_named", "syntax/counters_named.ebnf"),
+    syntax_module!("effects", "syntax/effects.ebnf"),
+    syntax_module!("energy", "syntax/energy.ebnf"),
+    syntax_module!("events", "syntax/events.ebnf"),
+    syntax_module!("keywords", "syntax/keywords.ebnf"),
+    syntax_module!("keyword_actions", "syntax/keyword_actions.ebnf"),
+    syntax_module!("cost_branches", "syntax/cost_branches.ebnf"),
+    syntax_module!("cost_continuations", "syntax/cost_continuations.ebnf"),
+    syntax_module!("face_cost_reminders", "syntax/face_cost_reminders.ebnf"),
+    syntax_module!("labels", "syntax/labels.ebnf"),
+    syntax_module!("reminder_groups", "syntax/reminder_groups.ebnf"),
+    syntax_module!("reminders", "syntax/reminders.ebnf"),
+    syntax_module!("players", "syntax/players.ebnf"),
+    syntax_module!("mined", "syntax/mined.ebnf"),
+    syntax_module!("tail", "tail/mined.ebnf"),
+    syntax_module!("nouns", "syntax/nouns.ebnf"),
+    syntax_module!("numbers", "syntax/numbers.ebnf"),
+    syntax_module!("sagas", "syntax/sagas.ebnf"),
+    syntax_module!("subtypes", "syntax/subtypes.ebnf"),
+    syntax_module!("tokens", "syntax/tokens.ebnf"),
+    syntax_module!("quoted", "syntax/quoted.ebnf"),
+    syntax_module!("comparisons", "syntax/comparisons.ebnf"),
+    syntax_module!("votes", "syntax/votes.ebnf"),
 ];
 
 fn read_module(path: &str) -> Result<String, String> {
+    if std::env::var_os("ORACLE_GRAMMAR_DIR").is_none()
+        && let Some((_, _, Some(text))) = SYNTAX_MODULES.iter().find(|(_, p, _)| *p == path)
+    {
+        return Ok((*text).to_owned());
+    }
     let root = std::env::var_os("ORACLE_GRAMMAR_DIR")
         .map(std::path::PathBuf::from)
         .unwrap_or_else(|| std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("grammar"));
@@ -86,16 +100,16 @@ fn read_module(path: &str) -> Result<String, String> {
 
 /// Read one declared syntax module from the current grammar input directory.
 pub fn module_source(name: &str) -> Result<String, String> {
-    let (_, path) = SYNTAX_MODULES
+    let (_, path, _) = SYNTAX_MODULES
         .iter()
-        .find(|(module, _)| *module == name)
+        .find(|(module, _, _)| *module == name)
         .ok_or_else(|| format!("unknown syntax module {name}"))?;
     read_module(path)
 }
 
 fn syntax(replaced: &[(String, String)]) -> Result<Vec<(String, String)>, String> {
     let mut modules = Vec::new();
-    for (name, path) in SYNTAX_MODULES {
+    for (name, path, _) in SYNTAX_MODULES {
         let text = match replaced.iter().rev().find(|(module, _)| module == name) {
             Some((_, text)) => text.clone(),
             None => read_module(path)?,
@@ -103,7 +117,7 @@ fn syntax(replaced: &[(String, String)]) -> Result<Vec<(String, String)>, String
         modules.push((name.to_string(), text));
     }
     for (name, text) in replaced {
-        if !SYNTAX_MODULES.iter().any(|(module, _)| module == name) {
+        if !SYNTAX_MODULES.iter().any(|(module, _, _)| module == name) {
             match modules.iter_mut().find(|(module, _)| module == name) {
                 Some(module) => module.1 = text.clone(),
                 None => modules.push((name.clone(), text.clone())),

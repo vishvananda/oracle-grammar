@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 fn load_180() -> Schema {
     let value: serde_json::Value =
-        serde_json::from_str(include_str!("../../../oracle-ir/schema/180.json"))
+        serde_json::from_str(crate::ir_schema::frozen_json(180).expect("frozen descriptor exists"))
             .expect("frozen schema-180 descriptors");
     assert_eq!(value["schema_version"], 180);
     serde_json::from_value(value["schema"].clone()).expect("typed schema-180 descriptors")
@@ -25,64 +25,73 @@ pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
     match version {
         180 => Ok(OLD.get_or_init(load_180)),
         181 => Ok(COPY.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/181.json"))
-                    .expect("frozen schema-181 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(181).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-181 descriptors");
             assert_eq!(value["schema_version"], 181);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-181 descriptors")
         })),
         182 => Ok(PAYLOAD.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/182.json"))
-                    .expect("frozen schema-182 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(182).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-182 descriptors");
             assert_eq!(value["schema_version"], 182);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-182 descriptors")
         })),
         183 => Ok(KEYWORD.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/183.json"))
-                    .expect("frozen schema-183 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(183).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-183 descriptors");
             assert_eq!(value["schema_version"], 183);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-183 descriptors")
         })),
         184 => Ok(MODES.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/184.json"))
-                    .expect("frozen schema-184 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(184).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-184 descriptors");
             assert_eq!(value["schema_version"], 184);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-184 descriptors")
         })),
         185 => Ok(ROLES.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/185.json"))
-                    .expect("frozen schema-185 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(185).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-185 descriptors");
             assert_eq!(value["schema_version"], 185);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-185 descriptors")
         })),
         186 => Ok(MOVEMENT.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/186.json"))
-                    .expect("frozen schema-186 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(186).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-186 descriptors");
             assert_eq!(value["schema_version"], 186);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-186 descriptors")
         })),
         187 => Ok(FACTS.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/187.json"))
-                    .expect("frozen schema-187 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(187).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-187 descriptors");
             assert_eq!(value["schema_version"], 187);
             serde_json::from_value(value["schema"].clone()).expect("typed schema-187 descriptors")
         })),
         188 => Ok(PREDICATES.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/188.json"))
-                    .expect("frozen schema-188 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(188).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-188 descriptors");
             serde_json::from_value(value["schema"].clone()).expect("typed schema-188 descriptors")
         })),
         189 => Ok(CAPTURE.get_or_init(|| {
-            let value: serde_json::Value =
-                serde_json::from_str(include_str!("../../../oracle-ir/schema/189.json"))
-                    .expect("frozen schema-189 descriptors");
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(189).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-189 descriptors");
             serde_json::from_value(value["schema"].clone()).expect("typed schema-189 descriptors")
         })),
         179 => Ok(ENTRY.get_or_init(|| {
@@ -130,6 +139,9 @@ mod tests {
         for name in names {
             signature.push_str(&format!("{name}: {:?}\n", schema.types[name]));
         }
-        assert_eq!(signature, include_str!("../../../oracle-ir/schema/179.txt"));
+        assert_eq!(
+            signature,
+            crate::ir_schema::frozen_signature(179).expect("frozen signature exists")
+        );
     }
 }
