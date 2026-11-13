@@ -119,6 +119,39 @@ fn same_untagged(left: &Value, right: &Value) -> bool {
     }
 }
 
+/// A hash that agrees with `same_untagged`, and so with `==` on untagged values. Map
+/// entries combine in any order, as map equality ignores order, and audit tags are
+/// skipped. Readings compare hashes first, so one rule's many readings do not cost a
+/// deep comparison for every pair.
+fn untagged_hash(value: &Value) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = rustc_hash::FxHasher::default();
+    match value {
+        Value::Null => 0u8.hash(&mut hasher),
+        Value::Bool(flag) => (1u8, flag).hash(&mut hasher),
+        Value::Number(number) => (2u8, number).hash(&mut hasher),
+        Value::String(text) => (3u8, text).hash(&mut hasher),
+        Value::Array(items) => {
+            (4u8, items.len()).hash(&mut hasher);
+            items
+                .iter()
+                .for_each(|item| untagged_hash(item).hash(&mut hasher));
+        }
+        Value::Object(object) => {
+            let entries = object.iter().filter(|(key, _)| *key != AUDIT_TAG).fold(
+                0u64,
+                |sum, (key, value)| {
+                    let mut entry = rustc_hash::FxHasher::default();
+                    (key, untagged_hash(value)).hash(&mut entry);
+                    sum.wrapping_add(entry.finish())
+                },
+            );
+            (5u8, entries).hash(&mut hasher);
+        }
+    }
+    hasher.finish()
+}
+
 /// How many seeded-rule tags a value carries.
 fn tag_count(value: &Value) -> usize {
     match value {
@@ -290,6 +323,7 @@ impl<'a> Parser<'a> {
         self.counters.rule_calls += 1;
         let definition = &grammar.rules[rule as usize];
         let mut readings: Vec<Reading> = Vec::new();
+        let mut hashes: Vec<u64> = Vec::new();
         for index in candidates {
             let alternative = &definition.alternatives[*index as usize];
             let mut partials = vec![Partial {
@@ -333,8 +367,10 @@ impl<'a> Parser<'a> {
                     value
                 };
                 let audit = self.audit;
-                let found = readings.iter().position(|r| {
-                    r.end == partial.at
+                let hash = untagged_hash(&value);
+                let found = readings.iter().zip(&hashes).position(|(r, seen)| {
+                    *seen == hash
+                        && r.end == partial.at
                         && if audit {
                             same_untagged(&r.value, &value)
                         } else {
@@ -342,10 +378,13 @@ impl<'a> Parser<'a> {
                         }
                 });
                 match found {
-                    None => readings.push(Reading {
-                        end: partial.at,
-                        value,
-                    }),
+                    None => {
+                        readings.push(Reading {
+                            end: partial.at,
+                            value,
+                        });
+                        hashes.push(hash);
+                    }
                     // Derivations that differ only in their seeded rules would multiply
                     // across sentences. An audit keeps the one naming the fewest.
                     Some(index)
@@ -426,5 +465,52 @@ impl<'a> Parser<'a> {
             (Sym::Class(Class::Newline), Token::Newline) => Some(None),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn equal_readings_hash_alike_whatever_their_key_order_tags_or_zero_sign() {
+        let pairs = [
+            (
+                json!({"a": 1, "b": [true, null]}),
+                json!({"b": [true, null], "a": 1}),
+            ),
+            (
+                json!({"x": {"kind": "It"}}),
+                json!({"x": {"kind": "It", AUDIT_TAG: ["m_rule"]}}),
+            ),
+            (json!([0.0, {"n": -0.0}]), json!([-0.0, {"n": 0.0}])),
+        ];
+        for (left, right) in pairs {
+            assert!(same_untagged(&left, &right), "{left} {right}");
+            assert_eq!(
+                untagged_hash(&left),
+                untagged_hash(&right),
+                "{left} {right}"
+            );
+        }
+    }
+
+    #[test]
+    fn readings_that_differ_hash_apart_in_practice() {
+        let values = [
+            json!({"a": 1}),
+            json!({"a": 2}),
+            json!({"b": 1}),
+            json!([1, 2]),
+            json!([2, 1]),
+            json!({"a": [1]}),
+            json!("a"),
+            json!(1),
+            json!(1.0),
+            json!(null),
+        ];
+        let hashes: std::collections::BTreeSet<u64> = values.iter().map(untagged_hash).collect();
+        assert_eq!(hashes.len(), values.len());
     }
 }

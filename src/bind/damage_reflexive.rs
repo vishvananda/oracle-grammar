@@ -105,16 +105,33 @@ pub(super) fn prepare(root: &mut Value) -> Result<(), String> {
 /// Only these provenance-marked recipients wait for ordinary actor bindings;
 /// they do not establish pronoun focus or introduce targets themselves.
 fn deferred_reference(root: &Value, path: &[Step]) -> bool {
-    path.len() <= 128
-        && (0..path.len())
-            .rev()
-            .any(|depth| role(root, &path[..depth]).is_some())
+    if path.len() > 128 {
+        return false;
+    }
+    // One walk down the path; only a marker node can own a role.
+    let mut node = root;
+    for (depth, step) in path.iter().enumerate() {
+        if matches!(symbol_name(node), Some(SCALAR | OBJECTS))
+            && role(root, &path[..depth]).is_some()
+        {
+            return true;
+        }
+        let next = match step {
+            Step::Key(key) => node.get(key),
+            Step::Index(index) => node.get(*index),
+        };
+        let Some(next) = next else {
+            return false;
+        };
+        node = next;
+    }
+    false
 }
 
 /// Keep lexical order within each pass; actual damage actors bind before their
 /// provenance-marked reflexive recipients even when a recipe reorders holes.
 pub(super) fn sort_references(root: &Value, found: &mut [super::Found]) {
-    found.sort_by_key(|f| (deferred_reference(root, &f.path), f.at, f.order));
+    found.sort_by_cached_key(|f| (deferred_reference(root, &f.path), f.at, f.order));
 }
 
 pub(super) fn bind_marker(
