@@ -239,6 +239,8 @@ def receipt(gate, extra):
     if before is None or tree() != before:
         print(f'{gate}: files changed while it ran, so no receipt was recorded', file=sys.stderr)
         return
+    # Standalone `test` need not have run a helper build to create this directory.
+    WORK.mkdir(parents=True, exist_ok=True)
     # Its own lock: a gate may already hold the build lock shared.
     with (WORK/'receipts.lock').open('a') as stream:
         fcntl.flock(stream, fcntl.LOCK_EX)

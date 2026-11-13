@@ -195,6 +195,14 @@ class ReceiptTests(unittest.TestCase):
         (self.root/'src/new.rs').unlink()
         self.assertNotEqual(dev.tree(self.root), before)
 
+    def test_standalone_gate_creates_a_fresh_receipt_directory_after_success(self):
+        shutil.rmtree(self.work)
+        with dev.receipt('test', {}):
+            self.assertFalse(self.work.exists())
+        self.assertTrue(dev.passed('test', {}))
+        self.assertTrue((self.work/'receipts.lock').is_file())
+        self.assertTrue((self.work/'receipts.json').is_file())
+
     def test_a_pass_is_reused_until_an_input_or_the_compiler_changes(self):
         with dev.receipt('test', {}):
             pass
