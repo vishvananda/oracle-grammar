@@ -14,6 +14,7 @@ use std::sync::OnceLock;
 mod entry;
 mod events;
 mod joins;
+mod keywords;
 #[cfg(test)]
 mod mode_results;
 mod movement;
@@ -48,6 +49,10 @@ fn commutative(ty: &str, variant: &str) -> bool {
 }
 
 type JoinGroup = HashMap<u64, Vec<(u64, u64)>>;
+struct TargetScope {
+    map: Option<HashMap<u64, u64>>,
+    optional: HashSet<u64>,
+}
 #[derive(Clone)]
 struct ResultScope {
     map: Option<HashMap<u64, u64>>,
@@ -59,6 +64,7 @@ struct ResultScope {
 struct Ids {
     /// Old id to new id, per id type, in this ability's scope.
     maps: HashMap<&'static str, HashMap<u64, u64>>,
+    optional_targets: HashSet<u64>,
     /// Which ability this is, in visiting order.
     visit: usize,
     /// Unread definitions still need distinct ids for executable, valid IR.
@@ -212,6 +218,24 @@ fn id_kind(name: &str) -> Option<&'static str> {
 }
 
 impl Walker {
+    fn target_scope(&self) -> Option<TargetScope> {
+        self.scopes.last().map(|scope| TargetScope {
+            map: scope.maps.get("slot").cloned(),
+            optional: scope.optional_targets.clone(),
+        })
+    }
+
+    fn restore_target_scope(&mut self, saved: Option<TargetScope>) {
+        if let (Some(saved), Some(scope)) = (saved, self.scopes.last_mut()) {
+            if let Some(slots) = saved.map {
+                scope.maps.insert("slot", slots);
+            } else {
+                scope.maps.remove("slot");
+            }
+            scope.optional_targets = saved.optional;
+        }
+    }
+
     fn result_scope(&self) -> Option<ResultScope> {
         self.scopes.last().map(|s| ResultScope {
             map: s.maps.get("result").cloned(),
@@ -362,8 +386,7 @@ impl Walker {
         }
         // Modes inherit enclosing receipts and targets, but local definitions
         // cannot escape into sibling modes or the common ability body.
-        let mode_slots =
-            (name == "Mode").then(|| self.scopes.last().and_then(|s| s.maps.get("slot").cloned()));
+        let mode_slots = (name == "Mode").then(|| self.target_scope());
         let local_results = (name == "Mode"
             || name == "Operand" && value["kind"] == "Program"
             || name == "EventChange" && value.get("Then").is_some()
@@ -407,6 +430,15 @@ impl Walker {
                 self.fields(value, fields, name);
                 if name == "TargetSpec" {
                     bound_divided_count(value);
+                    if let (Some(slot), Some(scope)) =
+                        (trace::number(&value["slot"]), self.scopes.last_mut())
+                    {
+                        if value["count"] == json!({"UpTo":{"kind":"Constant","args":1}}) {
+                            scope.optional_targets.insert(slot);
+                        } else {
+                            scope.optional_targets.remove(&slot);
+                        }
+                    }
                 }
             }
             Some(TypeDef::Enum { adjacent, .. }) => self.variant(value, name, *adjacent),
@@ -420,12 +452,8 @@ impl Walker {
         if let Some(saved) = local_results {
             self.restore_with_exports(saved, &exported);
         }
-        if let (Some(previous), Some(scope)) = (mode_slots, self.scopes.last_mut()) {
-            if let Some(previous) = previous {
-                scope.maps.insert("slot", previous);
-            } else {
-                scope.maps.remove("slot");
-            }
+        if let Some(previous) = mode_slots {
+            self.restore_target_scope(previous);
         }
         self.gathering_results = previous_gathering;
     }
@@ -483,6 +511,10 @@ impl Walker {
                 return;
             }
             match (name, variant.as_str()) {
+                ("Operation", "Keyword" | "KeywordEach") => keywords::suspect(
+                    value,
+                    self.scopes.last().map(|scope| &scope.optional_targets),
+                ),
                 ("ObjectFilter", "InSet") => one_object_set(value),
                 ("ObjectSet", "Zone") => {
                     narrow_zone_scope(content_of(value));
@@ -623,11 +655,7 @@ impl Walker {
             owner,
             "Operation::CreateTrigger" | "Operation::ReflexiveTrigger"
         )
-        .then(|| {
-            self.scopes
-                .last()
-                .and_then(|scope| scope.maps.get("slot").cloned())
-        });
+        .then(|| self.target_scope());
         let mut branch_joins = JoinGroup::new();
         // A loop or predicate binds only its own body. Keeping those
         // ids in the ability-wide map makes a later sibling depend on
@@ -796,12 +824,8 @@ impl Walker {
             scope.join_groups.push(branch_joins);
         }
         self.reference_reductions = old_reductions;
-        if let (Some(previous), Some(scope)) = (created_slots, self.scopes.last_mut()) {
-            if let Some(previous) = previous {
-                scope.maps.insert("slot", previous);
-            } else {
-                scope.maps.remove("slot");
-            }
+        if let Some(previous) = created_slots {
+            self.restore_target_scope(previous);
         }
         if let (Some(previous), Some(scope)) = (previous_selection, self.scopes.last_mut()) {
             if let Some(map) = previous {

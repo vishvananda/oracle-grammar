@@ -130,6 +130,65 @@ snapshot alternative to its inline Snapshot pump. The two representations
 evaluate at the same point; this is a canonicalization followup, rather than a
 new Oracle interpretation or a reason to alter its reference meaning.
 
+## Suspect normalization
+
+The Suspect audit covers every occurrence in the allowed pinned reference: 13
+scalar `Keyword{action:Suspect{object}}` operations and seven
+`KeywordEach{action:Suspect,objects}` operations. The scalar form's external wire
+tag is `{"Suspect":{"object":...}}`; inspecting only adjacent `kind` tags misses
+it. The two shapes express the same action on one object, and separate grammar
+productions created duplicate readings.
+
+`U0003` records all thirteen scalar operations as the set form. Ordinary objects
+use `One(object)`; up-to-one targets use their full `Targets(slot)` population.
+The record keeps the original actor, Source/EventSubject distinctions, target
+slots, moved-object receipt indices and result IDs. The peers already using the
+set form include Barbed Servitor, Frantic Scapegoat, Person of Interest,
+Convenient Target and Incriminating Impetus.
+
+The owned canonical contract also converts legacy scalar Suspect IR, so edited
+and synthesized operands print through the same single grammar declaration.
+Canonical target scope retains optional counts across modes and created
+invocations without leaking them to siblings. Tests check the canonical form,
+actor/object identity, changed attached-object operands, optional populations,
+modal targets, idempotence and the mapped origin of each moved target-ID leaf.
+This changes canonical AST representation, not its wire schema or game meaning.
+
+The invalid-extra-operand test exposed a separate native-input validation gap:
+Serde could silently discard fields. The frontend validation boundary now
+requires typed serialization to preserve the supplied native value exactly
+before accepting its semantic validation. Unknown or missing native fields are
+rejected, and the canonicalizer leaves extra operands present for rejection.
+
+All repository gates pass. All 32,755 allowed faces still match, with 31,548
+single-reading faces and 34,059 total readings. Compared with the preceding
+population batch, 17 equivalent-shape readings merge and one incorrect reading
+is removed. No further mined rules become unused in this pass; the two older,
+unrelated candidates remain retained.
+
+The native reading-preservation audit validates and canonicalizes every current
+reading, and reports that one intentional removal separately: Case of the Stashed
+Skeleton used to have both `Created(result)` and `One(Result{index:0})` readings
+for "create a ... Skeleton creature token and suspect it". The first-token reading
+is incorrect when creation replacements produce several tokens. Its retained
+reference already uses the whole created batch. The grammar correction removes
+the wrong lowering; the canonicalizer deliberately does **not** alias a first
+member to the whole batch. A regression checks that distinction and prevents the
+batch wording from claiming to print an explicitly single-member IR. This is a
+lowering correction without a reference-record or AST-schema change.
+
+The 21-face Suspect wording cohort now has one matching reading, a verified
+default print and exact keyed wording for every face. The generic while-present
+goad clause replaces Hot Pursuit's full-card dependency while keeping its
+duration object separate from its recipients. Suspected conditions share their
+explicit/contracted subject and use contextual references for negation. Frantic
+Scapegoat's event-group action cost uses `@and` so its filter prints independently
+of canonical conjunct order.
+
+Those phrase fixes retire `m_object_ref_is_suspected`, `m_it_s_not_suspected` and
+`t_when_this_enchantment_enters_suspect_target_creature`: 62 seeded productions
+retired in total, 12,145 remaining, and 19,705 compositional reference matches.
+
 ## Remaining print issues
 
 The inherited every-tenth-face print results still expose these followups:

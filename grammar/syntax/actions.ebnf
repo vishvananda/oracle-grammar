@@ -100,7 +100,7 @@ counter_plus ::= "+" "1" "/" "+" "1"
 /* @sem CounterKind::PowerToughness(-1, -1) */
 counter_minus ::= "-" "1" "/" "-" "1"
 
-action ::= keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | clash_opponent | attach_each_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_ordered_face_down | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard
+action ::= keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | goad_while_present | clash_opponent | attach_each_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_ordered_face_down | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard
     | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | move_battlefield | move_battlefield_tapped | move_battlefield_owner
     | move_battlefield_transformed | move_battlefield_owner_transformed
     | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | prevent_clause | tap_or_untap | create_emblem | reveal_hand
@@ -130,15 +130,13 @@ manifest_dread ::= "manifest" "dread"
 /* @sem Operation::Keyword{actor:One(ControllerOf($object_ref)), action:KeywordAction::Connive{object:$object_ref}} */
 connive_object_controller ::= object_ref "connives"
 
-/* Both native encodings occur for a single object. Keep both reversible;
-   plural populations always use the set-valued action. See NORM-004. */
-suspect_action ::= suspect_single | suspect_objects
-
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Suspect{object:$object_ref}} */
-suspect_single ::= "suspect" object_ref
-
+/* A single object and a plural population use the same native action shape. */
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Suspect, objects:$object_set} */
-suspect_objects ::= "suspect" object_set
+suspect_action ::= "suspect" object_set
+
+/* The goad's duration names its own permanent, independently of its recipients. */
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Goad{until:WhileOnBattlefield($object_ref)}, objects:$affected} */
+goad_while_present ::= "as" "long" "as" object_ref "remains" "on" "the" "battlefield" "," affected ("is" | "are") "also" "goaded"
 
 unsuspect_action ::= unsuspect_objects | unsuspect_contracted | unsuspect_conditional
 

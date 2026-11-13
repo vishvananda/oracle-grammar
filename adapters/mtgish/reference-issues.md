@@ -277,6 +277,16 @@ the IR path, the value it replaces and why.
   the original counter kinds, object identities, last-known information and action
   result IDs; the AST schema stays unchanged. See the
   [grammar work notes](../../docs/grammar-simplification-20261113.md).
+- `U0003` (normalization): thirteen scalar Suspect operations become
+  `KeywordEach{action:Suspect, objects:One(object)}`, matching the seven existing
+  set-form operations. Up-to-one targets use their whole `Targets(slot)`
+  population. The actor, source/holder references and moved-object receipts stay
+  intact. The owned canonicalizer applies the same normalization to legacy IR,
+  with typed ID provenance; the wire schema is unchanged. The update names every
+  affected face and exact operation path.
+  Case of the Stashed Skeleton already used `Created(result)` in the reference;
+  the grammar removes an incorrect competing first-token reading without
+  changing that reference. `One(Result{index:0})` is not a batch equality alias.
 
 ## Open in the grammar
 

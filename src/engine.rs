@@ -413,6 +413,9 @@ fn bind_surface(value: &Value, name: &str) -> Result<Value, String> {
 pub fn validate_abilities(value: &Value) -> Result<(), String> {
     let abilities: Vec<Ability> =
         serde_json::from_value(value.clone()).map_err(|e| format!("typed abilities: {e}"))?;
+    if serde_json::to_value(&abilities).map_err(|e| e.to_string())? != *value {
+        return Err("typed abilities contain unknown or missing fields".into());
+    }
     validate::abilities(&abilities)
 }
 
