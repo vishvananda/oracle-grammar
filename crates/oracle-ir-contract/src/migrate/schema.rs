@@ -11,6 +11,7 @@ fn load_180() -> Schema {
 }
 pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
     static OLD: OnceLock<Schema> = OnceLock::new();
+    static NAMED_TURNS: OnceLock<Schema> = OnceLock::new();
     static ENTRY: OnceLock<Schema> = OnceLock::new();
     static COPY: OnceLock<Schema> = OnceLock::new();
     static PAYLOAD: OnceLock<Schema> = OnceLock::new();
@@ -120,6 +121,14 @@ pub(super) fn input(version: u32) -> Result<&'static Schema, String> {
             fields.retain(|(name, _)| name != "controller");
             schema.types.remove("EntryController");
             schema
+        })),
+        190 => Ok(NAMED_TURNS.get_or_init(|| {
+            let value: serde_json::Value = serde_json::from_str(
+                crate::ir_schema::frozen_json(190).expect("frozen descriptor exists"),
+            )
+            .expect("frozen schema-190 descriptors");
+            assert_eq!(value["schema_version"], 190);
+            serde_json::from_value(value["schema"].clone()).expect("typed schema-190 descriptors")
         })),
         version if version == crate::ir::SCHEMA_VERSION => {
             Ok(CURRENT.get_or_init(|| Schema::of_ir().expect("current IR descriptors")))
