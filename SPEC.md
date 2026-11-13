@@ -130,6 +130,16 @@ single canonical visit. Singular spell phrases can share one cast verb; their
 filter union inverse enumerates every nonempty partition, bounded to ten filters,
 so exact wording and edited operands do not depend on the original grouping.
 
+A named player's next untap step fixes both the permanent rule's step-player
+predicate and its expiration window. Controller-following wording keeps its
+separate controller-based rule and duration. A narrow canonical proof can replace
+ControllerOf(Affected) with AbilityController only for one Skip rule over a live
+current battlefield population explicitly controlled by AbilityController,
+with DuringNextUntapStep(AbilityController). Snapshot/fixed or unfiltered pools,
+other players/windows and more than 64 conjuncts do not prove that implication.
+The replaced roles contain no typed IDs; all other operands and origins remain.
+
+
 ## Printing
 
 Printing uses the current operands of an edited or synthesized IR. A saved

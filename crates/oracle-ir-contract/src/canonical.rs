@@ -26,6 +26,7 @@ mod result_scopes;
 mod sets;
 mod snapshots;
 mod trace;
+mod untap;
 mod visibility;
 mod walk;
 pub use fixed_mana::literal as literal_mana;
@@ -522,6 +523,7 @@ impl Walker {
                     value,
                     self.scopes.last().map(|scope| &scope.optional_targets),
                 ),
+                ("Operation", "CreateContinuousEffect") => untap::controlled_population(value),
                 ("ManaUse", "Either") => {
                     mana_uses::casting_alternatives(value, self.keep_order, self.tracing);
                 }

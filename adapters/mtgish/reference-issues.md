@@ -306,6 +306,14 @@ the IR path, the value it replaces and why.
 - `U0017` (correction, issue #6): Mercenaries' shield matches its source creature
   and the activating player, preserving both identities and the next-time limit.
 
+- `U0018` (correction, issue #8): seventeen “your next untap step” effects fix
+  both their step predicate and expiration to AbilityController, preserving the
+  affected object rather than following its later controller.
+- `U0019` (normalization): five live land populations already constrained to
+  AbilityController use that stable role explicitly in their fixed-player untap
+  rule. A bounded typed proof preserves the equivalent legacy predicate; fixed,
+  snapshot, unfiltered and controller-following contexts are excluded.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their
 open status does not create a corpus equality exception.

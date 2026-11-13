@@ -15,10 +15,10 @@ witnesses are identified separately.
 | [#5](https://github.com/vishvananda/oracle-grammar/issues/5) | Fixed locally: the missing Aura subtype on Gauntlets' attachment population. U0016 conjoins it with the existing two-target attachment disjunction. |
 | [#6](https://github.com/vishvananda/oracle-grammar/issues/6) | Fixed locally: Mercenaries' omitted source in reference and grammar. U0017 preserves its same-creature source and activating-player recipient. |
 | [#7](https://github.com/vishvananda/oracle-grammar/issues/7) | Pending the independent artifact-exchange correction and validation. |
-| [#8](https://github.com/vishvananda/oracle-grammar/issues/8) | Pending named-player untap duration review, with controller-following controls. |
+| [#8](https://github.com/vishvananda/oracle-grammar/issues/8) | Fixed locally: U0018 corrects 17 named-player step/expiration pairs; U0019 normalizes five equivalent live-population forms. Both controller-following controls are preserved. |
 | [#9](https://github.com/vishvananda/oracle-grammar/issues/9) | Pending target identity versus successful-destroy receipt review. |
 | [#10](https://github.com/vishvananda/oracle-grammar/issues/10) | Pending actual-reveal existence guard review. |
-| [#11](https://github.com/vishvananda/oracle-grammar/issues/11) | Prepared model work is in open PR #3; review the release dependency before amending Arboria. |
+| [#11](https://github.com/vishvananda/oracle-grammar/issues/11) | Confirmed; awaiting model publication. Open PR #3 adds the missing named-player history window in schema 191 / version 0.2.0. Current main and both registry releases remain schema 190 / version 0.1.0; no reference amendment is claimed. |
 | [#12](https://github.com/vishvananda/oracle-grammar/issues/12) | Pending direct destroy-choice legality review; retain Imperial Edict's independent choice as a control. |
 | [#13](https://github.com/vishvananda/oracle-grammar/issues/13) | Pending effect completion and actual exile-arrival receipt review. |
 | [#14](https://github.com/vishvananda/oracle-grammar/issues/14) | Pending adoption of the damage-time history population from upstream commit 123fb912, preserving mana cost rather than mana value. |
@@ -72,3 +72,60 @@ pass. The forty-face issue cohort remains recognized and equal; all forty have
 exact keyed prints and 39 have a verified default. The eleven corrected isolated
 abilities each have exact and verified default prints. No backend runtime test
 or measured optimization claim is made here.
+
+## Named next-untap player: #8
+
+U0018 corrects the 17 reported controller-following durations. The correction
+changes both operands: `DuringNextUntapStep(AbilityController)` fixes expiration,
+and `UntapStep.players = One(AbilityController)` fixes whose step the rule tests.
+Changing only expiration would still let the step predicate follow a different
+permanent controller, including when an object untaps during another player's
+step. Affected identities, live evaluation, source, other effects and activation
+or trigger contexts remain intact. Barl's Cage's explicit controller-following
+wording and Orcish Farmer's distinct controller reference remain controls.
+
+The explicit allowed wording cohort also includes Bontu's Last Reckoning,
+Hazoret's Undying Fury, Kefnet's Last Word, Oketra's Last Mercy and Rhonas's Last
+Stand. Their durations already name AbilityController, and their live battlefield
+population is explicitly filtered to lands controlled by that player. U0019
+normalizes their equivalent step-player predicate to the same named-player shape.
+The owned canonicalizer proves this implication only for that literal stable
+player role, a current battlefield Zone, a direct ControlledBy conjunct (bounded
+to 64 conjuncts), one Skip rule, LiveObjects and the matching fixed-player duration.
+It does not alias controller and player for snapshots, fixed/unfiltered pools,
+other players or controller-following windows. Wrapper fields remain exact and
+invalid extra fields remain invalid; replacing these ID-free roles neither drops
+nor synthesizes a typed identifier. A schema-directed scan of the complete allowed
+pre-batch reference checks that this is the full matching population.
+
+Twenty-four original-wording cases cover those 22 faces and the two controls.
+The frozen cff1b60 executable fails all 22 corrected/normalized expectations and
+passes both controls. Regressions require the amended expected reading, retain
+existing reading counts, and check the untap operands on every reading. Deep
+Spawn retains its two preexisting cost readings (CostPart::Mill versus a generic
+PlayerAction containing Mill); that separate cost-equivalence question is not
+silently resolved by this untap change. Current-operand printing, exact trails,
+normalization idempotence and the proof's excluded contexts are checked directly.
+No schema, model pin or reference-lock change is introduced.
+
+All eight repository gates pass for this batch; 768 frontend tests pass and one
+remains ignored. The 24-case regression has 25 supported readings, all retained
+with the correct untap operands. Full coverage remains 32,755 equal, 31,681
+single-reading faces and 33,920 readings. One redundant plural untap seed is
+retired: cumulative retirements reach 160, with 12,047 remaining (12,045 needed
+plus the two protected edited-print rules). Compositional coverage is 19,866.
+
+The strict native audit from cff1b60 intentionally exits with failure for exactly
+18 old incorrect readings on the 17 corrected faces, with exactly 18 corrected
+replacements on those faces. All five normalized faces preserve their native
+meanings; no other reading is missing or added. All raw/canonical gold and all
+33,920 current readings validate, canonical gold is idempotent, and native failure
+output is empty. Source, binary, data and runtime-grammar hashes were rechecked.
+This is a reviewed semantic correction with scoped normalization, not an
+unconditional strict-preservation pass.
+
+Against the actual immutable cff1b60 executable and its old reference, all 24
+faces keep exact keyed and verified default prints; exact defaults improve from
+2 to 16. Seventeen default texts change. The new search generates 308 candidates
+and verifies 240, versus 312/244 previously; no assertion is made that every
+candidate verifies or that these quick helper runs measure a speed improvement.
