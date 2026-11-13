@@ -54,6 +54,7 @@ pub fn breaches(tokens: &[Token], context: &[String]) -> Vec<(&'static str, f32,
         };
         counted_noun(tokens, at, word, &mut found);
         verb_agrees(tokens, at, word, &mut found);
+        may_takes_a_verb(tokens, at, word, &mut found);
         self_noun(tokens, at, word, &mut found);
         attachment(tokens, at, word, context, &mut found);
     }
@@ -354,10 +355,50 @@ fn verb_agrees(tokens: &[Token], at: usize, word: &str, found: &mut Found) {
         return;
     }
     let subject = &tokens[clause_start(tokens, at)..at];
+    // `you may have it become …`: a causative `have` takes the bare verb.
+    if (1..subject.len()).any(|i| is(subject, i - 1, "may") && is(subject, i, "have")) {
+        if !plural {
+            found.push(("verb agrees", BROKEN, at));
+        }
+        return;
+    }
     // `counter you have`: the subject is `you`, whatever came before it.
     let you = at > 0 && (is(tokens, at - 1, "you") || is(tokens, at - 1, "they"));
     if !you && plural_subject(subject).is_some_and(|many| many != plural) {
         found.push(("verb agrees", BROKEN, at));
+    }
+}
+
+/// `May` takes a verb: a subject after it needs a causative `have` (`you may have
+/// target creature get`, never `you may target creature gets` or `you may this turn`),
+/// and a duration never comes between them (`you may have this turn, …`).
+fn may_takes_a_verb(tokens: &[Token], at: usize, word: &str, found: &mut Found) {
+    let openers = [
+        "target",
+        "another",
+        "up",
+        "that",
+        "it",
+        "this",
+        "enchanted",
+        "equipped",
+        "until",
+        "the",
+        "a",
+        "an",
+        "its",
+        "their",
+        "your",
+        "other",
+    ];
+    let subject = word == "may" && openers.iter().any(|next| is(tokens, at + 1, next));
+    let duration = word == "have"
+        && at > 0
+        && is(tokens, at - 1, "may")
+        && (is(tokens, at + 1, "until")
+            || is(tokens, at + 1, "this") && is(tokens, at + 2, "turn"));
+    if subject || duration {
+        found.push(("may takes a verb", BROKEN, at));
     }
 }
 

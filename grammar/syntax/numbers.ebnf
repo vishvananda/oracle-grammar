@@ -242,20 +242,21 @@ value_difference ::= value_atom "minus" value
 value_constant ::= number_digits | number_words | number_x
 
 value_atom ::= value_cast_since_last_turn | value_chosen_creature_population | value_shared_countered | value_shared_other_four_subtypes | value_shared_saga_mana | value_times_mutated | value_your_life | mined_value | value_constant | value_number_of | value_power | value_toughness | value_mana_value | value_that_much | value_twice
-    | value_number_hand | value_number_graveyard | value_number_card_graveyard | value_number_card_hand
+    | value_number_cards | value_number_filtered_cards
     | value_life_lost | value_life_gained_turn | value_mana_spent | value_sacrificed | value_sacrificed_result | value_stat_of | value_number_on_battlefield | value_number_other
     | value_greatest | value_greatest_pair | value_colors_among | value_land_types_among | value_card_types_graveyard | value_devotion
-    | value_party | value_number_died | value_named_all | value_named_yours | value_all_graveyards
+    | value_party | value_number_died | value_named_all | value_named_yours
     | value_half | value_damage_dealt | value_self_stat | value_power_of_target | value_damage_already
     | value_cards_drawn | value_cards_discarded | value_died_yours | value_sacrificed_count | value_noun_stat | value_turns_begun
     | value_excess | value_colors_spent | value_damage_to_you | value_life_lost_all | value_damage_already_it
     | value_as_cast | value_graveyards_same_name | value_destroyed_yours | value_died_this_way | value_cards_with_cycling | value_spells_cast_by
-    | value_total_mana_population | value_total_mana_other_cast
-    | value_counters_on_object
+    | value_total_population | value_total_mana_other_cast
+    | value_counters_on_object | value_all_counters_on_object | value_player_counters | value_opponents
+    | value_differently_named | value_spells_you_cast | value_tokens_created
 
 /* Live objects and cast-event history are different populations. */
-/* @sem Expr::Aggregate{objects:$greatest_population, property:ManaValue, aggregation:Sum} */
-value_total_mana_population ::= "the" "total" "mana" "value" "of" greatest_population
+/* @sem Expr::Aggregate{objects:$greatest_population, property:$stat, aggregation:Sum} */
+value_total_population ::= "the" "total" stat "of" greatest_population
 
 /* @sem Expr::EventHistory{event:Spell{event:Cast, players:All, spells:@and(ObjectFilter::Not(SameObject(Source)), ObjectFilter::Cast{by:One(AbilityController)})}, window:ThisTurn, measure:Property(ManaValue, Sum)} */
 value_total_mana_other_cast ::= "the" "total" "mana" "value" "of" "other" "spells" "you've" "cast" "this" "turn"
@@ -281,17 +282,20 @@ value_that_much ::= "that" "much"
 /* @sem @times(Expr::Constant(2), $value) */
 value_twice ::= "twice" value
 
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One($zone_owner)}, kind:Card, filter:Any}) */
-value_number_hand ::= "the" "number" "of" "cards" "in" zone_owner "hand"
+/* @sem Expr::CountObjects(Zone{scope:$card_zone_scope, kind:Card, filter:Any}) */
+value_number_cards ::= "the" "number" "of" "cards" "in" card_zone_scope
 
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:Any}) */
-value_number_graveyard ::= "the" "number" "of" "cards" "in" zone_owner "graveyard"
+/* @sem Expr::CountObjects(Zone{scope:$card_zone_scope, kind:Card, filter:$card_filter}) */
+value_number_filtered_cards ::= "the" "number" "of" card_filter "cards" "in" card_zone_scope
 
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:$card_filter}) */
-value_number_card_graveyard ::= "the" "number" "of" card_filter "cards" "in" zone_owner "graveyard"
-
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One($zone_owner)}, kind:Card, filter:$card_filter}) */
-value_number_card_hand ::= "the" "number" "of" card_filter "cards" "in" zone_owner "hand"
+/* The cards of one player's named zone, or of every player's graveyard or hand. */
+card_zone_scope ::= card_zone_one | card_zone_all_graveyards | card_zone_all_hands
+/* @sem ZoneScope::Players{zone:$greatest_card_zone, players:One($player_possessive)} */
+card_zone_one ::= player_possessive greatest_card_zone
+/* @sem ZoneScope::Players{zone:Graveyard, players:All} */
+card_zone_all_graveyards ::= "all" "graveyards"
+/* @sem ZoneScope::Players{zone:Hand, players:All} */
+card_zone_all_hands ::= "all" "players'" "hands"
 
 /* @sem Expr::Performed(@prior) */
 value_life_lost ::= "the" "life" "lost" "this" "way"
@@ -331,10 +335,10 @@ greatest_population ::= greatest_battlefield | greatest_other_battlefield | grea
 greatest_battlefield ::= filter_plural
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(@it)), $filter_plural)} */
 greatest_other_battlefield ::= "other" filter_plural
-/* @sem ObjectSet::Zone{scope:Players{zone:$greatest_card_zone, players:One($zone_owner)}, kind:Card, filter:Any} */
-greatest_cards ::= "cards" "in" zone_owner greatest_card_zone
-/* @sem ObjectSet::Zone{scope:Players{zone:$greatest_card_zone, players:One($zone_owner)}, kind:Card, filter:$card_filter} */
-greatest_filtered_cards ::= card_filter "cards" "in" zone_owner greatest_card_zone
+/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:Any} */
+greatest_cards ::= "cards" "in" card_zone_scope
+/* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:$card_filter} */
+greatest_filtered_cards ::= card_filter "cards" "in" card_zone_scope
 
 greatest_card_zone ::= greatest_hand | greatest_graveyard | greatest_library
 /* @sem ZoneName::Hand */
@@ -380,9 +384,6 @@ value_named_all ::= "the" "number" "of" "cards" "named" SELF_NAME "in" "all" "gr
 
 /* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Name(@card_name)}) */
 value_named_yours ::= "the" "number" "of" "cards" "named" SELF_NAME "in" "your" "graveyard"
-
-/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:Any}) */
-value_all_graveyards ::= "the" "number" "of" "cards" "in" "all" "graveyards"
 
 /* @sem Expr::Divide{numerator:$value_atom, denominator:Expr::Constant(2), rounding:$rounding_words} */
 value_half ::= "half" value_atom "," rounding_words
@@ -569,3 +570,24 @@ sacrifice_history_one_or_more ::= "you" "sacrificed" "one" "or" "more" filter_pl
 /* The counters of a kind on one object. */
 /* @sem Expr::CountCounters(_{recipients:Objects(One($object_ref)), kind:$counter_kind, information:CurrentOrLastKnown}) */
 value_counters_on_object ::= "the" "number" "of" counter_kind "counters" "on" object_ref
+
+/* Every counter on the object, whatever its kind. */
+/* @sem Expr::CountCounters(_{recipients:Objects($affected), information:CurrentOrLastKnown}) */
+value_all_counters_on_object ::= "the" "number" "of" "counters" "on" affected
+
+/* Player counters are not counters on the source or on permanents. */
+/* @sem Expr::CountCounters{recipients:Players(One(PlayerRef::AbilityController)), kind:$counter_kind, information:CurrentOrLastKnown} */
+value_player_counters ::= "the" "number" "of" counter_kind "counters" "you" "have"
+
+/* @sem Expr::CountPlayers(OpponentsOf(PlayerRef::AbilityController)) */
+value_opponents ::= "the" "number" "of" "opponents" "you" "have"
+
+/* @sem Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, property:Names} */
+value_differently_named ::= "the" "number" "of" "differently" "named" filter_plural
+
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:Any}, window:ThisTurn, measure:Occurrences} */
+value_spells_you_cast ::= "the" "number" "of" "spells" "you've" "cast" "this" "turn"
+
+/* Every created object is a token, so the history names no further filter. */
+/* @sem Expr::EventHistory{event:Player{event:CreatesToken, players:One(PlayerRef::AbilityController), objects:Any}, window:ThisTurn, measure:Occurrences} */
+value_tokens_created ::= "the" "number" "of" "tokens" "you" "created" "this" "turn"

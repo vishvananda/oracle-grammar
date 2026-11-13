@@ -503,13 +503,19 @@ static_definition_during_turn ::= "during" "your" "turn" "," static_definition
 /* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
 static_definition_if ::= "as" "long" "as" condition "," static_definition
 
-replacement_ability ::= replacement_entry_condition | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_if | replacement_enters_counters_for_each
+replacement_ability ::= replacement_entry_condition | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_enters_counters_for_each
 
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetTapped(true)}}]}}) */
 replacement_enters_tapped ::= self_ref "enters" "tapped" "."
 
+/* @sem $replacement_enters_counters_clause */
+replacement_enters_counters ::= replacement_enters_counters_clause "."
+
+/* @sem Ability::@where($replacement_enters_counters_clause, $value) */
+replacement_enters_counters_where ::= replacement_enters_counters_clause "," "where" "X" "is" value "."
+
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$entry_counter_amount})}}]}}) */
-replacement_enters_counters ::= self_ref "enters" "with" entry_counter_amount counter_kind ("counter" | "counters") "on" "it" "."
+replacement_enters_counters_clause ::= self_ref "enters" "with" entry_counter_amount counter_kind ("counter" | "counters") "on" "it"
 
 /* The entering permanent's prospective controller supplies "you" in its
    replacement condition; a granted ability keeps its independent controller. */

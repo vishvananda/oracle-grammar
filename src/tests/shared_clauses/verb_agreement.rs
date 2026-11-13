@@ -29,6 +29,37 @@ fn becoming_agrees_with_the_head_of_its_subject() {
     // An infinitive or a subject `you` carries no agreement.
     assert!(agrees("target creature can't become tapped"));
     assert!(agrees("whenever you become the monarch"));
+    // A causative `have` takes the bare verb, whatever its object's number.
+    assert!(agrees(
+        "you may have your life total become the total toughness"
+    ));
+    assert!(!agrees(
+        "you may have your life total becomes the total toughness"
+    ));
+    assert!(agrees(
+        "you may have target creature get +2/+2 until end of turn"
+    ));
+}
+
+#[test]
+fn may_takes_a_verb_so_a_subject_after_it_needs_have() {
+    let verb = |text: &str| {
+        !breaches(&words(text), &[])
+            .iter()
+            .any(|(rule, _, _)| *rule == "may takes a verb")
+    };
+    assert!(!verb("you may target opponent loses 1 life"));
+    assert!(!verb("you may that player loses 1 life"));
+    assert!(!verb("you may this turn"));
+    assert!(!verb("you may until end of turn"));
+    assert!(!verb("you may have this turn"));
+    assert!(verb(
+        "you may have target creature get +2/+0 until end of turn"
+    ));
+    assert!(verb("you may have target opponent lose 1 life"));
+    assert!(verb(
+        "any number of target players may each search their library"
+    ));
 }
 
 #[test]
