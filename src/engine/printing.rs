@@ -29,6 +29,29 @@ pub struct Enumerated {
     pub work: Work,
 }
 
+impl Enumerated {
+    fn append(&mut self, other: Self) {
+        self.cut |= other.cut;
+        self.work.add(&other.work);
+        let mut seen: rustc_hash::FxHashMap<_, _> = self
+            .texts
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(at, text)| (text, at))
+            .collect();
+        for (text, trees) in other.texts.into_iter().zip(other.trees) {
+            if let Some(at) = seen.get(&text) {
+                self.trees[*at].extend(trees);
+            } else {
+                seen.insert(text.clone(), self.texts.len());
+                self.texts.push(text);
+                self.trees.push(trees);
+            }
+        }
+    }
+}
+
 impl Engine {
     /// Where a change to some abilities stops them printing: the deepest value on the way
     /// to the change that printed before it and does not now. Each is a rule that holds
@@ -99,6 +122,18 @@ impl Engine {
         Ok(surfaces.into_iter().map(Value::Array).collect())
     }
 
+    pub(super) fn native_surfaces(abilities: &Value) -> Result<Vec<Value>, String> {
+        let mut surfaces = Self::surfaces(abilities)?;
+        // Closed declarations can already carry native slots and result IDs.
+        // Their canonical inverse must also see the current native operands,
+        // before lexical unbinding replaces those identities with references.
+        let native = canonical_abilities(abilities)?;
+        if !surfaces.contains(&native) {
+            surfaces.push(native);
+        }
+        Ok(surfaces)
+    }
+
     /// Texts for abilities that reparse to the same IR, in preference order.
     pub fn render(
         &self,
@@ -150,6 +185,7 @@ impl Engine {
         limits: (usize, usize),
         key: &[String],
     ) -> Result<Vec<String>, String> {
+        super::validate_abilities(abilities)?;
         let texts = self.verified_whole(name, abilities, types, limits, key)?;
         if !texts.is_empty() {
             return Ok(texts);
@@ -187,31 +223,40 @@ impl Engine {
         let wanted = canonical_abilities(abilities)?;
         // Wrong guesses at a reference can fill a narrow beam, so widen it on failure. A
         // wider beam prints most of the same texts, and a text that failed still fails.
-        let mut failed = rustc_hash::FxHashSet::default();
-        for width in WIDTHS {
-            let printed = self.enumerated(name, abilities, types, cap * width, key)?;
-            let mut out = Vec::new();
-            for (text, trees) in printed.texts.into_iter().zip(&printed.trees) {
-                if failed.contains(&text) {
-                    continue;
+        // Keep native inverse views in their own pass: extra guesses must not
+        // consume the lexical pass's reparse allowance or hide a verified text.
+        for native in [true, false] {
+            let mut failed = rustc_hash::FxHashSet::default();
+            for width in WIDTHS {
+                let printed =
+                    self.enumerated_view(name, abilities, types, (cap * width, key, native))?;
+                let mut out = Vec::new();
+                for (text, trees) in printed.texts.into_iter().zip(&printed.trees) {
+                    if failed.contains(&text) {
+                        continue;
+                    }
+                    // A tree says what its text means with no search, so a wrong one costs
+                    // little. But a text can read some other way than the tree that printed
+                    // it, so the first few that fail are read anyway. Whatever passes has
+                    // been read back as a text, either way.
+                    let worth_reading =
+                        failed.len() < READ_ANYWAY || self.means(name, trees, &wanted);
+                    if worth_reading && self.reads_as(name, &text, &wanted) {
+                        out.push(text);
+                    } else {
+                        failed.insert(text);
+                    }
+                    if out.len() >= most {
+                        break;
+                    }
                 }
-                // A tree says what its text means with no search, so a wrong one costs
-                // little. But a text can read some other way than the tree that printed
-                // it, so the first few that fail are read anyway. Whatever passes has
-                // been read back as a text, either way.
-                let worth_reading = failed.len() < READ_ANYWAY || self.means(name, trees, &wanted);
-                if worth_reading && self.reads_as(name, &text, &wanted) {
-                    out.push(text);
-                } else {
-                    failed.insert(text);
+                if !out.is_empty() {
+                    return Ok(out);
                 }
-                if out.len() >= most {
+                // Widen only a truncated beam, then try the other view.
+                if !printed.cut {
                     break;
                 }
-            }
-            // A beam that dropped nothing has nothing more to find when it is wider.
-            if !out.is_empty() || !printed.cut {
-                return Ok(out);
             }
         }
         Ok(Vec::new())
@@ -298,7 +343,25 @@ impl Engine {
         cap: usize,
         key: &[String],
     ) -> Result<Enumerated, String> {
-        self.enumerated_surfaces(self.root, Self::surfaces(abilities)?, name, types, cap, key)
+        super::validate_abilities(abilities)?;
+        let mut printed = self.enumerated_view(name, abilities, types, (cap, key, false))?;
+        printed.append(self.enumerated_view(name, abilities, types, (cap, key, true))?);
+        Ok(printed)
+    }
+
+    fn enumerated_view(
+        &self,
+        name: &str,
+        abilities: &Value,
+        types: &[String],
+        (cap, key, native): (usize, &[String], bool),
+    ) -> Result<Enumerated, String> {
+        let surfaces = if native {
+            Self::native_surfaces(abilities)?
+        } else {
+            Self::surfaces(abilities)?
+        };
+        self.enumerated_settings(self.root, surfaces, name, types, (cap, key, native))
     }
 
     pub(super) fn enumerated_surfaces(
@@ -310,6 +373,17 @@ impl Engine {
         cap: usize,
         key: &[String],
     ) -> Result<Enumerated, String> {
+        self.enumerated_settings(root, surfaces, name, types, (cap, key, true))
+    }
+
+    fn enumerated_settings(
+        &self,
+        root: u32,
+        surfaces: Vec<Value>,
+        name: &str,
+        types: &[String],
+        (cap, key, native): (usize, &[String], bool),
+    ) -> Result<Enumerated, String> {
         let names = Names::of(name);
         let named: rustc_hash::FxHashSet<(u32, usize)> = key
             .iter()
@@ -320,6 +394,7 @@ impl Engine {
             .collect();
         let mut printed: Vec<(f32, Vec<tokens::Token>, Option<Rc<Node>>)> = Vec::new();
         let mut renderer = Renderer::new(&self.grammar, &self.style, cap, types.to_vec())
+            .with_literal_inverses(native)
             .with_key(named)
             .with_name(name)
             .with_self_name(names.printed(types));
@@ -362,7 +437,14 @@ impl Engine {
         abilities: &Value,
         text: &str,
     ) -> Result<Option<Vec<String>>, String> {
-        self.surface_key(self.root, Self::surfaces(abilities)?, name, text, false)
+        super::validate_abilities(abilities)?;
+        self.surface_key(
+            self.root,
+            Self::native_surfaces(abilities)?,
+            name,
+            text,
+            false,
+        )
     }
 
     /// Every production choice, including repeated choices and name spelling.
@@ -372,7 +454,14 @@ impl Engine {
         abilities: &Value,
         text: &str,
     ) -> Result<Option<Vec<String>>, String> {
-        self.surface_key(self.root, Self::surfaces(abilities)?, name, text, true)
+        super::validate_abilities(abilities)?;
+        self.surface_key(
+            self.root,
+            Self::native_surfaces(abilities)?,
+            name,
+            text,
+            true,
+        )
     }
 
     pub(super) fn surface_key(
@@ -418,8 +507,11 @@ impl Engine {
         abilities: &Value,
         trail: &[String],
     ) -> Result<Option<String>, String> {
+        super::validate_abilities(abilities)?;
         let wanted = canonical_abilities(abilities)?;
-        for text in self.replayed_surfaces(self.root, Self::surfaces(abilities)?, name, trail)? {
+        for text in
+            self.replayed_surfaces(self.root, Self::native_surfaces(abilities)?, name, trail)?
+        {
             if self.reads_as(name, &text, &wanted) {
                 return Ok(Some(text));
             }
@@ -490,11 +582,12 @@ impl Engine {
         abilities: &Value,
         types: &[String],
     ) -> Result<Vec<String>, String> {
+        super::validate_abilities(abilities)?;
         let mut out = Vec::new();
         let mut renderer = Renderer::new(&self.grammar, &self.style, 8, types.to_vec())
             .with_name(name)
             .with_self_name(Names::of(name).printed(types));
-        for surface in Self::surfaces(abilities)? {
+        for surface in Self::native_surfaces(abilities)? {
             if let Some(best) = renderer.render(self.root, &surface).first() {
                 out.extend(
                     best.productions
@@ -511,10 +604,11 @@ impl Engine {
     }
 
     pub fn renders_to(&self, name: &str, abilities: &Value, text: &str) -> Result<bool, String> {
+        super::validate_abilities(abilities)?;
         let names = Names::of(name);
         let target = tokens::tokenize(text, &names, &self.grammar.vocabulary)?;
         let mut matcher = Matcher::new(&self.grammar, &target);
-        for surface in Self::surfaces(abilities)? {
+        for surface in Self::native_surfaces(abilities)? {
             if matcher.reaches(self.root, &surface) {
                 return Ok(true);
             }

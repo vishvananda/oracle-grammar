@@ -86,6 +86,7 @@ pub struct Renderer<'a> {
     name: Option<HashSet<String>>,
     /// The card's name itself, which `named <this card>` says and no other name does.
     card_name: Option<String>,
+    literal_inverses: bool,
 }
 
 impl<'a> Renderer<'a> {
@@ -108,6 +109,7 @@ impl<'a> Renderer<'a> {
             context: 0,
             name: None,
             card_name: None,
+            literal_inverses: true,
         }
     }
 
@@ -121,6 +123,11 @@ impl<'a> Renderer<'a> {
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = Some(words::name_words(name));
         self.card_name = Some(name.to_string());
+        self
+    }
+
+    pub(crate) fn with_literal_inverses(mut self, enabled: bool) -> Self {
+        self.literal_inverses = enabled;
         self
     }
 
@@ -280,7 +287,7 @@ impl<'a> Renderer<'a> {
         let mut opens = Vec::new();
         match &definition.sem {
             Some(pattern) => {
-                let mut solutions = pattern.unify(value, Bindings::new());
+                let mut solutions = grammar.print_unify(rule, value, self.literal_inverses);
                 // `named <this card>` says this card's name and no other.
                 solutions.retain(|bindings| {
                     let said = bindings.get(crate::pattern::CARD_NAME);
@@ -579,8 +586,8 @@ impl<'a> Matcher<'a> {
         let held = steps.len();
         let mut found = false;
         match &definition.sem {
-            Some(pattern) => {
-                let solutions = pattern.unify(value, Bindings::new());
+            Some(_) => {
+                let solutions = grammar.print_unify(rule, value, true);
                 'alternatives: for (index, alternative) in
                     definition.alternatives.iter().enumerate()
                 {
@@ -677,8 +684,8 @@ impl<'a> Matcher<'a> {
         let definition = &grammar.rules[rule as usize];
         let mut out = Vec::new();
         match &definition.sem {
-            Some(pattern) => {
-                let solutions = pattern.unify(value, Bindings::new());
+            Some(_) => {
+                let solutions = grammar.print_unify(rule, value, true);
                 for alternative in &definition.alternatives {
                     for bindings in &solutions {
                         out.extend(self.sequence(alternative, bindings, at));

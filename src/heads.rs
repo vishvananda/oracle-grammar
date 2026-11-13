@@ -199,6 +199,10 @@ impl Net {
     }
 
     pub fn build(rules: &[Rule]) -> Self {
+        Self::with_inverses(rules, &HashMap::default())
+    }
+
+    pub(crate) fn with_inverses(rules: &[Rule], inverses: &HashMap<RuleId, Pattern>) -> Self {
         let mut net = Self {
             holes: vec![NONE],
             parents: vec![Vec::new(); rules.len()],
@@ -213,6 +217,11 @@ impl Net {
                     if matches!(path.first(), Some(Step::Hole)) {
                         seeds.push(id);
                     } else {
+                        net.insert(id, &path);
+                    }
+                    if let Some(inverse) = inverses.get(&id) {
+                        let mut path = Vec::new();
+                        net.pattern_path(inverse, &mut path);
                         net.insert(id, &path);
                     }
                 }

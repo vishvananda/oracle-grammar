@@ -3,6 +3,15 @@
 This work continues the generic `where X is` batch after rebasing onto
 `3288e6d` from `origin/main`.
 
+The subsequent [closed-literal inverse batch](literal-inverse-printing.md)
+brings the published printing-gap cohort to 51 additional printable faces and
+123 exact-wording recoveries, including the preceding Gift batch's Lilysplash
+Mentor recovery. It preserves all 33,910 current native readings.
+It changes no grammar productions, AST schema or reference records; the seeded
+inventory remains 12,002. The compiler derives native inverse views from the
+existing declarations, supporting continued simplification without retaining
+original text as a hidden operand.
+
 ## Grammar changes
 
 Shared card-zone phrases replace separate hand and graveyard value productions.

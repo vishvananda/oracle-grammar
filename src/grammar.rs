@@ -8,6 +8,8 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::ops::Range;
 use tabnas_ebnf::{Element, Kind, Production};
 
+mod literal_inverse;
+
 pub type RuleId = u32;
 
 /// One token class of `lexical.ebnf`; the tokenizer produces exactly these.
@@ -46,6 +48,30 @@ pub struct Rule {
     pub prefer: Vec<String>,
 }
 
+impl Grammar {
+    pub(crate) fn print_unify<'p, 'v>(
+        &'p self,
+        rule: RuleId,
+        value: &'v serde_json::Value,
+        native: bool,
+    ) -> Vec<pattern::Bindings<'p, 'v>> {
+        let Some(pattern) = &self.rules[rule as usize].sem else {
+            return Vec::new();
+        };
+        let mut solutions = pattern.unify(value, pattern::Bindings::new());
+        if native
+            && solutions.is_empty()
+            && self
+                .literal_inverses
+                .get(&rule)
+                .is_some_and(|inverse| !inverse.unify(value, pattern::Bindings::new()).is_empty())
+        {
+            solutions.push(pattern::Bindings::new());
+        }
+        solutions
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct Grammar {
     pub rules: Vec<Rule>,
@@ -61,6 +87,8 @@ pub struct Grammar {
     pub presentation_labels: Vec<String>,
     /// How rules say the card, for printing.
     pub(crate) words: crate::render::words::Words,
+    /// Checked native views of closed literal declarations, derived from `sem`.
+    pub(crate) literal_inverses: HashMap<RuleId, Pattern>,
 }
 
 /// Whether a rule was seeded from cards rather than written: named `m_` or `t_`.
@@ -388,7 +416,8 @@ pub fn load(lexical: &str, syntax: &[(&str, &str)], schema: &Schema) -> Result<G
     }
     finish(&mut grammar)?;
     grammar.fingerprint = fingerprint(&sources);
-    grammar.net = crate::heads::Net::build(&grammar.rules);
+    grammar.literal_inverses = literal_inverse::prepare(&grammar.rules);
+    grammar.net = crate::heads::Net::with_inverses(&grammar.rules, &grammar.literal_inverses);
     grammar.words = crate::render::words::Words::build(&grammar.rules);
     if let Some((_, source)) = syntax.iter().find(|(name, _)| *name == "labels") {
         grammar.presentation_labels = presentation_labels(source)?;

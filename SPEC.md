@@ -203,6 +203,14 @@ Printed candidates pass semantic reparse before being accepted as verified
 prints. Exact preservation of the original text is a separate gate. A
 meaning-preserving canonical spelling need not be byte-identical to Oracle.
 
+Closed literal ability declarations also expose a checked canonical inverse
+view, derived from their sole `@sem` meaning. It preserves access to literal
+wording after group flattening and result-ID normalization. Holes, symbolic
+functions and dynamic token classes are excluded; matching still uses current
+operands and verified printing still reparses the complete output. This is an
+inverse view, not an AST or reference normalization. See
+[closed literal printing](docs/literal-inverse-printing.md).
+
 ## Validation and reference inputs
 
 The model and validation reference have separate provenance. `Cargo.lock` owns

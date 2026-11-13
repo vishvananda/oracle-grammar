@@ -317,7 +317,7 @@ impl Engine {
             }
         }
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
-        Ok(Self::surfaces(&reading.abilities)?
+        Ok(Self::native_surfaces(&reading.abilities)?
             .into_iter()
             .map(|abilities| json!({"notes":notes,"land_mana":land_mana,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())

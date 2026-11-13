@@ -74,7 +74,7 @@ impl Engine {
         reading.canonical()?;
         self.card_context(context)?;
         let (root, surfaces) = if reading.notes.is_empty() {
-            (self.root, Self::surfaces(&reading.abilities)?)
+            (self.root, Self::native_surfaces(&reading.abilities)?)
         } else {
             (self.card_root()?, self.card_surfaces(reading, context)?)
         };

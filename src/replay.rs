@@ -59,7 +59,7 @@ impl<'a> Replay<'a> {
         let Some(alternative) = definition.alternatives.get(index) else {
             return false;
         };
-        let Some(pattern) = &definition.sem else {
+        let Some(_) = &definition.sem else {
             return match alternative.syms.first() {
                 Some(Sym::Rule(child)) => self.node(*child, value),
                 Some(sym) => self.terminal(sym, Some(value)),
@@ -68,7 +68,7 @@ impl<'a> Replay<'a> {
         };
         // A pattern with a splice can bind more than one way; the trail decides which.
         let (left, written, spellings) = (self.left, self.out.len(), self.spellings);
-        for bindings in pattern.unify(value, Bindings::new()) {
+        for bindings in grammar.print_unify(rule, value, true) {
             if self.symbols(rule, index, &bindings) {
                 return true;
             }
