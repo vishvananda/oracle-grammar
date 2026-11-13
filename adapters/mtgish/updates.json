@@ -793,6 +793,16 @@
         {"face":"Zombie Assassin","path":[0,"args","cost","parts",1,"Move","selections",0,"objects"],"from":{"kind":"Zone","args":{"scope":{"Players":{"zone":"Graveyard","players":{"kind":"All"}}},"kind":"Card","filter":{"kind":"InZone","args":{"Players":{"zone":"Graveyard","players":{"kind":"One","args":{"kind":"AbilityController"}}}}}}},"to":{"kind":"Zone","args":{"scope":{"Players":{"zone":"Graveyard","players":{"kind":"One","args":{"kind":"AbilityController"}}}},"kind":"Card","filter":{"kind":"Any"}}}},
         {"face":"Zombie Mob","path":[1,"args","body","instructions",0,"args","operation","args","objects"],"from":{"kind":"Zone","args":{"scope":{"Players":{"zone":"Graveyard","players":{"kind":"All"}}},"kind":"Card","filter":{"kind":"AllOf","args":[{"kind":"CardType","args":"Creature"},{"kind":"InZone","args":{"Players":{"zone":"Graveyard","players":{"kind":"One","args":{"kind":"AbilityController"}}}}}]}}},"to":{"kind":"Zone","args":{"scope":{"Players":{"zone":"Graveyard","players":{"kind":"One","args":{"kind":"AbilityController"}}}},"kind":"Card","filter":{"kind":"CardType","args":"Creature"}}}}
       ]
+    },
+    {
+      "id": "U0011",
+      "kind": "correction",
+      "summary": "High Tide and Bubbling Muck give bonus mana to the player who tapped the land.",
+      "evidence": "The immutable allowed Oracle text says: Until end of turn, whenever a player taps an Island/a Swamp for mana, that player adds an additional mana of the named color. The CreateTrigger event records TapsForMana with players All. That player therefore refers to this event\u2019s tapping player (PlayerRef::EventSubject), not to the controller of the spell or its delayed triggered ability (PlayerRef::AbilityController). The seeded m_until_end_of_turn_event_clause_that_player hardcoded the latter. Replace only the AddMana player leaf; preserve the delayed event, its filter, duration, announcement, results, mana color and quantity. The shared scoped trigger grammar already binds the written player correctly. Existing AST types suffice; no schema, model pin or reference lock change. This is a semantic correction, not a canonicalization alias between the two player identities. See docs/grammar-simplification-20261113.md.",
+      "changes": [
+        {"face":"Bubbling Muck","path":[0,"args","body","instructions",0,"args","operation","args","body","instructions",0,"args","operation","args","players","args"],"from":{"kind":"AbilityController"},"to":{"kind":"EventSubject"}},
+        {"face":"High Tide","path":[0,"args","body","instructions",0,"args","operation","args","body","instructions",0,"args","operation","args","players","args"],"from":{"kind":"AbilityController"},"to":{"kind":"EventSubject"}}
+      ]
     }
   ]
 }

@@ -208,6 +208,19 @@ pub(crate) fn checked_call(
     Ok(None)
 }
 
+fn counter_payment_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    let [kind] = args else {
+        return Err("@activation_removed_counters needs one CounterKind".into());
+    };
+    if *ty != Ty::Named("Expr".into()) {
+        return Err("@activation_removed_counters produces Expr".into());
+    }
+    Ok(Pattern::Symbol(
+        "activation_removed_counters".into(),
+        vec![elaborate(kind, &Ty::Named("CounterKind".into()), schema)?],
+    ))
+}
+
 fn arrival_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
     let operation = Ty::Named("Operation".into());
     if *ty != operation {
@@ -521,6 +534,7 @@ fn specialized_call(
     }
 
     match name {
+        "activation_removed_counters" => counter_payment_call(args, ty, schema).map(Some),
         "enchanted_creature_operand" => {
             let [reference] = args else {
                 return Err("@enchanted_creature_operand needs one ObjectRef".into());

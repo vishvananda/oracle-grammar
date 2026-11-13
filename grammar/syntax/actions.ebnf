@@ -1,7 +1,11 @@
 /* One-step actions, mana and counters. */
 
 /* @sem Operation::AddMana{players:One(PlayerRef::AbilityController), mana:$mana_production} */
-add_mana ::= "add" mana_production
+add_mana ::= "add" ("an" "additional")? mana_production
+
+/* The named player receives the mana; the ability controller need not do so. */
+/* @sem Operation::AddMana{players:$players_singular, mana:$mana_production} */
+add_mana_player ::= players_singular "adds" ("an" "additional")? mana_production
 
 mana_production ::= mana_bundle | mana_or | mana_or_list | mana_any_color | mana_any_one_color
 
@@ -107,7 +111,7 @@ action ::= keyword_action | return_card_attached_to_created_token | remove_from_
     | remove_counters_from_affected | remove_all_counters_from_affected | put_that_many_counters
     | double_counters | put_counter_for_each | recipients_gets_counter | recipients_get_counter
     | recipients_gets_counters | support_action | choose_a_color | choose_a_card_name
-    | choose_cards_in_hand | flip_a_coin | add_mana_for_affected | add_mana_for_each
+    | choose_cards_in_hand | flip_a_coin | add_mana_player | add_mana_for_affected | add_mana_for_each | add_mana_for_removed_counters | add_alternative_mana_for_removed_counters
     | add_mana_of_chosen_color | add_mana_any_combination | add_mana_amount_equal
     | create_tokens_tapped_attacking | abandon_this_scheme | you_gain_life | deal_damage_equal_counters
     | deal_damage_split_two | exile_target_players_graveyard
@@ -1603,7 +1607,15 @@ add_mana_for_affected ::= "add" mana_for_each_existing "for" affected
 
 /* Mana for each counted thing. */
 /* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$count_each, production:$mana_for_each_existing, choice:Once}} */
-add_mana_for_each ::= "add" mana_for_each_existing "for" "each" count_each
+add_mana_for_each ::= "add" ("an" "additional")? mana_for_each_existing "for" "each" count_each
+
+/* This quantity is an actual payment receipt, never the number requested or
+   the counters remaining on the object. Binding proves its current component. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:@activation_removed_counters($counter_kind), production:$mana_for_each_existing, choice:Once}} */
+add_mana_for_removed_counters ::= "add" ("an" "additional")? mana_for_each_existing "for" "each" counter_kind "counter" "removed" "this" "way"
+
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:@activation_removed_counters($counter_kind), production:$mana_each_alternatives, choice:EachUnit}} */
+add_alternative_mana_for_removed_counters ::= "add" ("an" "additional")? mana_each_alternatives "for" "each" counter_kind "counter" "removed" "this" "way"
 
 /* Mana of the chosen color. */
 /* @sem Operation::AddMana{players:One(AbilityController), mana:Amount{color:Chosen, amount:$value}} */

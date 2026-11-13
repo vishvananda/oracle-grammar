@@ -855,6 +855,9 @@ mod where_branches;
 #[path = "shared_clauses/linked_stats.rs"]
 mod linked_stats;
 
+#[path = "shared_clauses/counter_mana.rs"]
+mod counter_mana;
+
 #[path = "shared_clauses/snapshot_pumps.rs"]
 mod snapshot_pumps;
 

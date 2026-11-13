@@ -11,6 +11,7 @@ pub(crate) mod chosen_kinds;
 mod combat;
 mod conditional;
 mod controller_role;
+mod counter_payment;
 mod created;
 mod damage_actor;
 pub(crate) mod damage_reflexive;
@@ -621,6 +622,7 @@ fn bind_marker(
     introduced: &[references::TargetIntroduction],
 ) -> Result<bool, String> {
     Ok(activation_property::marker(root, scope, path, name)?
+        || counter_payment::marker(root, path, name)?
         || damage_reflexive::bind_marker(root, scope, path, name, introduced)?
         || move_after::bind_marker(root, scope, path, name, introduced)?
         || reflexive_receipts::marker(root, scope, path, name, introduced)?
@@ -1077,6 +1079,9 @@ fn own_forms(ability: &Value) -> Vec<Value> {
         ability = &plain;
     }
     let mut forms = spelled_forms(ability);
+    if let Ok(Some(receipts)) = counter_payment::surface(ability) {
+        forms.extend(spelled_forms(&receipts));
+    }
     if let Ok(Some(attached)) = attached_counter_other::surface(ability) {
         forms.extend(spelled_forms(&attached));
     }

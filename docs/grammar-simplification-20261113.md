@@ -623,3 +623,93 @@ and no additional semantic differences. All 495 normalized sites preserve their
 meanings, every current reading remains valid/canonical, and all current gold
 is valid and canonically idempotent. Final `tools/dev.py check` passes all eight
 gates after U0010, reusing the compiled helpers without a compiler/model change.
+
+## Counter payments, additional mana and delayed-player identity
+
+Shared counter-removal costs and mana clauses replace nine seeded productions.
+`add_mana` accepts the written additional-mana modifier; a named-player action
+keeps its complete PlayerSet and mana production. A filtered permanent can be
+tapped for mana with either article. Removal costs retain the chooser, recipient,
+counter kind and AnyNumber choice. Explicit alternative mana bundles remain
+independent choices per removed counter (`EachUnit`), while the established
+fixed/any-color forms retain their existing choice timing.
+
+`@activation_removed_counters(CounterKind)` is a typed Expr annotation. Binding
+proves one matching direct RemoveCounters component in this activation's cost
+and emits PaidCountersRemoved with its actual component address. It measures the
+paid count, not the requested amount or remaining counters. Every removal within
+that component must name the same kind. Mixed or unspecified kinds, duplicate
+matching components, unsupported payment compositions, intervening non-mana
+instructions and other lexical scopes are refused. Different homogeneous kinds
+in separate components can be distinguished. The helper's byte/node/depth bounds
+run before cost decoding or traversal.
+
+The inverse adds a private surface view only after recovering the counter kind
+from the current typed payment component and proving that rebinding reproduces
+the exact current receipt. Edited tests change the cost order, counter kind and
+produced color, then print and reparse. Saved wording supplies no operand.
+The current allowed counter-mana cohort has a uniform activation-receipt shape;
+no counter-payment reference normalization was necessary. Resolution receipts,
+including Tetravus's optional payment, remain separate.
+
+U0011 is a **semantic correction**, affecting High Tide and Bubbling Muck. Their
+text explicitly gives bonus mana to the player who tapped the matching land.
+The old `m_until_end_of_turn_event_clause_that_player` instead hardcoded the
+ability controller. Replace only AddMana's PlayerRef leaf with EventSubject,
+the tapping player bound by the delayed TapsForMana event. The shared scoped
+trigger grammar already expresses this identity. Preserve the event filter,
+duration, announcement, results, mana color and quantity. This changes an AST
+operand, with no new AST type/schema, model pin or reference lock. Do not
+canonicalize EventSubject and AbilityController as equivalent. Update evidence
+and both exact before/after leaves are recorded in adapters/mtgish/updates.json.
+
+Retired productions (122 cumulative, 12,085 remain):
+
+- m_remove_any_number_of_counter_kind_counters_from
+- m_add_mana_production_for_each_storage_counter_removed
+- m_add_an_additional_mana_production_for_each_charge
+- m_add_an_additional_mana_production
+- m_its_controller_adds_an_additional_mana_production
+- m_a_filter_phrase_is_tapped_for_mana
+- m_an_filter_phrase_is_tapped_for_mana
+- m_players_singular_adds_mana_production
+- m_until_end_of_turn_event_clause_that_player
+
+All eight `tools/dev.py check` gates pass: 742 frontend tests pass, one remains
+ignored; model-package ignores are unchanged; Python's 70 tests, formatting,
+Clippy, pins, hygiene and registered families pass. Eight new Rust regressions
+cover current operands, payment indices, color choices, player identity,
+refusals, ambiguous/mixed components and bounds. The new compositional family
+passes 13 cases: nine expected IRs with exact keyed and verified default printing,
+and four refusals. The 39-face affected cohort remains equal and single-reading,
+with 39 exact keyed and verified default prints, seven exact defaults, and 32
+compositional faces. Its 381 generated candidates include 309 semantic reparses.
+A comparison using the previous runtime grammar with the current helper retains
+all flags; only the five Mana Batteries' default wording changes to two sentences.
+This comparison is not a timing benchmark or a previous-binary measurement.
+
+Full allowed-population score: 32,755 equal, 31,680 single-reading faces, 33,921
+readings. The rule audit reaches 19,803 compositional faces, up 35; 12,083 seeds
+are needed, with the same two protected unused rules and four attribution
+limitations, and no at-risk faces. Retain both protected edited-print rules.
+The shared PlayerSet mana action preserves Yurlok's existing two representations
+of its fixed universal mana action; this batch does not silently discard either.
+A future normalization should prove that pure fixed-mana loop/All forms share
+one meaning, including result visibility and invalid-operand preservation.
+
+All 32,755 original and canonical gold records validate; canonical gold is
+idempotent. All 33,921 current readings validate and are canonical. Strict native
+preservation intentionally exits with failure for exactly the two replaced
+High Tide/Bubbling Muck readings. Each gains exactly one corrected reading;
+no other loss, addition or shape merge occurs. Their old implicit singleton
+operands were materialized from the verified pre-update gold. The two corrections
+are single-leaf changes, not equality aliases. This audit is not an unconditional
+strict-preservation pass.
+
+The final 3,275-face print sample retains all statuses, reading counts, 3,196
+exact keyed prints and 3,221 verified defaults. Exact default prints decrease
+2,232 to 2,231: corrected Bubbling Muck now defaults to "that player adds {B}"
+without "an additional"; its exact wording remains available with a key. No other
+sample default changes. Candidate enumeration is 43,410 generated / 31,365
+semantically reparsed. Failed alternatives remain separately reported. No timing
+or allocation improvement is claimed; diagnostic helpers use the quick profile.
