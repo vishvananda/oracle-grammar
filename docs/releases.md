@@ -19,6 +19,7 @@ python3 tools/releases.py verify .cache/release-code
 ```
 
 This verifies all three actual Cargo packages, builds the portable export tools,
+runs compositional family gates and a synthetic native-CLI smoke test,
 and creates the `.crate` files, modular grammar archive, flattened EBNF,
 `manifest.json` and `SHA256SUMS`. The model dependencies are packaged with the
 grammar release so their precise bytes are independently inspectable. Full

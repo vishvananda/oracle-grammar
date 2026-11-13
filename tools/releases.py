@@ -128,9 +128,24 @@ def environment():
 def build():
     env = environment()
     subprocess.run(['cargo', 'build', '--locked', '--release', '--features', 'cli,embedded-grammar',
-                    '--bin', 'native-export', '--bin', 'grammar-export'], cwd=ROOT, env=env, check=True)
+                    '--bin', 'native-export', '--bin', 'grammar-export', '--bin', 'family-check'], cwd=ROOT, env=env, check=True)
     info = json.loads(run('cargo', 'metadata', '--locked', '--no-deps', '--format-version=1'))
     return Path(info['target_directory'])/'release'
+
+
+def native_smoke(binaries):
+    fixture = [{'oracle_id': 'synthetic-draw', 'name': 'Synthetic draw', 'layout': 'normal',
+                'type_line': 'Instant', 'mana_cost': '{U}', 'oracle_text': 'Draw a card.'},
+               {'oracle_id': 'synthetic-refusal', 'name': 'Synthetic refusal', 'layout': 'normal',
+                'type_line': 'Instant', 'oracle_text': 'Nonsense not in Oracle.'}]
+    with tempfile.TemporaryDirectory() as directory:
+        source, result = Path(directory)/'source.json', Path(directory)/'outcomes.jsonl'
+        source.write_bytes(json_bytes(fixture))
+        subprocess.run([str(binaries/'native-export'), str(source), str(result)],
+                       cwd=directory, env=environment(), check=True)
+        rows = [json.loads(line) for line in result.read_text().splitlines()]
+    if [r['status'] for r in rows] != ['unique', 'refused']:
+        raise ValueError('packaged native CLI recognition/refusal smoke test failed')
 
 
 def code(out, tag):
@@ -140,6 +155,10 @@ def code(out, tag):
     env = environment()
     subprocess.run(['cargo', 'package', '--locked', '--workspace'], cwd=ROOT, env=env, check=True)
     binaries = build()
+    families = json.loads((ROOT/'tests/families.json').read_text())
+    subprocess.run([str(binaries/'family-check'), *families, '--compositional'],
+                   cwd=ROOT, env=env, check=True)
+    native_smoke(binaries)
     target = binaries.parent
     out = fresh(out)
     for package, version in meta['model']['packages'].items():
