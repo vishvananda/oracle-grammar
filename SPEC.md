@@ -113,6 +113,23 @@ choices, dynamic values, chosen colors, zero amounts and overflow are excluded.
 Printing can remove one unit at a time in every available color order, so keys
 retain exact symbol order while edited counts print from their current values.
 
+A trailing mana spending sentence qualifies one explicit mana clause, including
+its optional choice or both arms of a conditional replacement. The structural
+lens accepts only single-instruction Programs of AddMana, Optional and If;
+it preserves deciders, recipients, conditions, mana operands and result IDs.
+It refuses other actions, scopes, sequential programs and prequalified leaves.
+The inverse requires the same nonnull restriction on every alternative before
+removing it for the shared sentence. Both directions bound bytes, nodes, depth
+and producer count.
+
+Alternative CastSpell payment predicates normalize to one CastSpell with
+alternative ObjectFilters. Only nonempty Either lists containing exclusively
+CastSpell arms qualify. Mixed payment actions and ability source domains remain
+distinct. Whole filters and their typed ID origins move intact after their
+single canonical visit. Singular spell phrases can share one cast verb; their
+filter union inverse enumerates every nonempty partition, bounded to ten filters,
+so exact wording and edited operands do not depend on the original grouping.
+
 ## Printing
 
 Printing uses the current operands of an edited or synthesized IR. A saved

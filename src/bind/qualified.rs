@@ -346,6 +346,16 @@ fn qualify_print(value: &mut Value, descriptions: &[Referent], seen: &mut bool) 
     if super::opens_scope(value) {
         return;
     }
+    // A predicate can repeat its event's introduced noun before any token
+    // creation. Qualify just that object operand; embedded controller/owner
+    // references keep their independent possessive wording in the same form.
+    if value["kind"] == "ObjectMatches"
+        && let Some(object) = value.pointer_mut("/args/object")
+        && let Some(entry) = descriptions.iter().find(|entry| entry.reference == *object)
+        && let Some(spelling) = spelling(entry)
+    {
+        *object = spelling;
+    }
     // A target introduction already contains its symbolic slot marker, so
     // only plain later uses match these descriptions. Reparsing proves which
     // noun is valid after intervening targets/actions.

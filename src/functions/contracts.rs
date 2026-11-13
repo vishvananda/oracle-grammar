@@ -208,6 +208,35 @@ pub(crate) fn checked_call(
     Ok(None)
 }
 
+fn filter_union_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    if args.len() != 2 || *ty != Ty::Named("ObjectFilter".into()) {
+        return Err("@or needs two ObjectFilters and produces ObjectFilter".into());
+    }
+    Ok(Pattern::Symbol(
+        "or".into(),
+        args.iter()
+            .map(|a| elaborate(a, ty, schema))
+            .collect::<Result<_, _>>()?,
+    ))
+}
+
+fn restricted_mana_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    let instructions = Ty::Vec(Box::new(Ty::Named("Instruction".into())));
+    let [body, restriction] = args else {
+        return Err("@restricted_mana needs instructions and ManaUse".into());
+    };
+    if *ty != instructions {
+        return Err("@restricted_mana produces instructions".into());
+    }
+    Ok(Pattern::Symbol(
+        "restricted_mana".into(),
+        vec![
+            elaborate(body, &instructions, schema)?,
+            elaborate(restriction, &Ty::Named("ManaUse".into()), schema)?,
+        ],
+    ))
+}
+
 fn literal_mana_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
     if args.len() != 2 || *ty != Ty::Named("ManaProduction".into()) {
         return Err(
@@ -548,8 +577,10 @@ fn specialized_call(
     }
 
     match name {
+        "or" => filter_union_call(args, ty, schema).map(Some),
         "activation_removed_counters" => counter_payment_call(args, ty, schema).map(Some),
         "literal_mana_sequence" => literal_mana_call(args, ty, schema).map(Some),
+        "restricted_mana" => restricted_mana_call(args, ty, schema).map(Some),
         "enchanted_creature_operand" => {
             let [reference] = args else {
                 return Err("@enchanted_creature_operand needs one ObjectRef".into());

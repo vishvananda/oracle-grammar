@@ -20,9 +20,11 @@ pub(crate) use costs::{guard_cost, guard_counter_price, unify_cost_guard, unify_
 mod contracts;
 pub(crate) mod entering;
 mod events;
+pub(crate) mod filter_union;
 mod keywords;
 pub(crate) mod literal_mana;
 mod mana;
+pub(crate) mod mana_restriction;
 pub(crate) mod trigger_batches;
 pub(crate) use mana::{mana_options, unify_mana};
 mod objects;

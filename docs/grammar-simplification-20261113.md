@@ -828,3 +828,93 @@ text. They remain 245 equal, with 240 exact keyed prints, 178 exact defaults and
 244 verified defaults. Yurlok raises single-reading faces 240 to 241. The new
 search generates 2,416 candidates, of which 1,870 reparse semantically (old search:
 2,411 / 1,862). The five existing keyed gaps and one default gap are unchanged.
+
+## Shared mana spending qualifications and optional alternatives
+
+A shared mana clause replaces the narrow creature-only spending attachment.
+Casting restrictions reuse plural spell filters, including comma lists joined
+with “and”, and singular spell phrases sharing a cast verb. Ability restrictions
+retain the distinction between explicit sources (`permanents_only: false`) and
+unadorned permanent nouns (`true`). Optional named-player productions retain the
+same player as both decider and recipient. Negated spending and cumulative
+upkeep purposes have explicit typed meanings.
+
+The bounded restriction lens handles one direct production, Optional, or both
+arms of If, with single-instruction Programs throughout. Snowfall uses a current
+supertype predicate on the tapping event's Island, chooses optional two-blue
+mana instead of optional one-blue mana, and restricts both alternatives to
+cumulative upkeep. Its controller remains ControllerOf(EventSubject). No amount
+is added to its alternative and no player identity is replaced. The inverse
+proves equal nonnull restrictions across all leaves before emitting a common
+sentence. Different restrictions remain independently printed. Unknown fields,
+other actions/scopes, sequential programs, prequalified leaves and excessive
+bytes, nodes, depth or producer count refuse the shared attachment.
+
+U0014 normalizes The Ringhart Crest's two alternative CastSpell payment tests to
+one CastSpell with alternative filters. Volshe Tideturner's reference already
+uses that shape for an instant/sorcery spell or a kicked spell. A schema-190
+scan of only the allowed reference population finds one matching ManaUse root.
+The owned canonicalizer reduces only nonempty Either lists consisting entirely
+of CastSpell arms, after visiting their filters once. It preserves whole filters
+and typed ID origins; mixed actions, source domains and invalid extra fields
+remain distinct. This is equivalent-shape normalization, with no AST schema,
+model pin or reference-lock change, and no new semantic correction.
+
+The binary filter-union inverse enumerates every nonempty partition of up to ten
+current filters. This recovers shared singular wording after AnyOf flattening
+and preserves exact keyed Volshe wording. Printing uses current operands;
+regressions edit player, condition, mana amounts/colors and restrictions, and
+verify semantic reparse. Mapped target origins are checked through the casting
+normalization. No measured timing or allocation improvement is claimed.
+
+After retiring the literal Snowfall tail, its exact conditional noun needed a
+print-view fix: the event introduces the Island before any token creation, but
+the old noun spelling view only qualified target uses or later token references.
+ObjectMatches predicates can now use the introduced referent's noun directly;
+embedded controller/owner references keep their separate possessive wording.
+The ordinary surface remains available and all generated texts still reparse.
+Snowfall's exact trail now works through the generic rules with its tail removed.
+Volshe's commutative filter partitions require an exact trail rather than just
+an unordered production-set key; the regression and family gate verify that
+separate exact-preservation path.
+
+The present-tense bare supertype production has an explicit printing preference.
+This keeps Snowfall's generated condition in the current tense (“it is snow”)
+instead of selecting the older generic kind production's past-tense wording.
+It changes ranking only; source parsing, supported readings and exact trails
+stay separate from default wording.
+
+Final validation: all eight repository gates pass; 764 frontend tests pass and
+one remains ignored. Model-package ignores are unchanged. The new compositional
+family passes all ten cases (eight expected native IRs, exact prints and verified
+defaults, plus two refusals). Nine frontend regressions cover alternatives,
+identities, source domains, edited operands, exact trails, invalid fields and
+explicit bounds.
+
+Retired 37 newly redundant seeded rules, for 159 cumulative retirements and
+12,048 remaining (12,046 needed plus the two protected edited-print rules).
+Compositional coverage rises 19,803 to 19,863. All 32,755 allowed faces remain
+equal, with 31,681 single-reading faces and 33,920 readings, unchanged from
+54d45c0. The same four attribution limitations remain; no face is at risk.
+
+The strict native preservation audit from 54d45c0 passes with no missing or added
+meanings and no merged readings. All raw/canonical reference faces validate,
+canonical gold is idempotent, and all 33,920 current readings are valid and
+canonical. The changed Ringhart singleton uses its actual frozen old operands
+rather than implicitly substituting the new reference: 2,240 explicit old
+readings validate and 31,680 unchanged-gold singletons remain implicit. Native
+failure output is empty, and source, binary, corpus and grammar hashes were
+rechecked.
+
+The 77 affected faces retain all 77 exact keyed and verified default prints
+against the actual frozen pre-batch executable. Exact defaults decrease 44 to
+34; 22 default texts change, including singular/plural spending formulations,
+current supertype adjectives and normalized casting alternatives. All affected
+readings remain unchanged (76 single-reading faces, 78 readings). Final candidate
+counts are 863 generated / 700 verified, versus 843 / 690 before. The sample of
+3,275 faces retains 3,196 exact keyed and 3,221 verified defaults; exact defaults
+decrease 2,231 to 2,229. Its four changed defaults are Hook Horror, Jasmine Dragon
+Tea Shop, Myr Reservoir and Tenza, Godo's Maul; every exact keyed flag is unchanged.
+Sample candidate counts are 43,462 generated / 31,406 verified. These are search
+coverage measurements, not performance timings or an assertion that all
+candidates verify. Quick helpers are not optimized benchmark baselines.

@@ -583,6 +583,7 @@ impl Pattern {
                             .ok_or_else(|| "missing @unordered argument".into());
                     }
                     ("and", _) => return Ok(conjunction(args)),
+                    ("or", _) => return crate::functions::filter_union::join(args),
                     ("event_free_once", [ability]) => {
                         return crate::functions::trigger_batches::mark(ability);
                     }
@@ -591,6 +592,9 @@ impl Pattern {
                     ("mana_options", [colors]) => return crate::functions::mana_options(colors),
                     ("literal_mana_sequence", [first, rest]) => {
                         return crate::functions::literal_mana::join(first, rest);
+                    }
+                    ("restricted_mana", [body, restriction]) => {
+                        return crate::functions::mana_restriction::attach(body, restriction);
                     }
                     ("singular_count" | "plural_count" | "plural_amount", [count]) => {
                         return crate::functions::counts::guard(name, count);
@@ -726,17 +730,11 @@ impl Pattern {
         bindings: Bindings<'p, 'v>,
     ) -> Vec<Bindings<'p, 'v>> {
         let name = crate::bind::damage_relative::ordinary_name(name);
-        if name == "card_name" {
-            // Only the printer knows the card it prints for: it holds this text to that name.
-            let mut bindings = bindings;
-            bindings.insert(CARD_NAME, Cow::Borrowed(value));
-            return vec![bindings];
+        if reference_symbols::is_context(name) {
+            return reference_symbols::context(name, value, bindings);
         }
         if unconstrained(name) || refers_to(name, value) {
             return vec![bindings];
-        }
-        if matches!(name, "group_reference" | "that_much" | "that_many") {
-            return reference_symbols::unify(name, value, bindings);
         }
         match name {
             "single_player" => {
@@ -854,7 +852,12 @@ impl Pattern {
             "and" => return unify_and(args, value, bindings),
             "either_event" => return unify_either_event(args, value, bindings),
             "agree" => return unify_agree(args, value, bindings),
-            "mana_options" | "literal_mana_sequence" | "fixed_mana" | "variable_mana" => {
+            "or"
+            | "mana_options"
+            | "literal_mana_sequence"
+            | "restricted_mana"
+            | "fixed_mana"
+            | "variable_mana" => {
                 return crate::functions::unify_mana(name, args, value, bindings);
             }
             "inline_counter_price" | "captured_counter_price" => {

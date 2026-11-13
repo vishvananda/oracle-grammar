@@ -1,0 +1,85 @@
+/* Optional recipients and spending qualifications share the same mana action. */
+
+mana_clause ::= mana_clause_plain | mana_clause_plain_you | mana_clause_optional | instead_mana
+
+/* @sem Instruction::[Effect{result:@next, operation:$mana_clause_operation}] */
+mana_clause_plain ::= mana_clause_operation
+/* @sem Instruction::[Effect{result:@next, operation:$add_mana}] */
+mana_clause_plain_you ::= "you" add_mana
+mana_clause_operation ::= add_mana | add_mana_player
+
+mana_clause_optional ::= mana_clause_you_may | mana_clause_player_may
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$add_mana}]}}] */
+mana_clause_you_may ::= "you" "may" add_mana
+/* @sem Instruction::[Optional{decider:$player_ref, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One($player_ref), mana:$mana_production}}]}}] */
+mana_clause_player_may ::= player_ref "may" "add" ("an" "additional")? mana_production
+
+/* Both alternatives retain their own player, choice and receipt. The final
+   qualification applies to whichever production actually occurs. */
+/* @sem Vec<Instruction>::@restricted_mana($mana_clause, $mana_spending) */
+mana_clause_restricted ::= mana_clause "." mana_spending
+
+mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend
+/* @sem $mana_use */
+mana_spend_only ::= "spend" "this" "mana" "only" "to" mana_use
+/* @sem $mana_use */
+mana_can_spend_only ::= "this" "mana" "can" "be" "spent" "only" "to" mana_use
+/* @sem ManaUse::Not($mana_use) */
+mana_cannot_spend ::= "this" "mana" ("can't" | "cannot") "be" "spent" "to" mana_use
+
+mana_use ::= mana_use_atom | mana_use_either
+/* @sem ManaUse::Either([$mana_use_atom, ...$mana_use_tail]) */
+mana_use_either ::= mana_use_atom "or" mana_use_tail
+mana_use_tail ::= mana_use_last | mana_use_more
+/* @sem ManaUse::[$mana_use_later] */
+mana_use_last ::= mana_use_later
+/* @sem ManaUse::[$mana_use_later, ...$mana_use_tail] */
+mana_use_more ::= mana_use_later "or" mana_use_tail
+/* @sem $mana_use_atom */
+mana_use_later ::= "to"? mana_use_atom
+
+mana_use_atom ::= mana_use_cast
+    | mana_use_activate | mana_use_activate_sources | mana_use_activate_source
+    | mana_use_activate_permanents | mana_use_activate_permanent | mana_use_pay
+
+/* Reuse the shared plural spell filters; full singular phrases can also
+   share one cast verb, as in "an instant or sorcery spell or a kicked spell". */
+/* @sem ManaUse::CastSpell($mana_cast_filter) */
+mana_use_cast ::= "cast" mana_cast_filter
+mana_cast_filter ::= cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells
+mana_spell_one ::= mana_spell_one_kind | mana_spell_one_any | mana_spell_one_chosen
+/* @sem $mana_spell_filter */
+mana_spell_one_kind ::= ("a" | "an") mana_spell_filter "spell"
+/* @sem ObjectFilter::Any */
+mana_spell_one_any ::= "a" "spell"
+/* @sem ObjectFilter::@or($mana_spell_one, $mana_spell_alternative) */
+mana_spell_alternatives ::= mana_spell_one "or" mana_spell_alternative
+mana_spell_alternative ::= mana_spell_one | mana_spell_alternatives
+mana_spell_filter ::= filter_phrase | card_filter | quality | mana_kicked
+/* @sem ObjectFilter::State(Kicked) */
+mana_kicked ::= "kicked"
+/* @sem $mana_kicked */
+mana_kicked_spells ::= mana_kicked "spells"
+/* The explicit creature head supplies the kind of stored type choice. */
+/* @sem @and(ObjectFilter::CardType(Creature), ObjectFilter::Chosen(CreatureType)) */
+mana_spell_one_chosen ::= ("a" | "an") "creature" "spell" "of" "the" "chosen" "type"
+
+/* Source wording permits objects outside the battlefield. Unadorned
+   permanent nouns retain the permanent-only contract. */
+/* @sem ManaUse::ActivateAbility{sources:Any, permanents_only:false} */
+mana_use_activate ::= "activate" "abilities"
+/* @sem ManaUse::ActivateAbility{sources:$mana_spell_filter, permanents_only:false} */
+mana_use_activate_sources ::= "activate" "abilities" "of" mana_spell_filter "sources"
+/* @sem ManaUse::ActivateAbility{sources:$mana_spell_filter, permanents_only:false} */
+mana_use_activate_source ::= "activate" ("a" | "an") "ability" "of" ("a" | "an") mana_spell_filter "source"
+/* @sem ManaUse::ActivateAbility{sources:$mana_permanent_sources, permanents_only:true} */
+mana_use_activate_permanents ::= "activate" "abilities" "of" mana_permanent_sources
+mana_permanent_sources ::= filter_phrase | filter_plural
+/* @sem ManaUse::ActivateAbility{sources:$filter_phrase, permanents_only:true} */
+mana_use_activate_permanent ::= "activate" ("a" | "an") "ability" "of" ("a" | "an") filter_phrase
+
+/* @sem ManaUse::Purpose($mana_purpose) */
+mana_use_pay ::= "pay" mana_purpose
+mana_purpose ::= mana_purpose_cumulative
+/* @sem ManaPurpose::CumulativeUpkeep */
+mana_purpose_cumulative ::= "cumulative" "upkeep" "costs"

@@ -288,6 +288,15 @@ the IR path, the value it replaces and why.
   the grammar removes an incorrect competing first-token reading without
   changing that reference. `One(Result{index:0})` is not a batch equality alias.
 
+
+- `U0014` (normalization): The Ringhart Crest's `Either` of two `CastSpell`
+  predicates becomes one `CastSpell` over `AnyOf` spell filters, matching the
+  existing form on Volshe Tideturner. Preserve chosen creature type, legendary
+  creature restriction and all object identities. The owned canonicalizer
+  merges only nonempty alternatives consisting entirely of casting predicates;
+  mixed payment actions and ability source domains remain distinct. No AST
+  schema change or semantic correction is introduced.
+
 ## Open in the grammar
 
 No face differs in the explicitly allowed population at this checkpoint.

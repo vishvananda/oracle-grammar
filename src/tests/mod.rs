@@ -861,6 +861,9 @@ mod counter_mana;
 #[path = "shared_clauses/fixed_mana.rs"]
 mod fixed_mana;
 
+#[path = "shared_clauses/mana_restrictions.rs"]
+mod mana_restrictions;
+
 #[path = "shared_clauses/snapshot_pumps.rs"]
 mod snapshot_pumps;
 

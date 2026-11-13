@@ -74,6 +74,8 @@ pub(crate) fn unify_mana<'p, 'v>(
     match name {
         "mana_options" => unify_mana_options(args, value, bindings),
         "literal_mana_sequence" => super::literal_mana::unify(args, value, bindings),
+        "or" => super::filter_union::unify(args, value, bindings),
+        "restricted_mana" => super::mana_restriction::unify(args, value, bindings),
         "fixed_mana" | "variable_mana" => super::unify_cost_guard(name, args, value, bindings),
         _ => Vec::new(),
     }

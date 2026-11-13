@@ -16,6 +16,7 @@ mod events;
 mod fixed_mana;
 mod joins;
 mod keywords;
+mod mana_uses;
 #[cfg(test)]
 mod mode_results;
 mod movement;
@@ -521,6 +522,9 @@ impl Walker {
                     value,
                     self.scopes.last().map(|scope| &scope.optional_targets),
                 ),
+                ("ManaUse", "Either") => {
+                    mana_uses::casting_alternatives(value, self.keep_order, self.tracing);
+                }
                 ("ObjectFilter", "InSet") => one_object_set(value),
                 ("ObjectSet", "Zone") => {
                     narrow_zone_scope(content_of(value));

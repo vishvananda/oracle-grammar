@@ -1,5 +1,26 @@
 //! Inverse shapes for contextual group and quantity words. Reparse checks scope.
 use super::{Bindings, Pattern, Value};
+use std::borrow::Cow;
+
+pub(super) fn is_context(name: &str) -> bool {
+    matches!(
+        name,
+        "card_name" | "group_reference" | "that_much" | "that_many"
+    )
+}
+
+pub(super) fn context<'p, 'v>(
+    name: &str,
+    value: &'v Value,
+    mut bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    if name == "card_name" {
+        bindings.insert(super::CARD_NAME, Cow::Borrowed(value));
+        vec![bindings]
+    } else {
+        unify(name, value, bindings)
+    }
+}
 
 pub(super) fn sacrificed_damage_source<'p, 'v>(
     args: &'p [Pattern],
