@@ -30,28 +30,39 @@ def require_hash(value, size, label):
 
 def check_model(root=ROOT):
     pin = load(root/'pins/model.json')
-    if pin['version'] != 1 or pin['implementation'] != 'mtgish-compatibility-bridge':
+    if pin['version'] != 2 or pin['implementation'] != 'oracle-owned-crates':
         raise ValueError('unsupported model pin format')
-    require_hash(pin['revision'], 40, 'model revision')
     if type(pin['schema_version']) is not int or pin['schema_version'] < 1:
         raise ValueError('model schema must be a positive integer')
+    origin = pin['extracted_from']
+    require_hash(origin['revision'], 40, 'extraction revision')
+    if not origin['repository'].startswith('https://github.com/'):
+        raise ValueError('extraction source must use public HTTPS')
     manifest = tomllib.loads((root/'Cargo.toml').read_text())
     if manifest.get('patch') or manifest.get('replace'):
-        raise ValueError('the model must use published source without overrides')
-    wanted = {'git': pin['repository'], 'rev': pin['revision'], 'default-features': False}
-    if manifest['dependencies']['mtgish-ast'] != wanted:
-        raise ValueError('Cargo dependency differs from the model pin')
-    if not pin['repository'].startswith('https://github.com/'):
-        raise ValueError('model source must use public HTTPS')
-    if set(pin['packages']) != {'mtgish-ast', 'mtgish-ir', 'rust_syntax'}:
-        raise ValueError('model package identities are incomplete')
+        raise ValueError('the model must use owned crates without overrides')
+    if set(pin['packages']) != {'oracle-ir', 'oracle-ir-contract'}:
+        raise ValueError('owned model package identities are incomplete')
     lock = tomllib.loads((root/'Cargo.lock').read_text())
-    source = f"git+{pin['repository']}?rev={pin['revision']}#{pin['revision']}"
-    for name, version in pin['packages'].items():
+    if any(p['name'] in {'mtgish-ast', 'mtgish-ir', 'rust_syntax'} for p in lock['package']):
+        raise ValueError('owned model must not depend on MTGish packages')
+    for name, package in pin['packages'].items():
+        path = package['path']
+        if path != f'crates/{name}':
+            raise ValueError('owned model path differs from its package identity')
+        wanted = {'path': path, 'version': package['version']}
+        if manifest['dependencies'].get(name) != wanted:
+            raise ValueError('Cargo dependency differs from the owned model pin')
+        crate = tomllib.loads((root/path/'Cargo.toml').read_text())
+        if crate.get('patch') or crate.get('replace'):
+            raise ValueError('the model must use owned crates without overrides')
+        if (crate['package']['name'] != name
+                or crate['package']['version'] != package['version']):
+            raise ValueError('owned model manifest identity differs')
         records = [p for p in lock['package'] if p['name'] == name]
-        if (len(records) != 1 or records[0].get('source') != source
-                or records[0]['version'] != version or 'replace' in records[0]):
-            raise ValueError(f'Cargo.lock differs from the pinned {name}')
+        if (len(records) != 1 or records[0].get('source')
+                or records[0]['version'] != package['version'] or 'replace' in records[0]):
+            raise ValueError(f'Cargo.lock differs from the owned {name}')
     return pin
 
 
@@ -123,7 +134,7 @@ def main():
     if args.command == 'check':
         model = check_model()
         ref = reference()
-        print(f"model schema {model['schema_version']} at {model['revision']}")
+        print(f"owned model schema {model['schema_version']}; extracted from {model['extracted_from']['revision']}")
         print(f"reference schema {ref['schema_version']} at {ref['revision']}")
     elif args.command == 'verify':
         print(verify(args.path, args.kind))
