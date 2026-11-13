@@ -1,5 +1,5 @@
 //! Frozen outputs from the independently built MTGish extraction baseline.
-use crate::{canonical, corpus, human, ir::UnifiedCard, validate};
+use crate::{canonical, corpus, human, ir::UnifiedCard, migrate, validate};
 use serde_json::Value;
 
 #[test]
@@ -16,10 +16,6 @@ fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts
         for record in records {
             let name = record["name"].as_str().unwrap();
             let card: UnifiedCard = serde_json::from_value(record["card"].clone()).unwrap();
-            validate::unified(&card).unwrap_or_else(|e| panic!("{name}: {e}"));
-            for face in &card.faces {
-                validate::card(face).unwrap_or_else(|e| panic!("{name}: {e}"));
-            }
             assert_eq!(
                 serde_json::to_value(&card).unwrap(),
                 record["card"],
@@ -34,10 +30,19 @@ fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts
                 record["card"],
                 "{name}: binary"
             );
+            // Keep historical JSON, binary and authoring fixtures untouched.
+            // Only the explicit migration boundary advances their epoch.
+            let card = migrate::read_json(&serde_json::to_string(&card).unwrap()).unwrap();
+            validate::unified(&card).unwrap_or_else(|e| panic!("{name}: {e}"));
+            for face in &card.faces {
+                validate::card(face).unwrap_or_else(|e| panic!("{name}: {e}"));
+            }
+            let expected = migrate::read_json(&record["canonical"].to_string()).unwrap();
+            let expected = serde_json::to_value(expected).unwrap();
             let normalized = canonical::unified(&card).unwrap();
             assert_eq!(
                 serde_json::to_value(&normalized).unwrap(),
-                record["canonical"],
+                expected,
                 "{name}: canonical"
             );
             let code = human::write(&card).unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -45,7 +50,7 @@ fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts
             let reparsed = human::read(&code).unwrap_or_else(|e| panic!("{name}: {e}"));
             assert_eq!(
                 serde_json::to_value(canonical::unified(&reparsed).unwrap()).unwrap(),
-                record["canonical"],
+                expected,
                 "{name}: edited-code path"
             );
         }

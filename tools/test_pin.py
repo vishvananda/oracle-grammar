@@ -18,6 +18,7 @@ class PinTests(unittest.TestCase):
             path = self.root/name
             path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(pin.ROOT/name, path)
+        self.model_version = json.loads((self.root/'pins/model.json').read_text())['packages']['oracle-ir']['version']
 
     def edit(self, name, mutate):
         path = self.root/name
@@ -30,7 +31,7 @@ class PinTests(unittest.TestCase):
         pin.reference(self.root)
 
     def test_model_manifest_and_lock_cannot_drift(self):
-        self.edit('pins/model.json', lambda p: p['packages']['oracle-ir'].update(version='0.2.0'))
+        self.edit('pins/model.json', lambda p: p['packages']['oracle-ir'].update(version=self.model_version+'-drift'))
         with self.assertRaisesRegex(ValueError, 'dependency differs'):
             pin.check_model(self.root)
 
@@ -42,8 +43,10 @@ class PinTests(unittest.TestCase):
 
     def test_rejects_lock_identity_drift(self):
         path = self.root/'Cargo.lock'
-        text = path.read_text().replace('name = "oracle-ir"\nversion = "0.1.0"',
-                                        'name = "oracle-ir"\nversion = "0.2.0"')
+        original = f'name = "oracle-ir"\nversion = "{self.model_version}"'
+        self.assertIn(original, path.read_text())
+        text = path.read_text().replace(original,
+                                        f'name = "oracle-ir"\nversion = "{self.model_version}-drift"')
         path.write_text(text)
         with self.assertRaisesRegex(ValueError, 'Cargo.lock differs'):
             pin.check_model(self.root)

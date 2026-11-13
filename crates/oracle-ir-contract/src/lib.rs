@@ -44,3 +44,6 @@ mod corpus {
 
 #[cfg(test)]
 mod extraction_tests;
+
+#[cfg(test)]
+mod history_windows_tests;

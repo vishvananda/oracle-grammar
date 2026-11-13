@@ -436,8 +436,9 @@ impl<'a> Scope<'a> {
             PlayerRef::NotedFor(object) => self.object(object),
             PlayerRef::OtherChosen(player) => self.player(player),
             PlayerRef::AsOf { moment, player } => {
-                if let Moment::LastEvent { event, .. } = moment.as_ref() {
+                if let Moment::LastEvent { event, window } = moment.as_ref() {
                     self.event(event)?;
+                    self.history_window(window)?;
                 }
                 self.player(player)
             }

@@ -1,6 +1,15 @@
 //! Scoped validation of portable operands.
 use super::*;
 impl<'a> Scope<'a> {
+    pub(super) fn history_window(&self, window: &HistoryWindow) -> Result {
+        match window {
+            HistoryWindow::SinceLastTurnOf(player) | HistoryWindow::LastTurnOf(player) => {
+                self.player(player)
+            }
+            _ => Ok(()),
+        }
+    }
+
     pub(super) fn objects(&self, objects: &ObjectSet) -> Result {
         match objects {
             ObjectSet::Prepared(binding) => {
@@ -393,7 +402,10 @@ impl<'a> Scope<'a> {
                 }
                 self.player(player)
             }
-            Expr::EventHistory { event, .. } => self.event(event),
+            Expr::EventHistory { event, window, .. } => {
+                self.event(event)?;
+                self.history_window(window)
+            }
             Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
                 self.object(object)?;

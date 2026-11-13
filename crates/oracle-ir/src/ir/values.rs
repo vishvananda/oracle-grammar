@@ -375,6 +375,9 @@ pub enum HistoryWindow {
     ThisCombat,
     ThisGame,
     SinceLastTurnOf(PlayerRef),
+    /// The named player's most recent completed turn, excluding the current
+    /// turn even when that player is active. Empty if they have had no turn.
+    LastTurnOf(PlayerRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
