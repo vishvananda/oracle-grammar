@@ -323,6 +323,14 @@ the IR path, the value it replaces and why.
   mana-cost matching and the ThisTurn window.
 - `U0023` (correction): that Avatar's two positive chosen-copy type checks remain
   independent; absence of a chosen copy cannot enter an unconditional cast else.
+- `U0024` (correction, issue #12): Drop of Honey and Porphyry Nodes choose a
+  destructible member of the full least-power pool; indestructibility does not
+  change the minimum. Imperial Edict's independent choice remains unrestricted.
+- `U0025` (correction, issue #13): Frankenstein's Monster performs a partial
+  exile effect and checks actual recorded exile arrivals for completion and
+  creature-card counter counts. Real costs retain their payment contracts.
+- `U0026` (correction, issue #9): Thermokarst and Extinguish the Light test the
+  original target even when destruction fails, independently of its receipt.
 
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their

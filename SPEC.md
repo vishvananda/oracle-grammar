@@ -139,6 +139,21 @@ with DuringNextUntapStep(AbilityController). Snapshot/fixed or unfiltered pools,
 other players/windows and more than 64 conjuncts do not prove that implication.
 The replaced roles contain no typed IDs; all other operands and origins remain.
 
+Post-destroy characteristic tests retain the original target, including its
+last-known characteristics when appropriate. A performed-action Before receipt
+can be empty when destruction fails; it cannot substitute for attempted input.
+Direct least-power destruction computes the minimum over the complete printed
+population before excluding indestructible choices. An independently instructed
+choice keeps its own printed eligibility.
+
+An entering exile instruction is an effect that does as much as possible, with
+an explicit completion test; it is not an indivisible payment. Completion and
+"exiled this way" quantities use recorded After arrivals filtered by Exile.
+Matching a transition's recorded arrival incarnation differs from querying
+current zone membership: a replacement redirect does not count, and later
+movement cannot erase a recorded exile arrival. Real costs retain their payment
+contracts.
+
 
 ## Printing
 

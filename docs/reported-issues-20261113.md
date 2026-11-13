@@ -16,11 +16,11 @@ witnesses are identified separately.
 | [#6](https://github.com/vishvananda/oracle-grammar/issues/6) | Fixed locally: Mercenaries' omitted source in reference and grammar. U0017 preserves its same-creature source and activating-player recipient. |
 | [#7](https://github.com/vishvananda/oracle-grammar/issues/7) | Fixed locally: U0020 adds the independent artifact exchange; shared grammar replaces three incorrect fragments. |
 | [#8](https://github.com/vishvananda/oracle-grammar/issues/8) | Fixed locally: U0018 corrects 17 named-player step/expiration pairs; U0019 normalizes five equivalent live-population forms. Both controller-following controls are preserved. |
-| [#9](https://github.com/vishvananda/oracle-grammar/issues/9) | Pending target identity versus successful-destroy receipt review. |
+| [#9](https://github.com/vishvananda/oracle-grammar/issues/9) | Fixed locally: U0026 retains the original target in post-destroy characteristic tests, removing the competing successful-destroy receipt reading. |
 | [#10](https://github.com/vishvananda/oracle-grammar/issues/10) | Fixed locally: U0021 guards both name branches by an actual observation and moves the observed card. |
 | [#11](https://github.com/vishvananda/oracle-grammar/issues/11) | Confirmed; awaiting model publication. Open PR #3 adds the missing named-player history window in schema 191 / version 0.2.0. Current main and both registry releases remain schema 190 / version 0.1.0; no reference amendment is claimed. |
-| [#12](https://github.com/vishvananda/oracle-grammar/issues/12) | Pending direct destroy-choice legality review; retain Imperial Edict's independent choice as a control. |
-| [#13](https://github.com/vishvananda/oracle-grammar/issues/13) | Pending effect completion and actual exile-arrival receipt review. |
+| [#12](https://github.com/vishvananda/oracle-grammar/issues/12) | Fixed locally: U0024 filters indestructibility after computing the complete least-power pool; Imperial Edict's independent choice is unchanged. |
+| [#13](https://github.com/vishvananda/oracle-grammar/issues/13) | Fixed locally: U0025 performs a partial exile effect and tests actual recorded exile arrivals, preserving completion, creature counts and entry redirection. |
 | [#14](https://github.com/vishvananda/oracle-grammar/issues/14) | Fixed locally: U0022 adopts historical damage participants; U0023 preserves both positive copy-type tests and relative payment printing. |
 
 ## Prevention direction and filters: #4–#6
@@ -198,3 +198,65 @@ were rechecked. Against the actual frozen 0fe30bd executable, the three-face
 cohort retains all three exact keyed prints and improves exact defaults and
 verified defaults from two to three. No backend runtime or speed measurement is
 claimed.
+
+
+## Original targets, direct choices and completion: #9, #12, #13
+
+U0026 corrects Thermokarst and Extinguish the Light's characteristic-test
+operand to the actual preceding Target. A performed Destroy Before receipt can
+be empty when destruction fails; it does not represent attempted input. The
+shared grammar repeats the captured target and removes that wrong alternative
+on six allowed faces. Icequake, Raze to the Ground, Seedship Impact and Tainted
+Treats already had the correct target in their references, so they need no
+reference amendment. All six retain their already-supported correct reading.
+This is an identity correction, not a Result/Target equivalence alias.
+
+U0024 changes Drop of Honey and Porphyry Nodes' direct destruction eligibility.
+The original full creature pool and Aggregate Minimum remain inside the choice
+population. Matching(Not(HasKeyword(Indestructible))) wraps that complete pool;
+it cannot make a higher-power creature eligible when only an indestructible
+creature has the minimum. Chooser, AsManyAsCan(1), receipts and no-regeneration
+destruction are retained. Imperial Edict's separately instructed choice remains
+unrestricted by that direct-destruction filter.
+
+U0025 replaces Frankenstein's Monster's all-or-nothing PayCost with an effect:
+WithSelections chooses AsManyAsCan(X), then performs the exile Move. Completion
+compares actual Exile After arrivals with X; failure retains the owner-graveyard
+entry redirect. Counter amount counts creature-card Exile arrivals from the same
+receipt. Matching(Transition{After}, InZone(Exile)) examines recorded arrival
+incarnations, rather than current zone membership or requested inputs. A
+replacement redirect does not count; later movement cannot erase an actual exile
+arrival. The entering controller, CastX of the entering object, selection pool,
+counter alternatives and destinations remain intact. A genuine activated exile
+cost remains Exactly(2); no cost normalization is introduced.
+
+The original-wording fixture now has ten cases, including Imperial Edict and the
+four additional target controls. It uses the corpus's existing presentation mode
+for reminder text, preserving Oracle rules words without MTGish source rewrites.
+Four regressions check sole supported meanings, exact keyed and verified default
+printing, native choice/count/identity operands, edited rewards and edited exile
+counts. These checks do not execute a game backend. Primary published lowering
+and native-witness evidence is in
+[06de9c78](https://github.com/vishvananda/mtgish/commit/06de9c786d700414985cb9cf960402169039b830),
+[2e6c5d60](https://github.com/vishvananda/mtgish/commit/2e6c5d6008fe90c72da86393e56f568a2a43f492)
+and [9ffdb821](https://github.com/vishvananda/mtgish/commit/9ffdb82199daa30db62113eeb2ab42b0cef5ea85).
+All changes use existing schema-190 operands; model pin and reference lock stay
+unchanged. These are semantic corrections, not reference shape normalizations.
+
+All eight gates pass; 776 frontend tests pass with one ignored. All ten cases
+have one correct reading, an exact keyed print and a verified default. Full
+coverage remains 32,755 equal, with 31,687 single-reading faces and 33,914
+readings. The six removed alternatives were wrong successful-destruction tests;
+no supported correct target reading is removed. The strict native audit
+intentionally fails for exactly nine old wrong readings on nine faces, with
+three corrected additions on Drop of Honey, Porphyry Nodes and Frankenstein's
+Monster, and no other missing/additions. All native readings and gold validate;
+canonical gold is idempotent and native failure output is empty.
+
+Seed count remains 12,044 (12,042 needed and two protected unused), cumulative
+retirements 163. Compositional coverage becomes 19,870, with the same four
+attribution limitations and no at-risk face. Against the actual immutable
+90ff55a executable and reference, the ten-face cohort retains ten exact keyed
+and ten verified default prints. Exact defaults change from five to four;
+verified current-operand printing and exact wording remain separate checks.
+No speed improvement or backend execution is claimed.

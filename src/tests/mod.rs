@@ -899,3 +899,5 @@ mod prevention_reference;
 mod untap_reference;
 
 mod exchange_reveal_history;
+
+mod destroy_exile_completion;
