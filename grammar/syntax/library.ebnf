@@ -685,3 +685,8 @@ play_that_card_permission ::= duration "," "you" "may" "play" "that" "card"
 /* Permission to play the prior cards. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
 play_those_cards_permission ::= duration "," "you" "may" "play" "those" "cards"
+
+/* All players finish shuffling before the draw phase. Each draw reads only
+   that player's actual original cards in the aggregate shuffle receipt. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@mark, operation:Move{objects:Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}, destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}}, ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(Bound(0)), amount:CountObjects(MovedBy{result:@marked, phase:Before, player:Bound(0)})}}]}}] */
+clause_shuffle_hands_draw ::= players_singular "shuffles" "the" "cards" "from" "their" "hand" "into" "their" "library" "," "then" "draws" "that" "many" "cards"

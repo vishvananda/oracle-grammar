@@ -1,9 +1,12 @@
 # Reported issue audit — 2026-11-13
 
-Scope: the eleven open issues #4–#14 in this repository. The named audit
-population contains the 38 reported faces plus Barl's Cage and Orcish Farmer as
-controller-following duration controls; all 40 are in the immutable allowed
-population. Source text remains the pinned Oracle input. Reference amendments
+Scope: the thirteen open issues #4–#16 in this repository, including the two
+additional reports found during the final inventory refresh. The named audit
+population now contains 51 allowed reported/control faces: the original 40,
+four additional post-destroy faces and the seven Wand/shuffle cases. The original
+40 include Barl's Cage and Orcish Farmer as controller-following duration
+controls. All are in the immutable allowed population. Source text remains the
+pinned Oracle input. Reference amendments
 use only `adapters/mtgish/updates.json`; the published export and reference lock
 remain unchanged. An equal parse against an uncorrected reference is not evidence
 that the report is fixed. Local structural IR checks and upstream runtime
@@ -22,6 +25,8 @@ witnesses are identified separately.
 | [#12](https://github.com/vishvananda/oracle-grammar/issues/12) | Fixed locally: U0024 filters indestructibility after computing the complete least-power pool; Imperial Edict's independent choice is unchanged. |
 | [#13](https://github.com/vishvananda/oracle-grammar/issues/13) | Fixed locally: U0025 performs a partial exile effect and tests actual recorded exile arrivals, preserving completion, creature counts and entry redirection. |
 | [#14](https://github.com/vishvananda/oracle-grammar/issues/14) | Fixed locally: U0022 adopts historical damage participants; U0023 preserves both positive copy-type tests and relative payment printing. |
+| [#15](https://github.com/vishvananda/oracle-grammar/issues/15) | Fixed locally: U0027 tests observed nonlands in the second Wand of Ith branch, retaining the existence guard. |
+| [#16](https://github.com/vishvananda/oracle-grammar/issues/16) | Fixed locally: U0028 binds each drawing player to their own shuffled-card receipt after the complete all-player shuffle phase. |
 
 ## Prevention direction and filters: #4–#6
 
@@ -260,3 +265,88 @@ attribution limitations and no at-risk face. Against the actual immutable
 and ten verified default prints. Exact defaults change from five to four;
 verified current-operand printing and exact wording remain separate checks.
 No speed improvement or backend execution is claimed.
+
+
+## Observed nonlands and per-player receipts: #15, #16
+
+U0027 changes Wand of Ith's second revealed-card filter to Not(CardType(Land)).
+It remains inside CountObjects(Matching(Observed(reveal), filter)) >= 1. Negating
+that existence condition would wrongly take the branch on an empty reveal.
+Both branches retain their target, random reveal, original optional life payment,
+payment receipts, discard actions and own-turn activation restriction. The
+second payment still uses the revealed card's mana value. The report and native
+witness distinctions are recorded in
+[upstream issue 285](https://github.com/i5jb/mtgish/issues/285).
+
+U0028 retains the complete first all-player shuffle loop on Winds of Change,
+Molten Psyche and Whirlpool Warrior. A separate second ForEachPlayer loop draws
+for One(Bound(player)) and counts MovedBy{shuffle, Before, Bound(player)}.
+The bound player in the amount is the draw recipient; it cannot see the combined
+count or interleave one player's draw before other players shuffle. Actual
+original shuffled-card identities are retained. Credit Voucher and Whirlpool
+Rider keep ordinary single-player Transition counts. Psychic Spiral's target
+still mills the caster's shuffled count; it does not become the performer.
+The Warrior's separate entry trigger and Molten Psyche's metalcraft damage stay
+intact. Published lowering, decision note and six-face regressions are in
+[6deb7e26](https://github.com/vishvananda/mtgish/commit/6deb7e262e2a2681dea301951b6dac46f2c41d9a).
+These are corrected AST condition/program operands using schema 190, without
+model-pin or reference-lock changes or a Source-text rewrite.
+
+A shared hand-written production declares the two-phase shuffle meaning once.
+The long metalcraft seed composes that shared clause with its own condition and
+damage; it no longer duplicates the shuffle meaning. One redundant incorrect
+seed is removed. Cumulative seed retirements reach 164, leaving 12,043 (12,041
+needed and two protected unused). Compositional coverage is 19,871, with the same
+four attribution limitations and no at-risk face.
+
+The seven-face fixture fails on exactly the four corrected faces against the
+actual immutable f70409f executable and passes its three controls. It now passes
+all seven with sole corrected meanings, exact keyed prints and verified defaults.
+Five Rust regressions check the separate phases, same-player receipt binding,
+positive observed land/nonland conditions, original controls, edited mana cost,
+changed player population and result addresses after a Draw prefix. A separate
+four-case compositional family covers all/opponent populations and prefixes.
+Upstream native witnesses were not rerun here.
+
+All eight repository gates pass; the frontend has 781 passing tests and one
+ignored. Full coverage is unchanged at 32,755 equal, 31,687 single-reading faces
+and 33,914 readings. The strict native audit intentionally rejects exactly four
+old incorrect readings and records four corrected replacements, with no other
+delta. All gold and current readings validate, canonical gold is idempotent and
+native failure output is empty. The frozen f70409f and current executable both
+provide seven exact keyed and seven verified default prints, including five
+exact defaults. The combined 51-face issue cohort has 51 exact keyed and verified
+default prints; Deep Spawn retains its two distinct existing cost readings.
+No measured speed improvement is claimed.
+
+## Publication and remaining dependency
+
+Twelve reported issues are fixed in local commits. Their GitHub comments identify
+the exact unpublished commit and validation; Fixes footers provide closure when
+those commits are published. They remain open pending publication. No push or
+merge is claimed. Issue #11 has a dependency comment rather than a fix claim:
+PR #3 remains open, and refreshed registry metadata still shows only 0.1.0 of
+both owned packages. Its prepared LastTurnOf(PlayerRef) addition requires schema
+191 / package 0.2.0 and a proper adoption checkpoint. Current main remains on the
+published schema-190 boundary. The independent working tree for that PR is
+preserved.
+
+The final aggregate native audit uses the immutable 8662bc2 executable/reference
+checkpoint and explicitly materializes 42 previously implicit old singleton
+readings before comparison. It intentionally rejects exactly 45 documented old
+incorrect readings on 44 faces, records 39 corrected additions on 38 faces, and
+has no other missing or added meaning. The six remaining removals are the wrong
+post-destroy alternatives whose correct target readings already existed. All
+five equivalent untap-population normalizations preserve their meanings. All
+32,755 raw/canonical gold records and 33,914 current readings validate; canonical
+gold is idempotent and native failure output is empty. Source, runtime grammar,
+reference, rows and executable hashes were rechecked. This is a fully accounted
+semantic correction, not an unconditional strict-preservation pass.
+
+The final fixed every-tenth sample retains all 3,275 equal faces, 3,196 exact keyed
+prints, 3,221 verified defaults and 2,229 exact defaults against the actual 8662bc2
+checkpoint. Exact-default preference moves from Extinguish the Light to Pinecrest
+Ridge; those are the only two changed default texts. No keyed or verified-default
+availability flag changes. The search generates 43,528 candidates and verifies
+31,450, versus 43,462/31,406 at that checkpoint. Candidate verification and default
+availability are distinct; these quick-helper runs are not timing evidence.

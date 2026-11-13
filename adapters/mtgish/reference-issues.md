@@ -331,6 +331,11 @@ the IR path, the value it replaces and why.
   creature-card counter counts. Real costs retain their payment contracts.
 - `U0026` (correction, issue #9): Thermokarst and Extinguish the Light test the
   original target even when destruction fails, independently of its receipt.
+- `U0027` (correction, issue #15): Wand of Ith tests observed nonlands in its
+  second positive reveal-count condition; neither branch applies to no reveal.
+- `U0028` (correction, issue #16): three all-player shuffle effects bind each
+  drawing player to their own Before movement receipt in a separate draw phase.
+  Single-player and distinct mill-recipient controls keep their original counts.
 
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their

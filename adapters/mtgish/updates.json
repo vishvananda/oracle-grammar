@@ -1216,6 +1216,26 @@
         {"face":"Thermokarst","path":[0,"args","body","instructions",1,"args","condition","args","object"],"from":{"kind":"Result","args":{"result":0,"phase":"Before","index":0}},"to":{"kind":"Target","args":{"slot":0,"index":0}}},
         {"face":"Extinguish the Light","path":[0,"args","body","instructions",1,"args","condition","args","object"],"from":{"kind":"Result","args":{"result":0,"phase":"Before","index":0}},"to":{"kind":"Target","args":{"slot":0,"index":0}}}
       ]
+    },
+    {
+      "id": "U0027",
+      "kind": "correction",
+      "summary": "Wand of Ith tests an observed nonland in its second branch.",
+      "evidence": "Repository issue #15 and upstream https://github.com/i5jb/mtgish/issues/285: the printed second branch says it is not a land. Keep the CountObjects(Matching(Observed(reveal), filter)) >= 1 existence test and negate only CardType(Land) inside its filter. Both positive land and positive nonland existence tests remain false on an empty reveal; do not negate the whole existence test. Preserve random reveal, target player, both optional payments, original life amounts and mana-value expression, payment receipts, discard actions and activation restriction. This corrects actual condition operands in the reference and grammar, using existing schema 190 types. Native upstream witnesses distinguish declined nonland payment, paid nonland and a land that cannot receive a second prompt. See docs/reported-issues-20261113.md.",
+      "changes": [
+        {"face":"Wand of Ith","path":[0,"args","body","instructions",2,"args","condition","args","left","args","args","filter"],"from":{"kind":"CardType","args":"Land"},"to":{"kind":"Not","args":{"kind":"CardType","args":"Land"}}}
+      ]
+    },
+    {
+      "id": "U0028",
+      "kind": "correction",
+      "summary": "Each drawing player reads their own shuffled-card receipt after the separate all-player shuffle phase.",
+      "evidence": "Repository issue #16: Winds of Change, Molten Psyche and Whirlpool Warrior must not draw the combined total for each player. Keep the original first all-player shuffle loop; replace the following global Draw with a separate ForEachPlayer(All) loop whose Draw recipient and MovedBy{result:shuffle,phase:Before,player} use the same bound player. Count actual original shuffled cards and preserve identities and result addresses. Never interleave one player's shuffle/draw before the next shuffle. Preserve Molten Psyche's metalcraft/damage and the Warrior's separate single-player trigger. Credit Voucher and Whirlpool Rider retain their normal single-player Transition receipts; Psychic Spiral's target still mills the caster's shuffled count. Source was already correct; this is a lowering correction, not a Source rewrite or equivalence normalization. Existing schema 190 concepts suffice. Primary published implementation, decision note and six-face regressions: https://github.com/vishvananda/mtgish/commit/6deb7e262e2a2681dea301951b6dac46f2c41d9a . Native generated-code witness publication is recorded on issue #16; not rerun here. See docs/reported-issues-20261113.md.",
+      "changes": [
+        {"face":"Molten Psyche","path":[0,"args","body","instructions",1],"from":{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"All"},"amount":{"kind":"CountObjects","args":{"kind":"Transition","args":{"result":0,"phase":"Before"}}}}}}},"to":{"kind":"ForEachPlayer","args":{"players":{"kind":"All"},"binding":0,"starting_with":null,"in_chosen_direction":false,"body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"Bound","args":0}},"amount":{"kind":"CountObjects","args":{"kind":"MovedBy","args":{"result":0,"phase":"Before","player":{"kind":"Bound","args":0}}}}}}}}]}}}},
+        {"face":"Whirlpool Warrior","path":[1,"args","body","instructions",1],"from":{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"All"},"amount":{"kind":"CountObjects","args":{"kind":"Transition","args":{"result":0,"phase":"Before"}}}}}}},"to":{"kind":"ForEachPlayer","args":{"players":{"kind":"All"},"binding":0,"starting_with":null,"in_chosen_direction":false,"body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"Bound","args":0}},"amount":{"kind":"CountObjects","args":{"kind":"MovedBy","args":{"result":0,"phase":"Before","player":{"kind":"Bound","args":0}}}}}}}}]}}}},
+        {"face":"Winds of Change","path":[0,"args","body","instructions",1],"from":{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"All"},"amount":{"kind":"CountObjects","args":{"kind":"Transition","args":{"result":0,"phase":"Before"}}}}}}},"to":{"kind":"ForEachPlayer","args":{"players":{"kind":"All"},"binding":0,"starting_with":null,"in_chosen_direction":false,"body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"Bound","args":0}},"amount":{"kind":"CountObjects","args":{"kind":"MovedBy","args":{"result":0,"phase":"Before","player":{"kind":"Bound","args":0}}}}}}}}]}}}}
+      ]
     }
   ]
 }

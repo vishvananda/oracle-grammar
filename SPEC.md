@@ -154,6 +154,16 @@ current zone membership: a replacement redirect does not count, and later
 movement cannot erase a recorded exile arrival. Real costs retain their payment
 contracts.
 
+All-player shuffle-then-draw wording retains two phases: finish every shuffle,
+then bind each drawing player and count that player's Before movement receipt.
+Do not use the aggregate total for every player or interleave shuffle and draw.
+A separate recipient, such as a mill target, does not redefine the performer of
+an ordinary single-player receipt.
+
+Positive reveal conditions count matching observed cards. A nonland branch
+negates the type filter inside the observed population; negating the existence
+condition would incorrectly enter that branch when nothing was revealed.
+
 
 ## Printing
 
