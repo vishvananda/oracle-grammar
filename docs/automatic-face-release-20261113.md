@@ -49,3 +49,12 @@ its parent directory after success, with a fresh-cache regression test.
 MTGish fork commit `1fb1dec3b101bbefbe55870c108739709a04e53e` adds gzip JSON Lines
 input to the bundle comparison gate while retaining legacy JSON arrays. Its six
 Python comparison tests pass. AST layouts and model versions are unchanged.
+
+## Validation
+
+`python3 tools/dev.py check` passed formatting, pins, hygiene, Clippy, helper
+builds, all 27 compositional families (447 cases), and workspace library tests
+(including 677 grammar tests, one intentionally ignored). After the fresh-cache
+receipt fix, all 70 Python tool tests passed. Actionlint 1.7.7 passed both release
+workflows. The actual `faces-code` export and independent artifact checksum
+verification passed. No Rust model, schema or grammar behavior changed here.
