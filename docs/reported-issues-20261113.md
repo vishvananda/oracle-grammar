@@ -1,9 +1,9 @@
 # Reported issue audit — 2026-11-13
 
-Scope: the thirteen open issues #4–#16 in this repository, including the two
-additional reports found during the final inventory refresh. The named audit
-population now contains 51 allowed reported/control faces: the original 40,
-four additional post-destroy faces and the seven Wand/shuffle cases. The original
+Scope: the fifteen open issues #4–#18 in this repository, including additional
+reports found during inventory refreshes. The named audit population now
+contains 53 allowed reported/control faces: the original 40, four additional
+post-destroy faces, seven Wand/shuffle cases, Total War and Shapeshifter. The original
 40 include Barl's Cage and Orcish Farmer as controller-following duration
 controls. All are in the immutable allowed population. Source text remains the
 pinned Oracle input. Reference amendments
@@ -27,6 +27,8 @@ witnesses are identified separately.
 | [#14](https://github.com/vishvananda/oracle-grammar/issues/14) | Fixed locally: U0022 adopts historical damage participants; U0023 preserves both positive copy-type tests and relative payment printing. |
 | [#15](https://github.com/vishvananda/oracle-grammar/issues/15) | Fixed locally: U0027 tests observed nonlands in the second Wand of Ith branch, retaining the existence guard. |
 | [#16](https://github.com/vishvananda/oracle-grammar/issues/16) | Fixed locally: U0028 binds each drawing player to their own shuffled-card receipt after the complete all-player shuffle phase. |
+| [#17](https://github.com/vishvananda/oracle-grammar/issues/17) | Fixed locally: U0029 tests Total War's nonattackers in ThisCombat and retains its separate turn-long control exemption. |
+| [#18](https://github.com/vishvananda/oracle-grammar/issues/18) | Fixed locally: U0030 makes Shapeshifter's intrinsic chosen-number definition a CDA with its symbolic power/toughness formula. |
 
 ## Prevention direction and filters: #4–#6
 
@@ -321,7 +323,7 @@ No measured speed improvement is claimed.
 
 ## Publication and remaining dependency
 
-Twelve reported issues are fixed in local commits. Their GitHub comments identify
+Fourteen reported issues are fixed in local commits. Their GitHub comments identify
 the exact unpublished commit and validation; Fixes footers provide closure when
 those commits are published. They remain open pending publication. No push or
 merge is claimed. Issue #11 has a dependency comment rather than a fix claim:
@@ -331,7 +333,7 @@ both owned packages. Its prepared LastTurnOf(PlayerRef) addition requires schema
 published schema-190 boundary. The independent working tree for that PR is
 preserved.
 
-The final aggregate native audit uses the immutable 8662bc2 executable/reference
+The aggregate native audit through U0028 uses the immutable 8662bc2 executable/reference
 checkpoint and explicitly materializes 42 previously implicit old singleton
 readings before comparison. It intentionally rejects exactly 45 documented old
 incorrect readings on 44 faces, records 39 corrected additions on 38 faces, and
@@ -343,10 +345,73 @@ gold is idempotent and native failure output is empty. Source, runtime grammar,
 reference, rows and executable hashes were rechecked. This is a fully accounted
 semantic correction, not an unconditional strict-preservation pass.
 
-The final fixed every-tenth sample retains all 3,275 equal faces, 3,196 exact keyed
+The fixed every-tenth sample through U0028 retains all 3,275 equal faces, 3,196 exact keyed
 prints, 3,221 verified defaults and 2,229 exact defaults against the actual 8662bc2
 checkpoint. Exact-default preference moves from Extinguish the Light to Pinecrest
 Ridge; those are the only two changed default texts. No keyed or verified-default
 availability flag changes. The search generates 43,528 candidates and verifies
 31,450, versus 43,462/31,406 at that checkpoint. Candidate verification and default
 availability are distinct; these quick-helper runs are not timing evidence.
+
+
+## Combat window and chosen-number definition: #17, #18
+
+U0029 changes only Total War's candidate attack-history window to ThisCombat.
+Its separate continuous-control-since-turn-began exemption stays turn-long; the
+attacking player, untapped/non-Wall creature restrictions, batch event and
+regeneration remain intact. A previous combat's attacker cannot escape the next
+combat's nonattacker test. Explicit "this turn" history remains ThisTurn in an
+independent control. The source template's unrepresented threshold word is
+limited to its actual "one or more" wording, with a fixed >= 1 attack test; it
+cannot turn "two or more" into an unrelated history threshold. The old native
+canonical conjunction also failed inverse printing; the existing bounded @and
+helper now matches its actual conjuncts without depending on serialized order.
+No equality alias or new history interface is introduced.
+
+U0030 changes Shapeshifter's final intrinsic definition from Ordinary with split
+setters to CharacteristicDefining with SetBasePowerToughness. Its operands remain
+ChosenNumber and Subtract(7, ChosenNumber), with both earlier number choices and
+the optional upkeep choice unchanged. The existing defining_static context
+contract classifies this intrinsic unconditional definition, preserving the
+ordinary self-setting control. This retains a symbolic formula, rather than
+substituting its present value. A CDA functions in every zone and applies in
+layer 7a; an undetermined number uses zero, so the definition can yield 0/7
+before a choice. See CR107.2, 604.3/604.3a and 613.4a in the
+[official rules](https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.pdf).
+These are semantic corrections using existing schema-190 types, with no model
+pin or reference-lock change. The reported additional-combat and hand-state
+backend witnesses are not rerun here.
+
+The frozen c600177 executable fails exactly the two corrected expectations and
+passes both synthetic controls. The four-case fixture now has sole correct
+native readings, exact keyed printing and verified defaults. Three Rust
+regressions check the actual history window, candidate/player identity,
+turn-long control exception, explicit-turn control, CDA kind, symbolic operands,
+ordinary setter control and edited formula constant. A separate two-case
+compositional family checks the intrinsic definition with original and edited
+constants. One obsolete ordinary-change seed is retired: cumulative retirements
+reach 165, leaving 12,042 (12,040 needed and two protected unused).
+Compositional coverage remains 19,871 with the same four attribution limitations
+and no at-risk face.
+
+All eight gates pass; 784 frontend tests pass with one ignored. Full coverage
+remains 32,755 equal, 31,687 single-reading faces and 33,914 readings. The native
+preservation audit intentionally rejects exactly the two old reported meanings,
+adds exactly their two corrected replacements and has no unrelated delta. All
+raw/canonical gold and current readings validate; canonical gold is idempotent
+and native failure output is empty. The actual frozen c600177 executable and
+current executable both retain two exact keyed and two verified default prints
+for the reported faces. Exact defaults change from two to one; canonical native
+printing is separately covered by the new regressions. The full 53-face issue
+cohort has 53 exact keyed and verified default prints, including 35 exact
+defaults, and retains Deep Spawn's two cost readings. No backend runtime or
+speed measurement is claimed.
+
+The final aggregate audit through U0030 again uses the immutable 8662bc2
+checkpoint. After explicitly materializing 44 old singleton meanings, it
+intentionally rejects exactly 47 old incorrect readings on 46 faces and records
+41 corrected additions on 40 faces, with no other semantic delta. The six
+non-replacement removals are the already-corrected post-destroy alternatives.
+All 33,914 current readings and all raw/canonical gold validate, canonical gold
+is idempotent, and native failure output is empty. All audited source, runtime
+grammar, executable, data and reference hashes were rechecked.

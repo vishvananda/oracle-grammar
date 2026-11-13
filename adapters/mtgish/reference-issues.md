@@ -336,6 +336,11 @@ the IR path, the value it replaces and why.
 - `U0028` (correction, issue #16): three all-player shuffle effects bind each
   drawing player to their own Before movement receipt in a separate draw phase.
   Single-player and distinct mill-recipient controls keep their original counts.
+- `U0029` (correction, issue #17): Total War tests the current combat's
+  nonattackers while preserving the separate continuous-control turn exemption.
+- `U0030` (correction, issue #18): Shapeshifter's intrinsic chosen-number
+  definition is a CDA with SetBasePowerToughness and its symbolic subtraction.
+  Ordinary, granted and conditional setters keep their context classification.
 
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their

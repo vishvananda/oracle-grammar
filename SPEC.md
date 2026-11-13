@@ -164,6 +164,17 @@ Positive reveal conditions count matching observed cards. A nonland branch
 negates the type filter inside the observed population; negating the existence
 condition would incorrectly enter that branch when nothing was revealed.
 
+An unqualified nonattacker test within an attack trigger uses the current
+combat; explicit "this turn" history keeps its full-turn window. A distinct
+continuous-control-since-turn-began exemption keeps its own timing contract.
+
+An intrinsic, unconditional chosen-number power/toughness definition uses the
+existing characteristic-defining classification and retains its symbolic
+formula. It functions in all zones and applies in layer 7a. An undetermined
+number uses zero without replacing the formula by a current value. The defining
+grammar's context contract keeps ordinary setters, granted abilities and
+conditional effects distinct.
+
 
 ## Printing
 

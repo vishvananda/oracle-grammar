@@ -918,3 +918,18 @@ Tea Shop, Myr Reservoir and Tenza, Godo's Maul; every exact keyed flag is unchan
 Sample candidate counts are 43,462 generated / 31,406 verified. These are search
 coverage measurements, not performance timings or an assertion that all
 candidates verify. Quick helpers are not optimized benchmark baselines.
+
+
+## Reported-issue follow-up checkpoint
+
+The subsequent reported-issue batches are recorded in the
+[issue audit](reported-issues-20261113.md), including every reference amendment,
+normalization/correction distinction and intentional native-preservation delta.
+Shared untap, exchange, shuffle and chosen-number definition productions retire
+six more seeds after the mana-spending checkpoint: cumulative retirements are
+165, with 12,042 remaining (12,040 needed and two protected unused).
+Compositional coverage is 19,871. All 32,755 allowed faces remain equal, with
+31,687 single-reading faces and 33,914 supported readings. Six wrong post-destroy
+alternatives were removed while their correct target readings were retained.
+All eight gates pass, including 784 frontend tests with one ignored. No speed
+improvement is claimed for these semantic corrections or quick-helper runs.

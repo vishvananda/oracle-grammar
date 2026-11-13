@@ -1236,6 +1236,24 @@
         {"face":"Whirlpool Warrior","path":[1,"args","body","instructions",1],"from":{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"All"},"amount":{"kind":"CountObjects","args":{"kind":"Transition","args":{"result":0,"phase":"Before"}}}}}}},"to":{"kind":"ForEachPlayer","args":{"players":{"kind":"All"},"binding":0,"starting_with":null,"in_chosen_direction":false,"body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"Bound","args":0}},"amount":{"kind":"CountObjects","args":{"kind":"MovedBy","args":{"result":0,"phase":"Before","player":{"kind":"Bound","args":0}}}}}}}}]}}}},
         {"face":"Winds of Change","path":[0,"args","body","instructions",1],"from":{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"All"},"amount":{"kind":"CountObjects","args":{"kind":"Transition","args":{"result":0,"phase":"Before"}}}}}}},"to":{"kind":"ForEachPlayer","args":{"players":{"kind":"All"},"binding":0,"starting_with":null,"in_chosen_direction":false,"body":{"instructions":[{"kind":"Effect","args":{"result":1,"operation":{"kind":"Draw","args":{"players":{"kind":"One","args":{"kind":"Bound","args":0}},"amount":{"kind":"CountObjects","args":{"kind":"MovedBy","args":{"result":0,"phase":"Before","player":{"kind":"Bound","args":0}}}}}}}}]}}}}
       ]
+    },
+    {
+      "id": "U0029",
+      "kind": "correction",
+      "summary": "Total War tests attacks during the current combat, retaining its separate turn-long control exemption.",
+      "evidence": "Repository issue #17: the printed attack trigger destroys eligible nonattackers in that combat. A source that attacked in a previous combat must not be protected during an additional combat. Change only the candidate attack EventHistory window from ThisTurn to ThisCombat; keep the attacking player's identity, untapped/non-Wall/creature filters, continuous-control-since-turn-began exception, batching and destruction. Explicit 'this turn' predicates elsewhere remain ThisTurn. This changes an observable historical operand, not an equivalence shape. Existing schema 190 HistoryWindow::ThisCombat suffices. The report records a distinguishing retained Aurelia additional-combat native scenario; not rerun in this frontend. See https://github.com/vishvananda/oracle-grammar/issues/17 and docs/reported-issues-20261113.md.",
+      "changes": [
+        {"face":"Total War","path":[0,"args","body","instructions",0,"args","operation","args","objects","args","filter","args",2,"args","args","args","left","args","window"],"from":"ThisTurn","to":"ThisCombat"}
+      ]
+    },
+    {
+      "id": "U0030",
+      "kind": "correction",
+      "summary": "Shapeshifter's intrinsic chosen-number power/toughness formula is a characteristic-defining ability.",
+      "evidence": "Repository issue #18: the final printed definition and */7-* power/toughness meet CR604.3/604.3a. Replace the Ordinary Static plus split SetPower/SetToughness with CharacteristicDefining and SetBasePowerToughness over the same ChosenNumber and Subtract(7,ChosenNumber) formula. A CDA functions in every zone and applies in layer7a (CR613.4a); ordinary self-setting effects remain ordinary. An undetermined chosen number uses zero (CR107.2), without collapsing the stored symbolic formula or clamping values. Preserve entering controller, both number choices, optional upkeep choice, source identity and all numeric operands. The grammar uses the existing context-aware defining_static contract, rather than globally reclassifying setters or marking granted/conditional effects intrinsic. Existing schema190 types suffice. Official rules: https://media.wizards.com/2026/downloads/MagicCompRules%2020261106.pdf . See https://github.com/vishvananda/oracle-grammar/issues/18 and docs/reported-issues-20261113.md; reported native hand-state witness is not rerun here.",
+      "changes": [
+        {"face":"Shapeshifter","path":[2],"from":{"kind":"Static","args":{"kind":"Ordinary","affected":{"Objects":{"kind":"One","args":{"kind":"Source"}}},"changes":[{"kind":"SetPower","args":{"kind":"ChosenNumber"}},{"kind":"SetToughness","args":{"kind":"Subtract","args":[{"kind":"Constant","args":7},{"kind":"ChosenNumber"}]}}]}},"to":{"kind":"Static","args":{"kind":{"CharacteristicDefining":{"keyword":null,"contributes_to_color_identity":true}},"affected":{"Objects":{"kind":"One","args":{"kind":"Source"}}},"changes":[{"kind":"SetBasePowerToughness","args":{"power":{"kind":"ChosenNumber"},"toughness":{"kind":"Subtract","args":[{"kind":"Constant","args":7},{"kind":"ChosenNumber"}]}}}]}}}
+      ]
     }
   ]
 }
