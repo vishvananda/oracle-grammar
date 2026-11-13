@@ -32,8 +32,14 @@ For the first registry publication, authenticate with `cargo login` locally:
 
 ```sh
 python3 tools/releases.py publish-crates .cache/release-code
-python3 tools/releases.py github .cache/release-code --repo OWNER/REPO --publish
+git tag grammar-v0.1.0
+git push origin grammar-v0.1.0
 ```
+
+Initial crate registration uses the local Cargo credential. CI's
+`CRATES_IO_PUBLISH_TOKEN` is scoped to publishing updates and cannot create new
+crates. Tag the exact clean commit used for the local publication so CI can
+verify and reuse those identical archives before publishing the GitHub assets.
 
 Publication proceeds `oracle-ir`, `oracle-ir-contract`, then `oracle-ir-grammar`.
 A dry run must reproduce the reviewed `.crate` checksum before each upload.
@@ -50,10 +56,9 @@ An interrupted existing GitHub draft requires inspection rather than replacement
 After bootstrap configure each crate's crates.io Trusted Publisher with this
 repository, `release-grammar.yml`, and environment `crates-io`. Configure that
 GitHub environment's access policy. Pushing a `grammar-v*` tag runs **Release grammar** and publishes after all gates
-pass. Manual dispatch defaults to preparation only. The first registration can
-use repository secret `CRATES_IO_BOOTSTRAP_TOKEN`; remove that secret once all
-three Trusted Publishers are configured. Later releases use a short-lived OIDC
-token.
+pass. Manual dispatch defaults to preparation only. CI uses the update-only
+repository secret `CRATES_IO_PUBLISH_TOKEN`. Once all three Trusted Publishers
+are configured, remove that secret to switch to short-lived OIDC tokens.
 Enable GitHub release immutability in repository settings for immutable tags and
 assets. Cargo registry publication is permanent.
 

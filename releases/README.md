@@ -33,7 +33,8 @@ inputs must match the existing `grammar_tag`; packaging-only changes may use a
 new exporter commit. No placeholder specification is a real release.
 
 Both workflows also support manual preparation without publishing. Never move
-published tags. For initial crates.io registration, use the repository secret
-`CRATES_IO_BOOTSTRAP_TOKEN`; remove it after configuring Trusted Publishing for
-all three crates with `release-grammar.yml` and GitHub environment `crates-io`.
-Later tag releases use OIDC. See [the complete runbook](../docs/releases.md).
+published tags. Register each crate initially from a local Cargo login before pushing its first
+code tag. CI uses the update-only repository secret `CRATES_IO_PUBLISH_TOKEN`;
+it cannot create new crates. Remove the secret after configuring Trusted
+Publishing for all three crates with `release-grammar.yml` and GitHub environment
+`crates-io`; later tag releases then use OIDC. See [the complete runbook](../docs/releases.md).
