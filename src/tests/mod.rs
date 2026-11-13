@@ -860,3 +860,6 @@ mod planeswalks;
 
 #[path = "shared_clauses/ordered_zones.rs"]
 mod ordered_zones;
+
+#[path = "shared_clauses/top_permissions.rs"]
+mod top_permissions;
