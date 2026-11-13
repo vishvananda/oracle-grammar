@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import tomllib
 
@@ -18,6 +19,9 @@ import pin
 ROOT = Path(__file__).resolve().parent.parent
 WORK = ROOT/'.cache/dev'
 BINS = ('family-check', 'probe', 'inspect', 'score', 'validate-readings', 'rule-audit')
+# Library tests and families cannot read documentation, CI definitions or the other tools.
+NOT_GATE_INPUTS = ('docs/', '.github/', 'tools/')
+GATE_TOOLS = ('tools/dev.py', 'tools/pin.py')
 
 
 def source(root=ROOT):
@@ -160,22 +164,169 @@ def modules(root=ROOT):
 
 def run(action, args, stdout=None):
     binary = {'family': 'family-check', 'families': 'family-check'}.get(action, action)
-    ready(binary)
-    if action == 'families':
-        if args:
-            raise ValueError('families takes no arguments')
-        args = [*json.loads((ROOT/'tests/families.json').read_text()), '--compositional']
+    manifest = ready(binary)
     environment = {**os.environ, 'ORACLE_GRAMMAR_DIR': str(ROOT/'grammar')}
     overrides = [] if action == 'validate-readings' else modules()
-    subprocess.run([str(WORK/binary), *args, *overrides], cwd=ROOT, env=environment, check=True,
-                   stdout=stdout)
+    if action != 'families':
+        subprocess.run([str(WORK/binary), *args, *overrides], cwd=ROOT, env=environment,
+                       check=True, stdout=stdout)
+        return
+    if args:
+        raise ValueError('families takes no arguments')
+    families = [*json.loads((ROOT/'tests/families.json').read_text()), '--compositional']
+    environment['ORACLE_GRAMMAR_THREADS'] = str(threads())
+    with receipt('families', {'helpers': manifest['binaries']}):
+        subprocess.run([str(WORK/binary), *families, *overrides], cwd=ROOT, env=environment,
+                       check=True, stdout=stdout)
 
+
+def threads():
+    """The verification budget: `ORACLE_GRAMMAR_THREADS`, else up to 16 of this host's cores."""
+    value = os.environ.get('ORACLE_GRAMMAR_THREADS')
+    if value is None:
+        return min(16, os.cpu_count() or 1)
+    if not value.isdigit() or int(value) < 1:
+        raise ValueError('ORACLE_GRAMMAR_THREADS must be a positive integer')
+    return int(value)
+
+
+def tree(root=None):
+    """Digest of every checked-out file a library test or family can read; None outside git."""
+    root = ROOT if root is None else root
+    try:
+        listed = subprocess.run(['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+                                cwd=root, capture_output=True, check=True).stdout.decode()
+    except (OSError, subprocess.CalledProcessError, UnicodeDecodeError):
+        return None
+    digest = hashlib.sha256()
+    for name in sorted(set(listed.split('\0')) - {''}):
+        if name.endswith('.md') or (name.startswith(NOT_GATE_INPUTS) and name not in GATE_TOOLS):
+            continue
+        path = root/name
+        if path.is_file():
+            data = path.read_bytes()
+            digest.update(f'{name}\0{len(data)}\0'.encode()+data)
+    return digest.hexdigest()
+
+
+def receipt_key(gate, digest, extra):
+    toolchain = compiler()
+    # Incremental compilation changes how a build is cached, not what it produces.
+    toolchain['environment'].pop('CARGO_INCREMENTAL', None)
+    identity = {'gate': gate, 'tree': digest, 'compiler': toolchain,
+                'grammar': os.environ.get('ORACLE_GRAMMAR_DIR'), **extra}
+    return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+
+
+def receipts():
+    try:
+        return json.loads((WORK/'receipts.json').read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def passed(gate, extra):
+    """Whether `gate` already passed on exactly the current files and compiler."""
+    digest = tree()
+    return digest is not None and receipts().get(gate) == receipt_key(gate, digest, extra)
+
+
+@contextmanager
+def receipt(gate, extra):
+    """Record that `gate` passed, unless its inputs changed while it ran."""
+    before = tree()
+    yield
+    if before is None or tree() != before:
+        print(f'{gate}: files changed while it ran, so no receipt was recorded', file=sys.stderr)
+        return
+    # Its own lock: a gate may already hold the build lock shared.
+    with (WORK/'receipts.lock').open('a') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX)
+        current = receipts()
+        current[gate] = receipt_key(gate, before, extra)
+        pending = WORK/'receipts.json.next'
+        pending.write_text(json.dumps(current, indent=2, sort_keys=True)+'\n')
+        pending.replace(WORK/'receipts.json')
 
 
 def test(args):
     pin.check_model()
     command = ['cargo', 'test', '--locked', '--release', '--workspace', '--lib', '--features', 'cli', *args]
-    subprocess.run(command, cwd=ROOT, env=build_environment(), check=True)
+    environment = build_environment()
+    environment.setdefault('RUST_TEST_THREADS', str(threads()))
+    if args:
+        subprocess.run(command, cwd=ROOT, env=environment, check=True)
+        return
+    with receipt('test', {}):
+        subprocess.run(command, cwd=ROOT, env=environment, check=True)
+
+
+# Independent fast gates run alongside the Cargo chain; Cargo serializes on its build lock.
+FAST_GATES = (
+    ('fmt', ['cargo', 'fmt', '--all', '--check']),
+    ('pin', [sys.executable, 'tools/pin.py', 'check']),
+    ('hygiene', [sys.executable, 'tools/hygiene.py']),
+    ('tools', [sys.executable, '-m', 'unittest', 'discover', '-s', 'tools', '-p', 'test_*.py']),
+)
+CLIPPY = ['cargo', 'clippy', '--locked', '--workspace', '--all-targets', '--all-features',
+          '--', '-D', 'warnings']
+
+
+class Gate:
+    def __init__(self, name, command, environment=None):
+        self.name, self.log = name, WORK/'check'/f'{name}.log'
+        self.started = time.monotonic()
+        with self.log.open('w') as stream:
+            process = subprocess.Popen(command, cwd=ROOT, env=environment, stdout=stream,
+                                       stderr=subprocess.STDOUT)
+        # Time each gate to its own exit, not to when the summary collects it.
+        self.waiter = threading.Thread(target=self.reap, args=(process,), daemon=True)
+        self.waiter.start()
+
+    def reap(self, process):
+        self.code = process.wait()
+        self.seconds = time.monotonic()-self.started
+
+    def wait(self):
+        self.waiter.join()
+        return self.name, 'passed' if self.code == 0 else 'FAILED', self.seconds
+
+
+def check(force=False):
+    """Every contribution gate, sharing one build cache; unchanged passed gates are reused."""
+    pin.check_model()
+    (WORK/'check').mkdir(parents=True, exist_ok=True)
+    environment = {**build_environment(), 'ORACLE_GRAMMAR_THREADS': str(threads())}
+    tool = [sys.executable, str(ROOT/'tools/dev.py')]
+    fast = [Gate(name, command) for name, command in FAST_GATES]
+    results = [Gate('clippy', CLIPPY, environment).wait()]
+    built = Gate('build', [*tool, 'build'], environment).wait()
+    results.append(built)
+    slow = []
+    if built[1] == 'passed':
+        helpers = json.loads((WORK/'build.json').read_text())['binaries']
+        if not force and passed('families', {'helpers': helpers}):
+            results.append(('families', 'reused', 0.0))
+        else:
+            slow.append(Gate('families', [*tool, 'families'], environment))
+    else:
+        results.append(('families', 'skipped', 0.0))
+    if not force and passed('test', {}):
+        results.append(('test', 'reused', 0.0))
+    else:
+        slow.append(Gate('test', [*tool, 'test'], environment))
+    results += [gate.wait() for gate in [*fast, *slow]]
+    order = [name for name, _ in FAST_GATES] + ['clippy', 'build', 'families', 'test']
+    failed = []
+    for name, status, seconds in sorted(results, key=lambda result: order.index(result[0])):
+        print(f'{name:9} {status:7} {seconds:6.1f} s')
+        if status == 'FAILED':
+            failed.append(name)
+    for name in failed:
+        log = WORK/'check'/f'{name}.log'
+        print(f'\n== {name} ({log})\n' + '\n'.join(log.read_text().splitlines()[-30:]))
+    if failed:
+        raise ValueError(f'{len(failed)} gates failed: {", ".join(failed)}')
 
 
 def main():
@@ -183,13 +334,15 @@ def main():
     if args in (['build'], ['build', '--optimized']):
         with lock():
             build('--optimized' in args)
+    elif args in (['check'], ['check', '--force']):
+        check('--force' in args)
     elif args and args[0] == 'test':
         test(args[1:])
     elif args and args[0] in ('family', 'families', 'probe', 'inspect', 'score', 'validate-readings'):
         with lock(shared=True):
             run(args[0], args[1:])
     else:
-        raise ValueError('usage: dev.py build [--optimized] | test [filter] | family <file>... [--compositional] | families | probe <name> <text> | inspect <request> | score ... | validate-readings ...')
+        raise ValueError('usage: dev.py build [--optimized] | check [--force] | test [filter] | family <file>... [--compositional] | families | probe <name> <text> | inspect <request> | score ... | validate-readings ...')
 
 
 if __name__ == '__main__':

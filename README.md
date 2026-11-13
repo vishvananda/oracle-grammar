@@ -39,6 +39,15 @@ python3 tools/dev.py family families/revealed-followups.json --compositional
 python3 tools/dev.py families
 ```
 
+Before a commit, `python3 tools/dev.py check` runs every contribution gate against the
+shared build cache: formatting, pins, hygiene and tool tests alongside clippy, the helper
+build, the families and the library tests. It prints each gate's time and the end of any
+failing log. An unfiltered `test` or `families` run records a receipt for exactly the
+files it could read (everything outside `docs/`, `.github/`, Markdown and the other
+tools) and the compiler identity, and `check` reuses a gate whose receipt still matches;
+`check --force` runs everything. Verification commands use `ORACLE_GRAMMAR_THREADS`, or
+up to 16 cores when it is unset, for test and family threads.
+
 `python3 tools/dev.py test` (run from the repository root) runs the full unit suite in the same release profile and CLI
 feature configuration as the helpers. Filters stay cheap, for example
 `python3 tools/dev.py test tests::revealed_followups` or
@@ -62,8 +71,8 @@ selection, so omitting a one-command environment setting does not create a
 second dependency cache. A remembered directory that no longer exists is refused
 until `CARGO_TARGET_DIR` selects one. Quick helper builds and the test preset
 compile the frontend incrementally; `build --optimized` does not.
-`ORACLE_GRAMMAR_THREADS` raises the default of two worker threads for families,
-inspection and scoring.
+`ORACLE_GRAMMAR_THREADS` raises the library default of two worker threads for
+inspection and scoring; `dev.py test`, `families` and `check` default to up to 16.
 
 `tools/corpus.py` scores cohorts of an explicit unsealed population against a
 baseline. Its inputs and their SHA-256 checksums are named in the ignored local

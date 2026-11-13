@@ -45,6 +45,7 @@ in `src/test_support.rs`; use a fresh engine for custom grammars or mutable sett
 Add regression tests under `src/tests/`; root `tests/` holds data fixtures. Respect `CARGO_TARGET_DIR` for shared caches.
 Do not run a whole corpus or rebuild at every grammar-only checkpoint.
 
+`python3 tools/dev.py check` runs every gate below in parallel and reuses unchanged passes.
 Run `cargo fmt --check`, `python3 tools/dev.py test` (the locked release library test preset), and
 `cargo clippy --locked --workspace --all-targets --all-features -- -D warnings`, plus
 `python3 -m unittest discover -s tools -p 'test_*.py'`,
