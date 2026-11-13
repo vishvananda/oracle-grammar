@@ -76,3 +76,56 @@ fn cards_looked_at_go_back_into_their_own_library() {
         "{reorder}"
     );
 }
+
+#[test]
+fn players_act_on_their_own_slices() {
+    let text = "Target opponent exiles the top three cards of their library.";
+    let reading = compositional(text);
+    let moved = &reading[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"];
+    assert_eq!(
+        moved["objects"]["args"]["objects"],
+        zone("Library", target())
+    );
+    assert_eq!(
+        moved["objects"]["args"]["count"],
+        json!({"kind":"Constant","args":3})
+    );
+    printed_types(&reading, &["Sorcery"]);
+    // Each library shows its own top card at once; each opponent exiles from their own.
+    let text = "Each player reveals the top card of their library.";
+    let reading = compositional(text);
+    let revealed = &reading[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"];
+    assert_eq!(
+        revealed["objects"],
+        json!({"kind":"LibraryTops","args":{"kind":"All"}})
+    );
+    printed_types(&reading, &["Sorcery"]);
+    let text = "Each opponent exiles the top card of their library.";
+    let reading = compositional(text);
+    let each = &reading[0]["args"]["body"]["instructions"][0];
+    assert_eq!(each["kind"], "ForEachPlayer");
+    let binding = each["args"]["binding"].clone();
+    let moved = &each["args"]["body"]["instructions"][0]["args"]["operation"]["args"];
+    assert_eq!(
+        moved["objects"]["args"]["objects"],
+        zone("Library", json!({"kind":"Bound","args":binding}))
+    );
+    printed_types(&reading, &["Sorcery"]);
+}
+
+#[test]
+fn an_exiled_slice_can_be_face_down_or_counted_first() {
+    let text = "Exile the top two cards of your library face down.";
+    let reading = compositional(text);
+    let moved = &reading[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"];
+    assert_eq!(moved["destination"]["Exile"]["visibility"], "FaceDown");
+    assert_eq!(printed_types(&reading, &["Sorcery"]), text);
+    let text = "Exile three cards from the top of target player's library.";
+    let reading = compositional(text);
+    let moved = &reading[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"];
+    assert_eq!(
+        moved["objects"]["args"]["objects"],
+        zone("Library", target())
+    );
+    printed_types(&reading, &["Sorcery"]);
+}

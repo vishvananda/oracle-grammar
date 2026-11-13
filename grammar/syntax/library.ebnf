@@ -160,10 +160,14 @@ found_battlefield_tapped ::= "put" found "onto" "the" "battlefield" "tapped"
 
 /* An end of one player's library or graveyard: "the top two cards of target player's
    library", "the bottom card of your graveyard". */
-ordered_cards ::= ordered_slice | library_tops
+ordered_cards ::= ordered_slice | ordered_counted | library_tops
 
 /* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:$ordered_zone, players:One($player_possessive)}, kind:Card, filter:Any}, count:$top_count, from:$ordered_end} */
 ordered_slice ::= "the" ordered_end top_count "of" player_possessive ordered_zone
+
+/* "That many cards from the top of your library": the same slice, counted first. */
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:$ordered_zone, players:One($player_possessive)}, kind:Card, filter:Any}, count:$card_count, from:$ordered_end} */
+ordered_counted ::= card_count "from" "the" ordered_end "of" player_possessive ordered_zone
 
 /* "The top card of each player's library" is one card from each library, not the top
    card of all of them together. */
@@ -459,6 +463,25 @@ exile_top_card_player ::= player_ref "exiles" "the" "top" "card" "of" "their" "l
    loses is what a later `it` or `that card` names. */
 /* @sem Operation::@exiled_card_result(Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($zone_that_player)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
 exile_top_card_named ::= "exile" "the" "top" "card" "of" zone_that_player "library"
+
+/* "Target opponent exiles the top three cards of their library": the acting player's own
+   library. */
+/* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:$top_many, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+player_exiles_top_cards ::= player_ref "exiles" "the" "top" top_many "of" "their" "library"
+
+/* A pronoun after one revealed card ("if it's a nonland card") names that card, which
+   the binder does not yet follow from a revealing player; one card keeps its own rules. */
+/* @sem Operation::Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:$top_many, from:Top}} */
+player_reveals_top ::= player_ref "reveals" "the" "top" top_many "of" "their" "library"
+
+/* "Each player reveals the top card of their library" shows one card from each library
+   at once; "each opponent exiles the top card of their library" is one exile for each
+   player, from that player's library. */
+/* @sem Operation::Reveal{objects:LibraryTops($optional_player_population)} */
+players_reveal_tops ::= optional_player_population "reveals" "the" "top" "card" "of" "their" "library"
+
+/* @sem Instruction::[ForEachPlayer{players:$optional_player_population, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:$top_count, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
+clause_each_exiles_top ::= optional_player_population "exiles" "the" "top" top_count "of" "their" "library"
 
 /* After a player exiles their top card, "it's a <type> card" counts the exiled
    card with that type, as in Audacious Swap, Dimensional Infiltrator and Mind's
