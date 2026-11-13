@@ -20,6 +20,7 @@ mod mode_results;
 mod movement;
 #[cfg(test)]
 mod result_scopes;
+mod sets;
 mod trace;
 mod visibility;
 use movement::groups as movement_groups;
@@ -523,6 +524,7 @@ impl Walker {
                     }
                 }
                 ("ObjectSet", "InZone") => repeated_current_zone(value),
+                ("ObjectSet", "Matching") => sets::matching_battlefield(value),
                 ("EventSpec", "ZoneChange") => {
                     if value["ZoneChange"]["to"] == "Battlefield" {
                         drop_permanent_types(&mut value["ZoneChange"]["objects"]);

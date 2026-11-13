@@ -234,8 +234,11 @@ instructions_look_put ::= ("you")? look_top "." look_put_split
 
 /* "Look ..., then put ..." is one sentence, so a condition before it governs the
    whole look and split; the two-sentence form above is not a clause. */
-/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$look_top}, ...$look_put_split] */
-clause_look_put_then ::= ("you")? look_top "," "then" look_put_split
+/* @sem $look_put_then_body */
+clause_look_put_then ::= ("you")? look_put_then_body
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_put_split] */
+look_put_then_body ::= look_top ("," "then" | "and") look_put_split
 
 look_count ::= number
 
@@ -244,6 +247,64 @@ instructions_look_reveal ::= look_top "." look_reveal_split
 
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$card_filter}, count:UpTo(Expr::Constant(1)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Reveal{objects:Selected(@prior)}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Instruction::Effect{result:@next, operation:$rest_bottom}] */
 look_reveal_split ::= "you" "may" "reveal" ("a" | "an") card_filter "card" "from" "among" "them" "and" "put" ("it" | "that" "card") "into" "your" "hand" "." "then"? "put" rest_bottom
+
+/* One optional card choice feeds the actual move. Remainders exclude its
+   departure, keeping the look, selection and move result identities separate. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:$look_battlefield_destination}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$look_battlefield_destination, qualifiers:[]}}] */
+look_move_card ::= "you" "may" "put" a_card "from" "among" "them" look_battlefield_destination
+
+look_battlefield_destination ::= until_battlefield | look_battlefield_tapped
+/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
+look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
+
+/* @sem Instruction::[...$look_move_card, Effect{result:@next, operation:$rest_bottom}] */
+look_move_split ::= look_move_card "." "then"? "put" rest_bottom
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_move_split] */
+instructions_look_move ::= look_top "." look_move_split
+
+/* Casting removes cards from the observed library directly. The remainder is
+   the observed population still in that zone, independent of cast receipts. */
+/* @sem Instruction::[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$spell_filter}, count:UpTo(Constant(1)), terms:_{cost:Free}}}, Effect{result:@next, operation:$look_cast_rest}] */
+look_cast_split ::= "you" "may" "cast" spell_filter "from" "among" "them" "without" "paying" "its" "mana" "cost" "." "put" look_cast_rest
+
+/* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Bottom, order:$library_order} */
+look_cast_rest ::= "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_cast_split] */
+instructions_look_cast ::= look_top "." look_cast_split
+
+/* Reordering the chosen card does not change its zone. The other observed
+   cards exclude that reorder receipt's original selected identities. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:$look_top_count}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@prior), end:Top, order:Chosen}}, Effect{result:@next, operation:$rest_bottom}] */
+look_top_split ::= "put" look_top_count "of" ("them" | "those" "cards") "on" "top" "of" "your" "library" "and" rest_bottom
+
+look_top_count ::= look_top_upto | look_top_required
+/* @sem Count::UpTo($number) */
+look_top_upto ::= "up" "to" number
+/* @sem Count::AsManyAsCan($number) */
+look_top_required ::= number
+
+/* @sem Instruction::[...$look_top_split, ...$clause_if] */
+look_top_condition_split ::= look_top_split "." clause_if
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_top_split] */
+instructions_look_top ::= look_top "." look_top_split
+
+/* Each phrase owns its result introductions at its own source position. This
+   keeps reordering and a later cast from advancing the exile receipt early. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+look_exile_card ::= "you" "may" "exile" a_card "from" "among" "them"
+
+/* @sem Instruction::[Effect{result:@next, operation:$rest_bottom}] */
+look_put_remainder ::= "put" rest_bottom
+
+/* The actual exile incarnation stays the cast operand after reordering. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:One(Result{result:@back(3), phase:After, index:0}), filter:Any}, count:Exactly(Constant(1)), cost:Free}}]}}] */
+look_cast_exiled ::= "you" "may" "cast" "the" "exiled" "card" "without" "paying" "its" "mana" "cost"
+
+/* @sem Instruction::[...$look_exile_card, ...$look_put_remainder, ...$look_cast_exiled] */
+look_exile_cast_split ::= look_exile_card "." look_put_remainder "." look_cast_exiled
 
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::RevealUntil{library:AbilityController, filter:$card_filter, count:Expr::Constant(1)}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:$until_destination, qualifiers:[]}}, Instruction::Effect{result:@next, operation:$rest_bottom}] */
 instructions_reveal_until ::= "reveal" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "reveal" ("a" | "an") card_filter "card" "." "put" "that" "card" until_destination "and" rest_bottom
@@ -592,7 +653,17 @@ then_players_shuffle ::= "then" players_singular "shuffles"
 /* @sem @where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_where_follow]}, $value) */
 program_look_where ::= ("you")? look_top "," "where" "X" "is" value "." look_where_follow
 
-look_where_follow ::= look_put_split | look_reveal_split
+look_where_follow ::= look_put_split | look_reveal_split | look_move_split | look_cast_split | look_top_split | look_top_condition_split | look_exile_cast_split
+
+/* Declining to look also declines the following top/bottom selection. */
+/* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:@where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_top_split]}, $value)}]} */
+program_optional_look_where ::= "you" "may" look_top "," "where" "X" "is" value "." "if" "you" "do" "," look_top_split
+
+/* @sem @where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, Effect{result:@next, operation:$look_restore}]}, $value) */
+program_look_where_restore ::= look_top "," "where" "X" "is" value "," "then" look_restore
+
+/* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Top, order:Chosen} */
+look_restore ::= "put" "them" "back" "in" "any" "order"
 
 /* A standalone look definition cannot leave later X amounts unresolved. Whole
    look/selection programs above own those uses together. */

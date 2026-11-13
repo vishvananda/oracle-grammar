@@ -7,6 +7,7 @@ pub(crate) mod arrival;
 mod branches;
 pub(crate) mod capture_amount;
 pub(crate) mod class_levels;
+pub(crate) mod computed_condition;
 pub(crate) mod conditional;
 mod continuous;
 mod costs;

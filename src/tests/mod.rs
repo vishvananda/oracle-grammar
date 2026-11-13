@@ -846,6 +846,9 @@ mod token_values;
 #[path = "shared_clauses/turn_history.rs"]
 mod turn_history;
 
+#[path = "shared_clauses/condition_values.rs"]
+mod condition_values;
+
 #[path = "shared_clauses/normal_forms.rs"]
 mod normal_forms;
 

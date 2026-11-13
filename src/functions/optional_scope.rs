@@ -234,14 +234,35 @@ fn checked_payment(items: &[Value]) -> bool {
     })
 }
 
+/// A bare optional prefix cannot absorb the later card-selection sentence.
+/// Explicit success clauses and one-sentence look/then-select grammar own that
+/// scope. Groups remain transparent; nested conditional programs remain local.
+fn check_sequence(items: &[Value], offer: Offer) -> Result<(), String> {
+    let look_selection = items.windows(2).any(|pair| {
+        let mut operation = &pair[0]["args"]["operation"];
+        if operation["$sym"] == "look_inline" {
+            operation = &operation["args"][0];
+        }
+        pair[0]["kind"] == "Effect"
+            && operation["kind"] == "LookAt"
+            && pair[1]["kind"] == "Effect"
+            && pair[1]["args"]["operation"]["kind"] == "ChooseObjects"
+    });
+    if look_selection {
+        return Err("optional look/selection uses an explicit shared-scope clause".into());
+    }
+    if matches!(offer, Offer::Action) && checked_payment(items) {
+        return Err("an optional payment uses its declared payment clause".into());
+    }
+    Ok(())
+}
+
 fn checked_program(value: &Value, offer: Offer) -> Result<Value, String> {
     crate::functions::branch_bounds(value)?;
     let items = value["instructions"]
         .as_array()
         .ok_or("optional program needs instructions")?;
-    if matches!(offer, Offer::Action) && checked_payment(items) {
-        return Err("an optional payment uses its declared payment clause".into());
-    }
+    check_sequence(items, offer)?;
     let mut pending: Vec<_> = items.iter().collect();
     let mut work = 0usize;
     while let Some(item) = pending.pop() {
@@ -264,9 +285,7 @@ fn checked_program(value: &Value, offer: Offer) -> Result<Value, String> {
             let group = item["args"]["instructions"]
                 .as_array()
                 .ok_or("optional program group needs instructions")?;
-            if matches!(offer, Offer::Action) && checked_payment(group) {
-                return Err("an optional payment uses its declared payment clause".into());
-            }
+            check_sequence(group, offer)?;
             pending.extend(group);
         }
     }

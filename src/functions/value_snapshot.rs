@@ -32,7 +32,7 @@ pub(crate) fn shared(body: &Value) -> bool {
 /// Repeated observed amounts share the definition even when it is an object
 /// property: capture occurs immediately before looking, before any card moves.
 pub(crate) fn required(body: &Value, amount: &Value) -> bool {
-    shared(body) && (shared_definition(amount) || observed::shared(body) && x_count(amount) == 0)
+    observed::repeated(body) || shared(body) && shared_definition(amount)
 }
 
 /// Pumps retain their existing scalar/aggregate definition contract.

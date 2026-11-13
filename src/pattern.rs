@@ -621,6 +621,9 @@ impl Pattern {
                         );
                     }
                     ("apply", [subject, body]) => return Ok(applied(subject, body.clone())),
+                    ("computed_condition", [condition]) => {
+                        return crate::functions::computed_condition::guard(condition).cloned();
+                    }
                     ("where", [body, value]) => {
                         if crate::functions::value_snapshot::required(body, value) {
                             return crate::functions::value_snapshot::snapshot(body, value, at);
@@ -866,9 +869,8 @@ impl Pattern {
                 return crate::functions::repeated_damage_actor::unify(args, value, bindings);
             }
             "apply" => return unify_apply(args, value, bindings),
-            "look_inline" => {
-                let [operation] = args else { return Vec::new() };
-                return operation.unify(value, bindings);
+            "computed_condition" => {
+                return crate::functions::computed_condition::unify(args, value, bindings);
             }
             "where" => return unify_where(args, value, bindings),
             "where_snapshot" => {
@@ -985,7 +987,8 @@ fn unify_returned<'p, 'v>(
 fn transparent_symbol(name: &str) -> bool {
     matches!(
         name,
-        "indefinite_opponent_controller"
+        "look_inline"
+            | "indefinite_opponent_controller"
             | "linked_return_literal"
             | "literal_damage_itself_objects"
             | "event_free_once"

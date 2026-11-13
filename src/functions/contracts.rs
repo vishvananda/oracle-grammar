@@ -649,6 +649,18 @@ fn specialized_call(
         | "announced_targets"
         | "optional_program"
         | "optional_action_program" => optional_scope_call(name, args, ty, schema).map(Some),
+        "computed_condition" => {
+            let [condition] = args else {
+                return Err("@computed_condition needs one Condition".into());
+            };
+            if *ty != Ty::Named("Condition".into()) {
+                return Err("@computed_condition produces Condition".into());
+            }
+            Ok(Some(Pattern::Symbol(
+                name.into(),
+                vec![elaborate(condition, ty, schema)?],
+            )))
+        }
         "look_inline" => {
             let [operation] = args else {
                 return Err("@look_inline needs one Operation".into());

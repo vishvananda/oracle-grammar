@@ -265,3 +265,142 @@ candidates change from 43,371/31,339 generated/verified to 43,372/31,338: Cream 
 the Crop and Nessian Game Warden each have one fewer verified beam candidate,
 while The Mana Rig gains one. Failed candidates are discarded by semantic reparse;
 these counts do not change the verified default or exact-wording results.
+
+## Larger look programs and reference normal forms
+
+The library grammar now shares battlefield selection, casting from observed
+cards, top/bottom selection, optional look-and-select and restoring the looked-at
+cards. Exiling a selected card and casting it after reordering has three lexical
+pieces: each introduces its results at its own words. Introducing the cast result
+at the earlier exile phrase had made the remainder refer to the reorder rather
+than the actual departure; the separated declarations preserve that receipt.
+
+Repeated look quantities can be captured across a later numeric comparison.
+The shared snapshot gate admits the observed card-handling sequence, an optional
+cast with no further X use, and an If comparing X whose branches introduce no
+further X uses. Other repeated look definitions refuse capture instead of falling
+back to repeated evaluation. Independent abilities, local payments, loops and
+unsupported later X owners retain their own contracts. Regression tests cover
+this refusal, the actual exile incarnation after reordering, edited captured
+properties, live library size after reordering, and separate Backup holders.
+
+`U0004` normalizes three faces / four programs to the existing Keldon Flamesage
+capture form:
+
+| Face | Definition and uses | Scope preserved |
+| --- | --- | --- |
+| Emergent Woodwurm | Capture power before looking; reuse it in the permanent-card mana-value test | Both the own attack trigger and Backup-granted trigger retain their respective holder |
+| Kiora, Sovereign of the Deep | Capture the triggering spell's mana value before looking and selecting a cast | EventSubject and the actual observed-library population |
+| Thassa's Oracle | Capture devotion before looking; reuse it in the later comparison | The later library-count operand stays live after reordering |
+
+Updates preserve the original raw property references/information policy, all old
+result IDs, groups, optional choices and movement/casting operands. Only a fresh
+BindValue result is allocated. No native alias equates arbitrary live expressions
+across state changes. The existing AST already supplies this capture; schema 190
+is unchanged.
+
+Spell adjective lists now share a recursive comma list rather than stopping at
+three items. Capital-marked subtype spelling is shared with other subtype lists.
+The explicit `you cast ... from your hand` event proves the hand belongs to that
+spell's caster; third-party spell filters do not borrow that proof.
+
+Computed numeric conditions share comparison words. Direct object-stat wording
+keeps the existing ObjectMatches/Property contract, including the transparent
+`its power` / `its toughness` annotations. It does not introduce an additional
+scalar ObjectProperty reading of that same wording. This is a grammar lowering
+restriction, not a global equivalence between native scalar expressions and
+object predicates. Old extra scalar-property readings removed from Sage-Eye
+Avengers (two) and Shelinda, Yevon Acolyte (one) are reported separately in the
+reading-preservation audit; their retained references already use object tests.
+
+`U0005` records a second, independently justified normalization at 22 sites on
+22 faces: `Matching(Zone(Shared(Battlefield), kind, filter), InZone(Battlefield))`
+becomes that intact inner Zone population. Every object from that current query
+already satisfies the repeated membership filter. `oracle-ir-contract` owns the
+reduction. It does not remove membership checks on historical/observed sets or
+other zones. Extra wrapper fields are retained for validation to reject, and
+moving the inner subtree preserves mapped target-ID origins. Tests cover native
+validation, idempotence, mapped IDs, different membership filters and printing.
+The same redundant literal wrappers are removed from grammar declarations.
+
+Shared zero-count, threshold and numeric parity conditions print the reduced
+population directly. A six-case compositional family checks their complete IR,
+exact keyed wording and verified default prints. This keeps the normalized
+reference printable without relying on old templates that require the wrapper.
+
+The normalized population also exposed two missing shared attachments: recurring
+`the end step` triggers, and conditional player prohibitions. These now compose
+with the same player-rule ability and numeric conditions. `play lands` is a
+player action, independently of object characteristics. The condition-values
+family now has ten complete-IR cases, including these attachments, with exact
+keyed wording and verified default prints.
+
+### Limited Resources actor correction
+
+`U0006` is a correction, independently of the reference normalizations above.
+The entry trigger says each player chooses five lands they control and sacrifices
+the rest. Its reference already collects choices from all players, then performs
+one sacrifice operation on the aggregate Unselected receipt. That operation
+incorrectly named only One(AbilityController). The corrected actor is All.
+
+The correction preserves the original two-instruction order: all choices precede
+the grouped sacrifice. Moving the sacrifice inside the per-player choice loop
+would change that order. The choice populations/controller filters, counts,
+receipts, result IDs and trigger subject remain unchanged. The existing seeded
+clause's semantic declaration is corrected to the same actor set. A regression
+checks the actors, ordering, receipt and printing an edited keep count. The AST
+already supports PlayerSet::All; no schema or vocabulary change is necessary.
+
+### Validation and retirement in this batch
+
+The full allowed population remains 32,755 recognized/reference-equal faces.
+Single-reading faces increase from 31,548 to 31,549; total readings decrease from
+34,059 to 34,056. All eight repository gates pass; frontend tests report 716
+passed and one ignored. The ten-case condition-values family checks native IR,
+compositional recognition, exact keyed wording and verified default printing.
+
+The final rule audit reports 19,757 compositional
+matches, up 41 from 19,716. Its four pre-existing attribution-unresolved faces
+remain protected with zero at risk. Three retirement passes remove 4, 18 and 16
+newly redundant rules: 38 this batch, 104 cumulatively, with 12,103 seeded rules
+remaining. The two older retained candidates are still kept.
+
+The native audit validates all 32,755 source and canonical reference records;
+canonicalization is idempotent. Every one of the 34,056 current readings is valid
+and canonical. Preservation is deliberately reported separately: the strict
+preservation command exits nonzero for seven old readings on six faces. Four
+are replaced by reviewed meanings (Emergent Woodwurm, Kiora, Thassa's Oracle and
+Limited Resources); two old scalar-property readings on Sage-Eye Avengers and
+one on Shelinda are removed. The report shows those exact seven losses, the
+four corresponding additions and no others. It is not an unconditional
+preservation pass, and no equality alias conceals these changes.
+
+To make that audit sound across reference updates, the 25 changed faces' old
+implicit singleton readings are materialized from the hash-verified pre-batch
+prepared reference before comparison. The saved rows, old operands, current gold
+and native audit binary have retained hashes under the ignored audit inputs.
+Unchanged implicit singletons continue to use unchanged source gold. No held-out
+population is involved.
+
+The optional-scope print audit caught one new bad default on Cream of the Crop:
+a generic `you may` prefix absorbed the later selection sentence and omitted
+`If you do`. The shared optional-program guard now rejects that route for a
+look followed by a card choice. Explicit success clauses own their guarded
+selection, while one-sentence `look ..., then put ...` / `look ... and put ...`
+forms have a shared imperative body. Tests reject the missing-guard wording for
+the whole optional IR and verify both single-sentence forms. This correction
+preserves every reading in the allowed population. All 107 `you may look` faces
+still match, with 96 exact keyed wordings and 106 verified default prints.
+
+The final 79-face affected reference-print cohort has 79 exact keyed prints,
+40 exact defaults and 78 verified defaults. Yorvo, Lord of Garenbrig remains a
+default-search gap with exact keyed wording available. Enumerated candidates
+verify 629 of 892. The 47-face look-at-top-X cohort now has 26 compositional
+matches, up from 16.
+
+The final 3,275-face sampled print audit preserves statuses, reading counts and
+exact-wording flags: 3,196 exact keyed prints, 2,232 exact defaults and 3,221
+verified defaults. Cream of the Crop is the only changed default against the
+retained baseline: `those cards` becomes `them`; its explicit `If you do` remains.
+Of 43,404 enumerated candidates, 31,366 reparse semantically. These are semantic
+and structural measurements; no timing improvement is claimed.
