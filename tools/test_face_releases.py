@@ -87,6 +87,50 @@ class FaceReleaseTests(unittest.TestCase):
                 with faces.producer(tag, self.root):
                     self.fail('invalid/missing code tag accepted')
 
+    def test_export_pipeline_checks_original_source_and_exact_producer(self):
+        from contextlib import contextmanager
+        import shutil
+        source = self.root/'source.gz'
+        with gzip.open(source, 'wt') as stream:
+            stream.write(json.dumps({'oracle_id': 'synthetic', 'name': 'Fixture'})+'\n')
+        spec = {**self.spec, 'source': {**self.source, 'sha256': releases.digest(source)}}
+        exporter = {**self.meta, 'grammar': {**self.meta['grammar'], 'commit': 'e'*40}}
+        producer_root = self.root/'released'; producer_root.mkdir()
+        binary = self.root/'native-export'
+        binary.write_text('#!/usr/bin/env python3\nimport json,sys\n'
+                          'row={"identity":{"record_index":0,"face_index":0},'
+                          '"schema_version":190,"format_version":1,"status":"refused","readings":[]}\n'
+                          'open(sys.argv[2],"w").write(json.dumps(row)+"\\n")\n')
+        binary.chmod(0o755)
+        @contextmanager
+        def exact_producer(tag, root):
+            self.assertEqual(tag, 'grammar-v0.1.0')
+            self.assertEqual(root, self.root)
+            yield producer_root, self.meta
+        def build(root):
+            self.assertEqual(root, producer_root)
+            return self.root
+        def metadata(root):
+            return exporter if root == self.root else self.meta
+        def fetch(url, path, checksum):
+            self.assertEqual(checksum, releases.digest(source))
+            shutil.copyfile(source, path)
+        with patch.object(faces, 'specification', return_value=spec), \
+             patch.object(faces, 'producer', side_effect=exact_producer), \
+             patch.object(releases, 'metadata', side_effect=metadata), \
+             patch.object(releases, 'build', side_effect=build), \
+             patch.object(releases, 'fetch', side_effect=fetch):
+            out = self.root/'release'
+            faces.export(out, grammar_tag='grammar-v0.1.0', root=self.root)
+            manifest = releases.verify(out)
+            self.assertEqual(manifest['grammar']['commit'], 'a'*40)
+            self.assertEqual(manifest['exporter']['commit'], 'e'*40)
+            self.assertEqual(manifest['counts']['counts']['refused'], 1)
+            binary.write_text('#!/usr/bin/env python3\nimport sys\nopen(sys.argv[2],"w").close()\n')
+            with self.assertRaisesRegex(ValueError, 'missing input face'):
+                faces.export(self.root/'incomplete', grammar_tag='grammar-v0.1.0', root=self.root)
+            self.assertFalse((self.root/'incomplete').exists())
+
     def test_source_asset_is_archived_without_rewriting(self):
         source = self.root/'original.gz'; source.write_bytes(b'original compressed fixture')
         spec = {**self.source, 'sha256': releases.digest(source)}

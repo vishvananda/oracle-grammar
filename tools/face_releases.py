@@ -80,6 +80,8 @@ def specification(tag=None, grammar_tag=None, root=releases.ROOT, meta=None):
 
 
 def records(source, spec):
+    if spec.get('encoding', 'json') not in ('json', 'jsonl-gzip'):
+        raise ValueError('unsupported Oracle source encoding')
     if releases.digest(source) != spec['sha256']:
         raise ValueError('Oracle source checksum mismatch')
     if spec.get('encoding', 'json') == 'jsonl-gzip':

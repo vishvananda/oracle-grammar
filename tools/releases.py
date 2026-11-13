@@ -307,15 +307,8 @@ def faces(source, spec_path, out, revision):
         raise ValueError('compiled grammar differs from code release; release a new crate version')
     meta['grammar']['commit'] = grammar_commit
     spec = source_spec(spec_path, source)
-    records = json.loads(Path(source).read_text())
-    if not isinstance(records, list):
-        raise ValueError('source must be an Oracle bulk JSON array')
-    scope = spec['population']
-    if scope['kind'] == 'oracle_ids':
-        wanted = set(scope['oracle_ids'])
-        records = [record for record in records if record.get('oracle_id') in wanted]
-        if {r['oracle_id'] for r in records} != wanted:
-            raise ValueError('population includes missing source records')
+    from face_releases import records as source_records
+    records = source_records(source, spec)
     expected = sum(len(record.get('card_faces', [record])) for record in records)
     binaries = build()
     with tempfile.TemporaryDirectory() as directory:
@@ -327,7 +320,7 @@ def faces(source, spec_path, out, revision):
     if len(rows) != expected:
         raise ValueError('missing input face outcomes')
     unchanged(producer)
-    bundle(out, rows, meta, spec, revision, exporter_commit)
+    bundle(out, rows, meta, spec, revision, exporter_commit, source)
 
 
 def registry_checksum(package, version):
@@ -370,6 +363,7 @@ def publish_crates(out):
 def github(out, repository, draft=True):
     manifest = verify(out)
     tag, commit = manifest['tag'], manifest['grammar']['commit']
+    target = manifest.get('exporter', {}).get('commit', commit)
     if not re.fullmatch(r'[\w.-]+/[\w.-]+', repository):
         raise ValueError('invalid GitHub repository')
     # Refuse existing releases rather than overwrite assets. Complete or delete
@@ -378,7 +372,7 @@ def github(out, repository, draft=True):
     if probe.returncode == 0:
         raise ValueError('release already exists; inspect its assets before retrying')
     notes = f"{manifest['kind']} from {commit}. See manifest.json for versions, source scope and checksums."
-    subprocess.run(['gh', 'release', 'create', tag, '--repo', repository, '--target', commit,
+    subprocess.run(['gh', 'release', 'create', tag, '--repo', repository, '--target', target,
                     '--draft', '--title', tag, '--notes', notes,
                     *map(str, sorted(Path(out).iterdir()))], check=True)
     with tempfile.TemporaryDirectory() as directory:
