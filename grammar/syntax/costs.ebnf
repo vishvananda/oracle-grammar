@@ -308,6 +308,23 @@ cost_token_actor ::= "an" "opponent"
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}}]}, limits:$activation_limits, announcement:@announcement, body:$program_sentence})} */
 activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":" program_sentence activation_limits "."
 
+/* An ability that returns its own card from your graveyard works there. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
+activated_self_graveyard_return ::= cost ":" self_graveyard_return "."
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
+activated_self_graveyard_return_limited ::= cost ":" self_graveyard_return "." activation_limits "."
+self_graveyard_return ::= self_return_hand | self_return_battlefield | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter
+/* @sem Operation::Move{objects:One($self_ref), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+self_return_hand ::= "return" self_ref "from" "your" "graveyard" "to" "your" "hand"
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+self_return_battlefield ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield"
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]} */
+self_return_battlefield_tapped ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped"
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, $entry_counter_amount]], states:[]}}, qualifiers:[]} */
+self_return_battlefield_counter ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "with" entry_counter_amount counter_kind "counter" "on" "it"
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[[$counter_kind, $entry_counter_amount]], states:[]}}, qualifiers:[]} */
+self_return_battlefield_tapped_counter ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "with" entry_counter_amount counter_kind "counter" "on" "it"
+
 /* An additional cost to cast this spell. */
 /* @sem Ability::Casting(AdditionalCost{cost:$cost, repetition:Once}) */
 casting_additional_cost ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost "."
@@ -374,3 +391,15 @@ casting_only_when_attacked ::= "cast" "this" "spell" "only" "during" "the" "decl
 /* Returning a permanent to its owner's hand as a cost. */
 /* @sem CostPart::Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))}], destination:OwnersHand(CardArrival{counters:[], states:[]})} */
 cost_return_to_owners_hand ::= "return" "a" filter_phrase "to" "its" "owner's" "hand"
+
+/* Flash for an extra payment to cast it. */
+/* @sem Ability::Casting(Flash{additional_cost:$cost}) */
+casting_flash_paid ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" "flash" "if" "you" "pay" cost "more" "to" "cast" "it" "."
+
+/* Flash while a condition holds. */
+/* @sem Ability::Casting(If{condition:$condition, rule:Flash{}}) */
+casting_flash_if ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" "flash" "if" condition "."
+
+/* Flash whose permanent, cast when a sorcery couldn't be, is sacrificed at the next cleanup step. */
+/* @sem Ability::Casting(FlashWithRider(Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CleanupStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(ControllerOf(Earlier{what:SpellBecame})), objects:One(Earlier{what:SpellBecame})})}]}}}]})) */
+casting_flash_sacrificed ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" "flash" "." "if" "you" "cast" "it" "any" "time" "a" "sorcery" "couldn't" "have" "been" "cast" "," "the" "controller" "of" "the" "permanent" "it" "becomes" "sacrifices" "it" "at" "the" "beginning" "of" "the" "next" "cleanup" "step" "."

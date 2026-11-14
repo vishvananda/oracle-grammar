@@ -310,7 +310,7 @@ rule_changes ::= rule_change | rule_changes_and
 rule_changes_and ::= rule_change "and" rule_changes
 
 rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack
-    | rule_cant_attack_or_block | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power
+    | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power
 
 /* Crewing, saddling and stationing count more power, or toughness instead.
    Crew comes first whatever the order of the words. */
@@ -360,6 +360,14 @@ rule_cant_be_blocked_by ::= "can't" "be" "blocked" "by" filter_plural
 rule_cant_attack ::= "can't" "attack"
 /* @sem Change::[Change::Rule(Prohibit(Attack(Any))), Change::Rule(Prohibit(Block(Any)))] */
 rule_cant_attack_or_block ::= "can't" "attack" "or" "block"
+/* @sem Change::[Change::Rule(Prohibit(Attack(Players(Matching{binding:0, condition:PlayerDid{player:Bound(0), event:AttackedBy(SameObject($object_ref)), window:ThisTurn}}))))] */
+rule_cant_attack_player_again ::= "can't" "attack" "a" "player" object_ref "has" "already" "attacked" "this" "turn"
+
+/* Its controller, as the declaring player, pays to attack or block with it. */
+/* @sem Change::[Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}})] */
+rule_attack_unless_paid ::= "can't" "attack" "unless" "its" "controller" "pays" mana_symbols
+/* @sem Change::[Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}}), Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:_{parts:[Mana($mana_symbols)]}})] */
+rule_attack_block_unless_paid ::= "can't" "attack" "or" "block" "unless" "its" "controller" "pays" mana_symbols
 /* @sem Change::[Change::Rule(Prohibit(Block(Not($filter_plural))))] */
 rule_block_only ::= "can" "block" "only" filter_plural
 /* @sem Change::[Change::Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Expr::Constant(1))})] */
@@ -519,6 +527,12 @@ trait_copy_source ::= ("has" | "have") "the" "power" "," "toughness" "," "and" "
 /* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
 static_conditional ::= affected static_changes "as" "long" "as" condition "."
 
+/* A static that holds while its card is in your graveyard functions there. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})} */
+static_in_graveyard ::= "as" "long" "as" "this" "card" "is" "in" "your" "graveyard" "," affected static_changes "."
+/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})} */
+static_in_graveyard_and ::= "as" "long" "as" "this" "card" "is" "in" "your" "graveyard" "and" condition "," affected static_changes "."
+
 /* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
 static_conditional_first ::= "as" "long" "as" condition "," affected static_changes "."
 
@@ -575,7 +589,8 @@ static_definition_during_turn ::= "during" "your" "turn" "," static_definition
 /* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
 static_definition_if ::= "as" "long" "as" condition "," static_definition
 
-replacement_ability ::= replacement_entry_condition | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_enters_counters_for_each
+replacement_ability ::= replacement_entry_condition | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_enters_counters_for_each | replacement_enters_counters_equal
+    | replacement_each_enters_counters | replacement_each_enters_counters_for_each | replacement_each_enters_counters_equal | replacement_each_enters_counters_where
 
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetTapped(true)}}]}}) */
 replacement_enters_tapped ::= self_ref "enters" "tapped" "."
@@ -598,6 +613,26 @@ replacement_enters_counters_if ::= self_ref "enters" "with" counter_amount count
    of the incoming permanent whose prospective controller supplies "you". */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:@times($counter_amount, $count_each)}}}]}}) */
 replacement_enters_counters_for_each ::= self_ref "enters" "with" counter_amount counter_kind ("counter" | "counters") "on" ("it" | "him" | "her") "for" "each" count_each "."
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$value}}}]}}) */
+replacement_enters_counters_equal ::= self_ref "enters" "with" "a" "number" "of" counter_kind "counters" "on" ("it" | "him" | "her") "equal" "to" value "."
+
+/* Each other incoming object of a kind, or each one, enters with more counters
+   while this permanent is on the battlefield. */
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$entry_counter_amount})}}]}} */
+replacement_each_enters_counters ::= entry_each_objects "enters" "with" entry_counter_amount counter_kind ("counter" | "counters") "on" "it" "."
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:@times($counter_amount, $count_each)})}}]}} */
+replacement_each_enters_counters_for_each ::= entry_each_objects "enters" "with" counter_amount "additional" counter_kind "counter" "on" "it" "for" "each" count_each "."
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]}} */
+replacement_each_enters_counters_equal ::= entry_each_objects "enters" "with" "a" "number" "of" "additional" counter_kind "counters" "on" "it" "equal" "to" value "."
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]}} */
+replacement_each_enters_counters_where ::= entry_each_objects "enters" "with" "an" "additional" "X" counter_kind "counters" "on" "it" "," "where" "X" "is" value "."
+
+entry_each_objects ::= entry_each_other | entry_each_one
+/* @sem ObjectFilter::@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_phrase) */
+entry_each_other ::= "each" "other" filter_phrase
+/* @sem ObjectFilter::$filter_phrase */
+entry_each_one ::= "each" filter_phrase
 
 enchant_ability ::= enchant_permanents | enchant_player | enchant_opponent
 /* @sem Ability::Enchant{hosts:Permanents($filter_phrase)} */
@@ -1712,16 +1747,44 @@ cast_kind_modified_spells ::= filter_phrase "spells" modifiers
 cast_chosen_type_spells ::= filter_phrase "spells" "of" "the" "chosen" "type"
 
 /* Your spells of a kind cost less. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$filter_phrase, modifier:Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true}})]}) */
-static_spells_cost_less ::= filter_phrase "spells" "you" "cast" "cost" braced_amount "less" "to" "cast" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true}})]}) */
+static_spells_cost_less ::= cast_spells_filter "you" "cast" "cost" braced_amount "less" "to" "cast" "."
 
 /* `{X}` less, where X is a value: the reduction is that value. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$filter_phrase, modifier:Reduce{reductions:[_{amount:$value}], spill_into_generic:true}})]}) */
-static_spells_cost_less_where ::= filter_phrase "spells" "you" "cast" "cost" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" value "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:[_{amount:$value}], spill_into_generic:true}})]}) */
+static_spells_cost_less_where ::= cast_spells_filter "you" "cast" "cost" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" value "."
 
-/* Your instant and sorcery spells cost less. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:AnyOf([CardType(Instant), CardType(Sorcery)]), modifier:Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true}})]}) */
-static_instants_sorceries_cost_less ::= "instant" "and" "sorcery" "spells" "you" "cast" "cost" braced_amount "less" "to" "cast" "."
+/* Activated abilities of a group can't be activated, or only their mana abilities can. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(Prohibit(Activate(Any)))]}) */
+static_activation_prohibited ::= "activated" "abilities" "of" affected "can't" "be" "activated" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(Prohibit(Activate(Not(Mana))))]}) */
+static_activation_prohibited_nonmana ::= "activated" "abilities" "of" affected "can't" "be" "activated" "unless" "they're" "mana" "abilities" "."
+
+/* Abilities of sources with the chosen name, wherever those sources are. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(Prohibit(Activate(Of(Chosen(CardName)))))]}) */
+static_named_activation_prohibited ::= "activated" "abilities" "of" "sources" "with" "the" "chosen" "name" "can't" "be" "activated" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(Prohibit(Activate(All([Of(Chosen(CardName)), Not(Mana)]))))]}) */
+static_named_activation_prohibited_nonmana ::= "activated" "abilities" "of" "sources" "with" "the" "chosen" "name" "can't" "be" "activated" "unless" "they're" "mana" "abilities" "."
+/* Spells with the chosen name can't be cast by anyone. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Stack), kind:Spell, filter:Chosen(CardName)}), changes:[Rule(Prohibit(Cast))]}) */
+static_named_spells_uncastable ::= "spells" "with" "the" "chosen" "name" "can't" "be" "cast" "."
+
+/* Activated abilities of a group, or of one object, cost less or more to
+   activate. A reduction that "can't reduce the mana in that cost to less than
+   one mana" has a floor of one. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($generic_reduction_symbols)})]}) */
+static_activation_cost_less ::= "activated" "abilities" "of" activation_owner "cost" generic_reduction_symbols "less" "to" "activate" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($generic_reduction_symbols), floor:1})]}) */
+static_activation_cost_less_floor ::= "activated" "abilities" "of" activation_owner "cost" generic_reduction_symbols "less" "to" "activate" "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "cost" "to" "less" "than" "one" "mana" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Increase($kicker_operand_generic)})]}) */
+static_activation_cost_more ::= "activated" "abilities" "of" activation_owner "cost" kicker_operand_generic "more" "to" "activate" "."
+activation_owner ::= activation_owner_group | activation_owner_one | activation_owner_named
+/* @sem ObjectFilter::Chosen(CardName) */
+activation_owner_named ::= "sources" "with" "the" "chosen" "name"
+/* @sem ObjectFilter::$filter_plural */
+activation_owner_group ::= filter_plural
+/* @sem ObjectFilter::SameObject($object_ref) */
+activation_owner_one ::= object_ref
 
 /* No maximum hand size. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))]}) */

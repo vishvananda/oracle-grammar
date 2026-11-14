@@ -1,6 +1,16 @@
 /* Copiable exceptions compose; the last quoted sentence closes the outer one. */
-/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, exceptions:$copy_exceptions_sentence})}}]}}]}}) */
-entry_copy_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" "a" "copy" "of" "any" filter_phrase "on" "the" "battlefield" "," "except" copy_exceptions_sentence
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_choice}, exceptions:$entry_copy_tail})}}]}}]}}) */
+entry_copy_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" "a" "copy" "of" entry_copy_choice entry_copy_tail
+entry_copy_choice ::= entry_copy_any | entry_copy_one
+/* @sem $filter_phrase */
+entry_copy_any ::= "any" filter_phrase "on" "the" "battlefield"
+/* @sem $filter_phrase */
+entry_copy_one ::= ("a" | "an") filter_phrase
+entry_copy_tail ::= entry_copy_exact | entry_copy_except
+/* @sem Vec<CopyException>::[] */
+entry_copy_exact ::= "."
+/* @sem $copy_exceptions_sentence */
+entry_copy_except ::= "," "except" copy_exceptions_sentence
 
 copy_exceptions_sentence ::= copy_exceptions_period | copy_exceptions_closed
 
@@ -31,8 +41,8 @@ copy_exception_quote_more ::= copy_granted_sentence ("↓")? "and" copy_exceptio
 
 copy_exception_plain ::= copy_self_name | copy_named_name | copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact
 
-/* @sem CopyException::AddCreatureTypes([@subtype_name($subtype)]) */
-copy_add_creature_type ::= "it's" ("a" | "an") subtype "in" "addition" "to" "its" "other" "types"
+/* @sem CopyException::AddCreatureTypes($becomes_types) */
+copy_add_creature_type ::= "it's" ("a" | "an") becomes_types "in" "addition" "to" "its" "other" "types"
 
 /* This ability belongs to the entering source; its event establishes its own
    references. No anaphor from outside the quotation is substituted into it. */

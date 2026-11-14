@@ -107,7 +107,7 @@ current_card_ref ::= "that" "card"
 linked_exiled_card ::= "the" "exiled" "card"
 
 target_card ::= target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard
-    | target_card_your_graveyard_with | target_card_opponent_graveyard
+    | target_card_your_graveyard_with | target_card_opponent_graveyard | target_card_that_player_graveyard
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
@@ -120,6 +120,8 @@ target_card_your_graveyard_with ::= "target" card_filter "card" modifiers ("from
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(PlayerRef::AbilityController)}))}), index:0} */
 target_card_opponent_graveyard ::= "target" card_filter "card" ("from" | "in") "an" "opponent's" "graveyard"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(@that_player)}))}), index:0} */
+target_card_that_player_graveyard ::= "target" card_filter "card" ("from" | "in") "that" "player's" "graveyard"
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
 target_card_your_graveyard ::= "target" card_filter "card" ("from" | "in") "your" "graveyard"
@@ -1032,9 +1034,11 @@ recipients_part ::= recipients_objects | recipients_players
 /* Created tokens are one result set, even when Oracle uses a singular pronoun. */
 /* An ordinary plural reference keeps the focused target slot or the matched
    event's object batch. It never falls back to a stale target across creation. */
-group_reference ::= group_pronoun | group_creatures | group_permanents | group_artifacts | group_lands | group_enchantments
+group_reference ::= group_pronoun | group_each_of_them | group_creatures | group_permanents | group_artifacts | group_lands | group_enchantments
 /* @sem ObjectSet::@group_reference(ObjectKind::Any, ObjectFilter::Any) */
 group_pronoun ::= "them"
+/* @sem ObjectSet::@group_reference(ObjectKind::Any, ObjectFilter::Any) */
+group_each_of_them ::= "each" "of" "them"
 /* @sem ObjectSet::@group_reference(ObjectKind::Any, ObjectFilter::Any) */
 group_subject ::= "they"
 /* @sem ObjectSet::@group_reference(ObjectKind::Permanent, ObjectFilter::CardType(Creature)) */
@@ -1130,7 +1134,9 @@ modifier_relative_state ::= ("that's" | "that" "is" | "that" "are") relative_sta
 
 relative_state_quality ::= adjective_tapped | adjective_untapped | adjective_attacking
     | adjective_nonattacking | adjective_blocking | adjective_blocked
-    | adjective_enchanted | adjective_equipped
+    | adjective_enchanted | adjective_equipped | attacking_defender
+/* @sem ObjectFilter::AttackingDefender(Players(One($player_ref))) */
+attacking_defender ::= "attacking" player_ref
 
 /* Ownership is independent of battlefield control, including granted abilities. */
 /* @sem ObjectFilter::OwnedBy(One(AbilityController)) */

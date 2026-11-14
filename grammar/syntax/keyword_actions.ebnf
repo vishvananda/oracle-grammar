@@ -40,6 +40,36 @@ roll_d4 ::= "roll" "a" "d4"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::RollDie{sides:6, times:$value}} */
 roll_six_sided_dice ::= "roll" value "six-sided" "dice"
 
+/* A die table: each written row resolves when the roll's result is in its
+   range. The roll marks its result, so every row names the same roll however
+   many rows and row instructions precede it. */
+/* @sem Program::Program{instructions:[...$die_table_head, ...$die_rows]} */
+program_sentence_die_table ::= die_table_head "." NEWLINE die_rows
+die_table_head ::= die_roll | die_head_then | die_head_after
+/* @sem Instruction::[Effect{result:@mark, operation:$roll_die_action}] */
+die_roll ::= roll_die_action
+/* @sem Instruction::[...$instructions, ...$die_roll] */
+die_head_then ::= instructions "," "then" die_roll
+/* @sem Instruction::[...$instructions, ...$die_roll] */
+die_head_after ::= instructions "." die_roll
+die_rows ::= die_rows_one | die_rows_more
+/* @sem Instruction::[$die_row] */
+die_rows_one ::= die_row
+/* @sem Instruction::[$die_row, ...$die_rows] */
+die_rows_more ::= die_row NEWLINE die_rows
+die_row ::= die_row_range | die_row_exact | die_row_at_least | die_row_at_most
+/* @sem Instruction::If{condition:AllOf([Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$program_sentence, otherwise:_{}} */
+die_row_range ::= number ("―" | "‑") number "|" program_sentence
+/* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:$program_sentence, otherwise:_{}} */
+die_row_exact ::= number "|" program_sentence
+/* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, then:$program_sentence, otherwise:_{}} */
+die_row_at_least ::= number "⁺" "|" program_sentence
+/* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number}}, then:$program_sentence, otherwise:_{}} */
+die_row_at_most ::= number "or" "less" "|" program_sentence
+/* A roll with a value added reads its two rows from the total. */
+/* @sem Program::Program{instructions:[...$die_table_head, If{condition:AllOf([Compare{left:Add([DieResult(@marked), $value]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:Add([DieResult(@marked), $value]), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$program_sentence, otherwise:_{}}, If{condition:Compare{left:Add([DieResult(@marked), $value]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_3}}, then:$program_sentence_2, otherwise:_{}}]} */
+program_sentence_added_die_table ::= die_table_head "and" "add" value "." NEWLINE number "―" number "|" program_sentence NEWLINE number "⁺" "|" program_sentence
+
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:Combat}} */
 additional_combat_phase ::= "after" "this" "phase" "," "there" "is" "an" "additional" "combat" "phase"
     | "there" "is" "an" "additional" "combat" "phase" "after" "this" "phase"

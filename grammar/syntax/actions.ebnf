@@ -52,9 +52,23 @@ mc_green ::= "{G}"
 /* @sem ManaColor::Colorless */
 mc_colorless ::= "{C}"
 
-put_counters ::= put_created_counters_for_counters | put_counters_two_direct | put_counters_direct | put_counters_choice | put_counters_many_choices
+put_counters ::= put_created_counters_for_counters | put_counters_two_direct | put_counters_direct | put_counters_equal | put_counters_equal_first | put_counters_choice | put_counters_many_choices
 /* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:$counter_amount}]} */
 put_counters_direct ::= "put" counter_amount counter_kind ("counter" | "counters") "on" affected
+/* A counted placement names its amount after its recipients or before them. */
+/* One recipient: a value naming "that creature" after a group would read as
+   the source, not as each member. */
+/* @sem Operation::PutCounters{placements:[_{recipients:$counted_recipient, kind:$counter_kind, amount:$value}]} */
+put_counters_equal ::= "put" "a" "number" "of" counter_kind "counters" "on" counted_recipient "equal" "to" value
+counted_recipient ::= counted_object | counted_reference | counted_created
+/* @sem Recipients::Objects(One($object_ref)) */
+counted_object ::= object_ref
+/* @sem Recipients::Objects($counter_choice_singular_reference) */
+counted_reference ::= counter_choice_singular_reference
+/* @sem Recipients::Objects($created_singular_reference) */
+counted_created ::= created_singular_reference
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:$value}]} */
+put_counters_equal_first ::= "put" "a" "number" "of" counter_kind "counters" "equal" "to" value "on" affected
 
 /* This recipient is chosen at resolution, without announcing a target. */
 /* @sem Operation::@counter_choice(Operation::PutCounters{placements:[_{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), kind:$counter_kind, amount:$counter_amount, selection:_{player:AbilityController, count:$counter_single_choice}}]}) */
@@ -120,7 +134,7 @@ counter_pt_plus0_plus2 ::= "+" "0" "/" "+" "2"
 counter_pt_minus1_minus0 ::= "-" "1" "/" "-" "0"
 
 action ::= copy_effect_indefinite_except | copy_effect_duration_except | copy_effect_indefinite | copy_effect_duration | keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | goad_while_present | clash_opponent | attach_each_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_ordered_face_down | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard
-    | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | move_battlefield | move_battlefield_tapped | move_battlefield_owner
+    | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | move_battlefield | move_battlefield_counter | move_battlefield_tapped | move_battlefield_owner
     | move_battlefield_transformed | move_battlefield_owner_transformed
     | move_owner_counter_untapped | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | prevent_clause | tap_or_untap | create_emblem | reveal_hand
     | remove_counters_from_affected | remove_all_counters_from_affected | put_that_many_counters
@@ -128,9 +142,9 @@ action ::= copy_effect_indefinite_except | copy_effect_duration_except | copy_ef
     | recipients_gets_counters | support_action | choose_a_color | choose_a_card_name
     | choose_cards_in_hand | flip_a_coin | add_mana_player | add_mana_for_affected | add_mana_for_each | add_mana_for_removed_counters | add_alternative_mana_for_removed_counters
     | add_mana_of_chosen_color | add_mana_any_combination | add_mana_amount_equal
-    | create_tokens_tapped_attacking | abandon_this_scheme | you_gain_life | deal_damage_equal_counters
+    | create_tokens_tapped_attacking | create_tokens_attacking_player | abandon_this_scheme | you_gain_life | deal_damage_equal_counters
     | deal_damage_split_two | exile_target_players_graveyard
-    | exile_two_groups | exile_all_graveyards | exile_with_counters | exile_instead_of_dying
+    | exile_two_groups | exile_all_graveyards | exile_with_counters | exile_instead_of_dying | entries_with_counters_this_turn
     | exile_damaged_instead_of_dying | prevent_combat_damage_by | prevent_combat_damage_would_deal | gain_control_of
     | player_gains_control_of | gain_control_while_controlled | exile_top_cards_of_your_library
     | then_players_shuffle | look_at_top_x_cards | shuffle_your_library | search_library_for_cards
@@ -285,6 +299,8 @@ move_graveyard_bottom_ordered ::= "put" graveyard_target_cards "on" "the" "botto
 move_shuffled ::= "shuffle" affected "into" owners ("library" | "libraries")
 /* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
 move_battlefield ::= ("return" | "put") affected ("to" | "onto") "the" "battlefield" ("under" "your" "control")?
+/* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, $entry_counter_amount]], states:[]}}, qualifiers:[]} */
+move_battlefield_counter ::= ("return" | "put") affected ("to" | "onto") "the" "battlefield" ("under" "your" "control")? "with" entry_counter_amount counter_kind "counter" "on" "it"
 /* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]} */
 move_battlefield_tapped ::= ("return" | "put") affected ("to" | "onto") "the" "battlefield" "tapped" ("under" "your" "control")?
 /* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
@@ -484,6 +500,21 @@ reflexive_pay_energy ::= cost_energy
    action and its conditional result still belong to this ability. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}, otherwise:Program{}}] */
 clause_counter_unless_plain ::= "counter" target_stack_spell "unless" "its" "controller" "pays" counter_unless_cost
+
+/* A targeted permanent's controller may pay to spare it from the action. The
+   payment names the target the action announces next; a bare {X} is the
+   announced value, as for a counter. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf(Target{slot:@next_slot, index:0}), cost:$counter_unless_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:$spared_action}]}, otherwise:Program{}}] */
+clause_spared_unless_paid ::= spared_action "unless" "its" "controller" "pays" counter_unless_cost
+spared_action ::= spared_tap | spared_destroy | spared_exile | spared_return
+/* @sem Operation::SetTapped{objects:One($target_object), tapped:true} */
+spared_tap ::= "tap" target_object
+/* @sem Operation::Destroy{objects:One($target_object), regeneration:true} */
+spared_destroy ::= "destroy" target_object
+/* @sem Operation::Move{objects:One($target_object), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+spared_exile ::= "exile" target_object
+/* @sem Operation::Move{objects:One($target_object), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+spared_return ::= "return" target_object "to" "its" "owner's" "hand"
 
 /* "If that spell is countered this way, exile it instead of putting it into its owner's
    graveyard": where the counter puts the spell is part of the counter itself. */
@@ -1127,8 +1158,8 @@ reflexive_callback_program ::= callback_counter_keyword_program | program | call
 /* @sem Program::Program{instructions:[$callback_choose_name, $callback_hand_reveal, $callback_named_discard]} */
 callback_named_hand_program ::= callback_choose_name "," "then" callback_hand_reveal "and" callback_named_discard
 
-/* @sem Instruction::Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[$callback_card_name_option]}}} */
-callback_choose_name ::= "choose" callback_card_name_option
+/* @sem Instruction::Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[$card_name_option]}}} */
+callback_choose_name ::= "choose" card_name_option
 
 /* @sem Instruction::Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($callback_hand_player)}, kind:Card, filter:Any}}} */
 callback_hand_reveal ::= callback_hand_player "reveals" "their" "hand"
@@ -1137,11 +1168,29 @@ callback_hand_reveal ::= callback_hand_player "reveals" "their" "hand"
 callback_named_discard ::= "discards" "all" "cards" "with" "that" "name"
 
 callback_hand_player ::= target_player | target_opponent
-/* @sem Operand::Term{family:CardsInOracle, form:IsNonCardtype, operands:[Vocabulary{family:CardType, form:Land}]} */
-callback_card_name_nonland ::= "a" "nonland" "card" "name"
+/* A card name to choose: any Oracle card's, or one of a card type, of two
+   card types at once, or of a nonbasic land. */
+card_name_option ::= card_name_any | card_name_typed
 /* @sem Operand::Term{family:CardsInOracle, form:AnyOracleCard} */
-callback_card_name_any ::= "a" "card" "name"
-callback_card_name_option ::= callback_card_name_nonland | callback_card_name_any
+card_name_any ::= "a" "card" "name"
+/* @sem $card_name_kind */
+card_name_typed ::= ("a" | "an") card_name_kind "card" "name"
+card_name_kind ::= card_name_type | card_name_nonbasic_land | card_name_two_types
+/* @sem Operand::Term{family:CardsInOracle, form:And, operands:[$card_name_type, $card_name_type_2]} */
+card_name_two_types ::= card_name_type "," card_name_type
+/* @sem Operand::Term{family:CardsInOracle, form:And, operands:[Term{family:CardsInOracle, form:IsNonSupertype, operands:[Vocabulary{family:SuperType, form:Basic}]}, Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Land}]}]} */
+card_name_nonbasic_land ::= "nonbasic" "land"
+card_name_type ::= card_name_artifact | card_name_creature | card_name_nonartifact | card_name_noncreature | card_name_nonland
+/* @sem Operand::Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Artifact}]} */
+card_name_artifact ::= "artifact"
+/* @sem Operand::Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]} */
+card_name_creature ::= "creature"
+/* @sem Operand::Term{family:CardsInOracle, form:IsNonCardtype, operands:[Vocabulary{family:CardType, form:Artifact}]} */
+card_name_nonartifact ::= "nonartifact"
+/* @sem Operand::Term{family:CardsInOracle, form:IsNonCardtype, operands:[Vocabulary{family:CardType, form:Creature}]} */
+card_name_noncreature ::= "noncreature"
+/* @sem Operand::Term{family:CardsInOracle, form:IsNonCardtype, operands:[Vocabulary{family:CardType, form:Land}]} */
+card_name_nonland ::= "nonland"
 
 /* The written fighter and its counterpart retain distinct lexical roles. A
    reflexive callback can act on the actual scalar battlefield-move receipt; a
@@ -1299,9 +1348,8 @@ payment_put_hand_card ::= "put" a_card "from" "your" "hand" "onto" "the" "battle
 instructions_may_exile_exact_reflexive ::= "you" "may" "exile" exile_positive_card_count "from" "your" "graveyard" "." reflexive_trigger
 
 exile_positive_card_count ::= card_count_one | exile_positive_cards
-/* @sem $exile_positive_plural */
-exile_positive_cards ::= exile_positive_plural "cards"
-exile_positive_plural ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20
+/* @sem $count_plural */
+exile_positive_cards ::= count_plural "cards"
 
 /* A strict optional PlayerAction payment encloses the actual discard callback.
    Failure to choose payment alone causes the independent sacrifice. */
@@ -1628,9 +1676,9 @@ support_action ::= "support" number
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}} */
 choose_a_color ::= "choose" "a" "color"
 
-/* Naming any Oracle card. */
-/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[Term{family:CardsInOracle, form:AnyOracleCard}]}} */
-choose_a_card_name ::= "choose" "a" "card" "name"
+/* Naming an Oracle card, perhaps of a kind. */
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[$card_name_option]}} */
+choose_a_card_name ::= "choose" card_name_option
 
 /* Choosing cards in your hand. */
 /* @sem Operation::@selected_result(Operation::ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}), count:AsManyAsCan($counter_amount)}) */
@@ -1671,6 +1719,8 @@ add_mana_amount_equal ::= "add" "an" "amount" "of" mana_production "equal" "to" 
 /* Tokens that enter tapped and attacking. */
 /* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$token_group], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
 create_tokens_tapped_attacking ::= "create" token_group "that's" "tapped" "and" "attacking"
+/* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$token_group], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{player:$player_ref}]}}) */
+create_tokens_attacking_player ::= "create" token_group "that's" "tapped" "and" "attacking" player_ref
 
 /* Abandoning this scheme. */
 /* @sem Operation::AbandonScheme{actor:One(AbilityController)} */
@@ -1707,6 +1757,10 @@ exile_with_counters ::= "exile" affected "with" value counter_kind "counters" "o
 /* A dying object is exiled instead. */
 /* @sem Operation::CreateReplacement{event:ZoneChange{objects:SameObject($object_ref), from:Battlefield, to:Graveyard}, limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */
 exile_instead_of_dying ::= "if" object_ref "would" "die" this_duration "," "exile" "it" "instead"
+
+/* For a while, each incoming object of a kind enters with more counters. */
+/* @sem Operation::CreateReplacement{event:Enter{objects:$filter_phrase}, limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$entry_counter_amount})}}]}} */
+entries_with_counters_this_turn ::= this_duration "," "each" filter_phrase "enters" "with" entry_counter_amount counter_kind ("counter" | "counters") "on" "it"
 
 /* Objects damaged this way are exiled instead of dying. */
 /* @sem Operation::CreateReplacement{event:ZoneChange{objects:AllOf([$filter_phrase, DamagedBy(@prior)]), from:Battlefield, to:Graveyard}, limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */

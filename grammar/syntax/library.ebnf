@@ -357,6 +357,26 @@ your_zone ::= your_hand | your_graveyard
 cast_free_hand_spell ::= "cast" hand_spell_choice "from" "your" "hand" "without" "paying" "its" "mana" "cost"
 hand_spell_choice ::= spell_any | spell_filtered
 
+/* Searching one player's graveyard, hand and library for cards with a name
+   and exiling them. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$player_possessive, choices:[_{filter:Chosen(CardName), count:$name_search_count}], also:[Graveyard, Hand]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_search_name_exile ::= "search" player_possessive "graveyard" "," "hand" "," "and" "library" "for" name_search_count "cards" "with" ("that" | "the" "chosen") "name" "and" "exile" "them"
+name_search_count ::= named_search_count | name_search_all
+/* @sem Count::AnyNumber */
+name_search_all ::= "all"
+
+/* A resolving cast of a target card for free. A card named by a pronoun
+   needs the earlier action that names it, not this operation. */
+/* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:One($target_card), count:Exactly(Constant(1)), cost:Free, into_exile:false} */
+cast_card_free ::= "cast" target_card "without" "paying" "its" "mana" "cost"
+
+/* A spell cast while resolving is exiled instead of going to a graveyard.
+   The next sentence names that spell, so both sentences make one cast. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:$affected, count:Exactly(Constant(1)), cost:Normal, into_exile:true}}]}}] */
+clause_may_cast_exiled ::= "you" "may" "cast" affected "." "if" "that" "spell" "would" "be" "put" "into" ("a" | "your" | "their") "graveyard" "," "exile" "it" "instead"
+/* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:$affected, count:Exactly(Constant(1)), cost:Free, into_exile:true}}]}}] */
+clause_may_cast_free_exiled ::= "you" "may" "cast" affected "without" "paying" "its" "mana" "cost" "." "if" "that" "spell" "would" "be" "put" "into" ("a" | "your" | "their") "graveyard" "," "exile" "it" "instead"
+
 /* @sem EventZone::Hand */
 your_hand ::= "your" "hand"
 /* @sem EventZone::Graveyard */
