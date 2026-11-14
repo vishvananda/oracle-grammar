@@ -61,6 +61,7 @@ mod move_after;
 mod movement;
 mod objects;
 mod observed;
+mod observed_hands;
 mod other;
 mod owner_return;
 mod paid_self_exile;
@@ -283,6 +284,7 @@ pub fn bind_held_ability(
     attachment: Attachment,
 ) -> Result<(), String> {
     let ability = presentation::core_mut(ability);
+    crate::functions::copy_subject::prepare(ability)?;
     target_contrast::prepare(ability)?;
     let departure_controller = departure_controller::prepare(ability)?;
     damage_reflexive::prepare(ability)?;
@@ -1091,6 +1093,9 @@ fn own_forms(ability: &Value) -> Vec<Value> {
         ability = &plain;
     }
     let mut forms = spelled_forms(ability);
+    if let Some(hand) = observed_hands::surface(ability) {
+        forms.extend(spelled_forms(&hand));
+    }
     if let Ok(Some(receipts)) = counter_payment::surface(ability) {
         forms.extend(spelled_forms(&receipts));
     }

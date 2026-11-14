@@ -427,14 +427,21 @@ clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 static_changes ::= static_changes_plain | defined_changes | change_independent_stats_where
 static_changes_plain ::= static_change | static_changes_and
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[CopyOf{object:$copy_model_ref, exceptions:[]}], duration:$duration, evaluation:Snapshot}}] */
-clause_copy_for_duration ::= affected "becomes" "a" "copy" "of" copy_model_ref duration
+/* @sem Instruction::[Effect{result:@next, operation:$copy_effect_duration}] */
+clause_copy_for_duration ::= copy_effect_duration
 
-copy_model_ref ::= copy_model_pronoun | object_ref
-/* Prefer a type-neutral anaphor after editing the copied target's type. */
-/* @prefer always */
-/* @sem ObjectRef::@it */
-copy_model_pronoun ::= "it"
+/* A copy's written other-population contrasts with that copied object. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:[]}], duration:$duration, evaluation:Snapshot} */
+copy_effect_duration ::= affected "becomes" "a" "copy" "of" copy_model_ref duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:[]}], duration:Indefinite, evaluation:Snapshot} */
+copy_effect_indefinite ::= affected "becomes" "a" "copy" "of" copy_model_ref
+
+/* A proved noun view comes from the current announcement's operands.
+   Plain target/query references still use the ordinary reference grammar. */
+copy_model_ref ::= copy_model_qualified | object_ref
+/* @prefer symbol(qualified_object) */
+copy_model_qualified ::= that_noun
 
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain

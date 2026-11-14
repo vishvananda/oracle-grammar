@@ -754,10 +754,27 @@ fn specialized_call(
                 vec![elaborate(operation, ty, schema)?],
             )))
         }
+        "copy_subject" => copy_subject_call(args, ty, schema).map(Some),
         "where_snapshot" => snapshot_call(args, ty, schema).map(Some),
         "capture_amount" => capture_amount_call(args, ty, schema).map(Some),
         _ => Ok(None),
     }
+}
+
+fn copy_subject_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    let [subject, copied] = args else {
+        return Err("@copy_subject needs an ObjectSet and ObjectRef".into());
+    };
+    if *ty != Ty::Named("ObjectSet".into()) {
+        return Err("@copy_subject produces ObjectSet".into());
+    }
+    Ok(Pattern::Symbol(
+        "copy_subject".into(),
+        vec![
+            elaborate(subject, ty, schema)?,
+            elaborate(copied, &Ty::Named("ObjectRef".into()), schema)?,
+        ],
+    ))
 }
 
 fn event_free_once_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {

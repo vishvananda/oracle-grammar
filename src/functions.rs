@@ -10,6 +10,7 @@ pub(crate) mod class_levels;
 pub(crate) mod computed_condition;
 pub(crate) mod conditional;
 mod continuous;
+pub(crate) mod copy_subject;
 mod costs;
 pub(crate) mod counts;
 pub(crate) mod definitions;

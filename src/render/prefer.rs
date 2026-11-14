@@ -1,10 +1,11 @@
 //! `@prefer` between alternatives: by the value's kind, or by whether an event happens to
-//! the card once.
+//! the card once, or by a spelling view proved from current operands.
 use crate::grammar::{Alternative, Grammar, Sym};
 use serde_json::Value;
 
 /// What `@prefer` gives an alternative: `value(X)` reads the value's kind. `always`
-/// prefers a neutral wording when the value cannot name a retained trait. A word for
+/// prefers a neutral wording when the value cannot name a retained trait.
+/// `symbol(X)` prefers a spelling view supplied by the inverse binder. A word for
 /// the card is weighed where it refers to the card, by [`super::words::Words`].
 pub(super) fn preferred(grammar: &Grammar, alternative: &Alternative, value: &Value) -> u32 {
     let [Sym::Rule(rule)] = alternative.syms.as_slice() else {
@@ -18,6 +19,9 @@ pub(super) fn preferred(grammar: &Grammar, alternative: &Alternative, value: &Va
     for prefer in &grammar.rules[*rule as usize].prefer {
         if prefer == "always"
             || prefer == &format!("value({kind})")
+            || value["$sym"]
+                .as_str()
+                .is_some_and(|name| prefer == &format!("symbol({name})"))
             || (prefer == "once" && happens_once(value))
             || (prefer == "recurs" && !happens_once(value))
         {
@@ -84,3 +88,41 @@ const ONCE_ANYONE: [&str; 4] = [
     "UnlocksDoor",
     "Planeswalks",
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::grammar::Rule;
+    use serde_json::json;
+
+    #[test]
+    fn symbolic_preference_requires_the_current_spelling_view() {
+        let mut grammar = Grammar::default();
+        grammar.rules.push(Rule {
+            name: "qualified".into(),
+            prefer: vec!["symbol(qualified_object)".into()],
+            alternatives: vec![],
+            sem: None,
+            ty: None,
+        });
+        let alternative = Alternative {
+            syms: vec![Sym::Rule(0)],
+            holes: vec![None],
+        };
+        assert_eq!(
+            preferred(
+                &grammar,
+                &alternative,
+                &json!({"$sym":"qualified_object","args":[]})
+            ),
+            1
+        );
+        for value in [
+            json!({"kind":"Target","args":{"slot":0,"index":0}}),
+            json!({"kind":"Query"}),
+            json!({"$sym":"it","args":[]}),
+        ] {
+            assert_eq!(preferred(&grammar, &alternative, &value), 0);
+        }
+    }
+}

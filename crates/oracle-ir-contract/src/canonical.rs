@@ -20,6 +20,7 @@ mod mana_uses;
 #[cfg(test)]
 mod mode_results;
 mod movement;
+mod observed_hands;
 mod programs;
 #[cfg(test)]
 mod result_scopes;

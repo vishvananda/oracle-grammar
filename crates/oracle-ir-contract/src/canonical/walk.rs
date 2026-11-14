@@ -160,8 +160,23 @@ pub(super) struct Uses {
     pub programs: Vec<String>,
     pub abilities: usize,
     pub bindings: Vec<(String, u64)>,
+    owner_only: bool,
+    ability_depth: usize,
+}
+impl Uses {
+    pub(super) fn within_ability() -> Self {
+        Self {
+            owner_only: true,
+            ..Self::default()
+        }
+    }
 }
 impl Visit for Uses {
+    fn enter(&mut self, _: &Value, ty: &Ty) {
+        if matches!(ty, Ty::Named(name) if name == "Ability") {
+            self.ability_depth += 1;
+        }
+    }
     fn leave(
         &mut self,
         value: &mut Value,
@@ -170,8 +185,16 @@ impl Visit for Uses {
         path: &str,
         _: &mut Walker<'_>,
     ) -> Result<(), String> {
-        if matches!(ty, Ty::Named(name) if name == "Ability") {
+        let ability = matches!(ty, Ty::Named(name) if name == "Ability");
+        if self.owner_only && self.ability_depth > 1 {
+            if ability {
+                self.ability_depth -= 1;
+            }
+            return Ok(());
+        }
+        if ability {
             self.abilities += 1;
+            self.ability_depth -= 1;
         }
         if defining
             && matches!(ty, Ty::Named(name) if name == "LoopBinding")

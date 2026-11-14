@@ -821,6 +821,9 @@ impl Pattern {
             "entering_controller" => {
                 return crate::functions::entering::unify(args, value, bindings);
             }
+            "copy_subject" => {
+                return crate::functions::copy_subject::unify(args, value, bindings);
+            }
             "activation_exiled_card" => {
                 return crate::bind::activation_exile::unify(args, value, bindings);
             }

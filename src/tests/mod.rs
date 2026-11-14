@@ -915,4 +915,5 @@ mod literal_inverse;
 mod conditional_followups;
 mod copy_actions;
 mod entry_equip;
+mod nonlegendary;
 mod spell_x;

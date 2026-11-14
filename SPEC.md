@@ -211,6 +211,14 @@ current-epoch amendments, with both parent and face headers upgraded explicitly.
 The immutable source reference and its extraction provenance retain epoch 190;
 this release's model and native outputs use schema 191.
 
+An immediate choice from a completely revealed hand uses the observation
+receipt, guarded by Hand and that same owner. The owned proof requires adjacent
+Reveal/ChooseObjects instructions over the identical one-player whole hand;
+partial observations, different hands and intervening actions remain distinct.
+U0035 records the corresponding reference normalizations. A copy action's lexical
+other-population excludes the actual copied object, preserving explicit foreign
+references. See [nonlegendary predicates and observed hands](docs/nonlegendary-and-observed-hands.md).
+
 ## Printing
 
 Printing uses the current operands of an edited or synthesized IR. A saved

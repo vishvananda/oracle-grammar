@@ -43,6 +43,16 @@ fn fallback(v: &Value) -> bool {
                                 .is_some_and(|b| b.len() == 1 && source(&b[0])))
             })
 }
+
+/// The grammar's literal other-contrast annotation, including learned source
+/// fallbacks. A copy's explicit model can establish its forward contrast too.
+pub(crate) fn lexical_other(v: &Value) -> bool {
+    symbol_name(v) == Some("target_contrast")
+        && v["at"].as_u64().is_some()
+        && v["args"]
+            .as_array()
+            .is_some_and(|args| args.len() == 2 && fallback(&args[0]))
+}
 pub(super) fn prepare(root: &mut Value) -> Result<(), String> {
     crate::functions::branch_bounds(root)?;
     fn walk(

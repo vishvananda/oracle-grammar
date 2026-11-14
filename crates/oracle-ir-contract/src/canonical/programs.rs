@@ -7,6 +7,8 @@ use serde_json::Value;
 struct Needed {
     snapshots: bool,
     mana: bool,
+    hand_reveal: bool,
+    hand_choice: bool,
 }
 #[derive(Default)]
 struct Normalize {
@@ -24,6 +26,10 @@ impl Visit for Normalize {
                 && value["kind"] == "BindValue";
             needed.mana |= matches!(ty, Ty::Named(name) if name == "Instruction")
                 && value["kind"] == "ForEachPlayer";
+            needed.hand_reveal |=
+                matches!(ty, Ty::Named(name) if name == "Operation") && value["kind"] == "Reveal";
+            needed.hand_choice |= matches!(ty, Ty::Named(name) if name == "Operation")
+                && value["kind"] == "ChooseObjects";
         }
     }
     fn leave(
@@ -43,11 +49,26 @@ impl Visit for Normalize {
         let Some(needed) = self.owners.pop() else {
             return Ok(());
         };
-        if !needed.snapshots && !needed.mana {
+        let hands = needed.hand_reveal && needed.hand_choice;
+        if !needed.snapshots && !needed.mana && !hands {
             return Ok(());
         }
         let mut uses = Uses::default();
         walker.walk(value, ty, false, "", 0, &mut uses)?;
+        if hands {
+            // A created token's independent ability can reuse an unread result
+            // label. It cannot erase the surrounding hand-observation proof.
+            let mut owner = Uses::within_ability();
+            if uses.abilities != 1 {
+                walker.walk(value, ty, false, "", 0, &mut owner)?;
+            }
+            let local = if uses.abilities == 1 { &uses } else { &owner };
+            for path in &local.programs {
+                if let Some(items) = value.pointer_mut(path).and_then(Value::as_array_mut) {
+                    self.changed |= super::observed_hands::normalize(items, local, self.tracing);
+                }
+            }
+        }
         // Descendant Ability scopes may both shadow and capture outer labels.
         // Leave their enclosing ability alone, independent of numeric spelling;
         // inner abilities were already processed. Delayed Programs stay in this
