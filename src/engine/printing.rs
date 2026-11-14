@@ -91,6 +91,7 @@ impl Engine {
             let views = [
                 bind::target_contrast::projection(item)?,
                 bind::group_contrast::projection(item),
+                bind::spell_x::projection(item)?,
             ];
             for view in views.iter().flatten() {
                 for form in bind::unbind_ability(view) {

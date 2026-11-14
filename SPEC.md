@@ -90,6 +90,14 @@ frames keep their identities. Permanent gift headers retain their separate
 entry/trigger abilities. A bare gift header beside an independent root spell
 cannot represent the spell's promise alternatives. See [Gift branches](docs/gift-branches.md).
 
+Own-spell Source.SpellX queries with current-or-last-known information lower
+to AnnouncedX, consistently with that spell's other casting amounts. This
+typed frontend normalization excludes costs, independent abilities, deferred
+programs, other objects and captured or historical values. Numeric conditional
+operands retain their actual words and complete where-definition. See
+[numeric thresholds](docs/spell-x-thresholds.md) for the scope contract and
+reference amendment U0033.
+
 Preserve distinctions among:
 
 - source, granting object and ability holder;

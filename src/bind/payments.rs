@@ -118,7 +118,7 @@ fn walk(value: &mut Value, active: Option<u64>, inverse: bool) {
 }
 
 /// An activation's declared X is already fixed before its body resolves.
-pub(super) fn declared(value: &Value) -> bool {
+pub(crate) fn declared(value: &Value) -> bool {
     if value["$sym"] == "announced_x" || value["kind"] == "AnnouncedX" {
         return true;
     }

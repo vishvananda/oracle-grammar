@@ -408,6 +408,11 @@ fn bind_surface(value: &Value, name: &str) -> Result<Value, String> {
     bind::linked_card_actions::lower(&mut bound, &linked_card_sites)?;
     bind::chosen_kinds::check(&bound)?;
     bind::branches::check_gift_frames(&bound)?;
+    if let Value::Array(items) = &mut bound {
+        for item in items {
+            bind::spell_x::lower(item)?;
+        }
+    }
     Ok(bound)
 }
 

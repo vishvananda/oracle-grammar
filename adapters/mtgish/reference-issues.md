@@ -354,6 +354,15 @@ the IR path, the value it replaces and why.
   intact. This is an AST operand correction, with no schema change or equality
   normalization. See [Gift branches](../../docs/gift-branches.md).
 
+- `U0033` (normalization): 28 own-spell Source.SpellX operands on 21 allowed
+  faces now use AnnouncedX, consistently with the same spells' other amounts
+  and filters. Casting and copied-spell X denote that same choice (CR107.3a,
+  CR707.10). Thresholds, branches, actors, targets and result identities remain
+  intact. Typed frontend lowering excludes independent abilities, costs,
+  deferred programs, other objects, captured information and historical X.
+  The owned AST schema and reference lock are unchanged. See
+  [numeric thresholds](../../docs/spell-x-thresholds.md) for the exact scope.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their
 open status does not create a corpus equality exception.

@@ -22,7 +22,10 @@ pub(super) fn required(body: &Value, amount: &Value) -> Result<bool, String> {
         {
             continue;
         }
-        if super::observed::repeated(value) || shared_definition && super::shared(value) {
+        if super::observed::repeated(value)
+            || shared_definition && super::shared(value)
+            || super::threshold::shared(value) && super::threshold::definition(amount)
+        {
             return Ok(true);
         }
         let count = match value {

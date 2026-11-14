@@ -6,6 +6,7 @@ mod nested;
 mod observed;
 #[cfg(test)]
 mod shared_tests;
+mod threshold;
 
 /// Two eager X amounts share the definition named by their clause, including
 /// after an unrelated instruction or with unrelated instructions between them.
@@ -15,6 +16,7 @@ pub(crate) fn shared(body: &Value) -> bool {
         return false;
     };
     observed::shared(body)
+        || threshold::shared(body)
         || instructions
             .iter()
             .filter(|instruction| {
@@ -359,6 +361,9 @@ fn paired_pumps(body: &Value) -> bool {
 /// Exactly the same definition gate serves forward capture and inverse view.
 /// Paired pumps do not borrow the sacrifice/property exception of eager amounts.
 fn definition_eligible(body: &Value, amount: &Value) -> bool {
+    if threshold::shared(body) {
+        return threshold::definition(amount);
+    }
     if observed::shared(body) {
         return x_count(amount) == 0;
     }

@@ -111,6 +111,7 @@ pub(super) fn resolve_marker(marker: &str, scope: &Scope, domain: &Value) -> Res
     match marker {
         "another_target_reference" => another_target(scope, domain),
         "other_reference" => resolve(scope, domain),
+        "other_filter" => super::other_filter::resolve(scope, domain),
         _ => Err("unknown contextual-other marker".into()),
     }
 }

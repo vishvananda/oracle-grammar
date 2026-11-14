@@ -100,6 +100,7 @@ pub(super) fn strip(value: &mut Value) {
                 | "exiled_card_result"
                 | "search_move_result"
                 | "seek_move_result"
+                | "choice_move_result"
         )
     ) {
         let index = usize::from(symbol_name(value) == Some("recipient_value"));

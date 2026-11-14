@@ -77,7 +77,10 @@ fn positive(filter: &Value, kind: &str) -> bool {
             }))
 }
 fn action(mut value: &Value) -> &Value {
-    if symbol_name(value) == Some("sacrificed_result") {
+    if matches!(
+        symbol_name(value),
+        Some("sacrificed_result" | "choice_move_result")
+    ) {
         value = &value["args"][0];
     }
     value

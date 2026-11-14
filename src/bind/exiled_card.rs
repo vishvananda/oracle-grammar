@@ -37,7 +37,7 @@ impl Receipt {
 
 /// This intentionally excludes multi-library, plural, filtered and unknown-count
 /// selectors. Missing/unsuccessful movement leaves the native After set empty.
-fn single_top_card(operation: Operation) -> bool {
+pub(super) fn single_top_card(operation: &Operation) -> bool {
     let Operation::Move {
         objects,
         destination: MovementDestination::Exile { .. },
@@ -55,7 +55,7 @@ fn single_top_card(operation: Operation) -> bool {
         return false;
     };
     matches!(
-        *objects,
+        objects.as_ref(),
         ObjectSet::Zone {
             scope: ZoneScope::Players {
                 zone: EventZone::Library,
@@ -86,7 +86,7 @@ pub(super) fn marker(
     let plain = super::references::bound_reference(wrapped, introduced, scope.target_base)?;
     let operation: Operation =
         serde_json::from_value(plain).map_err(|why| format!("exiled card operation: {why}"))?;
-    if !single_top_card(operation) {
+    if !single_top_card(&operation) {
         return Err("exiled card needs one top card of one library moved to exile".into());
     }
     let (depth, instruction) = path.iter().enumerate().rev().find_map(|(depth, step)| {
@@ -108,6 +108,31 @@ pub(super) fn marker(
     scope.others.clear();
     scope.pronoun = None;
     Ok(true)
+}
+
+/// Only this syntactic shape opts in before context binding. The strict typed
+/// producer check above proves it again once the library's player is bound.
+pub(crate) fn annotate(operation: &Value, at: usize) -> Result<Value, String> {
+    crate::functions::branch_bounds(operation)?;
+    let mut positional = operation.clone();
+    super::ordered_zones::lower(&mut positional);
+    let objects = &positional["args"]["objects"];
+    let zone = &objects["args"]["objects"];
+    if operation["kind"] == "Move"
+        && operation["args"]["destination"].get("Exile").is_some()
+        && objects["kind"] == "Take"
+        && objects["args"]["count"] == serde_json::json!({"kind":"Constant","args":1})
+        && objects["args"]["from"] == "Top"
+        && zone["kind"] == "Zone"
+        && zone["args"]["scope"]["Players"]["zone"] == "Library"
+        && zone["args"]["scope"]["Players"]["players"]["kind"] == "One"
+        && zone["args"]["kind"] == "Card"
+        && zone["args"]["filter"]["kind"] == "Any"
+    {
+        Ok(serde_json::json!({"$sym":"exiled_card_result","args":[positional],"at":at}))
+    } else {
+        Ok(operation.clone())
+    }
 }
 
 pub(super) fn card(scope: &Scope) -> Option<Value> {
@@ -133,6 +158,42 @@ pub(super) fn check_scalar(value: &Value, path: &[Step], scope: &Scope) -> Resul
         && !receipt.visible(path)
     {
         return Err("the exile receipt is outside this lexical continuation".into());
+    }
+    Ok(())
+}
+
+/// A known actual exile arrival cannot supply a graveyard-only cast permission.
+pub(super) fn check_permission(
+    root: &Value,
+    value: &Value,
+    path: &[Step],
+    scope: &Scope,
+) -> Result<(), String> {
+    if !scope
+        .exiled_card
+        .as_ref()
+        .is_some_and(|receipt| *value == receipt.scalar())
+    {
+        return Ok(());
+    }
+    if path.len() > 128 {
+        return Err("card permission role depth".into());
+    }
+    let mut parent = root;
+    for step in path {
+        match step {
+            Step::Key(key) => {
+                if key == "cards"
+                    && parent.get("action").is_some()
+                    && parent.get("from").is_some()
+                    && parent["from"] != "Exile"
+                {
+                    return Err("an actual exile receipt needs permission from exile".into());
+                }
+                parent = &parent[key.as_str()];
+            }
+            Step::Index(index) => parent = &parent[*index],
+        }
     }
     Ok(())
 }
@@ -164,7 +225,8 @@ pub(super) fn surface(ability: &mut Value) -> bool {
         };
         let operation = &producer["args"]["operation"];
         if operation["kind"] != "Move"
-            || !serde_json::from_value::<Operation>(operation.clone()).is_ok_and(single_top_card)
+            || !serde_json::from_value::<Operation>(operation.clone())
+                .is_ok_and(|operation| single_top_card(&operation))
         {
             continue;
         }
@@ -215,7 +277,7 @@ mod tests {
             (1, json!({"kind":"All"}), false),
         ] {
             assert_eq!(
-                single_top_card(serde_json::from_value(operation(count, players)).unwrap()),
+                single_top_card(&serde_json::from_value(operation(count, players)).unwrap()),
                 expected
             );
         }

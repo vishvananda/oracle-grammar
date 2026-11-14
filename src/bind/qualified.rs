@@ -156,7 +156,11 @@ fn contains<T: serde::Serialize>(items: &[T], item: &T) -> bool {
 }
 
 fn matches(entry: &Referent, kind: &ObjectKind, filter: &Value) -> bool {
-    if !entry.single || !entry.kinds.contains(kind) {
+    entry.single && describes(entry, kind, filter)
+}
+
+fn describes(entry: &Referent, kind: &ObjectKind, filter: &Value) -> bool {
+    if !entry.kinds.contains(kind) {
         return false;
     }
     match filter["kind"].as_str() {
@@ -167,6 +171,14 @@ fn matches(entry: &Referent, kind: &ObjectKind, filter: &Value) -> bool {
             .is_ok_and(|kind| contains(&entry.subtypes, &kind)),
         _ => false,
     }
+}
+
+pub(super) fn created_matches(scope: &Scope, result: u64, filter: &Value) -> bool {
+    let reference = json!({"kind":"Result","args":{"result":result,"phase":"After","index":0}});
+    scope.preceding() == Some(reference.clone())
+        && scope.references.iter().any(|entry| {
+            entry.reference == reference && describes(entry, &ObjectKind::Permanent, filter)
+        })
 }
 
 pub(super) fn known_scalar(

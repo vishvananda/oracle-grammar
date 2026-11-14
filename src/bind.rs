@@ -22,7 +22,7 @@ mod event_subjects;
 mod events;
 pub(crate) mod exile_followups;
 mod exile_returns;
-mod exiled_card;
+pub(crate) mod exiled_card;
 mod fight_counterpart;
 mod filters;
 pub(crate) mod group_contrast;
@@ -30,6 +30,7 @@ mod optional_entered_card;
 mod optional_entries;
 mod optional_exile_target;
 mod ordered_zones;
+pub(crate) mod other_filter;
 mod payment_move_after;
 mod player_event;
 pub(crate) mod return_grants;
@@ -62,7 +63,7 @@ mod observed;
 mod other;
 mod owner_return;
 mod paid_self_exile;
-mod payments;
+pub(crate) mod payments;
 mod per_recipient;
 pub(crate) mod pump_counts;
 mod references;
@@ -76,6 +77,7 @@ mod revealed_card;
 mod sacrifice_actor;
 mod sacrificed;
 mod spell_focus;
+pub(crate) mod spell_x;
 mod transitions;
 mod unresolved_leave_player;
 mod value_snapshot;
@@ -262,7 +264,8 @@ fn names_self(value: &Value) -> bool {
 
 /// Resolve one ability in place.
 pub fn bind_ability(ability: &mut Value, card_name: &str) -> Result<(), String> {
-    bind_held_ability(ability, card_name, Attachment::None)
+    bind_held_ability(ability, card_name, Attachment::None)?;
+    spell_x::lower(ability)
 }
 
 pub use other::Attachment;
@@ -328,6 +331,7 @@ pub fn bind_held_ability(
         return Err("damage measured by a sacrifice follows its required payment".into());
     }
     variables::bind(ability)?;
+    crate::functions::number_condition::resolve(ability)?;
     exile_followups::lower(ability)?;
     return_grants::lower(ability)?;
     returned_conditionals::lower(ability, &mut scope)?;
@@ -372,12 +376,17 @@ fn result_reference(
     }
 }
 
-fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
-    let root = presentation::core_mut(root);
+fn prepare_scope_references(root: &mut Value, scope: &Scope) -> Result<(), String> {
     observed::inline(root)?;
+    search_move::prepare(root)?;
     attached_counter_other::prepare(root)?;
     holder::mark(root, scope.holders);
-    events::bind_controller_turn_header(root, scope)?;
+    events::bind_controller_turn_header(root, scope)
+}
+
+fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
+    let root = presentation::core_mut(root);
+    prepare_scope_references(root, scope)?;
     let mut found = Vec::new();
     collect(
         root,
@@ -503,7 +512,7 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                 "it" | "current_it" => {
                     scope.damage_pronoun(&name, root, &item, &introduced, &prior)?
                 }
-                "another_target_reference" | "other_reference" => {
+                "another_target_reference" | "other_reference" | "other_filter" => {
                     other::resolve_marker(&name, prior.before(&item.path, scope), &node["args"][0])?
                 }
                 "that_object" => prior
@@ -650,6 +659,7 @@ fn reference_context(
     replacement = sacrificed::reference(name, replacement, &item.path, root, scope)?;
     objects::check_scalar_reference(name, &replacement, scope)?;
     exiled_card::check_scalar(&replacement, &item.path, scope)?;
+    exiled_card::check_permission(root, &replacement, &item.path, scope)?;
     if matches!(
         name,
         "defined_it" | "defined_object" | "defined_named_object"

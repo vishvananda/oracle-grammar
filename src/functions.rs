@@ -13,6 +13,7 @@ mod continuous;
 mod costs;
 pub(crate) mod counts;
 pub(crate) mod definitions;
+pub(crate) mod number_condition;
 pub(crate) mod payment;
 pub(crate) mod unordered;
 pub(crate) use branches::{branch_bounds, unify_gift_branch, unify_kicker_branch};

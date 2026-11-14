@@ -15,9 +15,51 @@ fn single(count: &Count) -> bool {
     )
 }
 
-fn producer(operation: Operation, seek: bool) -> bool {
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Selection {
+    Search,
+    Seek,
+    Choice,
+}
+
+/// A move establishes its referent only after the selection's written filter
+/// has resolved. Both operations share the put-clause's initial token.
+pub(super) fn prepare(root: &mut Value) -> Result<(), String> {
+    crate::functions::branch_bounds(root)?;
+    fn last_at(value: &Value) -> u64 {
+        let own = value
+            .get("$sym")
+            .and_then(|_| value["at"].as_u64())
+            .unwrap_or(0);
+        let child = match value {
+            Value::Object(fields) => fields.values().map(last_at).max(),
+            Value::Array(items) => items.iter().map(last_at).max(),
+            _ => None,
+        };
+        own.max(child.unwrap_or(0))
+    }
+    crate::traverse::rewrite(root, &mut |node| {
+        if let Some(items) = node.get_mut("instructions").and_then(Value::as_array_mut) {
+            for index in 1..items.len() {
+                let (before, after) = items.split_at_mut(index);
+                let choice = &before[index - 1]["args"]["operation"];
+                if choice["kind"] == "ChooseObjects"
+                    && after[0]["kind"] == "Effect"
+                    && after[0]["args"]["operation"]["$sym"] == "choice_move_result"
+                {
+                    let at = last_at(choice).max(last_at(&after[0]["args"]["operation"]));
+                    after[0]["args"]["operation"]["at"] = json!(at);
+                }
+            }
+        }
+        crate::traverse::Visit::Children
+    });
+    Ok(())
+}
+
+fn producer(operation: Operation, selection: Selection) -> bool {
     match operation {
-        Operation::Search { choices, .. } if !seek => {
+        Operation::Search { choices, .. } if selection == Selection::Search => {
             choices.len() == 1 && single(&choices[0].count)
         }
         Operation::ChooseObjects {
@@ -34,13 +76,30 @@ fn producer(operation: Operation, seek: bool) -> bool {
                 },
             count,
             constraints,
-        } if seek => {
+        } if selection == Selection::Seek => {
             single(&count)
                 && matches!(constraints.as_slice(), [SelectionConstraint::AtRandom])
                 && library_filter(&filter)
         }
         _ => false,
     }
+}
+
+/// Noun filters can still contain a current source property at this stage.
+/// Cardinality alone establishes the receipt; native validation checks filters
+/// after all their contextual operands have been bound.
+fn single_choice(value: &Value) -> bool {
+    value["kind"] == "ChooseObjects"
+        && value["args"]["player"]["kind"] == "AbilityController"
+        && value["args"]["objects"]["kind"] == "Zone"
+        && matches!(
+            value["args"]["objects"]["args"]["scope"]["Players"]["zone"].as_str(),
+            Some("Hand" | "Graveyard")
+        )
+        && value["args"]["objects"]["args"]["kind"] == "Card"
+        && value["args"]["constraints"] == json!([])
+        && serde_json::from_value::<Count>(value["args"]["count"].clone())
+            .is_ok_and(|count| single(&count))
 }
 
 // Library and graveyard cards have owners but no controllers. A following control qualifier
@@ -63,10 +122,13 @@ pub(super) fn marker(
     name: &str,
     introduced: &[super::references::TargetIntroduction],
 ) -> Result<bool, String> {
-    let seek = name == "seek_move_result";
-    if !seek && name != "search_move_result" {
-        return Ok(false);
-    }
+    let selection = match name {
+        "search_move_result" => Selection::Search,
+        "seek_move_result" => Selection::Seek,
+        "choice_move_result" => Selection::Choice,
+        _ => return Ok(false),
+    };
+    let seek = selection == Selection::Seek;
     if path.len() > 128 {
         return Err("search move receipt depth limit".into());
     }
@@ -124,11 +186,15 @@ pub(super) fn marker(
                 scope.target_base,
             )?;
             super::filters::strip(&mut plain);
-            serde_json::from_value(plain).is_ok_and(|operation| producer(operation, seek))
+            if selection == Selection::Choice {
+                single_choice(&plain)
+            } else {
+                serde_json::from_value(plain).is_ok_and(|operation| producer(operation, selection))
+            }
         }
         None => false,
     };
-    if seek && !scalar {
+    if selection != Selection::Search && !scalar {
         return Err(
             "seek move requires one random card from the controller's library or graveyard".into(),
         );
@@ -136,7 +202,7 @@ pub(super) fn marker(
     // Shared found-actions also serve plural searches. They retain their exact
     // old operation, without manufacturing a scalar referent.
     if scalar
-        && (seek
+        && (selection != Selection::Search
             || instructions.get(index + 1).is_some_and(|next| {
                 next["kind"] == "Effect" && next["args"]["operation"]["kind"] == "Shuffle"
             }))

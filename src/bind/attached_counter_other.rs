@@ -55,6 +55,13 @@ fn leaves<'a>(
     if depth > 32 || out.len() > 8 {
         return false;
     }
+    if symbol_name(v) == Some("other_filter") {
+        let inner = unary(v).ok_or(());
+        path.extend([Step::Key("args".into()), Step::Index(0)]);
+        let ok = inner.is_ok_and(|inner| leaves(inner, path, out, depth + 1));
+        path.truncate(path.len() - 2);
+        return ok;
+    }
     if v["kind"] == "AllOf" {
         let Some(parts) = v["args"].as_array() else {
             return false;

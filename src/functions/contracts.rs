@@ -14,6 +14,15 @@ pub(crate) fn checked_call(
     if name == "unordered" {
         return unordered_call(args, ty, schema);
     }
+    if name == "other_filter" {
+        if args.len() != 1 || *ty != Ty::Named("ObjectFilter".into()) {
+            return Err("@other_filter needs and produces one ObjectFilter".into());
+        }
+        return Ok(Some(Pattern::Symbol(
+            name.into(),
+            vec![elaborate(&args[0], ty, schema)?],
+        )));
+    }
     if name == "damage_relative_object" {
         return damage_relative_call(args, ty).map(Some);
     }
@@ -56,8 +65,10 @@ pub(crate) fn checked_call(
         | "selected_result"
         | "drafted_result"
         | "exiled_card_result"
+        | "exile_result"
         | "search_move_result"
         | "seek_move_result"
+        | "choice_move_result"
         | "mana_options"
         | "retain_animation_types"
         | "retain_animation" => Some(1),
@@ -296,8 +307,10 @@ fn operation_marker(name: &str) -> bool {
             | "sacrificed_result"
             | "measured_sacrifice"
             | "exiled_card_result"
+            | "exile_result"
             | "search_move_result"
             | "seek_move_result"
+            | "choice_move_result"
     )
 }
 
@@ -716,7 +729,7 @@ fn specialized_call(
         | "announced_targets"
         | "optional_program"
         | "optional_action_program" => optional_scope_call(name, args, ty, schema).map(Some),
-        "computed_condition" => {
+        "computed_condition" | "number_condition" => {
             let [condition] = args else {
                 return Err("@computed_condition needs one Condition".into());
             };

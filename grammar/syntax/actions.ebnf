@@ -194,7 +194,7 @@ tap_objects ::= "tap" object_set
 untap_objects ::= "untap" object_set
 /* @sem Operation::CreateRegenerationShields{objects:$object_set} */
 regenerate_objects ::= "regenerate" object_set
-/* @sem Operation::Move{objects:$object_set, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+/* @sem Operation::@exile_result(Operation::Move{objects:$object_set, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
 exile_objects ::= "exile" object_set
 /* "Exile the top card of your library face down": the slice, hidden from view. A
    pronoun after a look ("exile it face down") names the looked-at card, which the
@@ -386,6 +386,11 @@ sacrificed_damage ::= deal_damage_equal | deal_damage_equal_first
    happens only when the offered payment is declined. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:true}}, Instruction::If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
 clause_if_you_dont ::= "you" "may" payment "." "if" "you" "don't" "," conjoined
+
+/* Not taking a conditional offer includes the condition being false. Both
+   fallback branches instantiate the same declaration with their own results. */
+/* @sem Instruction::[@leading_if(Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:$conjoined}, otherwise:Program{}}]}, otherwise:Program{instructions:$conjoined}})] */
+clause_if_optional_fallback ::= "if" condition "," "you" "may" payment "." "if" "you" "don't" "," conjoined
 
 /* Both outcomes of one offered payment form one condition and its otherwise branch. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::PayCost{player:AbilityController, cost:$payment, optional:true}}, Instruction::If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{instructions:$conjoined_2}}] */
@@ -1207,11 +1212,23 @@ exile_optional_graveyard_card_set ::= "exile" "up" "to" ("one" | "1") "target" "
 /* @sem Instruction::[...$card_exile_value_producer, $card_exile_value_reflexive, ...$card_exile_play_permission] */
 instructions_exile_card_value_reflexive ::= card_exile_value_producer "." card_exile_play_permission "." card_exile_value_reflexive
 
+/* @sem Instruction::[...$card_exile_value_producer, Effect{result:@next, operation:DealDamage{source:$self_ref, recipients:Players(One(AbilityController)), amount:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:ManaValue, information:CurrentOrLastKnown}, preventable:true}}, ...$card_exile_play_permission] */
+instructions_exile_card_damage_permission ::= card_exile_value_producer "." self_ref "deals" "damage" "to" "you" "equal" "to" "that" "card's" "mana" "value" "." card_exile_play_permission
+
 /* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 card_exile_value_producer ::= "exile" "the" "top" "card" "of" "your" "library"
 
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}] */
-card_exile_play_permission ::= "you" "may" "play" "that" "card" this_duration
+card_exile_play_permission ::= "you" "may" "play" ("it" | "that" "card") this_duration
+
+/* The following permission is a dependent continuation of this actual exile,
+   including when the whole unit is inside a conditional. */
+/* @sem Instruction::[...$card_exile_value_producer, Effect{result:@next, operation:$play_that_card_permission}] */
+conditional_top_card_permission ::= card_exile_value_producer "." play_that_card_permission
+
+/* A random opponent is chosen before damage, independently of its source. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseAtRandom{kind:Player, options:[Players(OpponentsOf(AbilityController))]}}, Effect{result:@next, operation:DealDamage{source:$object_ref, recipients:Players(One(Chosen)), amount:$value, preventable:true}}] */
+clause_random_opponent_damage ::= object_ref "deals" value "damage" "to" "an" "opponent" "chosen" "at" "random"
 
 card_exile_value_reflexive ::= card_exile_plain_value_reflexive | card_exile_filtered_value_reflexive
 

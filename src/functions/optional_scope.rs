@@ -159,7 +159,10 @@ fn unify_then<'p, 'v>(
 fn hand_entry(items: &[Value]) -> bool {
     let [choose, put] = items else { return false };
     let chosen = &choose["args"]["operation"];
-    let moved = &put["args"]["operation"];
+    let mut moved = &put["args"]["operation"];
+    if moved["$sym"] == "choice_move_result" {
+        moved = &moved["args"][0];
+    }
     chosen["kind"] == "ChooseObjects"
         && chosen["args"]["objects"]["args"]["scope"]
             == json!({"Players":{"zone":"Hand","players":controller()}})
@@ -398,6 +401,10 @@ mod tests {
         }}}});
         let hand = json!([choose("Hand"), put.clone()]);
         assert!(offered_action(&hand).is_err());
+        let mut marked = hand.clone();
+        marked[1]["args"]["operation"] = json!({"$sym":"choice_move_result",
+            "args":[put["args"]["operation"]],"at":0});
+        assert!(offered_action(&marked).is_err());
         let args = [Pattern::Hole(
             "body".into(),
             Ty::Vec(Box::new(Ty::Named("Instruction".into()))),

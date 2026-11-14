@@ -40,6 +40,7 @@ pub(crate) fn lexical(objects: &Value, at: usize) -> Value {
 #[derive(Clone, Default)]
 struct Context {
     moves: BTreeSet<u32>,
+    scalar_moves: BTreeSet<u32>,
     action_moves: BTreeSet<(u32, u32)>,
     payments: BTreeSet<(u32, Vec<u32>)>,
     paid: BTreeSet<u32>,
@@ -66,6 +67,9 @@ impl Context {
         let Ok(operation) = serde_json::from_value::<Operation>(value.clone()) else {
             return Ok(());
         };
+        if super::exiled_card::single_top_card(&operation) {
+            self.scalar_moves.insert(result);
+        }
         match operation {
             Operation::Move {
                 objects: ObjectSet::One(_),
@@ -177,6 +181,15 @@ impl Context {
             return None;
         };
         let group = match reference {
+            ObjectRef::Result {
+                result,
+                phase: ObjectPhase::After,
+                index: 0,
+            } if self.scalar_moves.contains(&result.0) => ObjectSet::One(ObjectRef::Result {
+                result,
+                phase: ObjectPhase::After,
+                index: 0,
+            }),
             ObjectRef::Result {
                 result,
                 phase: ObjectPhase::After,

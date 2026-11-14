@@ -635,14 +635,25 @@ impl Pattern {
                     ("computed_condition", [condition]) => {
                         return crate::functions::computed_condition::guard(condition).cloned();
                     }
+                    ("number_condition", [condition]) => {
+                        return crate::functions::number_condition::annotate(condition.clone());
+                    }
+                    ("exile_result", [operation]) => {
+                        return crate::bind::exiled_card::annotate(operation, at);
+                    }
                     ("where", [body, value]) => {
                         if crate::functions::value_snapshot::required(body, value)? {
-                            return crate::functions::value_snapshot::snapshot(body, value, at);
+                            return crate::functions::value_snapshot::snapshot(body, value, at)
+                                .map(crate::functions::number_condition::definition);
                         }
-                        return Ok(substituted(body.clone(), value));
+                        return Ok(crate::functions::number_condition::definition(substituted(
+                            body.clone(),
+                            value,
+                        )));
                     }
                     ("where_snapshot", [body, value]) => {
-                        return crate::functions::value_snapshot::snapshot(body, value, at);
+                        return crate::functions::value_snapshot::snapshot(body, value, at)
+                            .map(crate::functions::number_condition::definition);
                     }
                     ("capture_amount", [body, value]) => {
                         return crate::functions::capture_amount::lower(body, value, at);
@@ -737,6 +748,7 @@ impl Pattern {
             return vec![bindings];
         }
         match name {
+            "other_filter" => return crate::bind::other_filter::unify(args, value, bindings),
             "single_player" => {
                 return args[0]
                     .unify_made(&serde_json::json!({"kind":"One","args":value}), &bindings);
@@ -1022,10 +1034,13 @@ fn transparent_symbol(name: &str) -> bool {
             | "selected_result"
             | "drafted_result"
             | "exiled_card_result"
+            | "exile_result"
             | "search_move_result"
             | "seek_move_result"
+            | "choice_move_result"
             | "resolution"
             | "leading_if"
+            | "number_condition"
             | "announced_x"
             | "sacrificed_result"
             | "measured_sacrifice"

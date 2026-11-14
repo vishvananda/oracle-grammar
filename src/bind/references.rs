@@ -279,10 +279,12 @@ pub(super) fn collect(
                 | "exiled_card_result"
                 | "search_move_result"
                 | "seek_move_result"
+                | "choice_move_result"
                 | "qualified_members"
                 | "payment_cost"
                 | "announced_cost"
                 | "announced_x"
+                | "other_filter"
         )
     );
     let first_child = out.len();

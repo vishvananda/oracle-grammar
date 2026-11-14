@@ -72,6 +72,9 @@ fn positive(filter: &Value, kind: &str, name: &str, work: &mut usize, depth: usi
     if depth > 32 {
         return false;
     }
+    if symbol_name(filter) == Some("other_filter") {
+        return positive(&filter["args"][0], kind, name, work, depth + 1);
+    }
     if filter["kind"] == kind && filter["args"] == name {
         return true;
     }
@@ -97,6 +100,9 @@ fn shared_subtype(subject: &Value, count: &Value, work: &mut usize, depth: usize
     *work -= 1;
     if depth > 32 {
         return false;
+    }
+    if symbol_name(count) == Some("other_filter") {
+        return shared_subtype(subject, &count["args"][0], work, depth + 1);
     }
     if count["kind"] == "Subtype" {
         return count["args"]
@@ -192,6 +198,17 @@ fn counted_filter<'a>(mut value: &'a Value, mut path: &[Step], marker: &str) -> 
 fn relation_path(mut filter: &Value, mut path: &[Step], marker: &str) -> bool {
     let mut negated = false;
     loop {
+        if symbol_name(filter) == Some("other_filter") {
+            let [Step::Key(args), Step::Index(0), rest @ ..] = path else {
+                return false;
+            };
+            if args != "args" {
+                return false;
+            }
+            filter = &filter["args"][0];
+            path = rest;
+            continue;
+        }
         match filter["kind"].as_str() {
             Some("AllOf" | "AnyOf") => {
                 let [Step::Key(args), Step::Index(index), rest @ ..] = path else {

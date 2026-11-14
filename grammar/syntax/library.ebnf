@@ -351,6 +351,12 @@ kinship_free_play ::= "you" "may" "play" "that" "card" "without" "paying" "its" 
 /* Choosing a card from a zone, then acting on it. */
 your_zone ::= your_hand | your_graveyard
 
+/* A resolving cast offer selects one eligible hand card; timing and the
+   optional decision belong to the enclosing instruction, not to a static rule. */
+/* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$hand_spell_choice}, count:Exactly(Constant(1)), cost:Free} */
+cast_free_hand_spell ::= "cast" hand_spell_choice "from" "your" "hand" "without" "paying" "its" "mana" "cost"
+hand_spell_choice ::= spell_any | spell_filtered
+
 /* @sem EventZone::Hand */
 your_hand ::= "your" "hand"
 /* @sem EventZone::Graveyard */
@@ -372,11 +378,36 @@ a_card_with ::= ("a" | "an") card_filter "card" modifiers
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:$your_zone, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 clause_exile_from ::= "exile" a_card "from" your_zone
 
-/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:$your_zone, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
-clause_put_from ::= "put" a_card "from" your_zone "onto" "the" "battlefield"
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:$battlefield_card_choice, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::@choice_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]})}] */
+clause_put_from ::= battlefield_card_choice ("onto" | "to") "the" "battlefield" ("under" "your" "control")?
 
-/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:$your_zone, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}] */
-clause_put_from_tapped ::= "put" a_card "from" your_zone "onto" "the" "battlefield" "tapped"
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:$battlefield_card_choice, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::@choice_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]})}] */
+clause_put_from_tapped ::= battlefield_card_choice ("onto" | "to") "the" "battlefield" "tapped" ("under" "your" "control")?
+
+battlefield_card_choice ::= explicit_battlefield_card_choice | putting_another_card
+/* @sem $resolving_card_pool */
+explicit_battlefield_card_choice ::= ("put" | "return") resolving_card_pool
+/* Preserve the existing put-another idiom. Returning another after sacrificing
+   has a different antecedent and uses its independent receipt-aware clause. */
+/* @sem ObjectSet::Zone{scope:Players{zone:$your_zone, players:One(AbilityController)}, kind:Card, filter:$a_card_another} */
+putting_another_card ::= "put" a_card_another "from" your_zone
+
+resolving_card_pool ::= own_resolving_card_pool | any_graveyard_card_pool
+explicit_card_choice ::= a_card_any_with | a_card_any | a_card_kind | a_card_with
+/* @sem ObjectSet::Zone{scope:Players{zone:$your_zone, players:One(AbilityController)}, kind:Card, filter:$explicit_card_choice} */
+own_resolving_card_pool ::= explicit_card_choice "from" your_zone
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$explicit_card_choice} */
+any_graveyard_card_pool ::= explicit_card_choice "from" "a" "graveyard"
+
+/* The observed hand remains the population even if another object was named
+   earlier. Selection and discard refer to the same single physical card. */
+/* @sem Instruction::[Effect{result:@next, operation:$hand_observation}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:@and($card_filter, ObjectFilter::OwnedBy($players_singular))}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:DiscardObjects{objects:One(Result{result:@prior, phase:After, index:0})}}] */
+clause_observed_single_discard ::= hand_observation "," "you" "choose" ("a" | "one") card_filter "card" "from" "it" "," "then" players_singular "discards" "that" "card"
+
+/* The previous action's before snapshot supplies the library, choice and
+   caster. Relative addresses keep preceding effects independent of this unit. */
+/* @sem Instruction::[Effect{result:@next, operation:RevealUntil{library:ControllerOf(Result{result:@prior, phase:Before, index:0}), filter:Not(CardType(Land)), count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Observed(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Optional{decider:ControllerOf(Result{result:@back(3), phase:Before, index:0}), body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(ControllerOf(Result{result:@back(4), phase:Before, index:0})), action:CastSpell, cards:One(Query{objects:Matching{objects:Transition{result:@prior, phase:After}, filter:Not(CardType(Land))}, index:0}), count:Exactly(Constant(1)), cost:Free}}]}}] */
+controller_exile_until_cast ::= "its" "controller" "exiles" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "exile" ("a" | "one") "nonland" "card" "," "then" "they" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost"
 
 /* Announce the player before the cards, even though Move stores that player's
    identity only in the target-card zone filter. choose is binding metadata. */
@@ -691,6 +722,10 @@ search_library_for_cards ::= "search" "your" "library" "for" card_count
 /* Permission to play the prior card. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
 play_that_card_permission ::= duration "," "you" "may" "play" "that" "card"
+    | "you" "may" "play" ("it" | "that" "card") ("from" "exile")? duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($exiled_card_ref), from:Exile, action:CastSpell, filter:Any})], duration:$this_duration, evaluation:LiveObjects} */
+cast_exiled_card_permission ::= "you" "may" "cast" exiled_card_ref this_duration
 
 /* Permission to play the prior cards. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
