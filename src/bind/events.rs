@@ -271,6 +271,18 @@ fn event_referents(event: &Value, scope: &mut Scope, surfaced: bool) {
                 "args": {"kind": "EventStackObject"},
             }))
         }
+        // "Whenever you attack a player": `that player` is the one attacked,
+        // the event's second player beside you. When another player attacks,
+        // `that player` is the attacker.
+        None if event["Batch"]["per"] == "Defender"
+            && event["Batch"]["event"]["Attack"]["defenders"]
+                .get("Players")
+                .is_some()
+            && event["Batch"]["event"]["Attack"]["by"]
+                == json!({"kind": "One", "args": {"kind": "AbilityController"}}) =>
+        {
+            scope.players.push(json!({"kind": "EventOtherPlayer"}))
+        }
         None => scope.players.push(subject),
     }
     scope.event_quantity = event_quantity(event);
