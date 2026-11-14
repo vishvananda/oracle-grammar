@@ -91,10 +91,20 @@ token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy
 
-token_copy ::= token_copy_plain | token_copy_artifact_exception
+token_copy ::= token_copy_plain | token_copy_modified
 
-/* @sem TokenSpec::TokenSpec{amount:Expr::Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
-token_copy_plain ::= "a" "token" "that's" "a" "copy" "of" object_ref
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
+token_copy_plain ::= token_copy_quantity object_ref
+
+/* The quantity describes the tokens; the article before copy is literal. */
+token_copy_quantity ::= token_copy_single | token_copy_plural
+/* @sem Expr::Constant(1) */
+token_copy_single ::= "a" "token" "that's" "a" "copy" "of"
+/* @sem $count */
+token_copy_plural ::= count "tokens" "that" "are" "copies" "of"
+
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_exceptions_plain}} */
+token_copy_modified ::= token_copy_quantity object_ref "," "except" copy_exceptions_plain
 
 /* The word `tapped` follows the count, so the count and description stay one phrase. */
 token_group_tapped ::= token_defined_tapped | token_defined_each_tapped | token_named_tapped
@@ -297,9 +307,6 @@ created_attachment_token ::= "that" "token"
 
 /* Token copy effects use their own typed container; ordinary CopyOf effects
    cannot be substituted for these copiable token adjustments. */
-/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$target_object, exceptions:[$token_copy_add_artifact]}} */
-token_copy_artifact_exception ::= "a" "token" "that's" "a" "copy" "of" target_object "," "except" token_copy_add_artifact
-
 /* @sem CopyException::AddCardTypes([Artifact]) */
 token_copy_add_artifact ::= "it's" "an" "artifact" "in" "addition" "to" "its" "other" "types"
 

@@ -45,7 +45,10 @@ pub(super) fn prepare(root: &mut Value) -> Result<(), String> {
                 let choice = &before[index - 1]["args"]["operation"];
                 if choice["kind"] == "ChooseObjects"
                     && after[0]["kind"] == "Effect"
-                    && after[0]["args"]["operation"]["$sym"] == "choice_move_result"
+                    && matches!(
+                        after[0]["args"]["operation"]["$sym"].as_str(),
+                        Some("choice_move_result" | "seek_move_result")
+                    )
                 {
                     let at = last_at(choice).max(last_at(&after[0]["args"]["operation"]));
                     after[0]["args"]["operation"]["at"] = json!(at);

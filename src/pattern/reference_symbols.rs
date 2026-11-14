@@ -65,6 +65,22 @@ pub(super) fn return_ref<'p, 'v>(
     inner.unify(value, bindings)
 }
 
+pub(super) fn last_exiled<'p, 'v>(
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    if value["kind"] != "Earlier"
+        || value["args"]["what"] != "LastExiled"
+        || !value["args"]["by"].is_null()
+    {
+        return Vec::new();
+    }
+    args.first().map_or_else(Vec::new, |inner| {
+        inner.unify_made(&serde_json::json!({"kind":"Source"}), &bindings)
+    })
+}
+
 pub(super) fn unify<'p, 'v>(
     name: &str,
     value: &Value,

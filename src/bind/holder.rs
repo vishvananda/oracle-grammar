@@ -33,6 +33,17 @@ fn mark_in(value: &mut Value, holders: u16, own: bool) {
             wrap(ability, false);
         }
     }
+    // A copied token is a new holder even when its creator is entering. Other
+    // copy exceptions inherit the recipient's proven same-source context.
+    if let Some(exceptions) = value
+        .pointer_mut("/Copy/exceptions")
+        .and_then(Value::as_array_mut)
+    {
+        for exception in exceptions {
+            copy_abilities(exception, false);
+        }
+    }
+    copy_abilities(value, own);
     match value {
         Value::Object(items) => items
             .values_mut()
@@ -41,6 +52,18 @@ fn mark_in(value: &mut Value, holders: u16, own: bool) {
             .iter_mut()
             .for_each(|item| mark_in(item, holders, own)),
         _ => {}
+    }
+}
+
+fn copy_abilities(value: &mut Value, same_source: bool) {
+    if value["kind"] == "AddAbilities"
+        && let Some(abilities) = value["args"].as_array_mut()
+    {
+        for ability in abilities {
+            if symbol_name(ability) != Some("holder") {
+                wrap(ability, same_source);
+            }
+        }
     }
 }
 
@@ -239,6 +262,27 @@ pub(super) fn event_sources(ability: &mut Value, holders: u16) -> Result<(), Str
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn copied_tokens_introduce_a_holder_even_during_the_creators_entry() {
+        let ability =
+            json!({"$sym":"scope","args":[{"kind":"Keyword","args":{"kind":"Haste"}}],"at":0});
+        let exception = json!({"kind":"AddAbilities","args":[ability]});
+        let mut root = json!({"kind":"Replacement","args":{"active":"SourceEntering","body":{
+            "own_exception":exception,
+            "token":{"Copy":{"exceptions":[exception]}}
+        }}});
+        mark(&mut root, 0);
+        let own = &root["args"]["body"]["own_exception"]["args"][0];
+        let token = &root["args"]["body"]["token"]["Copy"]["exceptions"][0]["args"][0];
+        assert_eq!(own["$sym"], "holder");
+        assert_eq!(own["same_source"], true);
+        assert_eq!(token["$sym"], "holder");
+        assert!(token.get("same_source").is_none());
+        let before = root.clone();
+        mark(&mut root, 0);
+        assert_eq!(root, before);
+    }
 
     fn same(symbol: &str) -> Value {
         json!({"kind":"SameObject","args":{"$sym":symbol,"args":[]}})

@@ -18,7 +18,7 @@ copy_exception_plain_more ::= copy_exception_plain "and" copy_exceptions_plain
 /* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_plain] */
 copy_exception_quote_then_plain ::= copy_granted_sentence ("↓")? "and" copy_exceptions_plain
 
-copy_exceptions_closed ::= copy_exception_closed_one | copy_exception_plain_then_quote | copy_exception_quote_more
+copy_exceptions_closed ::= copy_exception_closed_one | copy_exception_plain_then_quote | copy_exception_quote_more | copy_keyword_then_quote
 
 /* @sem Vec<CopyException>::[$copy_granted_sentence] */
 copy_exception_closed_one ::= copy_granted_sentence
@@ -29,15 +29,25 @@ copy_exception_plain_then_quote ::= copy_exception_plain "and" copy_exceptions_c
 /* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_closed] */
 copy_exception_quote_more ::= copy_granted_sentence ("↓")? "and" copy_exceptions_closed
 
-copy_exception_plain ::= copy_add_creature_type
+copy_exception_plain ::= copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact
 
 /* @sem CopyException::AddCreatureTypes([@subtype_name($subtype)]) */
 copy_add_creature_type ::= "it's" ("a" | "an") subtype "in" "addition" "to" "its" "other" "types"
 
 /* This ability belongs to the entering source; its event establishes its own
    references. No anaphor from outside the quotation is substituted into it. */
+/* @sem $copy_quoted_ability */
+copy_granted_sentence ::= "it" "has" copy_quoted_ability
+
 /* @sem CopyException::AddAbilities([@scope($token_ability_sentence)]) */
-copy_granted_sentence ::= "it" "has" '"' token_ability_sentence '"'
+copy_quoted_ability ::= '"' token_ability_sentence '"'
+
+/* Each written ability is its own copiable addition. The quote establishes
+   its own holder, independently of the object whose characteristics are copied. */
+/* @sem CopyException::AddAbilities([Keyword($keyword_value)]) */
+copy_keyword_ability ::= "it" "has" keyword_value
+/* @sem Vec<CopyException>::[$copy_keyword_ability, $copy_quoted_ability] */
+copy_keyword_then_quote ::= copy_keyword_ability "and" copy_quoted_ability
 
 /* The second branch refers to the explicitly named holder, not the event's
    future subject. List order follows the canonical IR for these two branches. */

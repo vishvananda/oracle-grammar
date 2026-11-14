@@ -913,5 +913,6 @@ mod gift;
 mod literal_inverse;
 
 mod conditional_followups;
+mod copy_actions;
 mod entry_equip;
 mod spell_x;

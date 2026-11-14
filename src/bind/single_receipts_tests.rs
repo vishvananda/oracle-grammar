@@ -102,3 +102,79 @@ fn a_sum_over_one_moved_card_is_its_property() {
     assert!(surface(&mut ability));
     assert_eq!(ability, printed);
 }
+
+fn paid_card_measure() -> Value {
+    let fixtures: Vec<Value> =
+        serde_json::from_str(include_str!("../../tests/fixtures/copy-actions.json")).unwrap();
+    let case = fixtures
+        .iter()
+        .find(|case| case["name"] == "Ellie and Alan, Paleontologists")
+        .unwrap();
+    case["expected"][0].clone()
+}
+
+fn paid_amount(ability: &mut Value) -> &mut Value {
+    &mut ability["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["action"]["Discover"]
+        ["amount"]
+}
+
+#[test]
+fn a_single_activation_exile_sum_and_scalar_share_the_actual_receipt() {
+    let scalar = paid_card_measure();
+    let mut counted = scalar.clone();
+    assert!(surface(&mut counted));
+    assert_eq!(paid_amount(&mut counted)["kind"], "Aggregate");
+    assert_eq!(
+        paid_amount(&mut counted)["args"]["objects"]["args"]["component"],
+        json!([1])
+    );
+    let mut lowered = counted.clone();
+    assert!(lower(&mut lowered));
+    assert_eq!(lowered, scalar);
+    assert!(!lower(&mut lowered));
+    let mut scoped = json!([
+        counted.clone(),
+        spell(counted["args"]["body"]["instructions"].clone())
+    ]);
+    assert!(lower(&mut scoped));
+    assert_eq!(scoped[0], scalar);
+    assert_eq!(scoped[1]["args"]["body"], counted["args"]["body"]);
+}
+
+#[test]
+fn activation_measure_proof_keeps_other_costs_views_and_invalid_operands_distinct() {
+    let mut counted = paid_card_measure();
+    assert!(surface(&mut counted));
+    for (path, value) in [
+        (
+            "/args/cost/parts/1/Move/selections/0/choose",
+            json!({"Exactly":{"kind":"Constant","args":2}}),
+        ),
+        (
+            "/args/cost/parts/1/Move/selections/0/choose",
+            json!({"UpTo":{"kind":"Constant","args":1}}),
+        ),
+        ("/args/cost/extra", json!(true)),
+        (
+            "/args/body/instructions/0/args/operation/args/action/Discover/amount/extra",
+            json!(true),
+        ),
+    ] {
+        let mut negative = counted.clone();
+        let (parent, key) = path.rsplit_once('/').unwrap();
+        negative.pointer_mut(parent).unwrap()[key] = value;
+        let original = negative.clone();
+        assert!(!lower(&mut negative), "{path}");
+        assert_eq!(negative, original, "{path}");
+    }
+    for (field, value) in [
+        ("phase", json!("Before")),
+        ("view", json!("Inputs")),
+        ("payment", json!({"Resolution":0})),
+        ("component", json!([0])),
+    ] {
+        let mut negative = counted.clone();
+        paid_amount(&mut negative)["args"]["objects"]["args"][field] = value;
+        assert!(!lower(&mut negative), "{field}");
+    }
+}

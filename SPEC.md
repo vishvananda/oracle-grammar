@@ -98,6 +98,16 @@ operands retain their actual words and complete where-definition. See
 [numeric thresholds](docs/spell-x-thresholds.md) for the scope contract and
 reference amendment U0033.
 
+Abilities added by a copy exception belong to the copied holder. Token copies
+introduce a holder even during the creator's entry; an own-source entry copy
+retains its existing source. Literal exiled-card references in an activation
+body name its one proved singular exile-payment receipt, with its actual cost
+address. They do not select an arbitrary persistently linked card. A proved one-object
+activation exile receipt also measures its properties as that card, consistently
+with ordinary singleton movement receipts; U0034 normalizes the two reference
+records that used sums over those singletons. See
+[copiable abilities and actions](docs/copiable-abilities-and-actions.md).
+
 Preserve distinctions among:
 
 - source, granting object and ability holder;

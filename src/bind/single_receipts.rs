@@ -29,6 +29,7 @@ struct Frame {
     written: BTreeSet<u64>,
     targets: BTreeMap<u64, Objects>,
     prepared: BTreeMap<u64, Objects>,
+    activation_cards: Vec<Value>,
 }
 
 const LOOPS: [&str; 4] = [
@@ -261,6 +262,9 @@ fn rewritten(node: &Value, scope: &Frame, lower: bool) -> Option<Value> {
         }
         "Aggregate" if lower && args["aggregation"] == "Sum" => {
             let set = &args["objects"];
+            if kind(set) == "CostObjects" && scope.activation_cards.contains(set) {
+                return cost_measure(node, set, true);
+            }
             (kind(set) == "Transition" && scope.transition(&set["args"]).one).then(|| {
                 json!({"kind":"ObjectProperty","args":{"object":receipt(&set["args"]),
                     "property":args["property"],"information":"CurrentOrLastKnown"}})
@@ -268,6 +272,13 @@ fn rewritten(node: &Value, scope: &Frame, lower: bool) -> Option<Value> {
         }
         "ObjectMatches" | "ObjectProperty" if !lower => {
             let object = &args["object"];
+            if kind(node) == "ObjectProperty"
+                && kind(object) == "Query"
+                && object["args"]["index"] == 0
+                && scope.activation_cards.contains(&object["args"]["objects"])
+            {
+                return cost_measure(node, &object["args"]["objects"], false);
+            }
             let proven = kind(object) == "Result"
                 && object["args"]["index"] == 0
                 && scope.transition(&object["args"]).one;
@@ -286,6 +297,64 @@ fn rewritten(node: &Value, scope: &Frame, lower: bool) -> Option<Value> {
             })
         }
         _ => None,
+    }
+}
+
+/// These are exact one-object exile payments, not an effect's requested amount.
+/// Decode losslessly so a malformed cost cannot supply a normalization proof.
+fn activation_cards(node: &Value) -> Vec<Value> {
+    use crate::model::{cost_history, ir::*};
+    let raw = &node["args"]["cost"];
+    if crate::functions::branch_bounds(raw).is_err() {
+        return Vec::new();
+    }
+    let Ok(cost) = serde_json::from_value::<Cost>(raw.clone()) else {
+        return Vec::new();
+    };
+    if serde_json::to_value(&cost).ok().as_ref() != Some(raw) {
+        return Vec::new();
+    }
+    cost.parts
+        .iter()
+        .enumerate()
+        .filter_map(|(index, _)| {
+            let component = vec![u32::try_from(index).ok()?];
+            let part = cost_history::component(&cost, &component)?;
+            (cost_history::exact_count(part) == Some(1)
+                && matches!(
+                    part,
+                    CostPart::Move {
+                        destination: MovementDestination::Exile { .. },
+                        ..
+                    }
+                ))
+            .then(|| {
+                json!({"kind":"CostObjects","args":{
+                    "payment":"Activation","component":component,"view":"Performed","phase":"After"
+                }})
+            })
+        })
+        .collect()
+}
+
+fn cost_measure(node: &Value, objects: &Value, lower: bool) -> Option<Value> {
+    crate::functions::branch_bounds(node).ok()?;
+    let expr: crate::model::ir::Expr = serde_json::from_value(node.clone()).ok()?;
+    if serde_json::to_value(&expr).ok().as_ref() != Some(node) {
+        return None;
+    }
+    let property = &node["args"]["property"];
+    if lower {
+        Some(json!({"kind":"ObjectProperty","args":{
+            "object":{"kind":"Query","args":{"objects":objects,"index":0}},
+            "property":property,"information":"CurrentOrLastKnown"
+        }}))
+    } else if node["args"]["information"] == "CurrentOrLastKnown" {
+        Some(json!({"kind":"Aggregate","args":{
+            "objects":objects,"property":property,"aggregation":"Sum"
+        }}))
+    } else {
+        None
     }
 }
 
@@ -341,7 +410,21 @@ impl Pass {
     fn object(&mut self, node: &mut Value) {
         if is_ability(node) || is_mode(node) {
             self.push(is_mode(node));
-            self.children(node);
+            if kind(node) == "Activated" {
+                let cards = activation_cards(node);
+                if let Some(args) = node.get_mut("args").and_then(Value::as_object_mut) {
+                    for (field, value) in args {
+                        self.scope.activation_cards = if field == "body" {
+                            cards.clone()
+                        } else {
+                            Vec::new()
+                        };
+                        self.walk(value);
+                    }
+                }
+            } else {
+                self.children(node);
+            }
             self.pop();
             return;
         }

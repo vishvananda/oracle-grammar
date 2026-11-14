@@ -137,7 +137,7 @@ activated_power_up ::= "power-up" "—" cost ":" program_sentence
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$program_sentence} */
 activated_limited ::= cost ":" program_sentence activation_limits "."
 
-activation_limits ::= limit_cost_less_each | limit_spend_red | limit_spend_black | limit_once | limit_sorcery | limit_sorcery_once | limit_sorcery_condition | limit_condition | limit_condition_once
+activation_limits ::= limit_cost_less_each | limit_cost_less_each_sorcery | limit_spend_red | limit_spend_black | limit_once | limit_sorcery | limit_sorcery_once | limit_sorcery_condition | limit_condition | limit_condition_once
     | limit_any_player | limit_any_player_sorcery
 
 /* @sem ActivationLimits::ActivationLimits{once_each_turn:true, sorcery:true} */
@@ -153,8 +153,14 @@ limit_any_player ::= "any" "player" "may" "activate" "this" "ability"
 /* @sem ActivationLimits::ActivationLimits{activators:All, sorcery:true} */
 limit_any_player_sorcery ::= "any" "player" "may" "activate" "this" "ability" "but" "only" "as" "a" "sorcery"
 
-/* @sem ActivationLimits::ActivationLimits{modifiers:[Change::ActivationRule(Cost{modifier:Reduce{reductions:[ManaReduction{amount:$count_each}], spill_into_generic:true}})]} */
-limit_cost_less_each ::= "this" "ability" "costs" "{" "1" "}" "less" "to" "activate" "for" "each" count_each
+/* @sem ActivationLimits::ActivationLimits{modifiers:$activation_counter_reduction} */
+limit_cost_less_each ::= activation_counter_reduction
+/* @sem ActivationLimits::ActivationLimits{sorcery:true, modifiers:$activation_counter_reduction} */
+limit_cost_less_each_sorcery ::= activation_counter_reduction "." "activate" "only" "as" "a" "sorcery"
+
+/* The written amount multiplies the population, independently of timing. */
+/* @sem Change::[ActivationRule(Cost{modifier:Reduce{reductions:[ManaReduction{amount:@times($braced_amount, $count_each)}], spill_into_generic:true}})] */
+activation_counter_reduction ::= "this" "ability" "costs" braced_amount "less" "to" "activate" "for" "each" count_each
 
 /* @sem ActivationLimits::ActivationLimits{modifiers:[Change::ActivationRule(RestrictMana{portion:X, color:Red})]} */
 limit_spend_red ::= "spend" "only" "red" "mana" "on" "X"

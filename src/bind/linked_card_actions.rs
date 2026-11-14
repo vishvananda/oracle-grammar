@@ -71,8 +71,20 @@ fn raw_literal(mut objects: &Value) -> bool {
         return false;
     }
     let reference = &objects["args"];
-    super::symbol_name(reference) == Some("remember_object")
-        && reference["args"] == json!([scalar()["args"].clone()])
+    if super::symbol_name(reference) != Some("remember_object") {
+        return false;
+    }
+    let Some([literal]) = reference["args"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    let mut literal = literal;
+    if super::symbol_name(literal) == Some(super::activation_exile::NAME) {
+        let Some([inner]) = literal["args"].as_array().map(Vec::as_slice) else {
+            return false;
+        };
+        literal = inner;
+    }
+    *literal == scalar()["args"]
 }
 fn candidates(card: &Value) -> Result<Vec<Site>, String> {
     let Some(abilities) = card.as_array() else {

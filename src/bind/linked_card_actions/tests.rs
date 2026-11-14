@@ -67,15 +67,34 @@ fn unchanged(value: Value) {
 fn both_raw_literal_routes_use_the_existing_actual_definitions_without_scope_relocation() {
     for index in 0..2 {
         assert_eq!(lowered(literal(index)), native(index));
-        let mut value = native(index);
-        *objects_mut(&mut value, &site(index)).unwrap() = json!({"kind":"One","args":{"$sym":"remember_object","args":[scalar()["args"]],"at":10}});
-        assert_eq!(prepare(&mut value).unwrap().len(), 1);
-        let sites = [site(index)];
-        // This unit starts already bound, so resolve only the known reference.
-        *objects_mut(&mut value, &site(index)).unwrap() = scalar();
-        lower(&mut value, &sites).unwrap();
-        assert_eq!(value, native(index));
+        for noun in [
+            scalar()["args"].clone(),
+            json!({"$sym":crate::bind::activation_exile::NAME,"args":[scalar()["args"]],"at":10}),
+        ] {
+            let mut value = native(index);
+            *objects_mut(&mut value, &site(index)).unwrap() =
+                json!({"kind":"One","args":{"$sym":"remember_object","args":[noun],"at":10}});
+            assert_eq!(prepare(&mut value).unwrap().len(), 1);
+            let sites = [site(index)];
+            // This unit starts already bound, so resolve only the known reference.
+            *objects_mut(&mut value, &site(index)).unwrap() = scalar();
+            lower(&mut value, &sites).unwrap();
+            assert_eq!(value, native(index));
+        }
     }
+}
+#[test]
+fn activation_annotation_preserves_only_the_exact_lexical_noun_proof() {
+    let reference = scalar()["args"].clone();
+    let annotated = json!({"$sym":crate::bind::activation_exile::NAME,"args":[reference],"at":10});
+    let mut noun =
+        json!({"kind":"One","args":{"$sym":"remember_object","args":[annotated],"at":10}});
+    assert!(raw_literal(&noun));
+    noun["args"]["args"][0]["args"][0]["args"]["index"] = json!(1);
+    assert!(!raw_literal(&noun));
+    noun["args"]["args"][0]["args"] = json!([reference, reference]);
+    assert!(!raw_literal(&noun));
+    assert!(!raw_literal(&scalar()));
 }
 #[test]
 fn projections_require_the_identical_parent_proof_current_result_phase_and_whole_group() {

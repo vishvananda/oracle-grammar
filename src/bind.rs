@@ -3,6 +3,7 @@
 //! result ids. Work runs in reading order, by the token each symbol started on.
 use serde_json::{Value, json};
 
+pub(crate) mod activation_exile;
 pub(crate) mod activation_property;
 mod addresses;
 pub(crate) mod attached_counter_other;
@@ -631,6 +632,7 @@ fn bind_marker(
     introduced: &[references::TargetIntroduction],
 ) -> Result<bool, String> {
     Ok(activation_property::marker(root, scope, path, name)?
+        || activation_exile::marker(root, path, name)?
         || counter_payment::marker(root, path, name)?
         || damage_reflexive::bind_marker(root, scope, path, name, introduced)?
         || move_after::bind_marker(root, scope, path, name, introduced)?

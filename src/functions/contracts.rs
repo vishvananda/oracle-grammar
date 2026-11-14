@@ -399,6 +399,7 @@ fn reference_marker(name: &str) -> bool {
             | "return_ref"
             | "sacrificed_damage_source"
             | "activation_creature_property"
+            | "activation_exiled_card"
             | "other_reference"
             | "another_target_reference"
             | "exiled_card_reference"

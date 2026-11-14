@@ -783,13 +783,7 @@ impl Pattern {
                 return reference_symbols::sacrificed_damage_source(args, value, bindings);
             }
             "last_exiled" | "last_exiled_creature" => {
-                if value["kind"] != "Earlier"
-                    || value["args"]["what"] != "LastExiled"
-                    || !value["args"]["by"].is_null()
-                {
-                    return Vec::new();
-                }
-                return args[0].unify_made(&serde_json::json!({"kind":"Source"}), &bindings);
+                return reference_symbols::last_exiled(args, value, bindings);
             }
             "qualified_members" => {
                 return reference_symbols::qualified_members(args, value, bindings);
@@ -826,6 +820,9 @@ impl Pattern {
             }
             "entering_controller" => {
                 return crate::functions::entering::unify(args, value, bindings);
+            }
+            "activation_exiled_card" => {
+                return crate::bind::activation_exile::unify(args, value, bindings);
             }
             "arrival_changes" => return crate::functions::arrival::unify(args, value, bindings),
             "continuous_parts" => return unify_continuous_parts(args, value, bindings),
