@@ -2,6 +2,7 @@
 use super::{Scope, json};
 use crate::model::ir::ObjectKind;
 use crate::model::mtg_types::{CardType, SubType};
+use crate::traverse::{Visit, rewrite};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -350,8 +351,55 @@ pub(super) fn spelling_forms(forms: Vec<Value>, specs: &[Value]) -> Vec<Value> {
         if copy != form {
             out.push(copy);
         }
+        let subject = json!({"kind":"EventSubject"});
+        if let Some(entry) = local
+            .iter()
+            .find(|entry| entry.reference == subject && !entry.subtypes.is_empty())
+        {
+            let room = 64usize.saturating_sub(out.len());
+            out.extend(noun_uses(&form, entry).into_iter().take(room));
+        }
     }
     out
+}
+
+/// At most this many uses of an event's subject are offered spelled by its noun.
+const USES: usize = 4;
+
+/// The ability with one use of its event's subject spelled by the subtype that
+/// introduced it, each use in turn: "Whenever a Sliver becomes blocked, that
+/// Sliver gets +1/+1". The other uses keep their pronouns.
+fn noun_uses(form: &Value, entry: &Referent) -> Vec<Value> {
+    let Some(spelling) = spelling(entry) else {
+        return Vec::new();
+    };
+    let mut forms = Vec::new();
+    for at in 0..USES {
+        let mut copy = form.clone();
+        let (mut uses, mut spelled) = (0, false);
+        if let Some(body) = copy.pointer_mut("/args/body") {
+            rewrite(body, &mut |node| {
+                if spelled || *node != entry.reference {
+                    return if spelled {
+                        Visit::Skip
+                    } else {
+                        Visit::Children
+                    };
+                }
+                if uses == at {
+                    *node = spelling.clone();
+                    spelled = true;
+                }
+                uses += 1;
+                Visit::Skip
+            });
+        }
+        if !spelled {
+            break;
+        }
+        forms.push(copy);
+    }
+    forms
 }
 
 fn qualify_print(value: &mut Value, descriptions: &[Referent], seen: &mut bool) {

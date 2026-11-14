@@ -87,16 +87,65 @@ fn triggers_written_per_event_print_split_from_the_trigger_on_either() {
             "Whenever another Detective you control enters and whenever a Detective you control is turned face up, this creature gets +1/+1 until end of turn.",
         ),
     ] {
-        let reading = only_reading(name, text);
-        let types = [types.to_string()];
-        if keyed(name, &reading, &types, text).as_deref() == Some(text) {
-            continue;
-        }
-        let trail = engine()
-            .trail_of(name, &reading, text)
-            .unwrap()
-            .expect("the written order is reachable");
-        let printed = engine().print_trail(name, &reading, &trail).unwrap();
-        assert_eq!(printed.as_deref(), Some(text), "{name}");
+        assert_prints_as_written(name, types, text);
+    }
+}
+
+/// The only reading of `text` prints it back along its derivation, else
+/// along its written order.
+fn assert_prints_as_written(name: &str, types: &str, text: &str) {
+    let reading = only_reading(name, text);
+    let types = [types.to_string()];
+    if keyed(name, &reading, &types, text).as_deref() == Some(text) {
+        return;
+    }
+    let trail = engine()
+        .trail_of(name, &reading, text)
+        .unwrap()
+        .expect("the written order is reachable");
+    let printed = engine().print_trail(name, &reading, &trail).unwrap();
+    assert_eq!(printed.as_deref(), Some(text), "{name}");
+}
+
+/// A where-X may name a count of chosen objects or the varying part of a sum.
+#[test]
+fn where_x_names_a_chosen_count_or_the_part_of_a_sum() {
+    for (name, types, text) in [
+        (
+            "An-Havva Inn",
+            "Sorcery",
+            "You gain X plus 1 life, where X is the number of green creatures on the battlefield.",
+        ),
+        (
+            "Hellfire",
+            "Sorcery",
+            "Destroy all nonblack creatures. Hellfire deals X plus 3 damage to you, where X is the number of creatures that died this way.",
+        ),
+        (
+            "Uncle's Musings",
+            "Sorcery",
+            "Converge — Return up to X permanent cards from your graveyard to your hand, where X is the number of colors of mana spent to cast this spell.\nExile Uncle's Musings.",
+        ),
+    ] {
+        assert_prints_as_written(name, types, text);
+    }
+}
+
+/// A later use of a triggering object may name it by its subtype.
+#[test]
+fn a_triggering_object_is_named_by_its_subtype() {
+    for (name, types, text) in [
+        (
+            "Spined Sliver",
+            "Creature",
+            "Whenever a Sliver becomes blocked, that Sliver gets +1/+1 until end of turn for each creature blocking it.",
+        ),
+        (
+            "Captain America, Team Leader",
+            "Creature",
+            "Whenever another Hero you control enters, it gains vigilance and haste until end of turn. Put a +1/+1 counter on that Hero and a +1/+1 counter on Captain America.",
+        ),
+    ] {
+        assert_prints_as_written(name, types, text);
     }
 }

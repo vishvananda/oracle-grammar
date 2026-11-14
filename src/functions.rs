@@ -320,6 +320,21 @@ fn expr_slots(node: &Value) -> Vec<&Value> {
             slots.push(&args["objects"]["args"]["count"]);
         }
         Some("Conjure" | "RevealFromHand") => slots.push(&args["count"]),
+        // `up to X cards`: a chosen count.
+        Some("ChooseObjects") => slots.extend(
+            args["count"]
+                .as_object()
+                .into_iter()
+                .flat_map(|count| count.values()),
+        ),
+        // `X plus 1`: X names the part of the sum before its constant.
+        Some("Add") => {
+            if let Some([part, last]) = args.as_array().map(Vec::as_slice)
+                && constant(last).is_some()
+            {
+                slots.push(part);
+            }
+        }
         _ => {}
     }
     // The initial copiable stats of a Defined token recipe.
