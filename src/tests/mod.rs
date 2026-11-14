@@ -914,6 +914,7 @@ mod literal_inverse;
 
 mod conditional_followups;
 mod copy_actions;
+mod copy_details;
 mod copy_exchange;
 mod counter_payments;
 mod entry_equip;

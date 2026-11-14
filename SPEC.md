@@ -233,6 +233,12 @@ U0036 normalizes the six corresponding reference frames. Continuous copy actions
 also share native keyword/mechanic copy exceptions and preserve each addition's
 ability scope. See [copy exceptions and exchange pairs](docs/copy-exceptions-and-exchange-pairs.md).
 
+Literal copied names use SetName of their current string operand, separately
+from retaining a runtime name. Current-ability copy additions keep their native
+identity and compose with scoped keyword/mechanic additions, including indefinite
+copies. Graveyard target qualifiers share one meaning across their supported
+word orders. See [copy details and graveyard qualifiers](docs/copy-details-and-graveyard-qualifiers.md).
+
 ## Printing
 
 Printing uses the current operands of an edited or synthesized IR. A saved

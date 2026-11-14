@@ -7,7 +7,7 @@ copy_exceptions_sentence ::= copy_exceptions_period | copy_exceptions_closed
 /* @sem $copy_exceptions_plain */
 copy_exceptions_period ::= copy_exceptions_plain "."
 
-copy_exceptions_plain ::= copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain
+copy_exceptions_plain ::= copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain
 
 /* @sem Vec<CopyException>::[$copy_exception_plain] */
 copy_exception_plain_one ::= copy_exception_plain
@@ -29,7 +29,7 @@ copy_exception_plain_then_quote ::= copy_exception_plain "and" copy_exceptions_c
 /* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_closed] */
 copy_exception_quote_more ::= copy_granted_sentence ("↓")? "and" copy_exceptions_closed
 
-copy_exception_plain ::= copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact
+copy_exception_plain ::= copy_self_name | copy_named_name | copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact
 
 /* @sem CopyException::AddCreatureTypes([@subtype_name($subtype)]) */
 copy_add_creature_type ::= "it's" ("a" | "an") subtype "in" "addition" "to" "its" "other" "types"
@@ -44,8 +44,10 @@ copy_quoted_ability ::= '"' token_ability_sentence '"'
 
 /* Keywords and mechanics retain their native Ability variants. Each addition
    has its own ability scope, independently of the copied object and creator. */
+/* @sem $copy_added_keyword */
+copy_keyword_ability ::= "it" "has" copy_added_keyword
 /* @sem CopyException::AddAbilities([@scope($keyword_ability)]) */
-copy_keyword_ability ::= "it" "has" keyword_ability
+copy_added_keyword ::= keyword_ability
 /* @sem Vec<CopyException>::[$copy_keyword_ability, $copy_quoted_ability] */
 copy_keyword_then_quote ::= copy_keyword_ability "and" copy_quoted_ability
 
@@ -68,3 +70,12 @@ clause_other_copy_exception ::= "each" "other" filter_phrase "becomes" "a" "copy
 /* This is a copiable exception, not a later continuous type removal. */
 /* @sem CopyException::RemoveSupertypes([Legendary]) */
 copy_remove_legendary ::= "it" "isn't" "legendary"
+
+/* @sem CopyException::SetName(@card_name) */
+copy_self_name ::= ("its" | "his" | "her") "name" "is" SELF_NAME
+/* @sem CopyException::SetName($referenced_card_name) */
+copy_named_name ::= ("its" | "his" | "her") "name" "is" referenced_card_name
+/* @sem CopyException::AddCurrentAbility */
+copy_current_payload ::= "this" "ability"
+/* @sem Vec<CopyException>::[$copy_added_keyword, $copy_current_payload] */
+copy_keyword_current ::= "it" "has" copy_added_keyword "and" copy_current_payload
