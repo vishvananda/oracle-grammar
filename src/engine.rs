@@ -18,6 +18,7 @@ pub use card::{
 pub fn empty_card_characteristics() -> crate::model::ir::Characteristics {
     card::station::empty_characteristics()
 }
+mod ability_joins;
 mod presentation;
 mod printing;
 pub use printing::Enumerated;

@@ -79,10 +79,30 @@ impl Engine {
 
     /// The surface forms of a card's abilities, in the IR's own order: canonical
     /// sorting would lose the order words were written in.
-    pub(super) fn surfaces(abilities: &Value) -> Result<Vec<Value>, String> {
-        let mut abilities = abilities.clone();
+    pub(super) fn surfaces(lowered: &Value) -> Result<Vec<Value>, String> {
+        let mut abilities = lowered.clone();
         canonical::reduced(&mut abilities)?;
-        let linked_card_view = bind::linked_card_actions::projection(&abilities)?;
+        let mut surfaces = Self::item_surfaces(&abilities)?;
+        // A few joined and split forms follow the per-ability ones, beyond their cap.
+        // Statics lowered apart split where they were lowered, then at each cut.
+        let mut views: Vec<Value> = super::ability_joins::joined(&abilities)
+            .into_iter()
+            .collect();
+        views.extend(super::ability_joins::lowered_apart(lowered, &abilities));
+        views.extend(super::ability_joins::split_statics(&abilities));
+        for view in views {
+            for surface in Self::item_surfaces(&view)?.into_iter().take(8) {
+                if !surfaces.contains(&surface) {
+                    surfaces.push(surface);
+                }
+            }
+        }
+        Ok(surfaces)
+    }
+
+    /// Every combination of each ability's unbound forms, at most 64.
+    fn item_surfaces(abilities: &Value) -> Result<Vec<Value>, String> {
+        let linked_card_view = bind::linked_card_actions::projection(abilities)?;
         let Some(items) = abilities.as_array() else {
             return Err("abilities must be a list".into());
         };

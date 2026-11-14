@@ -1,11 +1,12 @@
-//! Declared conjunctions also print their canonical form. An operand of a
-//! literal `AllOf` list can be `Any` or a conjunction itself, which the
-//! canonical IR folds away, and the canonical order need not be the declared
-//! one. Seeded lists were copied from one card's IR, so other cards' operands
-//! meet this most often. When the declared pattern does not unify, printing
-//! deals the folded conjuncts back out among the list's members, as `@and`
-//! does. The forward direction is unchanged, and reparse still proves every
-//! printed text.
+//! Declared conjunctions and disjunctions also print their canonical form. An
+//! operand of a literal `AllOf` list can be `Any` or a conjunction itself,
+//! which the canonical IR folds away, and the canonical order of an `AllOf` or
+//! `AnyOf` list need not be the declared one. Seeded lists were copied from one
+//! card's IR, so other cards' operands meet this most often. When the declared
+//! pattern does not unify, printing deals the folded conjuncts back out among
+//! an `AllOf` list's members, as `@and` does, and matches an `AnyOf` list in
+//! any order, as `@unordered` does. The forward direction is unchanged, and
+//! reparse still proves every printed text.
 use super::{Rule, RuleId};
 use crate::pattern::{Item, Pattern};
 use rustc_hash::FxHashMap;
@@ -29,17 +30,30 @@ pub(super) fn prepare(
         .collect()
 }
 
+fn fixed(items: &[Item]) -> bool {
+    (2..=MEMBERS).contains(&items.len()) && items.iter().all(|item| matches!(item, Item::One(_)))
+}
+
 fn members(fields: &[(String, Pattern)]) -> Option<&[Item]> {
     match fields {
         [(kind, Pattern::Value(name)), (args, Pattern::List(items))]
-            if kind == "kind"
-                && name == "AllOf"
-                && args == "args"
-                && (2..=MEMBERS).contains(&items.len())
-                && items.iter().all(|item| matches!(item, Item::One(_))) =>
+            if kind == "kind" && name == "AllOf" && args == "args" && fixed(items) =>
         {
             Some(items)
         }
+        _ => None,
+    }
+}
+
+/// The field holding a fixed `AnyOf` list, adjacently or externally tagged.
+fn alternatives(fields: &[(String, Pattern)]) -> Option<usize> {
+    match fields {
+        [(kind, Pattern::Value(name)), (args, Pattern::List(items))]
+            if kind == "kind" && name == "AnyOf" && args == "args" && fixed(items) =>
+        {
+            Some(1)
+        }
+        [(tag, Pattern::List(items))] if tag == "AnyOf" && fixed(items) => Some(0),
         _ => None,
     }
 }
@@ -58,10 +72,21 @@ fn relax(pattern: &Pattern, changed: &mut bool) -> Pattern {
                     .collect();
                 return Pattern::Symbol("and".into(), args);
             }
+            let unordered = alternatives(fields);
+            *changed |= unordered.is_some();
             Pattern::Object(
                 fields
                     .iter()
-                    .map(|(name, inner)| (name.clone(), relax(inner, changed)))
+                    .enumerate()
+                    .map(|(index, (name, inner))| {
+                        let inner = relax(inner, changed);
+                        let inner = if unordered == Some(index) {
+                            Pattern::Symbol("unordered".into(), vec![inner])
+                        } else {
+                            inner
+                        };
+                        (name.clone(), inner)
+                    })
                     .collect(),
             )
         }
@@ -123,6 +148,29 @@ mod tests {
             found
                 .iter()
                 .any(|b| b.get("noun") == Some(&json!({"kind":"CardType","args":"Creature"})))
+        );
+    }
+
+    #[test]
+    fn a_declared_disjunction_matches_its_canonical_order() {
+        let enters = Pattern::Value(json!({"ZoneChange":{"to":"Battlefield"}}));
+        let leaves = Pattern::Hole("leaves".into(), Ty::Named("EventSpec".into()));
+        let declared = Pattern::Object(vec![(
+            "AnyOf".into(),
+            Pattern::List(vec![Item::One(enters), Item::One(leaves)]),
+        )]);
+        let mut changed = false;
+        let relaxed = relax(&declared, &mut changed);
+        assert!(changed);
+        let canonical = json!({"AnyOf":[
+            {"Object":{"event":"LeavesBattlefield"}},
+            {"ZoneChange":{"to":"Battlefield"}}]});
+        assert!(declared.unify(&canonical, Bindings::new()).is_empty());
+        let found = relaxed.unify(&canonical, Bindings::new());
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            found[0].get("leaves"),
+            Some(&json!({"Object":{"event":"LeavesBattlefield"}}))
         );
     }
 }

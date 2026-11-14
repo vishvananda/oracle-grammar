@@ -918,6 +918,7 @@ mod copy_details;
 mod copy_exchange;
 mod counter_payments;
 mod entry_equip;
+mod lowered_statics;
 mod nonlegendary;
 mod print_frontier;
 mod spell_x;
