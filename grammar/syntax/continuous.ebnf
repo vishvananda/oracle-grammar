@@ -589,8 +589,22 @@ static_definition_during_turn ::= "during" "your" "turn" "," static_definition
 /* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
 static_definition_if ::= "as" "long" "as" condition "," static_definition
 
-replacement_ability ::= replacement_entry_condition | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_enters_counters_for_each | replacement_enters_counters_equal
+replacement_ability ::= replacement_entry_condition | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_enters_counters_for_each | replacement_enters_counters_equal
     | replacement_each_enters_counters | replacement_each_enters_counters_for_each | replacement_each_enters_counters_equal | replacement_each_enters_counters_where
+
+/* Dying permanents matching the filter go to exile instead; `it` is the dying
+   permanent, not this source. */
+/* @sem Ability::Replacement{active:Battlefield, event:ZoneChange{objects:$die_exile_objects, from:Battlefield, to:Graveyard}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}} */
+replacement_die_exile ::= "if" die_exile_objects "would" "die" "," "exile" "it" "instead" "."
+die_exile_objects ::= die_exile_any | die_exile_other | die_exile_damaged
+/* A creature this turn's damage marks: dealt damage by an object, or by a source you controlled. */
+/* @sem @and($filter_phrase, $die_damage_history) */
+die_exile_damaged ::= ("a" | "an") filter_phrase die_damage_history
+die_damage_history ::= modifier_dealt_damage_by | modifier_dealt_damage_by_yours
+/* @sem $filter_phrase */
+die_exile_any ::= ("a" | "an") filter_phrase
+/* @sem @and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_phrase) */
+die_exile_other ::= "another" filter_phrase
 
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetTapped(true)}}]}}) */
 replacement_enters_tapped ::= self_ref "enters" "tapped" "."

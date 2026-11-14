@@ -7,7 +7,7 @@ add_mana ::= "add" ("an" "additional")? mana_production
 /* @sem Operation::AddMana{players:$players_singular, mana:$mana_production} */
 add_mana_player ::= players_singular "adds" ("an" "additional")? mana_production
 
-mana_production ::= mana_bundle | mana_or | mana_or_list | mana_any_color | mana_any_one_color
+mana_production ::= mana_bundle | mana_or | mana_or_list | mana_any_color | mana_any_one_color | mana_or_chosen
 
 mana_bundle ::= mana_unit | mana_units
 
@@ -19,6 +19,9 @@ mana_units ::= mana_unit mana_bundle
 
 /* @sem ManaProduction::ChooseOne([$mana_bundle, $mana_bundle_2]) */
 mana_or ::= mana_bundle "or" mana_bundle
+
+/* @sem ManaProduction::ChooseOne([$mana_bundle, ManaProduction::Amount{color:Chosen, amount:Expr::Constant(1)}]) */
+mana_or_chosen ::= mana_bundle "or" "one" "mana" "of" "the" "chosen" "color"
 
 /* @sem ManaProduction::ChooseOne([$mana_bundle, ...$mana_or_tail]) */
 mana_or_list ::= mana_bundle "," mana_or_tail
@@ -341,7 +344,7 @@ clause_may ::= "you" "may" may_body
 /* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:@optional_then($may_body, $conjoined)}}] */
 clause_may_then ::= "you" "may" may_body "," "then" conjoined
 
-may_body ::= look_put_then_body | clause_have_continuous | clause_have_deal | clause_player_put_card | clause_imperative | clause_operation | clause_search | clause_search_either | clause_exile_from | clause_put_from | clause_put_from_tapped
+may_body ::= look_put_then_body | clause_have_continuous | clause_have_deal | clause_player_put_card | clause_imperative | clause_operation | clause_search | clause_search_where_split | clause_search_either | clause_exile_from | clause_put_from | clause_put_from_tapped
 
 /* A cost paid during resolution, and what depends on paying it. */
 payment ::= payment_put_counters | payment_return_controlled_permanent | payment_put_hand_card | payment_hand_draw | resolution_life_sacrifice_cost | payment_remove_counters | cost | pay_mana | payment_sacrifice | payment_action | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw
@@ -1787,6 +1790,10 @@ gain_control_while_controlled ::= "gain" "control" "of" affected "for" "as" "lon
 /* Choosing permanents and returning them to their owners' hands. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, count:AsManyAsCan($counter_amount)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 return_chosen_to_owners_hand ::= "return" counter_amount filter_phrase "to" "its" "owner's" "hand"
+
+/* Choosing up to a number of cards in your graveyard and returning them. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$search_filter_many}, count:UpTo($count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+return_up_to_graveyard_hand ::= "return" "up" "to" count search_filter_many "from" "your" "graveyard" "to" "your" "hand"
 
 /* Protection from a color chosen as it resolves. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GrantKeyword(Protection(Objects(_{kind:Any, filter:Chosen(Color)})))], duration:$duration, evaluation:Snapshot}}] */

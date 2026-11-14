@@ -4,6 +4,11 @@
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search ::= search search_follow
 
+/* A where-X definition can close the search sentence; the next sentence moves
+   what was found. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_many_where]}}, Instruction::Effect{result:@next, operation:$found_action}, ...$search_follow] */
+clause_search_where_split ::= "search" "your" "library" "for" search_choice_many_where "." found_action search_follow
+
 /* A named player searches their own library and keeps the selected identities
    through the following move or shuffle/reorder. These subjects use third person. */
 search_player ::= target_player | target_opponent | that_player | defending_player | search_possessive_controller | search_possessive_owner | its_controller | its_owner | attacking_player | stack_controller
@@ -43,7 +48,10 @@ player_search_one_choice ::= search_choice_any | search_choice_filtered | search
 player_search_many_choice ::= search_choice_many | search_choice_many_any
 
 /* What a search looks for: one find clause. */
-search_choice ::= search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many
+search_choice ::= search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where
+/* The count's definition follows the cards it counts. */
+/* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:UpTo($value)} */
+search_choice_many_where ::= "up" "to" "X" search_filter_many "," "where" "X" "is" value
 /* @sem SearchChoice::SearchChoice{filter:Any, count:AsManyAsCan(Constant(1))} */
 search_choice_any ::= "a" "card"
 /* @sem SearchChoice::SearchChoice{filter:$search_filter, count:UpTo(Constant(1))} */
@@ -750,6 +758,7 @@ cast_exiled_card_permission ::= "you" "may" "cast" exiled_card_ref this_duration
 /* Permission to play the prior cards. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
 play_those_cards_permission ::= duration "," "you" "may" "play" "those" "cards"
+    | "you" "may" "play" ("them" | "those" "cards") duration
 
 /* All players finish shuffling before the draw phase. Each draw reads only
    that player's actual original cards in the aggregate shuffle receipt. */

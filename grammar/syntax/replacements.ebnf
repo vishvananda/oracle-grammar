@@ -616,6 +616,24 @@ entering_choose_creature_type ::= "as" object_ref "enters" "," "choose" "a" "cre
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}]}}) */
 entering_choose_color ::= "as" object_ref "enters" "," "choose" "a" "color" "."
 
+/* Entering tapped and the color chosen as it enters are one entry replacement. */
+entering_tapped_choose_color ::= entering_tapped_any_color | entering_tapped_other_color
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}]}}) */
+entering_tapped_any_color ::= object_ref "enters" "tapped" "." "as" "it" "enters" "," "choose" "a" "color" "."
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[$entering_color_other]}}}]}}) */
+entering_tapped_other_color ::= object_ref "enters" "tapped" "." "as" "it" "enters" "," "choose" "a" "color" entering_color_other "."
+entering_color_other ::= ecc_other_white | ecc_other_blue | ecc_other_black | ecc_other_red | ecc_other_green
+/* @sem Operand::Term{family:ChoosableColor, form:Other, operands:[Vocabulary{family:Color, form:White}]} */
+ecc_other_white ::= "other" "than" "white"
+/* @sem Operand::Term{family:ChoosableColor, form:Other, operands:[Vocabulary{family:Color, form:Blue}]} */
+ecc_other_blue ::= "other" "than" "blue"
+/* @sem Operand::Term{family:ChoosableColor, form:Other, operands:[Vocabulary{family:Color, form:Black}]} */
+ecc_other_black ::= "other" "than" "black"
+/* @sem Operand::Term{family:ChoosableColor, form:Other, operands:[Vocabulary{family:Color, form:Red}]} */
+ecc_other_red ::= "other" "than" "red"
+/* @sem Operand::Term{family:ChoosableColor, form:Other, operands:[Vocabulary{family:Color, form:Green}]} */
+ecc_other_green ::= "other" "than" "green"
+
 /* Instructions performed as the permanent enters. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$program}) */
 entering_program ::= "as" object_ref "enters" "," program "."
