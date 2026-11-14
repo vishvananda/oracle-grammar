@@ -193,13 +193,17 @@ mana_symbols_one ::= mana_symbol
 mana_symbols_more ::= mana_symbol mana_symbols
 
 mana_symbol ::= mana_colorless | mana_generic | mana_white | mana_blue | mana_black | mana_red | mana_green | mana_x | mana_snow
-    | mana_hybrid
+    | mana_hybrid | mana_phyrexian
 
 /* @sem ManaSymbol::Snow */
 mana_snow ::= "{S}"
 
 /* @sem ManaSymbol::Hybrid($mana_letter, $mana_letter_2) */
 mana_hybrid ::= "{" mana_letter "/" mana_letter "}"
+
+/* A colored symbol that can be paid with 2 life instead. */
+/* @sem ManaSymbol::Phyrexian([$mana_letter]) */
+mana_phyrexian ::= "{" mana_letter "/" "P" "}"
 
 mana_letter ::= letter_white | letter_blue | letter_black | letter_red | letter_green
 
@@ -345,6 +349,10 @@ casting_cost_per_extra_target ::= "this" "spell" "costs" cost "more" "to" "cast"
 /* @sem Ability::Scoped{zones:[Stack], ability:Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:SameObject($object_ref)})), changes:[Rule(Prohibit(Counter))]})} */
 casting_uncounterable ::= object_ref "can't" "be" "countered" "."
 
+/* Spells already on the stack under your control can't be countered. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($cross_spells), changes:[Rule(Prohibit(Counter))]}) */
+static_spells_uncounterable ::= cross_spells "can't" "be" "countered" "."
+
 /* A reduction while a condition holds. */
 /* @sem Ability::Casting(If{condition:$condition, rule:ReduceCost([_{amount:$braced_amount}])}) */
 casting_reduction_if ::= "this" "spell" "costs" braced_amount "less" "to" "cast" "if" condition "."
@@ -387,6 +395,44 @@ alternative_mana ::= "pay" cost_mana
 /* Cast only while being attacked during declare attackers. */
 /* @sem Ability::Casting(Require(AllOf([Window(DeclareAttackers), PlayerState{player:AbilityController, state:BeingAttacked}]))) */
 casting_only_when_attacked ::= "cast" "this" "spell" "only" "during" "the" "declare" "attackers" "step" "and" "only" "if" "you've" "been" "attacked" "this" "step" "."
+
+/* A casting timing restriction names its window. Conjoined parts keep their
+   written order. */
+/* @sem Ability::Casting(Require($cast_window)) */
+casting_only_during ::= "cast" "this" "spell" "only" "during" cast_window "."
+cast_window ::= cast_window_combat | cast_window_declare_blockers | cast_window_declare_attackers | cast_window_combat_after | cast_window_combat_before | cast_window_combat_opponent | cast_window_combat_yours | cast_window_combat_yours_before | cast_window_blockers_opponent | cast_window_your_attackers | cast_window_your_end_step | cast_window_your_turn | cast_window_opponent_turn | cast_window_opponent_upkeep | cast_window_opponent_after_upkeep | cast_window_opponent_before_attackers
+/* @sem Condition::Window(Combat) */
+cast_window_combat ::= "combat"
+/* @sem Condition::Window(DeclareBlockers) */
+cast_window_declare_blockers ::= "the" "declare" "blockers" "step"
+/* @sem Condition::Window(DeclareAttackers) */
+cast_window_declare_attackers ::= "the" "declare" "attackers" "step"
+/* @sem Condition::AllOf([Window(Combat), Window(AfterBlockersDeclared)]) */
+cast_window_combat_after ::= "combat" "after" "blockers" "are" "declared"
+/* @sem Condition::AllOf([Window(Combat), Window(BeforeBlockersDeclared)]) */
+cast_window_combat_before ::= "combat" "before" "blockers" "are" "declared"
+/* @sem Condition::AllOf([Window(Combat), ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}]) */
+cast_window_combat_opponent ::= "combat" "on" "an" "opponent's" "turn"
+/* @sem Condition::AllOf([PlayerIsActive(AbilityController), Window(Combat)]) */
+cast_window_combat_yours ::= "combat" "on" "your" "turn"
+/* @sem Condition::AllOf([PlayerIsActive(AbilityController), Window(Combat), Window(BeforeBlockersDeclared)]) */
+cast_window_combat_yours_before ::= "combat" "on" "your" "turn" "before" "blockers" "are" "declared"
+/* @sem Condition::AllOf([Window(DeclareBlockers), ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}]) */
+cast_window_blockers_opponent ::= "the" "declare" "blockers" "step" "on" "an" "opponent's" "turn"
+/* @sem Condition::AllOf([PlayerIsActive(AbilityController), Window(DeclareAttackers)]) */
+cast_window_your_attackers ::= "your" "declare" "attackers" "step"
+/* @sem Condition::AllOf([PlayerIsActive(AbilityController), Window(EndStep)]) */
+cast_window_your_end_step ::= "your" "end" "step"
+/* @sem Condition::PlayerIsActive(AbilityController) */
+cast_window_your_turn ::= "your" "turn"
+/* @sem Condition::ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))} */
+cast_window_opponent_turn ::= "an" "opponent's" "turn"
+/* @sem Condition::AllOf([ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}, Window(Upkeep)]) */
+cast_window_opponent_upkeep ::= "an" "opponent's" "upkeep"
+/* @sem Condition::AllOf([ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}, Window(AfterUpkeep)]) */
+cast_window_opponent_after_upkeep ::= "an" "opponent's" "turn" "after" "their" "upkeep" "step"
+/* @sem Condition::AllOf([ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}, Window(BeforeAttackersDeclared)]) */
+cast_window_opponent_before_attackers ::= "an" "opponent's" "turn" "," "before" "attackers" "are" "declared"
 
 /* Returning a permanent to its owner's hand as a cost. */
 /* @sem CostPart::Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))}], destination:OwnersHand(CardArrival{counters:[], states:[]})} */

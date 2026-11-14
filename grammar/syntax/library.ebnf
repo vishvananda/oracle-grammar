@@ -27,6 +27,20 @@ clause_player_loss_search ::= search_player "loses" life_phrase "," player_searc
 /* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:$search_player, library_owner:$search_player, choices:[$player_search_top]}}, Effect{result:@next, operation:Shuffle{players:One($search_player), excluding:Selected(@marked)}}, Effect{result:@next, operation:ReorderLibrary{chooser:$search_player, library_owner:$search_player, objects:Selected(@marked), end:Top, order:Chosen}}] */
 clause_player_search_top ::= search_player player_search_top
 
+/* A named player may search their own library. What they find enters under their
+   control or goes to their hand, and they shuffle. Each player of a plural subject
+   decides and searches separately. */
+clause_player_may_search ::= player_may_search_battlefield | player_may_search_reveal_hand | each_may_search_battlefield | each_may_search_reveal_hand
+/* @sem Instruction::[Optional{decider:$search_player, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:$search_player, library_owner:$search_player, choices:[$may_search_choice]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player($search_player), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($search_player)}}]}}] */
+player_may_search_battlefield ::= search_player "may" "search" "their" "library" "for" may_search_choice "," "put" found search_option_entry "," "then" "shuffle"
+/* @sem Instruction::[Optional{decider:$search_player, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:$search_player, library_owner:$search_player, choices:[$may_search_choice]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($search_player)}}]}}] */
+player_may_search_reveal_hand ::= search_player "may" "search" "their" "library" "for" may_search_choice "," "reveal" found "," "put" found "into" "their" "hand" "," "then" "shuffle"
+/* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Optional{decider:Bound(0), body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[$may_search_choice]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player(Bound(0)), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}]}}] */
+each_may_search_battlefield ::= hand_plural_players "may" "search" "their" "library" "for" may_search_choice "," "put" found search_option_entry "," "then" "shuffle"
+/* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Optional{decider:Bound(0), body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[$may_search_choice]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}]}}] */
+each_may_search_reveal_hand ::= hand_plural_players "may" "search" "their" "library" "for" may_search_choice "," "reveal" found "," "put" found "into" "their" "hand" "," "then" "shuffle"
+may_search_choice ::= player_search_one_choice | player_search_many_choice
+
 player_search_hand ::= player_search_hand_one | player_search_hand_many
 /* @sem $player_search_one_choice */
 player_search_hand_one ::= "searches" "their" "library" "for" player_search_one_choice "," "puts" found_one "into" "their" "hand" "," "then" "shuffles"
@@ -132,6 +146,22 @@ search_many_plain ::= card_filter "cards"
 
 /* @sem @and($card_filter, $modifiers) */
 search_many_modified ::= card_filter "cards" modifiers
+
+/* You search a named player's library, act on what was found, and that player
+   shuffles. What was found keeps its owner. A sentence between the two would
+   need what was found as its referent, so it is not part of this form. */
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:$target_possessive, choices:[$foreign_search_choice]}}, Effect{result:@next, operation:$foreign_found_action}, Effect{result:@next, operation:Shuffle{players:One($target_possessive)}}] */
+clause_search_target_library ::= "search" target_possessive "library" "for" foreign_search_choice "and" foreign_found_action "." "then" "that" "player" "shuffles"
+foreign_search_choice ::= search_choice | foreign_choice_count | foreign_choice_where | foreign_choice_up_to_where
+/* @sem SearchChoice::SearchChoice{filter:Any, count:AsManyAsCan($count)} */
+foreign_choice_count ::= count "cards"
+/* @sem SearchChoice::SearchChoice{filter:Any, count:AsManyAsCan($value)} */
+foreign_choice_where ::= "X" "cards" "," "where" "X" "is" value ","
+/* @sem SearchChoice::SearchChoice{filter:Any, count:UpTo($value)} */
+foreign_choice_up_to_where ::= "up" "to" "X" "cards" "," "where" "X" "is" value ","
+foreign_found_action ::= found_exile | found_graveyard | found_battlefield_yours
+/* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}) */
+found_battlefield_yours ::= "put" found "onto" "the" "battlefield" "under" "your" "control"
 
 search_follow ::= search_follow_more | search_follow_last
 
@@ -370,6 +400,11 @@ hand_spell_choice ::= spell_any | spell_filtered
 /* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$player_possessive, choices:[_{filter:Chosen(CardName), count:$name_search_count}], also:[Graveyard, Hand]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 clause_search_name_exile ::= "search" player_possessive "graveyard" "," "hand" "," "and" "library" "for" name_search_count "cards" "with" ("that" | "the" "chosen") "name" "and" "exile" "them"
 name_search_count ::= named_search_count | name_search_all
+
+/* Searching the zones of a named object's controller for cards sharing its
+   name; that controller shuffles. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:ControllerOf($that_noun), choices:[_{filter:SharesNameWith($that_noun), count:$name_search_count}], also:[Graveyard, Hand]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf($that_noun))}}] */
+clause_search_same_name_exile ::= "search" "its" "controller's" "graveyard" "," "hand" "," "and" "library" "for" name_search_count "cards" "with" "the" "same" "name" "as" that_noun "and" "exile" "them" "." "then" "that" "player" "shuffles"
 /* @sem Count::AnyNumber */
 name_search_all ::= "all"
 

@@ -709,7 +709,7 @@ modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x
 modifier_nonnumeric ::= modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls
     | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control
     | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage
-    | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it
+    | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_chosen_name
     | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters
     | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness
     | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you
@@ -760,6 +760,25 @@ modifier_player_controls ::= player_ref "controls"
 
 /* @sem ObjectFilter::ControlledBy(One(@that_player)) */
 modifier_they_control ::= "they" "control"
+/* @sem ObjectFilter::Chosen(CardName) */
+modifier_chosen_name ::= "with" "the" "chosen" "name"
+
+/* A stat extreme compares each candidate with that stat over a population.
+   The population names its own controller or zone, so a later controller
+   phrase cannot attach to the candidate instead. */
+/* @sem ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Expr::Aggregate{objects:$extreme_population, property:$stat, aggregation:$extreme_aggregation}}} */
+modifier_extreme_among ::= "with" "the" extreme_aggregation stat "among" extreme_population
+extreme_aggregation ::= extreme_maximum | extreme_minimum
+/* @sem Aggregation::Maximum */
+extreme_maximum ::= "greatest" | "highest"
+/* @sem Aggregation::Minimum */
+extreme_minimum ::= "least" | "lowest"
+extreme_population ::= extreme_controlled | extreme_battlefield | card_population
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($plural_head, $extreme_controller)} */
+extreme_controlled ::= plural_head extreme_controller
+extreme_controller ::= modifier_you_control | modifier_not_controlled | modifier_opponents_control | modifier_player_controls | modifier_they_control
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$plural_head} */
+extreme_battlefield ::= plural_head "on" "the" "battlefield"
 
 /* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Objects(SameObject(ObjectRef::Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}) */
 modifier_was_dealt_damage ::= "that" ("was" | "has" "been") "dealt" "damage" "this" "turn"

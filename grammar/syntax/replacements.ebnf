@@ -223,6 +223,17 @@ reveal_hand ::= hand_player "reveals" "their" "hand"
 
 hand_player ::= player_ref
 
+/* Every matching card of the revealed hand is discarded together. */
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}}}, Effect{result:@next, operation:DiscardObjects{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:$reveal_discard_filter}}}] */
+clause_reveal_discard_all ::= hand_player "reveals" "their" "hand" "and" "discards" "all" reveal_discard_filter
+reveal_discard_filter ::= search_filter_many | discard_chosen_color | discard_chosen_name | discard_chosen_type
+/* @sem ObjectFilter::Chosen(Color) */
+discard_chosen_color ::= "cards" "of" "that" "color"
+/* @sem ObjectFilter::Chosen(CardName) */
+discard_chosen_name ::= "cards" "with" "that" "name"
+/* @sem @and($card_filter, ObjectFilter::Chosen(CreatureType)) */
+discard_chosen_type ::= card_filter "cards" "of" "that" "type"
+
 /* A producer whose receipt is later read as the shown hand. Keeping this
    phrase typed prevents an unrelated operation from introducing that receipt. */
 hand_observation ::= reveal_hand | hand_observation_look | hand_observation_yours | hand_observation_subset
