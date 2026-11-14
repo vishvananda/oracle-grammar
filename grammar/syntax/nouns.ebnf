@@ -186,6 +186,7 @@ self_text ::= self_holder_text | self_named
 self_holder_text ::= self_creature | self_land | self_artifact | self_enchantment | self_permanent | self_spell
     | self_aura | self_equipment | self_vehicle | self_saga | self_class | self_token | self_planeswalker | self_battle
     | self_card | self_room | self_case | self_spacecraft | self_background | self_siege | self_planet | self_emblem
+    | self_scheme
 
 /* @prefer type(Creature) */
 /* @sem () */
@@ -257,6 +258,9 @@ self_siege ::= "this" "Siege"
 /* @prefer type(Planet) */
 /* @sem () */
 self_planet ::= "this" "Planet"
+/* @prefer type(Scheme) */
+/* @sem () */
+self_scheme ::= "this" "scheme"
 /* An emblem's abilities name it. */
 /* @prefer type(Emblem) */
 /* @sem () */
@@ -956,7 +960,7 @@ players_each ::= "each" "player"
 /* Damage recipients. */
 recipients ::= mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker
     | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many
-    | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs
+    | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs
     | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle
     | recipients_target_and_each_other
 
@@ -974,6 +978,8 @@ recipients_player_or_battle ::= "target" "player" "or" "battle"
 
 /* @sem Recipients::Union([Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:CardType(Planeswalker), players:All})), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_head, ObjectFilter::ControlledBy(One(PlayerRef::PlayerOrControllerOf(Targets(@last_slot)))))})]) */
 recipients_player_and_theirs ::= "target" "player" "or" "planeswalker" "and" "each" filter_head "that" "player" "or" "that" "planeswalker's" "controller" "controls"
+/* @sem Recipients::Union([Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:CardType(Planeswalker), players:OpponentsOf(AbilityController)})), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_head, ObjectFilter::ControlledBy(One(PlayerRef::PlayerOrControllerOf(Targets(@last_slot)))))})]) */
+recipients_opponent_and_theirs ::= "target" "opponent" "or" "planeswalker" "and" "each" filter_head "that" "player" "or" "that" "planeswalker's" "controller" "controls"
 
 /* @sem Recipients::Union([Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), Players(All)]) */
 recipients_objects_and_players ::= "each" filter_phrase "and" "each" "player"
