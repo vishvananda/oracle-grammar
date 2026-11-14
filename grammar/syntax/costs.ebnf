@@ -42,6 +42,23 @@ cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_life | co
     | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_hand | cost_discard_random
     | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self
     | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand
+    | cost_behold | cost_behold_many | cost_behold_exile
+
+/* CR 701.61: behold a creature type, by choosing such a permanent you
+   control or revealing such a card from your hand. */
+/* @sem CostPart::Behold{count:Constant(1), what:$behold_kind} */
+cost_behold ::= "behold" ("a" | "an") behold_kind
+/* @sem CostPart::Behold{count:$value, what:$behold_kinds} */
+cost_behold_many ::= "behold" value behold_kinds
+/* @sem CostPart::BeholdAndExile($behold_kind) */
+cost_behold_exile ::= "behold" ("a" | "an") behold_kind "and" "exile" "it"
+behold_kind ::= behold_type | behold_type_creature
+/* @sem Operand::Term{family:CardsInHand, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]} */
+behold_type ::= creature_subtype
+/* @sem Operand::Term{family:CardsInHand, form:And, operands:[Term{family:CardsInHand, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]}, Term{family:CardsInHand, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}]} */
+behold_type_creature ::= creature_subtype "creature"
+/* @sem Operand::Term{family:CardsInHand, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($subtype_plural)}]} */
+behold_kinds ::= subtype_plural
 
 /* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:SameObject($self_explicit_ref)} */
 cost_reveal_self_hand ::= "reveal" self_explicit_ref "from" "your" "hand"

@@ -153,13 +153,13 @@ action ::= copy_effect_indefinite_except | copy_effect_duration_except | copy_ef
     | move_owner_counter_untapped | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | prevent_clause | tap_or_untap | create_emblem | reveal_hand
     | remove_counters_from_affected | remove_all_counters_from_affected | put_that_many_counters
     | double_counters | put_counter_for_each | recipients_gets_counter | recipients_get_counter
-    | recipients_gets_counters | support_action | choose_a_color | choose_a_card_name
+    | recipients_gets_counters | support_action | choose_a_color | choose_a_card_name | choose_value
     | choose_cards_in_hand | flip_a_coin | add_mana_player | add_mana_for_affected | add_mana_for_each | add_mana_for_removed_counters | add_alternative_mana_for_removed_counters
     | add_mana_of_chosen_color | add_mana_any_combination | add_mana_amount_equal
     | create_tokens_tapped_attacking | create_tokens_attacking_player | abandon_this_scheme | you_gain_life | deal_damage_equal_counters
     | deal_damage_split_two | exile_target_players_graveyard
     | exile_two_groups | exile_all_graveyards | exile_with_counters | exile_instead_of_dying | entries_with_counters_this_turn
-    | exile_damaged_instead_of_dying | prevent_combat_damage_by | prevent_combat_damage_would_deal | gain_control_of
+    | exile_damaged_instead_of_dying | prevent_combat_damage_would_deal | gain_control_of
     | player_gains_control_of | gain_control_while_controlled | exile_top_cards_of_your_library
     | then_players_shuffle | look_at_top_x_cards | shuffle_your_library | search_library_for_cards
     | play_that_card_permission | play_those_cards_permission | skip_controllers_next_untap
@@ -903,7 +903,11 @@ same_controller_attachment_host ::= "to" "another" filter_phrase "with" "the" "s
 /* A counter-unless bare {X} uses the announced value. A local scalar must
    supply its explicit definition, never ask the opponent to choose a new X. */
 clause_counter_unless_pay ::= clause_counter_unless_plain | clause_counter_unless_computed
-counter_unless_cost ::= resolving_cost_announced | counter_unless_source_price
+counter_unless_cost ::= resolving_cost_announced | counter_unless_source_price | counter_unless_per_each
+
+/* A price repeated for each counted object. */
+/* @sem Cost::Cost{parts:[Repeated{part:Mana($mana_symbols), times:$count_each}]} */
+counter_unless_per_each ::= mana_symbols "for" "each" count_each
 
 /* Direct source quantities retain their supplied-cost representation. */
 /* @sem Cost::@payment_cost(Cost::Cost{parts:[Mana($mana_symbols)]}, @inline_counter_price($counter_price_value)) */
@@ -1707,6 +1711,23 @@ support_action ::= "support" number
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}} */
 choose_a_color ::= "choose" "a" "color"
 
+/* Choosing a player, a type, a number or colors. */
+choose_value ::= choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain
+/* @sem Operation::ChooseValue{choosers:$players_singular, kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text(Friend), Text(Foe)]}} */
+choose_friend_or_foe ::= "for" players_singular "," "choose" "friend" "or" "foe"
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(All)]}} */
+choose_a_player ::= "choose" "a" "player"
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:LandType, terms:_{count:Exactly(Constant(1)), options:[]}} */
+choose_land_type ::= "choose" "a" "land" "type"
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(1)), options:[]}} */
+choose_basic_land_type ::= "choose" "a" "basic" "land" "type"
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Number, terms:_{options:[Comparison(Greater, Constant(0))], count:Exactly(Constant(1))}} */
+choose_a_number ::= "choose" "a" "number"
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(2)), options:[]}} */
+choose_two_colors ::= "choose" "two" "colors"
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[$entering_color_other]}} */
+choose_color_other ::= "choose" "a" "color" entering_color_other
+
 /* Naming an Oracle card, perhaps of a kind. */
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[$card_name_option]}} */
 choose_a_card_name ::= "choose" card_name_option
@@ -1798,8 +1819,6 @@ entries_with_counters_this_turn ::= this_duration "," "each" filter_phrase "ente
 exile_damaged_instead_of_dying ::= "if" "a" filter_phrase "dealt" "damage" "this" "way" "would" "die" this_duration "," "exile" "it" "instead"
 
 /* Preventing combat damage an object would deal. */
-/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
-prevent_combat_damage_by ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "by" object_ref this_duration
 /* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
 prevent_combat_damage_would_deal ::= "prevent" "all" "combat" "damage" object_ref "would" "deal" this_duration
 

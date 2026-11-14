@@ -384,7 +384,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_linked_card_stats | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if
+static_ability ::= static_linked_card_stats | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if
 
 /* Linked card variables read current characteristics in exile. A copied exile
    trigger may link several cards; CR 607.3 adds all their answers. */
@@ -598,7 +598,7 @@ static_definition_during_turn ::= "during" "your" "turn" "," static_definition
 /* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
 static_definition_if ::= "as" "long" "as" condition "," static_definition
 
-replacement_ability ::= replacement_entry_condition | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_enters_counters_for_each | replacement_enters_counters_equal
+replacement_ability ::= replacement_entry_condition | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_spent_enters_counters | replacement_enters_counters_for_each | replacement_enters_counters_equal
     | replacement_each_enters_counters | replacement_each_enters_counters_for_each | replacement_each_enters_counters_equal | replacement_each_enters_counters_where
 
 /* Dying permanents matching the filter go to exile instead; `it` is the dying
@@ -631,6 +631,11 @@ replacement_enters_counters_clause ::= self_ref "enters" "with" entry_counter_am
    replacement condition; a granted ability keeps its independent controller. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$counter_amount}}}]}, otherwise:Program{}}]}}) */
 replacement_enters_counters_if ::= self_ref "enters" "with" counter_amount counter_kind ("counter" | "counters") "on" "it" "if" condition "."
+/* Mana spent to cast the entering permanent is known as it enters, so a leading
+   spent-mana test (adamant) stays inside its replacement. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:$spent_mana_condition, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$counter_amount}}}]}, otherwise:Program{}}]}}) */
+replacement_spent_enters_counters ::= "if" spent_mana_condition "," self_ref "enters" "with" counter_amount counter_kind ("counter" | "counters") "on" "it" "."
+spent_mana_condition ::= condition_total_mana_spent | condition_typed_mana_spent | condition_symbol_spent
 
 /* The counted history's predicate names the historical object, independently
    of the incoming permanent whose prospective controller supplies "you". */
@@ -736,6 +741,10 @@ cross_battlefield_pair ::= filter_plural "and" filter_plural
 cross_battlefield_pair_reverse ::= filter_plural "and" filter_plural
 
 cross_spells ::= cross_spells_any | cross_spells_filtered
+/* Spells on the stack you control, or that you cast. */
+spell_holders ::= cross_spells | spells_you_cast | mechanic_each_cast_spell
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:@and($cast_spells_filter, ObjectFilter::Cast{by:One(PlayerRef::AbilityController)})} */
+spells_you_cast ::= cast_spells_filter "you" "cast"
 /* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:ControlledBy(One(AbilityController))} */
 cross_spells_any ::= "spells" "you" "control"
 /* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:@and($card_filter, ObjectFilter::ControlledBy(One(AbilityController)))} */
@@ -915,7 +924,7 @@ granted_replicate_mana_cost ::= "replicate" "." "the" "replicate" "cost" "is" "e
 /* Cast-time grants have distinct native spell-object and casting-player
    readings. Keep both; neither is an equality alias for the other. Source in
    each granted cost is the receiving spell, not the granting permanent. */
-static_mechanic_grant ::= static_spell_mana_grant_with_cost_reduction | static_spell_mana_grant | static_spell_keyword_cost_reduction | static_other_spell_mechanic_grant | static_object_mechanic_grant
+static_mechanic_grant ::= static_spell_mana_grant_with_cost_reduction | static_spell_mana_grant | static_spell_keyword_cost_reduction | static_spell_mechanic_grant | static_object_mechanic_grant
 /* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$spell_mana_grant_subject, abilities:List([$spell_mana_grant_effect])})]} */
 static_spell_mana_grant ::= spell_mana_grant_subject ("has" | "have") spell_mana_grant_effect "."
 
@@ -936,21 +945,15 @@ spell_mana_grant_blitz ::= "blitz" "." "the" "blitz" "cost" "is" "equal" "to" "i
 
 /* The stack-object reading retains the casting proposal's actor/origin filter
    and the holder scope of the granted mechanic. Permanent grants stay objects. */
-/* @sem Ability::Static{kind:Ordinary, affected:Objects($mechanic_cast_spells), changes:[GrantAbility(@holder($other_spell_mechanic))]} */
-static_other_spell_mechanic_grant ::= mechanic_cast_spells ("has" | "have") other_spell_mechanic "."
-other_spell_mechanic ::= bare_exalted | granted_affinity | granted_replicate_cost | granted_replicate_mana_cost
+/* Cast-time mechanics granted to spells, not to permanents in general. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($spell_holders), changes:[GrantAbility(@holder($spell_mechanic))]} */
+static_spell_mechanic_grant ::= spell_holders ("has" | "have") spell_mechanic "."
+spell_mechanic ::= mechanic_convoke | bare_cascade | bare_improvise | bare_demonstrate | bare_conspire | mechanic_cost_keyword
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($mechanic_grant_subject), changes:[GrantAbility(@holder($granted_mechanic))]} */
 static_object_mechanic_grant ::= mechanic_grant_subject ("has" | "have") granted_mechanic "."
 
-mechanic_cast_spells ::= mechanic_all_cast_spells | mechanic_each_cast_spell | mechanic_filtered_cast_spells
-/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:Cast{by:One(AbilityController)}} */
-mechanic_all_cast_spells ::= "spells" "you" "cast"
 /* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:@and($card_filter, ObjectFilter::Cast{by:One(AbilityController)})} */
 mechanic_each_cast_spell ::= "each" card_filter "spell" "you" "cast"
-
-/* A spell's caster is independent of its current controller and card types. */
-/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:@and($filter_phrase, ObjectFilter::Cast{by:One(AbilityController)})} */
-mechanic_filtered_cast_spells ::= filter_phrase "spells" "you" "cast"
 
 /* Existing lowercase Clues vocabulary folds the sentence-initial spelling.
    Keep that declared spelling local to these typed mechanic grants. */
@@ -1769,9 +1772,22 @@ cast_kind_modified_spells ::= filter_phrase "spells" modifiers
 /* @sem @and($filter_phrase, ObjectFilter::Chosen(CreatureType)) */
 cast_chosen_type_spells ::= filter_phrase "spells" "of" "the" "chosen" "type"
 
-/* Your spells of a kind cost less. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true}})]}) */
-static_spells_cost_less ::= cast_spells_filter "you" "cast" "cost" braced_amount "less" "to" "cast" "."
+/* Your spells of a kind cost less, more or extra life. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:$spell_cost_change})]}) */
+static_spells_cost_less ::= cast_spells_filter "you" "cast" "cost" spell_cost_change "to" "cast" "."
+/* The cast origin narrows which of the caster's spells the rule covers. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:@and($cast_spells_filter, $cast_origin_filter), modifier:$spell_cost_change})]}) */
+static_spells_from_cost_less ::= cast_spells_filter "you" "cast" cast_origin_filter "cost" spell_cost_change "to" "cast" "."
+cast_origin_filter ::= cast_origin_one | cast_origin_either
+/* @sem ObjectFilter::Cast{from:$cast_origin} */
+cast_origin_one ::= "from" cast_origin
+/* @sem ObjectFilter::AnyOf([Cast{from:$cast_origin}, Cast{from:$cast_origin_2}]) */
+cast_origin_either ::= "from" cast_origin "or" "from" cast_origin
+cast_origin ::= cast_origin_graveyard | cast_origin_exile
+/* @sem ZoneScope::Players{zone:Graveyard, players:One(AbilityController)} */
+cast_origin_graveyard ::= "your" "graveyard"
+/* @sem ZoneScope::Shared(Exile) */
+cast_origin_exile ::= "exile"
 
 /* `{X}` less, where X is a value: the reduction is that value. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:[_{amount:$value}], spill_into_generic:true}})]}) */
@@ -1780,6 +1796,41 @@ static_spells_cost_less_where ::= cast_spells_filter "you" "cast" "cost" "{" "X"
 /* The printed generic reduction is a factor of the counted objects, as for this spell. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:[_{amount:@times($braced_number, $count_each)}], spill_into_generic:true}})]}) */
 static_spells_cost_less_each ::= cast_spells_filter "you" "cast" "cost" braced_number "less" "to" "cast" "for" "each" count_each "."
+
+/* Spells or abilities aimed at things cost more, less or extra life. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($target_tax_casters), changes:[PlayerRule(SpellCost{spells:$target_tax_spells, modifier:$spell_cost_change})]}) */
+static_target_tax ::= "spells" target_tax_casters "cast" "that" "target" target_tax_spells "cost" spell_cost_change "to" "cast" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($target_tax_casters), changes:[PlayerRule(ActivationCost{abilities:$target_tax_spells, change:Increase(Cost($cost))})]}) */
+static_target_activation_tax ::= "abilities" target_tax_casters "activate" "that" "target" target_tax_spells "cost" cost "more" "to" "activate" "."
+target_tax_casters ::= target_tax_opponents | target_tax_you
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+target_tax_opponents ::= "your" "opponents"
+/* @sem PlayerSet::One(AbilityController) */
+target_tax_you ::= "you"
+target_tax_spells ::= target_tax_objects_only | target_tax_you_or | target_tax_you_only | target_tax_a_player
+/* @sem ObjectFilter::TargetsAny(Players(One(AbilityController))) */
+target_tax_you_only ::= "you"
+/* @sem ObjectFilter::TargetsAny(Players(All)) */
+target_tax_a_player ::= "a" "player"
+/* @sem ObjectFilter::TargetsAny(Objects($target_tax_objects)) */
+target_tax_objects_only ::= target_tax_objects
+/* @sem ObjectFilter::AnyOf([TargetsAny(Players(One(AbilityController))), TargetsAny(Objects($target_tax_objects))]) */
+target_tax_you_or ::= "you" "or" target_tax_objects
+target_tax_objects ::= affected | target_tax_permanent
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$target_tax_filter} */
+target_tax_permanent ::= target_tax_filter
+target_tax_filter ::= target_tax_single | target_tax_plural
+/* @sem ObjectFilter::$filter_phrase */
+target_tax_single ::= ("a" | "an") filter_phrase
+/* @sem ObjectFilter::$filter_plural */
+target_tax_plural ::= "one" "or" "more" filter_plural
+spell_cost_change ::= spell_cost_more | spell_cost_less | spell_cost_life
+/* @sem SpellCostModifier::Increase($cost) */
+spell_cost_more ::= cost "more"
+/* @sem SpellCostModifier::Reduce{reductions:[_{amount:$braced_amount}], spill_into_generic:true} */
+spell_cost_less ::= braced_amount "less"
+/* @sem SpellCostModifier::Increase{parts:[Life($value)]} */
+spell_cost_life ::= "an" "additional" value "life"
 
 /* Activated abilities of a group can't be activated, or only their mana abilities can. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(Prohibit(Activate(Any)))]}) */

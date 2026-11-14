@@ -29,8 +29,10 @@ clause_player_search_top ::= search_player player_search_top
 
 /* A named player may search their own library. What they find enters under their
    control or goes to their hand, and they shuffle. Each player of a plural subject
-   decides and searches separately. */
-clause_player_may_search ::= player_may_search_battlefield | player_may_search_reveal_hand | each_may_search_battlefield | each_may_search_reveal_hand
+   decides and searches separately; without "may" each of them searches. */
+clause_player_may_search ::= player_may_search_battlefield | player_may_search_reveal_hand | each_may_search_battlefield | each_may_search_reveal_hand | each_search_battlefield
+/* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[$player_search_one_choice]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player(Bound(0)), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
+each_search_battlefield ::= hand_plural_players "searches" "their" "library" "for" player_search_one_choice "," "puts" found_one search_option_entry "," "then" "shuffles"
 /* @sem Instruction::[Optional{decider:$search_player, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:$search_player, library_owner:$search_player, choices:[$may_search_choice]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player($search_player), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($search_player)}}]}}] */
 player_may_search_battlefield ::= search_player "may" "search" "their" "library" "for" may_search_choice "," "put" found search_option_entry "," "then" "shuffle"
 /* @sem Instruction::[Optional{decider:$search_player, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:$search_player, library_owner:$search_player, choices:[$may_search_choice]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($search_player)}}]}}] */

@@ -107,7 +107,7 @@ current_card_ref ::= "that" "card"
 linked_exiled_card ::= "the" "exiled" "card"
 
 target_card ::= target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard
-    | target_card_your_graveyard_with | target_card_opponent_graveyard | target_card_that_player_graveyard
+    | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
@@ -120,6 +120,9 @@ target_card_your_graveyard_with ::= "target" card_filter "card" modifiers ("from
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(PlayerRef::AbilityController)}))}), index:0} */
 target_card_opponent_graveyard ::= "target" card_filter "card" ("from" | "in") "an" "opponent's" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(PlayerRef::AbilityController)})}), index:0} */
+target_any_card_opponent_graveyard ::= "target" "card" ("from" | "in") "an" "opponent's" "graveyard"
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(@that_player)}))}), index:0} */
 target_card_that_player_graveyard ::= "target" card_filter "card" ("from" | "in") "that" "player's" "graveyard"
 
@@ -923,6 +926,13 @@ bound_greater ::= "greater"
 
 /* Players. */
 players_singular ::= players_fewest_permanents | mined_players | player_one | players_each_opponent | players_each | players_or_controller | players_each_other | players_each_other_opponent
+    | players_each_friend | players_each_foe
+
+/* Friend or foe: the players chosen as friends, or as foes, by the ability's controller. */
+/* @sem PlayerSet::Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word(Friend)}} */
+players_each_friend ::= "each" "friend"
+/* @sem PlayerSet::Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word(Foe)}} */
+players_each_foe ::= "each" "foe"
 
 /* @sem PlayerSet::Intersection([OthersThan(@other_party), OpponentsOf(PlayerRef::AbilityController)]) */
 players_each_other_opponent ::= "each" "other" "opponent"
@@ -937,7 +947,11 @@ players_or_controller ::= "that" "player" "or" "that" "planeswalker's" "controll
 player_one ::= player_ref
 
 player_ref ::= mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner
-    | attacking_player
+    | attacking_player | damage_source_controller
+
+/* "That source's controller": the controller of the event's damage source. */
+/* @sem PlayerRef::ControllerOf(EventSubject) */
+damage_source_controller ::= "that" "source's" "controller"
 
 its_owner ::= its_owner_pronoun | its_owner_named
 /* @sem PlayerRef::OwnerOf(@damage_relative_object) */

@@ -1,7 +1,7 @@
 /* Replacement effects, prevention and delayed triggers. */
 
-replacement_clause ::= replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_all_combat | replacement_prevent | replacement_prevent_some | replacement_prevent_all_but
-    | replacement_double_damage | replacement_draw_instead | replacement_draw_may_instead
+replacement_clause ::= replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_prevent_some | replacement_prevent_all_but
+    | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -52,16 +52,28 @@ replacement_prevent ::= "if" damage_event "," "prevent" "that" "damage" "."
 /* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventSomeDamage($number)}}]}} */
 replacement_prevent_some ::= "if" damage_event "," "prevent" number "of" "that" "damage" "."
 
-/* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetAmount(Expr::Multiply([Expr::Constant(2), Expr::EventAmount]))}}]}} */
-replacement_double_damage ::= "if" damage_event "," "it" "deals" "double" "that" "damage" ("instead" | "to" "that" ("permanent" | "player" | "creature") "instead"  | "to" "that" "permanent" "or" "player" "instead") "."
+/* Double or triple damage, to the same recipient. */
+/* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetAmount(Expr::Multiply([$damage_factor, Expr::EventAmount]))}}]}} */
+replacement_double_damage ::= "if" damage_event "," "it" "deals" damage_factor "that" "damage" damage_instead "."
+/* @sem Expr::Constant(2) */
+damage_factor_double ::= "double"
+/* @sem Expr::Constant(3) */
+damage_factor_triple ::= "triple"
+damage_factor ::= damage_factor_double | damage_factor_triple
+/* @sem () */
+damage_instead ::= "instead" | "to" "that" ("permanent" | "player" | "creature") "instead" | "to" "that" "permanent" "or" "player" "instead"
+
+/* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:SetAmount(Expr::Add([Expr::EventAmount, $value]))}}]}} */
+replacement_plus_damage ::= "if" damage_event "," "it" "deals" "that" "much" "damage" "plus" value damage_instead "."
 
 /* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventAllButDamage($number)}}]}} */
 replacement_prevent_all_but ::= "if" damage_event "," "prevent" "all" "but" number "of" "that" "damage" "."
 
-/* @sem ReplacementEvent::Damage(DamageEvent{source_kind:Any, sources:$damage_source, recipients:$damage_to, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
-damage_event ::= damage_source "would" "deal" "damage" "to" damage_to
+/* @sem ReplacementEvent::Damage(DamageEvent{source_kind:Any, sources:$replacement_damage_source, recipients:$replacement_damage_to, kind:$event_damage_kind, grouping:SourceRecipient, subject:Recipient}) */
+damage_event ::= replacement_damage_source "would" "deal" event_damage_kind "to" replacement_damage_to
 
-damage_source ::= source_any | source_yours
+/* A damage source of any kind: a spell, a permanent or a card. */
+damage_source ::= source_any | source_yours | source_opponents
 
 /* @sem ObjectFilter::Any */
 source_any ::= "a" "source"
@@ -69,7 +81,32 @@ source_any ::= "a" "source"
 /* @sem ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)) */
 source_yours ::= "a" "source" "you" "control"
 
+/* @sem ObjectFilter::ControlledBy(OpponentsOf(PlayerRef::AbilityController)) */
+source_opponents ::= "a" "source" "an" "opponent" "controls"
+
+replacement_damage_source ::= damage_source | source_color | source_color_yours
+/* @sem ObjectFilter::$adjective_color */
+source_color ::= "a" adjective_color "source"
+/* @sem ObjectFilter::AllOf([$adjective_color, ControlledBy(One(PlayerRef::AbilityController))]) */
+source_color_yours ::= "a" adjective_color "source" "you" "control"
+
+event_damage_kind ::= prevent_damage | damage_kind_noncombat
+/* @sem DamageKind::Noncombat */
+damage_kind_noncombat ::= "noncombat" "damage"
+
 damage_to ::= damage_to_you | damage_to_each | damage_to_filter
+
+replacement_damage_to ::= damage_to | damage_to_player | damage_to_object | damage_to_filter_or_player | damage_to_opponent_or | damage_to_you_or
+/* @sem DamageRecipients::Players(All) */
+damage_to_player ::= "a" "player"
+/* @sem DamageRecipients::Objects(ObjectFilter::SameObject($object_ref)) */
+damage_to_object ::= object_ref
+/* @sem DamageRecipients::ObjectsAndPlayers{objects:$filter_phrase, players:All} */
+damage_to_filter_or_player ::= ("a" | "an") filter_phrase "or" "player"
+/* @sem DamageRecipients::ObjectsAndPlayers{objects:$filter_phrase, players:OpponentsOf(PlayerRef::AbilityController)} */
+damage_to_opponent_or ::= "an" "opponent" "or" ("a" | "an") filter_phrase
+/* @sem DamageRecipients::ObjectsAndPlayers{objects:$filter_phrase, players:One(PlayerRef::AbilityController)} */
+damage_to_you_or ::= "you" "or" ("a" | "an") filter_phrase
 
 /* @sem DamageRecipients::Players(One(PlayerRef::AbilityController)) */
 damage_to_you ::= "you"
@@ -92,7 +129,7 @@ replacement_draw_instead ::= "if" draw_event "," instructions "instead" "."
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_combat | prevent_radiance
+prevent_clause ::= prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -102,15 +139,22 @@ prevent_radiance ::= "prevent" "the" "next" value "damage" "that" "would" "be" "
 /* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$prevent_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
 prevent_next ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "to" prevent_to prevent_duration
 
-/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$prevent_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
-prevent_all ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" prevent_to prevent_duration
-
-/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
-prevent_all_combat ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" prevent_duration
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" prevent_to prevent_duration
 
 prevent_duration ::= this_duration
 
-prevent_to ::= prevent_to_any_target | prevent_to_target | prevent_to_you | prevent_to_it
+/* The prevented damage: all of it, or only combat damage. */
+prevent_damage ::= prevent_damage_any | prevent_damage_combat
+/* @sem DamageKind::Any */
+prevent_damage_any ::= "damage"
+/* @sem DamageKind::Combat */
+prevent_damage_combat ::= "combat" "damage"
+
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_dealt ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" prevent_duration
+
+prevent_to ::= prevent_to_any_target | prevent_to_target | prevent_to_you | prevent_to_it | prevent_to_self | prevent_to_attached | prevent_to_group | prevent_to_you_and | prevent_to_players
 
 /* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
 prevent_to_any_target ::= "any" "target"
@@ -123,6 +167,38 @@ prevent_to_you ::= "you"
 
 /* @sem DamageRecipients::Objects(ObjectFilter::SameObject($it_ref)) */
 prevent_to_it ::= it_ref
+
+/* @sem DamageRecipients::Objects(ObjectFilter::SameObject($self_explicit_ref)) */
+prevent_to_self ::= self_explicit_ref
+/* @sem DamageRecipients::Objects(ObjectFilter::SameObject($attached_ref)) */
+prevent_to_attached ::= attached_ref
+/* @sem DamageRecipients::Objects($filter_plural) */
+prevent_to_group ::= filter_plural
+/* @sem DamageRecipients::ObjectsAndPlayers{objects:$filter_plural, players:One(AbilityController)} */
+prevent_to_you_and ::= "you" "and" filter_plural
+/* @sem DamageRecipients::Players(All) */
+prevent_to_players ::= "players"
+
+/* The duration can come before the recipients. */
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_late_to ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" this_duration "to" prevent_to
+/* Damage by permanents or by sources, to recipients or to anyone. A permanent
+   group names permanent sources; "sources" names any source. */
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Permanent, sources:$prevent_by_permanents, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_to_by_permanents ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" prevent_to this_duration "by" prevent_by_permanents
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Permanent, sources:$prevent_by_permanents, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_to_by_permanents_late ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" prevent_to "by" prevent_by_permanents this_duration
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:$prevent_by_sources, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_to_by_sources ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" prevent_to this_duration "by" prevent_by_sources
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Permanent, sources:$prevent_by_permanents, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_by_permanents ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" this_duration "by" prevent_by_permanents
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Permanent, sources:$prevent_by_permanents, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_by_permanents_late ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "by" prevent_by_permanents this_duration
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:$prevent_by_sources, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_by_sources ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" this_duration "by" prevent_by_sources
+/* A targeted permanent's own damage, to anyone. */
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Permanent, sources:SameObject($target_object), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+prevent_all_target_deals ::= "prevent" "all" "damage" target_object "would" "deal" this_duration
 
 /* Something later in this resolution or turn. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:@captured_targets($instructions)}}}] */
@@ -338,19 +414,43 @@ hand_exile_owner_it ::= "that" "player" "exiles" "it"
 /* @sem Operation::DiscardObjects{objects:Selected(@marked)} */
 hand_discard ::= "that" "player" "discards" "that" "card"
 
-/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$shield_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
-replacement_prevent_all ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" shield_to "."
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$shield_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_all ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" shield_to "."
 
-/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$shield_to, kind:Combat, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
-replacement_prevent_all_combat ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "to" shield_to "."
-
-shield_to ::= prevent_to_you | shield_to_self | shield_to_group
+shield_to ::= prevent_to_you | shield_to_self | prevent_to_attached | shield_to_group | prevent_to_you_and
 
 /* @sem DamageRecipients::Objects(ObjectFilter::SameObject($self_ref)) */
 shield_to_self ::= self_ref
 
 /* @sem DamageRecipients::Objects($filter_plural) */
 shield_to_group ::= filter_plural
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Permanent, sources:$prevent_by_permanents, recipients:$shield_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_to_by_permanents ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" shield_to "by" prevent_by_permanents "."
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Any, sources:$prevent_by_sources, recipients:$shield_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_to_by_sources ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" shield_to "by" prevent_by_sources "."
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Permanent, sources:$prevent_by_permanents, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_by_permanents ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "by" prevent_by_permanents "."
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Permanent, sources:SameObject($self_ref), recipients:$shield_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_self_deals ::= "prevent" "all" "damage" "that" self_ref "would" "deal" "to" shield_to "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient})]), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_to_and_by ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref "."
+
+prevent_by_permanents ::= prevent_by_group | prevent_by_object
+/* @sem ObjectFilter::$filter_plural */
+prevent_by_group ::= filter_plural
+/* @sem ObjectFilter::SameObject($object_ref) */
+prevent_by_object ::= object_ref
+prevent_by_sources ::= prevent_by_kind_sources | prevent_by_your_sources | prevent_by_chosen_color | prevent_by_chosen_name
+/* @sem ObjectFilter::$adjective */
+prevent_by_kind_sources ::= adjective "sources"
+/* @sem ObjectFilter::ControlledBy(One(AbilityController)) */
+prevent_by_your_sources ::= "sources" "you" "control"
+/* @sem ObjectFilter::Chosen(Color) */
+prevent_by_chosen_color ::= "sources" "of" "the" "last"? "chosen" "color"
+/* @sem ObjectFilter::Chosen(CardName) */
+prevent_by_chosen_name ::= "sources" "with" "the" "chosen" "name"
 
 /* A hand discarded, then a new one: each player acts in turn before anyone draws. */
 /* @sem Instruction::[Instruction::ForEachPlayer{players:All, binding:0, in_chosen_direction:false, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Discard{players:One(Bound(0)), amount:Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), random:false}}]}}, Instruction::Effect{result:@next, operation:Operation::Draw{players:All, amount:$card_count}}] */
@@ -505,8 +605,8 @@ instructions_payment_otherwise ::= "you" "may" payment "." "if" "you" "do" "," c
 clause_optional_target_blink ::= "you" "may" "exile" target_object "," "then" "return" "that" "card" "to" "the" "battlefield" battlefield_control
 
 /* A pure two-leaf combat shield names the recipient leaf before the source leaf. */
-/* @sem Operation::CreateReplacement{event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:Combat, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient})]), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
-prevent_combat_to_by ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref this_duration
+/* @sem Operation::CreateReplacement{event:Either([Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient})]), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_combat_to_by ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" "and" "dealt" "by" object_ref this_duration
 
 /* Plural card wording follows every actual card from this exact exile Move. */
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$exile_objects}, Instruction::Effect{result:@next, operation:Operation::Move{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, destination:$battlefield_control, qualifiers:[]}}] */
@@ -520,6 +620,34 @@ clause_exile_return_delayed_group ::= exile_objects return_join "return" moved_g
    actual ModifyEvent prevention result, not the original proposed damage. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources(Any), count:Exactly(Constant(1))}}, Effect{result:@next, operation:CreateReplacement{event:Damage{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}, limit:$prevention_choice_window, duration:EndOfTurn, body:Program{instructions:[Effect{result:@mark, operation:ModifyEvent{change:PreventDamage}}, $prevention_receipt_callback]}}}] */
 instructions_prevention_receipt_callback ::= prevention_choice_window "." prevention_receipt_callback
+
+
+/* The next damage from each chosen source is prevented. The source is a
+   resolving choice of any kind or color of source, never a target. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:$next_chosen_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$prevented_body}}] */
+instructions_next_chosen_prevent ::= "the" "next" "time" counter_amount next_chosen_sources "would" "deal" "damage" next_chosen_to this_duration "," prevented_body
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$prevented_body}}] */
+instructions_next_chosen_prevent_any ::= "the" "next" "time" counter_amount next_chosen_sources "would" "deal" "damage" this_duration "," prevented_body
+next_chosen_sources ::= next_chosen_any | next_chosen_kind | next_chosen_color
+/* @sem ObjectFilter::Any */
+next_chosen_any ::= "source" "of" "your" "choice"
+/* @sem ObjectFilter::$adjective */
+next_chosen_kind ::= adjective "source" "of" "your" "choice"
+/* @sem ObjectFilter::Chosen(Color) */
+next_chosen_color ::= "source" "of" "your" "choice" "of" "the" "chosen" "color"
+next_chosen_to ::= next_chosen_to_you | next_chosen_to_object | next_chosen_to_any_target
+/* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
+next_chosen_to_any_target ::= "to" "any" "target"
+/* The prevention, and life equal to what it prevented. */
+prevented_body ::= prevented_body_plain | prevented_body_life
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]} */
+prevented_body_plain ::= "prevent" "that" "damage"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Performed(@prior)}}]} */
+prevented_body_life ::= "prevent" "that" "damage" "." "you" "gain" "life" "equal" "to" "the" "damage" "prevented" "this" "way"
+/* @sem DamageRecipients::Players(One(AbilityController)) */
+next_chosen_to_you ::= "to" "you"
+/* @sem DamageRecipients::Objects(SameObject($object_ref)) */
+next_chosen_to_object ::= "to" object_ref
 
 prevention_choice_window ::= prevention_choice_next | prevention_choice_all
 /* @sem ReplacementLimit::NextOccurrence */
@@ -619,17 +747,9 @@ exile_from_own_graveyard ::= "exile" number "cards" "from" "your" "graveyard"
 /* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CleanupStepBegins, players:All}, start:Immediately, body:Program{instructions:$may_body}}}] */
 clause_delayed_cleanup_after ::= may_body "at" "the" "beginning" "of" "the" "next" "cleanup" "step"
 
-/* Choosing a creature type as the permanent enters. */
-/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1)), options:[]}}}]}}) */
-entering_choose_creature_type ::= "as" object_ref "enters" "," "choose" "a" "creature" "type" "."
-
 /* An escaped permanent enters with counters: a replacement on its own escaped entry. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:AllOf([SameObject($object_ref), State(Escaped)])}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})}}]}}) */
 entering_escaped_counters ::= object_ref "escapes" "with" counter_amount counter_kind ("counter" | "counters") "on" "it" "."
-
-/* Choosing a color as the permanent enters. */
-/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}]}}) */
-entering_choose_color ::= "as" object_ref "enters" "," "choose" "a" "color" "."
 
 /* A Siege's controller chooses Khans or Dragons as it enters; each bulleted
    ability applies only while its word is the chosen one. */

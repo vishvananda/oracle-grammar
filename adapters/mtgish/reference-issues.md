@@ -363,6 +363,11 @@ the IR path, the value it replaces and why.
   The owned AST schema and reference lock are unchanged. See
   [numeric thresholds](../../docs/spell-x-thresholds.md) for the exact scope.
 
+- `U0037` (correction): Death Charmer's "that creature's controller loses 2 life
+  unless they pay {2}" makes the damaged creature's controller lose the life, the
+  same player who may pay. The old lowering named the ability's controller. Only
+  the LoseLife player changes.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their
 open status does not create a corpus equality exception.

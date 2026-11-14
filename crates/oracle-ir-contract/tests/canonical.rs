@@ -118,6 +118,26 @@ fn damage_role_of_the_subject_is_the_event_subject() {
 }
 
 #[test]
+fn either_damage_event_with_one_subject_role_is_the_event_subject() {
+    let damage = |recipients: serde_json::Value, subject: &str| {
+        json!({"Damage":{"source_kind":"Any","sources":{"kind":"Any"},
+            "recipients":recipients,"kind":"Any","grouping":"SourceRecipient","subject":subject}})
+    };
+    let role = |second: &str| {
+        let mut value = json!([{"kind":"Triggered","args":{
+            "event":{"AnyOf":[damage(json!({"Players":{"kind":"All"}}), "Source"),
+                damage(json!({"Objects":{"kind":"Any"}}), second)]},
+            "announcement":{"targets":[],"modes":null},
+            "body":{"instructions":[effect(0, json!({"kind":"One","args":{"kind":"Damage","args":"Source"}}))]}}}]);
+        canonical::abilities(&mut value).unwrap();
+        value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["objects"]["args"]
+            .clone()
+    };
+    assert_eq!(role("Source"), json!({"kind":"EventSubject"}));
+    assert_eq!(role("Recipient"), json!({"kind":"Damage","args":"Source"}));
+}
+
+#[test]
 fn reduced_form_keeps_ids_and_order() {
     let filter = json!({"kind":"AllOf","args":[{"kind":"Tapped"},{"kind":"Any"},{"kind":"CardType","args":"Creature"}]});
     let mut value = json!([{"kind":"Spell","args":{

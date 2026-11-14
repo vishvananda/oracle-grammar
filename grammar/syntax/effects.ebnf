@@ -43,11 +43,15 @@ verb_operation_third ::= energy_get_third | create_third | create_tapped_third |
 
 /* Choice and following conjoined verbs share the clause's actual player set,
    including a player announced after an earlier target or an event's actor. */
-sacrifice_choice_third ::= sacrifice_choice_third_plain | sacrifice_choice_third_post
+sacrifice_choice_third ::= sacrifice_choice_third_plain | sacrifice_choice_third_post | sacrifice_that_many_third
 
 /* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:@subject, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$sacrifice_choice_filter}, choose:AsManyAsCan($counter_amount)}) */
 sacrifice_choice_third_plain ::= "sacrifices" counter_amount sacrifice_choice_filter "of" "their" "choice"
 sacrifice_choice_filter ::= filter_phrase | filter_plural
+
+/* "Sacrifices that many permanents": the count is the event's quantity. */
+/* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:@subject, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:AsManyAsCan(@that_many)}) */
+sacrifice_that_many_third ::= "sacrifices" "that" "many" filter_plural "of" "their" "choice"
 
 /* An imperative is said to the ability's controller. */
 /* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verb_operation_imperative) */
@@ -101,7 +105,7 @@ clause_single_hand_more ::= player_ref "discards" hand_words ("and" | "," "then"
 /* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Discard{players:One(Bound(0)), amount:CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any})}}]}}] */
 clause_plural_hand ::= hand_plural_players "discards" hand_words
 
-hand_plural_players ::= players_each | players_each_opponent | players_each_other | players_each_other_opponent
+hand_plural_players ::= players_each | players_each_opponent | players_each_other | players_each_other_opponent | players_each_friend | players_each_foe
 
 /* A singular fraction counts the same player's zone that the operation names.
    Plural fractions bind each player's population independently. */
@@ -194,6 +198,15 @@ turn_linked_card_face_up ::= "turn" linked_exiled_card "face" "up"
 
 /* @sem Operation::DealDamage{source:$damage_source_ref, recipients:$recipients, amount:$number, preventable:true} */
 deal_damage ::= damage_source_ref "deals" number "damage" "to" recipients
+
+/* A later sentence raises the damage to the same target if a condition holds.
+   The raised damage is written first, so it introduces the target. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_ref_2, recipients:$recipients_any_target, amount:$number_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_ref, recipients:Targets(@last_slot), amount:$number, preventable:true}}]}}] */
+instructions_damage_instead_any ::= self_ref "deals" number "damage" "to" recipients_any_target "." NEWLINE? self_ref "deals" number "damage" "instead" "if" condition
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_ref_2, recipients:Objects($target_object_set), amount:$number_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_ref, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$number, preventable:true}}]}}] */
+instructions_damage_instead_object ::= self_ref "deals" number "damage" "to" target_object_set "." NEWLINE? self_ref "deals" number "damage" "instead" "if" condition
+/* @sem ObjectSet::One($target_object) */
+target_object_set ::= target_object
 
 /* A following amount can name the current recipient. An independent preceding
    amount keeps its earlier event/player antecedent. Annotations carry no IR. */
@@ -475,6 +488,9 @@ returned_condition_target_any ::= "target" "creature" "card" "from" "a" "graveya
    Payment is optional; sacrifice is a resolving instruction, not its cost. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$player_ref, cost:$resolving_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One($player_ref), $sacrifice_choice_third)}]}, otherwise:Program{}}] */
 clause_singular_unless_pay ::= player_ref sacrifice_choice_third "unless" "they" "pay" resolving_cost
+/* Any other action the player takes unless they pay, such as losing life. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$player_ref, cost:$resolving_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:@apply(PlayerSet::One($player_ref), $verbs_third)}, otherwise:Program{}}] */
+clause_singular_unless_pay_verbs ::= player_ref verbs_third "unless" "they" "pay" resolving_cost
 
 /* Either a sacrifice of the player's choice or the other cost spares them. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$player_ref, cost:Cost{parts:[Choice([$resolving_sacrifice_choice_cost, $cost])]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:@apply(PlayerSet::One($player_ref), $verbs_third)}, otherwise:Program{}}] */

@@ -210,11 +210,19 @@ struct Walker {
 }
 
 /// The role a damage event's own subject plays, through a `Filtered` wrapper.
+/// Either-of damage events share a subject only when every case names the same role.
 fn damage_subject(event: &Value) -> Option<Value> {
-    match event.get("Filtered") {
-        Some(filtered) => damage_subject(&filtered["event"]),
-        None => event.get("Damage").map(|damage| damage["subject"].clone()),
+    if let Some(filtered) = event.get("Filtered") {
+        return damage_subject(&filtered["event"]);
     }
+    if let Some(Value::Array(events)) = event.get("AnyOf") {
+        let mut subjects = events.iter().map(damage_subject);
+        let first = subjects.next()??;
+        return subjects
+            .all(|subject| subject.as_ref() == Some(&first))
+            .then_some(first);
+    }
+    event.get("Damage").map(|damage| damage["subject"].clone())
 }
 
 fn id_kind(name: &str) -> Option<&'static str> {
