@@ -145,6 +145,50 @@ fn a_triggering_object_is_named_by_its_subtype() {
             "Creature",
             "Whenever another Hero you control enters, it gains vigilance and haste until end of turn. Put a +1/+1 counter on that Hero and a +1/+1 counter on Captain America.",
         ),
+        (
+            "Battering Ram",
+            "Creature",
+            "Whenever this creature becomes blocked by a Wall, destroy that Wall at end of combat.",
+        ),
+        (
+            "Greatbow Doyen",
+            "Creature",
+            "Whenever an Archer you control deals damage to a creature, that Archer deals that much damage to that creature's controller.",
+        ),
+    ] {
+        assert_prints_as_written(name, types, text);
+    }
+}
+
+/// One program written once may stand in both branches of a choice.
+#[test]
+fn a_program_in_both_branches_prints_once() {
+    assert_prints_as_written(
+        "Yennett, Cryptic Sovereign",
+        "Creature",
+        "Whenever Yennett attacks, reveal the top card of your library. You may cast it without paying its mana cost if its mana value is odd. If you don't cast it, draw a card.",
+    );
+}
+
+/// A target named in a repeated operand still lets a later use read as a pronoun.
+#[test]
+fn a_target_named_twice_is_a_pronoun_afterwards() {
+    for (name, types, text) in [
+        (
+            "Gift of the Viper",
+            "Instant",
+            "Put a +1/+1 counter, a reach counter, and a deathtouch counter on target creature. Untap it.",
+        ),
+        (
+            "Natural Selection",
+            "Instant",
+            "Look at the top three cards of target player's library, then put them back in any order. You may have that player shuffle.",
+        ),
+        (
+            "Diplomacy of the Wastes",
+            "Sorcery",
+            "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card. If you control a Warrior, that player loses 2 life.",
+        ),
     ] {
         assert_prints_as_written(name, types, text);
     }

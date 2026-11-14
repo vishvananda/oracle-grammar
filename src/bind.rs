@@ -835,7 +835,7 @@ fn slot_uses(value: &Value, slot: u64, path: &mut Vec<Step>, out: &mut Vec<Vec<S
 }
 
 /// The surface forms of an announced scope: each choice of which mention of a
-/// slot introduces it. Also permit one correlated form when a lexical operand
+/// slot introduces it. Also permit correlated forms when a lexical operand
 /// occurs repeatedly in the semantic constructor.
 fn slot_forms(root: &Value, specs: &[Value], body: &[Step]) -> Vec<Value> {
     let Some(order) = references::surface_order(specs) else {
@@ -880,10 +880,13 @@ fn slot_forms(root: &Value, specs: &[Value], body: &[Step]) -> Vec<Value> {
     // Keep the complete original cross-slot enumeration first. An added form
     // must never become a parent of the old per-slot loops or amplify their
     // pre-existing cap overshoot.
-    if forms.len() < 64
-        && let Some(correlated) = target_surface::correlated(root, specs, body)
-    {
-        forms.push(correlated);
+    if forms.len() < 64 {
+        let room = 64 - forms.len();
+        forms.extend(
+            target_surface::correlated(root, specs, body)
+                .into_iter()
+                .take(room),
+        );
     }
     forms
 }

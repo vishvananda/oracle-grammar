@@ -359,6 +359,55 @@ pub(super) fn spelling_forms(forms: Vec<Value>, specs: &[Value]) -> Vec<Value> {
             let room = 64usize.saturating_sub(out.len());
             out.extend(noun_uses(&form, entry).into_iter().take(room));
         }
+        for entry in role_referents(event) {
+            if !entry.subtypes.is_empty() {
+                let room = 64usize.saturating_sub(out.len());
+                out.extend(noun_uses(&form, &entry).into_iter().take(room));
+            }
+        }
+    }
+    out
+}
+
+/// Event roles a later use may name by the subtype that introduced them: a
+/// damage event's subject ("that Archer deals that much damage") and the other
+/// creature of a block ("destroy that Wall").
+fn role_referents(mut event: &Value) -> Vec<Referent> {
+    while let Some(inner) = super::events::inner(event) {
+        event = inner;
+    }
+    let mut out = Vec::new();
+    if let Some(damage) = event.get("Damage") {
+        let filter = match damage["subject"].as_str() {
+            Some("Source") => Some(&damage["sources"]),
+            Some("Recipient") => damage["recipients"].get("Objects"),
+            _ => None,
+        };
+        if let Some(filter) = filter {
+            let subject = json!({"kind":"EventSubject"});
+            out.push(described(
+                subject,
+                vec![ObjectKind::Permanent],
+                filter,
+                true,
+            ));
+        }
+    }
+    if let Some(pair) = event.get("Pair") {
+        let role = match pair["event"].as_str() {
+            Some("BecomesBlockedBy") => Some("Blocker"),
+            Some("Blocks") => Some("Attacker"),
+            _ => None,
+        };
+        if let Some(role) = role {
+            let other = json!({"kind":"BlockPair","args":role});
+            out.push(described(
+                other,
+                vec![ObjectKind::Permanent],
+                &pair["others"],
+                true,
+            ));
+        }
     }
     out
 }

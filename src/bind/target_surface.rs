@@ -2,10 +2,23 @@
 use super::{Step, at_path, slot_uses};
 use serde_json::{Value, json};
 
-/// Add one scope-wide form after the complete old enumeration. Each declared
+/// Add scope-wide forms after the complete old enumeration. Each declared
 /// slot keeps its own exact specification; only its repeated references share
-/// annotation. Existing nested announcement boundaries remain unchanged.
-pub(super) fn correlated(root: &Value, specs: &[Value], body: &[Step]) -> Option<Value> {
+/// annotation. The first form annotates every use; the others annotate each
+/// slot's first uses only, so a later use can still read as a pronoun ("put a
+/// counter on target creature and a counter on target creature. Untap it.").
+/// Existing nested announcement boundaries remain unchanged.
+pub(super) fn correlated(root: &Value, specs: &[Value], body: &[Step]) -> Vec<Value> {
+    let Some((all, longest)) = annotated(root, specs, body, usize::MAX) else {
+        return Vec::new();
+    };
+    let mut forms = vec![all];
+    forms.extend((2..longest).filter_map(|first| annotated(root, specs, body, first).map(|f| f.0)));
+    forms
+}
+
+/// The form annotating each slot's first `first` uses, and the most uses a slot has.
+fn annotated(root: &Value, specs: &[Value], body: &[Step], first: usize) -> Option<(Value, usize)> {
     let mut copy = root.clone();
     let program = at_path(&mut copy, body)?;
     let mut addresses = Vec::new();
@@ -36,13 +49,14 @@ pub(super) fn correlated(root: &Value, specs: &[Value], body: &[Step]) -> Option
     if !repeated {
         return None;
     }
+    let longest = plans.iter().map(|(_, uses)| uses.len()).max().unwrap_or(0);
     for (spec, uses) in plans {
         let marker = json!({"$sym":"target","args":[spec],"at":0});
-        for path in uses {
+        for path in uses.into_iter().take(first) {
             *at_path(program, &path)? = marker.clone();
         }
     }
-    Some(copy)
+    Some((copy, longest))
 }
 
 fn charge(value: &Value, depth: usize, work: &mut usize) -> Option<()> {
@@ -128,9 +142,9 @@ mod tests {
     fn distinct_same_filter_targets_never_become_one_operand() {
         let root = frame(0, 1);
         let body = path_of(&["args", "body"]);
-        assert!(correlated(&root, &[spec(0)], &body).is_none());
-        assert!(correlated(&root, &[spec(1)], &body).is_none());
-        assert!(correlated(&frame(0, 0), &[spec(1)], &body).is_none());
+        assert!(correlated(&root, &[spec(0)], &body).is_empty());
+        assert!(correlated(&root, &[spec(1)], &body).is_empty());
+        assert!(correlated(&frame(0, 0), &[spec(1)], &body).is_empty());
         for form in slot_forms(&root, &[spec(0), spec(1)], &body) {
             let operation = operation(&form);
             assert_ne!(
@@ -155,7 +169,7 @@ mod tests {
                     }}}]}
                 }}
             }));
-        assert!(correlated(&root, &[spec(0)], &body).is_none());
+        assert!(correlated(&root, &[spec(0)], &body).is_empty());
     }
 
     #[test]
@@ -164,7 +178,7 @@ mod tests {
         let mut root = frame(0, 0);
         let item = root["args"]["body"]["instructions"][0].clone();
         root["args"]["body"]["instructions"] = Value::Array(vec![item; 40]);
-        assert!(correlated(&root, &[spec(0)], &body).is_none());
+        assert!(correlated(&root, &[spec(0)], &body).is_empty());
         let forms = slot_forms(&root, &[spec(0)], &body);
         // Preserve the old 64 single-use forms plus its trailing chosen form;
         // tightening that pre-existing overshoot is outside this change.
@@ -220,15 +234,37 @@ mod tests {
     }
 
     #[test]
+    fn later_uses_can_stay_references_after_the_first_ones_introduce() {
+        let effect = |kind: &str| {
+            json!({"kind":"Effect","args":{"result":0,"operation":{"kind":kind,
+                "args":{"objects":{"kind":"One","args":target(0)}}}}})
+        };
+        let root = json!({"args":{"body":{"instructions":[
+            effect("Tap"), effect("Goad"), effect("Untap")]}}});
+        let body = path_of(&["args", "body"]);
+        let forms = correlated(&root, &[spec(0)], &body);
+        assert_eq!(forms.len(), 2);
+        let objects = |form: &Value, at: usize| {
+            form["args"]["body"]["instructions"][at]["args"]["operation"]["args"]["objects"]["args"]
+                .clone()
+        };
+        let marked =
+            |form: &Value, at: usize| objects(form, at)["args"]["slot"]["$sym"] == "target";
+        assert!((0..3).all(|at| marked(&forms[0], at)));
+        assert!((0..2).all(|at| marked(&forms[1], at)));
+        assert_eq!(objects(&forms[1], 2), target(0));
+    }
+
+    #[test]
     fn indices_specs_and_annotation_work_remain_distinct_and_bounded() {
         let body = path_of(&["args", "body"]);
-        assert!(correlated(&frame(0, 0), &[spec(0), spec(0)], &body).is_none());
+        assert!(correlated(&frame(0, 0), &[spec(0), spec(0)], &body).is_empty());
         let mut indexed = frame(0, 0);
         indexed["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["action"]["Connive"]
             ["object"]["args"]["index"] = 1.into();
         let mut grouped = spec(0);
         grouped["count"] = json!({"Exactly":{"kind":"Constant","args":2}});
-        let paired = correlated(&indexed, &[grouped], &body).unwrap();
+        let paired = correlated(&indexed, &[grouped], &body).remove(0);
         let paired = operation(&paired);
         assert_eq!(paired["actor"]["args"]["args"]["args"]["index"], 0);
         assert_eq!(paired["action"]["Connive"]["object"]["args"]["index"], 1);
@@ -238,13 +274,13 @@ mod tests {
         );
         let mut large = spec(0);
         large["filter"] = json!({"kind":"Any","terms":vec![Value::Null;17_000]});
-        assert!(correlated(&frame(0, 0), &[large], &body).is_none());
+        assert!(correlated(&frame(0, 0), &[large], &body).is_empty());
         let mut nested = Value::Null;
         for _ in 0..130 {
             nested = json!({"nested":nested});
         }
         let mut deep = spec(0);
         deep["filter"] = nested;
-        assert!(correlated(&frame(0, 0), &[deep], &body).is_none());
+        assert!(correlated(&frame(0, 0), &[deep], &body).is_empty());
     }
 }

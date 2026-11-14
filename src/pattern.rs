@@ -15,6 +15,7 @@ use std::borrow::Cow;
 mod constraints;
 mod damage_actor;
 mod reference_symbols;
+mod repeated;
 pub(crate) mod root_type;
 use constraints::{refers_to, unconstrained};
 
@@ -1079,7 +1080,9 @@ fn bind<'p, 'v>(
     mut bindings: Bindings<'p, 'v>,
 ) -> Option<Bindings<'p, 'v>> {
     match bindings.get(name) {
-        Some(previous) => (*previous == *value).then_some(bindings),
+        Some(previous) => {
+            (*previous == *value || repeated::same(previous, &value)).then_some(bindings)
+        }
         None => {
             bindings.0.push((name, value));
             Some(bindings)
