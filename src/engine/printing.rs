@@ -470,14 +470,7 @@ impl Engine {
         abilities: &Value,
         text: &str,
     ) -> Result<Option<Vec<String>>, String> {
-        super::validate_abilities(abilities)?;
-        self.surface_key(
-            self.root,
-            Self::native_surfaces(abilities, true)?,
-            name,
-            text,
-            false,
-        )
+        self.key_of(name, abilities, text, false)
     }
 
     /// Every production choice, including repeated choices and name spelling.
@@ -487,14 +480,30 @@ impl Engine {
         abilities: &Value,
         text: &str,
     ) -> Result<Option<Vec<String>>, String> {
+        self.key_of(name, abilities, text, true)
+    }
+
+    /// The key along which `text` prints from the abilities as given, else from
+    /// their canonical form. An equivalent lowered form can unbind into
+    /// surfaces that miss the written wording; printing makes the same retry.
+    fn key_of(
+        &self,
+        name: &str,
+        abilities: &Value,
+        text: &str,
+        ordered: bool,
+    ) -> Result<Option<Vec<String>>, String> {
         super::validate_abilities(abilities)?;
-        self.surface_key(
-            self.root,
-            Self::native_surfaces(abilities, true)?,
-            name,
-            text,
-            true,
-        )
+        let surfaces = Self::native_surfaces(abilities, true)?;
+        if let Some(key) = self.surface_key(self.root, surfaces, name, text, ordered)? {
+            return Ok(Some(key));
+        }
+        let canonical = canonical_abilities(abilities)?;
+        if canonical == *abilities {
+            return Ok(None);
+        }
+        let surfaces = Self::native_surfaces(&canonical, true)?;
+        self.surface_key(self.root, surfaces, name, text, ordered)
     }
 
     pub(super) fn surface_key(
@@ -542,14 +551,18 @@ impl Engine {
     ) -> Result<Option<String>, String> {
         super::validate_abilities(abilities)?;
         let wanted = canonical_abilities(abilities)?;
-        for text in self.replayed_surfaces(
-            self.root,
-            Self::native_surfaces(abilities, true)?,
-            name,
-            trail,
-        )? {
-            if self.reads_as(name, &text, &wanted) {
-                return Ok(Some(text));
+        // A trail found on the canonical form replays on its surfaces.
+        let views = if wanted == *abilities {
+            vec![abilities]
+        } else {
+            vec![abilities, &wanted]
+        };
+        for view in views {
+            let surfaces = Self::native_surfaces(view, true)?;
+            for text in self.replayed_surfaces(self.root, surfaces, name, trail)? {
+                if self.reads_as(name, &text, &wanted) {
+                    return Ok(Some(text));
+                }
             }
         }
         Ok(None)

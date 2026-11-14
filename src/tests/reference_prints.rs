@@ -95,7 +95,7 @@ fn triggers_written_per_event_print_split_from_the_trigger_on_either() {
 /// along its written order.
 fn assert_prints_as_written(name: &str, types: &str, text: &str) {
     let reading = only_reading(name, text);
-    let types = [types.to_string()];
+    let types: Vec<String> = types.split_whitespace().map(str::to_string).collect();
     if keyed(name, &reading, &types, text).as_deref() == Some(text) {
         return;
     }
@@ -191,5 +191,78 @@ fn a_target_named_twice_is_a_pronoun_afterwards() {
         ),
     ] {
         assert_prints_as_written(name, types, text);
+    }
+}
+
+/// A card that died names itself in its new zone as this card.
+#[test]
+fn a_card_that_died_names_itself_as_this_card() {
+    assert_prints_as_written(
+        "Endless Whispers",
+        "Enchantment",
+        "Each creature has \"When this creature dies, choose target opponent. That player puts this card from its owner's graveyard onto the battlefield under their control at the beginning of the next end step.\"",
+    );
+}
+
+/// One sentence written for two triggers prints once, though each trigger
+/// binds the card it names in its own way.
+#[test]
+fn one_sentence_for_two_triggers_prints_once() {
+    for (name, types, text) in [
+        (
+            "Kaya's Ghostform",
+            "Enchantment Aura",
+            "Enchant creature or planeswalker you control\nWhen enchanted permanent dies or is put into exile, return that card to the battlefield under your control.",
+        ),
+        (
+            "Jund Sojourners",
+            "Creature",
+            "When you cycle this card and when this creature dies, you may have it deal 1 damage to any target.\nCycling {2}{R}",
+        ),
+    ] {
+        assert_prints_as_written(name, types, text);
+    }
+}
+
+/// Statics a Class level writes apart print apart.
+#[test]
+fn a_class_level_prints_its_statics_apart() {
+    assert_prints_as_written(
+        "Ranger Class",
+        "Enchantment Class",
+        "When this Class enters, create a 2/2 green Wolf creature token.\n{1}{G}: Level 2\nWhenever you attack, put a +1/+1 counter on target attacking creature.\n{3}{G}: Level 3\nYou may look at the top card of your library any time.\nYou may cast creature spells from the top of your library.",
+    );
+}
+
+/// A reference's own lowered form, equal to the parse only canonically, still
+/// finds the derivation of the written text. Sin's dying card also names
+/// itself in its new zone as this card. A plain case prints as written with
+/// no key: Fiendish Panda's "another" names the dead card in its graveyard,
+/// which "other than this card" would not.
+#[test]
+fn a_reference_form_prints_along_its_canonical_derivation() {
+    let cases: Vec<Value> = serde_json::from_str(include_str!(
+        "../../tests/fixtures/reference-lowered-print.json"
+    ))
+    .unwrap();
+    for case in &cases {
+        let (name, text) = (
+            case["name"].as_str().unwrap(),
+            case["text"].as_str().unwrap(),
+        );
+        let types: Vec<String> = serde_json::from_value(case["types"].clone()).unwrap();
+        let reference = &case["reference"];
+        assert_ne!(*reference, only_reading(name, text));
+        if case["plain"] == true {
+            let plain = engine().print_keyed(name, reference, &types, &[]).unwrap();
+            assert_eq!(plain.as_deref(), Some(text), "{name}");
+        }
+        if keyed(name, reference, &types, text).as_deref() == Some(text) {
+            continue;
+        }
+        // A set key leaves a shortened name's spelling to the ordered trail.
+        let trail = engine().trail_of(name, reference, text).unwrap().unwrap();
+        let printed = engine().print_trail(name, reference, &trail).unwrap();
+        assert_eq!(printed.as_deref(), Some(text), "{name}");
     }
 }

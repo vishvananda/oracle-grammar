@@ -2,6 +2,9 @@
 //! definition nobody reads its own id, counting down from `u32::MAX`, so two
 //! copies of one captured program differ in exactly those ids. They are still
 //! the same capture; reparse proves whatever text prints from the first.
+//! One sentence written for two triggers also binds its card per trigger: the
+//! card each departure put in its own zone, or the discarded card where the
+//! other trigger names the source itself. Those copies are the same capture too.
 
 use serde_json::Value;
 
@@ -17,6 +20,9 @@ fn alike(held: &Value, again: &Value, depth: usize) -> bool {
     let Some(depth) = depth.checked_sub(1) else {
         return false;
     };
+    if let (Some(left), Some(right)) = (incarnation(held), incarnation(again)) {
+        return left == right;
+    }
     match (held, again) {
         (Value::Object(left), Value::Object(right)) => {
             left.len() == right.len()
@@ -35,6 +41,24 @@ fn alike(held: &Value, again: &Value, depth: usize) -> bool {
                     .all(|(value, other)| alike(value, other, depth))
         }
         _ => held == again,
+    }
+}
+
+/// Which written card a per-trigger binding stands for: the card a departure
+/// put into some zone, or this card, named as discarded or as the source.
+fn incarnation(value: &Value) -> Option<u8> {
+    let objects = &value["args"]["objects"];
+    if value["kind"] == "Query"
+        && value["args"]["index"] == 0
+        && objects["kind"] == "InZone"
+        && objects["args"]["objects"]["kind"] == "One"
+        && objects["args"]["objects"]["args"]["kind"] == "EventDestination"
+    {
+        return Some(0);
+    }
+    match value.as_object()?.len() {
+        1 if matches!(value["kind"].as_str(), Some("Source" | "Discarded")) => Some(1),
+        _ => None,
     }
 }
 
@@ -62,6 +86,24 @@ mod tests {
         let mut other = draw(4_294_967_293);
         other["instructions"][0]["args"]["operation"]["args"]["amount"]["args"] = json!(2);
         assert!(!same(&draw(4_294_967_294), &other));
+    }
+
+    #[test]
+    fn per_trigger_bindings_of_one_card_are_one_capture() {
+        let landed = |zone: &str| {
+            json!({"kind":"Query","args":{"objects":{"kind":"InZone","args":{
+                "objects":{"kind":"One","args":{"kind":"EventDestination"}},"zone":zone}},"index":0}})
+        };
+        assert!(same(&landed("Graveyard"), &landed("Exile")));
+        assert!(same(
+            &json!({"kind":"Discarded"}),
+            &json!({"kind":"Source"})
+        ));
+        assert!(!same(&landed("Graveyard"), &json!({"kind":"Source"})));
+        assert!(!same(
+            &json!({"kind":"Source"}),
+            &json!({"kind":"EventSubject"})
+        ));
     }
 
     #[test]

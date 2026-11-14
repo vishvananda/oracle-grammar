@@ -22,6 +22,39 @@ pub(super) fn context<'p, 'v>(
     }
 }
 
+/// A dying source's card in its new zone, as a moved set names it, proposed
+/// as the source whose words ("this card") name it, alone or held in that
+/// zone. Reparse must prove the move follows that source's own zone change.
+pub(super) fn moved_source(value: &Value) -> Vec<Value> {
+    let mut moved = value.clone();
+    let one = if value["kind"] == "InZone" {
+        let Some(objects) = moved.pointer_mut("/args/objects") else {
+            return Vec::new();
+        };
+        objects
+    } else {
+        &mut moved
+    };
+    let card = &one["args"];
+    let zone = &card["args"]["objects"]["args"]["zone"];
+    let destination = card["kind"] == "Query"
+        && card["args"]["index"] == 0
+        && card["args"]["objects"]["kind"] == "InZone"
+        && card["args"]["objects"]["args"]["objects"]
+            == serde_json::json!({"kind":"One","args":{"kind":"EventDestination"}});
+    if one["kind"] != "One" || !destination {
+        return Vec::new();
+    }
+    let held = serde_json::json!({"kind":"InZone","args":{
+        "objects":{"kind":"One","args":{"kind":"Source"}},"zone":zone}});
+    one["args"] = serde_json::json!({"kind":"Source"});
+    if value["kind"] == "InZone" {
+        vec![moved]
+    } else {
+        vec![moved, held]
+    }
+}
+
 pub(super) fn sacrificed_damage_source<'p, 'v>(
     args: &'p [Pattern],
     value: &'v Value,

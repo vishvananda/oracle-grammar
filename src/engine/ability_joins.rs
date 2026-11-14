@@ -183,6 +183,10 @@ pub(super) fn split_statics(abilities: &Value) -> Vec<Value> {
     };
     let mut views = Vec::new();
     for (index, item) in items.iter().enumerate() {
+        if item["kind"] == "Class" {
+            views.extend(split_levels(items, index));
+            continue;
+        }
         let count = changes(item);
         if item["kind"] != "Static" || !(2..=CHANGES).contains(&count) {
             continue;
@@ -194,6 +198,23 @@ pub(super) fn split_statics(abilities: &Value) -> Vec<Value> {
         }
     }
     views.truncate(SPLITS);
+    views
+}
+
+/// A Class level holds its own abilities, and a static joined within one level
+/// splits the same way. Levels hold no Class, so this recursion ends.
+fn split_levels(items: &[Value], index: usize) -> Vec<Value> {
+    let Some(levels) = items[index]["args"]["levels"].as_array() else {
+        return Vec::new();
+    };
+    let mut views = Vec::new();
+    for (at, level) in levels.iter().enumerate() {
+        for split in split_statics(&level["abilities"]) {
+            let mut view = items.to_vec();
+            view[index]["args"]["levels"][at]["abilities"] = split;
+            views.push(Value::Array(view));
+        }
+    }
     views
 }
 

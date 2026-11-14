@@ -713,7 +713,11 @@ impl Pattern {
                 Some(items) => unify_items(pieces, items, bindings),
                 None => Vec::new(),
             },
-            Self::Symbol(name, args) => self.unify_symbol(name, args, value, bindings),
+            Self::Symbol(name, args) => {
+                let mut found = self.moved_source(name, value, &bindings);
+                found.extend(self.unify_symbol(name, args, value, bindings));
+                found
+            }
         }
     }
 
@@ -725,6 +729,26 @@ impl Pattern {
     ) -> Vec<Bindings<'p, 'v>> {
         let found = self.unify(made, bindings.clone());
         found.into_iter().map(Bindings::owned).collect()
+    }
+
+    /// A moved set naming a dying source's card in its new zone, matched as
+    /// that source.
+    fn moved_source<'p, 'v>(
+        &'p self,
+        name: &str,
+        value: &Value,
+        bindings: &Bindings<'p, 'v>,
+    ) -> Vec<Bindings<'p, 'v>> {
+        if !matches!(
+            name,
+            "zone_members" | "zone_card_members" | "implicit_card_set" | "exile_followup"
+        ) {
+            return Vec::new();
+        }
+        reference_symbols::moved_source(value)
+            .iter()
+            .flat_map(|source| self.unify_made(source, bindings))
+            .collect()
     }
 
     fn unify_symbol<'p, 'v>(
