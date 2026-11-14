@@ -290,6 +290,7 @@ impl Engine {
         &self,
         reading: &CardReading,
         context: &Characteristics,
+        written: bool,
     ) -> Result<Vec<Value>, String> {
         self.card_context(context)?;
         if reading.notes.len() > self.limits.depth {
@@ -317,27 +318,31 @@ impl Engine {
             }
         }
         let land_mana = land_colors.map(|colors| json!({"colors":colors}));
-        Ok(Self::native_surfaces(&reading.abilities)?
+        Ok(Self::native_surfaces(&reading.abilities, written)?
             .into_iter()
             .map(|abilities| json!({"notes":notes,"land_mana":land_mana,"station":false,"station_explicit":false,"station_declaration":null,"abilities":abilities}))
             .collect())
     }
+    /// A card's surfaces, with the views only a `written` text asks for when it does.
     fn card_surfaces(
         &self,
         reading: &CardReading,
         context: &Characteristics,
+        written: bool,
     ) -> Result<Vec<Value>, String> {
-        station::checked_surfaces(reading, None, self.card_surfaces_inner(reading, context)?)
+        let surfaces = self.card_surfaces_inner(reading, context, written)?;
+        station::checked_surfaces(reading, None, surfaces)
     }
     fn card_surfaces_with_source(
         &self,
         reading: &CardReading,
         context: &CardInputContext,
+        written: bool,
     ) -> Result<Vec<Value>, String> {
         station::checked_surfaces(
             reading,
             Some(context),
-            self.card_surfaces_inner(reading, &context.characteristics)?,
+            self.card_surfaces_inner(reading, &context.characteristics, written)?,
         )
     }
 }

@@ -21,7 +21,7 @@ impl Engine {
 
         self.enumerated_surfaces(
             self.card_root()?,
-            self.card_surfaces_with_source(reading, context)?,
+            self.card_surfaces_with_source(reading, context, !key.is_empty())?,
             name,
             &types,
             cap,
@@ -71,7 +71,7 @@ impl Engine {
         self.card_context(&context.characteristics)?;
         let (root, surfaces) = (
             self.card_root()?,
-            self.card_surfaces_with_source(reading, context)?,
+            self.card_surfaces_with_source(reading, context, true)?,
         );
         self.surface_key(root, surfaces, name, text, ordered)
     }
@@ -91,7 +91,7 @@ impl Engine {
 
         for text in self.replayed_surfaces(
             self.card_root()?,
-            self.card_surfaces_with_source(reading, context)?,
+            self.card_surfaces_with_source(reading, context, true)?,
             name,
             trail,
         )? {

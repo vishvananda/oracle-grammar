@@ -1,6 +1,7 @@
 //! Entry X and independent ability definitions are distinct lexical values.
 use super::{ability_kind, events, holder, payments};
 use crate::model::ir::EventSpec;
+use crate::traverse::{Boundary, Visit, boundary, rewrite};
 use serde_json::{Value, json};
 
 pub(super) fn entry(mut ability: &Value) -> bool {
@@ -44,6 +45,43 @@ pub(super) fn bind(ability: &mut Value) -> Result<(), String> {
 
 pub(super) fn surface(ability: &mut Value) -> Result<(), String> {
     transform(ability, true)
+}
+
+/// A self-entry trigger may name its source's cast X as the entering event's
+/// subject's, since that subject is the source. This surface names it as the
+/// source's in the announcement and body, up to any trigger the body creates
+/// with an event of its own, or is `None` when neither names such an X.
+pub(super) fn subject_x_surface(ability: &Value) -> Option<Value> {
+    if ability_kind(ability) != Some("Triggered") || !entry(ability) {
+        return None;
+    }
+    let subject_x = json!({"kind": "CastX", "args": {"kind": "EventSubject"}});
+    let source_x = json!({"kind": "CastX", "args": {"kind": "Source"}});
+    let mut view = ability.clone();
+    let mut changed = false;
+    for part in ["announcement", "body"] {
+        rewrite(&mut view["args"][part], &mut |node| {
+            if *node == subject_x {
+                node.clone_from(&source_x);
+                changed = true;
+                return Visit::Skip;
+            }
+            let creates = matches!(
+                ability_kind(node),
+                Some("CreateTrigger" | "CreateDelayedTrigger")
+            );
+            if creates || boundary(node) == Boundary::Ability {
+                Visit::Skip
+            } else {
+                Visit::Children
+            }
+        });
+    }
+    if !changed {
+        return None;
+    }
+    surface(&mut view).ok()?;
+    Some(view)
 }
 
 fn transform(ability: &mut Value, inverse: bool) -> Result<(), String> {

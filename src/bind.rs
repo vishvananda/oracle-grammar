@@ -1084,6 +1084,7 @@ fn unbind_view(ability: &Value) -> Vec<Value> {
 /// The surface forms of an ability's own slots and modes.
 fn own_forms(ability: &Value) -> Vec<Value> {
     let mut plain;
+    let original = ability;
     let mut ability = ability;
     if variables::entry(ability) || variables::activation(ability) {
         plain = ability.clone();
@@ -1126,6 +1127,9 @@ fn own_forms(ability: &Value) -> Vec<Value> {
     let mut inline = ability.clone();
     if selections::surface(&mut inline).is_ok() && inline != *ability {
         forms.extend(spelled_forms(&inline));
+    }
+    if let Some(entering) = variables::subject_x_surface(original) {
+        forms.extend(spelled_forms(&entering));
     }
     // The card's own name can stand for the event's subject only when the event is its own.
     if !names_itself(&ability["args"]["event"]) {

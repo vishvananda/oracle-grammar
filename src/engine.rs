@@ -307,7 +307,7 @@ impl Engine {
                 })
                 .collect()
         };
-        let surfaces = Self::surfaces(abilities)?;
+        let surfaces = Self::surfaces(abilities, true)?;
         let reaches = |value: &Value| {
             crate::render::Matcher::new(&self.grammar, &tokens).reaches(self.root, value)
         };

@@ -52,6 +52,31 @@ fn events(ability: &Value) -> Vec<Value> {
     }
 }
 
+/// One ability in canonical form.
+fn canonical_one(ability: &Value) -> Option<Value> {
+    let mut one = Value::Array(vec![ability.clone()]);
+    canonical::abilities(&mut one).ok()?;
+    match one {
+        Value::Array(mut items) if items.len() == 1 => items.pop(),
+        _ => None,
+    }
+}
+
+/// Two adjacent triggers as branches of one, when they differ only in their
+/// events: as lowered, or else once canonical form has equated their bodies
+/// (a body that names the dying source as the event's subject, say).
+fn join_pair(last: &Value, item: &Value) -> Option<(Value, Value)> {
+    let (a, b) = (branch(last), branch(item));
+    if same_but_event(&a, &b) {
+        return Some((a, b));
+    }
+    if a["kind"] != "Triggered" || b["kind"] != "Triggered" {
+        return None;
+    }
+    let (a, b) = (canonical_one(&a)?, canonical_one(&b)?);
+    same_but_event(&a, &b).then_some((a, b))
+}
+
 /// Adjacent same-but-event triggers joined into one, in their order, or `None`
 /// when no two adjacent abilities join.
 pub(super) fn joined(abilities: &Value) -> Option<Value> {
@@ -59,12 +84,12 @@ pub(super) fn joined(abilities: &Value) -> Option<Value> {
     let mut merged: Vec<Value> = Vec::with_capacity(items.len());
     let mut any = false;
     for item in items {
-        let view = branch(item);
-        match merged.last_mut() {
-            Some(last) if same_but_event(&branch(last), &view) => {
-                *last = branch(last);
-                let mut cases = events(last);
-                cases.extend(events(&view));
+        let pair = merged.last().and_then(|last| join_pair(last, item));
+        match (pair, merged.last_mut()) {
+            (Some((first, then)), Some(last)) => {
+                let mut cases = events(&first);
+                cases.extend(events(&then));
+                *last = first;
                 last["args"]["event"] = json!({ "AnyOf": cases });
                 any = true;
             }
@@ -172,6 +197,65 @@ pub(super) fn split_statics(abilities: &Value) -> Vec<Value> {
     views
 }
 
+/// Triggers on at most this many events are offered split.
+const EVENTS: usize = 3;
+
+/// The groups a trigger's events split into: each event alone, in the order
+/// held and, for two, the other way round; and for three, the first two
+/// together or the last two.
+fn event_groups(cases: &[Value]) -> Vec<Vec<Vec<Value>>> {
+    let single = |order: &[Value]| order.iter().map(|case| vec![case.clone()]).collect();
+    let mut groups = vec![single(cases)];
+    match cases {
+        [first, second] => groups.push(single(&[second.clone(), first.clone()])),
+        [first, second, third] => {
+            groups.push(vec![
+                vec![first.clone(), second.clone()],
+                vec![third.clone()],
+            ]);
+            groups.push(vec![
+                vec![first.clone()],
+                vec![second.clone(), third.clone()],
+            ]);
+        }
+        _ => {}
+    }
+    groups
+}
+
+/// Each trigger on any of a few events split into a trigger per group of its
+/// events. "Whenever you cast a green spell and whenever a Forest you control
+/// enters" writes two triggers that canonical form holds as one on either event.
+pub(super) fn split_events(abilities: &Value) -> Vec<Value> {
+    let Some(items) = abilities.as_array() else {
+        return Vec::new();
+    };
+    let mut views = Vec::new();
+    for (index, item) in items.iter().enumerate() {
+        let Some(Value::Array(cases)) = item["args"]["event"].get("AnyOf") else {
+            continue;
+        };
+        if item["kind"] != "Triggered" || !(2..=EVENTS).contains(&cases.len()) {
+            continue;
+        }
+        for groups in event_groups(cases) {
+            let mut out = items[..index].to_vec();
+            for mut group in groups {
+                let mut part = item.clone();
+                part["args"]["event"] = match group.len() {
+                    1 => group.remove(0),
+                    _ => json!({ "AnyOf": group }),
+                };
+                out.push(part);
+            }
+            out.extend_from_slice(&items[index + 1..]);
+            views.push(Value::Array(out));
+        }
+    }
+    views.truncate(SPLITS);
+    views
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -265,5 +349,38 @@ mod tests {
             vec![json!(["a", "b"]), json!(["c"]), Value::Null]
         );
         assert!(split_statics(&json!([{"kind":"Static","args":{"changes":["a"]}}])).is_empty());
+    }
+
+    #[test]
+    fn a_trigger_on_either_event_splits_per_event_in_both_orders() {
+        let event = |name: &str| json!({"Object":{"event":name}});
+        let mut joined = trigger("Blocks", 1);
+        joined["args"]["event"] = json!({"AnyOf":[event("Blocks"), event("Dies")]});
+        let events = |view: &Value| -> Vec<Value> {
+            view.as_array()
+                .unwrap()
+                .iter()
+                .map(|item| item["args"]["event"].clone())
+                .collect()
+        };
+        let views = split_events(&json!([joined.clone(), "after"]));
+        assert_eq!(views.len(), 2);
+        assert_eq!(
+            events(&views[0]),
+            vec![event("Blocks"), event("Dies"), Value::Null]
+        );
+        assert_eq!(
+            events(&views[1]),
+            vec![event("Dies"), event("Blocks"), Value::Null]
+        );
+        assert_eq!(views[0][0]["args"]["body"], 1);
+        joined["args"]["event"] = json!({"AnyOf":[event("a"), event("b"), event("c")]});
+        let views = split_events(&json!([joined]));
+        assert_eq!(views.len(), 3);
+        assert_eq!(
+            events(&views[1]),
+            vec![json!({"AnyOf":[event("a"), event("b")]}), event("c")]
+        );
+        assert!(split_events(&json!([trigger("Blocks", 1)])).is_empty());
     }
 }

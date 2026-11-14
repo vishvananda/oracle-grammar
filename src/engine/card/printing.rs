@@ -23,7 +23,7 @@ impl Engine {
         }
         self.enumerated_surfaces(
             self.card_root()?,
-            self.card_surfaces(reading, context)?,
+            self.card_surfaces(reading, context, !key.is_empty())?,
             name,
             &types,
             cap,
@@ -74,9 +74,12 @@ impl Engine {
         reading.canonical()?;
         self.card_context(context)?;
         let (root, surfaces) = if reading.notes.is_empty() {
-            (self.root, Self::native_surfaces(&reading.abilities)?)
+            (self.root, Self::native_surfaces(&reading.abilities, true)?)
         } else {
-            (self.card_root()?, self.card_surfaces(reading, context)?)
+            (
+                self.card_root()?,
+                self.card_surfaces(reading, context, true)?,
+            )
         };
         self.surface_key(root, surfaces, name, text, ordered)
     }
@@ -98,7 +101,7 @@ impl Engine {
         }
         for text in self.replayed_surfaces(
             self.card_root()?,
-            self.card_surfaces(reading, context)?,
+            self.card_surfaces(reading, context, true)?,
             name,
             trail,
         )? {

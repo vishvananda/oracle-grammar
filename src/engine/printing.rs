@@ -63,7 +63,10 @@ impl Engine {
         after: &Value,
         types: &[String],
     ) -> Result<Option<(Value, Vec<String>)>, String> {
-        let (old, new) = (Self::surfaces(before)?, Self::surfaces(after)?);
+        let (old, new) = (
+            Self::surfaces(before, false)?,
+            Self::surfaces(after, false)?,
+        );
         let mut renderer = Renderer::new(&self.grammar, &self.style, 8, types.to_vec());
         match (old.first(), new.first()) {
             (Some(old), Some(new)) => Ok(stopped_in(&mut renderer, old, new).map(|(old, new)| {
@@ -79,7 +82,11 @@ impl Engine {
 
     /// The surface forms of a card's abilities, in the IR's own order: canonical
     /// sorting would lose the order words were written in.
-    pub(super) fn surfaces(lowered: &Value) -> Result<Vec<Value>, String> {
+    /// The forms printing tries for `lowered`. A `written` text, one a key, a trail
+    /// or a match follows, may also hold a trigger on either of its events apart,
+    /// one trigger per event; the text printed for no written words keeps the
+    /// trigger it means.
+    pub(super) fn surfaces(lowered: &Value, written: bool) -> Result<Vec<Value>, String> {
         let mut abilities = lowered.clone();
         canonical::reduced(&mut abilities)?;
         let mut surfaces = Self::item_surfaces(&abilities)?;
@@ -90,6 +97,9 @@ impl Engine {
             .collect();
         views.extend(super::ability_joins::lowered_apart(lowered, &abilities));
         views.extend(super::ability_joins::split_statics(&abilities));
+        if written {
+            views.extend(super::ability_joins::split_events(&abilities));
+        }
         for view in views {
             for surface in Self::item_surfaces(&view)?.into_iter().take(8) {
                 if !surfaces.contains(&surface) {
@@ -144,8 +154,8 @@ impl Engine {
         Ok(surfaces.into_iter().map(Value::Array).collect())
     }
 
-    pub(super) fn native_surfaces(abilities: &Value) -> Result<Vec<Value>, String> {
-        let mut surfaces = Self::surfaces(abilities)?;
+    pub(super) fn native_surfaces(abilities: &Value, written: bool) -> Result<Vec<Value>, String> {
+        let mut surfaces = Self::surfaces(abilities, written)?;
         // Closed declarations can already carry native slots and result IDs.
         // Their canonical inverse must also see the current native operands,
         // before lexical unbinding replaces those identities with references.
@@ -378,10 +388,11 @@ impl Engine {
         types: &[String],
         (cap, key, native): (usize, &[String], bool),
     ) -> Result<Enumerated, String> {
+        let written = !key.is_empty();
         let surfaces = if native {
-            Self::native_surfaces(abilities)?
+            Self::native_surfaces(abilities, written)?
         } else {
-            Self::surfaces(abilities)?
+            Self::surfaces(abilities, written)?
         };
         self.enumerated_settings(self.root, surfaces, name, types, (cap, key, native))
     }
@@ -462,7 +473,7 @@ impl Engine {
         super::validate_abilities(abilities)?;
         self.surface_key(
             self.root,
-            Self::native_surfaces(abilities)?,
+            Self::native_surfaces(abilities, true)?,
             name,
             text,
             false,
@@ -479,7 +490,7 @@ impl Engine {
         super::validate_abilities(abilities)?;
         self.surface_key(
             self.root,
-            Self::native_surfaces(abilities)?,
+            Self::native_surfaces(abilities, true)?,
             name,
             text,
             true,
@@ -531,9 +542,12 @@ impl Engine {
     ) -> Result<Option<String>, String> {
         super::validate_abilities(abilities)?;
         let wanted = canonical_abilities(abilities)?;
-        for text in
-            self.replayed_surfaces(self.root, Self::native_surfaces(abilities)?, name, trail)?
-        {
+        for text in self.replayed_surfaces(
+            self.root,
+            Self::native_surfaces(abilities, true)?,
+            name,
+            trail,
+        )? {
             if self.reads_as(name, &text, &wanted) {
                 return Ok(Some(text));
             }
@@ -609,7 +623,7 @@ impl Engine {
         let mut renderer = Renderer::new(&self.grammar, &self.style, 8, types.to_vec())
             .with_name(name)
             .with_self_name(Names::of(name).printed(types));
-        for surface in Self::native_surfaces(abilities)? {
+        for surface in Self::native_surfaces(abilities, false)? {
             if let Some(best) = renderer.render(self.root, &surface).first() {
                 out.extend(
                     best.productions
@@ -641,7 +655,7 @@ impl Engine {
             return Err("frontier target token limit".into());
         }
         let mut matcher = Matcher::new(&self.grammar, &target);
-        for surface in Self::native_surfaces(abilities)? {
+        for surface in Self::native_surfaces(abilities, true)? {
             if matcher.reaches(self.root, &surface) {
                 return Ok(None);
             }
@@ -685,7 +699,7 @@ impl Engine {
         let names = Names::of(name);
         let target = tokens::tokenize(text, &names, &self.grammar.vocabulary)?;
         let mut matcher = Matcher::new(&self.grammar, &target);
-        for surface in Self::native_surfaces(abilities)? {
+        for surface in Self::native_surfaces(abilities, true)? {
             if matcher.reaches(self.root, &surface) {
                 return Ok(true);
             }
