@@ -88,13 +88,36 @@ counter_amount ::= counter_a | number_digits | number_words | number_x
 /* @sem Expr::Constant(1) */
 counter_a ::= "a" | "an"
 
-counter_kind ::= counter_plus | counter_minus | counter_name
+counter_kind ::= counter_plus | counter_minus | counter_pt | counter_name
 
 /* @sem CounterKind::PowerToughness(1, 1) */
 counter_plus ::= "+" "1" "/" "+" "1"
 
 /* @sem CounterKind::PowerToughness(-1, -1) */
 counter_minus ::= "-" "1" "/" "-" "1"
+
+/* Other power/toughness counters, as printed: a zero keeps its written sign. */
+counter_pt ::= counter_pt_plus1_plus0 | counter_pt_plus2_plus2 | counter_pt_plus0_plus1 | counter_pt_minus0_minus1 | counter_pt_minus0_minus2 | counter_pt_plus1_plus2 | counter_pt_minus2_minus1 | counter_pt_minus2_minus2 | counter_pt_plus0_plus2 | counter_pt_minus1_minus0
+/* @sem CounterKind::PowerToughness(1, 0) */
+counter_pt_plus1_plus0 ::= "+" "1" "/" "+" "0"
+/* @sem CounterKind::PowerToughness(2, 2) */
+counter_pt_plus2_plus2 ::= "+" "2" "/" "+" "2"
+/* @sem CounterKind::PowerToughness(0, 1) */
+counter_pt_plus0_plus1 ::= "+" "0" "/" "+" "1"
+/* @sem CounterKind::PowerToughness(0, -1) */
+counter_pt_minus0_minus1 ::= "-" "0" "/" "-" "1"
+/* @sem CounterKind::PowerToughness(0, -2) */
+counter_pt_minus0_minus2 ::= "-" "0" "/" "-" "2"
+/* @sem CounterKind::PowerToughness(1, 2) */
+counter_pt_plus1_plus2 ::= "+" "1" "/" "+" "2"
+/* @sem CounterKind::PowerToughness(-2, -1) */
+counter_pt_minus2_minus1 ::= "-" "2" "/" "-" "1"
+/* @sem CounterKind::PowerToughness(-2, -2) */
+counter_pt_minus2_minus2 ::= "-" "2" "/" "-" "2"
+/* @sem CounterKind::PowerToughness(0, 2) */
+counter_pt_plus0_plus2 ::= "+" "0" "/" "+" "2"
+/* @sem CounterKind::PowerToughness(-1, 0) */
+counter_pt_minus1_minus0 ::= "-" "1" "/" "-" "0"
 
 action ::= copy_effect_indefinite_except | copy_effect_duration_except | copy_effect_indefinite | copy_effect_duration | keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | goad_while_present | clash_opponent | attach_each_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_ordered_face_down | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard
     | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | move_battlefield | move_battlefield_tapped | move_battlefield_owner
@@ -108,7 +131,7 @@ action ::= copy_effect_indefinite_except | copy_effect_duration_except | copy_ef
     | create_tokens_tapped_attacking | abandon_this_scheme | you_gain_life | deal_damage_equal_counters
     | deal_damage_split_two | exile_target_players_graveyard
     | exile_two_groups | exile_all_graveyards | exile_with_counters | exile_instead_of_dying
-    | exile_damaged_instead_of_dying | prevent_combat_damage_by | gain_control_of
+    | exile_damaged_instead_of_dying | prevent_combat_damage_by | prevent_combat_damage_would_deal | gain_control_of
     | player_gains_control_of | gain_control_while_controlled | exile_top_cards_of_your_library
     | then_players_shuffle | look_at_top_x_cards | shuffle_your_library | search_library_for_cards
     | play_that_card_permission | play_those_cards_permission | skip_controllers_next_untap
@@ -1692,6 +1715,8 @@ exile_damaged_instead_of_dying ::= "if" "a" filter_phrase "dealt" "damage" "this
 /* Preventing combat damage an object would deal. */
 /* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
 prevent_combat_damage_by ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "by" object_ref this_duration
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_combat_damage_would_deal ::= "prevent" "all" "combat" "damage" object_ref "would" "deal" this_duration
 
 /* You gaining control indefinitely. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[SetController(AbilityController)], duration:Indefinite, evaluation:Snapshot} */

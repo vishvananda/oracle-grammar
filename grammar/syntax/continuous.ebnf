@@ -310,7 +310,23 @@ rule_changes ::= rule_change | rule_changes_and
 rule_changes_and ::= rule_change "and" rule_changes
 
 rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack
-    | rule_cant_attack_or_block | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked
+    | rule_cant_attack_or_block | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power
+
+/* Crewing, saddling and stationing count more power, or toughness instead.
+   Crew comes first whatever the order of the words. */
+rule_tap_power ::= tap_power_crew | tap_power_saddle_crew | tap_power_crew_station | tap_toughness_crew | tap_toughness_saddle_crew | tap_toughness_station
+/* @sem Change::[Rule(TapPowerBonus{cost:Crew, bonus:$value})] */
+tap_power_crew ::= "crews" "Vehicles" "as" "though" "its" "power" "were" value "greater"
+/* @sem Change::[Rule(TapPowerBonus{cost:Crew, bonus:$value}), Rule(TapPowerBonus{cost:Saddle, bonus:$value})] */
+tap_power_saddle_crew ::= "saddles" "Mounts" "and" "crews" "Vehicles" "as" "though" "its" "power" "were" value "greater"
+/* @sem Change::[Rule(TapPowerBonus{cost:Crew, bonus:$value}), Rule(TapPowerBonus{cost:Station, bonus:$value})] */
+tap_power_crew_station ::= "crews" "Vehicles" "and" "stations" "permanents" "as" "though" "its" "power" "were" value "greater"
+/* @sem Change::[Rule(TapCostUsesToughness(Crew))] */
+tap_toughness_crew ::= "crews" "Vehicles" "using" "its" "toughness" "rather" "than" "its" "power"
+/* @sem Change::[Rule(TapCostUsesToughness(Crew)), Rule(TapCostUsesToughness(Saddle))] */
+tap_toughness_saddle_crew ::= "saddles" "Mounts" "and" "crews" "Vehicles" "using" "its" "toughness" "rather" "than" "its" "power"
+/* @sem Change::[Rule(TapCostUsesToughness(Station))] */
+tap_toughness_station ::= "stations" "permanents" "using" "its" "toughness" "rather" "than" "its" "power"
 
 /* @sem $be_blocked_requirement */
 rule_must_be_blocked ::= be_blocked_requirement "if" "able"
