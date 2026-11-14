@@ -1001,38 +1001,46 @@ fn nested_scopes(value: &Value, path: &mut Vec<Step>, out: &mut Vec<Vec<Step>>) 
 }
 
 /// `forms` with each ability nested inside them replaced by its own surface forms.
+/// Each form finds its own nested abilities: a `choose` sentence shifts the
+/// instructions after it.
 fn nested_forms(forms: Vec<Value>) -> Vec<Value> {
-    let mut paths = Vec::new();
-    if let Some(first) = forms.first() {
-        nested_scopes(first, &mut Vec::new(), &mut paths);
-    }
-    let mut out = forms;
-    for path in paths {
-        let mut next = Vec::new();
-        for form in &out {
-            let mut copy = form.clone();
-            let Some(inner) = at_path(&mut copy, &path).map(|node| node.clone()) else {
-                next.push(copy);
-                continue;
-            };
-            // Literal recipes (for example Map tokens) print their name with a
-            // complete ability in the pattern. Keep that bound form as well as
-            // the forms that introduce targets in a quoted ability's text.
-            let mut variants = unbind_ability(&inner);
-            if !variants.contains(&inner) {
-                variants.push(inner);
-            }
-            for variant in variants {
-                if next.len() >= 64 {
-                    break;
-                }
-                if let Some(node) = at_path(&mut copy, &path) {
-                    *node = variant;
-                    next.push(copy.clone());
-                }
-            }
+    let mut out = Vec::new();
+    for form in forms {
+        if out.len() >= 64 {
+            break;
         }
-        out = next;
+        let mut paths = Vec::new();
+        nested_scopes(&form, &mut Vec::new(), &mut paths);
+        let room = 64 - out.len();
+        let mut expanded = vec![form];
+        for path in paths {
+            let mut next = Vec::new();
+            for form in &expanded {
+                let mut copy = form.clone();
+                let Some(inner) = at_path(&mut copy, &path).map(|node| node.clone()) else {
+                    next.push(copy);
+                    continue;
+                };
+                // Literal recipes (for example Map tokens) print their name with a
+                // complete ability in the pattern. Keep that bound form as well as
+                // the forms that introduce targets in a quoted ability's text.
+                let mut variants = unbind_ability(&inner);
+                if !variants.contains(&inner) {
+                    variants.push(inner);
+                }
+                for variant in variants {
+                    if next.len() >= room {
+                        break;
+                    }
+                    if let Some(node) = at_path(&mut copy, &path) {
+                        *node = variant;
+                        next.push(copy.clone());
+                    }
+                }
+            }
+            expanded = next;
+        }
+        out.extend(expanded);
     }
     out
 }

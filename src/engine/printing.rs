@@ -12,6 +12,9 @@ use std::rc::Rc;
 
 /// Marks the part of an ordered key that says how the card's name is spelled.
 const SPELLING: &str = "@name.";
+/// Marks a number of an ordered key, by its place among the text's numbers, that is
+/// written with thousands separators.
+const GROUPED: &str = "@grouped.";
 /// Beam widths to try in turn, as multiples of the cap, until a text reads back.
 const WIDTHS: [usize; 2] = [4, 16];
 /// How many failed texts of a card are read as text even when their trees say no.
@@ -532,6 +535,19 @@ impl Engine {
                         tokens::Token::SelfName(index) => Some(format!("{SPELLING}{index}")),
                         _ => None,
                     }));
+                    key.extend(
+                        target
+                            .iter()
+                            .filter(|token| {
+                                matches!(
+                                    token,
+                                    tokens::Token::Number(_) | tokens::Token::Grouped(_)
+                                )
+                            })
+                            .enumerate()
+                            .filter(|(_, token)| matches!(token, tokens::Token::Grouped(_)))
+                            .map(|(place, _)| format!("{GROUPED}{place}")),
+                    );
                 } else {
                     key.sort();
                     key.dedup();
@@ -575,8 +591,15 @@ impl Engine {
         name: &str,
         trail: &[String],
     ) -> Result<Vec<String>, String> {
-        let (spelled, choices): (Vec<&String>, Vec<&String>) =
-            trail.iter().partition(|step| step.starts_with(SPELLING));
+        let (grouped, trail): (Vec<&String>, Vec<&String>) =
+            trail.iter().partition(|step| step.starts_with(GROUPED));
+        let (spelled, choices): (Vec<&String>, Vec<&String>) = trail
+            .into_iter()
+            .partition(|step| step.starts_with(SPELLING));
+        let grouped: Option<Vec<usize>> = grouped
+            .iter()
+            .map(|step| step[GROUPED.len()..].parse().ok())
+            .collect();
         let steps: Option<Vec<(u32, usize)>> = choices
             .iter()
             .map(|step| {
@@ -588,14 +611,15 @@ impl Engine {
             .iter()
             .map(|step| step[SPELLING.len()..].parse().ok())
             .collect();
-        let (Some(steps), Some(spellings)) = (steps, spellings) else {
+        let (Some(steps), Some(spellings), Some(grouped)) = (steps, spellings, grouped) else {
             return Ok(Vec::new());
         };
         let names = Names::of(name);
         let mut texts = Vec::new();
         for surface in surfaces {
             let printed = Replay::run(&self.grammar, root, &surface, &steps, &spellings);
-            if let Some(printed) = printed {
+            if let Some(mut printed) = printed {
+                group_numbers(&mut printed, &grouped);
                 let text = tokens::detokenize(&tokens::agree_articles(&printed), &names);
                 if !texts.contains(&text) {
                     texts.push(text);
@@ -739,4 +763,21 @@ fn stopped_in(renderer: &mut Renderer, before: &Value, after: &Value) -> Option<
         (renderer.printable(before) && !renderer.printable(after))
             .then(|| (before.clone(), after.clone()))
     })
+}
+
+/// Writes the numbers at these places among the printed numbers with separators.
+fn group_numbers(printed: &mut [tokens::Token], grouped: &[usize]) {
+    if grouped.is_empty() {
+        return;
+    }
+    let numbers = printed
+        .iter_mut()
+        .filter(|token| matches!(token, tokens::Token::Number(_) | tokens::Token::Grouped(_)));
+    for (place, token) in numbers.enumerate() {
+        if let tokens::Token::Number(value) = *token
+            && grouped.contains(&place)
+        {
+            *token = tokens::Token::Grouped(value);
+        }
+    }
 }

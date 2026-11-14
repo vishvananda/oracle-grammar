@@ -773,7 +773,12 @@ impl<'a> Matcher<'a> {
             Sym::Class(_) => class_token(sym, value?)?,
             Sym::Rule(_) => return None,
         };
-        (wanted == *token).then_some(at + 1)
+        // A number reads the same with or without thousands separators.
+        let same = match (&wanted, token) {
+            (Token::Number(number), Token::Grouped(grouped)) => number == grouped,
+            _ => wanted == *token,
+        };
+        same.then_some(at + 1)
     }
 }
 
