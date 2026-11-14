@@ -293,54 +293,60 @@ pub(crate) fn substituted(mut body: Value, value: &Value) -> Value {
     body
 }
 
+/// The typed `Expr` operands of one node that a `where X is` clause can name.
+/// Each position is one the IR types as `Expr`; arbitrary numeric fields and
+/// source or affected metadata are not where-clause values.
+fn expr_slots(node: &Value) -> Vec<&Value> {
+    let args = &node["args"];
+    let mut slots = Vec::new();
+    match node["kind"].as_str() {
+        // `-X/-X`: X names the amount under the minus sign, never a negative.
+        Some("Pump" | "SetBasePowerToughness") => {
+            for key in ["power", "toughness"] {
+                slots.push(match &args[key] {
+                    negated
+                        if negated["kind"] == "Multiply"
+                            && constant(&negated["args"][0]) == Some(-1) =>
+                    {
+                        &negated["args"][1]
+                    }
+                    item => item,
+                });
+            }
+        }
+        // A looked-at or revealed slice owns its count; other Take consumers
+        // keep their own count spellings.
+        Some("LookAt" | "Reveal") if args["objects"]["kind"] == "Take" => {
+            slots.push(&args["objects"]["args"]["count"]);
+        }
+        Some("Conjure" | "RevealFromHand") => slots.push(&args["count"]),
+        _ => {}
+    }
+    // The initial copiable stats of a Defined token recipe.
+    if let Some(stats) = node["Defined"]["power_toughness"].as_array() {
+        slots.extend(stats);
+    }
+    // A target slot's count and the total divided among its targets.
+    if let (Some(count), Some(total)) = (node["count"].as_object(), node.get("distribute"))
+        && node.get("slot").is_some()
+    {
+        slots.extend(count.values());
+        slots.push(total);
+    }
+    // A damage shield's total, and how many times an action repeats.
+    for key in ["TotalDamage", "DamageToEach", "times"] {
+        slots.extend(node.get(key));
+    }
+    slots
+}
+
 /// What a `where X is` clause could have named: each computed number in the body.
 pub(crate) fn computed_numbers(node: &Value, out: &mut Vec<Value>) {
     match node {
         Value::Object(object) => {
-            // A native Pump owns two Expr operands. Enumerate those typed
-            // positions explicitly, rather than treating arbitrary numeric
-            // fields (or source/affected metadata) as where-clause values.
-            if node["kind"] == "Pump" {
-                for key in ["power", "toughness"] {
-                    // `-X/-X`: X names the amount under the minus sign, never a negative.
-                    let item = match &node["args"][key] {
-                        negated
-                            if negated["kind"] == "Multiply"
-                                && constant(&negated["args"][0]) == Some(-1) =>
-                        {
-                            &negated["args"][1]
-                        }
-                        item => item,
-                    };
-                    if item.get("kind").is_some() && constant(item).is_none() && !out.contains(item)
-                    {
-                        out.push(item.clone());
-                    }
-                }
-            }
-            // A LookAt slice owns this where-clause count. Do not widen every
-            // other Take consumer's inverse with unrelated count spellings.
-            if node["kind"] == "LookAt" && node["args"]["objects"]["kind"] == "Take" {
-                let item = &node["args"]["objects"]["args"]["count"];
+            for item in expr_slots(node) {
                 if item.get("kind").is_some() && constant(item).is_none() && !out.contains(item) {
                     out.push(item.clone());
-                }
-            }
-            // Conjure's count is an Expr, unlike arbitrary count metadata.
-            if node["kind"] == "Conjure" {
-                let item = &node["args"]["count"];
-                if item.get("kind").is_some() && constant(item).is_none() && !out.contains(item) {
-                    out.push(item.clone());
-                }
-            }
-            // These are initial copiable Expr slots of a Defined token recipe,
-            // not ability definitions or arbitrary numeric characteristic data.
-            if let Some(stats) = node["Defined"]["power_toughness"].as_array() {
-                for item in stats {
-                    if item.get("kind").is_some() && constant(item).is_none() && !out.contains(item)
-                    {
-                        out.push(item.clone());
-                    }
                 }
             }
             for (key, item) in object {
@@ -549,5 +555,33 @@ mod conjure_count_inverse_tests {
             &mut unrelated,
         );
         assert!(unrelated.is_empty());
+    }
+
+    #[test]
+    fn target_counts_totals_base_stats_shields_and_repeats_are_where_values() {
+        let value = json!({"kind":"CountPlayers","args":{"kind":"OpponentsOf","args":{"kind":"AbilityController"}}});
+        let other = json!({"kind":"CountObjects","args":{"kind":"Any"}});
+        let spec =
+            json!({"slot":0,"count":{"UpTo":value},"distribute":other,"filter":{"kind":"Any"}});
+        let mut candidates = Vec::new();
+        computed_numbers(&spec, &mut candidates);
+        assert_eq!(candidates, vec![value.clone(), other.clone()]);
+        let mut more = Vec::new();
+        for node in [
+            json!({"kind":"SetBasePowerToughness","args":{"power":value,"toughness":value}}),
+            json!({"TotalDamage":value}),
+            json!({"Investigate":{"times":value}}),
+            json!({"kind":"RevealFromHand","args":{"count":value}}),
+        ] {
+            computed_numbers(&node, &mut more);
+            assert_eq!(more, vec![value.clone()], "{node}");
+            more.clear();
+        }
+        // A count without a target slot is not one.
+        computed_numbers(
+            &json!({"count":{"UpTo":value},"distribute":null}),
+            &mut more,
+        );
+        assert!(more.is_empty());
     }
 }
