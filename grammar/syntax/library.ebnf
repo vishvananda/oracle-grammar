@@ -61,6 +61,15 @@ found_many ::= "them" | "those" "cards"
 player_search_one_choice ::= search_choice_any | search_choice_filtered | search_choice_optional_one
 player_search_many_choice ::= search_choice_many | search_choice_many_any
 
+/* After milling, you may put one matching card of those milled into your hand. */
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$mill_take_choice}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}] */
+clause_mill_take ::= "mill" card_count "." "you" "may" "put" mill_take_choice "from" "among" "them" "into" "your" "hand"
+mill_take_choice ::= mill_take_filtered | mill_take_modified
+/* @sem $search_filter */
+mill_take_filtered ::= ("a" | "an") search_filter
+/* @sem $modifier */
+mill_take_modified ::= "a" "card" modifier
+
 /* What a search looks for: one find clause. */
 search_choice ::= search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where
 /* The count's definition follows the cards it counts. */
@@ -231,8 +240,14 @@ ordered_graveyard ::= "graveyard"
 
 /* The top of your library, looked at or shown. What follows the look names your own
    library and hand. */
+your_top ::= your_top_slice | your_top_counted
+
 /* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:$top_count, from:Top} */
-your_top ::= "the" "top" top_count "of" "your" "library"
+your_top_slice ::= "the" "top" top_count "of" "your" "library"
+
+/* "That many cards from the top of your library": the same slice, counted first. */
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:$card_count_that_many, from:Top} */
+your_top_counted ::= card_count_that_many "from" "the" "top" "of" "your" "library"
 
 top_count ::= top_one | top_many
 
@@ -280,26 +295,103 @@ look_put_then_body ::= look_top ("," "then" | "and") look_put_split
 
 look_count ::= number
 
-/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$look_top}, ...$look_reveal_split] */
-instructions_look_reveal ::= look_top "." look_reveal_split
-
-/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$card_filter}, count:UpTo(Expr::Constant(1)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Reveal{objects:Selected(@prior)}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Instruction::Effect{result:@next, operation:$rest_bottom}] */
-look_reveal_split ::= "you" "may" "reveal" ("a" | "an") card_filter "card" "from" "among" "them" "and" "put" ("it" | "that" "card") "into" "your" "hand" "." "then"? "put" rest_bottom
-
-/* One optional card choice feeds the actual move. Remainders exclude its
-   departure, keeping the look, selection and move result identities separate. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:$look_battlefield_destination}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$look_battlefield_destination, qualifiers:[]}}] */
-look_move_card ::= "you" "may" "put" a_card "from" "among" "them" look_battlefield_destination
-
-look_battlefield_destination ::= until_battlefield | look_battlefield_tapped
 /* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
 look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 
-/* @sem Instruction::[...$look_move_card, Effect{result:@next, operation:$rest_bottom}] */
-look_move_split ::= look_move_card "." "then"? "put" rest_bottom
+/* Looking at or revealing the top of your library, taking some of those cards and
+   putting the rest away. The take chooses from the observed cards still in the
+   library; the rest excludes what the move took. Later sentences follow the block. */
+instructions_dig ::= dig_block | dig_block_more | dig_block_untaken
 
-/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_move_split] */
-instructions_look_move ::= look_top "." look_move_split
+/* @sem Instruction::[...$dig_block, ...$instructions] */
+dig_block_more ::= dig_block "." instructions
+
+/* Only a look-and-take states the miss this way; a revealed required take names
+   its move's result instead. */
+/* @sem Instruction::[...$dig_look_split, $dig_untaken_if] */
+dig_block_untaken ::= dig_look_split "." dig_untaken_if
+
+/* Nothing was taken when the take's move, just before the rest, moved no card. */
+/* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Matching{objects:Union([Transition{result:@back(2), phase:Before}]), filter:Any}), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
+dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
+
+dig_block ::= dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
+dig_look_split ::= look_top "." dig_follow_split
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_joined] */
+dig_look_joined ::= look_top "." dig_follow_joined
+
+/* What follows a look: a take, then the rest, in two sentences or one. */
+dig_follow ::= dig_follow_split | dig_follow_joined
+
+/* @sem Instruction::[...$dig_look_take, $dig_rest_put] */
+dig_follow_split ::= dig_look_take "." dig_rest_put
+
+/* @sem Instruction::[...$dig_put_take, $dig_rest_and] */
+dig_follow_joined ::= dig_put_take dig_rest_and
+
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$dig_put_take, $dig_rest_put] */
+dig_reveal_split ::= reveal_top "." dig_put_take "." dig_rest_put
+
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$dig_put_take, $dig_rest_and] */
+dig_reveal_joined ::= reveal_top "." dig_put_take dig_rest_and
+
+/* The rest is numbered where its words start, after the take it excludes. */
+/* @sem Instruction::Effect{result:@next, operation:$look_rest} */
+dig_rest_put ::= ("then")? "put" look_rest
+/* @sem Instruction::Effect{result:@next, operation:$look_rest} */
+dig_rest_and ::= "and" look_rest
+
+/* Looked-at cards are revealed as they are taken; revealed ones are already shown. */
+dig_look_take ::= dig_reveal_one | dig_reveal_upto | dig_reveal_any | dig_reveal_top | dig_top_one | dig_put_take
+
+/* A revealed card put back on top stays in the library; the reorder is its receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1))}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@back(3)), end:Top, order:Chosen}}] */
+dig_reveal_top ::= "you" "may" "reveal" a_card "from" "among" "them" "and" "put" found_one "on" "top" "of" "your" "library"
+
+/* Keeping one card on top reorders it in place; the rest exclude that reorder. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:UpTo(Constant(1))}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@prior), end:Top, order:Chosen}}] */
+dig_top_one ::= "you" "may" "put" "one" "of" ("them" | "those" "cards") ("back")? "on" "top" "of" "your" "library"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+dig_reveal_one ::= "you" "may" "reveal" a_card "from" "among" "them" "and" "put" found_one "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$search_filter_many}, count:UpTo($count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+dig_reveal_upto ::= "you" "may" "reveal" "up" "to" count search_filter_many "from" "among" "them" "and" "put" dig_found_many "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$search_filter_many}, count:AnyNumber, constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+dig_reveal_any ::= "you" "may" "reveal" "any" "number" "of" search_filter_many "from" "among" "them" "and" "put" dig_found_many "into" "your" "hand"
+
+/* @sem () */
+dig_found_many ::= "them" | "those" "cards" | "the" "revealed" "cards"
+
+/* "You may put a card" takes at most one; "put a card" takes one if there is one. */
+dig_put_take ::= dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:$dig_destination}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
+dig_put_may_one ::= "you" "may" "put" a_card "from" "among" "them" dig_destination
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:$dig_destination}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
+dig_put_one ::= "put" a_card "from" "among" "them" dig_destination
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$search_filter_many}, count:UpTo($count), constraints:[CanMoveTo{destination:$dig_destination}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
+dig_put_upto ::= ("you" "may")? "put" "up" "to" count search_filter_many "from" "among" "them" dig_destination
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$search_filter_many}, count:AnyNumber, constraints:[CanMoveTo{destination:$dig_destination}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
+dig_put_any ::= ("you" "may")? "put" "any" "number" "of" search_filter_many "from" "among" "them" dig_destination
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$search_filter_many}, destination:$dig_destination, qualifiers:[]}}] */
+dig_put_all ::= "put" "all" search_filter_many dig_all_among dig_destination
+
+/* @sem () */
+dig_all_among ::= "from" "among" "them" | "revealed" "this" "way"
+
+dig_destination ::= until_hand | until_battlefield | look_battlefield_tapped | look_battlefield_counter
+
+/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, $counter_amount]], states:[]}} */
+look_battlefield_counter ::= "onto" "the" "battlefield" "with" counter_amount counter_kind "counter" "on" "it"
 
 /* Casting removes cards from the observed library directly. The remainder is
    the observed population still in that zone, independent of cast receipts. */
@@ -347,7 +439,7 @@ look_exile_cast_split ::= look_exile_card "." look_put_remainder "." look_cast_e
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::RevealUntil{library:AbilityController, filter:$card_filter, count:Expr::Constant(1)}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:$until_destination, qualifiers:[]}}, Instruction::Effect{result:@next, operation:$rest_bottom}] */
 instructions_reveal_until ::= "reveal" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "reveal" ("a" | "an") card_filter "card" "." "put" "that" "card" until_destination "and" rest_bottom
 
-until_destination ::= until_hand | until_battlefield
+until_destination ::= until_hand | until_battlefield | look_battlefield_tapped
 
 /* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
 until_hand ::= "into" "your" "hand"
@@ -425,7 +517,11 @@ your_hand ::= "your" "hand"
 /* @sem EventZone::Graveyard */
 your_graveyard ::= "your" "graveyard"
 
-a_card ::= a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another
+a_card ::= a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another | a_card_or
+
+/* "A Mount creature card or a Plains card": either kind, each with its own noun. */
+/* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
+a_card_or ::= ("a" | "an") card_filter "card" "or" ("a" | "an")? card_filter "card"
 
 /* "Another creature card from your graveyard": any but this card. */
 /* @sem @and($card_filter, ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source))) */
@@ -757,7 +853,7 @@ then_players_shuffle ::= "then" players_singular "shuffles"
 /* @sem @where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_where_follow]}, $value) */
 program_look_where ::= ("you")? look_top "," "where" "X" "is" value "." look_where_follow
 
-look_where_follow ::= look_put_split | look_reveal_split | look_move_split | look_cast_split | look_top_split | look_top_condition_split | look_exile_cast_split
+look_where_follow ::= look_put_split | dig_follow | look_cast_split | look_top_split | look_top_condition_split | look_exile_cast_split
 
 /* Declining to look also declines the following top/bottom selection. */
 /* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:@where(Program::Program{instructions:[Effect{result:@mark, operation:$look_top}, ...$look_top_split]}, $value)}]} */

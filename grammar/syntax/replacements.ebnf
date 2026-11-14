@@ -623,9 +623,22 @@ clause_delayed_cleanup_after ::= may_body "at" "the" "beginning" "of" "the" "nex
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1)), options:[]}}}]}}) */
 entering_choose_creature_type ::= "as" object_ref "enters" "," "choose" "a" "creature" "type" "."
 
+/* An escaped permanent enters with counters: a replacement on its own escaped entry. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:AllOf([SameObject($object_ref), State(Escaped)])}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})}}]}}) */
+entering_escaped_counters ::= object_ref "escapes" "with" counter_amount counter_kind ("counter" | "counters") "on" "it" "."
+
 /* Choosing a color as the permanent enters. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}]}}) */
 entering_choose_color ::= "as" object_ref "enters" "," "choose" "a" "color" "."
+
+/* A Siege's controller chooses Khans or Dragons as it enters; each bulleted
+   ability applies only while its word is the chosen one. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text(Khans), Text(Dragons)]}}}]}}) */
+entering_choose_khans_dragons ::= "as" object_ref "enters" "," "choose" "Khans" "or" "Dragons" "."
+/* @sem Ability::Conditional{condition:ChosenWord(Khans), then:[@scope($ability)]} */
+chosen_khans_ability ::= "•" "Khans" "—" ability
+/* @sem Ability::Conditional{condition:ChosenWord(Dragons), then:[@scope($ability)]} */
+chosen_dragons_ability ::= "•" "Dragons" "—" ability
 
 /* Entering tapped and the color chosen as it enters are one entry replacement. */
 entering_tapped_choose_color ::= entering_tapped_any_color | entering_tapped_other_color

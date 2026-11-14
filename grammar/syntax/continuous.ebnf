@@ -108,7 +108,12 @@ affected_other ::= contextual_other_filter
 contextual_other_filter ::= "other" filter_plural
 
 duration ::= duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep
-    | until_next_end_step
+    | until_next_end_step | while_you_control
+
+/* "For as long as you control this creature": the effect ends when you stop
+   controlling that object. */
+/* @sem Duration::WhileControlled{player:AbilityController, object:$object_ref} */
+while_you_control ::= "for" "as" "long" "as" "you" "control" object_ref
 
 /* @sem Duration::EndOfTurn */
 until_end_of_turn ::= "until" "end" "of" "turn"
@@ -1578,7 +1583,7 @@ change_unblockable_except_by ::= "can't" "be" "blocked" "except" "by" filter_plu
 
 /* A set base power and toughness. */
 /* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}] */
-change_has_base_power_toughness ::= "has" "base" "power" "and" "toughness" value "/" value
+change_has_base_power_toughness ::= ("has" | "have") "base" "power" "and" "toughness" value "/" value
 
 /* Each affected permanent skips its controller's untap. */
 /* @sem Change::[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})] */
@@ -1771,6 +1776,10 @@ static_spells_cost_less ::= cast_spells_filter "you" "cast" "cost" braced_amount
 /* `{X}` less, where X is a value: the reduction is that value. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:[_{amount:$value}], spill_into_generic:true}})]}) */
 static_spells_cost_less_where ::= cast_spells_filter "you" "cast" "cost" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" value "."
+
+/* The printed generic reduction is a factor of the counted objects, as for this spell. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:[_{amount:@times($braced_number, $count_each)}], spill_into_generic:true}})]}) */
+static_spells_cost_less_each ::= cast_spells_filter "you" "cast" "cost" braced_number "less" "to" "cast" "for" "each" count_each "."
 
 /* Activated abilities of a group can't be activated, or only their mana abilities can. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(Prohibit(Activate(Any)))]}) */

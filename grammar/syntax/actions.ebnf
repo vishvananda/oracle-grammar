@@ -515,6 +515,10 @@ reflexive_pay_energy ::= cost_energy
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}, otherwise:Program{}}] */
 clause_counter_unless_plain ::= "counter" target_stack_spell "unless" "its" "controller" "pays" counter_unless_cost
 
+/* "If they do" names the payment: paying spares the spell and earns the reward. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}}] */
+clause_counter_unless_they_do ::= "counter" target_stack_spell "unless" "its" "controller" "pays" counter_unless_cost "." "if" "they" "do" "," conjoined
+
 /* A targeted permanent's controller may pay to spare it from the action. The
    payment names the target the action announces next; a bare {X} is the
    announced value, as for a counter. */
@@ -1543,6 +1547,19 @@ secret_optional_object_vote_reveal ::= players_singular "secretly" "votes" "for"
 /* @sem Instruction::[Effect{result:@next, operation:@scope(Operation::CreateTrigger{event:Spell{event:Cast, players:One(AbilityController), spells:Any}, duration:EndOfTurn, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($target_up_to_one)), kind:$counter_kind, amount:ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown}}]}}]}, once:true})}] */
 clause_next_cast_mana_counters ::= "when" "you" "next" "cast" "a" "spell" "this" "turn" "," "put" "X" counter_kind "counters" "on" target_up_to_one "," "where" "X" "is" "the" "mana" "value" "of" "that" "spell"
 
+/* "When you next cast an instant or sorcery spell this turn, copy that spell": a
+   one-shot trigger whose copy is of the spell that triggered it. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:Spell{event:Cast, players:One(AbilityController), spells:$spell_filter}, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventSubject, times:$next_cast_copy, targets:May}}]}, once:true}}] */
+clause_next_cast_copy ::= "when" "you" "next" "cast" spell_filter this_duration "," next_cast_copy
+
+next_cast_copy ::= next_cast_copy_once | next_cast_copy_x
+/* @sem Expr::Constant(1) */
+next_cast_copy_once ::= "copy" next_cast_copied "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
+/* @sem Expr::AnnouncedX */
+next_cast_copy_x ::= "copy" next_cast_copied "X" "times" "." "you" "may" "choose" "new" "targets" "for" "the" "copies"
+/* @sem () */
+next_cast_copied ::= "that" "spell" | "it"
+
 /* The creature ballot establishes both the no-votes condition and the
    most-voted population. Reveal all ballots before testing the outcome. */
 /* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:Vote{actor:One(Bound(0)), ballot:UpToOne(Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}), secret:true}}]}}, Effect{result:@next, operation:RevealChoices{kind:Object}}, If{condition:Outcome(NoVotes), then:Program{instructions:[Effect{result:@next, operation:Draw{players:All, amount:$card_count}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:State(MostVotes)}, regeneration:true}}]}}] */
@@ -1817,3 +1834,13 @@ clash_if_you_win ::= "clash" "with" "an" "opponent" "." "if" "you" "win" "," pro
 /* A coin flip with won and lost instructions. */
 /* @sem Instruction::[Effect{result:@next, operation:FlipCoin{player:AbilityController, protocol:@coin_protocol}}, If{condition:CoinFlip{result:0, outcome:Won}, then:$program, otherwise:$program_2}]*/
 flip_coin_win_or_lose ::= "flip" "a" "coin" "." "if" "you" "win" "the" "flip" "," program "." "if" "you" "lose" "the" "flip" "," program
+
+/* A coin flip with instructions for one outcome; the flip is what the condition reads. */
+/* @sem Instruction::[Effect{result:@mark, operation:FlipCoin{player:AbilityController, protocol:@coin_protocol}}, If{condition:CoinFlip{result:@marked, outcome:$flip_outcome}, then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_flip_coin_if ::= "flip" "a" "coin" "." "if" "you" flip_outcome "the" "flip" "," conjoined
+
+flip_outcome ::= flip_won | flip_lost
+/* @sem CoinOutcome::Won */
+flip_won ::= "win"
+/* @sem CoinOutcome::Lost */
+flip_lost ::= "lose"

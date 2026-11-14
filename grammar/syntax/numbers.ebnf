@@ -143,13 +143,15 @@ count_each_destroyed ::= filter_phrase "destroyed" "this" "way"
 /* What a card can be, away from the battlefield. `permanent` narrows nothing on the
    battlefield, but among cards it excludes instants and sorceries. */
 card_filter ::= mined_cards | card_word | card_stacked | card_stacked_comma | card_stacked_either | card_stacked_type
-    | card_or | card_three | card_filter_and
+    | card_or | card_list | card_filter_and
 
 card_word ::= quality | card_noun | spell_instant | spell_sorcery
 
 card_noun ::= noun_outlaw | noun_creature | noun_artifact | noun_enchantment | noun_land | noun_planeswalker
     | noun_token | noun_battle | subtype | card_permanent
 
+/* The one word for every permanent type outranks writing the types out. */
+/* @prefer always */
 /* @sem ObjectFilter::AnyOf([ObjectFilter::CardType(Artifact), ObjectFilter::CardType(Battle), ObjectFilter::CardType(Creature), ObjectFilter::CardType(Enchantment), ObjectFilter::CardType(Land), ObjectFilter::CardType(Planeswalker)]) */
 card_permanent ::= "permanent"
 
@@ -168,8 +170,20 @@ card_stacked_type ::= card_noun card_noun
 /* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
 card_or ::= card_word union_or card_word
 
-/* @sem ObjectFilter::AnyOf([$card_word, $card_word_2, $card_word_3]) */
-card_three ::= card_word "," card_word "," union_or card_word
+/* Three or more kinds in a list: "a Knight, Aura, Equipment, or legendary artifact
+   card". The last kind may be stacked. */
+/* @sem ObjectFilter::AnyOf([...$card_commas, $card_list_item]) */
+card_list ::= card_commas union_or card_list_item
+
+card_commas ::= card_commas_more | card_commas_last
+
+/* @sem ObjectFilter::[$card_word, ...$card_commas] */
+card_commas_more ::= card_word "," card_commas
+
+/* @sem ObjectFilter::[$card_word, $card_word_2] */
+card_commas_last ::= card_word "," card_word ","
+
+card_list_item ::= card_word | card_stacked
 
 /* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
 card_filter_and ::= card_word "and" card_word

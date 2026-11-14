@@ -351,7 +351,7 @@ target_exactly ::= count
 /* @sem Count::UpTo($count) */
 target_up_to ::= "up" "to" count
 
-filter_phrase ::= creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | mined_filter
+filter_phrase ::= creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter
 
 /* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
 filter_quality_list ::= quality noun "," noun "," "and" noun modifier
@@ -606,8 +606,10 @@ quality ::= quality_unscoped | adjective_equipped
 quality_unscoped ::= adjective_party | adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_tapped | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked
     | adjective_noncommander | adjective_nontoken | adjective_legendary | adjective_nonlegendary | adjective_basic | adjective_nonbasic
     | adjective_color | adjective_noncolor | adjective_nontype | subtype_negated
-    | adjective_colorless | adjective_snow | adjective_nonsnow | adjective_enchanted | adjective_attacking_or_blocking
+    | adjective_colorless | adjective_snow | adjective_nonsnow | adjective_enchanted | adjective_attacking_or_blocking | adjective_stickered
 
+/* @sem ObjectFilter::State(HasSticker) */
+adjective_stickered ::= "stickered"
 /* @sem ObjectFilter::Tapped */
 adjective_tapped ::= "tapped"
 /* @sem ObjectFilter::Not(ObjectFilter::Tapped) */
@@ -709,7 +711,7 @@ modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x
 modifier_nonnumeric ::= modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls
     | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control
     | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage
-    | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_chosen_name
+    | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_chosen_name | modifier_chosen_type | modifier_kind_sticker | modifier_any_sticker
     | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters
     | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness
     | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you
@@ -762,6 +764,15 @@ modifier_player_controls ::= player_ref "controls"
 modifier_they_control ::= "they" "control"
 /* @sem ObjectFilter::Chosen(CardName) */
 modifier_chosen_name ::= "with" "the" "chosen" "name"
+
+/* "With an art sticker on it" names the kind; "with a sticker on it" any kind. */
+/* @sem ObjectFilter::State(Sticker($sticker_kind)) */
+modifier_kind_sticker ::= "with" ("a" | "an") sticker_kind "sticker" "on" "it"
+/* @sem ObjectFilter::State(HasSticker) */
+modifier_any_sticker ::= "with" "a" "sticker" "on" "it"
+
+/* @sem ObjectFilter::Chosen(CreatureType) */
+modifier_chosen_type ::= "of" "the" "chosen" "type"
 
 /* A stat extreme compares each candidate with that stat over a population.
    The population names its own controller or zone, so a later controller
@@ -1349,6 +1360,8 @@ top_library_owner ::= zone_your | zone_that_player
 /* Modified creatures of a kind. */
 /* @sem ObjectFilter::AllOf([$filter_plural, Modified]) */
 filter_plural_modified ::= "modified" filter_plural
+/* @sem ObjectFilter::AllOf([$filter_phrase, Modified]) */
+filter_phrase_modified ::= "modified" filter_phrase
 
 /* Every card exiled with the source, as one group. */
 /* @sem ObjectSet::InZone{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}), zone:Exile} */
