@@ -46,6 +46,7 @@ impl Visit for Normalize {
         if !matches!(ty, Ty::Named(name) if name == "Ability") {
             return Ok(());
         }
+        self.changed |= super::target_pairs::normalize(value, self.tracing, walker)?;
         let Some(needed) = self.owners.pop() else {
             return Ok(());
         };

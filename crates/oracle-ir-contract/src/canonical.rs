@@ -26,6 +26,7 @@ mod programs;
 mod result_scopes;
 mod sets;
 mod snapshots;
+mod target_pairs;
 mod trace;
 mod untap;
 mod visibility;

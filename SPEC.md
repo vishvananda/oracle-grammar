@@ -225,6 +225,14 @@ U0035 records the corresponding reference normalizations. A copy action's lexica
 other-population excludes the actual copied object, preserving explicit foreign
 references. See [nonlegendary predicates and observed hands](docs/nonlegendary-and-observed-hands.md).
 
+A plain exchange Spell may represent its distinct pair as one two-object target
+group. The owned proof accepts only two required singleton slots with matching
+target-free eligibility, an explicit second-object distinctness test and one
+exchange action. Other target uses, metadata and program shapes remain distinct.
+U0036 normalizes the six corresponding reference frames. Continuous copy actions
+also share native keyword/mechanic copy exceptions and preserve each addition's
+ability scope. See [copy exceptions and exchange pairs](docs/copy-exceptions-and-exchange-pairs.md).
+
 ## Printing
 
 Printing uses the current operands of an edited or synthesized IR. A saved
