@@ -262,6 +262,17 @@ operands and verified printing still reparses the complete output. This is an
 inverse view, not an AST or reference normalization. See
 [closed literal printing](docs/literal-inverse-printing.md).
 
+A declared `AllOf` list of two to four members also prints its canonical
+conjunction when the declared pattern does not unify: the folded conjuncts,
+`Any` and nested lists included, are dealt back out among the members in any
+order, as `@and` does. It is a print-only inverse view; forward meaning is
+unchanged and every text still reparses.
+
+When the exact text is unreachable, the print frontier reports the furthest
+target token any partial inverse derivation reached and the rules that failed
+there, the counterpart of the parse frontier. `score --render` records it on
+non-exact rows and `corpus.py print-gaps` clusters them.
+
 ## Validation and reference inputs
 
 The model and validation reference have separate provenance. `Cargo.lock` owns

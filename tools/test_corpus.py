@@ -208,6 +208,22 @@ class CorpusTests(unittest.TestCase):
                                  'retirable': ['m_a', 'm_b']})
         self.assertEqual(second['retirable'], [])
 
+    def test_print_gaps_cluster_unreachable_wording_by_where_it_stopped(self):
+        def printed(name, exact, before='', after='', blamed=()):
+            frontier = {'at': 3, 'before': before, 'after': after, 'blamed': list(blamed)}
+            return {'name': name, 'text': name, 'printing': [
+                {'reading': 0, 'exact': exact, 'default': 'x',
+                 'print_frontier': None if exact else frontier}]}
+        source = [printed('A', False, 'When this creature', 'Or leaves the', ['a.0 x', 'b unify']),
+                  printed('B', False, 'when this creature', 'or leaves it', ['b unify', 'c.1 y']),
+                  printed('C', False, 'Draw a card', 'And gain', ['c unify']),
+                  printed('D', True)]
+        ranked, details = corpus.print_ranking(source)
+        self.assertEqual(ranked[0], {'key': 'this creature ^ or leaves', 'faces': ['A', 'B'],
+                                     'blamed': ['b', 'a.0', 'c.1']})
+        self.assertEqual(ranked[1]['faces'], ['C'])
+        self.assertEqual([d['name'] for d in details], ['A', 'B', 'C'])
+
 
 if __name__ == '__main__':
     unittest.main()

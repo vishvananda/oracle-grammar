@@ -418,6 +418,43 @@ def gaps(args):
               + '; '.join(cluster['faces'][:4]))
 
 
+def print_key(frontier):
+    """Triage key only: the words on either side of where the exact text stopped."""
+    before = frontier['before'].lower().split()[-2:]
+    after = frontier['after'].lower().split()[:2]
+    return ' '.join(before) + ' ^ ' + (' '.join(after) or '<end>')
+
+
+def print_ranking(source):
+    """Cluster faces whose exact wording is unreachable by where its inverse stopped.
+    Each cluster names the rules most often blamed there, a face counted once."""
+    clusters, blamed, details = defaultdict(list), defaultdict(Counter), []
+    for row in source:
+        for detail in row.get('printing', [row]):
+            frontier = detail.get('print_frontier')
+            if detail.get('exact') is not False or not frontier:
+                continue
+            key = print_key(frontier)
+            clusters[key].append(row['name'])
+            blamed[key].update({entry.split(' ')[0] for entry in frontier['blamed']})
+            details.append({'name': row['name'], 'key': key, 'text': row['text'],
+                            'default': detail.get('default'), 'frontier': frontier})
+            break
+    ranked = [{'key': key, 'faces': names, 'blamed': [rule for rule, _ in blamed[key].most_common(4)]}
+              for key, names in clusters.items()]
+    ranked.sort(key=lambda c: (-len(c['faces']), c['key']))
+    return ranked, details
+
+
+def print_gaps(args):
+    source = Path(args.rows) if args.rows else WORK/'runs'/args.name/'rows.jsonl'
+    ranked, details = print_ranking(rows(source))
+    write(WORK/'print-gaps.json', details)
+    for cluster in ranked[:args.top]:
+        print(f"{len(cluster['faces']):4}  {cluster['key']}  [{', '.join(cluster['blamed'])}]  | "
+              + '; '.join(cluster['faces'][:4]))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     commands = parser.add_subparsers(dest='command', required=True)
@@ -445,13 +482,19 @@ def main():
                                 'rules a fix could retire (after score --without=m_,t_ and rules)')
     stuck.add_argument('name')
     stuck.add_argument('--top', type=int, default=40)
+    printing = commands.add_parser('print-gaps', help='cluster rows whose exact wording is '
+                                   'unreachable by print frontier (after score --render)')
+    printing.add_argument('name', nargs='?')
+    printing.add_argument('--rows', help='a score rows file instead of a named run')
+    printing.add_argument('--top', type=int, default=40)
     commands.add_parser('prepare', help='verify inputs and filter them to the population')
     args = parser.parse_args()
     if args.command == 'prepare':
         print(prepare(inputs()))
     else:
         {'slice': make_slice, 'score': score, 'audit': audit, 'rules': rules,
-         'queue': queue, 'gaps': gaps, 'accept': accept}[args.command](args)
+         'queue': queue, 'gaps': gaps, 'print-gaps': print_gaps,
+         'accept': accept}[args.command](args)
 
 
 if __name__ == '__main__':

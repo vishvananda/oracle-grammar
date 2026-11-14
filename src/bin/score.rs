@@ -148,6 +148,7 @@ fn render_row(
     row["exact"] = json!(any);
     if !any {
         row["rendered"] = json!(printed.iter().collect::<Vec<_>>());
+        row["print_frontier"] = json!(engine.print_frontier(name, abilities, text)?);
     }
     if !first {
         row["first"] = json!(printed);

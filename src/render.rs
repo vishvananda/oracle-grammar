@@ -14,8 +14,11 @@ use std::rc::Rc;
 
 mod branches;
 mod context;
+mod frontier;
 mod prefer;
 pub(crate) mod words;
+
+pub use frontier::{Blame, Frontier};
 
 type Found = Rc<Vec<Derivation>>;
 
@@ -529,6 +532,7 @@ pub struct Matcher<'a> {
     values: Values,
     memo: HashMap<(RuleId, usize, u32), Rc<Vec<usize>>>,
     nothing: Rc<Vec<usize>>,
+    frontier: Frontier,
 }
 
 type Open = HashSet<(RuleId, usize, usize, u32)>;
@@ -541,6 +545,7 @@ impl<'a> Matcher<'a> {
             values: Values::default(),
             memo: HashMap::default(),
             nothing: Rc::new(Vec::new()),
+            frontier: Frontier::default(),
         }
     }
 
@@ -686,9 +691,12 @@ impl<'a> Matcher<'a> {
         match &definition.sem {
             Some(_) => {
                 let solutions = grammar.print_unify(rule, value, true);
-                for alternative in &definition.alternatives {
+                if solutions.is_empty() {
+                    self.blame(at, rule, Blame::Unify);
+                }
+                for (index, alternative) in definition.alternatives.iter().enumerate() {
                     for bindings in &solutions {
-                        out.extend(self.sequence(alternative, bindings, at));
+                        out.extend(self.sequence((rule, index), alternative, bindings, at));
                     }
                 }
             }
@@ -714,18 +722,19 @@ impl<'a> Matcher<'a> {
 
     fn sequence(
         &mut self,
+        (rule, index): (RuleId, usize),
         alternative: &Alternative,
         bindings: &Bindings<'_, '_>,
         at: usize,
     ) -> Vec<usize> {
         let mut positions = vec![at];
-        for (sym, hole) in alternative.syms.iter().zip(&alternative.holes) {
+        for (symbol, (sym, hole)) in alternative.syms.iter().zip(&alternative.holes).enumerate() {
             let value = hole.as_ref().and_then(|name| bindings.get(name));
             let mut next = Vec::new();
-            for position in positions {
+            for &position in &positions {
                 match sym {
-                    Sym::Rule(rule) => next.extend(
-                        self.ends(*rule, value.unwrap_or(&Value::Null), position)
+                    Sym::Rule(child) => next.extend(
+                        self.ends(*child, value.unwrap_or(&Value::Null), position)
                             .iter()
                             .copied(),
                     ),
@@ -734,10 +743,20 @@ impl<'a> Matcher<'a> {
             }
             next.sort_unstable();
             next.dedup();
-            positions = next;
-            if positions.is_empty() {
-                break;
+            if next.is_empty() {
+                let blame = Blame::Symbol {
+                    alternative: index,
+                    symbol,
+                };
+                for position in positions {
+                    self.blame(position, rule, blame);
+                }
+                return next;
             }
+            if let Some(last) = next.last() {
+                self.reached(*last);
+            }
+            positions = next;
         }
         positions
     }

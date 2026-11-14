@@ -2,8 +2,9 @@
 use super::{Engine, bind_card, canonical_abilities};
 use crate::bind;
 use crate::derivation::Node;
+use crate::grammar::Sym;
 use crate::model::canonical;
-use crate::render::{Matcher, Renderer, Work};
+use crate::render::{Blame, Matcher, Renderer, Work};
 use crate::replay::Replay;
 use crate::tokens::{self, Names};
 use serde_json::Value;
@@ -602,6 +603,61 @@ impl Engine {
         out.sort();
         out.dedup();
         Ok(out)
+    }
+
+    /// Where the inverse of these abilities stops short of exactly `text`: the
+    /// furthest token any partial derivation reached, the words around it and
+    /// the rules that failed there. `None` when the text is reachable.
+    pub fn print_frontier(
+        &self,
+        name: &str,
+        abilities: &Value,
+        text: &str,
+    ) -> Result<Option<Value>, String> {
+        super::validate_abilities(abilities)?;
+        let names = Names::of(name);
+        let target = tokens::tokenize(text, &names, &self.grammar.vocabulary)?;
+        if target.len() > self.limits.tokens {
+            return Err("frontier target token limit".into());
+        }
+        let mut matcher = Matcher::new(&self.grammar, &target);
+        for surface in Self::native_surfaces(abilities)? {
+            if matcher.reaches(self.root, &surface) {
+                return Ok(None);
+            }
+        }
+        let frontier = matcher.frontier();
+        let at = frontier.at.min(target.len());
+        let window = |from: usize, to: usize| tokens::detokenize(&target[from..to], &names);
+        let blamed: Vec<String> = frontier
+            .blamed
+            .iter()
+            .map(|(rule, blame)| {
+                let rule = &self.grammar.rules[*rule as usize];
+                match blame {
+                    Blame::Unify => format!("{} unify", rule.name),
+                    Blame::Symbol {
+                        alternative,
+                        symbol,
+                    } => {
+                        let sym = match rule.alternatives[*alternative].syms.get(*symbol) {
+                            Some(Sym::Rule(child)) => {
+                                self.grammar.rules[*child as usize].name.clone()
+                            }
+                            Some(other) => format!("{other:?}"),
+                            None => "end".into(),
+                        };
+                        format!("{}.{alternative} {sym}", rule.name)
+                    }
+                }
+            })
+            .collect();
+        Ok(Some(serde_json::json!({
+            "at": at,
+            "before": window(at.saturating_sub(8), at),
+            "after": window(at, (at + 4).min(target.len())),
+            "blamed": blamed,
+        })))
     }
 
     pub fn renders_to(&self, name: &str, abilities: &Value, text: &str) -> Result<bool, String> {

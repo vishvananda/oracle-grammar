@@ -79,6 +79,7 @@ pub(super) fn render(
     row["exact"] = json!(exact);
     if !exact {
         row["rendered"] = json!(printed.iter().collect::<Vec<_>>());
+        row["print_frontier"] = json!(engine.print_frontier(name, &reading.abilities, text)?);
     }
     Ok(())
 }

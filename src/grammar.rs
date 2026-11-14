@@ -8,6 +8,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::ops::Range;
 use tabnas_ebnf::{Element, Kind, Production};
 
+mod conjunction_inverse;
 mod literal_inverse;
 
 pub type RuleId = u32;
@@ -68,6 +69,12 @@ impl Grammar {
         {
             solutions.push(pattern::Bindings::new());
         }
+        if native
+            && solutions.is_empty()
+            && let Some(inverse) = self.conjunction_inverses.get(&rule)
+        {
+            solutions = inverse.unify(value, pattern::Bindings::new());
+        }
         solutions
     }
 }
@@ -89,6 +96,8 @@ pub struct Grammar {
     pub(crate) words: crate::render::words::Words,
     /// Checked native views of closed literal declarations, derived from `sem`.
     pub(crate) literal_inverses: HashMap<RuleId, Pattern>,
+    /// Declared conjunctions dealt out over their canonical form, for printing.
+    pub(crate) conjunction_inverses: HashMap<RuleId, Pattern>,
 }
 
 /// Whether a rule was seeded from cards rather than written: named `m_` or `t_`.
@@ -417,7 +426,11 @@ pub fn load(lexical: &str, syntax: &[(&str, &str)], schema: &Schema) -> Result<G
     finish(&mut grammar)?;
     grammar.fingerprint = fingerprint(&sources);
     grammar.literal_inverses = literal_inverse::prepare(&grammar.rules);
-    grammar.net = crate::heads::Net::with_inverses(&grammar.rules, &grammar.literal_inverses);
+    grammar.conjunction_inverses =
+        conjunction_inverse::prepare(&grammar.rules, &grammar.literal_inverses);
+    let mut inverses = grammar.literal_inverses.clone();
+    inverses.extend(grammar.conjunction_inverses.clone());
+    grammar.net = crate::heads::Net::with_inverses(&grammar.rules, &inverses);
     grammar.words = crate::render::words::Words::build(&grammar.rules);
     if let Some((_, source)) = syntax.iter().find(|(name, _)| *name == "labels") {
         grammar.presentation_labels = presentation_labels(source)?;
