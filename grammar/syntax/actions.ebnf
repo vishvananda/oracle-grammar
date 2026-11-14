@@ -305,11 +305,11 @@ clause_may_then ::= "you" "may" may_body "," "then" conjoined
 may_body ::= look_put_then_body | clause_have_continuous | clause_have_deal | clause_player_put_card | clause_imperative | clause_operation | clause_search | clause_search_either | clause_exile_from | clause_put_from | clause_put_from_tapped
 
 /* A cost paid during resolution, and what depends on paying it. */
-payment ::= payment_return_controlled_permanent | payment_put_hand_card | payment_hand_draw | resolution_life_sacrifice_cost | payment_remove_counters | cost | pay_mana | payment_sacrifice | payment_action | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw
+payment ::= payment_put_counters | payment_return_controlled_permanent | payment_put_hand_card | payment_hand_draw | resolution_life_sacrifice_cost | payment_remove_counters | cost | pay_mana | payment_sacrifice | payment_action | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw
 
 /* An imperative action has an implicit "you". Other payers use native costs
    or an explicit "have [player]" action, never that implicit performer. */
-other_payment ::= payment_sacrifice_choice | cost | pay_mana | payment_sacrifice | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw
+other_payment ::= payment_put_counters | payment_sacrifice_choice | cost | pay_mana | payment_sacrifice | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw
 
 /* Resolved object references, including damage-event sources, pay the native
    sacrifice cost directly instead of wrapping a sacrifice action as a cost. */
@@ -325,6 +325,11 @@ payment_draw ::= "draw" card_count
 payment_remove_counters ::= "remove" payment_counter_amount counter_kind ("counter" | "counters") "from" affected
 
 payment_counter_amount ::= counter_a | number_digits | number_words
+
+/* Putting counters can itself be the resolution cost. Its recipient and the
+   payer are independent; the surrounding payment clause binds the receipt. */
+/* @sem Cost::Cost{parts:[PutCounters([$counter_direct_placement])]} */
+payment_put_counters ::= "put" counter_direct_placement
 
 /* The deciding payer and the player performing this action are independent. */
 /* @sem Cost::Cost{parts:[CostPart::PlayerAction{player:$payment_actor, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One($payment_actor), amount:$card_count}}]}}]} */

@@ -108,6 +108,12 @@ with ordinary singleton movement receipts; U0034 normalizes the two reference
 records that used sums over those singletons. See
 [copiable abilities and actions](docs/copiable-abilities-and-actions.md).
 
+Counter placements offered as resolution payments use the native counter cost
+and the actual payment receipt. Payer and counter recipient remain independent;
+ordinary optional placements retain their separate program form. The shared
+cost composes with retained animations and prints their current operands. See
+[counter payments](docs/counter-payments.md).
+
 Preserve distinctions among:
 
 - source, granting object and ability holder;
