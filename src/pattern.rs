@@ -6,7 +6,7 @@ use crate::functions::{
     agreed, applied, conjunction, continuous_parts, either_event, incremented, negated, product,
     substituted, subtype_name, unify_agree, unify_and, unify_apply, unify_continuous_parts,
     unify_either_event, unify_negate, unify_plus_one, unify_subtype_name, unify_times,
-    unify_token_abilities, unify_where, unify_zone_members, with_token_abilities,
+    unify_token_abilities, unify_where, unify_zone, with_token_abilities, zone_card_members,
 };
 use crate::model::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::{Map, Value};
@@ -573,15 +573,7 @@ impl Pattern {
                             name == "announced_targets",
                         );
                     }
-                    ("unordered", [items]) => {
-                        if !items.is_array() {
-                            return Err("@unordered requires an array value".into());
-                        }
-                        return args
-                            .into_iter()
-                            .next()
-                            .ok_or_else(|| "missing @unordered argument".into());
-                    }
+                    ("unordered", [_]) => return unordered_items(args),
                     ("and", _) => return Ok(conjunction(args)),
                     ("or", _) => return crate::functions::filter_union::join(args),
                     ("event_free_once", [ability]) => {
@@ -660,6 +652,7 @@ impl Pattern {
                     }
                     ("negate", [value]) => return Ok(negated(value)),
                     ("in_filter", [value]) => return Ok(crate::bind::filter_operand(value)),
+                    ("zone_card_members", [objects]) => return Ok(zone_card_members(objects)),
                     ("gap", [value]) => {
                         return Ok(serde_json::json!({"kind": "Gap", "args": value}));
                     }
@@ -835,7 +828,7 @@ impl Pattern {
             | "retain_animation" => {
                 return crate::functions::unify_continuous(name, args, value, bindings);
             }
-            "zone_members" => return unify_zone_members(args, value, bindings),
+            "zone_members" | "zone_card_members" => return unify_zone(name, args, value, bindings),
             // A chance selection is itself the moved set.
             "implicit_card_set" | "exile_followup"
                 if value.get("$sym").is_none_or(|sym| sym == "selection") =>
@@ -1004,6 +997,14 @@ fn unify_returned<'p, 'v>(
         bindings,
         name == "returned_conditional_literal",
     )
+}
+
+/// `@unordered` fills as its one array argument.
+fn unordered_items(args: Vec<Value>) -> Result<Value, String> {
+    match <[Value; 1]>::try_from(args) {
+        Ok([items]) if items.is_array() => Ok(items),
+        _ => Err("@unordered requires an array value".into()),
+    }
 }
 
 fn transparent_symbol(name: &str) -> bool {

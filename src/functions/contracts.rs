@@ -226,6 +226,21 @@ fn branch_call(name: &str, args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<
     ))
 }
 
+fn zone_card_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    let ([objects], Ty::Named(output)) = (args, ty) else {
+        return Err("@zone_card_members needs one ObjectSet".into());
+    };
+    if output != "ObjectSet" {
+        return Err(format!(
+            "@zone_card_members produces ObjectSet, not {output}"
+        ));
+    }
+    Ok(Pattern::Symbol(
+        "zone_card_members".into(),
+        vec![elaborate(objects, ty, schema)?],
+    ))
+}
+
 fn filter_union_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
     if args.len() != 2 || *ty != Ty::Named("ObjectFilter".into()) {
         return Err("@or needs two ObjectFilters and produces ObjectFilter".into());
@@ -599,6 +614,7 @@ fn specialized_call(
 
     match name {
         "or" => filter_union_call(args, ty, schema).map(Some),
+        "zone_card_members" => zone_card_call(args, ty, schema).map(Some),
         "activation_removed_counters" => counter_payment_call(args, ty, schema).map(Some),
         "literal_mana_sequence" => literal_mana_call(args, ty, schema).map(Some),
         "restricted_mana" => restricted_mana_call(args, ty, schema).map(Some),

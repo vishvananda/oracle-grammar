@@ -22,12 +22,12 @@ retention_type ::= "land" | "artifact" | "creature" | "enchantment" | "planeswal
 retention_plural_type ::= "lands" | "artifacts" | "creatures" | "enchantments" | "planeswalkers"
 
 retained_animation ::= retained_animation_after | retained_animation_before | retained_animation_indefinite | retained_animation_existing | retained_animation_quoted
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
 retained_animation_after ::= affected changes ("↓")? duration "." retention_note
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
 retained_animation_before ::= duration "," affected changes "." retention_note
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($dynamic_animation), duration:Indefinite, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($dynamic_animation), duration:Indefinite, evaluation:Snapshot} */
 retained_animation_indefinite ::= affected dynamic_animation "." retention_note
 
 /* Existing operations supply their own target/group and duration operands. */
@@ -35,10 +35,10 @@ retained_animation_indefinite ::= affected dynamic_animation "." retention_note
 retained_animation_existing ::= mined_operation "." retention_note
 
 /* A complete final quotation also supplies the enclosing sentence's stop. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($animation_quoted), duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($animation_quoted), duration:$duration, evaluation:Snapshot} */
 retained_animation_quoted ::= duration "," affected animation_quoted retention_note
 
-/* @sem Program::@where(Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot}}]}, $value) */
+/* @sem Program::@where(Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot}}]}, $value) */
 program_retained_defined ::= affected changes ("↓")? duration "," "where" "X" "is" value "." retention_note
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:@retain_animation_types($static_animation)}) */
@@ -59,11 +59,11 @@ legendary_animation_with ::= legendary_animation "with" grants
 
 /* Explicit retained types are indefinite when no duration is stated. This is
    a resolution effect; it does not make a static property of a live query. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($dynamic_animation), duration:Indefinite, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($dynamic_animation), duration:Indefinite, evaluation:Snapshot} */
 continuous_retained_inline_indefinite ::= affected dynamic_animation retention_suffix
 /* "Is" immediately after a battlefield return supplies an entry characteristic
    (CR611.2e); "becomes" creates a later continuous effect. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$dynamic_type_addition, duration:Indefinite, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$dynamic_type_addition, duration:Indefinite, evaluation:Snapshot} */
 continuous_type_addition_indefinite ::= affected dynamic_type_addition
 /* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
 dynamic_type_addition ::= ("becomes" | "become") ("a" | "an")? becomes_types "in" "addition" "to" ("its" | "their") "other" ("creature")? "types"

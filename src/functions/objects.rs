@@ -44,7 +44,7 @@ pub(crate) fn zone_members(objects: &Value) -> Value {
     }
 }
 
-pub(crate) fn unify_zone_members<'p, 'v>(
+fn unify_zone_members<'p, 'v>(
     args: &'p [Pattern],
     value: &'v Value,
     bindings: Bindings<'p, 'v>,
@@ -80,10 +80,101 @@ pub(crate) fn unify_zone_members<'p, 'v>(
     solutions
 }
 
+/// The zone of one announced card target, when its domain is a single zone
+/// other than the battlefield.
+fn targeted_card_zone(objects: &Value) -> Option<&Value> {
+    let reference = &objects["args"];
+    let slot = &reference["args"]["slot"];
+    if objects["kind"] != "One" || reference["kind"] != "Target" || slot["$sym"] != "target" {
+        return None;
+    }
+    let domain = slot.pointer("/args/0/kind/Object")?;
+    let [zone] = domain["zones"].as_array()?.as_slice() else {
+        return None;
+    };
+    (domain["kind"] == "Card" && zone != "Battlefield").then_some(zone)
+}
+
+/// A change to one card target in a hidden or public zone applies to that
+/// card only while it remains in the zone it was targeted in.
+pub(crate) fn zone_card_members(objects: &Value) -> Value {
+    match targeted_card_zone(objects) {
+        Some(zone) => json!({"kind":"InZone","args":{"objects":objects,"zone":zone}}),
+        None => objects.clone(),
+    }
+}
+
+/// The inverse of either zone-keeping operand function.
+pub(crate) fn unify_zone<'p, 'v>(
+    name: &str,
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    if name == "zone_card_members" {
+        unify_zone_card_members(args, value, bindings)
+    } else {
+        unify_zone_members(args, value, bindings)
+    }
+}
+
+fn unify_zone_card_members<'p, 'v>(
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    let [argument] = args else {
+        return Vec::new();
+    };
+    if value["kind"] == "InZone"
+        && let Some(objects) = value.pointer("/args/objects")
+        && zone_card_members(objects) == *value
+    {
+        return argument.unify(objects, bindings);
+    }
+    if zone_card_members(value) == *value {
+        return argument.unify(value, bindings);
+    }
+    Vec::new()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::ir_schema::Ty;
+
+    fn card_target(zones: Value, kind: &str) -> Value {
+        let spec = json!({"slot":0,"kind":{"Object":{"kind":kind,"zones":zones}}});
+        json!({"kind":"One","args":{"kind":"Target","args":{
+            "slot":{"$sym":"target","args":[spec],"at":0},"index":0}}})
+    }
+
+    #[test]
+    fn a_card_target_keeps_its_single_zone_and_inverts() {
+        let args = [Pattern::Hole(
+            "objects".into(),
+            Ty::Named("ObjectSet".into()),
+        )];
+        let objects = card_target(json!(["Graveyard"]), "Card");
+        let value = zone_card_members(&objects);
+        assert_eq!(value["kind"], "InZone");
+        assert_eq!(value["args"]["zone"], "Graveyard");
+        let found = unify_zone_card_members(&args, &value, Bindings::new());
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].get("objects"), Some(&objects));
+        assert!(unify_zone_card_members(&args, &objects, Bindings::new()).is_empty());
+        for other in [
+            card_target(json!(["Battlefield"]), "Card"),
+            card_target(json!(["Graveyard", "Exile"]), "Card"),
+            card_target(json!(["Graveyard"]), "Permanent"),
+            json!({"kind":"One","args":{"kind":"Target","args":{"slot":0,"index":0}}}),
+        ] {
+            assert_eq!(zone_card_members(&other), other);
+            let found = unify_zone_card_members(&args, &other, Bindings::new());
+            assert_eq!(found.len(), 1);
+            assert_eq!(found[0].get("objects"), Some(&other));
+        }
+    }
 
     #[test]
     fn singular_zone_actions_and_their_references_are_inverses() {

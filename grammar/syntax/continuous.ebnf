@@ -4,7 +4,9 @@
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
 continuous_snapshot ::= continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats
 
-/* @sem Operation::@implicit_return_grant(Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$changes, duration:$duration, evaluation:Snapshot}) */
+/* A continuous effect on one card target outside the battlefield applies only
+   while that card stays in the zone it was targeted in. */
+/* @sem Operation::@implicit_return_grant(Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$changes, duration:$duration, evaluation:Snapshot}) */
 continuous_snapshot_plain ::= affected changes ("↓")? duration
 
 /* A cast spell keeps a temporary grant as the permanent it becomes. The binder
@@ -26,21 +28,21 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
 continuous_live ::= affected rule_changes ("↓")? duration
     | duration "," affected rule_changes
 
 /* The effect is created by the ability holder. The named attacker is the
    block requirement's operand, independently of that source. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(RequireCombat{action:Block(SameObject($object_ref)), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(RequireCombat{action:Block(SameObject($object_ref)), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
 combat_block_requirement ::= affected "blocks" object_ref this_duration "if" "able"
 
 /* The requirement follows its affected population while a characteristic
    bonus fixes its recipients. Sharing a subject does not share those gates. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$be_blocked_requirement, duration:$this_duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$be_blocked_requirement, duration:$this_duration, evaluation:LiveObjects} */
 combat_be_blocked_requirement ::= affected be_blocked_requirement this_duration "if" "able"
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$be_blocked_requirement, duration:$this_duration, evaluation:LiveObjects}}] */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$be_blocked_requirement, duration:$this_duration, evaluation:LiveObjects}}] */
 clause_pump_and_block_requirement ::= affected ("gets" | "get") signed "/" signed duration "and" be_blocked_requirement this_duration "if" "able"
 
 /* Actor and object targets occupy their own textual positions. The object
@@ -53,7 +55,7 @@ control_other_player ::= target_player | target_opponent | that_player | defendi
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($object_set), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot} */
 gain_control_you ::= "you"? "gain" "control" "of" object_set duration
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(RequireCombat{action:Block(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(RequireCombat{action:Block(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
 combat_block_any_requirement ::= affected ("blocks" | "block") this_duration "if" "able"
 
 /* A plain plural follow-up keeps the population captured before counter
@@ -187,7 +189,7 @@ base_changes_and ::= change_becomes_base "and" changes
 /* @sem Change::[...$change_becomes_base, ...$grants] */
 base_changes_keywords ::= change_becomes_base "," grants
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$base_changes, duration:Indefinite, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$base_changes, duration:Indefinite, evaluation:Snapshot} */
 continuous_base_indefinite ::= affected base_changes
 
 /* @sem $animation_description */
@@ -255,7 +257,7 @@ becomes_type_more ::= subtype becomes_types
 change_also_type ::= ("is" | "are" | "becomes" | "become") ("a" | "an")? becomes_types "in" "addition" "to" ("its" | "their") "other" ("creature")? "types"
 
 /* Bonuses counted out over a set, with the count last in the sentence. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Change::Pump{power:@times($signed, $count_each), toughness:@times($signed_2, $count_each)}], duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Change::Pump{power:@times($signed, $count_each), toughness:@times($signed_2, $count_each)}], duration:$duration, evaluation:Snapshot} */
 continuous_for_each ::= affected ("gets" | "get") signed "/" signed duration "for" "each" count_each
 
 /* @sem Change::[Change::Pump{power:$signed, toughness:$signed_2}] */
@@ -1109,7 +1111,7 @@ independent_static_activated ::= '"' cost ":" program '"'
 
 /* Resolving paired loss and grant fixes the same affected objects for both
    changes. No duration wording means the created effect is indefinite. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:Defender}), GrantKeyword($keyword_value)], duration:Indefinite, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[LosesAbility(Term{family:CheckHasable, form:Defender}), GrantKeyword($keyword_value)], duration:Indefinite, evaluation:Snapshot} */
 keyword_loss_gain_indefinite ::= affected "loses" "defender" "and" "gains" keyword_value
 
 /* The explicit scalar subject owns both the static recipient and its state
@@ -1328,14 +1330,14 @@ choose_creature_type_excluding ::= "choose" "a" "creature" "type" "other" "than"
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}} */
 choose_creature_type_plain ::= "choose" "a" "creature" "type"
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot} */
 continuous_chosen_creature_type ::= affected "becomes" "that" "type" duration
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Add}], duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Add}], duration:$duration, evaluation:Snapshot} */
 continuous_chosen_creature_type_retained ::= affected "becomes" "that" "type" retention_addition duration
 
-/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
 clause_creature_type_choice_timed ::= affected "becomes" "the" "creature" "type" "of" "your" "choice" duration
-/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:Indefinite, evaluation:Snapshot}}] */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:Indefinite, evaluation:Snapshot}}] */
 clause_creature_type_choice_indefinite ::= affected "becomes" "the" "creature" "type" "of" "your" "choice"
 
 /* That-type wording takes its kind from this explicit choice sentence. It
@@ -1345,12 +1347,12 @@ clause_choose_creature_type_change ::= creature_type_choice_operation "." creatu
 creature_type_choice_operation ::= choose_creature_type_plain | choose_creature_type_excluding
 creature_type_chosen_change ::= continuous_chosen_creature_type | continuous_chosen_creature_type_retained
 
-/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:LandType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:LandType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
 clause_choose_basic_land_type_change ::= "choose" "a" "basic" "land" "type" "." affected "becomes" "that" "type" duration
 
 /* An explicit type noun also supports edited/persistent choices, independently
    of a preceding choice of another kind. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot} */
 continuous_chosen_creature_type_explicit ::= affected "becomes" "the" "chosen" "creature" "type" duration
 
 /* Adjacent rules of this same player merge natively. Declare the complete span
@@ -1405,7 +1407,7 @@ duration_die_roll_earliest ::= until_end_of_turn "," "or" "until" "any" "player"
 
 /* Rule changes follow the live population, while the base statistics snapshot
    the same operands. Each written deadline belongs to its own effect. */
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$rule_changes, duration:$this_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[SetBasePowerToughness{power:$number, toughness:$number_2}], duration:$duration, evaluation:Snapshot}}] */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$this_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[SetBasePowerToughness{power:$number, toughness:$number_2}], duration:$duration, evaluation:Snapshot}}] */
 clause_live_then_base_stats ::= affected rule_changes this_duration "and" ("has" | "have") "base" "power" "and" "toughness" number "/" number duration
 
 /* The owner belongs to this explicitly named object, including a receiving
@@ -1475,7 +1477,7 @@ attached_restriction_pair ::= rule_change "and" change_lose_all_abilities
 static_global_legend_rule ::= "the" '"' ("↓")? "legend" "rule" '"' "doesn't" "apply" "."
 
 /* The explicit local X definition supplies every X in this one modifier. */
-/* @sem Operation::@where(Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[GrantKeyword($keyword_value), Pump{power:AnnouncedX, toughness:$value}], duration:$duration, evaluation:Snapshot}, Expr::ObjectProperty{object:Affected, property:$stat, information:CurrentOrLastKnown}) */
+/* @sem Operation::@where(Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GrantKeyword($keyword_value), Pump{power:AnnouncedX, toughness:$value}], duration:$duration, evaluation:Snapshot}, Expr::ObjectProperty{object:Affected, property:$stat, information:CurrentOrLastKnown}) */
 continuous_keyword_pump_own_power ::= affected "gains" keyword_value "and" "gets" "+" "X" "/" "+" value duration "," "where" "X" "is" "its" stat
 
 /* Every written condition qualifies its own simultaneous keyword grant. */
@@ -1526,43 +1528,43 @@ change_block_additional ::= "can" "block" counter_amount "additional" "creature"
 change_is_goaded ::= "is" "goaded"
 
 /* Skipping its controller's next untap. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
 skip_controllers_next_untap ::= affected "doesn't" "untap" "during" "its" "controller's" "next" "untap" "step"
 
 /* Skipping your next untap. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(UntapStep{players:One(AbilityController), behavior:Skip})], duration:DuringNextUntapStep(AbilityController), evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(UntapStep{players:One(AbilityController), behavior:Skip})], duration:DuringNextUntapStep(AbilityController), evaluation:LiveObjects} */
 skip_your_next_untap ::= affected ("doesn't" | "don't") "untap" "during" "your" "next" "untap" "step"
 
 /* A stated leading duration scopes both literal bonuses. Computed shared
    values retain their separate capture contract. */
-/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$change_literal_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected_2), changes:$change_literal_pump_2, duration:$duration, evaluation:Snapshot}}] */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$change_literal_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected_2), changes:$change_literal_pump_2, duration:$duration, evaluation:Snapshot}}] */
 clause_shared_duration_changes ::= duration "," affected change_literal_pump "and" affected change_literal_pump
 
 /* @sem Change::[Pump{power:$signed_literal, toughness:$signed_literal_2}] */
 change_literal_pump ::= ("gets" | "get") signed_literal "/" signed_literal
 
 /* A leading duration over static changes. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
 duration_affected_static_changes ::= duration "," affected static_changes
 
 /* A leading duration over changes. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$changes, duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$changes, duration:$duration, evaluation:Snapshot} */
 duration_affected_changes ::= duration "," affected changes
 
 /* Base power and toughness for a duration. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[SetBasePowerToughness{power:$value, toughness:$value_2}], duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[SetBasePowerToughness{power:$value, toughness:$value_2}], duration:$duration, evaluation:Snapshot} */
 base_power_toughness_for_duration ::= affected "has" "base" "power" "and" "toughness" value "/" value duration
 
 /* Additional changes for a duration. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
 affected_also_changes ::= affected "also" static_changes duration
 
 /* Becoming an artifact creature for a duration. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:$duration, evaluation:Snapshot} */
 becomes_artifact_creature ::= affected "becomes" "an" "artifact" "creature" duration
 
 /* Attacking as though without defender. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(AttackException{ignore:Defender, defenders:Any})], duration:$this_duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(AttackException{ignore:Defender, defenders:Any})], duration:$this_duration, evaluation:LiveObjects} */
 attack_despite_defender ::= affected "can" "attack" this_duration "as" "though" "it" "didn't" "have" "defender"
 
 /* Changes while the source remains tapped. */
@@ -1570,11 +1572,11 @@ attack_despite_defender ::= affected "can" "attack" this_duration "as" "though" 
 changes_while_tapped ::= affected static_changes "for" "as" "long" "as" object_ref "remains" "tapped"
 
 /* Losing flying for a duration. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[LosesAbility(Term{family:CheckHasable, form:Flying})], duration:$duration, evaluation:Snapshot} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[LosesAbility(Term{family:CheckHasable, form:Flying})], duration:$duration, evaluation:Snapshot} */
 loses_flying ::= affected "loses" "flying" duration
 
 /* A requirement to attack. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
 attacks_if_able ::= affected "attacks" this_duration "if" "able"
 
 /* Changes to a group of objects. */

@@ -44,7 +44,7 @@ pub(crate) use continuous::{
 pub(crate) use contracts::checked_call;
 pub(crate) use events::{either_event, unify_either_event};
 pub(crate) use keywords::{keyword_list, keyword_list_type, unify_keyword_list};
-pub(crate) use objects::{unify_zone_members, zone_members};
+pub(crate) use objects::{unify_zone, zone_card_members, zone_members};
 pub(crate) use repeated::{agreed, unify_agree};
 pub(crate) use tokens::{unify_token_abilities, with_token_abilities};
 

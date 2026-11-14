@@ -186,6 +186,11 @@ current zone membership: a replacement redirect does not count, and later
 movement cannot erase a recorded exile arrival. Real costs retain their payment
 contracts.
 
+A continuous effect on one card target outside the battlefield affects that card
+only while it stays in the zone it was targeted in: `@zone_card_members` keeps
+that zone on the affected set, whichever production created the effect. Moves
+keep the bare target, so "in" and "from" spell the same graveyard target.
+
 All-player shuffle-then-draw wording retains two phases: finish every shuffle,
 then bind each drawing player and count that player's Before movement receipt.
 Do not use the aggregate total for every player or interleave shuffle and draw.
