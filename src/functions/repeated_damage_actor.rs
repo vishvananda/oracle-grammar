@@ -288,7 +288,7 @@ mod tests {
             expected.sort_by_key(Value::to_string);
             expected.dedup();
             if name == "Canopy Surge" {
-                assert_eq!(expected.len(), 2);
+                assert_eq!(expected.len(), 1);
             }
             let mut actual = engine
                 .parse(name, case["text"].as_str().unwrap())

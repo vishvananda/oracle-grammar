@@ -55,7 +55,7 @@ use guards::{
     attaches_to_itself, blocks_itself, cancels_before_choice, condition_placement,
     damage_after_unpaid_sacrifice, graveyard_looks_back, has_cost_as_action, leaves_paid_branch,
     life_margin_order, protection_domain_mismatch, reorders_another_library,
-    single_holder_affected,
+    single_holder_affected, spell_asks_kicked,
 };
 mod coin_protocol;
 mod holder;
@@ -69,6 +69,7 @@ mod owner_return;
 mod paid_self_exile;
 pub(crate) mod payments;
 mod per_recipient;
+mod postposed_focus;
 pub(crate) mod pump_counts;
 mod references;
 mod reflexive_exiled_card;
@@ -343,6 +344,9 @@ pub fn bind_held_ability(
     }
     if graveyard_looks_back(ability) {
         return Err("a departure trigger works on the battlefield, not from the graveyard".into());
+    }
+    if spell_asks_kicked(ability) {
+        return Err("a kicked spell branches on its kicker payment".into());
     }
     if damage_after_unpaid_sacrifice(ability) {
         return Err("damage measured by a sacrifice follows its required payment".into());

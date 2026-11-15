@@ -454,6 +454,10 @@ the IR path, the value it replaces and why.
   Healing Technique and four other "target card … that card's" records do. It
   was `Earlier{what: Exiled, result: null}`, which names no exile.
 
+- `U0053` (correction): Hesitation's "When a player casts a spell" triggers on
+  every player's spell, `players: All`, as 115 other "a player casts" records
+  read, Standstill among them. It was `One(AbilityController)`.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
 its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and

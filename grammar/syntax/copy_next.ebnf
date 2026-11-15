@@ -25,6 +25,18 @@ clause_copy_ref_targets_created ::= "copy" that_noun "." "the" "copy" "targets" 
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$that_noun, times:Constant(1), targets:To(One($self_ref))}}] */
 clause_copy_ref_targets_self ::= "copy" that_noun "." "the" "copy" "targets" self_ref
 
+/* "Exile target instant or sorcery card from a graveyard and copy it. You may cast the
+   copy": the copy is of the card the exile moved, and the cast consumes the copy. */
+/* @sem Instruction::[Effect{result:@next, operation:$exile_objects}, Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:One(Result{result:@prior, phase:After, index:0}), times:Constant(1)}}, $copy_cast] */
+clause_exile_copy_cast ::= exile_objects copy_exiled_join copy_cast
+/* @sem () */
+copy_exiled_join ::= "and" "copy" "it" "." | "." "copy" "that" "card" "." | "." "copy" "it" "," "then"
+copy_cast ::= copy_cast_normal | copy_cast_free
+/* @sem Instruction::Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:Exactly(Constant(1)), cost:Normal, into_exile:false}}]}} */
+copy_cast_normal ::= "you" "may" "cast" "the" "copy"
+/* @sem Instruction::Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:Exactly(Constant(1)), cost:Free, into_exile:false}}]}} */
+copy_cast_free ::= "you" "may" "cast" "the" "copy" "without" "paying" "its" "mana" "cost"
+
 /* "Copy it for each …": one copy for each counted thing. */
 /* @sem Operation::CopyOnStack{actor:One(AbilityController), object:$object_ref, times:$count_each, targets:Same} */
 copy_ref_for_each ::= "copy" object_ref "for" "each" count_each

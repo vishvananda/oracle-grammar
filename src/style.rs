@@ -5,6 +5,7 @@ use crate::tokens::Token;
 use rustc_hash::FxHashMap as HashMap;
 
 mod casting;
+mod conditions;
 mod mana;
 mod owners;
 mod quotes;
@@ -76,6 +77,7 @@ pub fn breaches(tokens: &[Token], context: &[String]) -> Vec<(&'static str, f32,
     quotes::one_period(tokens, &mut found);
     unions::singular_or(tokens, &mut found);
     unions::spell_kinds(tokens, &mut found);
+    conditions::combat_condition_leads(tokens, &mut found);
     found
 }
 

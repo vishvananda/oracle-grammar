@@ -44,6 +44,9 @@ pub(super) fn condition_placement(value: &mut Value) -> Result<(), String> {
         if opens_with_if(value, literal) {
             return Err("an `if` right after a trigger is its intervening condition".into());
         }
+        if symbol_name(value) == Some("resolution") {
+            super::postposed_focus::mark(value);
+        }
         if matches!(symbol_name(value), Some("resolution" | "leading_if")) {
             let args = value["args"]
                 .as_array_mut()
@@ -291,6 +294,17 @@ fn contains(value: &Value, part: &Value) -> bool {
             Value::Array(items) => items.iter().any(|v| contains(v, part)),
             _ => false,
         }
+}
+
+/// "Kicker {1}{U}. Return target nonland permanent ... If this spell was kicked, draw a
+/// card": a spell that checks its own kicker is one `CostBranch` whose paid and unpaid
+/// spells differ, not a separate keyword beside a spell asking whether it was kicked.
+pub(super) fn spell_asks_kicked(ability: &Value) -> bool {
+    let kicked = json!({
+        "kind": "ObjectMatches",
+        "args": {"object": {"kind": "Source"}, "filter": {"kind": "State", "args": "Kicked"}},
+    });
+    ability["kind"] == "Spell" && contains(&ability["args"]["body"], &kicked)
 }
 
 /// Whether a zone change's objects are this object itself.

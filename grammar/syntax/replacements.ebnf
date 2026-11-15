@@ -1,7 +1,7 @@
 /* Replacement effects, prevention and delayed triggers. */
 
 replacement_clause ::= replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but
-    | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead
+    | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -140,6 +140,14 @@ draw_event ::= "you" "would" "draw" "a" "card"
 
 /* @sem Ability::Replacement{active:Battlefield, event:$draw_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:Cancel}}, ...$instructions]}} */
 replacement_draw_instead ::= "if" draw_event "," instructions "instead" "."
+
+/* "If you would draw a card while your library has no cards in it, you win the game
+   instead": the replacement applies only while the library is empty. */
+replacement_draw_empty ::= replacement_draw_empty_after | replacement_draw_empty_before
+/* @sem Ability::Conditional{condition:Compare{left:CountObjects(Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), test:Compare{comparison:Equal, value:Constant(0)}}, then:[Ability::Replacement{active:Battlefield, event:$draw_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:Cancel}}, ...$instructions]}}]} */
+replacement_draw_empty_after ::= "if" draw_event "while" "your" "library" "has" "no" "cards" "in" "it" "," instructions "instead" "."
+/* @sem Ability::Conditional{condition:Compare{left:CountObjects(Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), test:Compare{comparison:Equal, value:Constant(0)}}, then:[Ability::Replacement{active:Battlefield, event:$draw_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:Cancel}}, ...$instructions]}}]} */
+replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has" "no" "cards" "in" "it" "," "instead" instructions "."
 
 /* Declining the optional action keeps the draw (CR 614.1a): the choice is
    between the action and the draw itself, each in place of the event. */

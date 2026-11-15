@@ -935,4 +935,5 @@ mod card_receipts;
 mod composed_clauses;
 mod damage_replacements;
 mod graveyard_triggers;
+mod kicked_spells;
 mod target_bans;
