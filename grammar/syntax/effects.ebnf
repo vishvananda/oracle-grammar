@@ -39,7 +39,9 @@ verb_base ::= verb_operation_base
 verb_third ::= verb_operation_third
 
 verb_operation_base ::= energy_get_base | create_base | create_tapped_base | create_attacking_base | mill_base | scry_base | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | gain_life_base | lose_life_base
+    | lose_game_base | win_game_base
 verb_operation_third ::= energy_get_third | create_third | create_tapped_third | create_attacking_third | mill_third | scry_third | surveil_third | draw_third | discard_random_third | discard_third | gain_life_third | lose_life_third | sacrifice_choice_third
+    | lose_game_third | win_game_third
 
 /* Choice and following conjoined verbs share the clause's actual player set,
    including a player announced after an earlier target or an event's actor. */
@@ -166,6 +168,16 @@ fraction_sacrifice_plural_exact ::= hand_plural_players "sacrifices" "half" "the
 
 /* @sem () */
 hand_words ::= "their" "hand" | "all" "the" "cards" "in" "their" "hand"
+/* Winning or losing the game, said of the clause's subject. */
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::LoseGame} */
+lose_game_base ::= "lose" "the" "game"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::LoseGame} */
+lose_game_third ::= "loses" "the" "game"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::WinGame} */
+win_game_base ::= "win" "the" "game"
+/* @sem Operation::Keyword{actor:@subject, action:KeywordAction::WinGame} */
+win_game_third ::= "wins" "the" "game"
+
 /* @sem Operation::GainLife{players:@subject, amount:$life_phrase} */
 gain_life_base ::= "gain" life_phrase
 /* @sem Operation::GainLife{players:@subject, amount:$life_phrase} */
@@ -198,6 +210,7 @@ operation_plain ::= cast_exiled_card_permission | cast_free_hand_spell | cast_ca
     | continuous_attack_despite_defender | change_target_single_target_spell | owner_puts_top_or_bottom
     | untap_all_that_attacked | additional_land_this_turn | add_mana_combination | exile_with_counter
     | reveal_at_random_from_hand | have_player_discard | remove_all_counters_any_kind
+    | operation_third | operation_you | hand_observation_look
 
 /* @sem Operation::Destroy{objects:$object_set, regeneration:true} */
 destroy ::= "destroy" object_set
@@ -632,6 +645,14 @@ sacrifice_choice_third_post ::= "sacrifices" counter_amount sacrifice_choice_fil
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Draw{count:$card_count}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Discard{players:One(AbilityController), amount:RequestedDrawCount{payment:Resolution(@marked), component:[0]}, random:false}}]}, otherwise:Program{}}] */
 clause_requested_optional_draw ::= "you" "may" "draw" card_count "." "if" "you" "do" "," ("you")? "discard" "that" "many" "cards"
 
+
+/* A named player and one verb, where a single operation stands inside a larger
+   sentence ("instead that player draws three cards"). Clauses keep their own
+   subject forms, which also chain verbs. */
+/* @sem @apply($players_singular, $verb_operation_third) */
+operation_third ::= players_singular verb_operation_third
+/* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verb_operation_base) */
+operation_you ::= "you" verb_operation_base
 
 /* One explicit also qualifies an immediate operation without changing its operands. */
 operation ::= operation_plain | operation_also

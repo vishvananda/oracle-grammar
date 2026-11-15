@@ -301,7 +301,19 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic
+grant ::= grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each
+
+/* A granted list of protections, each introduced by its own "from", is one
+   protection keyword from each quality. The reference reads a group in such a
+   list as any object, not only a permanent. */
+/* @sem Change::GrantKeyword(Protection(Each([$protection_each_quality, ...$protection_each_tail]))) */
+grant_protection_each ::= "protection" "from" protection_each_quality protection_each_tail
+protection_each_tail ::= protection_each_last | protection_each_more
+/* @sem Protection::[$protection_each_quality] */
+protection_each_last ::= ","? "and" "from" protection_each_quality
+/* @sem Protection::[$protection_each_quality, ...$protection_each_tail] */
+protection_each_more ::= "," "from" protection_each_quality protection_each_tail
+protection_each_quality ::= protection_object_quality | protection_all_spells | protection_colored_spells | protection_color_spells
 
 /* @sem Change::GrantKeyword($keyword_value) */
 grant_keyword ::= keyword_value
@@ -1776,6 +1788,11 @@ cast_chosen_type_spells ::= filter_phrase "spells" "of" "the" "chosen" "type"
 /* Your spells of a kind cost less, more or extra life. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:$spell_cost_change})]}) */
 static_spells_cost_less ::= cast_spells_filter "you" "cast" "cost" spell_cost_change "to" "cast" "."
+/* Spells of one kind cost less, more or extra life for every player. The
+   reference writes pairs and modified groups ("with the chosen name") as an
+   effect on the spells instead, so this takes only a single kind. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(SpellCost{spells:$cast_kind_spells, modifier:$spell_cost_change})]}) */
+static_all_spells_cost ::= cast_kind_spells "cost" spell_cost_change "to" "cast" "."
 /* The cast origin narrows which of the caster's spells the rule covers. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:@and($cast_spells_filter, $cast_origin_filter), modifier:$spell_cost_change})]}) */
 static_spells_from_cost_less ::= cast_spells_filter "you" "cast" cast_origin_filter "cost" spell_cost_change "to" "cast" "."

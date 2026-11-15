@@ -31,9 +31,9 @@ condition_one ::= condition_number_bounded | condition_gift_promised | condition
     | condition_different_powers | condition_equipped | condition_your_turn | condition_completed_dungeon
     | condition_bargained | condition_opponent_graveyard_at_least | condition_value_compared
     | condition_object_supertype | condition_entered_this_turn
-    | condition_second_resolution_this_turn | condition_first_resolution_this_turn
-    | condition_descended_this_turn | condition_monstrous | condition_enchanted | condition_had_counters
-    | condition_had_counter_kind | condition_control_not_a | condition_died_under_your_control
+    | condition_nth_resolution_this_turn
+    | condition_descended_this_turn | condition_monstrous | condition_enchanted | condition_any_counter
+    | condition_control_not_a | condition_died_under_your_control
     | condition_died_this_turn_at_least | condition_attacked_total_power | condition_mana_from_spent
     | condition_cast_spells_this_turn | condition_more_cards_in_hand_than | condition_first_combat_phase
     | condition_have_initiative | condition_was_cast | condition_evidence_collected
@@ -471,9 +471,9 @@ condition_counters_at_least ::= object_ref "has" value "or" "more" counter_kind 
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})} */
 condition_there_are_counters_at_least ::= "there" "are" value "or" "more" counter_kind "counters" "on" object_ref
 
-/* Any counter of a kind on an object. */
+/* Any counter of a kind on an object, now or as it last existed. */
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})} */
-condition_has_counter ::= object_ref "has" "a" counter_kind "counter" "on" "it"
+condition_has_counter ::= object_ref ("has" | "had") "a" counter_kind "counter" "on" "it"
 
 /* No counters of a kind on an object. */
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:Equal, value:Constant(0)})} */
@@ -582,11 +582,14 @@ condition_gift_not_promised ::= "the" "gift" "wasn't" "promised"
 condition_number_bounded ::= number "is" number bound_words
 
 /* Conditions taken over from seeded rules, in their original Oracle words. */
-/* @sem Condition::Compare{left:TimesResolvedThisTurn, test:NumberTest::Compare{comparison:Equal, value:Constant(2)}} */
-condition_second_resolution_this_turn ::= "this" "is" "the" "second" "time" "this" "ability" "has" "resolved" "this" "turn"
-
-/* @sem Condition::Compare{left:TimesResolvedThisTurn, test:NumberTest::Compare{comparison:Equal, value:Constant(1)}} */
-condition_first_resolution_this_turn ::= "this" "is" "the" "first" "time" "this" "ability" "has" "resolved" "this" "turn"
+/* How many times this ability has resolved this turn, counting this time. */
+/* @sem Condition::Compare{left:TimesResolvedThisTurn, test:NumberTest::Compare{comparison:Equal, value:$resolution_ordinal}} */
+condition_nth_resolution_this_turn ::= "this" "is" "the" resolution_ordinal "time" "this" "ability" "has" "resolved" "this" "turn"
+resolution_ordinal ::= resolution_first | ordinal | resolution_fourth
+/* @sem Expr::Constant(1) */
+resolution_first ::= "first"
+/* @sem Expr::Constant(4) */
+resolution_fourth ::= "fourth"
 
 /* @sem Condition::PlayerState{player:AbilityController, state:Descended} */
 condition_descended_this_turn ::= "you" "descended" "this" "turn"
@@ -597,11 +600,9 @@ condition_monstrous ::= object_ref "is" "monstrous"
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:State(Enchanted)} */
 condition_enchanted ::= object_ref "is" "enchanted"
 
+/* Any counter on an object, now or as it last existed. */
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{comparison:Greater, value:Constant(0)})} */
-condition_had_counters ::= object_ref "had" "counters" "on" "it"
-
-/* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})} */
-condition_had_counter_kind ::= object_ref "had" "a" counter_kind "counter" "on" "it"
+condition_any_counter ::= object_ref ("has" | "had") ("a" "counter" | "counters" | "one" "or" "more" "counters") "on" "it"
 
 /* @sem Condition::Not(Controls{player:AbilityController, filter:$filter_phrase, minimum:1}) */
 condition_control_not_a ::= "you" "don't" "control" "a" filter_phrase
