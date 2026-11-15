@@ -395,9 +395,11 @@ the IR path, the value it replaces and why.
   on any attacking red creature, each time damage would be dealt. The payment
   order follows the ForEachObject choice-order contract. See #23.
 
-- `U0044` (correction): Infernal Denizen sacrifices as many Swamps as it can, up
-  to two, and then tests whether it sacrificed fewer than two (CR 609.3). The old
-  lowering offered an indivisible two-Swamp cost. See #24.
+- `U0044` (withdrawn): Infernal Denizen sacrificed as many Swamps as it could, up
+  to two, before testing "if you can't". CR 118.12 makes "[do something]. If
+  [a player] can't" a cost paid as the ability resolves, and CR 118.3 forbids
+  paying part of it, so the pinned two-Swamp `PayCost` and its `PaymentChosen`
+  test were right. The record is removed. See #24.
 
 - `U0045` (correction): "tokens created with" a permanent, and "the token" it
   created, intersect Token with MadeBy on Arcane Artisan, Dance of Many, Dual
@@ -416,9 +418,33 @@ the IR path, the value it replaces and why.
   controller, and the controller still chooses from Thought Prison's revealed
   hand. See #24.
 
+- `U0047` (correction): Drach'Nyen's X is the sum of the current power of every card
+  exiled with it (CR 607.3), as U0008 reads Phyrexian Ingester. It says "the exiled
+  card", not "creature card", so the population keeps an exiled Vehicle, whose printed
+  power still counts (CR 208.3), and adds no Creature conjunct. The old record read
+  Query index zero of an unordered exile population. See #30.
+
+- `U0048` (normalization): Protection Racket's payer, "that player" inside its
+  `PlayersDo` over each opponent, is `PlayerRef::Acting`, not `Prior(That)`. The
+  revealed card still comes from the controller's library. See #24.
+
+- `U0049` (normalization): "you may have target player [act]" is the
+  controller's choice: `Instruction::Optional` with decider `AbilityController`
+  around the target player's action, as on twenty-one other faces such as Dire
+  Undercurrents. Cloudhoof Kirin, Natural Selection, Portent, Thought Prison and
+  Visions used `PlayersDo{optional: true}` instead, which left the decider
+  unstated. `PlayersDo`'s `optional` is now only the acting players' own choice,
+  as in Infernal Denizen's "an opponent may". See #24.
+
+- `U0050` (normalization): Frankenstein's Monster and Mimeoplasm, Revered One
+  choose the creature cards to exile with `ChooseObjects` and move `Selected`,
+  as fifty-five other graveyard exiles do, instead of `WithSelections`. The
+  number actually exiled is still read from the move's receipt. See #29.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
-[its follow-up](../../docs/reported-issues-20261114.md). Their
+its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and
+[2026-11-15](../../docs/reported-issues-20261115.md). Their
 open status does not create a corpus equality exception.
 
 ## Open in the grammar

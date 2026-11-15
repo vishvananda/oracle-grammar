@@ -126,6 +126,12 @@ Canonicalization may remove irrelevant ordering and identifier spelling only
 where the schema defines equivalence. It may not replace identity, change scope,
 weaken predicates or turn an unsupported structure into agreement.
 
+A negated object-bound condition compares in one form: `ObjectFilter::Not(Condition(c))`
+is `Condition(Not(c))`, since both evaluate `c` once for the same candidate. Only
+comparison merges them; each prints from its own form. Selection encodings and
+live versus observed card references are not merged. Their producer normal forms
+are in [the 2026-11-15 issue audit](docs/reported-issues-20261115.md#producer-normal-forms-29).
+
 A sole-use scalar capture immediately before a pure Snapshot pump may be inlined:
 that effect evaluates both stat operands when it resolves, with no intervening
 state change. Count every typed result use, including delayed program captures.

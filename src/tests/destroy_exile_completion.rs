@@ -122,25 +122,31 @@ fn entry_exile_is_partial_and_both_counts_filter_actual_recorded_arrivals() {
     operations(&reading, "PayCost", &mut costs);
     assert!(costs.is_empty());
     let items = body(&mut reading);
-    let receipt = items[0]["args"]["result"].clone();
-    let operation = &mut items[0]["args"]["operation"];
-    assert_eq!(operation["kind"], "WithSelections");
-    let selection = &mut operation["args"]["steps"][0];
+    // The choice, then the move of exactly what was chosen; later counts read the
+    // move's own receipt.
+    let choice = &items[0]["args"];
+    assert_eq!(choice["operation"]["kind"], "ChooseObjects");
     assert_eq!(
-        selection["count"],
+        choice["operation"]["args"]["count"],
         json!({"AsManyAsCan":{"kind":"CastX","args":{"kind":"Source"}}})
     );
     assert_eq!(
-        selection["chooser"],
-        json!({"Players":{"kind":"One","args":{"kind":"AbilityController"}}})
+        choice["operation"]["args"]["player"],
+        json!({"kind":"AbilityController"})
     );
-    assert_eq!(operation["args"]["action"]["kind"], "Move");
+    let moved = &items[1]["args"];
+    assert_eq!(moved["operation"]["kind"], "Move");
+    assert_eq!(
+        moved["operation"]["args"]["objects"],
+        json!({"kind":"Selected","args":choice["result"]})
+    );
     assert!(
-        operation["args"]["action"]["args"]["destination"]
+        moved["operation"]["args"]["destination"]
             .get("Exile")
             .is_some()
     );
-    let condition = &items[1]["args"]["condition"]["args"];
+    let receipt = moved["result"].clone();
+    let condition = &items[2]["args"]["condition"]["args"];
     let count = &condition["left"];
     assert_eq!(count["kind"], "CountObjects");
     assert_eq!(count["args"]["kind"], "Matching");
@@ -156,7 +162,7 @@ fn entry_exile_is_partial_and_both_counts_filter_actual_recorded_arrivals() {
         condition["test"],
         json!({"kind":"Compare","args":{"comparison":"Equal","value":{"kind":"CastX","args":{"kind":"Source"}}}})
     );
-    let amount = &items[1]["args"]["then"]["instructions"][0]["args"]["operation"]["args"]["change"]
+    let amount = &items[2]["args"]["then"]["instructions"][0]["args"]["operation"]["args"]["change"]
         ["Entry"]["CountersOfChoice"]["amount"];
     assert_eq!(amount["args"]["kind"], "Matching");
     assert_eq!(
@@ -172,12 +178,12 @@ fn entry_exile_is_partial_and_both_counts_filter_actual_recorded_arrivals() {
         json!({"kind":"CardType","args":"Creature"})
     );
     assert_eq!(
-        items[1]["args"]["otherwise"]["instructions"][0]["args"]["operation"]["args"]["change"],
+        items[2]["args"]["otherwise"]["instructions"][0]["args"]["operation"]["args"]["change"],
         json!({"SetDestination":"OwnersGraveyard"})
     );
-    items[0]["args"]["operation"]["args"]["steps"][0]["count"] =
+    items[0]["args"]["operation"]["args"]["count"] =
         json!({"AsManyAsCan":{"kind":"Constant","args":2}});
-    items[1]["args"]["condition"]["args"]["test"]["args"]["value"] =
+    items[2]["args"]["condition"]["args"]["test"]["args"]["value"] =
         json!({"kind":"Constant","args":2});
     let text = printed(&reading);
     assert!(!text.contains('X'), "{text}");

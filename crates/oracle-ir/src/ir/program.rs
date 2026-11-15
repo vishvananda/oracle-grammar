@@ -748,8 +748,10 @@ pub enum Operation {
         change: CombatChange,
     },
     /// Actions done by these players, or by one of them if `any_one`.
-    /// `optional` lets the deciding player decline; `otherwise` follows when
-    /// they did.
+    /// `optional` lets the acting player decline ("an opponent may …");
+    /// `otherwise` follows when they did. When someone else decides whether
+    /// they act ("you may have target player …"), that choice is an
+    /// `Instruction::Optional` with its decider around the action instead.
     /// Inside `body`, `PlayerRef::Acting` is the player doing the actions, as in
     /// `EachPlayer`, and `AbilityController` stays the ability's controller.
     /// When the controller is the one acting, both name the same player.

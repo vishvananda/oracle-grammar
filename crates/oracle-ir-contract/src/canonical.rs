@@ -13,6 +13,7 @@ use std::sync::OnceLock;
 
 mod entry;
 mod events;
+mod filters;
 mod fixed_mana;
 mod joins;
 mod keywords;
@@ -538,6 +539,7 @@ impl Walker {
                     mana_uses::casting_alternatives(value, self.keep_order, self.tracing);
                 }
                 ("ObjectFilter", "InSet") => one_object_set(value),
+                ("ObjectFilter", "Not") if !self.keep_order => filters::negated_condition(value),
                 ("ObjectSet", "Zone") => {
                     narrow_zone_scope(content_of(value));
                     if let Some(filter) = battlefield_filter_mut(value) {

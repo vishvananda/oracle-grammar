@@ -227,7 +227,9 @@ destruction are retained. Imperial Edict's separately instructed choice remains
 unrestricted by that direct-destruction filter.
 
 U0025 replaces Frankenstein's Monster's all-or-nothing PayCost with an effect:
-WithSelections chooses AsManyAsCan(X), then performs the exile Move. Completion
+WithSelections chooses AsManyAsCan(X), then performs the exile Move. (U0050
+later spells the choice as ChooseObjects and the move as Selected; see
+[the 2026-11-15 audit](reported-issues-20261115.md#producer-normal-forms-29).) Completion
 compares actual Exile After arrivals with X; failure retains the owner-graveyard
 entry redirect. Counter amount counts creature-card Exile arrivals from the same
 receipt. Matching(Transition{After}, InZone(Exile)) examines recorded arrival

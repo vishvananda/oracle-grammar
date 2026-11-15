@@ -1,13 +1,19 @@
-//! Reported reference corrections (#20, #23-#28) parse to their corrected meaning alone.
+//! Reported reference corrections and normalizations (#20, #23-#30) parse to their
+//! corrected meaning alone.
 use super::*;
 use crate::engine::semantic_abilities;
 
 fn cases() -> Vec<Value> {
-    let value: Value = serde_json::from_str(include_str!(
-        "../../tests/fixtures/reported-corrections-20261114.json"
-    ))
-    .unwrap();
-    value["cases"].as_array().unwrap().clone()
+    [
+        include_str!("../../tests/fixtures/reported-corrections-20261114.json"),
+        include_str!("../../tests/fixtures/reported-corrections-20261115.json"),
+    ]
+    .iter()
+    .flat_map(|text| {
+        let value: Value = serde_json::from_str(text).unwrap();
+        value["cases"].as_array().unwrap().clone()
+    })
+    .collect()
 }
 
 /// The only reading of a fixture face, after checking it means the expected IR
@@ -156,23 +162,23 @@ fn heroism_pays_for_each_attacking_creature_as_it_resolves() {
 }
 
 #[test]
-fn infernal_denizen_sacrifices_what_it_can_before_testing() {
+fn infernal_denizen_pays_both_swamps_or_none() {
+    // "Sacrifice two Swamps. If you can't, ..." is a cost paid as the trigger
+    // resolves, in full or not at all (CR 118.12, 118.3).
     let reading = reading("Infernal Denizen");
     let trigger = json!([reading[0].clone()]);
-    assert!(found(&trigger, "PayCost").is_empty());
-    let sacrifices = found(&trigger, "Sacrifice");
-    assert_eq!(sacrifices.len(), 1);
+    let payments = found(&trigger, "PayCost");
+    assert_eq!(payments.len(), 1);
+    assert_eq!(payments[0]["optional"], false);
+    let part = &payments[0]["cost"]["parts"][0]["Sacrifice"];
     assert_eq!(
-        sacrifices[0]["choose"],
-        json!({"AsManyAsCan":{"kind":"Constant","args":2}})
+        part["choose"],
+        json!({"Exactly":{"kind":"Constant","args":2}})
     );
-    let test = &found(&trigger, "If")[0]["condition"]["args"];
-    assert_eq!(test["left"]["kind"], "Earlier");
-    assert_eq!(test["left"]["args"]["what"], "Sacrificed");
-    assert_eq!(
-        test["test"],
-        json!({"kind":"Compare","args":{"comparison":"Less","value":{"kind":"Constant","args":2}}})
-    );
+    let test = &found(&trigger, "If")[0]["condition"];
+    assert_eq!(test["kind"], "Not");
+    assert_eq!(test["args"]["kind"], "PaymentChosen");
+    assert!(found(&trigger, "Earlier").is_empty());
 }
 
 #[test]
@@ -209,8 +215,9 @@ fn players_do_names_the_acting_player_acting() {
     let mastery = players_do_body("Ingenious Mastery");
     assert_eq!(found(&mastery, "CreateTokens")[0]["players"], one(&acting));
     assert_eq!(found(&mastery, "Scry")[0]["players"], one(&acting));
-    let selection = players_do_body("Natural Selection");
-    assert_eq!(found(&selection, "Shuffle")[0]["players"], one(&acting));
+    // "That player may pay life": the opponent whose turn of the process it is.
+    let racket = players_do_body("Protection Racket");
+    assert_eq!(found(&racket, "PayCost")[0]["player"], acting);
     let valley = players_do_body("Stardew Valley");
     assert_eq!(found(&valley, "SetController"), vec![acting]);
 }
@@ -228,20 +235,104 @@ fn players_do_keeps_the_ability_controller_apart_from_the_actor() {
         vec![one(&controller)]
     );
     assert_eq!(found(&denizen, "SetController"), vec![acting.clone()]);
-    // The target reveals; the controller chooses a card that player owns.
-    let prison = players_do_body("Thought Prison");
-    let revealed = &found(&prison, "Reveal")[0]["objects"]["args"]["scope"]["Players"];
-    assert_eq!(revealed["players"], one(&acting));
-    let choice = &found(&prison, "ChooseObjects")[0];
-    assert_eq!(choice["player"], controller);
-    assert_eq!(found(&choice["objects"], "OwnedBy"), vec![one(&acting)]);
     // Each opponent may pay, but "your library" stays the controller's.
     let racket = players_do_body("Protection Racket");
-    assert!(!racket.to_string().contains(&acting.to_string()));
     let libraries = found(&racket, "Take");
     assert_eq!(libraries.len(), 3);
     for take in libraries {
         let scope = &take["objects"]["args"]["scope"]["Players"];
         assert_eq!(scope["players"], one(&controller));
+    }
+}
+
+#[test]
+fn the_controller_decides_whether_a_target_player_acts() {
+    let target = one(&json!({"kind":"Target","args":{"slot":0,"index":0}}));
+    let controller = json!({"kind":"AbilityController"});
+    for (name, action) in [
+        ("Cloudhoof Kirin", "Mill"),
+        ("Natural Selection", "Shuffle"),
+        ("Visions", "Shuffle"),
+        ("Thought Prison", "Reveal"),
+    ] {
+        let reading = reading(name);
+        assert!(found(&reading, "PlayersDo").is_empty(), "{name}");
+        let offers = found(&reading, "Optional");
+        assert_eq!(offers.len(), 1, "{name}");
+        assert_eq!(offers[0]["decider"], controller, "{name}");
+        let acts = found(&offers[0]["body"], action);
+        assert_eq!(acts.len(), 1, "{name}");
+        assert!(!acts[0].to_string().contains("Acting"), "{name}");
+        assert!(acts[0].to_string().contains(&target.to_string()), "{name}");
+    }
+    // The controller still chooses the card from Thought Prison's revealed hand.
+    let prison = reading("Thought Prison");
+    assert_eq!(found(&prison, "ChooseObjects")[0]["player"], controller);
+}
+
+#[test]
+fn drach_nyen_counts_the_power_of_every_card_exiled_with_it() {
+    let reading = reading("Drach'Nyen");
+    let sums = found(&reading, "Aggregate");
+    assert_eq!(sums.len(), 1);
+    assert_eq!(sums[0]["property"], "Power");
+    assert_eq!(sums[0]["aggregation"], "Sum");
+    let exiled = json!({"kind":"ExiledWith","args":{"kind":"Source"}});
+    assert_eq!(found(&sums[0]["objects"], "Zone")[0]["filter"], exiled);
+    assert!(found(&reading, "Query").is_empty());
+}
+
+#[test]
+fn graveyard_exile_chooses_the_cards_then_moves_the_selection() {
+    for name in ["Frankenstein's Monster", "Mimeoplasm, Revered One"] {
+        let reading = reading(name);
+        assert!(found(&reading, "WithSelections").is_empty(), "{name}");
+        let body = &reading[0]["args"]["body"]["instructions"];
+        let choice = &body[0]["args"];
+        assert_eq!(choice["operation"]["kind"], "ChooseObjects", "{name}");
+        let moved = &body[1]["args"]["operation"]["args"];
+        assert_eq!(
+            moved["objects"],
+            json!({"kind":"Selected","args":choice["result"]}),
+            "{name}"
+        );
+        let receipt = json!({"kind":"Transition","args":{"result":body[1]["args"]["result"],"phase":"After"}});
+        assert!(reading.to_string().contains(&receipt.to_string()), "{name}");
+    }
+}
+
+/// Swap one `Condition(Not(c))` object filter for `Not(Condition(c))`.
+fn negate_outside(value: &mut Value) -> bool {
+    if value["kind"] == "Condition" && value["args"]["kind"] == "Not" {
+        let condition = value["args"]["args"].take();
+        *value = json!({"kind":"Not","args":{"kind":"Condition","args":condition}});
+        return true;
+    }
+    match value {
+        Value::Object(fields) => fields.values_mut().any(negate_outside),
+        Value::Array(items) => items.iter_mut().any(negate_outside),
+        _ => false,
+    }
+}
+
+#[test]
+fn total_war_means_the_same_with_the_negation_outside_the_condition() {
+    let reading = reading("Total War");
+    let mut outside = reading.clone();
+    assert!(negate_outside(&mut outside));
+    validate_abilities(&outside).unwrap();
+    assert_eq!(
+        semantic_abilities(&outside).unwrap(),
+        semantic_abilities(&reading).unwrap()
+    );
+}
+
+#[test]
+fn vexing_arcanix_moves_the_revealed_card_itself() {
+    let reading = reading("Vexing Arcanix");
+    let moves = found(&reading, "Move");
+    assert_eq!(moves.len(), 2);
+    for moved in moves {
+        assert_eq!(moved["objects"]["kind"], "Observed");
     }
 }

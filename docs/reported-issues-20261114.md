@@ -20,7 +20,7 @@ operands directly and prints the written text back exactly.
 | [#21](https://github.com/vishvananda/oracle-grammar/issues/21) | Open: Krovikan Vampire needs a historical death selector that tests the departing object and projects its first graveyard incarnation. |
 | [#22](https://github.com/vishvananda/oracle-grammar/issues/22) | Open: Wood Elemental and Dracoplasm need the permanents actually sacrificed as that incarnation entered, tested through the source's current words. |
 | [#23](https://github.com/vishvananda/oracle-grammar/issues/23) | Fixed locally: U0043 pays as Heroism resolves and shields that same creature. `ForEachObject` now documents its choice order. |
-| [#24](https://github.com/vishvananda/oracle-grammar/issues/24) | Fixed locally: U0044 sacrifices as many Swamps as it can before "if you can't". U0046 names the acting player `PlayerRef::Acting` inside `PlayersDo`, and `oracle-ir` documents that contract. |
+| [#24](https://github.com/vishvananda/oracle-grammar/issues/24) | Fixed locally, partly superseded: U0044 sacrificed as many Swamps as it could before "if you can't"; it is withdrawn in [the 2026-11-15 audit](reported-issues-20261115.md). U0046 names the acting player `PlayerRef::Acting` inside `PlayersDo`, and `oracle-ir` documents that contract. |
 | [#25](https://github.com/vishvananda/oracle-grammar/issues/25) | Fixed locally: U0038 lets a snow Island add one or two additional {U}. |
 | [#26](https://github.com/vishvananda/oracle-grammar/issues/26) | Fixed locally: U0039 leaves Aladdin's Lamp's kept card in place. |
 | [#27](https://github.com/vishvananda/oracle-grammar/issues/27) | Fixed locally: U0040 offers Bison Whistle's four choices for any looked-at card. |
@@ -89,6 +89,10 @@ still run one after another, not as one batch. The next `oracle-ir` release
 carries this text.
 
 ## Compulsory sacrifice and the acting opponent: #24
+
+The sacrifice half of this section is superseded: CR 118.12 makes the action a
+cost, so the pinned record was right and U0044 is withdrawn. See
+[the 2026-11-15 audit](reported-issues-20261115.md#resolution-time-costs-24).
 
 Infernal Denizen's "sacrifice two Swamps. If you can't, …" is an instruction,
 not a cost. A player with one Swamp sacrifices it and then takes the
