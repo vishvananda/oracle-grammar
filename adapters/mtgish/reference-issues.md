@@ -441,6 +441,19 @@ the IR path, the value it replaces and why.
   as fifty-five other graveyard exiles do, instead of `WithSelections`. The
   number actually exiled is still read from the move's receipt. See #29.
 
+- `U0051` (normalization): Ignite Memories' "Target player reveals a card at
+  random from their hand" is `RevealFromHand{at_random: true}`, and "that
+  card's mana value" reads the revealed card as `Observed`, as eighteen other
+  random hand reveals do, among them Planeswalker's Fury and Planeswalker's
+  Mirth with the same following sentence. It was a mandatory
+  `PayCost{Reveal{random: true}}` followed by `If PaymentChosen`, though the
+  text has no cost and no "if you do".
+
+- `U0052` (normalization): Rotfeaster Maggot's "that card's toughness" reads
+  the exiled target, `ObjectProperty{object: Target}`, as Surge to Victory,
+  Healing Technique and four other "target card … that card's" records do. It
+  was `Earlier{what: Exiled, result: null}`, which names no exile.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
 its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and

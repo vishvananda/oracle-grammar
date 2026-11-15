@@ -418,6 +418,9 @@ fn reference_marker(name: &str) -> bool {
             | "other_reference"
             | "another_target_reference"
             | "exiled_card_reference"
+            | "card_receipt"
+            | "revealed_card_receipt"
+            | "discarded_card_receipt"
     )
 }
 
@@ -430,11 +433,17 @@ fn reference_call(
     if *ty != Ty::Named("ObjectRef".into()) {
         return Err(format!("@{name} produces ObjectRef"));
     }
-    if name == "exiled_card_reference" {
+    if matches!(
+        name,
+        "exiled_card_reference"
+            | "card_receipt"
+            | "revealed_card_receipt"
+            | "discarded_card_receipt"
+    ) {
         return if args.is_empty() {
             Ok(Pattern::Symbol(name.into(), vec![]))
         } else {
-            Err("@exiled_card_reference takes no arguments".into())
+            Err(format!("@{name} takes no arguments"))
         };
     }
     let argument = if matches!(name, "other_reference" | "another_target_reference") {

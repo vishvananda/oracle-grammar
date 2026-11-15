@@ -51,6 +51,38 @@ pub(super) fn refers_to(name: &str, value: &Value) -> bool {
                 && value["args"]["index"] == 0
                 && value["args"]["result"].is_u64()
         }
+        // The receipts `card_receipt` reads; reparsing proves the producer.
+        "card_receipt" | "revealed_card_receipt" | "discarded_card_receipt" => {
+            let objects = &value["args"]["objects"];
+            let phase = &objects["args"]["phase"];
+            let any = name == "card_receipt";
+            match kind {
+                "Target" => any && !introducing,
+                "Result" if any => {
+                    value["args"]["phase"] == "After"
+                        && value["args"]["index"] == 0
+                        && value["args"]["result"].is_u64()
+                }
+                "Query" => {
+                    value["args"]["index"] == 0
+                        && match objects["kind"].as_str() {
+                            Some("Observed") => {
+                                name != "discarded_card_receipt" && objects["args"].is_u64()
+                            }
+                            Some("Transition") => {
+                                name != "revealed_card_receipt" && phase == "Before"
+                            }
+                            Some("CostObjects") => {
+                                phase == "Before"
+                                    && objects["args"]["view"] == "Inputs"
+                                    && objects["args"]["payment"].get("Resolution").is_some()
+                            }
+                            _ => false,
+                        }
+                }
+                _ => false,
+            }
+        }
         "drafted_reference" | "drafted_reference_explicit" => {
             kind == "Transition"
                 && value["args"]["phase"] == "After"

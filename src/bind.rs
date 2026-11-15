@@ -8,6 +8,7 @@ pub(crate) mod activation_property;
 mod addresses;
 pub(crate) mod attached_counter_other;
 pub(crate) mod branches;
+mod card_receipt;
 pub(crate) mod chosen_kinds;
 mod combat;
 mod conditional;
@@ -364,8 +365,12 @@ fn result_reference(
     path: &[Step],
     scope: &Scope,
     prior: &references::Contexts,
+    introduced: &[references::TargetIntroduction],
 ) -> Result<Value, String> {
     match name {
+        receipt if card_receipt::is_receipt(receipt) => {
+            card_receipt::reference(receipt, root, path, prior.before(path, scope), introduced)
+        }
         "created_reference" | "created_reference_single" => created::reference(
             prior.before(path, scope),
             name == "created_reference_single",
@@ -438,8 +443,11 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                 | "created_named_reference"
                 | "drafted_reference"
                 | "drafted_reference_explicit"
-                | "exiled_card_reference" => {
-                    result_reference(&name, root, &item.path, scope, &prior)?
+                | "exiled_card_reference"
+                | "card_receipt"
+                | "revealed_card_receipt"
+                | "discarded_card_receipt" => {
+                    result_reference(&name, root, &item.path, scope, &prior, &introduced)?
                 }
                 sacrifice_actor::ACTOR => sacrifice_actor::reference(root, &item.path)?,
                 "qualified_members" => qualified::members(node, scope)?,
