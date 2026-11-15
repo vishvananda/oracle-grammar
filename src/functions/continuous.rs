@@ -8,8 +8,14 @@ fn creature_animation(change: &Value) -> bool {
         || (change["kind"] == "SetCardTypes" && change["args"] == json!(["Creature"]))
 }
 
+/// Every creature type is the same set whether it replaces or adds to the old ones.
+fn every_creature_type(change: &Value) -> bool {
+    change["kind"] == "CreatureTypes" && change["args"]["types"] == "All"
+}
+
 /// CR 205.1b: an explicit retention phrase adds the animation's creature types.
 /// Only the immediate animation changes, never a granted ability, are visited.
+/// "All creature types" keeps its one written mode, `Set`.
 pub(crate) fn retain_animation_types(value: &Value) -> Result<Value, String> {
     let changes = value.as_array().ok_or("retained animation needs changes")?;
     if changes.len() > 64
@@ -36,7 +42,11 @@ pub(crate) fn retain_animation_types(value: &Value) -> Result<Value, String> {
             if !matches!(change["args"]["mode"].as_str(), Some("Set" | "Add")) {
                 return Err("retained animation needs set or additive creature types".into());
             }
-            change["args"]["mode"] = json!("Add");
+            change["args"]["mode"] = json!(if every_creature_type(change) {
+                "Set"
+            } else {
+                "Add"
+            });
         }
     }
     Ok(Value::Array(output))
@@ -65,7 +75,7 @@ fn retained_preimages(value: &Value) -> Vec<Value> {
         .unwrap()
         .iter()
         .enumerate()
-        .filter_map(|(i, c)| (c["kind"] == "CreatureTypes").then_some(i))
+        .filter_map(|(i, c)| (c["kind"] == "CreatureTypes" && !every_creature_type(c)).then_some(i))
         .collect();
     let creature = value
         .as_array()
@@ -282,6 +292,23 @@ mod tests {
         let mut unsupported = original;
         unsupported[2]["args"] = json!(["Creature", "Planeswalker"]);
         assert!(retain_animation_types(&unsupported).is_err());
+    }
+
+    #[test]
+    fn retention_keeps_every_creature_type_as_written() {
+        let changes = json!([
+            {"kind":"SetBasePowerToughness","args":{"power":{"kind":"Constant","args":2},"toughness":{"kind":"Constant","args":2}}},
+            {"kind":"AddCardType","args":"Creature"},
+            {"kind":"CreatureTypes","args":{"mode":"Set","types":"All"}}
+        ]);
+        assert_eq!(retain_animation_types(&changes).unwrap(), changes);
+        let mut added = changes.clone();
+        added[2]["args"]["mode"] = json!("Add");
+        assert_eq!(retain_animation_types(&added).unwrap(), changes);
+        let preimages = retained_preimages(&changes);
+        assert_eq!(preimages.len(), 2);
+        assert!(preimages.contains(&changes));
+        assert!(preimages.iter().all(|v| v[2] == changes[2]));
     }
 
     fn template(changes: Value) -> Value {

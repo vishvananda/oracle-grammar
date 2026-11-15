@@ -46,6 +46,12 @@ pub(super) fn refers_to(name: &str, value: &Value) -> bool {
     let introducing = value["args"]["slot"].get("$sym").is_some();
     match name {
         "self" => kind == "Source",
+        // Naming a captured event can replace EventSubject with its known object.
+        // The complete reparse proves that the candidate has that same event.
+        "event_subject" => matches!(
+            kind,
+            "EventSubject" | "Source" | "GrantingObject" | "Target" | "Query" | "Result" | "Bound"
+        ),
         "exiled_card_reference" => {
             let objects = &value["args"]["objects"];
             let exiled = &objects["args"]["objects"];

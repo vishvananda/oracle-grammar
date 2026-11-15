@@ -2,6 +2,93 @@
 use super::*;
 
 #[test]
+fn graveyard_grants_keep_card_ownership_and_receiving_holder_costs() {
+    let mut frame = compositional(
+        "Each creature card in your graveyard has scavenge. The scavenge cost is equal to its mana cost.",
+    );
+    let objects = &frame[0]["args"]["affected"]["Objects"];
+    assert_eq!(objects["kind"], "Zone");
+    assert_eq!(objects["args"]["kind"], "Card");
+    assert_eq!(
+        objects["args"]["scope"],
+        json!({"Players":{"zone":"Graveyard","players":{"kind":"One","args":{"kind":"AbilityController"}}}})
+    );
+    let grant = &frame[0]["args"]["changes"][0]["args"];
+    assert_eq!(grant["kind"], "Mechanic");
+    assert_eq!(
+        grant["args"]["cost"]["parts"],
+        json!([{"ManaCostOf":{"kind":"Source"}}])
+    );
+    frame[0]["args"]["affected"]["Objects"]["args"]["filter"] =
+        json!({"kind":"CardType","args":"Artifact"});
+    let grant = &mut frame[0]["args"]["changes"][0]["args"]["args"];
+    grant["mechanic"] = json!("Unearth");
+    grant["cost"]["parts"] = json!([{"Mana":[{"Generic":3},{"Color":"Black"}]}]);
+    let text = printed(&frame).to_lowercase();
+    assert!(text.contains("artifact card"), "{text}");
+    assert!(text.contains("unearth {3}{b}"), "{text}");
+
+    let colors = compositional(
+        "Blue, black, and/or red creature cards in your graveyard have unearth. The unearth cost is equal to the card's mana cost.",
+    );
+    let filter = &colors[0]["args"]["affected"]["Objects"]["args"]["filter"];
+    assert_eq!(filter["kind"], "AllOf");
+    assert!(
+        filter["args"]
+            .as_array()
+            .unwrap()
+            .contains(&json!({"kind":"CardType","args":"Creature"}))
+    );
+}
+
+#[test]
+fn departed_counters_print_the_original_subject_and_edited_recipient() {
+    for (text, source) in [
+        (
+            "When this creature dies, put its counters on target creature you control.",
+            "Source",
+        ),
+        (
+            "Whenever a creature you control dies, put its counters on target creature you control.",
+            "EventSubject",
+        ),
+    ] {
+        let mut frame = compositional(text);
+        let counters = &frame[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"];
+        assert_eq!(
+            counters["from"]["On"],
+            json!({"kind":"Objects","args":{"kind":"One","args":{"kind":source}}})
+        );
+        assert_eq!(
+            counters["to"],
+            json!({"kind":"Objects","args":{"kind":"One","args":{"kind":"Target","args":{"slot":0,"index":0}}}})
+        );
+        let key = engine()
+            .derivation_of("Context example", &frame, text)
+            .unwrap()
+            .expect("the bound counter source has an inverse");
+        assert_eq!(
+            engine()
+                .print_keyed("Context example", &frame, &[], &key)
+                .unwrap()
+                .as_deref(),
+            Some(text)
+        );
+        frame[0]["args"]["announcement"]["targets"][0]["filter"] =
+            json!({"kind":"CardType","args":"Artifact"});
+        let printed = printed(&frame).to_lowercase();
+        assert!(printed.contains("target artifact"), "{printed}");
+    }
+    for text in [
+        "Put its counters on target creature.",
+        "Draw a card. Put its counters on target creature.",
+        "Whenever you gain life, put its counters on target creature.",
+    ] {
+        assert!(engine().parse("Context example", text).is_err(), "{text}");
+    }
+}
+
+#[test]
 fn either_action_prints_new_discard_payment_and_both_target_filters() {
     let mut frame = expected("Anthropede");
     let options = &mut frame[1]["args"]["body"]["instructions"][0]["args"]["options"];

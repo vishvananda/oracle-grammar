@@ -466,6 +466,7 @@ fn reference_marker(name: &str) -> bool {
             | "card_receipt"
             | "revealed_card_receipt"
             | "discarded_card_receipt"
+            | "event_subject"
     )
 }
 
@@ -484,6 +485,7 @@ fn reference_call(
             | "card_receipt"
             | "revealed_card_receipt"
             | "discarded_card_receipt"
+            | "event_subject"
     ) {
         return if args.is_empty() {
             Ok(Pattern::Symbol(name.into(), vec![]))

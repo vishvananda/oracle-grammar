@@ -61,6 +61,15 @@ conditional_token_change ::= created_reference changes duration
 /* An undated grant lasts indefinitely; its holder is the created token. */
 /* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_reference), changes:$change_grant, duration:Indefinite, evaluation:Snapshot}} */
 conditional_token_grant ::= created_reference change_grant
+/* "Create a token that's a copy of target creature you control. It gains haste.": an
+   undated grant to the tokens just created lasts indefinitely. The subject names the
+   created batch, so the clause refuses where nothing was created. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_gains_subject), changes:$grants, duration:Indefinite, evaluation:Snapshot}}] */
+clause_created_gains ::= created_gains_subject "gains" grants
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_gain_subject), changes:$grants, duration:Indefinite, evaluation:Snapshot}}] */
+clause_created_gain ::= created_gain_subject "gain" grants
+created_gains_subject ::= created_ordinary_singular | created_named_reference
+created_gain_subject ::= created_group_reference | created_batch_reference
 
 /* The condition is tested when the delayed ability resolves. It neither gates
    registration nor becomes an intervening-if test on the delayed trigger. */

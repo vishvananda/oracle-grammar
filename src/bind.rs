@@ -455,6 +455,7 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
             entered
         } else {
             match name.as_str() {
+                "event_subject" => json!({"kind":"EventSubject"}),
                 "coin_protocol" => json!("Called"),
                 "coin_receipt" => coin_protocol::receipt(root, &item.path)?,
                 "created_reference"

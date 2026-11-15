@@ -283,7 +283,11 @@ rest_bottom ::= "the" "rest" "on" "the" "bottom" "of" "your" "library" library_o
 /* @sem Operation::Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(2), phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 rest_graveyard ::= ("the" "rest" | "the" "other") "into" "your" "graveyard"
 
-look_rest ::= rest_bottom | rest_graveyard
+/* With one card left, Oracle names no order for it. */
+/* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(2), phase:Before}])}, zone:Library}, end:Bottom, order:Chosen} */
+rest_other_bottom ::= "the" "other" "on" "the" "bottom" "of" "your" "library"
+
+look_rest ::= rest_bottom | rest_other_bottom | rest_graveyard
 
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($look_count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Instruction::Effect{result:@next, operation:$look_rest}] */
 look_put_split ::= "put" look_count "of" ("them" | "those" "cards") "into" "your" "hand" "and" look_rest
@@ -646,7 +650,9 @@ a_card_kind ::= ("a" | "an") card_filter "card"
 /* @sem @and($card_filter, $modifiers) */
 a_card_with ::= ("a" | "an") card_filter "card" modifiers
 
-/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:$your_zone, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:$your_zone, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::@exiled_card_result(Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]})}] */
+/* "Exile a creature card from your graveyard. Create a token that's a copy of it.": the
+   following pronoun names the one exiled card. */
 clause_exile_from ::= "exile" a_card "from" your_zone
 
 /* "Exile a card from your hand face down": you choose the cards, hidden once exiled. */
@@ -980,6 +986,14 @@ seek_delayed_discard ::= "discard" current_card_ref "at" "the" "beginning" "of" 
    The amount reads the card's pre-move information, not the new top card. */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:$your_top}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@mark, operation:Move{objects:$your_top, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:$top_card_life_loss_amount}}]}, otherwise:Program{}}] */
 clause_optional_top_card_life ::= "you" "may" "reveal" your_top "and" "put" "it" "into" "your" "hand" "." "if" "you" "do" "," "you" "lose" top_card_life_loss_amount
+
+/* "An opponent separates those cards into two piles. Put one pile into your hand and the
+   other into your graveyard.": the piles split the cards the previous instruction
+   revealed; you choose the pile for your hand, and the rest of those cards move on. */
+/* @sem Instruction::[Effect{result:@next, operation:SeparatePiles{separator:OneOf(OpponentsOf(AbilityController)), chooser:AbilityController, objects:InZone{objects:Observed(@prior), zone:Library}}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+clause_opponent_piles_graveyard ::= "an" "opponent" "separates" "those" "cards" "into" "two" "piles" "." "put" "one" "pile" "into" "your" "hand" "and" "the" "other" "into" "your" "graveyard"
+/* @sem Instruction::[Effect{result:@next, operation:SeparatePiles{separator:OneOf(OpponentsOf(AbilityController)), chooser:AbilityController, objects:InZone{objects:Observed(@prior), zone:Library}}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:Chosen}}] */
+clause_opponent_piles_bottom ::= "an" "opponent" "separates" "those" "cards" "into" "two" "piles" "." "put" "one" "pile" "into" "your" "hand" "and" "the" "other" "on" "the" "bottom" "of" "your" "library"
 
 /* Copying a revealed card does not move it. The final reorder retains the
    owning reveal receipt across that intervening continuous effect. */

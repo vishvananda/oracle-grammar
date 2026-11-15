@@ -520,6 +520,29 @@ the IR path, the value it replaces and why.
   spells; Gloom records the same unqualified wording for every player, and
   Anointed Peacekeeper adds a caster only where the words name one.
 
+- `U0065` (correction): Kindred Charge copies each creature "you control" of
+  the chosen type. The record dropped the controller and copied every
+  player's creatures; Rhys the Redeemed, Second Harvest and Saheeli, the
+  Gifted record the same words with `ControlledBy`.
+
+- `U0066` (normalization): Molten Echoes and Mordor on the March grant haste
+  to, and exile, the copy token as the creation's batch, `Created(...)`, as
+  Flameshadow Conjuring records Molten Echoes' exact follow-up and Felhide
+  Spiritbinder, Cadric, Soul Kindler and Séance record "It gains haste" and
+  "Exile it". The records named only the creation's first object.
+
+- `U0067` (normalization): Lazotep Quarry, Nahiri, the Unforgiving and The
+  Scarab God exile a target card and create "a copy of it". The records
+  copied the exile's result; Restore Relic, The Cloning of Shredder and
+  Abyssal Harvester copy the exiled `Target` for the same words. "A copy of
+  that card" keeps the exile receipt (Anikthea, Hand of Erebos, Tamiyo,
+  Compleated Sage).
+
+- `U0068` (correction): the five Alchemy Gates (Gate to Manorborn and its
+  cycle) print "{T}: Add {G}." on its own line, outside reminder
+  parentheses. The records dropped that printed ability; Abandoned Air
+  Temple and Ba Sing Se record printed mana lines as Activated abilities.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
 its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and

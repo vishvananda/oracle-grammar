@@ -362,6 +362,9 @@ surveil_third ::= "surveils" number
 
 /* @sem Instruction::[Instruction::Optional{decider:AbilityController, body:Program{instructions:$may_body}}] */
 clause_may ::= "you" "may" may_body
+/* "You may shuffle." shuffles only your library, with no cards named. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}}] */
+clause_may_shuffle ::= "you" "may" "shuffle"
 
 /* A then-continuation is part of the same optional resolving action. */
 /* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:@optional_then($may_body, $conjoined)}}] */
@@ -611,6 +614,11 @@ move_owner_counter_one ::= "return" affected "to" "the" "battlefield" "tapped" "
 move_owner_counter_untapped ::= "return" affected "to" "the" "battlefield" "under" owner_possessive "control" "with" "a" counter_kind "counter" "on" "it"
 /* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[[$counter_kind, $number]], states:[]}}, qualifiers:[]} */
 move_owner_counter_many ::= "return" affected "to" "the" "battlefield" "tapped" "under" owner_possessive "control" "with" number counter_kind "counters" "on" "it"
+
+/* "Return it to the battlefield under its owner's control. It's an enchantment.": the
+   returning card arrives with enchantment as its only card type. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$affected, destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[Changes([SetCardTypes([Enchantment])])]}}, qualifiers:[]}}] */
+clause_return_owner_as_enchantment ::= "return" affected "to" "the" "battlefield" "under" owner_possessive "control" "." "it's" "an" "enchantment"
 
 /* A graveyard return tests the same new incarnation it will move. The binder
    supplies CR400.7f only in an enchanted-permanent departure scope. */
