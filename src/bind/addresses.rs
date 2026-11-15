@@ -31,13 +31,48 @@ pub(super) fn quantity(
     {
         return Err("that many after drawing requires a captured requested amount".into());
     }
+    let result = serde_json::to_value(result).map_err(|e| e.to_string())?;
     Ok(if many {
         json!({"kind":"CountObjects","args":{
             "kind":"Transition","args":{"result":result,"phase":"Before"}
         }})
+    } else if produced_by(root, &result, true, &rolled) {
+        // "Roll a die. If the result is 3 or less, you lose that much life."
+        json!({"kind":"DieResult","args":result})
     } else {
         json!({"kind":"Performed","args":result})
     })
+}
+
+/// "The result" names the latest die roll in this result address space, so a
+/// "when you do" trigger after the roll reads the same die.
+fn die_roll(scope: &Scope) -> Result<Value, String> {
+    scope
+        .results
+        .roll()
+        .map(|result| json!(result))
+        .ok_or_else(|| "no die roll for the result".into())
+}
+
+/// The roll's own result address, once its effect allocates one.
+pub(super) fn record_roll(operation: &Value, value: &Value, scope: &mut Scope) {
+    if rolled(operation)
+        && let Some(result) = value.as_u64()
+    {
+        scope.results.record_roll(result);
+    }
+}
+
+fn rolled(operation: &Value) -> bool {
+    operation["kind"] == "Keyword" && operation["args"]["action"].get("RollDie").is_some()
+}
+
+fn outside(value: &Value) -> bool {
+    use crate::traverse::{Boundary, boundary};
+    matches!(
+        boundary(value),
+        Boundary::Ability | Boundary::Holder | Boundary::Lexical | Boundary::Reflexive
+    )
 }
 
 // A one-object sacrifice supplies no lexical amount for `that much`. In this
@@ -143,6 +178,7 @@ pub(super) fn result(name: &str, node: &Value, scope: &mut Scope) -> Result<Valu
         "prior" => json!(scope.results.back(2)?),
         // The instruction just finished, from a sibling that makes no result.
         "last_result" => json!(scope.results.back(1)?),
+        "die_roll" => die_roll(scope)?,
         _ => return Err(format!("unknown result symbol {name}")),
     })
 }
@@ -150,24 +186,24 @@ pub(super) fn result(name: &str, node: &Value, scope: &mut Scope) -> Result<Valu
 // Distinguish a requested draw quantity from actual moved-card receipts.
 // A nested independent ability cannot supply this scope's antecedent.
 pub(super) fn draw_result(value: &Value, result: &Value, root: bool) -> bool {
-    use crate::traverse::{Boundary, boundary};
-    if !root
-        && matches!(
-            boundary(value),
-            Boundary::Ability | Boundary::Holder | Boundary::Lexical | Boundary::Reflexive
-        )
-    {
+    produced_by(value, result, root, &|operation| {
+        operation["kind"] == "Draw"
+    })
+}
+
+fn produced_by(value: &Value, result: &Value, root: bool, made: &dyn Fn(&Value) -> bool) -> bool {
+    if !root && outside(value) {
         return false;
     }
     if value["kind"] == "Effect"
         && value["args"]["result"] == *result
-        && value["args"]["operation"]["kind"] == "Draw"
+        && made(&value["args"]["operation"])
     {
         return true;
     }
     match value {
-        Value::Object(fields) => fields.values().any(|v| draw_result(v, result, false)),
-        Value::Array(items) => items.iter().any(|v| draw_result(v, result, false)),
+        Value::Object(fields) => fields.values().any(|v| produced_by(v, result, false, made)),
+        Value::Array(items) => items.iter().any(|v| produced_by(v, result, false, made)),
         _ => false,
     }
 }

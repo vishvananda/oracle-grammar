@@ -12,6 +12,8 @@ pub(super) struct Results {
     next: u64,
     // Usually empty: ordinary cards keep the allocation-free cursor path.
     generated: Vec<ResultId>,
+    // The latest die roll's address, which "the result" names.
+    roll: Option<ResultId>,
 }
 
 impl Results {
@@ -28,6 +30,14 @@ impl Results {
         let id = ResultId(id);
         self.generated.push(id);
         Ok(id)
+    }
+
+    pub(super) fn record_roll(&mut self, result: u64) {
+        self.roll = u32::try_from(result).ok().map(ResultId);
+    }
+
+    pub(super) fn roll(&self) -> Option<ResultId> {
+        self.roll
     }
 
     pub(super) fn lexical_issued(&self) -> u64 {
@@ -73,7 +83,7 @@ mod tests {
     fn checked_exhaustion_never_wraps_or_reuses_a_definition() {
         let mut ids = Results {
             next: u64::from(u32::MAX),
-            generated: Vec::new(),
+            ..Results::default()
         };
         assert_eq!(ids.allocate().unwrap(), ResultId(u32::MAX));
         assert!(ids.allocate().is_err());

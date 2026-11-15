@@ -52,7 +52,7 @@ mod presentation;
 mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{
-    attaches_to_itself, blocks_itself, cancels_before_choice, condition_placement,
+    attaches_to_itself, blocks_itself, cancels_before_choice, condition_placement, copies_itself,
     damage_after_unpaid_sacrifice, graveyard_looks_back, has_cost_as_action, leaves_paid_branch,
     life_margin_order, protection_domain_mismatch, reorders_another_library,
     single_holder_affected, spell_asks_own_cost,
@@ -333,6 +333,9 @@ pub fn bind_held_ability(
     if attaches_to_itself(ability) {
         return Err("an arriving Aura or Equipment attaches to another object".into());
     }
+    if copies_itself(ability) {
+        return Err("an object becomes a copy of another object".into());
+    }
     if leaves_paid_branch(ability) {
         return Err("a sentence about an if-you-do branch's targets continues it".into());
     }
@@ -501,9 +504,8 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                     shape_objects = true;
                     continue;
                 }
-                "next" | "mark" | "choice_mark" | "marked" | "back" | "prior" | "last_result" => {
-                    addresses::result(&name, node, scope)?
-                }
+                "next" | "mark" | "choice_mark" | "marked" | "back" | "prior" | "last_result"
+                | "die_roll" => addresses::result(&name, node, scope)?,
                 "cost_index" => json!(scope.cost_index.ok_or("no sacrifice in this cost")?),
                 "share" => {
                     shares.push(item.path.clone());

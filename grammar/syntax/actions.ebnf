@@ -160,7 +160,7 @@ action ::= copy_effect_indefinite_except | copy_effect_duration_except | copy_ef
     | choose_cards_in_hand | flip_a_coin | add_mana_player | add_mana_for_affected | add_mana_for_each | add_mana_for_removed_counters | add_alternative_mana_for_removed_counters
     | add_mana_of_chosen_color | add_mana_any_combination | add_mana_amount_equal
     | create_tokens_tapped_attacking | create_tokens_attacking_player | abandon_this_scheme | you_gain_life | deal_damage_equal_counters
-    | deal_damage_split_two | exile_target_players_graveyard | exile_all_graveyard_cards | exile_all_graveyards_cards | exile_all_hand_cards | exile_all_library_cards
+    | deal_damage_split_two | exile_target_players_graveyard | exile_all_graveyard_cards | exile_all_graveyards_cards | exile_all_hand_cards | exile_all_hand_face_down | exile_all_library_cards
     | exile_two_groups | exile_all_graveyards | exile_with_counters | exile_instead_of_dying | entries_with_counters_this_turn
     | exile_damaged_instead_of_dying | prevent_combat_damage_would_deal | gain_control_of
     | player_gains_control_of | gain_control_while_controlled | exile_top_cards_of_your_library
@@ -351,6 +351,8 @@ mill_base ::= "mill" card_count
 mill_third ::= "mills" card_count
 /* @sem Operation::Scry{players:@subject, amount:$number} */
 scry_base ::= "scry" number
+/* @sem Operation::Scry{players:@subject, amount:$value} */
+scry_equal ::= "scry" "a" "number" "of" "cards" "equal" "to" value
 /* @sem Operation::Scry{players:@subject, amount:$number} */
 scry_third ::= "scries" number
 /* @sem Operation::Surveil{players:@subject, amount:$number} */
@@ -1845,6 +1847,10 @@ exile_target_players_graveyard ::= "exile" "target" "player's" "graveyard"
 exile_all_graveyard_cards ::= "exile" "all" card_filter "cards" "from" player_possessive "graveyard"
 /* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Hand, players:One($player_possessive)}, kind:Card, filter:Any}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
 exile_all_hand_cards ::= "exile" "all" "cards" "from" player_possessive "hand"
+/* "Exile all cards from your hand face down": only the imperative's own hand; other
+   players exile theirs with "exiles all cards from their hand face down". */
+/* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}), destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_all_hand_face_down ::= "exile" "all" "cards" "from" "your" "hand" "face" "down"
 /* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
 exile_all_library_cards ::= "exile" "all" "cards" "from" player_possessive "library"
 /* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$card_filter}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */

@@ -27,7 +27,7 @@ event ::= event_yours_counters_spell | event_target_by_you_first | event_target_
     | event_attacks_while_saddled | event_control_none | event_combat_damage_to_player_or
     | event_damaged_by_dies | event_exploits | event_transforms_into_self | event_object_dies | event_that_noun_leaves
     | event_sacrifice_another | event_becomes_monstrous | event_tap_for_mana | event_tapped_for_mana | event_filtered_tapped_for_mana
-    | event_you_scry | event_enters_or_leaves | event_expend
+    | event_you_scry | event_you_roll_highest_natural | event_enters_or_leaves | event_enters_and_turn | event_expend
     | event_encounter_phenomenon | event_cycle_or_discard | event_cycle_card | event_cards_leave_your_graveyard
     | event_day_night_changes | event_enters_or_transforms_into | event_attacks_while
     | event_you_put_counters | event_becomes_level | event_cast_kicked_spell | event_player_cycles
@@ -400,7 +400,7 @@ event_dealt_combat_damage ::= event_object "is" "dealt" "combat" "damage"
 event_put_graveyard ::= event_put_unqualified_graveyard | event_put_player_graveyard
 
 /* @sem EventSpec::@departure_controller(EventSpec::ZoneChange{objects:@and($event_object, ObjectFilter::OwnedBy(All)), from:Battlefield, to:Graveyard}, $event_object) */
-event_put_unqualified_graveyard ::= event_object "is" "put" "into" "a" "graveyard" "from" "the" "battlefield"
+event_put_unqualified_graveyard ::= event_object "is" "put" "into" "a" "graveyard" ("from" "the" "battlefield")?
 
 /* @sem EventSpec::ZoneChange{objects:@and($event_object, ObjectFilter::OwnedBy(All)), from:Battlefield, to:Graveyard} */
 event_put_player_graveyard ::= event_object "is" "put" "into" "a" "player's" "graveyard" "from" "the" "battlefield"
@@ -1140,9 +1140,18 @@ event_filtered_tapped_for_mana ::= ("a" | "an") filter_phrase "is" "tapped" "for
 /* @sem EventSpec::Player{event:Scries, players:One(AbilityController)} */
 event_you_scry ::= "you" "scry"
 
+/* "Whenever you roll a die's highest natural result": a natural 20 on a d20. */
+/* @sem EventSpec::Player{event:RollsHighestNatural, players:One(AbilityController)} */
+event_you_roll_highest_natural ::= "you" "roll" "a" "die's" "highest" "natural" "result"
+
 /* Entering or leaving the battlefield. */
 /* @sem EventSpec::AnyOf([ZoneChange{objects:SameObject($object_ref), to:Battlefield}, Object{event:LeavesBattlefield, objects:SameObject($object_ref)}]) */
 event_enters_or_leaves ::= object_ref "enters" "or" "leaves" "the" "battlefield"
+
+/* "When this enchantment enters and at the beginning of your upkeep": one ability that
+   triggers on either event. */
+/* @sem EventSpec::AnyOf([ZoneChange{objects:SameObject($object_ref), to:Battlefield}, $turn_event]) */
+event_enters_and_turn ::= object_ref "enters" "and" "at" turn_event
 
 /* Expending a number of mana this turn. */
 /* @sem EventSpec::NthEachTurn{event:Player{event:Expends, players:One(AbilityController)}, test:NumberTest::Compare{comparison:Equal, value:$value}} */

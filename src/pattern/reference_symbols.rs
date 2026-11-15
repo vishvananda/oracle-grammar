@@ -137,8 +137,9 @@ pub(super) fn unify<'p, 'v>(
     if value["kind"] == "CountObjects" && value["args"]["kind"] == "EventGroup" {
         return vec![bindings];
     }
+    // "That much" after a roll is the die's result; the binder reads it that way.
     let kinds: &[&str] = if name == "that_much" {
-        &["EventAmount", "Performed"]
+        &["EventAmount", "Performed", "DieResult"]
     } else {
         &["EventAmount", "CountObjects"]
     };

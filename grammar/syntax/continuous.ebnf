@@ -599,6 +599,20 @@ copy_effect_indefinite ::= affected "becomes" "a" "copy" "of" copy_model_ref
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:$copy_exceptions_plain}], duration:Indefinite, evaluation:Snapshot} */
 copy_effect_indefinite_except ::= affected "becomes" "a" "copy" "of" copy_model_ref "," "except" copy_exceptions_plain
 
+/* "You may have this creature become a copy of target creature": the controller may
+   decline the copy. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$copy_become}]}}] */
+clause_may_have_copy ::= "you" "may" "have" copy_become
+copy_become ::= copy_become_duration | copy_become_duration_except | copy_become_indefinite | copy_become_indefinite_except
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:[]}], duration:$duration, evaluation:Snapshot} */
+copy_become_duration ::= affected "become" "a" "copy" "of" copy_model_ref duration
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:$copy_exceptions_plain}], duration:$duration, evaluation:Snapshot} */
+copy_become_duration_except ::= affected "become" "a" "copy" "of" copy_model_ref duration "," "except" copy_exceptions_plain
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:[]}], duration:Indefinite, evaluation:Snapshot} */
+copy_become_indefinite ::= affected "become" "a" "copy" "of" copy_model_ref
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:$copy_exceptions_plain}], duration:Indefinite, evaluation:Snapshot} */
+copy_become_indefinite_except ::= affected "become" "a" "copy" "of" copy_model_ref "," "except" copy_exceptions_plain
+
 /* A proved noun view comes from the current announcement's operands.
    Plain target/query references still use the ordinary reference grammar. */
 copy_model_ref ::= copy_model_qualified | object_ref
@@ -1648,6 +1662,18 @@ static_spell_filter_pair_flash ::= "you" "may" "cast" card_filter "spells" "and"
 /* @sem Ability::[TriggerRule{cause:ZoneChange{objects:AnyOf(@unordered([$filter_phrase, $filter_phrase_2])), to:Battlefield}, abilities:AbilityOf(ControlledBy(One(AbilityController))), rule:TriggersAgain}, TriggerRule{cause:Object{event:LeavesBattlefield, objects:AnyOf(@unordered([$filter_phrase, $filter_phrase_2]))}, abilities:AbilityOf(ControlledBy(One(AbilityController))), rule:TriggersAgain}] */
 line_additional_enter_leave_triggers ::= "if" ("a" | "an") filter_phrase "or" ("a" | "an") filter_phrase "entering" "or" "leaving" "the" "battlefield" "causes" "a" "triggered" "ability" "of" "a" "permanent" "you" "control" "to" "trigger" "," "that" "ability" "triggers" "an" "additional" "time" "."
 
+/* "If a triggered ability of a Doctor you control triggers, that ability triggers an
+   additional time": every trigger of those permanents' abilities happens twice. */
+/* @sem Ability::[TriggerRule{abilities:AbilityOf($retrigger_holder), rule:TriggersAgain}] */
+line_triggers_additional ::= "if" "a" "triggered" "ability" "of" retrigger_holder "triggers" "," retrigger_ref "triggers" "an" "additional" "time" "."
+retrigger_holder ::= retrigger_holder_one | retrigger_holder_another
+/* @sem $filter_phrase */
+retrigger_holder_one ::= ("a" | "an") filter_phrase
+/* @sem @and(ObjectFilter::Not(ObjectFilter::SameObject(Source)), $filter_phrase) */
+retrigger_holder_another ::= "another" filter_phrase
+/* @sem () */
+retrigger_ref ::= "that" "ability" | "it"
+
 /* @sem Change::[RemoveAllAbilities] */
 change_lose_all_abilities ::= ("loses" | "lose") "all" "abilities"
 
@@ -2028,6 +2054,12 @@ activation_owner_one ::= object_ref
 /* No maximum hand size. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))]}) */
 static_no_maximum_hand_size ::= "you" "have" "no" "maximum" "hand" "size" "."
+/* "You may look at cards exiled with this creature": the linked face-down cards. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)}), audience:AffectedPlayer})]}) */
+static_look_exiled_with ::= "you" "may" "look" "at" "cards" "exiled" "with" object_ref "."
+/* A resolving "you have no maximum hand size for the rest of the game" never ends. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))], duration:Indefinite, evaluation:LiveObjects}}] */
+clause_no_maximum_hand_size_rest ::= "you" "have" "no" "maximum" "hand" "size" "for" "the" "rest" "of" "the" "game"
 /* A reduced maximum hand size lowers it by the printed amount. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players($hand_size_players), changes:[PlayerRule(HandSize(Adjust(@negate($number))))]}) */
 static_maximum_hand_size_reduced ::= hand_size_players "maximum" "hand" "size" "is" "reduced" "by" number "."

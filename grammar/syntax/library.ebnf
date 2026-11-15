@@ -344,6 +344,52 @@ dig_reveal_split ::= reveal_top "." dig_put_take "." dig_rest_put
 /* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$dig_put_take, $dig_rest_and] */
 dig_reveal_joined ::= reveal_top "." dig_put_take dig_rest_and
 
+/* "Reveal the top card of your library. If it's a land card, put it onto the
+   battlefield. Otherwise, put that card into your hand." The test reads the revealed
+   card; "it" in each branch is still the top card of your library, which the branch
+   takes. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:$top_reveal_branch}, otherwise:Program{}}] */
+instructions_top_reveal_if ::= "reveal" "the" "top" "card" "of" "your" "library" "." "if" "it's" top_reveal_quality "," top_reveal_branch
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:$top_reveal_branch}, otherwise:Program{instructions:$top_reveal_branch_2}}] */
+instructions_top_reveal_if_otherwise ::= "reveal" "the" "top" "card" "of" "your" "library" "." "if" "it's" top_reveal_quality "," top_reveal_branch "." "otherwise" "," top_reveal_branch
+
+/* "Defending player reveals the top card of their library. If it's a land card, that
+   player puts it into their hand": another player's single revealed card, tested and
+   moved by that player. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:Program{}}] */
+instructions_player_reveal_to_hand ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," "that" "player" "puts" "it" "into" "their" "hand"
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Optional{decider:$player_ref, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}, destination:Battlefield{controller:Player($player_ref), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}, otherwise:Program{}}] */
+instructions_player_reveal_may_battlefield ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," "the" "player" "may" "put" "it" "onto" "the" "battlefield"
+
+/* "You may pay {2}{R}. If you do, reveal the top card of your library. If it's ...": the
+   test of the revealed card stays inside the paid branch that revealed it. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$top_reveal_test}, otherwise:Program{}}] */
+clause_if_you_do_reveal_test ::= "you" "may" payment "." "if" "you" "do" "," top_reveal_test
+top_reveal_test ::= instructions_top_reveal_if | instructions_top_reveal_if_otherwise
+top_reveal_quality ::= top_reveal_kind | top_reveal_kind_with
+/* @sem $card_filter */
+top_reveal_kind ::= ("a" | "an") card_filter "card"
+/* @sem @and($card_filter, $modifiers) */
+top_reveal_kind_with ::= ("a" | "an") card_filter "card" modifiers
+top_reveal_branch ::= top_reveal_put | top_reveal_may_put | top_reveal_draw | top_reveal_continuous | clause_you | top_reveal_you_and
+/* @sem Instruction::[...$clause_you, ...$clause_you_2] */
+top_reveal_you_and ::= clause_you "and" clause_you
+/* @sem Instruction::[Effect{result:@next, operation:$continuous_snapshot}] */
+top_reveal_continuous ::= continuous_snapshot
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}, destination:$top_reveal_destination, qualifiers:[]}}] */
+top_reveal_put ::= "put" top_reveal_it top_reveal_destination
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$top_reveal_put}}] */
+top_reveal_may_put ::= "you" "may" top_reveal_put
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}] */
+top_reveal_draw ::= "draw" card_count
+/* @sem () */
+top_reveal_it ::= "it" | "that" "card"
+top_reveal_destination ::= until_hand | until_battlefield | look_battlefield_tapped | top_reveal_graveyard | top_reveal_bottom
+/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
+top_reveal_graveyard ::= "into" "your" "graveyard"
+/* @sem MovementDestination::Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+top_reveal_bottom ::= "on" "the" "bottom" "of" "your" "library"
+
 /* The rest is numbered where its words start, after the take it excludes. */
 /* @sem Instruction::Effect{result:@next, operation:$look_rest} */
 dig_rest_put ::= ("then")? "put" look_rest
@@ -471,10 +517,41 @@ top_card_reveal_action ::= top_card_revealed_to_hand
 top_card_reveal_payment ::= top_card_reveal_action
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$top_card_reveal_action}}] */
 clause_top_card_revealed ::= top_card_reveal_action
-/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_reveal_payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
-clause_top_card_revealed_declined ::= top_card_reveal_payment "." "if" "you" "don't" "put" ("it" | "the" "card") "into" "your" "hand" "," conjoined
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_reveal_payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$top_reveal_branch}, otherwise:Program{}}] */
+clause_top_card_revealed_declined ::= top_card_reveal_payment "." "if" "you" "don't" "put" ("it" | "the" "card") "into" "your" "hand" "," top_reveal_branch
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_reveal_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
 clause_top_card_revealed_taken ::= top_card_reveal_payment "." "if" "you" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
+
+/* "If it's a land card, you may put it onto the battlefield tapped": the same optional move
+   without a reveal. The card enters under its owner's control. A later sentence about not
+   putting it onto the battlefield, or "Otherwise", tests that move as a payment. */
+/* @sem Operation::MoveTopCard{actor:One(AbilityController), cards:$card_filter, reveal:false, destination:$top_card_battlefield} */
+top_card_put_onto_battlefield ::= "if" "it's" ("a" | "an") card_filter "card" "," "you" "may" "put" "it" top_card_battlefield
+top_card_battlefield ::= top_card_battlefield_untapped | top_card_battlefield_tapped
+/* @sem MovementDestination::Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+top_card_battlefield_untapped ::= "onto" "the" "battlefield"
+/* @sem MovementDestination::Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
+top_card_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
+/* @sem Instruction::[Effect{result:@next, operation:$top_card_put_onto_battlefield}] */
+top_card_put_action ::= top_card_put_onto_battlefield
+/* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:$top_card_put_action}}]} */
+top_card_put_payment ::= top_card_put_action
+/* The look comes first in these productions, so a reveal's card is never moved this way. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}] */
+top_card_look ::= "look" "at" "the" "top" "card" "of" "your" "library" "."
+/* @sem Instruction::[...$top_card_look, Optional{decider:AbilityController, body:Program{instructions:$top_card_put_action}}] */
+clause_top_card_put ::= top_card_look top_card_put_action
+/* Most such cards name "the card" they didn't put, so that wording outranks "it" and
+   "Otherwise". */
+/* @prefer always */
+/* @sem Instruction::[...$top_card_look, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_put_payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$top_reveal_branch}, otherwise:Program{}}] */
+clause_top_card_put_declined ::= top_card_look top_card_put_payment "." "if" "you" "don't" "put" "the" "card" "onto" "the" "battlefield" "," top_reveal_branch
+/* @sem Instruction::[...$top_card_look, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_put_payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$top_reveal_branch}, otherwise:Program{}}] */
+clause_top_card_put_declined_it ::= top_card_look top_card_put_payment "." "if" "you" "don't" "put" "it" "onto" "the" "battlefield" "," top_reveal_branch
+/* @sem Instruction::[...$top_card_look, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_put_payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_top_card_put_this_way ::= top_card_look top_card_put_payment "." "if" "you" "didn't" "put" "a" "card" "onto" "the" "battlefield" "this" "way" "," conjoined
+/* @sem Instruction::[...$top_card_look, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_put_payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$top_reveal_branch}, otherwise:Program{}}] */
+clause_top_card_put_otherwise ::= top_card_look top_card_put_payment "." "otherwise" "," top_reveal_branch
 
 /* Kinship: an optional look at the top card; if it shares a creature type with this
    creature, an optional reveal of it; and what follows only once it is revealed. Each
@@ -572,6 +649,10 @@ a_card_with ::= ("a" | "an") card_filter "card" modifiers
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:$your_zone, players:One(PlayerRef::AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 clause_exile_from ::= "exile" a_card "from" your_zone
 
+/* "Exile a card from your hand face down": you choose the cards, hidden once exiled. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count)}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_exile_hand_face_down ::= "exile" card_count "from" "your" "hand" "face" "down"
+
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:$battlefield_card_choice, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::@choice_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]})}] */
 clause_put_from ::= battlefield_card_choice ("onto" | "to") "the" "battlefield" ("under" "your" "control")?
 
@@ -582,6 +663,10 @@ clause_put_from_tapped ::= battlefield_card_choice ("onto" | "to") "the" "battle
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:$battlefield_card_choice, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::@choice_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($object_ref)]}}, qualifiers:[]})}] */
 clause_put_from_attached ::= battlefield_card_choice "onto" "the" "battlefield" "attached" "to" object_ref
 
+/* "Return an instant or sorcery card exiled with this creature to its owner's hand". */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:$resolving_card_pool, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+clause_return_pool_owner_hand ::= "return" resolving_card_pool "to" "its" "owner's" "hand"
+
 battlefield_card_choice ::= explicit_battlefield_card_choice | putting_another_card
 /* @sem $resolving_card_pool */
 explicit_battlefield_card_choice ::= ("put" | "return") resolving_card_pool
@@ -590,7 +675,7 @@ explicit_battlefield_card_choice ::= ("put" | "return") resolving_card_pool
 /* @sem ObjectSet::Zone{scope:Players{zone:$your_zone, players:One(AbilityController)}, kind:Card, filter:$a_card_another} */
 putting_another_card ::= "put" a_card_another "from" your_zone
 
-resolving_card_pool ::= own_resolving_card_pool | own_hand_or_graveyard_pool | any_graveyard_card_pool
+resolving_card_pool ::= own_resolving_card_pool | own_hand_or_graveyard_pool | any_graveyard_card_pool | exiled_with_card_pool
 explicit_card_choice ::= a_card_any_with | a_card_any | a_card_kind | a_card_with
 /* @sem ObjectSet::Zone{scope:Players{zone:$your_zone, players:One(AbilityController)}, kind:Card, filter:$explicit_card_choice} */
 own_resolving_card_pool ::= explicit_card_choice "from" your_zone
@@ -599,6 +684,14 @@ any_graveyard_card_pool ::= explicit_card_choice "from" "a" "graveyard"
 /* "From your hand or graveyard": one choice among the cards of both zones. */
 /* @sem ObjectSet::Union([Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$explicit_card_choice}, Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$explicit_card_choice}]) */
 own_hand_or_graveyard_pool ::= explicit_card_choice "from" "your" "hand" "or" "graveyard"
+/* "A creature card exiled with this permanent": one of the exiled cards linked to it. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:@and(ObjectFilter::ExiledWith($object_ref), $explicit_card_choice)} */
+exiled_with_card_pool ::= explicit_card_choice "exiled" "with" object_ref
+
+/* "Return a card you own exiled with this artifact to your hand": only your own
+   cards can go to your hand. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Exile), kind:Card, filter:@and(ObjectFilter::OwnedBy(One(PlayerRef::AbilityController)), ObjectFilter::ExiledWith($object_ref), $explicit_card_choice)}, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+clause_return_owned_exiled_with ::= "return" explicit_card_choice "you" "own" "exiled" "with" object_ref "to" "your" "hand"
 
 /* The observed hand remains the population even if another object was named
    earlier. Selection and discard refer to the same single physical card. */

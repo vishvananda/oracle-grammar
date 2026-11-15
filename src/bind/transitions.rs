@@ -508,6 +508,9 @@ fn information(root: &Value, path: &[Step]) -> bool {
                             | "SharesColorWith"
                             | "Shares"
                             | "History"
+                            // Copiable values of a departed creature are its last
+                            // known ones; "that card" asks for the current card.
+                            | "CopyOf"
                     )
                 )
         }) {

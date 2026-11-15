@@ -35,6 +35,9 @@ pub(super) fn record(
         return Ok(());
     };
     let operation = &effect["args"]["operation"];
+    if effect["kind"] == "Effect" {
+        super::addresses::record_roll(operation, value, scope);
+    }
     if effect["kind"] != "Effect" || operation["kind"] != "PayCost" {
         return Ok(());
     }

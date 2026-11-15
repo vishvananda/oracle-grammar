@@ -1,4 +1,5 @@
-//! Reject an unproved legacy holder/event alias after an explicitly revealed card.
+//! Reject an unproved legacy holder/event alias after an explicitly revealed card,
+//! and a bare "it" tested right after one library card is observed.
 //! No operand is retargeted: the complete proper reading owns its reveal receipt
 //! and later value snapshot, not a fresh read of the next library card.
 use super::{Scope, Step, qualified, symbol_name};
@@ -117,6 +118,65 @@ pub(super) fn resolve(
     }
 
     Ok(reference)
+}
+
+/// One card read off a library top: a one-card slice, or the library's first card
+/// as a seeded "look at <the top card of your library>" spells it.
+fn one_library_card(objects: &Value) -> bool {
+    let query = &objects["args"]["args"];
+    super::card_receipt::top_card(objects)
+        || objects["kind"] == "One"
+            && objects["args"]["kind"] == "Query"
+            && query["index"] == 0
+            && query["objects"]["kind"] == "Zone"
+            && query["objects"]["args"]["scope"]["Players"]["zone"] == "Library"
+}
+
+/// The effect `instruction` performs last: itself, or the last effect of a conditional
+/// branch that ends it ("If you do, reveal the top card of your library.").
+fn last_effect(instruction: &Value) -> &Value {
+    let body = match instruction["kind"].as_str() {
+        Some("If") => &instruction["args"]["then"]["instructions"],
+        Some("Optional") => &instruction["args"]["body"]["instructions"],
+        _ => return instruction,
+    };
+    body.as_array()
+        .and_then(|body| body.last())
+        .map_or(instruction, last_effect)
+}
+
+/// "Reveal the top card of your library. If it's a land card, ...": right after one
+/// library card is revealed or looked at, "it's <kind> card" counts that card among
+/// the cards observed, as `top_reveal_test` and `top_card_put_onto_battlefield` read it.
+/// A bare "it" tested there is refused, so the generic test can't add a twin naming the
+/// creature that entered, the attacker, the card itself or the observed card's first
+/// member.
+pub(super) fn tested_pronoun(root: &Value, path: &[Step]) -> Result<(), String> {
+    let Some(start) = path.len().checked_sub(5) else {
+        return Ok(());
+    };
+    let Step::Index(index) = path[start] else {
+        return Ok(());
+    };
+    if index == 0 || !keys(&path[start + 1..], &["args", "condition", "args", "object"]) {
+        return Ok(());
+    }
+    let Some(instructions) = at(root, &path[..start]).and_then(Value::as_array) else {
+        return Ok(());
+    };
+    let (Some(test), Some(previous)) = (instructions.get(index), instructions.get(index - 1))
+    else {
+        return Ok(());
+    };
+    let operation = &last_effect(previous)["args"]["operation"];
+    if test["kind"] == "If"
+        && test["args"]["condition"]["kind"] == "ObjectMatches"
+        && matches!(operation["kind"].as_str(), Some("Reveal" | "LookAt"))
+        && one_library_card(&operation["args"]["objects"])
+    {
+        return Err("a test right after one library card is observed counts that card".into());
+    }
+    Ok(())
 }
 
 #[cfg(test)]

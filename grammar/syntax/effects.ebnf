@@ -38,7 +38,7 @@ verb_base ::= verb_operation_base
 /* @sem Instruction::Effect{result:@next, operation:$verb_operation_third} */
 verb_third ::= verb_operation_third
 
-verb_operation_base ::= energy_get_base | create_base | create_tapped_base | create_attacking_base | mill_base | scry_base | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | gain_life_base | lose_life_base
+verb_operation_base ::= energy_get_base | create_base | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | gain_life_base | lose_life_base
     | lose_game_base | win_game_base
 verb_operation_third ::= energy_get_third | create_third | create_tapped_third | create_attacking_third | mill_third | scry_third | surveil_third | draw_third | discard_random_third | discard_third | gain_life_third | lose_life_third | sacrifice_choice_third
     | lose_game_third | win_game_third
@@ -59,7 +59,7 @@ sacrifice_that_many_third ::= "sacrifices" "that" "many" filter_plural "of" "the
 /* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verb_operation_imperative) */
 operation_imperative ::= verb_operation_imperative
 
-verb_operation_imperative ::= create_copy_tapped_attacking | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | surveil_base | draw_base
+verb_operation_imperative ::= create_copy_tapped_attacking | create_copy_each_leading | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base
     | discard_random_base | discard_base | discard_hand_base | discard_all_base
 
 /* @sem Operation::Draw{players:@subject, amount:$card_count} */
@@ -212,7 +212,7 @@ operation_plain ::= cast_exiled_card_permission | exiled_card_while_exiled | exi
     | choose_odd_or_even | counter_target_activated_or_triggered | counter_target_activated_ability
     | heist_target_opponent_library | become_the_monarch | take_extra_turn_after_this
     | continuous_loses_defender | continuous_becomes_artifact_too | continuous_attack_if_able
-    | continuous_attack_despite_defender | change_target_single_target_spell | owner_puts_top_or_bottom
+    | continuous_attack_despite_defender | change_target_single_target_spell | change_target_single_target_stack | owner_puts_top_or_bottom
     | untap_all_that_attacked | additional_land_this_turn | add_mana_combination | exile_with_counter
     | reveal_at_random_from_hand | have_player_discard | remove_all_counters_any_kind
     | operation_third | operation_you | hand_observation_look
@@ -755,6 +755,8 @@ continuous_attack_despite_defender ::= "can" "attack" this_duration "as" "though
 
 /* @sem Operation::Retarget{actor:One(AbilityController), object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(SingleTarget)}), index:0}, targets:Must} */
 change_target_single_target_spell ::= "change" "the" "target" "of" "target" "spell" "with" "a" "single" "target"
+/* @sem Operation::Retarget{actor:One(AbilityController), object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(SingleTarget)}), index:0}, targets:Must} */
+change_target_single_target_stack ::= "change" "the" "target" "of" "target" "spell" "or" "ability" "with" "a" "single" "target"
 
 /* @sem Operation::Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0}), destination:Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
 owner_puts_top_or_bottom ::= "target" "creature's" "owner" "puts" "it" "on" "their" "choice" "of" "the" "top" "or" "bottom" "of" "their" "library"

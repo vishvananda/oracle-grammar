@@ -13,6 +13,13 @@ create_tapped_base ::= "create" token_groups_tapped
    amount of the one token named after it. */
 /* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:$leading_count_each, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
 create_each_defined_leading ::= "for" "each" leading_count_each "," "create" ("a" | "an") token_recipe
+
+/* "For each creature token you control, create a token that's a copy of that creature":
+   one copy of each such permanent. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+create_copy_each_leading ::= "for" "each" filter_phrase "," "create" "a" "token" "that's" "a" "copy" "of" copy_each_referent
+/* @sem () */
+copy_each_referent ::= "it" | "that" "creature" | "that" "permanent"
 /* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:$leading_count_each, words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
 create_each_named_leading ::= "for" "each" leading_count_each "," "create" ("a" | "an") token_named_recipe "token"
 /* A leading count names present permanents. "This way" counts name a producing
@@ -371,10 +378,18 @@ clause_opponent_count_tokens ::= "for" "each" "opponent" "," "you" "create" toke
 
 /* Parley: every player reveals the top card of their library, the reward counts
    the nonland cards among those revealed, then every player draws a card. */
+/* @sem () */
+parley_reveal ::= "each" "player" "reveals" "the" "top" "card" "of" "their" "library" "." "for" "each" "nonland" "card" "revealed" "this" "way" ","
+/* @sem () */
+parley_draw ::= "." "then" "each" "player" "draws" "a" "card"
 /* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:@times($token_amount, Expr::CountObjects(Matching{objects:Observed(@marked), filter:Not(CardType(Land))})), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}, Effect{result:@next, operation:Draw{players:All, amount:Constant(1)}}] */
-instructions_parley_tokens ::= "each" "player" "reveals" "the" "top" "card" "of" "their" "library" "." "for" "each" "nonland" "card" "revealed" "this" "way" "," "you" "create" token_amount token_recipe "." "then" "each" "player" "draws" "a" "card"
+instructions_parley_tokens ::= parley_reveal "you" "create" token_amount token_recipe parley_draw
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:@times($token_amount, Expr::CountObjects(Matching{objects:Observed(@marked), filter:Not(CardType(Land))})), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}, Effect{result:@next, operation:Draw{players:All, amount:Constant(1)}}] */
+instructions_parley_named_tokens ::= parley_reveal "you" "create" token_amount token_named_recipe "token" parley_draw
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:@times($token_amount, Expr::CountObjects(Matching{objects:Observed(@marked), filter:Not(CardType(Land))})), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}})}, Effect{result:@next, operation:Draw{players:All, amount:Constant(1)}}] */
+instructions_parley_tapped_tokens ::= parley_reveal "you" "create" token_amount "tapped" token_named_recipe "token" parley_draw
 /* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Investigate{times:Expr::CountObjects(Matching{objects:Observed(@marked), filter:Not(CardType(Land))})}}}, Effect{result:@next, operation:Draw{players:All, amount:Constant(1)}}] */
-instructions_parley_investigate ::= "each" "player" "reveals" "the" "top" "card" "of" "their" "library" "." "for" "each" "nonland" "card" "revealed" "this" "way" "," "you" "investigate" "." "then" "each" "player" "draws" "a" "card"
+instructions_parley_investigate ::= parley_reveal "you" "investigate" parley_draw
 
 /* A scalar destroyed target provides pre-move controller information, even if
    destruction moves it or changes which object its target reference locates. */

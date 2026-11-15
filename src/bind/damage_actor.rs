@@ -11,6 +11,7 @@ impl Scope {
         introduced: &[TargetIntroduction],
         prior_targets: &super::references::Contexts,
     ) -> Result<Value, String> {
+        super::revealed_card::tested_pronoun(root, &item.path)?;
         if name == "it"
             && let Some(actor) = reference(root, &item.path, introduced, self.target_base)?
         {

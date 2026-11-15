@@ -141,6 +141,29 @@ pub(super) fn blocks_itself(value: &Value) -> bool {
     }
 }
 
+/// A copy effect gives an object another object's copiable values (CR 707.2); an
+/// object never becomes a copy of itself, so "that card" cannot fall back on it.
+pub(super) fn copies_itself(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => {
+            let args = &value["args"];
+            let affected = &args["affected"]["Objects"];
+            let own = matches!(
+                value["kind"].as_str(),
+                Some("CreateContinuousEffect" | "Static")
+            ) && affected["kind"] == "One"
+                && args["changes"].as_array().is_some_and(|changes| {
+                    changes.iter().any(|change| {
+                        change["kind"] == "CopyOf" && change["args"]["object"] == affected["args"]
+                    })
+                });
+            own || object.values().any(copies_itself)
+        }
+        Value::Array(items) => items.iter().any(copies_itself),
+        _ => false,
+    }
+}
+
 /// An Aura or Equipment put onto the battlefield attached to an object attaches to
 /// something other than itself (CR 303.4f, 301.5c), so a move's host is never one of
 /// the objects it moves.
@@ -536,6 +559,19 @@ mod tests {
                 }]}}
             }]}}
         }]}}})
+    }
+
+    #[test]
+    fn an_object_never_becomes_a_copy_of_itself() {
+        let copy = |object: Value| {
+            json!({"kind":"CreateContinuousEffect","args":{"source":{"kind":"Source"},
+                "affected":{"Objects":{"kind":"One","args":{"kind":"Source"}}},
+                "changes":[{"kind":"CopyOf","args":{"object":object,"exceptions":[]}}],
+                "duration":"EndOfTurn","evaluation":"Snapshot"}})
+        };
+        assert!(copies_itself(&copy(json!({"kind":"Source"}))));
+        let chosen = json!({"kind":"Result","args":{"result":0,"phase":"After","index":0}});
+        assert!(!copies_itself(&copy(chosen)));
     }
 
     #[test]

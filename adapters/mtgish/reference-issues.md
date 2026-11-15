@@ -481,6 +481,40 @@ the IR path, the value it replaces and why.
   recorded the bare spell filter. Sage of the Skies excludes its triggering
   spell from a cast trigger and stays unchanged.
 
+- `U0057` (correction): Chief Magistrate of Mercadia's "for each creature
+  token you control, create a token that's a copy of it" copies creature
+  tokens, `AllOf([Creature, Token, ControlledBy(You)])`, as Rhys the Redeemed
+  records the same words. The `Token` filter was missing.
+
+- `U0058` (correction): in "you may have Kimahri become a copy of that
+  creature", Kimahri is the affected object. The record made the tapped target
+  a copy of itself.
+
+- `U0059` (correction): Renegade Doppelganger's copy has no exception. Its
+  reminder says it loses this ability (CR 707.2); the record kept it with
+  `AddCurrentAbility`, which other records write "except it has this ability".
+
+- `U0060` (normalization): a choice among cards in exile names the exile pool,
+  `Zone(Shared(Exile))` with its filter, as 33 records write it (Ethereal
+  Forager, Koh, the Face Stealer). 18 records, among them Bane Alley Broker and
+  Gustha's Scepter, wrapped the same pool in `InZone(..., Exile)`, which chooses
+  among the same cards. Moves of exiled cards keep `InZone`, as 73 records
+  write them.
+
+- `U0061` (correction): Kenessos, Priest of Thassa and Lantern of Revealing say
+  "you may put it on the bottom of your library" for a card not put onto the
+  battlefield. Both records made that move mandatory; Bucolic Ranch records the
+  same words as an optional move.
+
+- `U0062` (correction): Fecund Greenshell's trigger needs another creature
+  "you control". The record dropped the controller from the entering
+  creature's filter; Risen Reef records the same words with `ControlledBy`.
+
+- `U0063` (normalization): Nissa's Revelation reads the revealed card's power
+  and toughness from that reveal, `ObjectProperty(Query{Observed}, ...)`, as 36
+  records read revealed-card values. The record used the result-less
+  `Earlier{what:Revealed}` placeholder.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
 its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and

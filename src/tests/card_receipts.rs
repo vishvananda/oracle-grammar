@@ -162,22 +162,23 @@ fn a_bare_pronoun_after_a_reveal_is_the_revealed_card_not_this_spell() {
 
 #[test]
 fn a_tested_and_measured_pronoun_reaches_past_a_draw_to_the_revealed_card() {
-    // A seeded rule also reads this sentence with the reference's placeholders, so
-    // check every reading: none measures this spell, and the written one is exact.
+    // Check every reading: none measures this spell, and the written one counts the
+    // revealed card in its test and measures that card.
     let text = "Reveal the top card of your library. If it's a creature card, you draw cards \
                 equal to its power and you gain life equal to its toughness.";
     let readings = engine().parse("Context example", text).unwrap().readings;
     let source = json!({"kind":"Source"});
     let exact = readings.iter().find(|reading| {
-        let observed = query(json!({"kind":"Observed","args":result_of(reading, "Reveal")}));
-        let mut tested = Vec::new();
-        visit(reading, "ObjectMatches", &mut tested);
+        let reveal = json!({"kind":"Observed","args":result_of(reading, "Reveal")});
+        let observed = query(reveal.clone());
+        let mut counted = Vec::new();
+        visit(reading, "Matching", &mut counted);
         ["Power", "Toughness"]
             .iter()
             .all(|property| measured(reading, property) == [observed.clone()])
-            && tested
+            && counted
                 .first()
-                .is_some_and(|args| args["object"] == observed)
+                .is_some_and(|args| args["objects"] == reveal)
     });
     for reading in &readings {
         for property in ["Power", "Toughness"] {

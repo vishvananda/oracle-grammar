@@ -66,7 +66,7 @@ fn query(objects: Value) -> Value {
 }
 
 /// A single card read straight off one player's library top.
-fn top_card(objects: &Value) -> bool {
+pub(super) fn top_card(objects: &Value) -> bool {
     let zone = &objects["args"]["objects"];
     objects["kind"] == "Take"
         && constant_one(&objects["args"]["count"])
