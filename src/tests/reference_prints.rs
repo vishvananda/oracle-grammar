@@ -266,3 +266,26 @@ fn a_reference_form_prints_along_its_canonical_derivation() {
         assert_eq!(printed.as_deref(), Some(text), "{name}");
     }
 }
+
+/// A granted ability names its granting Aura and then tests that same Aura as "it".
+#[test]
+fn a_granted_ability_tests_its_granting_aura_as_it() {
+    let name = "Heliod's Punishment";
+    let text = "Enchant creature\nThis Aura enters with four task counters on it.\nEnchanted creature can't attack or block. It loses all abilities and has \"{T}: Remove a task counter from Heliod's Punishment. Then if it has no task counters on it, destroy Heliod's Punishment.\"";
+    let face = json!({"characteristics": {"supertypes": [], "card_types": ["Enchantment"],
+        "subtypes": ["Aura"], "mana_cost": [{"Generic": 1}, {"Color": "White"}],
+        "color_indicator": [], "power_toughness": null, "loyalty": null, "defense": null}});
+    let context = serde_json::from_value(face["characteristics"].clone()).unwrap();
+    let parsed = engine().parse_card(name, text, &context).unwrap();
+    assert_eq!(parsed.readings.len(), 1);
+    let abilities = &parsed.readings[0].abilities;
+    let granting = json!({"kind": "GrantingObject"}).to_string();
+    assert_eq!(abilities.to_string().matches(&granting).count(), 3);
+    let types = crate::corpus::print_context(&face);
+    let key = engine()
+        .derivation_of(name, abilities, text)
+        .unwrap()
+        .unwrap();
+    let printed = engine().print_keyed(name, abilities, &types, &key).unwrap();
+    assert_eq!(printed.as_deref(), Some(text));
+}

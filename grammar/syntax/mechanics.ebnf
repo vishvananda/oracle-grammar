@@ -654,14 +654,102 @@ mechanic_devour_named ::= "devour" filter_phrase value
 /* @sem Ability::Mechanic{mechanic:Champion, filter:$filter_phrase} */
 mechanic_champion ::= "champion" ("a" | "an") filter_phrase
 
-/* Deck rules printed as keywords. */
-keyword_deck_rule ::= deck_rule_partner | deck_rule_choose_background | deck_rule_doctors_companion
+/* Deck rules printed as keywords. A named partner is another card's name. */
+keyword_deck_rule ::= deck_rule_partner | deck_rule_partner_with | deck_rule_partner_kind
+    | deck_rule_choose_background | deck_rule_doctors_companion
 /* @sem Ability::DeckRule(Partner(Any)) */
 deck_rule_partner ::= "partner"
+/* @sem Ability::DeckRule(Partner(With($referenced_card_name))) */
+deck_rule_partner_with ::= "partner" "with" referenced_card_name
+/* @sem Ability::DeckRule(Partner($partner_kind)) */
+deck_rule_partner_kind ::= "partner" "―" partner_kind
+partner_kind ::= partner_friends_forever | partner_character_select | partner_father_and_son
+    | partner_survivors
+/* @sem PartnerKind::FriendsForever */
+partner_friends_forever ::= "friends" "forever"
+/* @sem PartnerKind::CharacterSelect */
+partner_character_select ::= "Character" "select"
+/* @sem PartnerKind::FatherAndSon */
+partner_father_and_son ::= "Father" "&" "son"
+/* @sem PartnerKind::Survivors */
+partner_survivors ::= "survivors"
 /* @sem Ability::DeckRule(ChooseBackground) */
 deck_rule_choose_background ::= "choose" "a" "Background"
 /* @sem Ability::DeckRule(DoctorsCompanion) */
 deck_rule_doctors_companion ::= "doctor's" "companion"
+
+/* Deck rules written as sentences. None changes a game in progress. */
+deck_rule_sentence ::= deck_rule_commander | deck_rule_any_copies | deck_rule_up_to_copies
+    | deck_rule_ante | deck_rule_banned | deck_rule_minimum_size
+/* @sem Ability::DeckRule(CanBeCommander) */
+deck_rule_commander ::= SELF_NAME "can" "be" "your" "commander" "."
+/* @sem Ability::DeckRule(AnyNumberOfCopies) */
+deck_rule_any_copies ::= "a" "deck" "can" "have" "any" "number" "of" "cards" "named" SELF_NAME "."
+/* @sem Ability::DeckRule(UpToCopies($card_count)) */
+deck_rule_up_to_copies ::= "a" "deck" "can" "have" "up" "to" card_count "named" SELF_NAME "."
+/* @sem Ability::DeckRule(RemoveUnlessPlayingForAnte) */
+deck_rule_ante ::= "remove" "this" "card" "from" "your" "deck" "before" "playing" "if" "you're" "not" "playing" "for" "ante" "."
+/* @sem Ability::DeckRule(Banned) */
+deck_rule_banned ::= "this" "card" "is" "banned" "."
+/* @sem Ability::DraftRule([Term{family:ConspiracyDeck, form:ReduceStartingDeckSize, operands:[Number($value)]}]) */
+deck_rule_minimum_size ::= "your" "minimum" "deck" "size" "is" "reduced" "by" value "."
+
+/* Draft rules (CR 905). Each sentence names fixed draft vocabulary. A card
+   revealed as it is drafted adds one follow-up action. */
+draft_rule_sentence ::= draft_face_up | draft_reveal_as_drafted | draft_effect_sentence
+/* @sem Ability::DraftRule([Vocabulary{family:DraftAction, form:DraftFaceUp}]) */
+draft_face_up ::= "draft" "this" "card" "face" "up" "."
+/* @sem Ability::DraftRule([Vocabulary{family:DraftAction, form:RevealThisDraftedCard}, $draft_reveal_action]) */
+draft_reveal_as_drafted ::= "reveal" "this" "card" "as" "you" "draft" "it" draft_reveal_action "."
+draft_reveal_action ::= draft_note_count | draft_note_passer | draft_choose_colors | draft_note_next_name
+    | draft_look_next | draft_add_booster | draft_guess_next
+/* @sem Operand::Vocabulary{family:DraftAction, form:NoteNumberOfCardsDraftedThisRound} */
+draft_note_count ::= "and" "note" "how" "many" "cards" "you've" "drafted" "this" "draft" "round" "," "including" "this" "card"
+/* @sem Operand::Vocabulary{family:DraftAction, form:NotePlayerWhoPassedPackToYou} */
+draft_note_passer ::= "and" "note" "the" "player" "who" "passed" "it" "to" "you"
+/* @sem Operand::Vocabulary{family:DraftAction, form:PlayerToRightChoosesAColor_YouChooseAColor_PlayerToLeftChoosesAColor} */
+draft_choose_colors ::= "." "the" "player" "to" "your" "right" "chooses" "a" "color" "," "you" "choose" "another" "color" "," "then" "the" "player" "to" "your" "left" "chooses" "a" "third" "color"
+/* @sem Operand::Vocabulary{family:DraftAction, form:RevealAndNoteNameOfNextDraftedCard} */
+draft_note_next_name ::= "." "reveal" "the" "next" "card" "you" "draft" "and" "note" "its" "name"
+/* @sem Operand::Vocabulary{family:DraftAction, form:MayLookAtNextCraftDraftedFromThisPack} */
+draft_look_next ::= "." "you" "may" "look" "at" "the" "next" "card" "drafted" "from" "this" "booster" "pack"
+/* @sem Operand::Vocabulary{family:DraftAction, form:MayAddBoosterBackToDraft} */
+draft_add_booster ::= "." "after" "you" "draft" "this" "card" "," "you" "may" "add" "a" "booster" "pack" "to" "the" "draft"
+/* @sem Operand::Vocabulary{family:DraftAction, form:GuessNameOfNextCardAPlayerDraftsFromThisPackAndTheyRevealThatCard} */
+draft_guess_next ::= "." "the" "next" "time" "a" "player" "drafts" "a" "card" "from" "this" "booster" "pack" "," "guess" "that" "card's" "name" "." "then" "that" "player" "reveals" "the" "drafted" "card"
+
+/* @sem Ability::DraftRule([$draft_effect]) */
+draft_effect_sentence ::= draft_effect "."
+draft_effect ::= draft_remove_face_up | draft_remove_face_down | draft_additional_into_pack
+    | draft_additional_pass_next | draft_reveal_note_name | draft_reveal_type_note_name
+    | draft_reveal_type_note_types | draft_whole_pack | draft_at_random | draft_offer_trade
+    | draft_look_chosen_next | draft_look_unopened | draft_last_cards
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:MayRemoveCardsFromDraftFaceUp} */
+draft_remove_face_up ::= "as" "you" "draft" "a" "card" "," "you" "may" "remove" "it" "from" "the" "draft" "face" "up"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:MayRemoveCardsFromDraftFaceDown} */
+draft_remove_face_down ::= "as" "you" "draft" "a" "card" "," "you" "may" "remove" "it" "from" "the" "draft" "face" "down"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:AsDraftACardMayDraftAnAdditionalCardFromPack_PutThisDraftCardIntoThatBooster} */
+draft_additional_into_pack ::= "as" "you" "draft" "a" "card" "," "you" "may" "draft" "an" "additional" "card" "from" "that" "booster" "pack" "." "if" "you" "do" "," "put" "this" "card" "into" "that" "booster" "pack"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:AsDraftACardMayDraftAnAdditionalCardFromPack_TurnThisDraftCardCardFaceDown_PassNextBoosterWithoutDrafting} */
+draft_additional_pass_next ::= "as" "you" "draft" "a" "card" "," "you" "may" "draft" "an" "additional" "card" "from" "that" "booster" "pack" "." "if" "you" "do" "," "turn" "this" "card" "face" "down" "," "then" "pass" "the" "next" "booster" "pack" "without" "drafting" "a" "card" "from" "it"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:AsDraftACard_MayRevealIt_NoteItsName_TurnThisDraftCardFaceDown} */
+draft_reveal_note_name ::= "as" "you" "draft" "a" "card" "," "you" "may" "reveal" "it" "," "note" "its" "name" "," "then" "turn" "this" "card" "face" "down"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:AsDraftACardOfType_MayRevealIt_NoteItsName_TurnThisDraftCardFaceDown, operands:[Filter($filter_phrase)]} */
+draft_reveal_type_note_name ::= "as" "you" "draft" "a" filter_phrase "card" "," "you" "may" "reveal" "it" "," "note" "its" "name" "," "then" "turn" "this" "card" "face" "down"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:AsDraftACardOfType_MayRevealIt_NoteItsCreatureTypes_TurnThisDraftCardFaceDown, operands:[Filter($filter_phrase)]} */
+draft_reveal_type_note_types ::= "as" "you" "draft" "a" filter_phrase "card" "," "you" "may" "reveal" "it" "," "note" "its" "creature" "types" "," "then" "turn" "this" "card" "face" "down"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:MayTurnThisDraftCardFaceDown_DraftEachCardInCurrentBoosterPackInsteadOfDraftingCardsThisRound} */
+draft_whole_pack ::= "instead" "of" "drafting" "a" "card" "from" "a" "booster" "pack" "," "you" "may" "draft" "each" "card" "in" "that" "booster" "pack" "," "one" "at" "a" "time" "." "if" "you" "do" "," "turn" "this" "card" "face" "down" "and" "you" "can't" "draft" "cards" "for" "the" "rest" "of" "this" "draft" "round"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:DraftCardsAtRandomUntilNumberCardsHaveBeenDrafted_TurnThisDraftCardFaceDown, operands:[Number($card_count)]} */
+draft_at_random ::= "as" "long" "as" "this" "card" "is" "face" "up" "during" "the" "draft" "," "you" "can't" "look" "at" "booster" "packs" "and" "must" "draft" "cards" "at" "random" "." "after" "you" "draft" card_count "this" "way" "," "turn" "this" "card" "face" "down"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:AfterDraftMayOfferATradeWithOtherPlayers} */
+draft_offer_trade ::= "immediately" "after" "the" "draft" "," "you" "may" "reveal" "a" "card" "in" "your" "card" "pool" "." "each" "other" "player" "may" "offer" "you" "one" "card" "in" "their" "card" "pool" "in" "exchange" "." "you" "may" "accept" "any" "one" "offer"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:MayTurnThisDraftCardFaceDown_LookAtNextCardDraftedByPlayerOfChoice} */
+draft_look_chosen_next ::= "during" "the" "draft" "," "you" "may" "turn" "this" "card" "face" "down" "." "if" "you" "do" "," "look" "at" "the" "next" "card" "drafted" "by" "a" "player" "of" "your" "choice"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:MayTurnThisDraftCardFaceDown_LookAtAnUnopenedBoosterPackOrABoosterPackNotBeingLookedAt} */
+draft_look_unopened ::= "during" "the" "draft" "," "you" "may" "turn" "this" "card" "face" "down" "." "if" "you" "do" "," "look" "at" "any" "unopened" "booster" "pack" "in" "the" "draft" "or" "any" "booster" "pack" "not" "being" "looked" "at" "by" "another" "player"
+/* @sem Operand::Term{family:FaceUpDraftEffect, form:LastCardInEachBoosterGoesToThisPlayer} */
+draft_last_cards ::= "each" "player" "passes" "the" "last" "card" "from" "each" "booster" "pack" "to" "a" "player" "who" "drafted" "a" "card" "named" SELF_NAME
 
 /* Escape exiling a number of other graveyard cards. */
 /* @sem Ability::Mechanic{mechanic:Escape, cost:_{parts:[Mana($mana_symbols), Move{selections:[_{objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Not(SameObject(Source))}), choose:Exactly($value)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}} */
