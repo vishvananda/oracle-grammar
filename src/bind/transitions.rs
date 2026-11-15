@@ -81,7 +81,8 @@ pub(super) fn reference(
             && get(root, &path[..path.len().saturating_sub(2)])
                 .is_some_and(|operation| operation["kind"] == "DealDamage")
         {
-            return frame.damage_source(reference);
+            let source = frame.damage_source(reference)?;
+            return Ok(returned_source(root, path, name, source));
         }
         return Ok(reference);
     }
@@ -190,6 +191,52 @@ pub(super) fn reference(
         }
     }
     Ok(reference)
+}
+
+/// "When this creature dies, return it to the battlefield. It deals 1 damage to each
+/// opponent": right after the dying card returns, "it" deals the damage as the
+/// returned permanent, a new object.
+fn returned_source(root: &Value, path: &[Step], name: &str, source: Value) -> Value {
+    if name != "it" || !matches!(source["kind"].as_str(), Some("Source" | "EventSubject")) {
+        return source;
+    }
+    let Some((depth, index)) = path.iter().enumerate().rev().find_map(|(depth, step)| {
+        let Step::Index(index) = step else {
+            return None;
+        };
+        matches!(depth.checked_sub(1).and_then(|d| path.get(d)),
+            Some(Step::Key(key)) if key == "instructions")
+        .then_some((depth, *index))
+    }) else {
+        return source;
+    };
+    let Some(previous) = index
+        .checked_sub(1)
+        .and_then(|before| get(root, &path[..depth])?.get(before))
+    else {
+        return source;
+    };
+    let operation = &previous["args"]["operation"];
+    let dying_card = json!({"kind":"One","args":{"kind":"Query","args":{
+        "objects":{"kind":"InZone","args":{"objects":{"kind":"One","args":{"kind":"EventDestination"}},"zone":"Graveyard"}},
+        "index":0}}});
+    let mut moved = &operation["args"]["objects"];
+    while matches!(symbol_name(moved), Some("zone_members" | "exile_followup")) {
+        moved = &moved["args"][0];
+    }
+    match previous["args"]["result"].as_u64() {
+        Some(result)
+            if previous["kind"] == "Effect"
+                && operation["kind"] == "Move"
+                && operation["args"]["destination"]
+                    .get("Battlefield")
+                    .is_some()
+                && *moved == dying_card =>
+        {
+            json!({"kind":"Result","args":{"result":result,"phase":"After","index":0}})
+        }
+        _ => source,
+    }
 }
 
 /// A whole announced or matched group follows its actual public move result.

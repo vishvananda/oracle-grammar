@@ -48,7 +48,8 @@ pub(crate) fn checked_call(
         "token_abilities" | "qualified_object" | "group_reference" => Some(2),
         "qualified_members" | "last_exiled" | "last_exiled_creature" => Some(1),
         "either_event" | "agree" | "payment_cost" | "announced_cost" => Some(2),
-        "kicker_branch" | "gift_branch" | "conditional_ability" | "arrival_changes" => Some(2),
+        "kicker_branch" | "additional_branch" | "gift_branch" | "overload_branch" => Some(2),
+        "conditional_ability" | "arrival_changes" => Some(2),
         "fixed_mana"
         | "variable_mana"
         | "singular_count"
@@ -92,18 +93,7 @@ pub(crate) fn checked_call(
         return draft_result_call(args, ty, schema).map(Some);
     }
     if matches!(name, "retain_animation_types" | "retain_animation") {
-        let expected = if name == "retain_animation_types" {
-            Ty::Vec(Box::new(Ty::Named("Change".into())))
-        } else {
-            Ty::Named("Operation".into())
-        };
-        if *ty != expected {
-            return Err(format!("@{name} produces {expected:?}"));
-        }
-        return Ok(Some(Pattern::Symbol(
-            name.into(),
-            vec![elaborate(&args[0], &expected, schema)?],
-        )));
+        return animation_call(name, args, ty, schema).map(Some);
     }
     if matches!(
         name,
@@ -176,7 +166,12 @@ pub(crate) fn checked_call(
     }
     if matches!(
         name,
-        "conditional_ability" | "kicker_branch" | "gift_branch"
+        "beheld"
+            | "conditional_ability"
+            | "kicker_branch"
+            | "additional_branch"
+            | "gift_branch"
+            | "overload_branch"
     ) {
         return branch_call(name, args, ty, schema).map(Some);
     }
@@ -208,12 +203,40 @@ pub(crate) fn checked_call(
     Ok(None)
 }
 
+fn animation_call(
+    name: &str,
+    args: &[Syntax],
+    ty: &Ty,
+    schema: &Schema,
+) -> Result<Pattern, String> {
+    let expected = if name == "retain_animation_types" {
+        Ty::Vec(Box::new(Ty::Named("Change".into())))
+    } else {
+        Ty::Named("Operation".into())
+    };
+    if *ty != expected {
+        return Err(format!("@{name} produces {expected:?}"));
+    }
+    Ok(Pattern::Symbol(
+        name.into(),
+        vec![elaborate(&args[0], &expected, schema)?],
+    ))
+}
+
 fn branch_call(name: &str, args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
+    // "If a Dragon was beheld" names the kind a cost branch's behold cost names.
+    if name == "beheld" {
+        if args.len() != 1 || *ty != Ty::Named("Condition".into()) {
+            return Err("@beheld names one beheld Operand and produces a Condition".into());
+        }
+        let kind = elaborate(&args[0], &Ty::Named("Operand".into()), schema)?;
+        return Ok(Pattern::Symbol(name.into(), vec![kind]));
+    }
     if *ty != Ty::Named("Ability".into()) {
         return Err(format!("@{name} produces an Ability"));
     }
     let first = match name {
-        "kicker_branch" => "Cost",
+        "kicker_branch" | "additional_branch" | "overload_branch" => "Cost",
         "gift_branch" => "Ability",
         _ => "Condition",
     };

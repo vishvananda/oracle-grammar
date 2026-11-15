@@ -458,6 +458,15 @@ the IR path, the value it replaces and why.
   every player's spell, `players: All`, as 115 other "a player casts" records
   read, Standstill among them. It was `One(AbilityController)`.
 
+- `U0054` (normalization): Voltage Surge and Undergrowth, which offer an
+  optional additional cost and then ask whether it was paid, are one
+  `CostBranch{keyword: AdditionalCost}` whose paid spell is the `If`'s then
+  branch and whose unpaid spell is its otherwise branch, as fourteen other such
+  spells are recorded, Burning Curiosity and Osseous Exhale among them. They
+  were a separate optional `Casting` cost and a `Spell` testing
+  `CostPaid(Additional)`. Graven Archfiend and Katara, Seeking Revenge are
+  permanents whose later abilities test the cost, and stay unchanged.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
 its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and

@@ -1,4 +1,5 @@
-//! Inverse of native kicker specialization: shared prefix/suffix and one test.
+//! Inverse of native casting-branch specialization: shared prefix/suffix and one test,
+//! or for overload the ordinary spell itself.
 use crate::pattern::{Bindings, Pattern};
 use serde_json::{Value, json};
 
@@ -80,36 +81,120 @@ fn spell(value: &Value) -> Option<&[Value]> {
         .flatten()
 }
 
-pub(crate) fn unify_kicker_branch<'p, 'v>(
-    args: &'p [Pattern],
-    value: &'v Value,
-    bindings: Bindings<'p, 'v>,
-) -> Vec<Bindings<'p, 'v>> {
-    unify_branch(false, args, value, bindings)
+/// What a casting branch turns on: a kicker, an optional additional cost or a gift.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Choice {
+    Kicker,
+    Additional,
+    Gift,
 }
 
-pub(crate) fn unify_gift_branch<'p, 'v>(
-    args: &'p [Pattern],
-    value: &'v Value,
-    bindings: Bindings<'p, 'v>,
-) -> Vec<Bindings<'p, 'v>> {
-    unify_branch(true, args, value, bindings)
+impl Choice {
+    pub(crate) fn of(symbol: &str) -> Option<Self> {
+        match symbol {
+            "kicker_branch" => Some(Self::Kicker),
+            "additional_branch" => Some(Self::Additional),
+            "gift_branch" => Some(Self::Gift),
+            _ => None,
+        }
+    }
+
+    /// The `CostBranch` keyword a paid cost names.
+    pub(crate) fn keyword(self) -> &'static str {
+        match self {
+            Self::Kicker => "Kicker",
+            Self::Additional => "AdditionalCost",
+            Self::Gift => "Gift",
+        }
+    }
+
+    /// The test of the spell itself that its paid branch answers yes.
+    pub(crate) fn paid_test(self) -> Value {
+        let state = match self {
+            Self::Kicker => json!("Kicked"),
+            Self::Additional => json!({"CostPaid":"Additional"}),
+            Self::Gift => return json!({"kind":"GiftPromised","args":true}),
+        };
+        json!({"kind":"ObjectMatches","args":{"object":{"kind":"Source"},
+            "filter":{"kind":"State","args":state}}})
+    }
 }
 
-fn unify_branch<'p, 'v>(
-    gift: bool,
+/// The cost a "was beheld" test names: one creature of a kind.
+pub(crate) fn beheld_kind(cost: &Value) -> Option<&Value> {
+    match cost["parts"].as_array()?.as_slice() {
+        [part] if part["Behold"]["count"] == json!({"kind":"Constant","args":1}) => {
+            Some(&part["Behold"]["what"])
+        }
+        _ => None,
+    }
+}
+
+/// Each spelling of the branch test, with whether it holds on the paid side. A gift
+/// may be tested either way; an optional cost to behold also asks what was beheld.
+fn branch_tests(kind: Choice, cost: &Value) -> Vec<(bool, Value)> {
+    if kind == Choice::Gift {
+        return [true, false]
+            .map(|promised| (promised, json!({"kind":"GiftPromised","args":promised})))
+            .to_vec();
+    }
+    let mut tests = vec![(true, kind.paid_test())];
+    if let Some(what) = beheld_kind(cost).filter(|_| kind == Choice::Additional) {
+        tests.push((true, json!({"$sym":"beheld","args":[what]})));
+    }
+    tests
+}
+
+/// "If a Dragon creature was beheld, it perpetually gets +2/+2": the branch's own
+/// payment is an object no ordinary production names, so no spelling of this
+/// branch can print it.
+fn reads_branch_payment(value: &Value, depth: usize) -> bool {
+    depth <= 128
+        && ((value["kind"] == "CostObjects" && value["args"]["payment"] == "Branch")
+            || match value {
+                Value::Object(fields) => {
+                    fields.values().any(|v| reads_branch_payment(v, depth + 1))
+                }
+                Value::Array(items) => items.iter().any(|v| reads_branch_payment(v, depth + 1)),
+                _ => false,
+            })
+}
+
+/// Whether a symbol specializes one spell for a choice made as it is cast.
+pub(crate) fn casting_branch(name: &str) -> bool {
+    Choice::of(name).is_some() || name == "overload_branch"
+}
+
+/// The inverse of a branch over one spell: a cost choice, overload, or a condition.
+pub(crate) fn unify_branch<'p, 'v>(
+    name: &str,
     args: &'p [Pattern],
     value: &'v Value,
     bindings: Bindings<'p, 'v>,
 ) -> Vec<Bindings<'p, 'v>> {
+    match (Choice::of(name), name) {
+        (Some(kind), _) => unify_cost_choice(kind, args, value, bindings),
+        (None, "overload_branch") => unify_overload_branch(args, value, bindings),
+        _ => super::conditional::unify(args, value, bindings),
+    }
+}
+
+fn unify_cost_choice<'p, 'v>(
+    kind: Choice,
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    let gift = kind == Choice::Gift;
     let [choice, source] = args else {
         return Vec::new();
     };
     if branch_bounds(value).is_err()
+        || reads_branch_payment(value, 0)
         || if gift {
             value["kind"] != "Gift"
         } else {
-            value["kind"] != "CostBranch" || value["args"]["keyword"] != "Kicker"
+            value["kind"] != "CostBranch" || value["args"]["keyword"] != kind.keyword()
         }
     {
         return Vec::new();
@@ -149,21 +234,13 @@ fn unify_branch<'p, 'v>(
     if gift && paid.len() == unpaid.len() && prefix == paid.len() {
         candidates.push(paid.to_vec());
     }
+    let tests = branch_tests(kind, &value["args"]["cost"]);
     for start in (0..=prefix).rev() {
         for end in (0..=suffix.min(paid.len().min(unpaid.len()) - start)).rev() {
-            for positive in if gift {
-                &[true, false][..]
-            } else {
-                &[true][..]
-            } {
+            for (positive, condition) in &tests {
                 if candidates.len() == 64 {
                     return unify_candidates(choice, source, &head, &candidates, &bindings);
                 }
-                let condition = if gift {
-                    json!({"kind":"GiftPromised","args":positive})
-                } else {
-                    json!({"kind":"ObjectMatches","args":{"object":{"kind":"Source"},"filter":{"kind":"State","args":"Kicked"}}})
-                };
                 let (yes, no) = if *positive {
                     (
                         &paid[start..paid.len() - end],
@@ -200,6 +277,32 @@ fn unify_branch<'p, 'v>(
         }
     }
     unify_candidates(choice, source, &head, &candidates, &bindings)
+}
+
+/// The overloaded branch is the ordinary spell with "target" changed to "each", so
+/// only the ordinary spell is printed.
+fn unify_overload_branch<'p, 'v>(
+    args: &'p [Pattern],
+    value: &'v Value,
+    bindings: Bindings<'p, 'v>,
+) -> Vec<Bindings<'p, 'v>> {
+    let [choice, source] = args else {
+        return Vec::new();
+    };
+    let unpaid = &value["args"]["unpaid"];
+    if branch_bounds(value).is_err()
+        || value["kind"] != "CostBranch"
+        || value["args"]["keyword"] != "Overload"
+        || spell(unpaid).is_none()
+        || super::overload::paid(unpaid).as_ref() != Ok(&value["args"]["paid"])
+    {
+        return Vec::new();
+    }
+    let mut found = Vec::new();
+    for bound in choice.unify_made(&value["args"]["cost"], &bindings) {
+        found.extend(source.unify_made(unpaid, &bound));
+    }
+    found
 }
 
 fn unify_candidates<'p, 'v>(

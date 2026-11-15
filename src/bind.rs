@@ -55,7 +55,7 @@ use guards::{
     attaches_to_itself, blocks_itself, cancels_before_choice, condition_placement,
     damage_after_unpaid_sacrifice, graveyard_looks_back, has_cost_as_action, leaves_paid_branch,
     life_margin_order, protection_domain_mismatch, reorders_another_library,
-    single_holder_affected, spell_asks_kicked,
+    single_holder_affected, spell_asks_own_cost,
 };
 mod coin_protocol;
 mod holder;
@@ -345,8 +345,8 @@ pub fn bind_held_ability(
     if graveyard_looks_back(ability) {
         return Err("a departure trigger works on the battlefield, not from the graveyard".into());
     }
-    if spell_asks_kicked(ability) {
-        return Err("a kicked spell branches on its kicker payment".into());
+    if spell_asks_own_cost(ability) {
+        return Err("a spell branches on its own optional cost".into());
     }
     if damage_after_unpaid_sacrifice(ability) {
         return Err("damage measured by a sacrifice follows its required payment".into());
@@ -599,7 +599,7 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                 }
                 "holder" => holder::bind(node, scope)?,
                 "scope" => events::bind_nested(node, scope)?,
-                "kicker_branch" | "gift_branch" => branches::bind(node, scope)?,
+                branch if crate::functions::casting_branch(branch) => branches::bind(node, scope)?,
                 "conditional_ability" => conditional::bind(node, scope)?,
                 // A reflexive trigger has its own targets but shares the ability's results.
                 "reflexive" => events::bind_reflexive(node, scope)?,

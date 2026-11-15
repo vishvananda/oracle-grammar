@@ -527,6 +527,10 @@ reflexive_pay_energy ::= cost_energy
    action and its conditional result still belong to this ability. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}, otherwise:Program{}}] */
 clause_counter_unless_plain ::= "counter" target_stack_spell "unless" "its" "controller" "pays" counter_unless_cost
+/* "If a Dragon was beheld, counter that spell unless its controller pays {4} instead":
+   the spell named earlier, and its controller, pay or lose it. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf($named_spell), cost:$counter_unless_cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One($named_spell), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}, otherwise:Program{}}] */
+clause_counter_unless_named ::= "counter" named_spell "unless" "its" "controller" "pays" counter_unless_cost
 
 /* "If they do" names the payment: paying spares the spell and earns the reward. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:$counter_unless_cost, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}}] */
@@ -915,7 +919,7 @@ same_controller_attachment_host ::= "to" "another" filter_phrase "with" "the" "s
 
 /* A counter-unless bare {X} uses the announced value. A local scalar must
    supply its explicit definition, never ask the opponent to choose a new X. */
-clause_counter_unless_pay ::= clause_counter_unless_plain | clause_counter_unless_computed
+clause_counter_unless_pay ::= clause_counter_unless_plain | clause_counter_unless_named | clause_counter_unless_computed
 counter_unless_cost ::= resolving_cost_announced | counter_unless_source_price | counter_unless_per_each
 
 /* A price repeated for each counted object. */

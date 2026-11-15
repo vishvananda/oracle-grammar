@@ -772,11 +772,8 @@ impl Pattern {
                     .unify_made(&serde_json::json!({"kind":"One","args":value}), &bindings);
             }
             "selection_id" | "reflexive_performed" => {
-                return if value.as_u64().is_some_and(|id| id <= u64::from(u32::MAX)) {
-                    vec![bindings]
-                } else {
-                    Vec::new()
-                };
+                let id = value.as_u64().filter(|id| *id <= u64::from(u32::MAX));
+                return id.map_or_else(Vec::new, |_| vec![bindings]);
             }
             "return_ref" => return reference_symbols::return_ref(args, value, bindings),
             "selection" => {
@@ -825,10 +822,12 @@ impl Pattern {
             "singular_count" | "plural_count" | "plural_amount" => {
                 return crate::functions::counts::unify(name, args, value, bindings);
             }
-            "kicker_branch" => return crate::functions::unify_kicker_branch(args, value, bindings),
-            "gift_branch" => return crate::functions::unify_gift_branch(args, value, bindings),
-            "conditional_ability" => {
-                return crate::functions::conditional::unify(args, value, bindings);
+            "kicker_branch"
+            | "additional_branch"
+            | "gift_branch"
+            | "overload_branch"
+            | "conditional_ability" => {
+                return crate::functions::unify_branch(name, args, value, bindings);
             }
             "other_reference" if value["$sym"] == "attached_counter_other_view" => {
                 return crate::bind::attached_counter_other::unify_other(args, value, bindings);

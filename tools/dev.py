@@ -349,7 +349,7 @@ def main():
         with lock(shared=True):
             run(args[0], args[1:])
     else:
-        raise ValueError('usage: dev.py build [--optimized] | check [--force] | test [filter] | family <file>... [--compositional] | families | probe <name> <text> | inspect <request> | score ... | validate-readings ...')
+        raise ValueError('usage: dev.py build [--optimized] | check [--force] | test [filter] | family <file>... [--compositional] | families | probe <name> <text> [--without=PREFIX,...] | inspect <request> | score ... | validate-readings ...')
 
 
 if __name__ == '__main__':

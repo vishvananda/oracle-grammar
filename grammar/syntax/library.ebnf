@@ -937,6 +937,35 @@ play_that_card_permission ::= duration "," "you" "may" "play" "that" "card"
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($exiled_card_ref), from:Exile, action:CastSpell, filter:Any})], duration:$this_duration, evaluation:LiveObjects} */
 cast_exiled_card_permission ::= "you" "may" "cast" exiled_card_ref this_duration
+/* "You may cast that card for as long as it remains exiled": the permission lasts while
+   the card it names stays in exile; "it" is that card. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($exiled_card_ref), from:Exile, action:$exiled_play_action, filter:Any})], duration:WhileExiled($exiled_card_ref), evaluation:LiveObjects} */
+exiled_card_while_exiled ::= "you" "may" exiled_play_action exiled_card_ref "for" "as" "long" "as" "it" "remains" "exiled"
+/* "..., and mana of any type can be spent to cast that spell": the same permission under
+   spending terms. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One($exiled_card_ref), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$exiled_spending}})], duration:WhileExiled($exiled_card_ref), evaluation:LiveObjects} */
+exiled_card_while_exiled_spending ::= "you" "may" exiled_play_action exiled_card_ref "for" "as" "long" "as" "it" "remains" "exiled" "," "and" exiled_spending
+/* "Exile target nonland permanent. You may cast that card for as long as it remains
+   exiled": that card is the one the exile just moved, whatever named it. */
+/* @sem Instruction::[Effect{result:@next, operation:$exile_objects}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}] */
+clause_exile_while_exiled ::= exile_objects "." "you" "may" exiled_play_action "that" "card" "for" "as" "long" "as" "it" "remains" "exiled"
+/* @sem Instruction::[Effect{result:@next, operation:$exile_objects}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$exiled_spending}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}] */
+clause_exile_while_exiled_spending ::= exile_objects "." "you" "may" exiled_play_action "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" exiled_spending
+exiled_play_action ::= exiled_cast_action | exiled_play_either
+/* @sem CardPlayAction::CastSpell */
+exiled_cast_action ::= "cast"
+/* @sem CardPlayAction::Either */
+exiled_play_either ::= "play"
+exiled_spending ::= exiled_spending_any_type | exiled_spending_any_color | exiled_spending_colorless
+/* @sem SpendAs::AnyType */
+exiled_spending_any_type ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" exiled_spell_ref
+/* @sem SpendAs::AnyColor */
+exiled_spending_any_color ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" exiled_spell_ref
+/* @sem SpendAs::ColorlessAsAnyColor */
+exiled_spending_colorless ::= "you" "may" "spend" "colorless" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" exiled_spell_ref
+/* @sem () */
+exiled_spell_ref ::= "that" "spell" | "it"
+
 /* "You may cast target creature card from your graveyard this turn": one target card,
    cast from the graveyard it is in. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($target_card_your_graveyard), from:Graveyard, action:CastSpell, filter:Any})], duration:$this_duration, evaluation:LiveObjects} */

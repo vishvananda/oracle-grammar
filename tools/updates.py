@@ -2,8 +2,8 @@
 """Recorded updates to the pinned MTGish reference export.
 
 The export stays byte-identical to its pinned checksum. Each update names the faces it
-changes, a path inside a face's ability list, the value expected there and its
-replacement. Preparing corpus inputs applies every change or fails: a missing face, an
+changes, a path inside a face's ability list (empty for the whole list), the value
+expected there and its replacement. Preparing corpus inputs applies every change or fails: a missing face, an
 ambiguous face name or a path whose value no longer matches makes the update stale
 against the pinned export. A value that already reads `to` was adopted upstream, and the
 change should be dropped. Updates are written against one reference revision; advancing
@@ -54,8 +54,8 @@ def check_change(identity, change):
     path = change['path']
     if not isinstance(change['face'], str) or not change['face']:
         raise ValueError(f'{identity}: a change names its face')
-    if not path or not all(type(step) is int and step >= 0 or isinstance(step, str)
-                           for step in path):
+    if not isinstance(path, list) or not all(
+            type(step) is int and step >= 0 or isinstance(step, str) for step in path):
         raise ValueError(f'{identity}: {change["face"]} needs a path of keys and indexes')
     if change['from'] == change['to']:
         raise ValueError(f'{identity}: {change["face"]} changes nothing')
@@ -74,8 +74,9 @@ def apply(face, changes):
     """Apply one face's changes in place; the ids applied, in order."""
     applied = []
     for identity, change in changes:
-        *steps, last = change['path']
-        parent = face['abilities']
+        # An empty path names the whole ability list, as when two abilities become one.
+        parent, steps, last = ((face['abilities'], change['path'][:-1], change['path'][-1])
+                               if change['path'] else (face, [], 'abilities'))
         try:
             for step in steps:
                 parent = parent[step]

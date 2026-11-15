@@ -297,14 +297,15 @@ fn contains(value: &Value, part: &Value) -> bool {
 }
 
 /// "Kicker {1}{U}. Return target nonland permanent ... If this spell was kicked, draw a
-/// card": a spell that checks its own kicker is one `CostBranch` whose paid and unpaid
-/// spells differ, not a separate keyword beside a spell asking whether it was kicked.
-pub(super) fn spell_asks_kicked(ability: &Value) -> bool {
-    let kicked = json!({
-        "kind": "ObjectMatches",
-        "args": {"object": {"kind": "Source"}, "filter": {"kind": "State", "args": "Kicked"}},
-    });
-    ability["kind"] == "Spell" && contains(&ability["args"]["body"], &kicked)
+/// card": a spell that checks its own kicker or optional additional cost is one
+/// `CostBranch` whose paid and unpaid spells differ, not a separate cost beside a spell
+/// asking whether it was paid.
+pub(super) fn spell_asks_own_cost(ability: &Value) -> bool {
+    use crate::functions::Choice;
+    ability["kind"] == "Spell"
+        && [Choice::Kicker, Choice::Additional]
+            .iter()
+            .any(|choice| contains(&ability["args"]["body"], &choice.paid_test()))
 }
 
 /// Whether a zone change's objects are this object itself.

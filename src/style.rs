@@ -78,6 +78,8 @@ pub fn breaches(tokens: &[Token], context: &[String]) -> Vec<(&'static str, f32,
     unions::singular_or(tokens, &mut found);
     unions::spell_kinds(tokens, &mut found);
     conditions::combat_condition_leads(tokens, &mut found);
+    conditions::trigger_asks_its_cost(tokens, &mut found);
+    conditions::behold_names_its_kind(tokens, &mut found);
     found
 }
 

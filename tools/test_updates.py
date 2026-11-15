@@ -66,6 +66,16 @@ class UpdateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'no value'):
             updates.apply({'name': 'A', 'abilities': []}, changes)
 
+    def test_an_empty_path_replaces_the_whole_ability_list(self):
+        two = [{'kind': 'Casting', 'args': 1}, {'kind': 'Spell', 'args': 2}]
+        one = [{'kind': 'CostBranch', 'args': 3}]
+        changes = updates.pending(self.load(record(path=[], **{'from': two, 'to': one})))['A']
+        face = {'name': 'A', 'abilities': [dict(a) for a in two]}
+        self.assertEqual(updates.apply(face, changes), ['U0001'])
+        self.assertEqual(face['abilities'], one)
+        with self.assertRaisesRegex(ValueError, 'adopted upstream'):
+            updates.apply(face, changes)
+
 
 if __name__ == '__main__':
     unittest.main()

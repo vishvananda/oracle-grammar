@@ -14,7 +14,25 @@ spell_kicker_branch_labelled ::= ability_label "—" kicker_branch_header NEWLIN
 /* @sem Ability::WithPresentation{label:$ability_label, reminder:true, ability:@kicker_branch($kicker_branch_reminded_header, Ability::Spell{announcement:@announcement, body:$kicker_branch_program})} */
 spell_kicker_branch_labelled_reminded ::= ability_label "—" kicker_branch_reminded_header NEWLINE kicker_branch_program
 
-kicker_branch_program ::= program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both
+/* "As an additional cost to cast this spell, you may blight 1. ... If this spell's
+   additional cost was paid, you gain 2 life": like a kicker, one branch for each
+   answer to the spell's test of its own optional cost. */
+/* @sem Ability::@additional_branch($branch_optional_cost, Ability::Spell{announcement:@announcement, body:$kicker_branch_program}) */
+spell_additional_branch ::= optional_cost_opening branch_optional_cost "." NEWLINE kicker_branch_program
+/* "you may blight 1", "you may pay {2}{R}" */
+branch_optional_cost ::= cost | alternative_mana
+
+/* Overload changes "target" in the spell's text to "each" (CR 702.96b); the binder
+   derives that spell from the ordinary one. */
+/* @sem Ability::@overload_branch($keyword_payment, Ability::Spell{announcement:@announcement, body:$program_sentence}) */
+spell_overload ::= program_sentence NEWLINE "overload" keyword_payment
+
+kicker_branch_program ::= program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception
+/* "Prevent all combat damage that would be dealt this turn. If this spell's additional
+   cost was paid, this effect doesn't affect combat damage that would be dealt by red
+   creatures": the paid prevention spares damage those sources deal. */
+/* @sem Program::Program{instructions:[If{condition:$condition, then:_{instructions:[Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Permanent, sources:Not($filter_plural), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}]}}]} */
+kicker_prevention_exception ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "this" "turn" "." "if" condition "," "this" "effect" "doesn't" "affect" "combat" "damage" "that" "would" "be" "dealt" "by" filter_plural "."
 /* @sem Program::Program{instructions:$kicker_override} */
 kicker_override_sentence ::= kicker_override
 /* @sem Program::Program{instructions:[...$instructions, ...$kicker_override]} */

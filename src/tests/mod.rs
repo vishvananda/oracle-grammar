@@ -936,4 +936,5 @@ mod composed_clauses;
 mod damage_replacements;
 mod graveyard_triggers;
 mod kicked_spells;
+mod optional_costs;
 mod target_bans;

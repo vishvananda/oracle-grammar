@@ -7,12 +7,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .skip(1)
         .filter(|arg| !arg.starts_with("--module="))
         .collect();
+    let without: Vec<String> = args
+        .iter()
+        .filter_map(|arg| arg.strip_prefix("--without="))
+        .flat_map(|prefixes| prefixes.split(',').map(str::to_string))
+        .collect();
+    let args: Vec<&String> = args
+        .iter()
+        .filter(|arg| !arg.starts_with("--without="))
+        .collect();
     let [name, text] = args.as_slice() else {
-        return Err("usage: probe <name> <text> [--module=name=path]...".into());
+        return Err(
+            "usage: probe <name> <text> [--module=name=path]... [--without=PREFIX,...]".into(),
+        );
     };
     let engine = Engine::load_from_args()?;
     let worker = std::thread::Builder::new().stack_size(1 << 28);
-    let (name, text) = (name.clone(), text.clone());
+    let (name, text) = ((*name).clone(), (*text).clone());
     let types: Vec<String> = std::env::var("PROBE_TYPES")
         .unwrap_or_default()
         .split_whitespace()
@@ -25,7 +36,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("mined {abilities:?}");
             }
         }
-        let parsed = engine.parse(&name, &text).map_err(|e| format!("{e:?}"))?;
+        let off = engine.rule_set(|rule| without.iter().any(|p| rule.starts_with(p.as_str())));
+        let parsed = engine
+            .parse_without(&name, &text, &off)
+            .map_err(|e| format!("{e:?}"))?;
         for reading in &parsed.readings {
             println!("{reading}");
             if let Some(steps) = engine.derivation_of(&name, reading, &text)? {
