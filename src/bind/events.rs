@@ -399,8 +399,30 @@ pub(super) fn scope_for(ability: &Value, card_name: &str, holders: u16) -> Scope
         if mentions(condition, "Source") || names_self(condition) {
             scope.pronoun = Some(json!({"kind": "Source"}));
         }
+    } else if ability_kind(ability) == Some("Replacement")
+        && damage_to_self(&ability["args"]["event"])
+    {
+        // `If damage would be dealt to this creature, put that many counters on it
+        // instead`: the pronoun names the event's recipient; card words stay the card.
+        scope.pronoun = Some(json!({"kind": "EventSubject"}));
     }
     scope
+}
+
+/// Damage from any source this object is dealt, with the recipient as the event's
+/// subject. A source filter such as "by creatures blocking it" names this object.
+fn damage_to_self(event: &Value) -> bool {
+    if let Some(inner) = inner(event) {
+        return damage_to_self(inner);
+    }
+    let damage = &event["Damage"];
+    damage["subject"] == "Recipient"
+        && damage["sources"]["kind"] == "Any"
+        && is_source(&damage["recipients"]["Objects"])
+}
+
+fn is_source(objects: &Value) -> bool {
+    objects["kind"] == "SameObject" && objects["args"]["kind"] == "Source"
 }
 
 /// Alternatives that are all this object's own, one of them its entry onto the battlefield.

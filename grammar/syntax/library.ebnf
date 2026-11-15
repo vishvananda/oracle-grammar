@@ -507,6 +507,12 @@ name_search_all ::= "all"
 /* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:One($target_card), count:Exactly(Constant(1)), cost:Free, into_exile:false} */
 cast_card_free ::= "cast" target_card "without" "paying" "its" "mana" "cost"
 
+/* The card an exile-until stopped on, cast for free while resolving. */
+/* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:One($exiled_that_card), count:Exactly(Constant(1)), cost:Free, into_exile:false} */
+cast_exiled_card_free ::= "cast" exiled_that_card "without" "paying" "its" "mana" "cost"
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($exiled_that_card), from:Exile, action:CastSpell, filter:Any})], duration:$this_duration, evaluation:LiveObjects} */
+cast_exiled_that_card_permission ::= "you" "may" "cast" exiled_that_card this_duration
+
 /* A spell cast while resolving is exiled instead of going to a graveyard.
    The next sentence names that spell, so both sentences make one cast. */
 /* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:$affected, count:Exactly(Constant(1)), cost:Normal, into_exile:true}}]}}] */
@@ -534,6 +540,9 @@ clause_hand_on_top_any_order ::= "put" count_plural "cards" "from" "your" "hand"
 clause_hand_on_bottom_any_order ::= "put" count_plural "cards" "from" "your" "hand" "on" "the" "bottom" "of" "your" "library" "in" "any" "order"
 /* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:$clause_hand_on_top}} */
 cost_hand_on_top ::= clause_hand_on_top
+/* Any number of cards from your hand: you choose them, then they enter together. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:AnyNumber, constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+clause_hand_any_number_battlefield ::= "put" "any" "number" "of" card_filter "cards" "from" "your" "hand" "onto" "the" "battlefield"
 
 a_card ::= a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another | a_card_or
 
@@ -560,6 +569,10 @@ clause_put_from ::= battlefield_card_choice ("onto" | "to") "the" "battlefield" 
 
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:$battlefield_card_choice, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::@choice_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]})}] */
 clause_put_from_tapped ::= battlefield_card_choice ("onto" | "to") "the" "battlefield" "tapped" ("under" "your" "control")?
+
+/* An Aura or Equipment card chosen this way enters attached to its host. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:Operation::ChooseObjects{player:AbilityController, objects:$battlefield_card_choice, count:AsManyAsCan(Expr::Constant(1))}}, Instruction::Effect{result:@next, operation:Operation::@choice_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($object_ref)]}}, qualifiers:[]})}] */
+clause_put_from_attached ::= battlefield_card_choice "onto" "the" "battlefield" "attached" "to" object_ref
 
 battlefield_card_choice ::= explicit_battlefield_card_choice | putting_another_card
 /* @sem $resolving_card_pool */
@@ -733,9 +746,24 @@ budget_graveyard_scope ::= graveyard_scope | budget_graveyard_that_player
 /* @sem ObjectFilter::InZone(Players{zone:Graveyard, players:One(@that_player)}) */
 budget_graveyard_that_player ::= ("from" | "in") "that" "player's" "graveyard"
 
+/* "Exile cards from the top of your library until you exile a nonland card": the reveal
+   stops on one card and the next instruction exiles every card it showed. The card it stopped on is the
+   receipt the next instruction names. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$card_filter, count:Constant(1)}}, Effect{result:@next, operation:Operation::@exiled_card_result(Operation::Move{objects:Observed(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]})}] */
+clause_exile_until_card ::= "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" ("a" | "an") card_filter "card"
+
+/* The card it stopped on may be cast: from exile with a permission, or right away for free. */
+/* @sem Instruction::[...$clause_exile_until_card, Effect{result:@next, operation:$cast_exiled_that_card_permission}] */
+instructions_exile_until_permission ::= clause_exile_until_card "." cast_exiled_that_card_permission
+/* @sem Instruction::[...$clause_exile_until_card, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$cast_exiled_card_free}]}}] */
+instructions_exile_until_free_cast ::= clause_exile_until_card "." "you" "may" cast_exiled_card_free
+
 /* A receipt names the actual moved incarnation, never the pre-exile input. */
 /* @sem ObjectRef::@exiled_card_reference */
 exiled_card_ref ::= "it" | "that" "card"
+/* After an exile-until, Oracle names the card it stopped on "that card", 10 times in 11. */
+/* @sem ObjectRef::@exiled_card_reference */
+exiled_that_card ::= "that" "card"
 
 /* One player's top card establishes one actual resulting incarnation. */
 exile_top_card_receipt ::= exile_top_card_player | exile_top_card_named

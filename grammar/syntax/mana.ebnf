@@ -6,7 +6,7 @@ mana_clause ::= mana_clause_plain | mana_clause_plain_you | mana_clause_optional
 mana_clause_plain ::= mana_clause_operation
 /* @sem Instruction::[Effect{result:@next, operation:$add_mana}] */
 mana_clause_plain_you ::= "you" add_mana
-mana_clause_operation ::= add_mana | add_mana_player
+mana_clause_operation ::= add_mana | add_mana_player | add_mana_any_combination
 
 mana_clause_optional ::= mana_clause_you_may | mana_clause_player_may
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$add_mana}]}}] */
@@ -18,6 +18,11 @@ mana_clause_player_may ::= player_ref "may" "add" ("an" "additional")? mana_prod
    qualification applies to whichever production actually occurs. */
 /* @sem Vec<Instruction>::@restricted_mana($mana_clause, $mana_spending) */
 mana_clause_restricted ::= mana_clause "." mana_spending
+
+/* Mana that triggers when it's spent on a spell: the trigger is the mana's own
+   restriction, and the rest of the ability is its body. */
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($program)}}}] */
+instructions_mana_spent_trigger ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" spell_filter "," program
 
 mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend
 /* @sem $mana_use */
@@ -72,9 +77,8 @@ mana_use_activate ::= "activate" "abilities"
 mana_use_activate_sources ::= "activate" "abilities" "of" mana_spell_filter "sources"
 /* @sem ManaUse::ActivateAbility{sources:$mana_spell_filter, permanents_only:false} */
 mana_use_activate_source ::= "activate" ("a" | "an") "ability" "of" ("a" | "an") mana_spell_filter "source"
-/* @sem ManaUse::ActivateAbility{sources:$mana_permanent_sources, permanents_only:true} */
-mana_use_activate_permanents ::= "activate" "abilities" "of" mana_permanent_sources
-mana_permanent_sources ::= filter_phrase | filter_plural
+/* @sem ManaUse::ActivateAbility{sources:$filter_plural, permanents_only:true} */
+mana_use_activate_permanents ::= "activate" "abilities" "of" filter_plural
 /* @sem ManaUse::ActivateAbility{sources:$filter_phrase, permanents_only:true} */
 mana_use_activate_permanent ::= "activate" ("a" | "an") "ability" "of" ("a" | "an") filter_phrase
 

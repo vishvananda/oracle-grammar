@@ -8,6 +8,7 @@ mod casting;
 mod mana;
 mod owners;
 mod quotes;
+mod unions;
 mod where_x;
 
 const BACKOFF: f32 = 0.4;
@@ -73,6 +74,8 @@ pub fn breaches(tokens: &[Token], context: &[String]) -> Vec<(&'static str, f32,
     owners::agreement(tokens, &mut found);
     where_x::defined_after_use(tokens, &mut found);
     quotes::one_period(tokens, &mut found);
+    unions::singular_or(tokens, &mut found);
+    unions::spell_kinds(tokens, &mut found);
     found
 }
 

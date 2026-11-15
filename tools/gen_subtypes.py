@@ -15,6 +15,8 @@ PLURALS = {
     "Merfolk": "Merfolk", "Kor": "Kor", "Kithkin": "Kithkin", "Nightstalker": "Nightstalkers",
     "Homunculus": "Homunculi", "Moonfolk": "Moonfolk", "Vedalken": "Vedalken",
     "Aetherborn": "Aetherborn", "Treefolk": "Treefolk", "Volver": "Volvers",
+    "Myr": "Myr", "Eldrazi": "Eldrazi", "Samurai": "Samurai", "Aurochs": "Aurochs",
+    "Nephilim": "Nephilim", "Hero": "Heroes",
 }
 
 

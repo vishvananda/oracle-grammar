@@ -46,10 +46,24 @@ pub(super) fn refers_to(name: &str, value: &Value) -> bool {
     match name {
         "self" => kind == "Source",
         "exiled_card_reference" => {
-            kind == "Result"
-                && value["args"]["phase"] == "After"
-                && value["args"]["index"] == 0
-                && value["args"]["result"].is_u64()
+            let objects = &value["args"]["objects"];
+            let exiled = &objects["args"]["objects"];
+            match kind {
+                "Result" => {
+                    value["args"]["phase"] == "After"
+                        && value["args"]["index"] == 0
+                        && value["args"]["result"].is_u64()
+                }
+                // The card an exile-until stopped on; reparsing proves the producer.
+                "Query" => {
+                    value["args"]["index"] == 0
+                        && objects["kind"] == "Matching"
+                        && exiled["kind"] == "Transition"
+                        && exiled["args"]["phase"] == "After"
+                        && exiled["args"]["result"].is_u64()
+                }
+                _ => false,
+            }
         }
         // The receipts `card_receipt` reads; reparsing proves the producer.
         "card_receipt" | "revealed_card_receipt" | "discarded_card_receipt" => {

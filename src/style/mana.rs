@@ -1,5 +1,6 @@
-//! Canonical color order for inherent mana headers; keys retain every other order.
-use super::{BROKEN, Found, is};
+//! Canonical color order for inherent mana headers, and spending restrictions that agree
+//! with the mana they follow; keys retain every other wording.
+use super::{BROKEN, Found, SOFTLY, is};
 use crate::tokens::Token;
 
 fn color(tokens: &[Token], at: usize) -> Option<u8> {
@@ -76,6 +77,8 @@ fn canonical(colors: &[u8]) -> Option<&'static [u8]> {
 
 pub(super) fn wording(tokens: &[Token], found: &mut Found) {
     production_bundles(tokens, found);
+    spending_agrees(tokens, found);
+    uses_agree(tokens, found);
     let mut fragment = Vec::new();
     let mut at = 0;
     while fragment.len() < 128 {
@@ -165,4 +168,105 @@ fn noncanonical(units: &[u8]) -> bool {
         .flat_map(|unit| std::iter::repeat_n(unit, units.iter().filter(|u| **u == unit).count()))
         .collect();
     desired != units
+}
+
+/// One mana is spent on one spell or ability, more on spells: "Add {G}. Spend this mana
+/// only to cast a creature spell" and "Add two mana in any combination of colors. Spend
+/// this mana only to cast Elemental spells". Oracle says otherwise in 11 of 146
+/// restrictions, which a key keeps.
+fn spending_agrees(tokens: &[Token], found: &mut Found) {
+    for at in 0..tokens.len() {
+        let spend = ["spend", "this", "mana", "only", "to"];
+        if !(0..spend.len()).all(|offset| is(tokens, at + offset, spend[offset])) {
+            continue;
+        }
+        let Some(verb) = (at.saturating_sub(64)..at)
+            .rev()
+            .find(|&i| is(tokens, i, "add"))
+        else {
+            continue;
+        };
+        let mut amount = verb + 1;
+        if is(tokens, amount, "an") && is(tokens, amount + 1, "additional") {
+            amount += 2;
+        }
+        let one = one_unit(tokens, amount)
+            || (is(tokens, amount, "one") || tokens.get(amount) == Some(&Token::Number(1)))
+                && is(tokens, amount + 1, "mana");
+        let mut word = at + spend.len();
+        while word < tokens.len() && tokens[word] != Token::Mark('.') {
+            let number = use_number(tokens, word);
+            if one && number == Some(false) || !one && number == Some(true) {
+                found.push(("spending agrees with the mana", 2.0 * SOFTLY, word));
+            }
+            word += 1;
+        }
+    }
+}
+
+/// "cast a creature spell or activate an ability of a creature", "cast artifact spells or
+/// activate abilities of artifacts": Oracle never mixes the two, in 64 of 64.
+fn uses_agree(tokens: &[Token], found: &mut Found) {
+    for at in 0..tokens.len() {
+        let named = ["it", "that", "this", "the", "them", "those"]
+            .iter()
+            .any(|word| is(tokens, at + 1, word));
+        if !is(tokens, at, "cast")
+            || named
+            || matches!(tokens.get(at + 1), Some(Token::SelfName(_)))
+        {
+            continue;
+        }
+        let Some(cast) = use_number(tokens, at) else {
+            continue;
+        };
+        let mut word = at + 1;
+        while word < tokens.len() && !matches!(tokens[word], Token::Mark('.') | Token::Newline) {
+            if is(tokens, word, "or") && is(tokens, word + 1, "activate") {
+                if use_number(tokens, word + 1).is_some_and(|activate| activate != cast) {
+                    found.push(("cast and activate agree", BROKEN, word + 1));
+                }
+                break;
+            }
+            word += 1;
+        }
+    }
+}
+
+/// Whether "cast …" or "activate …" at `at` names one spell or ability, or several.
+fn use_number(tokens: &[Token], at: usize) -> Option<bool> {
+    let article = is(tokens, at + 1, "a") || is(tokens, at + 1, "an");
+    if is(tokens, at, "cast") {
+        Some(article)
+    } else if is(tokens, at, "activate") && is(tokens, at + 1, "abilities") {
+        Some(false)
+    } else if is(tokens, at, "activate") && article && is(tokens, at + 2, "ability") {
+        Some(true)
+    } else {
+        None
+    }
+}
+
+/// One mana symbol, or a choice of them, ends the sentence: `{G}.`, `{R}, {W}, or {B}.`
+fn one_unit(tokens: &[Token], mut at: usize) -> bool {
+    loop {
+        if !(tokens.get(at) == Some(&Token::Mark('{'))
+            && matches!(tokens.get(at + 1), Some(Token::Word(_)))
+            && tokens.get(at + 2) == Some(&Token::Mark('}')))
+        {
+            return false;
+        }
+        at += 3;
+        if tokens.get(at) == Some(&Token::Mark('.')) {
+            return true;
+        }
+        if tokens.get(at) == Some(&Token::Mark(',')) {
+            at += 1;
+        }
+        if is(tokens, at, "or") {
+            at += 1;
+        } else if tokens.get(at - 1) != Some(&Token::Mark(',')) {
+            return false;
+        }
+    }
 }

@@ -138,6 +138,82 @@ pub(super) fn blocks_itself(value: &Value) -> bool {
     }
 }
 
+/// An Aura or Equipment put onto the battlefield attached to an object attaches to
+/// something other than itself (CR 303.4f, 301.5c), so a move's host is never one of
+/// the objects it moves.
+pub(super) fn attaches_to_itself(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => {
+            let args = &value["args"];
+            let objects = &args["objects"];
+            let own = value["kind"] == "Move"
+                && args["destination"]["Battlefield"]["arrival"]["states"]
+                    .as_array()
+                    .is_some_and(|states| {
+                        states.iter().any(|state| {
+                            let host = &state["AttachedTo"];
+                            !host.is_null()
+                                && (mentions(objects, host)
+                                    || host["kind"] == "Target"
+                                        && mentions(
+                                            objects,
+                                            &json!({"kind": "Targets", "args": host["args"]["slot"]}),
+                                        ))
+                        })
+                    });
+            own || object.values().any(attaches_to_itself)
+        }
+        Value::Array(items) => items.iter().any(attaches_to_itself),
+        _ => false,
+    }
+}
+
+/// "You may pay {8}. If you do, tap up to eight target permanents. Those permanents
+/// don't untap ...": a later sentence about the targets an `if you do` branch acted on
+/// continues that branch, so a declined payment leaves those targets alone.
+pub(super) fn leaves_paid_branch(value: &Value) -> bool {
+    fn slots(value: &Value, found: &mut Vec<u64>) {
+        match value {
+            Value::Object(object) => {
+                let args = &value["args"];
+                match value["kind"].as_str() {
+                    Some("Target") => found.extend(args["slot"].as_u64()),
+                    Some("Targets") => found.extend(args.as_u64()),
+                    _ => {}
+                }
+                object.values().for_each(|value| slots(value, found));
+            }
+            Value::Array(items) => items.iter().for_each(|value| slots(value, found)),
+            _ => {}
+        }
+    }
+    fn within(values: &[Value]) -> Vec<u64> {
+        let mut found = Vec::new();
+        values.iter().for_each(|value| slots(value, &mut found));
+        found
+    }
+    let own = value["instructions"]
+        .as_array()
+        .is_some_and(|instructions| {
+            instructions.iter().enumerate().any(|(at, instruction)| {
+                let args = &instruction["args"];
+                if instruction["kind"] != "If" || args["condition"]["kind"] != "PaymentChosen" {
+                    return false;
+                }
+                let before = within(&instructions[..at]);
+                let later = within(&instructions[at + 1..]);
+                within(std::slice::from_ref(&args["then"]))
+                    .iter()
+                    .any(|slot| !before.contains(slot) && later.contains(slot))
+            })
+        });
+    own || match value {
+        Value::Object(object) => object.values().any(leaves_paid_branch),
+        Value::Array(items) => items.iter().any(leaves_paid_branch),
+        _ => false,
+    }
+}
+
 /// "Look at the top three cards of target player's library, then put them back in any
 /// order": the cards looked at go back into the library they came from.
 pub(super) fn reorders_another_library(value: &Value) -> bool {

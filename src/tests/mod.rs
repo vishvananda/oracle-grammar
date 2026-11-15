@@ -930,7 +930,9 @@ mod reference_prints;
 mod reported_corrections;
 mod spell_x;
 
+mod arrivals_and_receipts;
 mod card_receipts;
 mod composed_clauses;
+mod damage_replacements;
 mod graveyard_triggers;
 mod target_bans;

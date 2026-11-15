@@ -267,3 +267,133 @@ fn alternative_casting_preserves_target_filter_origins_and_invalid_fields() {
     assert!(validate_abilities(&invalid).is_err());
     assert!(validate_abilities(&canonical_abilities(&invalid).unwrap()).is_err());
 }
+
+/// Whether `text` breaks the style rule `rule`.
+fn breaks(text: &str, rule: &str) -> bool {
+    let tokens = engine().tokens_of("Context example", text).unwrap();
+    crate::style::breaches(&tokens, &[])
+        .iter()
+        .any(|(name, _, _)| *name == rule)
+}
+
+#[test]
+fn a_restriction_names_one_use_for_one_mana_and_uses_for_more() {
+    for (text, broken) in [
+        (
+            "Add {G}. Spend this mana only to cast a creature spell.",
+            false,
+        ),
+        (
+            "Add {G}. Spend this mana only to cast creature spells.",
+            true,
+        ),
+        (
+            "Add {R}, {W}, or {B}. Spend this mana only to cast a Knight spell.",
+            false,
+        ),
+        (
+            "Add 1 mana of any color. Spend this mana only to cast creature spells.",
+            true,
+        ),
+        (
+            "Add an additional one mana of any color. Spend this mana only to cast creature spells.",
+            true,
+        ),
+        (
+            "Add two mana in any combination of colors. Spend this mana only to cast a Lesson spell.",
+            true,
+        ),
+    ] {
+        assert_eq!(
+            breaks(text, "spending agrees with the mana"),
+            broken,
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn casting_and_activating_in_one_restriction_agree_in_number() {
+    for (text, broken) in [
+        (
+            "Spend this mana only to cast artifact spells or activate abilities of artifacts.",
+            false,
+        ),
+        (
+            "Spend this mana only to cast a creature spell or activate an ability of a creature.",
+            false,
+        ),
+        (
+            "Spend this mana only to cast Elemental spells or activate an ability of an Elemental.",
+            true,
+        ),
+        (
+            "Spend this mana only to cast a creature spell or activate abilities of creatures.",
+            true,
+        ),
+    ] {
+        assert_eq!(breaks(text, "cast and activate agree"), broken, "{text}");
+    }
+}
+
+#[test]
+fn restrictions_print_as_oracle_writes_them() {
+    for text in [
+        "Add {C}{C}. Spend this mana only to cast Myr spells or activate abilities of Myr.",
+        "Add {C}{C}. Spend this mana only to cast colorless Eldrazi spells or activate abilities of colorless Eldrazi.",
+        "Add two mana in any combination of colors. Spend this mana only to cast Elemental spells or activate abilities of Elementals.",
+        "Add {R}, {W}, or {B}. Spend this mana only to cast a Knight spell.",
+    ] {
+        assert_eq!(printed_types(&compositional(text), &["Land"]), text);
+    }
+}
+
+#[test]
+fn one_spell_of_either_kind_joins_the_kinds_with_or() {
+    for (text, broken) in [
+        (
+            "Spend this mana only to cast a Knight or Equipment spell.",
+            false,
+        ),
+        (
+            "Spend this mana only to cast a Knight and Equipment spell.",
+            true,
+        ),
+        (
+            "Return an artifact and creature card from your graveyard to your hand.",
+            true,
+        ),
+        ("Create a tapped and attacking token.", false),
+    ] {
+        assert_eq!(
+            breaks(text, "one object joins kinds with or"),
+            broken,
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn a_spell_is_permanent_only_as_a_permanent_spell() {
+    for (text, broken) in [
+        ("Spend this mana only to cast a permanent spell.", false),
+        (
+            "Spend this mana only to cast a Knight permanent or Equipment spell.",
+            true,
+        ),
+        (
+            "Spend this mana only to cast a permanent Knight or Equipment spell.",
+            true,
+        ),
+        (
+            "Spend this mana only to cast a Knight or Equipment permanent spell.",
+            false,
+        ),
+        (
+            "Return an untapped permanent as this spell's additional cost.",
+            false,
+        ),
+    ] {
+        assert_eq!(breaks(text, "a spell's kinds"), broken, "{text}");
+    }
+}

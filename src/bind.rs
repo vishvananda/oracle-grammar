@@ -52,9 +52,10 @@ mod presentation;
 mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{
-    blocks_itself, cancels_before_choice, condition_placement, damage_after_unpaid_sacrifice,
-    graveyard_looks_back, has_cost_as_action, life_margin_order, protection_domain_mismatch,
-    reorders_another_library, single_holder_affected,
+    attaches_to_itself, blocks_itself, cancels_before_choice, condition_placement,
+    damage_after_unpaid_sacrifice, graveyard_looks_back, has_cost_as_action, leaves_paid_branch,
+    life_margin_order, protection_domain_mismatch, reorders_another_library,
+    single_holder_affected,
 };
 mod coin_protocol;
 mod holder;
@@ -306,6 +307,9 @@ pub fn bind_held_ability(
     departure_controller::seed(&mut scope, departure_controller);
     scope.binding_floor = per_recipient::binding_floor(ability)?;
     bind_scope(ability, &mut scope)?;
+    if exiled_card::names_first_exiled(ability, &scope) {
+        return Err("that card is the one an exile-until stopped on".into());
+    }
     target_contrast::lower(ability)?;
     group_contrast::lower(ability);
     payments::bind(ability)?;
@@ -324,6 +328,12 @@ pub fn bind_held_ability(
     }
     if blocks_itself(ability) {
         return Err("a creature cannot be required to block itself".into());
+    }
+    if attaches_to_itself(ability) {
+        return Err("an arriving Aura or Equipment attaches to another object".into());
+    }
+    if leaves_paid_branch(ability) {
+        return Err("a sentence about an if-you-do branch's targets continues it".into());
     }
     if protection_domain_mismatch(ability) {
         return Err("protection names the domain its quality proves".into());

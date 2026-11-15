@@ -11,10 +11,19 @@ pub(super) struct Receipt {
     result: ResultId,
     sequence: Vec<Step>,
     instruction: usize,
+    /// "Exile cards ... until you exile a nonland card": the one exiled card the reveal
+    /// stopped on, among every card that exile moved.
+    until: Option<Value>,
 }
 
 impl Receipt {
     fn scalar(&self) -> Value {
+        if let Some(filter) = &self.until {
+            return serde_json::json!({"kind":"Query","args":{"objects":{"kind":"Matching","args":{
+                "objects":{"kind":"Transition","args":{"result":self.result.0,"phase":"After"}},
+                "filter":filter,
+            }},"index":0}});
+        }
         serde_json::to_value(ObjectRef::Result {
             result: self.result.clone(),
             phase: ObjectPhase::After,
@@ -84,11 +93,6 @@ pub(super) fn marker(
     // First target occurrences stay symbolic until finish_scope. Probe their
     // already assigned addresses without materializing or editing the source.
     let plain = super::references::bound_reference(wrapped, introduced, scope.target_base)?;
-    let operation: Operation =
-        serde_json::from_value(plain).map_err(|why| format!("exiled card operation: {why}"))?;
-    if !single_top_card(&operation) {
-        return Err("exiled card needs one top card of one library moved to exile".into());
-    }
     let (depth, instruction) = path.iter().enumerate().rev().find_map(|(depth, step)| {
         if let Step::Index(index) = step
             && matches!(depth.checked_sub(1).and_then(|i| path.get(i)), Some(Step::Key(key)) if key == "instructions")
@@ -96,10 +100,20 @@ pub(super) fn marker(
             Some((depth, *index))
         } else { None }
     }).ok_or("exiled card needs a lexical instruction sequence")?;
+    let operation: Operation = serde_json::from_value(plain.clone())
+        .map_err(|why| format!("exiled card operation: {why}"))?;
+    let (sequence, instruction, until) = if single_top_card(&operation) {
+        (path[..depth].to_vec(), instruction, None)
+    } else {
+        let filter = until_exiled(root, &path[..depth], instruction, &plain)
+            .ok_or("exiled card needs one top card of one library moved to exile")?;
+        (path[..depth].to_vec(), instruction, Some(filter))
+    };
     let receipt = Receipt {
         result: ResultId(u32::try_from(result).map_err(|_| "exiled card result address")?),
-        sequence: path[..depth].to_vec(),
+        sequence,
         instruction,
+        until,
     };
     let reference = receipt.scalar();
     scope.exiled_card = Some(receipt);
@@ -108,6 +122,58 @@ pub(super) fn marker(
     scope.others.clear();
     scope.pronoun = None;
     Ok(true)
+}
+
+/// "Exile cards from the top of your library until you exile a nonland card": one reveal
+/// that stops on one card, then an exile of every card it observed. The receipt follows
+/// the exile, in the sequence that holds both.
+fn until_exiled(
+    root: &Value,
+    sequence: &[Step],
+    instruction: usize,
+    operation: &Value,
+) -> Option<Value> {
+    let mut node = root;
+    for step in sequence {
+        node = match step {
+            Step::Key(key) => node.get(key)?,
+            Step::Index(index) => node.get(*index)?,
+        };
+    }
+    let reveal = node.as_array()?.get(instruction.checked_sub(1)?)?;
+    let until = &reveal["args"]["operation"];
+    let observed = &operation["args"]["objects"];
+    (until["kind"] == "RevealUntil"
+        && until["args"]["count"] == serde_json::json!({"kind":"Constant","args":1})
+        && until["args"]["library"]["kind"] == "AbilityController"
+        && operation["kind"] == "Move"
+        && operation["args"]["destination"].get("Exile").is_some()
+        && observed["kind"] == "Observed"
+        && (observed["args"] == reveal["args"]["result"] || !observed["args"].is_u64()))
+    .then(|| until["args"]["filter"].clone())
+}
+
+/// "Exile cards ... until you exile a nonland card. You may cast that card": with the
+/// receipt for the card the reveal stopped on, the exile's first result names no
+/// particular card of those it moved.
+pub(super) fn names_first_exiled(ability: &Value, scope: &Scope) -> bool {
+    fn mentions(value: &Value, wanted: &Value) -> bool {
+        value == wanted
+            || match value {
+                Value::Object(fields) => fields.values().any(|value| mentions(value, wanted)),
+                Value::Array(items) => items.iter().any(|value| mentions(value, wanted)),
+                _ => false,
+            }
+    }
+    scope
+        .exiled_card
+        .as_ref()
+        .filter(|receipt| receipt.until.is_some())
+        .is_some_and(|receipt| {
+            let first = serde_json::json!({"kind":"Result","args":{
+                "result":receipt.result.0,"phase":"After","index":0}});
+            mentions(ability, &first)
+        })
 }
 
 /// Only this syntactic shape opts in before context binding. The strict typed
@@ -234,6 +300,7 @@ pub(super) fn surface(ability: &mut Value) -> bool {
             result: ResultId(result),
             sequence: Vec::new(),
             instruction: index,
+            until: None,
         }
         .scalar();
         let next = &instructions[index + 1];
@@ -292,6 +359,7 @@ mod tests {
             result: ResultId(7),
             sequence: sequence.clone(),
             instruction: 0,
+            until: None,
         });
         let reference = scope.exiled_card.as_ref().unwrap().scalar();
         scope.objects.push(reference.clone());
@@ -347,6 +415,7 @@ mod tests {
             result: ResultId(2),
             sequence: sequence.clone(),
             instruction: 0,
+            until: None,
         };
         let mut local = sequence;
         local.push(Step::Index(1));
