@@ -23,6 +23,14 @@ fn becoming_agrees_with_the_head_of_its_subject() {
         "up to one other target Vehicle you control become artifact creatures"
     ));
     assert!(agrees("creatures you control become artifact creatures"));
+    // `power and toughness` qualifies the head; a joined subject has no single number.
+    assert!(!agrees(
+        "other creatures you control with base power and toughness 1/1 gets +1/+1"
+    ));
+    assert!(agrees(
+        "other creatures you control with base power and toughness 1/1 get +1/+1"
+    ));
+    assert!(agrees("target creature and target land get tapped"));
     assert!(!agrees(
         "creatures you control becomes an artifact creature"
     ));
@@ -103,4 +111,24 @@ fn articles_agree_with_the_next_sound() {
     assert_eq!(agreed("a hour"), "an hour");
     assert_eq!(agreed("an one-time boon"), "a one-time boon");
     assert_eq!(agreed("an unity counter"), "a unity counter");
+}
+
+#[test]
+fn a_quoted_sentence_keeps_its_one_period() {
+    let periods = |tokens: &[Token]| {
+        breaches(tokens, &[])
+            .iter()
+            .filter(|(rule, _, _)| *rule == "period after a quoted sentence")
+            .count()
+    };
+    let mut tokens = words("cards in your hand perpetually gain");
+    tokens.extend([
+        Token::Mark('"'),
+        Token::Word("flying".into()),
+        Token::Mark('.'),
+        Token::Mark('"'),
+    ]);
+    assert_eq!(periods(&tokens), 0);
+    tokens.push(Token::Mark('.'));
+    assert_eq!(periods(&tokens), 1);
 }

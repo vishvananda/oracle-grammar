@@ -49,12 +49,16 @@ fn happens_once(event: &Value) -> bool {
     };
     let source = is_this_object(subject) || inner["players"].is_null() && subject.is_null();
     let attached = subject["kind"] == "SameObject" && subject["args"]["kind"] == "AttachedTo";
+    // One object already named, such as a target, leaves its zone once: it becomes a
+    // new object (CR 400.7). `When that creature dies this turn`.
+    let named = subject["kind"] == "SameObject" && !attached;
     let name = inner["event"].as_str().unwrap_or_default();
     match kind.as_str() {
         "State" => true,
-        "ZoneChange" => source || attached && inner["to"] == "Graveyard",
+        "ZoneChange" => source || named || attached && inner["to"] == "Graveyard",
         "Spell" | "Object" | "Pair" | "Player" => {
-            source && ONCE.contains(&name) || ONCE_ANYONE.contains(&name)
+            (source || named && name == "LeavesBattlefield") && ONCE.contains(&name)
+                || ONCE_ANYONE.contains(&name)
         }
         _ => false,
     }

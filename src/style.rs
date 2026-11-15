@@ -7,6 +7,7 @@ use rustc_hash::FxHashMap as HashMap;
 mod casting;
 mod mana;
 mod owners;
+mod quotes;
 mod where_x;
 
 const BACKOFF: f32 = 0.4;
@@ -71,6 +72,7 @@ pub fn breaches(tokens: &[Token], context: &[String]) -> Vec<(&'static str, f32,
     mana::wording(tokens, &mut found);
     owners::agreement(tokens, &mut found);
     where_x::defined_after_use(tokens, &mut found);
+    quotes::one_period(tokens, &mut found);
     found
 }
 
@@ -317,10 +319,11 @@ const PLURAL: [&str; 13] = [
 /// this turn`) does not.
 fn plural_subject(subject: &[Token]) -> Option<bool> {
     let is_word = |token: &Token, words: &[&str]| matches!(token, Token::Word(word) if words.contains(&word.as_str()));
-    if subject
-        .iter()
-        .any(|t| is_word(t, &["and", "or", "as", "if"]))
-    {
+    // A joined subject has no single number, but `base power and toughness 1/1` only
+    // qualifies its head.
+    let stats =
+        |i: usize| is(subject, i.wrapping_sub(1), "power") && is(subject, i + 1, "toughness");
+    if (0..subject.len()).any(|i| is_word(&subject[i], &["and", "or", "as", "if"]) && !stats(i)) {
         return None;
     }
     let mut head = None;

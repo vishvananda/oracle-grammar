@@ -359,6 +359,13 @@ token_cherubael ::= "Cherubael" "," "a" "legendary" number "/" number token_colo
 /* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:@times($token_amount, Expr::CountPlayers(OpponentsOf(AbilityController))), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
 clause_opponent_count_tokens ::= "for" "each" "opponent" "," "you" "create" token_amount token_recipe
 
+/* Parley: every player reveals the top card of their library, the reward counts
+   the nonland cards among those revealed, then every player draws a card. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:@times($token_amount, Expr::CountObjects(Matching{objects:Observed(@marked), filter:Not(CardType(Land))})), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}, Effect{result:@next, operation:Draw{players:All, amount:Constant(1)}}] */
+instructions_parley_tokens ::= "each" "player" "reveals" "the" "top" "card" "of" "their" "library" "." "for" "each" "nonland" "card" "revealed" "this" "way" "," "you" "create" token_amount token_recipe "." "then" "each" "player" "draws" "a" "card"
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Investigate{times:Expr::CountObjects(Matching{objects:Observed(@marked), filter:Not(CardType(Land))})}}}, Effect{result:@next, operation:Draw{players:All, amount:Constant(1)}}] */
+instructions_parley_investigate ::= "each" "player" "reveals" "the" "top" "card" "of" "their" "library" "." "for" "each" "nonland" "card" "revealed" "this" "way" "," "you" "investigate" "." "then" "each" "player" "draws" "a" "card"
+
 /* A scalar destroyed target provides pre-move controller information, even if
    destruction moves it or changes which object its target reference locates. */
 /* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:One($target_object), regeneration:true}}, Effect{result:@next, operation:CreateTokens{players:One(ControllerOf(Result{result:@prior, phase:Before, index:0})), tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}] */

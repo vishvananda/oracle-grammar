@@ -3,6 +3,12 @@
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
 continuous_snapshot ::= continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats
+    | continuous_lose_all_become
+
+/* "Loses all abilities and becomes" a new creature until the duration ends; the
+   layers, not the written order, decide how the changes combine. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[RemoveAllAbilities, ...$base_animation], duration:$duration, evaluation:Snapshot} */
+continuous_lose_all_become ::= duration "," affected "loses" "all" "abilities" "and" "becomes" base_animation
 
 /* A continuous effect on one card target outside the battlefield applies only
    while that card stays in the zone it was targeted in. */
@@ -28,9 +34,16 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
+continuous_live ::= continuous_live_trailing | continuous_live_leading
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$rule_duration, evaluation:LiveObjects} */
+continuous_live_trailing ::= affected rule_changes ("↓")? rule_duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
-continuous_live ::= affected rule_changes ("↓")? duration
-    | duration "," affected rule_changes
+continuous_live_leading ::= duration "," affected rule_changes
+
+/* After its verb, a rule change ends at end of turn "this turn", never "until end of
+   turn" (Oracle has no such sentence); "Until end of turn," may still lead. */
+rule_duration ::= duration_die_roll_earliest | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep
+    | until_next_end_step | while_you_control
 
 /* The effect is created by the ability holder. The named attacker is the
    block requirement's operand, independently of that source. */
@@ -152,6 +165,14 @@ changes_and ::= change "and" changes
 changes_comma ::= change "," "and"? changes
 
 change ::= change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add
+    | change_become_artifact_creatures | change_become_artifact_creatures_base
+
+/* Artifacts and Vehicles "become artifact creatures": both types are added, so
+   their other types stay (CR 205.1b). */
+/* @sem Change::[AddCardType(Artifact), AddCardType(Creature)] */
+change_become_artifact_creatures ::= "become" "artifact" "creatures"
+/* @sem Change::[AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$value, toughness:$value_2}] */
+change_become_artifact_creatures_base ::= "become" "artifact" "creatures" "with" "base" "power" "and" "toughness" value "/" value
 
 /* @sem Change::[Change::Pump{power:@times($signed, $count_each), toughness:@times($signed_2, $count_each)}] */
 change_pump_for_each ::= ("gets" | "get") signed "/" signed "for" "each" count_each
@@ -182,7 +203,10 @@ animation_with ::= ("a" | "an") number "/" number becomes_kind "with" grants
 /* @sem $base_animation */
 change_becomes_base ::= ("becomes" | "become") base_animation
 
-base_animation ::= base_subtypes | base_subtypes_retained | base_artifact_creature | base_artifact_creature_native
+base_animation ::= base_subtypes | base_colored_subtypes | base_subtypes_retained | base_artifact_creature | base_artifact_creature_native
+/* A color word sets the color as well; no card-type word means no new card type. */
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetBasePowerToughness{power:$value, toughness:$value_2}] */
+base_colored_subtypes ::= ("a" | "an") mana_color_word becomes_types "with" "base" "power" "and" "toughness" value "/" value
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetBasePowerToughness{power:$value, toughness:$value_2}] */
 base_subtypes ::= ("a" | "an") becomes_types "with" "base" "power" "and" "toughness" value "/" value
 /* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}, SetBasePowerToughness{power:$value, toughness:$value_2}] */
@@ -332,6 +356,41 @@ rule_changes_and ::= rule_change "and" rule_changes
 
 rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack
     | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power
+    | rule_cant_be_targeted
+
+/* A spell is a stack object of kind Spell; "abilities" are every other stack
+   object, and an ability "from" a source is an ability of that source. "Spells or
+   abilities your opponents control" bans every opposing stack object, so it names
+   no stack kind; "X spells or abilities from X sources" is one ban per kind. */
+/* @sem $target_ban */
+rule_cant_be_targeted ::= "can't" "be" "the" "target" "of" target_ban
+/* @sem $target_ban */
+target_ban_plural ::= "can't" "be" "the" "targets" "of" target_ban
+
+target_ban ::= target_ban_any | target_ban_opponents | target_ban_spells | target_ban_kind_spells | target_ban_kind_spells_opponents
+    | target_ban_spells_or_sources | target_ban_abilities_from | target_ban_abilities_opponents
+/* @sem Change::[Rule(Prohibit(BeTargeted(Any)))] */
+target_ban_any ::= "spells" "or" "abilities"
+/* @sem Change::[Rule(Prohibit(BeTargeted(ControlledBy(OpponentsOf(AbilityController)))))] */
+target_ban_opponents ::= "spells" "or" "abilities" "your" "opponents" "control"
+/* A spell-only ban leaves activated and triggered abilities free to target, and is
+   not controller-limited hexproof. */
+/* @sem Change::[Rule(Prohibit(BeTargeted(OnStack(Spell))))] */
+target_ban_spells ::= "spells"
+/* @sem Change::[Rule(Prohibit(BeTargeted(@and(ObjectFilter::OnStack(Spell), $spell_adjectives))))] */
+target_ban_kind_spells ::= spell_adjectives "spells"
+/* @sem Change::[Rule(Prohibit(BeTargeted(@and(ObjectFilter::OnStack(Spell), @and($spell_adjectives, ObjectFilter::ControlledBy(OpponentsOf(AbilityController)))))))] */
+target_ban_kind_spells_opponents ::= spell_adjectives "spells" "your" "opponents" "control"
+/* @sem Change::[Rule(Prohibit(BeTargeted(@and(ObjectFilter::OnStack(Spell), $spell_adjectives)))), Rule(Prohibit(BeTargeted(@and(ObjectFilter::Not(OnStack(Spell)), ObjectFilter::AbilityOf($spell_adjectives_2)))))] */
+target_ban_spells_or_sources ::= spell_adjectives "spells" "or" "abilities" "from" spell_adjectives "sources"
+/* @sem Change::[Rule(Prohibit(BeTargeted(@and(ObjectFilter::Not(OnStack(Spell)), ObjectFilter::AbilityOf($spell_adjectives)))))] */
+target_ban_abilities_from ::= "abilities" "from" spell_adjectives "sources"
+/* @sem Change::[Rule(Prohibit(BeTargeted(@and(ObjectFilter::Not(OnStack(Spell)), ObjectFilter::ControlledBy(OpponentsOf(AbilityController))))))] */
+target_ban_abilities_opponents ::= "abilities" "your" "opponents" "control"
+
+/* The plural subject takes "the targets"; it is never a spelling for one object. */
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected_plural), changes:$target_ban_plural})] */
+line_plural_target_ban ::= affected_plural target_ban_plural "."
 
 /* Crewing, saddling and stationing count more power, or toughness instead.
    Crew comes first whatever the order of the words. */
@@ -396,7 +455,30 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if
+static_ability ::= static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if
+
+/* Each combat's attacking or blocking group holds at most this many creatures, and
+   every creature is subject to the cap. A cap on attacking one defender is the
+   AttackCap ability instead. */
+static_combat_cap ::= combat_cap_one | combat_cap_many | attack_cap_one | attack_cap_many
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}), changes:[Rule(CombatGroup{role:$combat_cap_role, participants:Any, others_only:false, comparison:LessOrEqual, amount:Expr::Constant(1)})]}) */
+combat_cap_one ::= "no" "more" "than" "one" "creature" "can" combat_cap_role "each" "combat" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}), changes:[Rule(CombatGroup{role:$combat_cap_role, participants:Any, others_only:false, comparison:LessOrEqual, amount:$count_plural})]}) */
+combat_cap_many ::= "no" "more" "than" count_plural "creatures" "can" combat_cap_role "each" "combat" "."
+combat_cap_role ::= combat_cap_attack | combat_cap_block
+/* @sem CombatRole::Attacker */
+combat_cap_attack ::= "attack"
+/* @sem CombatRole::Blocker */
+combat_cap_block ::= "block"
+/* @sem Ability::AttackCap{defender:$attack_cap_defender, amount:Expr::Constant(1)} */
+attack_cap_one ::= "no" "more" "than" "one" "creature" "can" "attack" attack_cap_defender "each" "combat" "."
+/* @sem Ability::AttackCap{defender:$attack_cap_defender, amount:$count_plural} */
+attack_cap_many ::= "no" "more" "than" count_plural "creatures" "can" "attack" attack_cap_defender "each" "combat" "."
+attack_cap_defender ::= attack_cap_you | attack_cap_self
+/* @sem Recipients::Players(One(PlayerRef::AbilityController)) */
+attack_cap_you ::= "you"
+/* @sem Recipients::Objects(One($self_ref)) */
+attack_cap_self ::= self_ref
 
 /* Linked card variables read current characteristics in exile. A copied exile
    trigger may link several cards; CR 607.3 adds all their answers. */
@@ -900,10 +982,14 @@ program_sentence_indefinite_bonus ::= continuous_bonus_indefinite "."
 /* @sem Ability::[Static(_{kind:Ordinary, affected:Objects(One($attached_ref)), changes:[...$attached_characteristics, ...$attached_restriction]})] */
 line_attached_restrictions ::= attached_ref attached_characteristics (","? "and") attached_restriction "."
 
+/* A rule and "can't be enchanted by other Auras" on the host of this Aura. */
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects(One($attached_ref)), changes:[...$rule_change, ...$attached_other_auras]})] */
+line_attached_rule_other_auras ::= attached_ref rule_change "and" attached_other_auras "."
+
 attached_characteristics ::= changes | attached_type_set
 
 attached_restriction ::= rule_change | attached_activation_prohibition | attached_all_blockers
-    | attached_matching_blocker | attached_spell_targeting | attached_other_auras
+    | attached_matching_blocker | attached_other_auras
 
 /* @sem Change::[Rule(Prohibit(Activate(Any)))] */
 attached_activation_prohibition ::= "its" "activated" "abilities" "can't" "be" "activated"
@@ -921,11 +1007,6 @@ attached_type_set ::= "is" ("a" | "an") becomes_types
    costs still govern whether it is able; this is not exactly one or all. */
 /* @sem Change::[Rule(RequireCombat{action:BeBlocked($filter_phrase), amount:AtLeast(Constant(1))})] */
 attached_matching_blocker ::= "must" "be" "blocked" "by" ("a" | "an") filter_phrase "if" "able"
-
-/* A spell-only targeting prohibition does not prohibit activated/triggered
-   abilities and is not controller-limited hexproof. */
-/* @sem Change::[Rule(Prohibit(BeTargeted(OnStack(Spell))))] */
-attached_spell_targeting ::= "can't" "be" "the" "target" "of" "spells"
 
 /* The source Aura remains allowed, while other Auras cannot remain attached.
    The excluded object is the Aura source, independently of the attached host. */
@@ -1110,7 +1191,7 @@ private_static_subject ::= card_population
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$static_basic} */
 static_battlefield_basic ::= cross_battlefield_subject static_basic "."
 
-private_static_changes ::= private_land_type_add | private_opponent_targeting | static_changes | static_basic
+private_static_changes ::= private_land_type_add | target_ban_plural | static_changes | static_basic
 
 /* Basic is a supertype; it never grants any basic land subtype or mana ability. */
 /* @sem Change::[AddSupertype(Basic)] */
@@ -1360,6 +1441,8 @@ counter_keyword_creature_target ::= "another" "target" "creature" "you" "control
 private_owned_nonbattlefield_cards ::= card_filter "cards" "you" "own" "that" "aren't" "on" "the" "battlefield"
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$card_filter} */
 private_all_graveyard_cards ::= card_filter "cards" "in" "graveyards"
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:Any} */
+private_any_graveyard_cards ::= "cards" "in" "graveyards"
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
 cross_explicit_battlefield ::= filter_plural "on" "the" "battlefield"
 
@@ -1380,13 +1463,10 @@ private_swamps ::= "Swamps"
 private_mountains ::= "Mountains"
 /* @sem LandType::Plains */
 private_plains ::= "Plains"
-/* Spells and abilities are both covered; no spell-only OnStack predicate. */
-/* @sem Change::[Rule(Prohibit(BeTargeted(ControlledBy(OpponentsOf(AbilityController)))))] */
-private_opponent_targeting ::= "can't" "be" "the" "targets" "of" "spells" "or" "abilities" "your" "opponents" "control"
 
 /* New explicitly plural subjects never flow into singular has/gets grammar.
    Legacy greatest_* owners keep their existing checked declarations unchanged. */
-plural_private_subject ::= private_owned_nonbattlefield_cards | private_all_graveyard_cards
+plural_private_subject ::= private_owned_nonbattlefield_cards | private_all_graveyard_cards | private_any_graveyard_cards
 /* @sem Ability::[Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$plural_private_changes}, Static{kind:Ordinary, affected:Objects($plural_private_subject), changes:$plural_private_changes}] */
 line_plural_private_zone_static ::= cross_battlefield_subject "and" plural_private_subject plural_private_changes "."
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($plural_private_subject), changes:$plural_private_changes} */
@@ -1394,7 +1474,7 @@ static_plural_private_zone ::= plural_private_subject plural_private_changes "."
 plural_private_changes ::= plural_private_change | plural_private_changes_more
 /* @sem Change::[...$plural_private_change, ...$plural_private_changes] */
 plural_private_changes_more ::= plural_private_change ("and" | "," "and"?) plural_private_changes
-plural_private_change ::= private_land_type_add | private_opponent_targeting | static_basic | plural_private_pump | plural_private_grant
+plural_private_change ::= private_land_type_add | target_ban_plural | static_basic | plural_private_pump | plural_private_grant
 /* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
 plural_private_pump ::= "get" signed "/" signed
 /* Same granted-ability owner as the established nonbattlefield-owned grants:

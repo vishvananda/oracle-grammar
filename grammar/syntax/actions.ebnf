@@ -1640,9 +1640,22 @@ single_exile_payment ::= "exile" target_object
 paid_exile_delayed_return ::= "return" "the" "exiled" "card" "to" "the" "battlefield" battlefield_control "at" "the" "beginning" "of" "the" "next" "end" "step"
 
 /* PerPlayer partitions this one target announcement by each opponent's
-   controlled objects; it does not select targets while a player loop resolves. */
-/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:OpponentsOf(AbilityController), each:UpTo(Constant(1))}, filter:$filter_phrase})), regeneration:true}}] */
-clause_destroy_each_opponent_target ::= "for" "each" "opponent" "," "destroy" "up" "to" "one" "target" filter_phrase "that" "player" "controls"
+   controlled objects; it does not select targets while a player loop resolves.
+   "That player" is the opponent each part belongs to, so these targets follow
+   "for each opponent" only. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:OpponentsOf(AbilityController), each:UpTo(Constant(1))}, filter:$filter_phrase})) */
+each_opponent_targets ::= "up" "to" "one" "target" filter_phrase "that" "player" "controls"
+/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:$each_opponent_targets, regeneration:true}}] */
+clause_destroy_each_opponent_target ::= "for" "each" "opponent" "," "destroy" each_opponent_targets
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$each_opponent_targets, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_exile_each_opponent_target ::= "for" "each" "opponent" "," "exile" each_opponent_targets
+/* What the exile holds, it holds only while its source stays. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$each_opponent_targets, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ReturnAfter{objects:Transition{result:@prior, phase:After}, duration:WhileOnBattlefield($self_ref)}}] */
+clause_exile_each_opponent_target_until ::= "for" "each" "opponent" "," "exile" each_opponent_targets "until" self_ref "leaves" "the" "battlefield"
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($each_opponent_targets), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}] */
+clause_gain_control_each_opponent_target ::= "for" "each" "opponent" "," "gain" "control" "of" each_opponent_targets duration
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($each_opponent_targets), changes:[SetController(AbilityController)], duration:Indefinite, evaluation:Snapshot}}] */
+clause_gain_control_each_opponent_target_indefinite ::= "for" "each" "opponent" "," "gain" "control" "of" each_opponent_targets
 
 /* A single named player owns the choice, hand and battlefield entry. A loop
    is unnecessary for this reading; plural-player forms keep their own scopes. */

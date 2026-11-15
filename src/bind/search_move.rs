@@ -92,14 +92,25 @@ fn producer(operation: Operation, selection: Selection) -> bool {
 /// Cardinality alone establishes the receipt; native validation checks filters
 /// after all their contextual operands have been bound.
 fn single_choice(value: &Value) -> bool {
+    /// Cards of a hand or graveyard; "your hand or graveyard" is one pool of both.
+    fn hand_or_graveyard(objects: &Value) -> bool {
+        let zone = |zone: &Value| {
+            zone["kind"] == "Zone"
+                && matches!(
+                    zone["args"]["scope"]["Players"]["zone"].as_str(),
+                    Some("Hand" | "Graveyard")
+                )
+                && zone["args"]["kind"] == "Card"
+        };
+        zone(objects)
+            || objects["kind"] == "Union"
+                && objects["args"]
+                    .as_array()
+                    .is_some_and(|zones| !zones.is_empty() && zones.iter().all(zone))
+    }
     value["kind"] == "ChooseObjects"
         && value["args"]["player"]["kind"] == "AbilityController"
-        && value["args"]["objects"]["kind"] == "Zone"
-        && matches!(
-            value["args"]["objects"]["args"]["scope"]["Players"]["zone"].as_str(),
-            Some("Hand" | "Graveyard")
-        )
-        && value["args"]["objects"]["args"]["kind"] == "Card"
+        && hand_or_graveyard(&value["args"]["objects"])
         && value["args"]["constraints"] == json!([])
         && serde_json::from_value::<Count>(value["args"]["count"].clone())
             .is_ok_and(|count| single(&count))

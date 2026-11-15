@@ -25,7 +25,7 @@ event ::= event_yours_counters_spell | event_target_by_you_first | event_target_
     | event_chaos_ensues | event_planeswalk_to | event_planeswalk_away | event_planeswalk_or_turn | event_group_combat_damage_to_player | event_second_draw_each_turn
     | event_a_attacks_alone | event_object_attacks_alone | event_unlock_this_door
     | event_attacks_while_saddled | event_control_none | event_combat_damage_to_player_or
-    | event_damaged_by_dies | event_exploits | event_transforms_into_self | event_object_dies
+    | event_damaged_by_dies | event_exploits | event_transforms_into_self | event_object_dies | event_that_noun_leaves
     | event_sacrifice_another | event_becomes_monstrous | event_tap_for_mana | event_tapped_for_mana | event_filtered_tapped_for_mana
     | event_you_scry | event_enters_or_leaves | event_expend
     | event_encounter_phenomenon | event_cycle_or_discard | event_cards_leave_your_graveyard
@@ -621,13 +621,19 @@ event_gain_life_third ::= event_player "gains" "life"
 event_lose_life ::= event_player "loses" "life"
 
 /* Points in a turn. */
-turn_event ::= turn_end_any | turn_end_combat | turn_controller_upkeep | turn_controller_draw | turn_controller_end | turn_upkeep | turn_draw | turn_end | turn_combat | turn_combat_each | turn_second_main
+turn_event ::= turn_end_any | turn_end_combat | turn_controller_upkeep | turn_controller_draw | turn_controller_end | turn_upkeep | turn_draw | turn_end | turn_combat | turn_combat_each | turn_second_main | turn_each_main | turn_each_postcombat_main
 
 /* @sem EventSpec::Turn{point:CombatBegins, players:All} */
 turn_combat_each ::= "the" "beginning" "of" "each" "combat"
 
 /* @sem EventSpec::Turn{point:SecondMainPhaseBegins, players:$turn_owner} */
 turn_second_main ::= "the" "beginning" "of" turn_owner "second" "main" "phase"
+
+/* Each main phase of your turn, or only those after combat. */
+/* @sem EventSpec::Turn{point:MainPhaseBegins, players:One(PlayerRef::AbilityController)} */
+turn_each_main ::= "the" "beginning" "of" "each" "of" "your" "main" "phases"
+/* @sem EventSpec::Turn{point:PostcombatMainPhaseBegins, players:One(PlayerRef::AbilityController)} */
+turn_each_postcombat_main ::= "the" "beginning" "of" "each" "of" "your" "postcombat" "main" "phases"
 
 /* @sem EventSpec::Turn{point:UpkeepBegins, players:$turn_owner} */
 turn_upkeep ::= "the" "beginning" "of" turn_owner "upkeep"
@@ -1103,6 +1109,10 @@ event_transforms_into_self ::= object_ref "transforms" "into" SELF_NAME
 /* A named object dying. */
 /* @sem EventSpec::ZoneChange{objects:SameObject($object_ref), from:Battlefield, to:Graveyard} */
 event_object_dies ::= object_ref "dies"
+
+/* "That creature" named earlier leaving the battlefield. */
+/* @sem EventSpec::Object{event:LeavesBattlefield, objects:SameObject($that_noun)} */
+event_that_noun_leaves ::= that_noun "leaves" "the" "battlefield"
 
 /* Sacrificing a matching permanent other than this one. */
 /* @sem EventSpec::Player{event:Sacrifices, players:One(AbilityController), objects:AllOf([Not(SameObject(Source)), $filter_phrase])} */

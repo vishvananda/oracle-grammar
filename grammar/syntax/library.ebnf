@@ -487,7 +487,7 @@ your_zone ::= your_hand | your_graveyard
    optional decision belong to the enclosing instruction, not to a static rule. */
 /* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$hand_spell_choice}, count:Exactly(Constant(1)), cost:Free} */
 cast_free_hand_spell ::= "cast" hand_spell_choice "from" "your" "hand" "without" "paying" "its" "mana" "cost"
-hand_spell_choice ::= spell_any | spell_filtered
+hand_spell_choice ::= spell_any | spell_filtered | spell_modified | spell_described
 
 /* Searching one player's graveyard, hand and library for cards with a name
    and exiling them. */
@@ -521,8 +521,17 @@ your_graveyard ::= "your" "graveyard"
 
 /* Cards put from your hand into your library are chosen first, so a short
    hand puts what it has. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
-clause_hand_on_top ::= "put" card_count "from" "your" "hand" "on" "top" "of" "your" "library"
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count_one)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_hand_on_top ::= "put" card_count_one "from" "your" "hand" "on" "top" "of" "your" "library"
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_hand_on_bottom ::= "put" card_count "from" "your" "hand" "on" "the" "bottom" "of" "your" "library"
+/* Two or more cards go "in any order": still the owner's default library order. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}, count:AsManyAsCan($count_plural)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_hand_on_top_any_order ::= "put" count_plural "cards" "from" "your" "hand" "on" "top" "of" "your" "library" "in" "any" "order"
+/* Oracle puts two or more cards on the bottom "in any order". */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}, count:AsManyAsCan($count_plural)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_hand_on_bottom_any_order ::= "put" count_plural "cards" "from" "your" "hand" "on" "the" "bottom" "of" "your" "library" "in" "any" "order"
 /* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:$clause_hand_on_top}} */
 cost_hand_on_top ::= clause_hand_on_top
 
@@ -560,12 +569,15 @@ explicit_battlefield_card_choice ::= ("put" | "return") resolving_card_pool
 /* @sem ObjectSet::Zone{scope:Players{zone:$your_zone, players:One(AbilityController)}, kind:Card, filter:$a_card_another} */
 putting_another_card ::= "put" a_card_another "from" your_zone
 
-resolving_card_pool ::= own_resolving_card_pool | any_graveyard_card_pool
+resolving_card_pool ::= own_resolving_card_pool | own_hand_or_graveyard_pool | any_graveyard_card_pool
 explicit_card_choice ::= a_card_any_with | a_card_any | a_card_kind | a_card_with
 /* @sem ObjectSet::Zone{scope:Players{zone:$your_zone, players:One(AbilityController)}, kind:Card, filter:$explicit_card_choice} */
 own_resolving_card_pool ::= explicit_card_choice "from" your_zone
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$explicit_card_choice} */
 any_graveyard_card_pool ::= explicit_card_choice "from" "a" "graveyard"
+/* "From your hand or graveyard": one choice among the cards of both zones. */
+/* @sem ObjectSet::Union([Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$explicit_card_choice}, Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$explicit_card_choice}]) */
+own_hand_or_graveyard_pool ::= explicit_card_choice "from" "your" "hand" "or" "graveyard"
 
 /* The observed hand remains the population even if another object was named
    earlier. Selection and discard refer to the same single physical card. */
@@ -658,11 +670,14 @@ graveyard_common_typed_one ::= graveyard_singular_count "target" card_filter "ca
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:$graveyard_plural_count, filter:@and($card_filter, $graveyard_common_scope), constraints:[CommonProperty(Owners)]})) */
 graveyard_common_typed_many ::= graveyard_plural_count "target" card_filter "cards" graveyard_common_scope
 
-graveyard_scope ::= graveyard_scope_yours | graveyard_scope_all | graveyard_scope_opponents | graveyard_scope_target
+graveyard_scope ::= graveyard_scope_yours | graveyard_scope_all | graveyard_scope_any | graveyard_scope_opponents | graveyard_scope_target
 /* @sem ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}) */
 graveyard_scope_yours ::= ("from" | "in") "your" "graveyard"
 /* @sem ObjectFilter::Any */
 graveyard_scope_all ::= ("from" | "in") "graveyards"
+/* Any one graveyard is still every graveyard's cards. */
+/* @sem ObjectFilter::Any */
+graveyard_scope_any ::= ("from" | "in") "a" "graveyard"
 /* @sem ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(AbilityController)}) */
 graveyard_scope_opponents ::= ("from" | "in") "your" "opponents'" "graveyards"
 

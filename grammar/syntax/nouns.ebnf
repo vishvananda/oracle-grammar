@@ -710,7 +710,7 @@ modifiers_more ::= modifier_nonattachment modifiers
 
 modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_to_a | modifier_except
 
-modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x
+modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
 
 modifier_nonnumeric ::= modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls
     | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control
@@ -757,6 +757,17 @@ modifier_stat ::= "each"? "with" stat number "or" bound
 
 /* @sem ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number)}} */
 modifier_stat_x ::= "each"? "with" stat number
+
+/* Base power and toughness as printed or set, before other changes apply. */
+modifier_base_stat ::= modifier_base_power | modifier_base_toughness | modifier_base_both | modifier_base_either
+/* @sem ObjectFilter::Property{property:BasePower, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number)}} */
+modifier_base_power ::= "with" "base" "power" number
+/* @sem ObjectFilter::Property{property:BaseToughness, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number)}} */
+modifier_base_toughness ::= "with" "base" "toughness" number
+/* @sem ObjectFilter::AllOf([Property{property:BasePower, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number)}}, Property{property:BaseToughness, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number_2)}}]) */
+modifier_base_both ::= "with" "base" "power" "and" "toughness" number "/" number
+/* @sem ObjectFilter::AnyOf([Property{property:BasePower, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number)}}, Property{property:BaseToughness, test:NumberTest::Compare{comparison:Equal, value:Expr::@in_filter($number)}}]) */
+modifier_base_either ::= "with" "base" "power" "or" "toughness" number
 
 /* @sem ObjectFilter::ControlledBy(OpponentsOf(PlayerRef::AbilityController)) */
 modifier_opponents_control ::= "your" "opponents" "control"

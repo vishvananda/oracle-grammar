@@ -931,4 +931,6 @@ mod reported_corrections;
 mod spell_x;
 
 mod card_receipts;
+mod composed_clauses;
 mod graveyard_triggers;
+mod target_bans;
