@@ -24,13 +24,16 @@ mana_clause_restricted ::= mana_clause "." mana_spending
 /* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($program)}}}] */
 instructions_mana_spent_trigger ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" spell_filter "," program
 
-mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend
+mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists
 /* @sem $mana_use */
 mana_spend_only ::= "spend" "this" "mana" "only" "to" mana_use
 /* @sem $mana_use */
 mana_can_spend_only ::= "this" "mana" "can" "be" "spent" "only" "to" mana_use
 /* @sem ManaUse::Not($mana_use) */
 mana_cannot_spend ::= "this" "mana" ("can't" | "cannot") "be" "spent" "to" mana_use
+/* Mana kept through step and phase ends until the effect expires (CR 106.4). */
+/* @sem ManaUse::Persists($until_end_of_turn) */
+mana_persists ::= until_end_of_turn "," "you" "don't" "lose" "this" "mana" "as" "steps" "and" "phases" "end"
 
 mana_use ::= mana_use_atom | mana_use_either
 /* @sem ManaUse::Either([$mana_use_atom, ...$mana_use_tail]) */

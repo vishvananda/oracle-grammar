@@ -934,6 +934,7 @@ mod arrivals_and_receipts;
 mod card_receipts;
 mod composed_clauses;
 mod damage_replacements;
+mod destroyed_this_way;
 mod graveyard_triggers;
 mod kicked_spells;
 mod optional_costs;

@@ -276,6 +276,28 @@ fn filter_union_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Patter
     ))
 }
 
+fn unregenerable_call(
+    name: &str,
+    args: &[Syntax],
+    ty: &Ty,
+    schema: &Schema,
+) -> Result<Pattern, String> {
+    let instructions = Ty::Vec(Box::new(Ty::Named("Instruction".into())));
+    let [clause, noun] = args else {
+        return Err(format!("@{name} needs instructions and an ObjectFilter"));
+    };
+    if *ty != instructions {
+        return Err(format!("@{name} produces instructions"));
+    }
+    Ok(Pattern::Symbol(
+        name.into(),
+        vec![
+            elaborate(clause, &instructions, schema)?,
+            elaborate(noun, &Ty::Named("ObjectFilter".into()), schema)?,
+        ],
+    ))
+}
+
 fn restricted_mana_call(args: &[Syntax], ty: &Ty, schema: &Schema) -> Result<Pattern, String> {
     let instructions = Ty::Vec(Box::new(Ty::Named("Instruction".into())));
     let [body, restriction] = args else {
@@ -650,6 +672,9 @@ fn specialized_call(
         "activation_removed_counters" => counter_payment_call(args, ty, schema).map(Some),
         "literal_mana_sequence" => literal_mana_call(args, ty, schema).map(Some),
         "restricted_mana" => restricted_mana_call(args, ty, schema).map(Some),
+        "unregenerable_one" | "unregenerable_each" => {
+            unregenerable_call(name, args, ty, schema).map(Some)
+        }
         "enchanted_creature_operand" => {
             let [reference] = args else {
                 return Err("@enchanted_creature_operand needs one ObjectRef".into());

@@ -36,6 +36,7 @@ mod repeated;
 pub(crate) mod repeated_damage_actor;
 pub(crate) mod target_scopes;
 mod tokens;
+pub(crate) mod unregenerable;
 pub(crate) mod value_snapshot;
 pub(crate) use continuous::{parts as continuous_parts, unify_parts as unify_continuous_parts};
 pub(crate) use continuous::{
@@ -157,6 +158,32 @@ pub(crate) fn applied(subject: &Value, mut body: Value) -> Value {
 
 /// A subject as a value: the mention that introduces a target and one that
 /// refers to it are the same player.
+/// Sentence edits that rewrite the instructions they wrap.
+pub(crate) fn sentence_edit(name: &str, args: &[Value]) -> Result<Value, String> {
+    match (name, args) {
+        ("repeated_damage_actor", [instruction]) => {
+            branch_bounds(instruction)?;
+            repeated_damage_actor::capture(instruction.clone())
+        }
+        ("unregenerable_one" | "unregenerable_each", [clause, noun]) => {
+            unregenerable::capture(clause.clone(), noun, name == "unregenerable_one")
+        }
+        _ => Err(format!("@{name} arguments")),
+    }
+}
+
+pub(crate) fn unify_sentence_edit<'p, 'v>(
+    name: &str,
+    args: &'p [crate::pattern::Pattern],
+    value: &'v Value,
+    bindings: crate::pattern::Bindings<'p, 'v>,
+) -> Vec<crate::pattern::Bindings<'p, 'v>> {
+    match name {
+        "repeated_damage_actor" => repeated_damage_actor::unify(args, value, bindings),
+        _ => unregenerable::unify(args, value, bindings, name == "unregenerable_one"),
+    }
+}
+
 pub(crate) fn plain(value: &Value) -> Value {
     match value {
         Value::Object(object) => {

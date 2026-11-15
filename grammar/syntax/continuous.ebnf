@@ -34,11 +34,18 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
-continuous_live ::= continuous_live_trailing | continuous_live_leading
+continuous_live ::= continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$rule_duration, evaluation:LiveObjects} */
 continuous_live_trailing ::= affected rule_changes ("↓")? rule_duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
 continuous_live_leading ::= duration "," affected rule_changes
+/* "Can't be blocked this turn except by" puts its duration before its exception. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(Prohibit(BeBlocked(Not($filter_plural))))], duration:$rule_duration, evaluation:LiveObjects} */
+continuous_live_except_by ::= affected "can't" "be" "blocked" rule_duration "except" "by" filter_plural
+/* For a while, blocking one object is forbidden; a static ability says the same as
+   "can't be blocked by" on that object. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(Prohibit(Block(SameObject($object_ref))))], duration:$rule_duration, evaluation:LiveObjects} */
+continuous_live_cant_block_object ::= affected "can't" "block" object_ref rule_duration
 
 /* After its verb, a rule change ends at end of turn "this turn", never "until end of
    turn" (Oracle has no such sentence); "Until end of turn," may still lead. */
@@ -455,7 +462,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if
+static_ability ::= static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -499,6 +506,17 @@ static_linked_card_power_keyword ::= affected "has" keyword_value "and" "gets" d
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes}) */
 static_ordinary_ability ::= affected static_changes "."
+
+/* Soulbond's pair: "both creatures" and "each of those creatures" name this creature
+   and the creature it's paired with. */
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$self_ref, filter:State(Paired)}, then:[Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($self_ref), SameObject(PairedWith($self_ref))])}), changes:$paired_both_changes})]} */
+static_paired_both ::= "as" "long" "as" self_ref "is" "paired" "with" "another" "creature" "," "both" "creatures" paired_both_changes
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$self_ref, filter:State(Paired)}, then:[Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($self_ref), SameObject(PairedWith($self_ref))])}), changes:$paired_each_changes})]} */
+static_paired_each ::= "as" "long" "as" self_ref "is" "paired" "with" "another" "creature" "," "each" "of" "those" "creatures" paired_each_changes
+paired_both_changes ::= paired_changes_sentence | static_changes_closed_have
+paired_each_changes ::= paired_changes_sentence | static_changes_closed_has
+/* @sem $static_changes */
+paired_changes_sentence ::= static_changes "."
 
 /* This new count route owns only lexical distributive populations and explicit
    self references. Scalar attached hosts retain their previous learned routes. */
@@ -648,6 +666,8 @@ static_in_graveyard_and ::= "as" "long" "as" "this" "card" "is" "in" "your" "gra
 
 /* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
 static_conditional_first ::= "as" "long" "as" condition "," affected static_changes "."
+/* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes_closed})]} */
+static_conditional_first_closed ::= "as" "long" "as" condition "," affected static_changes_closed
 
 /* @sem Ability::@where(Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_numeric_x})]}, $value) */
 static_conditional_first_where ::= "as" "long" "as" condition "," affected static_numeric_x "," "where" "X" "is" value "."
@@ -1202,8 +1222,18 @@ static_basic ::= "are" "basic"
 affected_pair_each ::= objects_self_and_target "each"
 
 /* The final quoted sentence closes a static grant's outer sentence as well. */
-/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$closed_grants} */
-static_quoted_grant ::= affected ("has" | "have") closed_grants
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$static_changes_closed} */
+static_quoted_grant ::= affected static_changes_closed
+
+/* A change list whose last change grants a quoted ability: "gets +2/+2 and has flying
+   and "{R}: …"". Its quote closes the sentence. */
+static_changes_closed ::= static_changes_closed_has | static_changes_closed_have | static_changes_closed_more
+/* @sem $closed_grants */
+static_changes_closed_has ::= "has" closed_grants
+/* @sem $closed_grants */
+static_changes_closed_have ::= "have" closed_grants
+/* @sem Change::[...$static_change, ...$static_changes_closed] */
+static_changes_closed_more ::= static_change ("and" | "," "and"?) static_changes_closed
 
 /* Losing all abilities comes before the quoted ability the holder then has. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[RemoveAllAbilities, ...$closed_grants]} */
@@ -1709,8 +1739,13 @@ change_is_goaded ::= "is" "goaded"
 /* Skipping its controller's next untap. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
 skip_controllers_next_untap ::= affected "doesn't" "untap" "during" "its" "controller's" "next" "untap" "step"
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
-skip_controllers_next_untap_plural ::= affected "don't" "untap" "during" "their" "controllers'" "next" "untap" "steps"
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($untap_plural_subject)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
+skip_controllers_next_untap_plural ::= untap_plural_subject "don't" "untap" "during" "their" "controllers'" "next" "untap" "steps"
+/* Oracle also gives a set one shared "controller's next untap step"; it means the same. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($untap_plural_subject)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:DuringControllersNextUntapStep, evaluation:LiveObjects} */
+skip_controller_next_untap_shared ::= untap_plural_subject "don't" "untap" "during" "their" "controller's" "next" "untap" "step"
+/* A plural verb takes a plural subject, never a distributive "each of". */
+untap_plural_subject ::= objects_targets_plain | those_creatures | group_permanents | group_subject
 
 /* Skipping your next untap. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(UntapStep{players:One(AbilityController), behavior:Skip})], duration:DuringNextUntapStep(AbilityController), evaluation:LiveObjects} */
@@ -1831,6 +1866,18 @@ static_top_card_revealed ::= "play" "with" "the" "top" "card" "of" "your" "libra
    same-player lines into the same static and the joined sentence would print for both. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$top_play_permissions}) */
 static_cast_from_top ::= top_play_permissions "."
+/* Being the chosen creature type too characterizes the creature (CR 604.3). A land's
+   chosen type is a land type, so only "this creature" says it here. */
+/* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:[ChosenType{kind:CreatureType, mode:Add}]} */
+static_self_chosen_type_add ::= "this" "creature" "is" "the" "chosen" "type" "in" "addition" "to" "its" "other" "types" "."
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One($self_ref)), changes:[ChosenColor{mode:Set}]} */
+static_self_chosen_color ::= self_ref "is" "the" "chosen" "color" "."
+/* Skipping untap only while a condition holds. */
+/* @sem Ability::Conditional{condition:$condition, then:[Static{kind:Ordinary, affected:Objects(One($self_ref)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})]}]} */
+static_self_skip_untap_if ::= self_ref "doesn't" "untap" "during" "your" "untap" "step" "if" condition "."
+/* Lands, played from the graveyard as from a hand. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:CardType(Land)}), from:Graveyard, action:PlayLand, filter:Any})]}) */
+static_play_lands_from_graveyard ::= "you" "may" "play" "lands" "from" "your" "graveyard" "."
 /* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$top_play_permissions})]} */
 static_cast_from_top_if ::= "as" "long" "as" condition "," top_play_permissions "."
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$top_look_and_play, duration:$duration, evaluation:LiveObjects} */

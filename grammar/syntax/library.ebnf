@@ -622,6 +622,15 @@ shuffle_plural_count ::= target_count_any
    The existing IR retains a singleton Union and explicit shuffle operation. */
 /* @sem Instruction::[ForEachPlayer{players:$shuffle_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
 clause_shuffle_graveyards ::= shuffle_plural_players "shuffles" "their" "graveyard" "into" "their" "library"
+/* One player's graveyard goes into their library, then that library is shuffled. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Graveyard, players:One($player_ref)}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($player_ref)}}] */
+clause_player_shuffles_graveyard ::= player_ref "shuffles" "their" "graveyard" "into" "their" "library"
+/* A hand and graveyard go into their library together, then that library is shuffled. */
+/* @sem Instruction::[ForEachPlayer{players:$shuffle_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
+clause_shuffle_hands_graveyards ::= shuffle_plural_players "shuffles" "their" "hand" "and" "graveyard" "into" "their" "library"
+/* Then each of those players draws. */
+/* @sem Instruction::[ForEachPlayer{players:$shuffle_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}, Effect{result:@next, operation:Draw{players:$shuffle_plural_players, amount:$card_count}}] */
+clause_shuffle_hands_graveyards_draw ::= shuffle_plural_players "shuffles" "their" "hand" "and" "graveyard" "into" "their" "library" "," "then" "draws" card_count
 shuffle_plural_players ::= players_each | players_each_opponent | players_each_other | players_each_other_opponent
 
 /* Names written after named denote a card name, independently of holder roles. */

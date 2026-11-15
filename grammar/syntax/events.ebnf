@@ -1,7 +1,7 @@
 /* Trigger events. */
 event ::= event_yours_counters_spell | event_target_by_you_first | event_target_by_you | event_source_damage | event_source_damage_you_or | event_source_noncombat_damage | event_you_put_kind_sticker | event_you_place_sticker | event_you_give_gift | event_cast_from_hand | event_controlled_self_or_a_enters | event_controller_attacks | event_you_attack_player | event_you_attack_player_with | event_creatures_attack_player | event_several_attack_player | event_you_attack_player_or_with | event_chosen_player_attacked_or_targeted | event_bends_all_kinds | event_enchanted_player_entry | event_face_down_permanent_up | event_named_attack_or_block | event_land_or_spell_you | event_land_or_spell_player | event_damage_subject_player | event_combat_damage_subject_player | event_object_mutates | event_final_chapter_resolves | event_ring_tempts_you | event_conjures_other | event_own_or_other_faceup | event_self_enters_saddled_attack | event_attacks_or_blocks | event_attacks_player | event_two_owned_origins | event_pair_enters_owned_origin | event_enters_owned_origin | event_tapless_activation | event_passive_combat_recipient | event_named_controller_own_turn | event_dies_or_exiled_battlefield | event_controlled_self_or_enters_original | event_controlled_enters_original | event_controlled_self_or_enters | event_controlled_enters | event_enters_and_sacrificed | event_self_sacrificed | event_blocks_or_blocked_once | event_enters_or_face_up | event_turns_face_up | event_holder_or_same_name_damage | event_spell_single_target_damage | mined_event | event_once | event_enters_or_dies | event_enters | event_dies | event_leaves | event_attacks | event_blocks | event_becomes_blocked
     | event_combat_damage_player | event_damage_player | event_damage_object | event_damage
-    | event_cast | event_cast_third | event_gain_life | event_gain_life_third | event_lose_life
+    | event_cast | event_cast_opponents_turn | event_cast_third | event_gain_life | event_gain_life_third | event_lose_life
     | event_self_or_enters | event_self_or_dies | event_self_or_attacks | event_self_or_leaves
     | event_blocks_or_blocked | event_blocked_by | event_blocks_object
     | event_dealt_damage | event_dealt_combat_damage | event_put_graveyard | event_put_opponent_graveyard
@@ -28,7 +28,7 @@ event ::= event_yours_counters_spell | event_target_by_you_first | event_target_
     | event_damaged_by_dies | event_exploits | event_transforms_into_self | event_object_dies | event_that_noun_leaves
     | event_sacrifice_another | event_becomes_monstrous | event_tap_for_mana | event_tapped_for_mana | event_filtered_tapped_for_mana
     | event_you_scry | event_enters_or_leaves | event_expend
-    | event_encounter_phenomenon | event_cycle_or_discard | event_cards_leave_your_graveyard
+    | event_encounter_phenomenon | event_cycle_or_discard | event_cycle_card | event_cards_leave_your_graveyard
     | event_day_night_changes | event_enters_or_transforms_into | event_attacks_while
     | event_you_put_counters | event_becomes_level | event_cast_kicked_spell | event_player_cycles
     | event_attacks_you | event_enters_or_haunted_dies | event_cards_put_into_your_graveyard
@@ -588,6 +588,9 @@ spell_sorcery ::= "sorcery"
 
 /* @sem EventSpec::Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter} */
 event_cast ::= "you" "cast" spell_filter
+/* A cast during an opponent's turn. */
+/* @sem EventSpec::Filtered{event:Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, condition:ExistsPlayer{players:OpponentsOf(PlayerRef::AbilityController), binding:0, condition:PlayerIsActive(Bound(0))}} */
+event_cast_opponents_turn ::= "you" "cast" spell_filter "during" "an" "opponent's" "turn"
 
 /* @sem EventSpec::Spell{event:Cast, players:$event_player, spells:$spell_filter} */
 event_cast_third ::= event_player "casts" spell_filter
@@ -1151,6 +1154,8 @@ event_encounter_phenomenon ::= "you" "encounter" object_ref
 
 /* @sem EventSpec::Discard(_{players:One(AbilityController), cards:Any, kind:Any, grouping:Card}) */
 event_cycle_or_discard ::= "you" "cycle" "or" "discard" "a" "card"
+/* @sem EventSpec::Discard(_{players:One(AbilityController), cards:Any, kind:Cycling, grouping:Card}) */
+event_cycle_card ::= "you" "cycle" "a" "card"
 
 /* @sem EventSpec::Batch{event:Object{event:LeavesGraveyard, objects:AllOf([$filter_phrase, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}, per:Whole} */
 event_cards_leave_your_graveyard ::= "one" "or" "more" filter_phrase "cards" "leave" "your" "graveyard"

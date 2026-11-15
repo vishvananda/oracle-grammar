@@ -618,11 +618,8 @@ impl Pattern {
                         return crate::functions::arrival::changes(operation, changes);
                     }
                     ("times", [factor, count]) => return Ok(product(factor, count)),
-                    ("repeated_damage_actor", [instruction]) => {
-                        crate::functions::branch_bounds(instruction)?;
-                        return crate::functions::repeated_damage_actor::capture(
-                            instruction.clone(),
-                        );
+                    ("repeated_damage_actor" | "unregenerable_one" | "unregenerable_each", _) => {
+                        return crate::functions::sentence_edit(name, &args);
                     }
                     ("apply", [subject, body]) => return Ok(applied(subject, body.clone())),
                     ("computed_condition", [condition]) => {
@@ -904,8 +901,8 @@ impl Pattern {
                 return crate::functions::unify_keyword_list(args, value, bindings, "GrantKeyword");
             }
             "times" => return unify_times(args, value, bindings),
-            "repeated_damage_actor" => {
-                return crate::functions::repeated_damage_actor::unify(args, value, bindings);
+            "repeated_damage_actor" | "unregenerable_one" | "unregenerable_each" => {
+                return crate::functions::unify_sentence_edit(name, args, value, bindings);
             }
             "apply" => return unify_apply(args, value, bindings),
             "computed_condition" => {
