@@ -28,6 +28,14 @@ event ::= event_yours_counters_spell | event_target_by_you_first | event_target_
     | event_damaged_by_dies | event_exploits | event_transforms_into_self | event_object_dies
     | event_sacrifice_another | event_becomes_monstrous | event_tap_for_mana | event_tapped_for_mana | event_filtered_tapped_for_mana
     | event_you_scry | event_enters_or_leaves | event_expend
+    | event_encounter_phenomenon | event_cycle_or_discard | event_cards_leave_your_graveyard
+    | event_day_night_changes | event_enters_or_transforms_into | event_attacks_while
+    | event_you_put_counters | event_becomes_level | event_cast_kicked_spell | event_player_cycles
+    | event_attacks_you | event_enters_or_haunted_dies | event_cards_put_into_your_graveyard
+    | event_you_are_dealt_damage | event_cast_first_spell_each_turn | event_discard_filtered_card
+    | event_combat_damage_to_you | event_you_surveil | event_cast_spell_you_dont_own
+    | event_first_targeted_each_turn | event_card_put_into_your_graveyard | event_commit_crime
+    | event_enters_or_specializes | event_card_put_into_opponent_graveyard | event_cast_two_color_spell
 
 event_once ::= event_self_enters | event_self_dies | event_self_leaves
 
@@ -1111,3 +1119,79 @@ event_enters_or_leaves ::= object_ref "enters" "or" "leaves" "the" "battlefield"
 /* Expending a number of mana this turn. */
 /* @sem EventSpec::NthEachTurn{event:Player{event:Expends, players:One(AbilityController)}, test:NumberTest::Compare{comparison:Equal, value:$value}} */
 event_expend ::= "you" "expend" value
+
+/* Trigger events taken over from seeded rules, in their original Oracle words. */
+/* @sem EventSpec::Player{event:EncountersPhenomenon, players:One(AbilityController), objects:SameObject($object_ref)} */
+event_encounter_phenomenon ::= "you" "encounter" object_ref
+
+/* @sem EventSpec::Discard(_{players:One(AbilityController), cards:Any, kind:Any, grouping:Card}) */
+event_cycle_or_discard ::= "you" "cycle" "or" "discard" "a" "card"
+
+/* @sem EventSpec::Batch{event:Object{event:LeavesGraveyard, objects:AllOf([$filter_phrase, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}, per:Whole} */
+event_cards_leave_your_graveyard ::= "one" "or" "more" filter_phrase "cards" "leave" "your" "graveyard"
+
+/* @sem EventSpec::Player{event:DayNightChanges, players:All} */
+event_day_night_changes ::= "day" "becomes" "night" "or" "night" "becomes" "day"
+
+/* @sem EventSpec::AnyOf([ZoneChange{objects:SameObject($object_ref), to:Battlefield}, Object{event:Transforms, objects:SameObject($object_ref_2)}]) */
+event_enters_or_transforms_into ::= object_ref "enters" "or" "transforms" "into" object_ref
+
+/* @sem EventSpec::Filtered{event:Object{event:Attacks, objects:SameObject($object_ref)}, condition:$condition} */
+event_attacks_while ::= object_ref "attacks" "while" condition
+
+/* @sem EventSpec::Batch{event:Counters(_{change:Put, kind:$counter_kind, objects:$filter_phrase, by:One(AbilityController)}), per:Subject} */
+event_you_put_counters ::= "you" "put" "one" "or" "more" counter_kind "counters" "on" "a" filter_phrase
+
+/* @sem EventSpec::ClassLevel{objects:SameObject($object_ref), level:$value} */
+event_becomes_level ::= object_ref "becomes" "level" value
+
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:State(Kicked)} */
+event_cast_kicked_spell ::= "you" "cast" "a" "kicked" "spell"
+
+/* @sem EventSpec::Discard(_{players:All, cards:Any, kind:Cycling, grouping:Card}) */
+event_player_cycles ::= "a" "player" "cycles" "a" "card"
+
+/* @sem EventSpec::Attack{attackers:$filter_phrase, defenders:Players(One(AbilityController))} */
+event_attacks_you ::= "a" filter_phrase "attacks" "you"
+
+/* @sem EventSpec::AnyOf([ZoneChange{objects:SameObject($object_ref), to:Battlefield}, ZoneChange{objects:State(HauntedBySource), from:Battlefield, to:Graveyard}]) */
+event_enters_or_haunted_dies ::= object_ref "enters" "or" "the" "creature" "it" "haunts" "dies"
+
+/* @sem EventSpec::Batch{event:ZoneChange{objects:AllOf([$filter_phrase, OwnedBy(One(AbilityController)), Not(Token)]), to:Graveyard}, per:Whole} */
+event_cards_put_into_your_graveyard ::= "one" "or" "more" filter_phrase "cards" "are" "put" "into" "your" "graveyard" "from" "anywhere"
+
+/* @sem EventSpec::Damage(_{source_kind:Any, sources:Any, recipients:Players(One(AbilityController)), kind:Any, grouping:Recipient, subject:Recipient}) */
+event_you_are_dealt_damage ::= "you're" "dealt" "damage"
+
+/* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:One(AbilityController), spells:$filter_phrase}, test:NumberTest::Compare{comparison:Equal, value:Constant(1)}} */
+event_cast_first_spell_each_turn ::= "you" "cast" "your" "first" filter_phrase "spell" "each" "turn"
+
+/* @sem EventSpec::Discard(_{players:One(AbilityController), cards:$filter_phrase, kind:Any, grouping:Card}) */
+event_discard_filtered_card ::= "you" "discard" "a" filter_phrase "card"
+
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$filter_phrase, recipients:Players(One(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Source}) */
+event_combat_damage_to_you ::= "a" filter_phrase "deals" "combat" "damage" "to" "you"
+
+/* @sem EventSpec::Player{event:Surveils, players:One(AbilityController)} */
+event_you_surveil ::= "you" "surveil"
+
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:OwnedBy(OthersThan(AbilityController))} */
+event_cast_spell_you_dont_own ::= "you" "cast" "a" "spell" "you" "don't" "own"
+
+/* @sem EventSpec::FirstEachTurn(BecomesTarget(_{objects:SameObject($object_ref), kind:SpellOrAbility, by:Term{family:SpellsAndAbilities, form:AnySpellOrAbility}})) */
+event_first_targeted_each_turn ::= object_ref "becomes" "the" "target" "of" "a" "spell" "or" "ability" "for" "the" "first" "time" "each" "turn"
+
+/* @sem EventSpec::ZoneChange{objects:AllOf([$filter_phrase, OwnedBy(One(AbilityController)), Not(Token)]), to:Graveyard} */
+event_card_put_into_your_graveyard ::= "a" filter_phrase "card" "is" "put" "into" "your" "graveyard" "from" "anywhere"
+
+/* @sem EventSpec::Player{event:CommitsCrime, players:One(AbilityController)} */
+event_commit_crime ::= "you" "commit" "a" "crime"
+
+/* @sem EventSpec::AnyOf([ZoneChange{objects:SameObject($object_ref), to:Battlefield}, Object{event:Specializes, objects:SameObject($object_ref)}]) */
+event_enters_or_specializes ::= object_ref "enters" "or" "specializes"
+
+/* @sem EventSpec::ZoneChange{objects:AllOf([OwnedBy(OpponentsOf(AbilityController)), Not(Token)]), to:Graveyard} */
+event_card_put_into_opponent_graveyard ::= "a" "card" "is" "put" "into" "an" "opponent's" "graveyard" "from" "anywhere"
+
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:AllOf([$adjective_color, $adjective_color_2])} */
+event_cast_two_color_spell ::= "you" "cast" "a" "spell" "that's" "both" adjective_color "and" adjective_color

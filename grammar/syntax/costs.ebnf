@@ -43,6 +43,8 @@ cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_life | co
     | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self
     | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand
     | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend
+    | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each
+    | cost_mill
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -470,3 +472,19 @@ casting_flash_if ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" 
 /* Flash whose permanent, cast when a sorcery couldn't be, is sacrificed at the next cleanup step. */
 /* @sem Ability::Casting(FlashWithRider(Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CleanupStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(ControllerOf(Earlier{what:SpellBecame})), objects:One(Earlier{what:SpellBecame})})}]}}}]})) */
 casting_flash_sacrificed ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" "flash" "." "if" "you" "cast" "it" "any" "time" "a" "sorcery" "couldn't" "have" "been" "cast" "," "the" "controller" "of" "the" "permanent" "it" "becomes" "sacrifices" "it" "at" "the" "beginning" "of" "the" "next" "cleanup" "step" "."
+
+/* Cost parts taken over from seeded rules, in their original Oracle words. */
+/* @sem CostPart::PutCounters([_{recipients:Objects(One($object_ref)), kind:$counter_kind, amount:Constant(1)}]) */
+cost_put_counter_on ::= "put" "a" counter_kind "counter" "on" object_ref
+
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), amount:Count(Exactly(Constant(1)))}]} */
+cost_remove_a_counter_from ::= "remove" "a" "counter" "from" object_ref
+
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:$counter_kind, amount:All}]} */
+cost_remove_all_counters_from ::= "remove" "all" counter_kind "counters" "from" object_ref
+
+/* @sem CostPart::Repeated{part:Mana($mana_symbols), times:$count_each} */
+cost_pay_for_each ::= "pay" mana_symbols "for" "each" count_each
+
+/* @sem CostPart::Mill{count:$card_count} */
+cost_mill ::= "mill" card_count

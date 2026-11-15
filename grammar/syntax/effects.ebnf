@@ -189,6 +189,15 @@ operation_plain ::= cast_exiled_card_permission | cast_free_hand_spell | cast_ca
     | deal_damage_divided_any | deal_damage_divided_objects
     | deal_damage_divided_any_number | deal_damage_divided_any_objects
     | retained_animation | continuous_snapshot | continuous_for_each | continuous_live | continuous_defender | continuous_players | continuous_player_prohibition | add_mana | put_counters | action | operation_imperative | mined_operation | counter_spell
+    | switch_source_power_toughness | switch_target_power_toughness | move_one_counter_onto
+    | set_your_life_total | continuous_cant_be_regenerated | continuous_gains_banding
+    | double_each_kind_of_counter | damage_cant_be_prevented_this_turn | choose_a_card_type
+    | choose_odd_or_even | counter_target_activated_or_triggered | counter_target_activated_ability
+    | heist_target_opponent_library | become_the_monarch | take_extra_turn_after_this
+    | continuous_loses_defender | continuous_becomes_artifact_too | continuous_attack_if_able
+    | continuous_attack_despite_defender | change_target_single_target_spell | owner_puts_top_or_bottom
+    | untap_all_that_attacked | additional_land_this_turn | add_mana_combination | exile_with_counter
+    | reveal_at_random_from_hand | have_player_discard | remove_all_counters_any_kind
 
 /* @sem Operation::Destroy{objects:$object_set, regeneration:true} */
 destroy ::= "destroy" object_set
@@ -633,3 +642,89 @@ operation_also ::= "also" operation_imperative
    changes it gains; the effect's source stays the ability's own. */
 /* @sem () */
 put_card_subject ::= "it" | "that" "creature" | "that" "artifact" | "that" "permanent"
+
+/* Operations taken over from seeded rules, in their original Oracle words. */
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[SwitchPowerToughness], duration:$duration, evaluation:Snapshot} */
+switch_source_power_toughness ::= "switch" "this" "creature's" "power" "and" "toughness" duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), changes:[SwitchPowerToughness], duration:$duration, evaluation:Snapshot} */
+switch_target_power_toughness ::= "switch" "target" "creature's" "power" "and" "toughness" duration
+
+/* @sem Operation::MoveCounters(_{actor:One(AbilityController), from:$affected, to:$affected_2, kind:$counter_kind, amount:One}) */
+move_one_counter_onto ::= "move" "a" counter_kind "counter" "from" affected "onto" affected
+
+/* @sem Operation::SetLifeTotal{players:One(AbilityController), amount:$value} */
+set_your_life_total ::= "your" "life" "total" "becomes" value
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(Prohibit(Regenerate))], duration:$this_duration, evaluation:LiveObjects} */
+continuous_cant_be_regenerated ::= affected "can't" "be" "regenerated" this_duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GrantAbility(Mechanic{mechanic:Banding})], duration:$duration, evaluation:Snapshot} */
+continuous_gains_banding ::= affected "gains" "banding" duration
+
+/* @sem Operation::DoubleCounters(_{objects:$affected}) */
+double_each_kind_of_counter ::= "double" "the" "number" "of" "each" "kind" "of" "counter" "on" affected
+
+/* @sem Operation::GameEffect{until:EndOfTurn, effect:Term{family:GameEffect, form:DamageCantBePrevented}} */
+damage_cant_be_prevented_this_turn ::= "damage" "can't" "be" "prevented" "this" "turn"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{count:Exactly(Constant(1)), options:[]}} */
+choose_a_card_type ::= "choose" "a" "card" "type"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Parity, terms:_{count:Exactly(Constant(1)), options:[]}} */
+choose_odd_or_even ::= "choose" "odd" "or" "even"
+
+/* @sem Operation::Counter{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:AnyOf([OnStack(Activated), OnStack(Triggered)])}), index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None} */
+counter_target_activated_or_triggered ::= "counter" "target" "activated" "or" "triggered" "ability"
+
+/* @sem Operation::Counter{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(Activated)}), index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None} */
+counter_target_activated_ability ::= "counter" "target" "activated" "ability"
+
+/* @sem Operation::TowardPlayer{actor:One(AbilityController), action:Heist, player:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}), index:0}} */
+heist_target_opponent_library ::= "heist" "target" "opponent's" "library"
+
+/* @sem Operation::Keyword{actor:$players_singular, action:KeywordAction::BecomeMonarch} */
+become_the_monarch ::= players_singular "becomes" "the" "monarch"
+
+/* @sem Operation::Keyword{actor:$players_singular, action:KeywordAction::TakeExtraTurn{}} */
+take_extra_turn_after_this ::= players_singular "takes" "an" "extra" "turn" "after" "this" "one"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[LosesAbility(Term{family:CheckHasable, form:Defender})], duration:$duration, evaluation:Snapshot} */
+continuous_loses_defender ::= affected "loses" "defender" duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[AddCardType(Artifact)], duration:$duration, evaluation:Snapshot} */
+continuous_becomes_artifact_too ::= affected "becomes" "an" "artifact" "in" "addition" "to" "its" "other" "types" duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+continuous_attack_if_able ::= affected "attack" this_duration "if" "able"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(AttackException{ignore:Defender, defenders:Any})], duration:$this_duration, evaluation:LiveObjects} */
+continuous_attack_despite_defender ::= "can" "attack" this_duration "as" "though" affected "didn't" "have" "defender"
+
+/* @sem Operation::Retarget{actor:One(AbilityController), object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(SingleTarget)}), index:0}, targets:Must} */
+change_target_single_target_spell ::= "change" "the" "target" "of" "target" "spell" "with" "a" "single" "target"
+
+/* @sem Operation::Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0}), destination:Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
+owner_puts_top_or_bottom ::= "target" "creature's" "owner" "puts" "it" "on" "their" "choice" "of" "the" "top" "or" "bottom" "of" "their" "library"
+
+/* @sem Operation::SetTapped{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Condition(Compare{left:EventHistory{event:Object{event:Attacks, objects:SameObject(Candidate)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})])}} */
+untap_all_that_attacked ::= "untap" "all" filter_plural "that" "attacked" "this" "turn"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(AdditionalLandPlays(Exactly($counter_amount)))], duration:$this_duration, evaluation:LiveObjects} */
+additional_land_this_turn ::= "you" "may" "play" counter_amount "additional" "land" this_duration
+
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$number, production:ChooseOne([$mana_production, $mana_production_2]), choice:EachUnit}} */
+add_mana_combination ::= "add" number "mana" "in" "any" "combination" "of" mana_production "and" "/" "or" mana_production
+
+/* @sem Operation::Move{objects:$affected, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[[$counter_kind, $counter_amount]], states:[]}}, qualifiers:[]} */
+exile_with_counter ::= "exile" affected "with" counter_amount counter_kind "counter" "on" "it"
+
+/* @sem Operation::RevealFromHand{actor:$players_singular, cards:Any, count:$card_count, at_random:true} */
+reveal_at_random_from_hand ::= players_singular "reveals" card_count "at" "random" "from" "their" "hand"
+
+/* @sem Operation::Discard{players:$players_singular, amount:$card_count} */
+have_player_discard ::= "have" players_singular "discard" card_count
+
+/* @sem Operation::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), amount:All}]} */
+remove_all_counters_any_kind ::= "remove" "all" "counters" "from" affected

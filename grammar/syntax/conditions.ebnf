@@ -31,6 +31,14 @@ condition_one ::= condition_number_bounded | condition_gift_promised | condition
     | condition_different_powers | condition_equipped | condition_your_turn | condition_completed_dungeon
     | condition_bargained | condition_opponent_graveyard_at_least | condition_value_compared
     | condition_object_supertype | condition_entered_this_turn
+    | condition_second_resolution_this_turn | condition_first_resolution_this_turn
+    | condition_descended_this_turn | condition_monstrous | condition_enchanted | condition_had_counters
+    | condition_had_counter_kind | condition_control_not_a | condition_died_under_your_control
+    | condition_died_this_turn_at_least | condition_attacked_total_power | condition_mana_from_spent
+    | condition_cast_spells_this_turn | condition_more_cards_in_hand_than | condition_first_combat_phase
+    | condition_have_initiative | condition_was_cast | condition_evidence_collected
+    | condition_not_starting_player | condition_attacked_this_turn | condition_another_entered_this_turn
+    | condition_permanent_left_this_turn | condition_not_cast_from_hand_this_turn
 
 /* @sem Condition::PlayerState{player:AbilityController, state:FullParty} */
 condition_full_party ::= "you" "have" "a" "full" "party"
@@ -572,3 +580,73 @@ condition_gift_not_promised ::= "the" "gift" "wasn't" "promised"
    same announced value as its other amounts; independent frames stay distinct. */
 /* @sem Condition::@number_condition(Condition::Compare{left:$number, test:NumberTest::Compare{comparison:$bound_words, value:$number_2}}) */
 condition_number_bounded ::= number "is" number bound_words
+
+/* Conditions taken over from seeded rules, in their original Oracle words. */
+/* @sem Condition::Compare{left:TimesResolvedThisTurn, test:NumberTest::Compare{comparison:Equal, value:Constant(2)}} */
+condition_second_resolution_this_turn ::= "this" "is" "the" "second" "time" "this" "ability" "has" "resolved" "this" "turn"
+
+/* @sem Condition::Compare{left:TimesResolvedThisTurn, test:NumberTest::Compare{comparison:Equal, value:Constant(1)}} */
+condition_first_resolution_this_turn ::= "this" "is" "the" "first" "time" "this" "ability" "has" "resolved" "this" "turn"
+
+/* @sem Condition::PlayerState{player:AbilityController, state:Descended} */
+condition_descended_this_turn ::= "you" "descended" "this" "turn"
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:State(Monstrous)} */
+condition_monstrous ::= object_ref "is" "monstrous"
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:State(Enchanted)} */
+condition_enchanted ::= object_ref "is" "enchanted"
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{comparison:Greater, value:Constant(0)})} */
+condition_had_counters ::= object_ref "had" "counters" "on" "it"
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})} */
+condition_had_counter_kind ::= object_ref "had" "a" counter_kind "counter" "on" "it"
+
+/* @sem Condition::Not(Controls{player:AbilityController, filter:$filter_phrase, minimum:1}) */
+condition_control_not_a ::= "you" "don't" "control" "a" filter_phrase
+
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:AllOf([$filter_phrase, ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_amount}} */
+condition_died_under_your_control ::= counter_amount filter_phrase "died" "under" "your" "control" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:$filter_plural, from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+condition_died_this_turn_at_least ::= value "or" "more" filter_plural "died" "this" "turn"
+
+/* @sem Condition::PlayerDid{player:AbilityController, event:AttackedWithTotalPower([GreaterOrEqual, $value]), window:ThisCombat} */
+condition_attacked_total_power ::= "you" "attacked" "with" "creatures" "with" "total" "power" value "or" "greater" "this" "combat"
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:ManaSpentFrom($filter_phrase)} */
+condition_mana_from_spent ::= "mana" "from" "a" filter_phrase "was" "spent" "to" "cast" object_ref
+
+/* @sem Condition::Compare{left:EventHistory{event:Spell{event:Cast, players:One(AbilityController), spells:Any}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+condition_cast_spells_this_turn ::= "you've" "cast" value "or" "more" "spells" "this" "turn"
+
+/* @sem Condition::Compare{left:PlayerNumber{player:AbilityController, number:CardsInHand}, test:NumberTest::Compare{comparison:Greater, value:AmongPlayers{players:$players_singular, number:CardsInHand, aggregation:Maximum}}} */
+condition_more_cards_in_hand_than ::= "you" "have" "more" "cards" "in" "hand" "than" players_singular
+
+/* @sem Condition::Window(FirstCombat) */
+condition_first_combat_phase ::= "it's" "the" "first" "combat" "phase" "of" "the" "turn"
+
+/* @sem Condition::PlayerState{player:AbilityController, state:Initiative} */
+condition_have_initiative ::= "you" "have" "the" "initiative"
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Cast{}} */
+condition_was_cast ::= object_ref "was" "cast"
+
+/* @sem Condition::Compare{left:Earlier{what:Evidence, measure:Count}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
+condition_evidence_collected ::= "evidence" "was" "collected"
+
+/* @sem Condition::Not(PlayerState{player:AbilityController, state:StartingPlayer}) */
+condition_not_starting_player ::= "you" "weren't" "the" "starting" "player"
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Condition(Compare{left:EventHistory{event:Object{event:Attacks, objects:SameObject(Candidate)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})} */
+condition_attacked_this_turn ::= object_ref "attacked" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:AllOf([Not(SameObject(Source)), $filter_phrase, ControlledBy(One(AbilityController))]), to:Battlefield}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
+condition_another_entered_this_turn ::= "another" filter_phrase "entered" "the" "battlefield" "under" "your" "control" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:Object{event:LeavesBattlefield, objects:ControlledBy(One(AbilityController))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_amount}} */
+condition_permanent_left_this_turn ::= counter_amount "permanent" "you" "controlled" "left" "the" "battlefield" "this" "turn"
+
+/* @sem Condition::Not(Compare{left:EventHistory{event:Spell{event:Cast, players:One(AbilityController), spells:Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}}}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_amount}}) */
+condition_not_cast_from_hand_this_turn ::= "you" "haven't" "cast" counter_amount "spell" "from" "your" "hand" "this" "turn"
