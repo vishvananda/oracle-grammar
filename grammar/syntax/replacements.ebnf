@@ -2,6 +2,8 @@
 
 replacement_clause ::= replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but
     | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty
+    | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours
+    | replacement_enter_cost_or_graveyard
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -19,6 +21,14 @@ counter_replacement_union ::= counter_replacement_noun "or" counter_replacement_
 /* @sem ObjectFilter::AnyOf(@unordered([$counter_replacement_noun, $counter_replacement_noun_2, $counter_replacement_noun_3])) */
 counter_replacement_union_three ::= counter_replacement_noun "," counter_replacement_noun ","? "or" counter_replacement_noun
 counter_replacement_noun ::= noun_creature | noun_artifact | noun_enchantment | noun_land | noun_planeswalker | noun_permanent | noun_battle | noun_token | subtype
+
+/* Created tokens: twice that many of them, or those tokens and another group, instead. */
+/* @sem Ability::Replacement{active:Battlefield, event:Tokens{tokens:Any, controllers:One(AbilityController)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:2}}}]}} */
+replacement_tokens_twice_yours ::= "if" "one" "or" "more" "tokens" "would" "be" "created" "under" "your" "control" "," "twice" "that" "many" "of" "those" "tokens" "are" "created" "instead" "."
+/* @sem Ability::Replacement{active:Battlefield, event:Tokens{tokens:Any}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:2}}}]}} */
+replacement_tokens_twice_any ::= "if" "one" "or" "more" "tokens" "would" "be" "created" "," "twice" "that" "many" "of" "those" "tokens" "are" "created" "instead" "."
+/* @sem Ability::Replacement{active:Battlefield, event:Tokens{tokens:Any, controllers:One(AbilityController)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1, tokens:[$token_group]}}}]}} */
+replacement_tokens_plus_yours ::= "if" "one" "or" "more" "tokens" "would" "be" "created" "under" "your" "control" "," "those" "tokens" "plus" token_group "are" "created" "instead" "."
 
 /* @sem Ability::Replacement{active:Battlefield, event:Counters(_{kind:PowerToughness(1, 1), objects:$counter_replacement_population}), body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([Constant(2), EventAmount]))}}]}} */
 replacement_counters_double ::= "if" "one" "or" "more" "+" "1" "/" "+" "1" "counters" "would" "be" "put" "on" counter_replacement_population "," "twice" "that" "many" "+" "1" "/" "+" "1" "counters" "are" "put" "on" "it" "instead" "."
@@ -878,3 +888,11 @@ replacement_gain_life_plus ::= "if" "you" "would" "gain" "life" "," "you" "gain"
 
 /* @sem Ability::Replacement{active:Battlefield, event:Player{event:GainLife, players:One(AbilityController)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Multiply([Constant(2), EventAmount])}}]}} */
 replacement_gain_life_twice ::= "if" "you" "would" "gain" "life" "," "you" "gain" "twice" "that" "much" "life" "instead" "."
+
+/* A land that costs something to enter: unpaid, it goes to its owner's graveyard instead. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$cost}}, If{condition:PaymentChosen(0), then:_{}, otherwise:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(OwnersGraveyard)}}]}}]}}) */
+replacement_enter_cost_or_graveyard ::= "if" object_ref "would" "enter" "," cost "instead" "." "if" "you" "do" "," "put" "this" "land" "onto" "the" "battlefield" "." "if" "you" "don't" "," "put" "it" "into" "its" "owner's" "graveyard" "."
+
+/* The next draw this turn is replaced by the written action. */
+/* @sem Operation::CreateReplacement{event:Player{event:Draw, players:One(AbilityController)}, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$operation}]}} */
+next_draw_replaced ::= "the" "next" "time" "you" "would" "draw" "a" "card" this_duration "," operation "instead"

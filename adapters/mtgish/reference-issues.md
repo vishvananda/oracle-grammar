@@ -515,6 +515,11 @@ the IR path, the value it replaces and why.
   records read revealed-card values. The record used the result-less
   `Earlier{what:Revealed}` placeholder.
 
+- `U0064` (correction): Disruptor Flute's "Spells with the chosen name cost
+  {3} more to cast" names no caster. The record taxed only its controller's
+  spells; Gloom records the same unqualified wording for every player, and
+  Anointed Peacekeeper adds a caster only where the words name one.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
 its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and

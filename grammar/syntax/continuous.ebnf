@@ -622,10 +622,27 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= change_loses_flying | change_lose_all_abilities | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | mined_change
+static_change ::= change_loses_flying | change_lose_all_abilities | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change
     | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap
     | change_cant_block_kind | change_block_additional | change_is_goaded
     | change_cant_block_or_be_blocked_by | change_cant_attack_alone
+/* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
+   the protection names the object it keeps attached. */
+/* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
+change_protection_keeps ::= "has" "protection" "from" protectable_color "." "this" "effect" "doesn't" "remove" affected
+protectable_color ::= protectable_chosen_color | protectable_white | protectable_blue | protectable_black | protectable_red | protectable_green
+/* @sem Operand::Term{family:ProtectableColor, form:TheChosenColor} */
+protectable_chosen_color ::= "the" "chosen" "color"
+/* @sem Operand::Term{family:ProtectableColor, form:Colors, operands:[Vocabulary{family:Color, form:White}]} */
+protectable_white ::= "white"
+/* @sem Operand::Term{family:ProtectableColor, form:Colors, operands:[Vocabulary{family:Color, form:Blue}]} */
+protectable_blue ::= "blue"
+/* @sem Operand::Term{family:ProtectableColor, form:Colors, operands:[Vocabulary{family:Color, form:Black}]} */
+protectable_black ::= "black"
+/* @sem Operand::Term{family:ProtectableColor, form:Colors, operands:[Vocabulary{family:Color, form:Red}]} */
+protectable_red ::= "red"
+/* @sem Operand::Term{family:ProtectableColor, form:Colors, operands:[Vocabulary{family:Color, form:Green}]} */
+protectable_green ::= "green"
 
 /* @sem Change::[LosesAbility(Term{family:CheckHasable, form:Flying, operands:[]})] */
 change_loses_flying ::= ("loses" | "lose") "flying"
@@ -1909,6 +1926,12 @@ static_self_skip_untap_if ::= self_ref "doesn't" "untap" "during" "your" "untap"
 /* Lands, played from the graveyard as from a hand. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:CardType(Land)}), from:Graveyard, action:PlayLand, filter:Any})]}) */
 static_play_lands_from_graveyard ::= "you" "may" "play" "lands" "from" "your" "graveyard" "."
+/* "Once during each of your turns, you may cast a creature spell from your graveyard":
+   one spell each turn, cast only during your own turns. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$card_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal}})]}) */
+static_once_each_turn_graveyard_cast ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" ("a" | "an") card_filter "spell" "from" "your" "graveyard" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:@and($card_filter, $modifiers)}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal}})]}) */
+static_once_each_turn_graveyard_cast_with ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" "cast" ("a" | "an") card_filter "spell" modifiers "from" "your" "graveyard" "."
 /* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$top_play_permissions})]} */
 static_cast_from_top_if ::= "as" "long" "as" condition "," top_play_permissions "."
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$top_look_and_play, duration:$duration, evaluation:LiveObjects} */
@@ -1975,6 +1998,15 @@ cast_origin ::= cast_origin_graveyard | cast_origin_exile
 cast_origin_graveyard ::= "your" "graveyard"
 /* @sem ZoneScope::Shared(Exile) */
 cast_origin_exile ::= "exile"
+
+/* A tax on the chosen name's spells some player casts is on those spells. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:AllOf([Chosen(CardName), Cast{by:$players_singular}])})), changes:[SpellCost(Increase($cost))]}) */
+static_named_spells_player_casts_cost ::= "spells" "with" "the" "chosen" "name" players_singular "casts" "cost" cost "more" "to" "cast" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:AllOf([Cast{by:OpponentsOf(AbilityController)}, Chosen(CardName)])})), changes:[SpellCost(Increase($cost))]}) */
+static_opponent_named_spells_cost ::= "spells" "your" "opponents" "cast" "with" "the" "chosen" "name" "cost" cost "more" "to" "cast" "."
+/* With no caster named, every player's spells with the chosen name cost more. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:Chosen(CardName)})), changes:[SpellCost(Increase($cost))]}) */
+static_named_spells_cost ::= "spells" "with" "the" "chosen" "name" "cost" cost "more" "to" "cast" "."
 
 /* `{X}` less, where X is a value: the reduction is that value. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:[_{amount:$value}], spill_into_generic:true}})]}) */

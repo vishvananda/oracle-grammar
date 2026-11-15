@@ -26,6 +26,14 @@ branch_optional_cost ::= cost | alternative_mana
    derives that spell from the ordinary one. */
 /* @sem Ability::@overload_branch($keyword_payment, Ability::Spell{announcement:@announcement, body:$program_sentence}) */
 spell_overload ::= program_sentence NEWLINE "overload" keyword_payment
+/* Awaken N (CR 702.113): cast for its awaken cost, the spell also puts N +1/+1 counters
+   on target land you control, which becomes a 0/0 Elemental creature with haste. The
+   paid spell has that one more target, after the spell's own, and one more
+   instruction; the other spell is the text as written. */
+/* @sem Ability::CostBranch{keyword:Awaken, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[...$instructions, $awaken_land]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:$instructions}})} */
+spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
+/* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
+awaken_land ::= "awaken" number
 
 kicker_branch_program ::= program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional

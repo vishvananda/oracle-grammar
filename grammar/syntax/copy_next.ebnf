@@ -5,8 +5,17 @@
 copy_stack_spell ::= "copy" target_stack_spell
 
 /* "Copy target instant or sorcery spell. You may choose new targets for the copy." */
-/* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$target_stack_spell, times:Constant(1), targets:May}}] */
-clause_copy_new_targets ::= "copy" target_stack_spell "." "you" "may" "choose" "new" "targets" "for" ("the" | "that") "copy"
+/* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$copy_stack_target, times:Constant(1), targets:May}}] */
+clause_copy_new_targets ::= "copy" copy_stack_target "." "you" "may" "choose" "new" "targets" "for" ("the" | "that") "copy"
+copy_stack_target ::= target_stack_spell | target_your_stack_ability | target_your_stack_ability_from | target_your_triggered_ability
+
+/* "Target activated or triggered ability you control", perhaps "from an artifact source". */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Ability, zones:[Stack]}), count:Exactly(Expr::Constant(1)), filter:AllOf([AnyOf([OnStack(Activated), OnStack(Triggered)]), ControlledBy(One(AbilityController))])}), index:0} */
+target_your_stack_ability ::= "target" "activated" "or" "triggered" "ability" "you" "control"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Ability, zones:[Stack]}), count:Exactly(Expr::Constant(1)), filter:AllOf([AnyOf([OnStack(Activated), OnStack(Triggered)]), ControlledBy(One(AbilityController)), AbilityOf($adjectives)])}), index:0} */
+target_your_stack_ability_from ::= "target" "activated" "or" "triggered" "ability" "you" "control" "from" ("a" | "an") adjectives "source"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Ability, zones:[Stack]}), count:Exactly(Expr::Constant(1)), filter:AllOf([OnStack(Triggered), ControlledBy(One(AbilityController))])}), index:0} */
+target_your_triggered_ability ::= "target" "triggered" "ability" "you" "control"
 
 /* "You may choose new targets for target spell": the spell keeps its own number of
    targets, each one changed or kept. */

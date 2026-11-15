@@ -62,6 +62,16 @@ operation_imperative ::= verb_operation_imperative
 verb_operation_imperative ::= create_copy_tapped_attacking | create_copy_each_leading | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base
     | discard_random_base | discard_base | discard_hand_base | discard_all_base
 
+/* "Each opponent attacking that player does the same": every opponent attacking the
+   player an attack trigger names repeats the first sentence's action. */
+/* @sem Instruction::[Effect{result:@next, operation:@apply(PlayerSet::One(PlayerRef::AbilityController), $repeated_action)}, Effect{result:@next, operation:@apply(PlayerSet::Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:PlayerAttacks{attacker:Bound(0), defender:@that_player}}]), $repeated_action)}] */
+clause_attackers_do_the_same ::= repeated_action "." "each" "opponent" "attacking" "that" "player" "does" "the" "same"
+repeated_action ::= repeated_action_imperative | repeated_action_you
+/* @sem $verb_operation_imperative */
+repeated_action_imperative ::= verb_operation_imperative
+/* @sem $verb_operation_base */
+repeated_action_you ::= "you" verb_operation_base
+
 /* @sem Operation::Draw{players:@subject, amount:$card_count} */
 draw_base ::= "draw" card_count
 /* @sem Operation::Draw{players:@subject, amount:$card_count} */
@@ -216,6 +226,7 @@ operation_plain ::= cast_exiled_card_permission | exiled_card_while_exiled | exi
     | untap_all_that_attacked | additional_land_this_turn | add_mana_combination | exile_with_counter
     | reveal_at_random_from_hand | have_player_discard | remove_all_counters_any_kind
     | operation_third | operation_you | hand_observation_look
+    | next_draw_replaced
 
 /* @sem Operation::Destroy{objects:$object_set, regeneration:true} */
 destroy ::= "destroy" object_set

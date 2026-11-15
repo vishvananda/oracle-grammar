@@ -985,6 +985,13 @@ clause_optional_top_card_life ::= "you" "may" "reveal" your_top "and" "put" "it"
    owning reveal receipt across that intervening continuous effect. */
 /* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:$player_ref, filter:$card_filter, count:Constant(1)}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[CopyOf{object:Query{objects:Matching{objects:Observed(@marked), filter:$card_filter}, index:0}, exceptions:[]}], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:ReorderLibrary{chooser:$player_ref_2, library_owner:$player_ref_2, objects:InZone{objects:Observed(@marked), zone:Library}, end:Bottom, order:$library_order}}] */
 instructions_reveal_copy_reorder ::= player_ref "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" ("a" | "an") card_filter "card" "." affected "becomes" "a" "copy" "of" "that" "card" duration "." ("then")? player_ref "puts" "all" "cards" "revealed" "this" "way" "on" "the" "bottom" "of" "their" "library" library_order
+/* "Target player reveals cards from the top of their library until they reveal a land
+   card, then puts those cards into their graveyard": every revealed card still in that
+   library is milled, the land card included. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:$player_ref, filter:$card_filter, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:InZone{objects:Observed(@marked), zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+instructions_player_reveal_until_mill ::= player_ref "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" ("a" | "an") card_filter "card" "," "then" "puts" "those" "cards" "into" "their" "graveyard"
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:$player_ref, filter:$card_filter, count:$number}}, Effect{result:@next, operation:Move{objects:InZone{objects:Observed(@marked), zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+instructions_player_reveal_until_many_mill ::= player_ref "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" number card_filter "cards" "," "then" "puts" "those" "cards" "into" "their" "graveyard"
 
 /* Choosing none is the optional action. Only actual departures are excluded
    from the observed cards still in the library. */
@@ -1054,6 +1061,11 @@ shuffle_your_library ::= "shuffle" "your" "library"
 /* Searching your library for any cards. */
 /* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:Any, count:AsManyAsCan($card_count)}]} */
 search_library_for_cards ::= "search" "your" "library" "for" card_count
+
+/* "Exile the top two cards of your library. Choose one of them.": one of the cards
+   just exiled is chosen, and the permission names that card. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$ordered_cards, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Transition{result:@prior, phase:After}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:$play_that_card_permission}] */
+clause_exile_choose_one_play ::= "exile" ordered_cards "." "choose" "one" "of" "them" "." play_that_card_permission
 
 /* Permission to play the prior card. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */

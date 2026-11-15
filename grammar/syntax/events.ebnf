@@ -1,7 +1,7 @@
 /* Trigger events. */
 event ::= event_yours_counters_spell | event_target_by_you_first | event_target_by_you | event_source_damage | event_source_damage_you_or | event_source_noncombat_damage | event_you_put_kind_sticker | event_you_place_sticker | event_you_give_gift | event_cast_from_hand | event_controlled_self_or_a_enters | event_controller_attacks | event_you_attack_player | event_you_attack_player_with | event_creatures_attack_player | event_several_attack_player | event_you_attack_player_or_with | event_chosen_player_attacked_or_targeted | event_bends_all_kinds | event_enchanted_player_entry | event_face_down_permanent_up | event_named_attack_or_block | event_land_or_spell_you | event_land_or_spell_player | event_damage_subject_player | event_combat_damage_subject_player | event_object_mutates | event_final_chapter_resolves | event_ring_tempts_you | event_conjures_other | event_own_or_other_faceup | event_self_enters_saddled_attack | event_attacks_or_blocks | event_attacks_player | event_two_owned_origins | event_pair_enters_owned_origin | event_enters_owned_origin | event_tapless_activation | event_passive_combat_recipient | event_named_controller_own_turn | event_dies_or_exiled_battlefield | event_controlled_self_or_enters_original | event_controlled_enters_original | event_controlled_self_or_enters | event_controlled_enters | event_enters_and_sacrificed | event_self_sacrificed | event_blocks_or_blocked_once | event_enters_or_face_up | event_turns_face_up | event_holder_or_same_name_damage | event_spell_single_target_damage | mined_event | event_once | event_enters_or_dies | event_enters | event_dies | event_leaves | event_attacks | event_blocks | event_becomes_blocked
     | event_combat_damage_player | event_damage_player | event_damage_object | event_damage
-    | event_cast | event_cast_opponents_turn | event_cast_third | event_gain_life | event_gain_life_third | event_lose_life
+    | event_cast | event_cast_opponents_turn | event_cast_third | event_cast_not_from_hand | event_cast_third_not_from_hand | event_gain_life | event_gain_life_third | event_lose_life
     | event_self_or_enters | event_self_or_dies | event_self_or_attacks | event_self_or_leaves
     | event_blocks_or_blocked | event_blocked_by | event_blocks_object
     | event_dealt_damage | event_dealt_combat_damage | event_put_graveyard | event_put_opponent_graveyard
@@ -27,7 +27,7 @@ event ::= event_yours_counters_spell | event_target_by_you_first | event_target_
     | event_attacks_while_saddled | event_control_none | event_combat_damage_to_player_or
     | event_damaged_by_dies | event_exploits | event_transforms_into_self | event_object_dies | event_that_noun_leaves
     | event_sacrifice_another | event_becomes_monstrous | event_tap_for_mana | event_tapped_for_mana | event_filtered_tapped_for_mana
-    | event_you_scry | event_you_roll_highest_natural | event_enters_or_leaves | event_enters_and_turn | event_expend
+    | event_you_scry | event_you_roll_highest_natural | event_enters_or_leaves | event_enters_and_turn | event_player_attacked | event_player_dealt_damage | event_player_loses_game | event_expend
     | event_encounter_phenomenon | event_cycle_or_discard | event_cycle_card | event_cards_leave_your_graveyard
     | event_day_night_changes | event_enters_or_transforms_into | event_attacks_while
     | event_you_put_counters | event_becomes_level | event_cast_kicked_spell | event_player_cycles
@@ -492,7 +492,7 @@ event_many_enter ::= "one" "or" "more" filter_plural "enter"
 /* @sem EventSpec::@either_event(EventSpec::Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, EventSpec::Spell{event:Copy, players:One(PlayerRef::AbilityController), spells:$spell_filter}) */
 event_cast_or_copy ::= "you" "cast" "or" "copy" spell_filter
 
-spell_filter ::= spell_any | spell_your_commander | spell_filtered | spell_modified | spell_targets | spell_targets_only_self | spell_targets_only_single | spell_any_targets_only_self | spell_any_targets_only_single | spell_described | spell_not_from_hand
+spell_filter ::= spell_any | spell_your_commander | spell_filtered | spell_modified | spell_targets | spell_targets_only_self | spell_targets_only_single | spell_any_targets_only_self | spell_any_targets_only_single | spell_described
 
 /* "Your commander" is the commander you own (CR 903.3), whoever casts it. */
 /* @sem @and(ObjectFilter::State(Commander), ObjectFilter::OwnedBy(One(PlayerRef::AbilityController))) */
@@ -503,8 +503,12 @@ spell_your_commander ::= "your" "commander"
 /* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:@and($spell_filter, ObjectFilter::Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})} */
 event_cast_from_hand ::= "you" "cast" spell_filter "from" "your" "hand"
 
-/* @sem ObjectFilter::Not(ObjectFilter::Cast{from:Players{zone:Hand, players:One(PlayerRef::CasterOf(Candidate))}}) */
-spell_not_from_hand ::= "a" "spell" "from" "anywhere" "other" "than" "your" "hand"
+/* "From anywhere other than your hand" says "your" only after "you cast"; another
+   caster's hand is "their hand". */
+/* @sem EventSpec::Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:Not(Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})} */
+event_cast_not_from_hand ::= "you" "cast" "a" "spell" "from" "anywhere" "other" "than" "your" "hand"
+/* @sem EventSpec::Spell{event:Cast, players:$event_player, spells:Not(Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})} */
+event_cast_third_not_from_hand ::= event_player "casts" "a" "spell" "from" "anywhere" "other" "than" "their" "hand"
 
 /* @sem @and($spell_adjectives, $modifiers) */
 spell_described ::= ("a" | "an") spell_adjectives "spell" modifiers
@@ -595,13 +599,20 @@ event_cast_opponents_turn ::= "you" "cast" spell_filter "during" "an" "opponent'
 /* @sem EventSpec::Spell{event:Cast, players:$event_player, spells:$spell_filter} */
 event_cast_third ::= event_player "casts" spell_filter
 
-event_player ::= event_an_opponent | event_a_player
+event_player ::= event_an_opponent | event_a_player | event_another_player | event_enchanted_player
 
 /* @sem PlayerSet::OpponentsOf(PlayerRef::AbilityController) */
 event_an_opponent ::= "an" "opponent"
 
 /* @sem PlayerSet::All */
 event_a_player ::= "a" "player"
+
+/* @sem PlayerSet::OthersThan(PlayerRef::AbilityController) */
+event_another_player ::= "another" "player"
+
+/* A Curse's player: the player this Aura enchants. */
+/* @sem PlayerSet::One(PlayerRef::EnchantedBy(ObjectRef::Source)) */
+event_enchanted_player ::= "enchanted" "player"
 
 /* The named permanent constrains the event's player. The active player is
    that event subject, independently of the ability holder and the name. */
@@ -1005,6 +1016,17 @@ event_enchanted_player_entry ::= ("a" | "an") filter_phrase "enchanted" "player"
    history condition is a separate resolution-time check. */
 /* @sem EventSpec::Player{event:Bends, players:One(AbilityController)} */
 event_bends_all_kinds ::= "you" "waterbend" "," "earthbend" "," "firebend" "," "or" "airbend"
+
+/* "Whenever enchanted player is attacked": one event per attacked player, however many
+   creatures attack them. */
+/* @sem EventSpec::Batch{event:Attack{attackers:Any, defenders:Players($event_player)}, per:Defender} */
+event_player_attacked ::= event_player "is" "attacked"
+
+/* @sem EventSpec::Damage(_{source_kind:Any, sources:Any, recipients:Players($event_player), kind:Any, grouping:Recipient, subject:Recipient}) */
+event_player_dealt_damage ::= event_player "is" "dealt" "damage"
+
+/* @sem EventSpec::Player{event:LosesGame, players:$event_player} */
+event_player_loses_game ::= event_player "loses" "the" "game"
 
 /* One persistent chosen player supplies both event alternatives. */
 /* @sem EventSpec::@either_event(EventSpec::Batch{event:Attack{attackers:Any, defenders:Players(One(Chosen))}, per:Defender}, EventSpec::Player{event:BecomesTarget, players:One(Chosen), objects:Any}) */

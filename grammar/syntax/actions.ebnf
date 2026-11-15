@@ -1351,6 +1351,10 @@ conditional_top_card_permission ::= card_exile_value_producer "." play_that_card
 /* @sem Instruction::[Effect{result:@next, operation:ChooseAtRandom{kind:Player, options:[Players(OpponentsOf(AbilityController))]}}, Effect{result:@next, operation:DealDamage{source:$object_ref, recipients:Players(One(Chosen)), amount:$value, preventable:true}}] */
 clause_random_opponent_damage ::= object_ref "deals" value "damage" "to" "an" "opponent" "chosen" "at" "random"
 
+/* A Curse moves on: the random opponent is chosen among the others before it attaches. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseAtRandom{kind:Player, options:[Players(Intersection([OthersThan(EnchantedBy(Source)), OpponentsOf(AbilityController)]))]}}, Effect{result:@next, operation:AttachEach{actor:One(AbilityController), attachments:One($object_ref), hosts:Players(One(Chosen)), each_host:false}}] */
+clause_attach_random_opponent ::= "attach" object_ref "to" "another" "one" "of" "your" "opponents" "chosen" "at" "random"
+
 card_exile_value_reflexive ::= card_exile_plain_value_reflexive | card_exile_filtered_value_reflexive
 
 /* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, announcement:@announcement, body:$card_exile_value_damage})} */
@@ -1608,6 +1612,18 @@ discard_one_card_action ::= "discard" ("a" | "an") card_filter "card"
 return_one_permanent_action ::= "return" ("a" | "an") filter_phrase "you" "control" "to" "its" "owner's" "hand"
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}] */
 reveal_one_card_action ::= "reveal" ("a" | "an") card_filter "card" "from" "your" "hand"
+/* "Reveal any number of red cards in your hand." The cards chosen are the cards
+   revealed, and a later "card revealed this way" counts that choice. */
+/* @sem Instruction::[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:AnyNumber}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}] */
+clause_reveal_any_number_hand ::= "reveal" "any" "number" "of" card_filter "cards" ("in" | "from") "your" "hand"
+/* @sem Instruction::[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:@and($card_filter, $modifiers)}, count:AnyNumber}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}] */
+clause_reveal_any_number_hand_with ::= "reveal" "any" "number" "of" card_filter "cards" modifiers ("in" | "from") "your" "hand"
+/* "Return an enchantment card from your graveyard to your hand for each card revealed
+   this way": as many cards as that count, or as many as there are. This production's
+   own results are issued before its count, so a count naming the instruction before
+   it (`@prior`) would name this choice; such counts refuse here. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:AsManyAsCan($count_each)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+clause_return_graveyard_kind_for_each ::= "return" ("a" | "an") card_filter "card" "from" "your" "graveyard" "to" "your" "hand" "for" "each" count_each
 
 /* Snapshot the announced targets before placing counters. A replacement that
    prevents placement must not remove a target from the following ability grant. */
