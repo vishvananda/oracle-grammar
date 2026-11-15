@@ -42,7 +42,7 @@ cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_life | co
     | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random
     | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self
     | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand
-    | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend
+    | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top
     | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each
     | cost_mill
 
@@ -87,11 +87,13 @@ activated_graveyard_return_limited ::= cost ":" instructions "." graveyard_self_
 /* @sem Instruction::Effect{result:@next, operation:Move{objects:One(@self), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}} */
 graveyard_self_hand ::= "return" "this" "card" "from" "your" "graveyard" "to" "your" "hand"
 
-/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
-activated_exile_self ::= "exile" self_text "from" "your" "graveyard" ":" program "."
+/* Exiling this card from your hand or graveyard is a cost paid there, so the
+   ability works only in that zone. */
+/* @sem Ability::Scoped{zones:[$your_zone], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
+activated_exile_self ::= "exile" self_text "from" your_zone ":" program "."
 
-/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
-activated_exile_self_after ::= cost_parts "," "↑" "exile" self_text "from" "your" "graveyard" ":" program "."
+/* @sem Ability::Scoped{zones:[$your_zone], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, CostPart::Move{selections:[CostObjectSelection{objects:One(ObjectRef::Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
+activated_exile_self_after ::= cost_parts "," "↑" "exile" self_text "from" your_zone ":" program "."
 
 /* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
 activated_discard_self ::= "discard" self_text ":" program "."
@@ -335,8 +337,8 @@ cost_token_actor ::= "an" "opponent"
 
 /* A written this-card exile cost proves the holder's activation zone.
    Following restrictions apply to the same complete activated ability. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}}]}, limits:$activation_limits, announcement:@announcement, body:$program_sentence})} */
-activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":" program_sentence activation_limits "."
+/* @sem Ability::Scoped{zones:[$your_zone], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}}]}, limits:$activation_limits, announcement:@announcement, body:$program_sentence})} */
+activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card" "from" your_zone ":" program_sentence activation_limits "."
 
 /* An ability that returns its own card from your graveyard works there. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
@@ -354,6 +356,28 @@ self_return_battlefield_tapped ::= "return" self_ref "from" "your" "graveyard" "
 self_return_battlefield_counter ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "with" entry_counter_amount counter_kind "counter" "on" "it"
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[[$counter_kind, $entry_counter_amount]], states:[]}}, qualifiers:[]} */
 self_return_battlefield_tapped_counter ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "with" entry_counter_amount counter_kind "counter" "on" "it"
+
+/* An ability that puts its own card from your hand or graveyard somewhere
+   else works only while the card is in that zone. Oracle text returns a card
+   from a graveyard to the battlefield (`self_return_battlefield`) but puts one
+   from a hand onto it, so only the hand takes the plain battlefield here. */
+/* @sem Ability::Scoped{zones:[$your_zone], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:$self_put_destination, qualifiers:[]}}]}})} */
+activated_self_zone_put ::= cost ":" "put" "this" "card" "from" your_zone self_put_destination "."
+/* @sem Ability::Scoped{zones:[$your_zone], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:$self_put_destination, qualifiers:[]}}]}})} */
+activated_self_zone_put_limited ::= cost ":" "put" "this" "card" "from" your_zone self_put_destination "." activation_limits "."
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:$self_put_battlefield, qualifiers:[]}}]}})} */
+activated_self_hand_put ::= cost ":" "put" "this" "card" "from" "your" "hand" self_put_battlefield "."
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:$self_put_battlefield, qualifiers:[]}}]}})} */
+activated_self_hand_put_limited ::= cost ":" "put" "this" "card" "from" "your" "hand" self_put_battlefield "." activation_limits "."
+self_put_destination ::= self_put_top | self_put_depth | self_put_battlefield_transformed
+/* @sem MovementDestination::Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+self_put_top ::= "on" "top" "of" "your" "library"
+/* @sem MovementDestination::Library{position:FromTop($library_depth), order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+self_put_depth ::= "into" "your" "library" library_depth "from" "the" "top"
+/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+self_put_battlefield ::= "onto" "the" "battlefield"
+/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:$transformed_entry} */
+self_put_battlefield_transformed ::= "onto" "the" "battlefield" transformed_entry
 
 /* An additional cost to cast this spell. */
 /* @sem Ability::Casting(AdditionalCost{cost:$cost, repetition:Once}) */
