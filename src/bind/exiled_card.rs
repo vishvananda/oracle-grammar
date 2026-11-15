@@ -1,7 +1,8 @@
-//! Opt-in scalar focus for a single top-library card's actual exile receipt.
+//! Opt-in scalar focus for the actual exile receipt of a single top-library card or of
+//! one chosen card.
 use super::{Scope, Step, at_path, transitions};
 use crate::model::ir::{
-    EventZone, Expr, MovementDestination, ObjectFilter, ObjectKind, ObjectPhase, ObjectRef,
+    Count, EventZone, Expr, MovementDestination, ObjectFilter, ObjectKind, ObjectPhase, ObjectRef,
     ObjectSet, Operation, PlayerSet, ResultId, SequenceEnd, ZoneScope,
 };
 use serde_json::Value;
@@ -102,7 +103,9 @@ pub(super) fn marker(
     }).ok_or("exiled card needs a lexical instruction sequence")?;
     let operation: Operation = serde_json::from_value(plain.clone())
         .map_err(|why| format!("exiled card operation: {why}"))?;
-    let (sequence, instruction, until) = if single_top_card(&operation) {
+    let (sequence, instruction, until) = if single_top_card(&operation)
+        || single_choice_exile(root, &path[..depth], instruction, &plain)
+    {
         (path[..depth].to_vec(), instruction, None)
     } else {
         let filter = until_exiled(root, &path[..depth], instruction, &plain)
@@ -122,6 +125,47 @@ pub(super) fn marker(
     scope.others.clear();
     scope.pronoun = None;
     Ok(true)
+}
+
+/// "Target player exiles a card from their hand": one player's choice of at most one
+/// card, then the exile of what was chosen, in the sequence that holds both.
+fn single_choice_exile(
+    root: &Value,
+    sequence: &[Step],
+    instruction: usize,
+    operation: &Value,
+) -> bool {
+    let mut node = root;
+    for step in sequence {
+        let next = match step {
+            Step::Key(key) => node.get(key),
+            Step::Index(index) => node.get(*index),
+        };
+        let Some(next) = next else { return false };
+        node = next;
+    }
+    let Some(choice) = instruction
+        .checked_sub(1)
+        .and_then(|index| node.as_array()?.get(index))
+    else {
+        return false;
+    };
+    let chosen = &choice["args"]["operation"];
+    let selected = &operation["args"]["objects"];
+    let one = serde_json::from_value::<Count>(chosen["args"]["count"].clone()).is_ok_and(|count| {
+        matches!(
+            count,
+            Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1))
+        )
+    });
+    choice["kind"] == "Effect"
+        && chosen["kind"] == "ChooseObjects"
+        && chosen["args"]["constraints"] == serde_json::json!([])
+        && one
+        && operation["kind"] == "Move"
+        && operation["args"]["destination"].get("Exile").is_some()
+        && selected["kind"] == "Selected"
+        && (selected["args"] == choice["args"]["result"] || !selected["args"].is_u64())
 }
 
 /// "Exile cards from the top of your library until you exile a nonland card": one reveal

@@ -938,4 +938,5 @@ mod destroyed_this_way;
 mod graveyard_triggers;
 mod kicked_spells;
 mod optional_costs;
+mod player_exiles;
 mod target_bans;

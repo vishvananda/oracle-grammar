@@ -467,6 +467,20 @@ the IR path, the value it replaces and why.
   `CostPaid(Additional)`. Graven Archfiend and Katara, Seeking Revenge are
   permanents whose later abilities test the cost, and stay unchanged.
 
+- `U0055` (correction): Chameleon Spirit's "power and toughness are each
+  equal to the number of permanents of the chosen color your opponents
+  control" is a characteristic-defining static (CR 604.3), as the six other
+  creatures whose power or toughness counts a value chosen as they enter are
+  recorded, Entropic Specter and Pallimud among them. It was `Ordinary`.
+
+- `U0056` (normalization): "If you've cast another [quality] spell this turn",
+  tested while this spell is cast, excludes this spell with
+  `Not(SameObject(Source))` in Gigastorm Titan, Mage Duel, Patrician's Scorn
+  and Rally the Monastery, as nine other records read it, among them the
+  casting restrictions of Hewed Stone Retainers and Talara's Battalion. They
+  recorded the bare spell filter. Sage of the Skies excludes its triggering
+  spell from a cast trigger and stays unchanged.
+
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
 its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and

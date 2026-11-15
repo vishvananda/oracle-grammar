@@ -142,7 +142,11 @@ search_either_one ::= "and" found_action
 /* @sem Instruction::[Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:$found_action_2}] */
 search_either_two ::= "," found_action "," ("and" | "then") found_action
 
-search_filter ::= search_filter_plain | search_filter_modified
+search_filter ::= search_filter_plain | search_filter_modified | search_filter_either
+
+/* "A basic land card or a Desert card": either kind, each with its own noun. */
+/* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
+search_filter_either ::= card_filter "card" "or" ("a" | "an") card_filter "card"
 
 /* @sem $card_filter */
 search_filter_plain ::= card_filter "card"
@@ -370,7 +374,11 @@ dig_reveal_any ::= "you" "may" "reveal" "any" "number" "of" search_filter_many "
 dig_found_many ::= "them" | "those" "cards" | "the" "revealed" "cards"
 
 /* "You may put a card" takes at most one; "put a card" takes one if there is one. */
-dig_put_take ::= dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all
+dig_put_take ::= dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all | dig_put_one_each
+
+/* "A creature card and/or a land card": up to one card of each kind. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:UpTo(Constant(2)), constraints:[OneForEach([$card_filter, $card_filter_2])]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
+dig_put_one_each ::= "you" "may" "put" ("a" | "an") card_filter "card" "and" "/" "or" ("a" | "an") card_filter "card" "from" "among" "them" dig_destination
 
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:$dig_destination}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
 dig_put_may_one ::= "you" "may" "put" a_card "from" "among" "them" dig_destination
@@ -802,6 +810,21 @@ players_reveal_tops ::= optional_player_population "reveals" "the" "top" "card" 
 /* @sem Instruction::[ForEachPlayer{players:$optional_player_population, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:$top_count, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
 clause_each_exiles_top ::= optional_player_population "exiles" "the" "top" top_count "of" "their" "library"
 
+/* "Target opponent exiles a card from their hand": that player chooses the
+   card, then exiles it. The exiled card is what "it" and "that card" name next. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$player_ref, objects:Zone{scope:Players{zone:Hand, players:One($player_ref)}, kind:Card, filter:Any}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Operation::@exiled_card_result(Operation::Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]})}] */
+clause_player_exiles_hand ::= player_ref "exiles" "a" "card" "from" "their" "hand"
+
+/* Each player chooses from their own hand. */
+/* @sem Instruction::[ForEachPlayer{players:$optional_player_population, binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}, count:AsManyAsCan($card_count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
+clause_each_exiles_hand ::= optional_player_population "exiles" card_count "from" "their" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$player_ref, objects:Zone{scope:Players{zone:Graveyard, players:One($player_ref)}, kind:Card, filter:Any}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Operation::@exiled_card_result(Operation::Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]})}] */
+clause_player_exiles_graveyard ::= player_ref "exiles" "a" "card" "from" "their" "graveyard"
+
+/* @sem Instruction::[ForEachPlayer{players:$optional_player_population, binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any}, count:AsManyAsCan($card_count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
+clause_each_exiles_graveyard ::= optional_player_population "exiles" card_count "from" "their" "graveyard"
+
 /* After a player exiles their top card, "it's a <type> card" counts the exiled
    card with that type, as in Audacious Swap, Dimensional Infiltrator and Mind's
    Dilation. */
@@ -943,6 +966,11 @@ search_library_for_cards ::= "search" "your" "library" "for" card_count
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
 play_that_card_permission ::= duration "," "you" "may" "play" "that" "card"
     | "you" "may" "play" ("it" | "that" "card") ("from" "exile")? duration
+/* Permission to cast the prior card. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any})], duration:$duration, evaluation:LiveObjects} */
+cast_that_card_permission ::= duration "," "you" "may" "cast" "that" "card"
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:$exiled_spending}})], duration:$duration, evaluation:LiveObjects} */
+cast_that_card_permission_spending ::= duration "," "you" "may" "cast" "that" "card" "and" exiled_spending
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One($exiled_card_ref), from:Exile, action:CastSpell, filter:Any})], duration:$this_duration, evaluation:LiveObjects} */
 cast_exiled_card_permission ::= "you" "may" "cast" exiled_card_ref this_duration

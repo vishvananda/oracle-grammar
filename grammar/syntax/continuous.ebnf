@@ -722,7 +722,7 @@ static_definition_during_turn ::= "during" "your" "turn" "," static_definition
 /* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
 static_definition_if ::= "as" "long" "as" condition "," static_definition
 
-replacement_ability ::= replacement_entry_condition | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_spent_enters_counters | replacement_enters_counters_for_each | replacement_enters_counters_equal
+replacement_ability ::= replacement_entry_condition | replacement_enters_counter_choice | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_spent_enters_counters | replacement_enters_counters_for_each | replacement_enters_counters_equal
     | replacement_each_enters_counters | replacement_each_enters_counters_for_each | replacement_each_enters_counters_equal | replacement_each_enters_counters_where
 
 /* Dying permanents matching the filter go to exile instead; `it` is the dying
@@ -755,6 +755,9 @@ replacement_enters_counters_clause ::= self_ref "enters" "with" entry_counter_am
    replacement condition; a granted ability keeps its independent controller. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$counter_amount}}}]}, otherwise:Program{}}]}}) */
 replacement_enters_counters_if ::= self_ref "enters" "with" counter_amount counter_kind ("counter" | "counters") "on" "it" "if" condition "."
+/* "Your choice of a deathtouch counter or a lifelink counter": one of the two kinds. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CountersOfChoice{kinds:[$counter_kind, $counter_kind_2], amount:$counter_amount})}}]}}) */
+replacement_enters_counter_choice ::= self_ref "enters" "with" "your" "choice" "of" counter_amount counter_kind "counter" "or" "a" counter_kind "counter" "on" "it" "."
 /* Mana spent to cast the entering permanent is known as it enters, so a leading
    spent-mana test (adamant) stays inside its replacement. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:$spent_mana_condition, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$counter_amount}}}]}, otherwise:Program{}}]}}) */
@@ -1329,7 +1332,7 @@ keyword_loss_gain_indefinite ::= affected "loses" "defender" "and" "gains" keywo
 /* @sem Ability::Conditional{condition:ObjectMatches{object:$scalar_static_subject, filter:$scalar_static_state}, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$static_changes}], otherwise:[]} */
 scalar_subject_static_condition ::= scalar_static_subject static_changes "as" "long" "as" "it's" scalar_static_state "."
 scalar_static_subject ::= self_ref | attached_ref
-scalar_static_state ::= adjective_untapped | scalar_static_attacking_alone
+scalar_static_state ::= adjective_untapped | adjective_tapped | adjective_attacking | adjective_blocking | scalar_static_attacking_alone
 /* @sem ObjectFilter::State(AttackingAlone) */
 scalar_static_attacking_alone ::= "attacking" "alone"
 
@@ -1548,6 +1551,8 @@ continuous_chosen_creature_type_retained ::= affected "becomes" "that" "type" re
 clause_creature_type_choice_timed ::= affected "becomes" "the" "creature" "type" "of" "your" "choice" duration
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:Indefinite, evaluation:Snapshot}}] */
 clause_creature_type_choice_indefinite ::= affected "becomes" "the" "creature" "type" "of" "your" "choice"
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:LandType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
+clause_basic_land_type_choice_timed ::= affected "becomes" "the" "basic" "land" "type" "of" "your" "choice" duration
 
 /* That-type wording takes its kind from this explicit choice sentence. It
    cannot escape as an independent creature-typed operation after a land choice. */

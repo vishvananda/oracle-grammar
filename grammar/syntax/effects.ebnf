@@ -59,7 +59,7 @@ sacrifice_that_many_third ::= "sacrifices" "that" "many" filter_plural "of" "the
 /* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verb_operation_imperative) */
 operation_imperative ::= verb_operation_imperative
 
-verb_operation_imperative ::= create_copy_tapped_attacking | energy_get_base | create_base | create_tapped_base | create_attacking_base | mill_base | scry_base | surveil_base | draw_base
+verb_operation_imperative ::= create_copy_tapped_attacking | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | surveil_base | draw_base
     | discard_random_base | discard_base | discard_hand_base | discard_all_base
 
 /* @sem Operation::Draw{players:@subject, amount:$card_count} */
@@ -635,6 +635,16 @@ sticker_power_toughness ::= "power" "and" "toughness"
    tapped. No new battlefield query or successful-state-change subset is used. */
 /* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:$immediate_affected_set, tapped:true}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Transition{result:@prior, phase:Before}), kind:$counter_kind, amount:$counter_amount}]}}] */
 clause_tap_group_counters ::= "tap" immediate_affected_set "," "then" "put" counter_amount counter_kind ("counter" | "counters") "on" "each" "of" counter_group_reference
+
+/* "Tap any number of untapped creatures you control": choose them, then tap the
+   chosen ones. "Tapped this way" counts that tap's inputs. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, count:AnyNumber}}, Effect{result:@next, operation:SetTapped{objects:Selected(@prior), tapped:true}}] */
+clause_tap_any_number ::= "tap" "any" "number" "of" filter_plural
+/* A spell's required tap begins its first sentence; what was tapped this way
+   follows it. A trigger's "you may" would offer the choice twice, since choosing
+   none already declines, so only a spell reads this sentence. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program::Program{instructions:[...$clause_tap_any_number, ...$instructions]}} */
+spell_tap_any_number ::= clause_tap_any_number "." instructions "."
 
 /* One placement verb coordinates two counter kinds on the same recipients.
    Keep both contributions inside one operation for replacement/trigger timing. */

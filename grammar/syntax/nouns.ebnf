@@ -287,7 +287,7 @@ it_reflexive_pronoun ::= "itself"
 that_noun ::= qualified_noun
 
 /* Attachment subjects can name an object without replacing their host pronoun. */
-qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_equipment | named_aura | named_vehicle
+qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
 target_object ::= target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
 
@@ -717,7 +717,7 @@ modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x
 modifier_nonnumeric ::= modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls
     | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control
     | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage
-    | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_chosen_name | modifier_chosen_type | modifier_kind_sticker | modifier_any_sticker
+    | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker
     | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters
     | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness
     | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you
@@ -790,6 +790,8 @@ modifier_any_sticker ::= "with" "a" "sticker" "on" "it"
 
 /* @sem ObjectFilter::Chosen(CreatureType) */
 modifier_chosen_type ::= "of" "the" "chosen" "type"
+/* @sem ObjectFilter::Chosen(Color) */
+modifier_chosen_color ::= "of" "the" "chosen" "color"
 
 /* A stat extreme compares each candidate with that stat over a population.
    The population names its own controller or zone, so a later controller
@@ -919,6 +921,8 @@ modifier_named_counter_on_it ::= "with" "a" counter_kind "counter" "on" "it"
 
 /* @sem ObjectFilter::Counters{kind:PowerToughness(1, 1), comparison:Greater, value:Expr::Constant(0)} */
 modifier_pt_counter_on_it ::= "with" "a" "+" "1" "/" "+" "1" "counter" "on" "it"
+/* @sem ObjectFilter::Counters{kind:PowerToughness(1, 1), comparison:Greater, value:Expr::Constant(0)} */
+modifier_pt_counters_on_them ::= "with" "+" "1" "/" "+" "1" "counters" "on" "them"
 
 stat ::= stat_power | stat_toughness | stat_mana_value | stat_total_power_toughness
 
@@ -1153,6 +1157,10 @@ named_spell ::= ("that" | "the" "other") "spell"
 
 /* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::CardType(Planeswalker)) */
 named_planeswalker ::= ("that" | "the" "other") "planeswalker"
+
+/* "That creature or planeswalker" names the earlier "target creature or planeswalker". */
+/* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::AnyOf([CardType(Creature), CardType(Planeswalker)])) */
+named_creature_or_planeswalker ::= "that" "creature" "or" "planeswalker"
 
 /* @sem ObjectRef::@qualified_object(ObjectKind::Permanent, ObjectFilter::Subtype(Equipment)) */
 named_equipment ::= ("that" | "the" "other") "Equipment"
