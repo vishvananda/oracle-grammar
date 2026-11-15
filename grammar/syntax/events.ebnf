@@ -492,7 +492,11 @@ event_many_enter ::= "one" "or" "more" filter_plural "enter"
 /* @sem EventSpec::@either_event(EventSpec::Spell{event:Cast, players:One(PlayerRef::AbilityController), spells:$spell_filter}, EventSpec::Spell{event:Copy, players:One(PlayerRef::AbilityController), spells:$spell_filter}) */
 event_cast_or_copy ::= "you" "cast" "or" "copy" spell_filter
 
-spell_filter ::= spell_any | spell_filtered | spell_modified | spell_targets | spell_described | spell_not_from_hand
+spell_filter ::= spell_any | spell_your_commander | spell_filtered | spell_modified | spell_targets | spell_targets_only_self | spell_targets_only_single | spell_any_targets_only_self | spell_any_targets_only_single | spell_described | spell_not_from_hand
+
+/* "Your commander" is the commander you own (CR 903.3), whoever casts it. */
+/* @sem @and(ObjectFilter::State(Commander), ObjectFilter::OwnedBy(One(PlayerRef::AbilityController))) */
+spell_your_commander ::= "your" "commander"
 
 /* The explicit you-cast subject proves that your hand is this spell caster's
    hand. Keep this origin contract out of third-party spell filters. */
@@ -516,6 +520,17 @@ spell_modified ::= ("a" | "an") "spell" modifiers
 
 /* @sem ObjectFilter::TargetsAny(Objects(One($self_ref))) */
 spell_targets ::= ("a" | "an") "spell" "that" "targets" self_ref
+
+/* "That targets only" one object: the spell has a single target, and it is that
+   object, or one permanent of that description. */
+/* @sem @and($spell_adjectives, @and(ObjectFilter::OnStack(SingleTarget), ObjectFilter::TargetsAny(Objects(One($self_ref))))) */
+spell_targets_only_self ::= ("a" | "an") spell_adjectives "spell" "that" "targets" "only" self_ref
+/* @sem @and($spell_adjectives, @and(ObjectFilter::OnStack(SingleTarget), ObjectFilter::TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase})))) */
+spell_targets_only_single ::= ("a" | "an") spell_adjectives "spell" "that" "targets" "only" "a" "single" filter_phrase
+/* @sem @and(ObjectFilter::OnStack(SingleTarget), ObjectFilter::TargetsAny(Objects(One($self_ref)))) */
+spell_any_targets_only_self ::= "a" "spell" "that" "targets" "only" self_ref
+/* @sem @and(ObjectFilter::OnStack(SingleTarget), ObjectFilter::TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}))) */
+spell_any_targets_only_single ::= "a" "spell" "that" "targets" "only" "a" "single" filter_phrase
 
 spell_adjectives ::= spell_branch_either | spell_adjective | spell_adjective_either | spell_adjective_list | spell_qualified | spell_subtype_qualified | spell_subtype_nonpermanent
 

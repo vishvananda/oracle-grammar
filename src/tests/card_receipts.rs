@@ -147,3 +147,76 @@ fn that_card_needs_a_producer_and_a_typed_noun_needs_its_own() {
          equal to the discarded card's mana value.",
     );
 }
+
+#[test]
+fn a_bare_pronoun_after_a_reveal_is_the_revealed_card_not_this_spell() {
+    let text = "Reveal the top card of your library. You gain life equal to its mana value.";
+    let reading = compositional(text);
+    let reveal = result_of(&reading, "Reveal");
+    assert_eq!(
+        measured(&reading, "ManaValue"),
+        [query(json!({"kind":"Observed","args":reveal}))]
+    );
+    printed_types(&reading, &["Sorcery"]);
+}
+
+#[test]
+fn a_tested_and_measured_pronoun_reaches_past_a_draw_to_the_revealed_card() {
+    // A seeded rule also reads this sentence with the reference's placeholders, so
+    // check every reading: none measures this spell, and the written one is exact.
+    let text = "Reveal the top card of your library. If it's a creature card, you draw cards \
+                equal to its power and you gain life equal to its toughness.";
+    let readings = engine().parse("Context example", text).unwrap().readings;
+    let source = json!({"kind":"Source"});
+    let exact = readings.iter().find(|reading| {
+        let observed = query(json!({"kind":"Observed","args":result_of(reading, "Reveal")}));
+        let mut tested = Vec::new();
+        visit(reading, "ObjectMatches", &mut tested);
+        ["Power", "Toughness"]
+            .iter()
+            .all(|property| measured(reading, property) == [observed.clone()])
+            && tested
+                .first()
+                .is_some_and(|args| args["object"] == observed)
+    });
+    for reading in &readings {
+        for property in ["Power", "Toughness"] {
+            assert!(
+                !measured(reading, property).contains(&source),
+                "{reading:#}"
+            );
+        }
+    }
+    printed_types(exact.expect("the revealed card is measured"), &["Sorcery"]);
+}
+
+#[test]
+fn a_reflexive_or_copy_pronoun_after_a_reveal_keeps_its_own_subject() {
+    for text in [
+        "When this creature enters, reveal the top card of your library and put it into \
+         your hand. This creature deals damage to itself equal to that card's mana value.",
+        "At the beginning of each combat, you may reveal the top card of your library. If \
+         you reveal a creature card this way, this creature becomes a copy of that card \
+         until end of turn, except it has flying.",
+    ] {
+        let readings = engine()
+            .parse("Context example", text)
+            .map(|parsed| parsed.readings)
+            .unwrap_or_default();
+        for reading in readings {
+            let mut damage = Vec::new();
+            visit(&reading, "DealDamage", &mut damage);
+            for args in damage {
+                assert!(
+                    !args["recipients"].to_string().contains("Observed"),
+                    "{text}: {args:#}"
+                );
+            }
+            let mut copies = Vec::new();
+            visit(&reading, "BecomeCopy", &mut copies);
+            for args in copies {
+                assert!(!args["source"].to_string().contains("Observed"), "{text}");
+            }
+        }
+    }
+}

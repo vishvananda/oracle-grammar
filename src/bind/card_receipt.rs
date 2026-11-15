@@ -180,24 +180,31 @@ fn paid(conditional: &Value, instructions: &[Value], index: usize) -> Option<(Va
 }
 
 /// The receipt of the one card the instruction before acted on, with its producer.
+/// With `reach`, instructions that act on no one card are passed over.
 fn receipt(
     root: &Value,
     path: &[Step],
     scope: &Scope,
     introduced: &[references::TargetIntroduction],
+    reach: bool,
 ) -> Result<(Value, Producer), String> {
     if let Ok(reference) = exiled_card::reference(scope, path) {
         return Ok((reference, Producer::Moved));
     }
     let mut path = path;
     for _ in 0..DEPTH {
-        let (sequence, index) = enclosing(path).ok_or("that card needs an instruction")?;
+        let (sequence, mut index) = enclosing(path).ok_or("that card needs an instruction")?;
         let instructions = at(root, sequence)
             .and_then(Value::as_array)
             .ok_or("that card's instruction sequence")?;
-        if index > 0 {
-            return produced(instructions, index - 1, introduced, scope.target_base)?
-                .ok_or_else(|| "that card needs one card the instruction before acted on".into());
+        while index > 0 {
+            index -= 1;
+            if let Some(found) = produced(instructions, index, introduced, scope.target_base)? {
+                return Ok(found);
+            }
+            if !reach {
+                return Err("that card needs one card the instruction before acted on".into());
+            }
         }
         // First in a branch: what the branch's own guard follows, or a payment's inputs.
         let [.., Step::Key(args), Step::Key(branch), Step::Key(_)] = sequence else {
@@ -232,9 +239,54 @@ pub(super) fn reference(
     introduced: &[references::TargetIntroduction],
 ) -> Result<Value, String> {
     let wanted = named(name).ok_or("unknown card receipt")?;
-    let (reference, producer) = receipt(root, path, scope, introduced)?;
+    let (reference, producer) = receipt(root, path, scope, introduced, false)?;
     if wanted.is_some_and(|wanted| wanted != producer) {
         return Err("the card before was not revealed or discarded as this noun says".into());
     }
     Ok(reference)
+}
+
+/// Whether the pronoun at `path` is the object a stat measures ("its power") or a
+/// card test checks ("if it's a creature card"), through any marker wrappers.
+fn measured_or_tested(root: &Value, path: &[Step]) -> bool {
+    let mut end = path.len();
+    while end >= 2
+        && path[end - 2] == Step::Key("args".into())
+        && path[end - 1] == Step::Index(0)
+        && at(root, &path[..end - 2]).is_some_and(|node| node.get("$sym").is_some())
+    {
+        end -= 2;
+    }
+    let [.., Step::Key(args), Step::Key(object)] = &path[..end] else {
+        return false;
+    };
+    args == "args"
+        && object == "object"
+        && at(root, &path[..end - 2]).is_some_and(|node| {
+            matches!(
+                node["kind"].as_str(),
+                Some("ObjectProperty" | "ObjectMatches")
+            )
+        })
+}
+
+/// A pronoun that would fall back to this object, where a stat measures it or a card
+/// test checks it, names the one card revealed last before it instead: that card is
+/// the nearer antecedent. Instructions acting on no one card, such as a draw, come
+/// between them freely; any other one-card producer is nearer and leaves the pronoun
+/// as it was. A reflexive or a pronoun in a copy's wording keeps its own subject.
+pub(super) fn nearer_pronoun(
+    it: Value,
+    root: &Value,
+    path: &[Step],
+    scope: &Scope,
+    introduced: &[references::TargetIntroduction],
+) -> Value {
+    if it != json!({"kind":"Source"}) || !measured_or_tested(root, path) {
+        return it;
+    }
+    match receipt(root, path, scope, introduced, true) {
+        Ok((revealed, Producer::Revealed)) => revealed,
+        _ => it,
+    }
 }

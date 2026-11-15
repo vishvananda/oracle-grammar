@@ -21,9 +21,13 @@ impl Scope {
         {
             return Ok(actor);
         }
-        prior_targets.before(&item.path, self).object_pronoun(
+        let before = prior_targets.before(&item.path, self);
+        let it = before.object_pronoun(
             matches!(item.path.get(1), Some(Step::Key(key)) if key == "intervening_if"),
-        )
+        )?;
+        Ok(super::card_receipt::nearer_pronoun(
+            it, root, &item.path, before, introduced,
+        ))
     }
 }
 

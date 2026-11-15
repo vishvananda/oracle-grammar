@@ -931,3 +931,4 @@ mod reported_corrections;
 mod spell_x;
 
 mod card_receipts;
+mod graveyard_triggers;

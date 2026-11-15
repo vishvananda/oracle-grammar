@@ -217,6 +217,47 @@ fn contains(value: &Value, part: &Value) -> bool {
         }
 }
 
+/// Whether a zone change's objects are this object itself.
+fn this_object(objects: &Value) -> bool {
+    match objects["kind"].as_str() {
+        Some("Source") => true,
+        Some("SameObject") => objects["args"]["kind"] == "Source",
+        Some("AllOf") => objects["args"]
+            .as_array()
+            .is_some_and(|parts| parts.iter().any(this_object)),
+        _ => false,
+    }
+}
+
+/// A trigger on this object leaving the battlefield, or on anything it is attached
+/// to, looks back to the battlefield (CR 603.10a): it works there, not from the
+/// graveyard its effect then returns the card from (CR 113.6k).
+pub(super) fn graveyard_looks_back(ability: &Value) -> bool {
+    fn departs(event: &Value) -> bool {
+        match event {
+            Value::Object(object) => {
+                let change = &event["ZoneChange"];
+                (change["from"] == "Battlefield" && this_object(&change["objects"]))
+                    || object.values().any(departs)
+            }
+            Value::Array(items) => items.iter().any(departs),
+            _ => false,
+        }
+    }
+    let args = &ability["args"];
+    let event = &args["ability"]["args"]["event"];
+    ability_kind(ability) == Some("Scoped")
+        && args["zones"]
+            .as_array()
+            .is_some_and(|zones| zones.iter().any(|zone| zone == "Graveyard"))
+        && ability_kind(&args["ability"]) == Some("Triggered")
+        && (departs(event)
+            || contains(
+                event,
+                &json!({"kind":"AttachedTo","args":{"kind":"Source"}}),
+            ))
+}
+
 /// A life margin adds the margin to the starting life total: `StartingLife` comes
 /// first in a two-operand sum with it.
 pub(super) fn life_margin_order(value: &Value) -> bool {

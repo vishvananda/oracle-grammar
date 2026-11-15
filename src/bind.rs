@@ -53,8 +53,8 @@ mod qualified;
 pub(crate) use filters::operand as filter_operand;
 use guards::{
     blocks_itself, cancels_before_choice, condition_placement, damage_after_unpaid_sacrifice,
-    has_cost_as_action, life_margin_order, protection_domain_mismatch, reorders_another_library,
-    single_holder_affected,
+    graveyard_looks_back, has_cost_as_action, life_margin_order, protection_domain_mismatch,
+    reorders_another_library, single_holder_affected,
 };
 mod coin_protocol;
 mod holder;
@@ -330,6 +330,9 @@ pub fn bind_held_ability(
     }
     if life_margin_order(ability) {
         return Err("a life margin names the starting life total first".into());
+    }
+    if graveyard_looks_back(ability) {
+        return Err("a departure trigger works on the battlefield, not from the graveyard".into());
     }
     if damage_after_unpaid_sacrifice(ability) {
         return Err("damage measured by a sacrifice follows its required payment".into());
