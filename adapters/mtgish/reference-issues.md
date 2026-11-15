@@ -397,8 +397,7 @@ the IR path, the value it replaces and why.
 
 - `U0044` (correction): Infernal Denizen sacrifices as many Swamps as it can, up
   to two, and then tests whether it sacrificed fewer than two (CR 609.3). The old
-  lowering offered an indivisible two-Swamp cost. The opponent's agency in the
-  control change is still open. See #24.
+  lowering offered an indivisible two-Swamp cost. See #24.
 
 - `U0045` (correction): "tokens created with" a permanent, and "the token" it
   created, intersect Token with MadeBy on Arcane Artisan, Dance of Many, Dual
@@ -406,6 +405,16 @@ the IR path, the value it replaces and why.
   admits a nontoken put onto the battlefield by one of the permanent's
   abilities. The link to the printed creating ability (CR 607.2c) is still
   open. See #20.
+
+- `U0046` (correction): inside `PlayersDo`, the acting player is
+  `PlayerRef::Acting` and `AbilityController` stays the ability's controller, as
+  in `EachPlayer`. The old records named the actor `AbilityController` on
+  Cloudhoof Kirin, Infernal Denizen, Ingenious Mastery, Natural Selection,
+  Portent, Stardew Valley, Thought Prison and Visions. Protection Racket already
+  used the original controller for "your library". Eleven references change.
+  Infernal Denizen's eligible creatures stay controlled by the original
+  controller, and the controller still chooses from Thought Prison's revealed
+  hand. See #24.
 
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and

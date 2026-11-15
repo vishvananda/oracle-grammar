@@ -1,5 +1,6 @@
 //! Reported reference corrections (#20, #23-#28) parse to their corrected meaning alone.
 use super::*;
+use crate::engine::semantic_abilities;
 
 fn cases() -> Vec<Value> {
     let value: Value = serde_json::from_str(include_str!(
@@ -9,18 +10,23 @@ fn cases() -> Vec<Value> {
     value["cases"].as_array().unwrap().clone()
 }
 
-/// The only reading of a fixture face, after checking it equals the expected IR
-/// and prints back to the written text.
+/// The only reading of a fixture face, after checking it means the expected IR
+/// (presentation erased, as the corpus score compares references) and prints
+/// back to the written text.
 fn reading(name: &str) -> Value {
     let case = cases().into_iter().find(|c| c["name"] == name).unwrap();
     let text = case["text"].as_str().unwrap();
     validate_abilities(&case["expected"]).unwrap();
-    let expected = canonical_abilities(&case["expected"]).unwrap();
+    let expected = semantic_abilities(&case["expected"]).unwrap();
     let context = serde_json::from_value(case["characteristics"].clone()).unwrap();
     let parsed = engine().parse_card(name, text, &context).unwrap();
     assert_eq!(parsed.readings.len(), 1, "{name}");
     let reading = &parsed.readings[0];
-    assert_eq!(reading.abilities, expected, "{name}");
+    assert_eq!(
+        semantic_abilities(&reading.abilities).unwrap(),
+        expected,
+        "{name}"
+    );
     // As the corpus score does: the default print, the derivation key, then its order.
     let abilities = &reading.abilities;
     let types = crate::corpus::print_context(&case);
@@ -183,4 +189,59 @@ fn tetravus_exiles_only_tokens_it_created() {
     assert!(parts.contains(&json!({"kind":"Token"})));
     let text = reading.to_string();
     assert_eq!(text.matches(&made.to_string()).count(), 1, "{text}");
+}
+
+/// The body of a face's only `PlayersDo`, in its only reading.
+fn players_do_body(name: &str) -> Value {
+    let reading = reading(name);
+    let wrappers = found(&reading, "PlayersDo");
+    assert_eq!(wrappers.len(), 1, "{name}");
+    wrappers[0]["body"].clone()
+}
+
+fn one(player: &Value) -> Value {
+    json!({"kind":"One","args":player})
+}
+
+#[test]
+fn players_do_names_the_acting_player_acting() {
+    let acting = json!({"kind":"Acting"});
+    let mastery = players_do_body("Ingenious Mastery");
+    assert_eq!(found(&mastery, "CreateTokens")[0]["players"], one(&acting));
+    assert_eq!(found(&mastery, "Scry")[0]["players"], one(&acting));
+    let selection = players_do_body("Natural Selection");
+    assert_eq!(found(&selection, "Shuffle")[0]["players"], one(&acting));
+    let valley = players_do_body("Stardew Valley");
+    assert_eq!(found(&valley, "SetController"), vec![acting]);
+}
+
+#[test]
+fn players_do_keeps_the_ability_controller_apart_from_the_actor() {
+    let acting = json!({"kind":"Acting"});
+    let controller = json!({"kind":"AbilityController"});
+    // The opponent chooses and gains control of a creature the controller controls.
+    let denizen = players_do_body("Infernal Denizen");
+    let choice = &found(&denizen, "ChooseObjects")[0];
+    assert_eq!(choice["player"], acting);
+    assert_eq!(
+        found(&choice["objects"], "ControlledBy"),
+        vec![one(&controller)]
+    );
+    assert_eq!(found(&denizen, "SetController"), vec![acting.clone()]);
+    // The target reveals; the controller chooses a card that player owns.
+    let prison = players_do_body("Thought Prison");
+    let revealed = &found(&prison, "Reveal")[0]["objects"]["args"]["scope"]["Players"];
+    assert_eq!(revealed["players"], one(&acting));
+    let choice = &found(&prison, "ChooseObjects")[0];
+    assert_eq!(choice["player"], controller);
+    assert_eq!(found(&choice["objects"], "OwnedBy"), vec![one(&acting)]);
+    // Each opponent may pay, but "your library" stays the controller's.
+    let racket = players_do_body("Protection Racket");
+    assert!(!racket.to_string().contains(&acting.to_string()));
+    let libraries = found(&racket, "Take");
+    assert_eq!(libraries.len(), 3);
+    for take in libraries {
+        let scope = &take["objects"]["args"]["scope"]["Players"];
+        assert_eq!(scope["players"], one(&controller));
+    }
 }

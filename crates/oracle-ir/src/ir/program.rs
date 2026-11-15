@@ -750,6 +750,9 @@ pub enum Operation {
     /// Actions done by these players, or by one of them if `any_one`.
     /// `optional` lets the deciding player decline; `otherwise` follows when
     /// they did.
+    /// Inside `body`, `PlayerRef::Acting` is the player doing the actions, as in
+    /// `EachPlayer`, and `AbilityController` stays the ability's controller.
+    /// When the controller is the one acting, both name the same player.
     /// This rules-defined player-action policy has one enclosing receipt; it is
     /// not the explicit bound instruction program in `ForEachPlayer`.
     PlayersDo {

@@ -20,7 +20,7 @@ operands directly and prints the written text back exactly.
 | [#21](https://github.com/vishvananda/oracle-grammar/issues/21) | Open: Krovikan Vampire needs a historical death selector that tests the departing object and projects its first graveyard incarnation. |
 | [#22](https://github.com/vishvananda/oracle-grammar/issues/22) | Open: Wood Elemental and Dracoplasm need the permanents actually sacrificed as that incarnation entered, tested through the source's current words. |
 | [#23](https://github.com/vishvananda/oracle-grammar/issues/23) | Fixed locally: U0043 pays as Heroism resolves and shields that same creature. `ForEachObject` now documents its choice order. |
-| [#24](https://github.com/vishvananda/oracle-grammar/issues/24) | Partly fixed: U0044 sacrifices as many Swamps as it can before "if you can't". The opponent's agency awaits an explicit `PlayersDo` actor contract. |
+| [#24](https://github.com/vishvananda/oracle-grammar/issues/24) | Fixed locally: U0044 sacrifices as many Swamps as it can before "if you can't". U0046 names the acting player `PlayerRef::Acting` inside `PlayersDo`, and `oracle-ir` documents that contract. |
 | [#25](https://github.com/vishvananda/oracle-grammar/issues/25) | Fixed locally: U0038 lets a snow Island add one or two additional {U}. |
 | [#26](https://github.com/vishvananda/oracle-grammar/issues/26) | Fixed locally: U0039 leaves Aladdin's Lamp's kept card in place. |
 | [#27](https://github.com/vishvananda/oracle-grammar/issues/27) | Fixed locally: U0040 offers Bison Whistle's four choices for any looked-at card. |
@@ -97,20 +97,33 @@ consequence (CR 609.3). U0044 replaces the indivisible `PayCost` with
 `Earlier{what: Sacrificed, measure: Count}` against fewer than two. The tail
 rule now reads "sacrifice" directly, not any cost.
 
-The second defect stays open. Inside `PlayersDo`, the reference usually names
-the acting player as `AbilityController`. Ingenious Mastery's opponent creates
-Treasures for `One(AbilityController)`, and the shuffle on Natural Selection,
-Portent and Visions does the same. Cloudhoof Kirin's mill and Stardew Valley's
-control change also depend on that rebinding. Protection Racket reads the other
-way: "your library" inside its `PlayersDo` is the original `AbilityController`.
-Thought Prison mixes both: the target player's hand is `AbilityController`, and
-so is "you" who chooses from it. The model documents neither reading. Infernal
-Denizen needs both identities at once: the opponent chooses and gains control,
-and the eligible creatures stay controlled by the original controller. One fix
-makes `PlayerRef::Acting` the actor inside `PlayersDo` and keeps
-`AbilityController` as the ability's controller. That would also need updates
-to the six rebinding records and to Thought Prison. The decision changes how
-existing consumers read `PlayersDo`, so it is left open here.
+The second defect was the actor inside `PlayersDo`. The reference usually
+named the acting player `AbilityController`. Ingenious Mastery's opponent
+created Treasures for `One(AbilityController)`, and the shuffle on Natural
+Selection, Portent and Visions did the same. Cloudhoof Kirin's mill and Stardew
+Valley's control change also depended on that rebinding. Protection Racket read
+the other way: "your library" inside its `PlayersDo` is the original
+`AbilityController`. Thought Prison mixed both readings. Infernal Denizen needs
+both identities at once: the opponent chooses and gains control, and the
+eligible creatures stay controlled by the original controller.
+
+`PlayersDo` now follows `EachPlayer`. Inside its body and `otherwise`,
+`PlayerRef::Acting` is the acting player and `AbilityController` stays the
+ability's controller. U0046 updates the eleven references that meant the actor:
+
+- Cloudhoof Kirin and Ingenious Mastery: the players who mill, create Treasures
+  and scry.
+- Natural Selection, Portent and Visions: the player who may shuffle.
+- Infernal Denizen and Stardew Valley: the chooser and the new controller.
+- Thought Prison: the revealed hand and its owner filter.
+
+The rest keep `AbilityController`. Infernal Denizen's eligible creatures stay
+controlled by the original controller, and the controller still chooses from
+Thought Prison's revealed hand. Ingenious Mastery's Treasure mana and Protection
+Racket's "your library" are unchanged. The seeded rules for these faces now
+produce `Acting`. The fixture checks Infernal Denizen, Ingenious Mastery,
+Natural Selection, Stardew Valley, Thought Prison and the unchanged Protection
+Racket.
 
 ## Linked created tokens: #20
 
