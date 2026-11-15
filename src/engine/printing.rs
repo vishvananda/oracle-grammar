@@ -211,6 +211,21 @@ impl Engine {
         Ok(texts.into_iter().next())
     }
 
+    /// `print_keyed` with one narrow beam and no fallback: no widening, no per-stretch
+    /// search, no canonical retry. A key is a set of productions, so a short key can make
+    /// every candidate wrong the same way; this bounds what such a key costs to fail.
+    pub fn print_keyed_narrow(
+        &self,
+        name: &str,
+        abilities: &Value,
+        types: &[String],
+        key: &[String],
+    ) -> Result<Option<String>, String> {
+        super::validate_abilities(abilities)?;
+        let texts = self.verified_whole(name, abilities, types, (8, 1), key, &WIDTHS[..1])?;
+        Ok(texts.into_iter().next())
+    }
+
     /// Up to `limits.1` verified texts from a beam of `limits.0`.
     fn verified(
         &self,
@@ -221,7 +236,7 @@ impl Engine {
         key: &[String],
     ) -> Result<Vec<String>, String> {
         super::validate_abilities(abilities)?;
-        let texts = self.verified_whole(name, abilities, types, limits, key)?;
+        let texts = self.verified_whole(name, abilities, types, limits, key, &WIDTHS)?;
         if !texts.is_empty() {
             return Ok(texts);
         }
@@ -236,7 +251,7 @@ impl Engine {
         if canonical == *abilities {
             return Ok(Vec::new());
         }
-        let texts = self.verified_whole(name, &canonical, types, limits, key)?;
+        let texts = self.verified_whole(name, &canonical, types, limits, key, &WIDTHS)?;
         if !texts.is_empty() {
             return Ok(texts);
         }
@@ -254,6 +269,7 @@ impl Engine {
         types: &[String],
         (cap, most): (usize, usize),
         key: &[String],
+        widths: &[usize],
     ) -> Result<Vec<String>, String> {
         let wanted = canonical_abilities(abilities)?;
         // Wrong guesses at a reference can fill a narrow beam, so widen it on failure. A
@@ -262,7 +278,7 @@ impl Engine {
         // consume the lexical pass's reparse allowance or hide a verified text.
         for native in [true, false] {
             let mut failed = rustc_hash::FxHashSet::default();
-            for width in WIDTHS {
+            for &width in widths {
                 let printed =
                     self.enumerated_view(name, abilities, types, (cap * width, key, native))?;
                 let mut out = Vec::new();
@@ -319,7 +335,7 @@ impl Engine {
             let mut found = None;
             for end in at + 1..=longest {
                 let stretch = Value::Array(items[at..end].to_vec());
-                let texts = self.verified_whole(name, &stretch, types, (cap, 1), key)?;
+                let texts = self.verified_whole(name, &stretch, types, (cap, 1), key, &WIDTHS)?;
                 if let Some(text) = texts.into_iter().next() {
                     found = Some((text, end));
                     break;

@@ -123,14 +123,25 @@ fn render_row(
         if let Some(full) = engine.derivation_of(name, abilities, text)? {
             score.reachable += 1;
             let trimmed = Engine::trim_key(&full, &default);
-            for key in [trimmed, full] {
-                let keyed = engine.print_keyed(name, abilities, &types, &key)?;
-                row["key"] = json!(key);
-                any = keyed.as_deref() == Some(text);
-                if any {
-                    break;
+            // A key is a set, so a short one can make every candidate wrong the same way
+            // and fail only after the whole fallback search. Try it narrowly, then the full
+            // key, and give the short key its whole search only if the full key fails too.
+            let narrow = engine.print_keyed_narrow(name, abilities, &types, &trimmed)?;
+            let mut found = (narrow.as_deref() == Some(text)).then_some(&trimmed);
+            let rest = if trimmed == full {
+                vec![&full]
+            } else {
+                vec![&full, &trimmed]
+            };
+            for key in rest {
+                if found.is_none()
+                    && engine.print_keyed(name, abilities, &types, key)?.as_deref() == Some(text)
+                {
+                    found = Some(key);
                 }
             }
+            any = found.is_some();
+            row["key"] = json!(found.unwrap_or(&full));
             // A set cannot tell two uses of one rule apart, and an ordered key can.
             if !any && let Some(trail) = engine.trail_of(name, abilities, text)? {
                 let replayed = engine.print_trail(name, abilities, &trail)?;

@@ -14,6 +14,8 @@ focused on that pipeline and make coherent commits.
 - Declare each production's meaning once in `@sem`, shared by both directions.
 - Validate lexical EBNF before using a fast path.
 - Use original Oracle words; do not apply MTGish's source text rewrites.
+- Never offer two inflections or pronouns in one production; see
+  [print shapes](docs/print-shapes.md).
 
 ## Model and reference
 

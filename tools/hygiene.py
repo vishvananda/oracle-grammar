@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Check owned source size, fixture closure and portable checked-in paths."""
+"""Check owned source size, fixture closure, portable checked-in paths and print shapes."""
 from pathlib import Path
 import os
 import re
 import sys
+
+import shapes
 
 ROOT = Path(__file__).resolve().parent.parent
 IGNORED = {'.git', '.cache', 'target', '__pycache__'}
@@ -30,6 +32,7 @@ def check(root=ROOT):
                 asset = (path.parent/name).resolve()
                 if not asset.is_relative_to(root.resolve()) or not asset.is_file():
                     errors.append(f'{label}: missing or external embedded asset {name}')
+    errors.extend(shapes.check(root))
     for error in errors:
         print(error, file=sys.stderr)
     if errors:
