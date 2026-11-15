@@ -635,7 +635,7 @@ replacement_enters_counters_if ::= self_ref "enters" "with" counter_amount count
    spent-mana test (adamant) stays inside its replacement. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:Program{instructions:[If{condition:$spent_mana_condition, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$counter_amount}}}]}, otherwise:Program{}}]}}) */
 replacement_spent_enters_counters ::= "if" spent_mana_condition "," self_ref "enters" "with" counter_amount counter_kind ("counter" | "counters") "on" "it" "."
-spent_mana_condition ::= condition_total_mana_spent | condition_typed_mana_spent | condition_symbol_spent
+spent_mana_condition ::= condition_total_mana_spent | condition_typed_mana_spent | condition_symbol_spent | condition_symbol_pair_spent
 
 /* The counted history's predicate names the historical object, independently
    of the incoming permanent whose prospective controller supplies "you". */
@@ -1867,6 +1867,14 @@ activation_owner_one ::= object_ref
 /* No maximum hand size. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))]}) */
 static_no_maximum_hand_size ::= "you" "have" "no" "maximum" "hand" "size" "."
+/* A reduced maximum hand size lowers it by the printed amount. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($hand_size_players), changes:[PlayerRule(HandSize(Adjust(@negate($number))))]}) */
+static_maximum_hand_size_reduced ::= hand_size_players "maximum" "hand" "size" "is" "reduced" "by" number "."
+hand_size_players ::= hand_size_yours | hand_size_opponents
+/* @sem PlayerSet::One(AbilityController) */
+hand_size_yours ::= "your"
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+hand_size_opponents ::= "each" "opponent's"
 
 /* Additional land plays. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(AdditionalLandPlays(Exactly($counter_amount)))]}) */

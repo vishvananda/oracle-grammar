@@ -751,14 +751,46 @@ clause_delayed_cleanup_after ::= may_body "at" "the" "beginning" "of" "the" "nex
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:AllOf([SameObject($object_ref), State(Escaped)])}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})}}]}}) */
 entering_escaped_counters ::= object_ref "escapes" "with" counter_amount counter_kind ("counter" | "counters") "on" "it" "."
 
-/* A Siege's controller chooses Khans or Dragons as it enters; each bulleted
-   ability applies only while its word is the chosen one. */
-/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text(Khans), Text(Dragons)]}}}]}}) */
-entering_choose_khans_dragons ::= "as" object_ref "enters" "," "choose" "Khans" "or" "Dragons" "."
-/* @sem Ability::Conditional{condition:ChosenWord(Khans), then:[@scope($ability)]} */
-chosen_khans_ability ::= "•" "Khans" "—" ability
-/* @sem Ability::Conditional{condition:ChosenWord(Dragons), then:[@scope($ability)]} */
-chosen_dragons_ability ::= "•" "Dragons" "—" ability
+/* A permanent's controller chooses one of two printed words as it enters (a
+   Siege's Khans or Dragons, a clan, a faction). Each bulleted ability applies
+   only while its word is the chosen one. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text($entry_word), Text($entry_word_2)]}}}]}}) */
+entering_choose_word ::= "as" object_ref "enters" "," "choose" entry_word "or" entry_word "."
+/* @sem Ability::Conditional{condition:ChosenWord($entry_word), then:[@scope($ability)]} */
+chosen_word_ability ::= "•" entry_word "—" ability
+entry_word ::= entry_word_abzan | entry_word_believe | entry_word_brotherhood | entry_word_doubt | entry_word_dragons
+    | entry_word_enclave | entry_word_jeskai | entry_word_khans | entry_word_legion | entry_word_mardu
+    | entry_word_mirran | entry_word_ncr | entry_word_phyrexian | entry_word_sultai | entry_word_temur
+/* @sem String::'Abzan' */
+entry_word_abzan ::= "Abzan"
+/* @sem String::'Believe' */
+entry_word_believe ::= "Believe"
+/* @sem String::'Brotherhood' */
+entry_word_brotherhood ::= "Brotherhood"
+/* @sem String::'Doubt' */
+entry_word_doubt ::= "Doubt"
+/* @sem String::'Dragons' */
+entry_word_dragons ::= "Dragons"
+/* @sem String::'Enclave' */
+entry_word_enclave ::= "Enclave"
+/* @sem String::'Jeskai' */
+entry_word_jeskai ::= "Jeskai"
+/* @sem String::'Khans' */
+entry_word_khans ::= "Khans"
+/* @sem String::'Legion' */
+entry_word_legion ::= "Legion"
+/* @sem String::'Mardu' */
+entry_word_mardu ::= "Mardu"
+/* @sem String::'Mirran' */
+entry_word_mirran ::= "Mirran"
+/* @sem String::'NCR' */
+entry_word_ncr ::= "NCR"
+/* @sem String::'Phyrexian' */
+entry_word_phyrexian ::= "Phyrexian"
+/* @sem String::'Sultai' */
+entry_word_sultai ::= "Sultai"
+/* @sem String::'Temur' */
+entry_word_temur ::= "Temur"
 
 /* Entering tapped and the color chosen as it enters are one entry replacement. */
 entering_tapped_choose_color ::= entering_tapped_any_color | entering_tapped_other_color

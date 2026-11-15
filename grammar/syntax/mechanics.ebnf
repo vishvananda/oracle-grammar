@@ -654,6 +654,33 @@ mechanic_devour_named ::= "devour" filter_phrase value
 /* @sem Ability::Mechanic{mechanic:Champion, filter:$filter_phrase} */
 mechanic_champion ::= "champion" ("a" | "an") filter_phrase
 
+/* Craft (CR 702.167) names its materials and an optional count as printed. The
+   cost is the pinned IR's mana-symbol operand list, as for kicker. */
+mechanic_craft ::= craft_one | craft_at_least | craft_exactly | craft_at_least_any
+/* @sem Ability::Craft{materials:$craft_material, cost:List($kicker_operands)} */
+craft_one ::= "craft" "with" craft_material kicker_operands
+/* @sem Ability::Craft{materials:$craft_materials, count:[GreaterOrEqual, $value], cost:List($kicker_operands)} */
+craft_at_least ::= "craft" "with" value "or" "more" craft_materials kicker_operands
+/* @sem Ability::Craft{materials:$craft_materials, count:[Equal, $value], cost:List($kicker_operands)} */
+craft_exactly ::= "craft" "with" value craft_materials kicker_operands
+/* @sem Ability::Craft{materials:Term{family:Craftable, form:AnyCard}, count:[GreaterOrEqual, $value], cost:List($kicker_operands)} */
+craft_at_least_any ::= "craft" "with" value "or" "more" kicker_operands
+craft_material ::= craft_artifact | craft_creature | craft_land_type
+craft_materials ::= craft_artifacts | craft_creatures | craft_creature_types
+/* @sem Operand::Term{family:Craftable, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Artifact}]} */
+craft_artifact ::= "artifact"
+/* @sem Operand::Term{family:Craftable, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]} */
+craft_creature ::= "creature"
+/* @sem Operand::Term{family:Craftable, form:IsLandType, operands:[Vocabulary{family:LandType, form:@subtype_name($craft_land_subtype)}]} */
+craft_land_type ::= craft_land_subtype
+craft_land_subtype ::= st_cave | st_island
+/* @sem Operand::Term{family:Craftable, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Artifact}]} */
+craft_artifacts ::= "artifacts"
+/* @sem Operand::Term{family:Craftable, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]} */
+craft_creatures ::= "creatures"
+/* @sem Operand::Term{family:Craftable, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($subtype_plural)}]} */
+craft_creature_types ::= subtype_plural
+
 /* Deck rules printed as keywords. A named partner is another card's name. */
 keyword_deck_rule ::= deck_rule_partner | deck_rule_partner_with | deck_rule_partner_kind
     | deck_rule_choose_background | deck_rule_doctors_companion
