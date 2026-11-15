@@ -368,8 +368,48 @@ the IR path, the value it replaces and why.
   same player who may pay. The old lowering named the ability's controller. Only
   the LoseLife player changes.
 
+- `U0038` (correction): Snowfall's snow branch lets the Island's controller add
+  one or two additional {U}. Declining the optional "instead" keeps the first
+  option (CR614.1a, 614.15, 616.1), so the snow body now chooses between {U} and
+  {U}{U}. See #25.
+
+- `U0039` (correction): Aladdin's Lamp leaves the card it keeps in place. The old
+  lowering added an unprinted ReorderLibrary(Top) of that card. The random bottom
+  order now excludes the selected card directly. See #26.
+
+- `U0040` (correction): Bison Whistle offers one four-option choice for any
+  looked-at card: Bison to the battlefield, creature revealed to hand, any card
+  to the graveyard, or nothing. The old lowering offered the graveyard only when
+  the card was neither a Bison nor a creature. See #27 and i5jb/mtgish#169.
+
+- `U0041` (correction): Scholarship Sponsor and Enigma Ridges subtract each
+  searching player's lands from the captured maximum. The old lowering
+  subtracted in reverse. See #28.
+
+- `U0042` (correction): Boreas Charger's difference counts the chosen
+  opponent's lands minus yours, not hand sizes. See #28.
+
+- `U0043` (correction): Heroism offers each attacking red creature's {2}{R}
+  as the ability resolves (ruling 2004-10-04) and shields that same creature
+  unless it was paid. The old lowering asked for the payment inside one shield
+  on any attacking red creature, each time damage would be dealt. The payment
+  order follows the ForEachObject choice-order contract. See #23.
+
+- `U0044` (correction): Infernal Denizen sacrifices as many Swamps as it can, up
+  to two, and then tests whether it sacrificed fewer than two (CR 609.3). The old
+  lowering offered an indivisible two-Swamp cost. The opponent's agency in the
+  control change is still open. See #24.
+
+- `U0045` (correction): "tokens created with" a permanent, and "the token" it
+  created, intersect Token with MadeBy on Arcane Artisan, Dance of Many, Dual
+  Nature, Saproling Burst, Tetravus and Tombstone Stairwell. MadeBy alone also
+  admits a nontoken put onto the battlefield by one of the permanent's
+  abilities. The link to the printed creating ability (CR 607.2c) is still
+  open. See #20.
+
 The remaining reported reference/lowering issues and their current dispositions
-are tracked in [the issue audit](../../docs/reported-issues-20261113.md). Their
+are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
+[its follow-up](../../docs/reported-issues-20261114.md). Their
 open status does not create a corpus equality exception.
 
 ## Open in the grammar

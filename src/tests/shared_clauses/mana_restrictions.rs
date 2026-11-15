@@ -84,7 +84,10 @@ fn optional_instead_mana_qualifies_both_exclusive_alternatives() {
         json!({"kind":"ObjectMatches","args":{
         "object":{"kind":"EventSubject"},"filter":{"kind":"Supertype","args":"Snow"}}})
     );
-    for (arm, amount) in [("then", 2), ("otherwise", 1)] {
+    let blue = |n: u32| json!({"Amount":{"color":"Blue","amount":{"kind":"Constant","args":n}}});
+    // Declining the snow replacement keeps the one-blue option (issue #25).
+    let snow = json!({"ChooseOne":[blue(1), blue(2)]});
+    for (arm, mana) in [("then", snow), ("otherwise", blue(1))] {
         let optional = &arms[arm]["instructions"][0];
         assert_eq!(optional["kind"], "Optional");
         assert_eq!(
@@ -96,10 +99,7 @@ fn optional_instead_mana_qualifies_both_exclusive_alternatives() {
             op["players"],
             json!({"kind":"One","args":{"kind":"ControllerOf","args":{"kind":"EventSubject"}}})
         );
-        assert_eq!(
-            op["mana"],
-            json!({"Amount":{"color":"Blue","amount":{"kind":"Constant","args":amount}}})
-        );
+        assert_eq!(op["mana"], mana);
         assert_eq!(op["restriction"], json!({"Purpose":"CumulativeUpkeep"}));
     }
     printed(&reading);
@@ -122,9 +122,14 @@ fn edited_mana_alternatives_print_current_filters_amounts_and_restrictions() {
     let mut reading = conditional();
     let arms = alternatives(&mut reading);
     arms["condition"]["args"]["filter"] = json!({"kind":"Supertype","args":"Legendary"});
-    for (arm, color, n) in [("then", "Green", 3), ("otherwise", "Red", 1)] {
+    let red = json!({"Amount":{"color":"Red","amount":{"kind":"Constant","args":1}}});
+    let green = json!({"Amount":{"color":"Green","amount":{"kind":"Constant","args":3}}});
+    for (arm, mana) in [
+        ("then", json!({"ChooseOne":[red, green]})),
+        ("otherwise", red.clone()),
+    ] {
         let op = producer(arms, arm);
-        op["mana"] = json!({"Amount":{"color":color,"amount":{"kind":"Constant","args":n}}});
+        op["mana"] = mana;
         op["restriction"] = json!({"CastSpell":{"kind":"CardType","args":"Artifact"}});
     }
     let text = printed(&reading);

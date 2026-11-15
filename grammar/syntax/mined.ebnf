@@ -4982,7 +4982,7 @@ m_enchanted_player_casts_a_spell ::= "enchanted" "player" "casts" "a" "spell"
 m_enchanted_player_loses_the_game ::= "enchanted" "player" "loses" "the" "game"
 
 /* 1 cards, level:event, e.g. When the token leaves the battlefield, sacrifice this enchantment. */
-/* @sem EventSpec::Object{event:LeavesBattlefield, objects:MadeBy(Source)} */
+/* @sem EventSpec::Object{event:LeavesBattlefield, objects:AllOf([Token, MadeBy(Source)])} */
 m_the_token_leaves_the_battlefield ::= "the" "token" "leaves" "the" "battlefield"
 
 /* 1 cards, level:condition, e.g. Shuffle your library. As many times as you choose, you may exile the top card of your library. If th */
@@ -9346,7 +9346,7 @@ m_the_creature_that_attacked_static_changes_until_end ::= "the" "creature" "that
 m_exile_cards_from_your_graveyard_equal_to ::= "exile" "cards" "from" "your" "graveyard" "equal" "to" "the" "number" "of" "opponents" "you" "have"
 
 /* 1 cards, level:operation, e.g. When this creature leaves the battlefield, exile all tokens created with it at the beginning of the  */
-/* @sem Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:MadeBy(Source)}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}} */
+/* @sem Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Token, MadeBy(Source)])}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}} */
 m_exile_all_tokens_created_with_object_ref_at ::= "exile" "all" "tokens" "created" "with" "it" "at" "the" "beginning" "of" "the" "next" "end" "step"
 
 /* 1 cards, level:operation, e.g. At the beginning of your upkeep, put a +1/+1 counter on each creature you control with modular. */
@@ -14145,7 +14145,7 @@ m_player_ref_may_have_you_create_value_lander ::= player_ref "may" "have" "you" 
 m_prevent_all_combat_damage_that_would_be_19 ::= "prevent" "all" "combat" "damage" "that" "would" "be" "dealt" "by" filter_plural "other" "than" object_ref this_duration
 
 /* 1 cards, level:operation, e.g. At the beginning of your upkeep, you may exile any number of tokens created with this creature. If y */
-/* @sem Operation::PayCost{player:AbilityController, cost:_{parts:[Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:MadeBy($object_ref)}, choose:AnyNumber}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true} */
+/* @sem Operation::PayCost{player:AbilityController, cost:_{parts:[Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Token, MadeBy($object_ref)])}, choose:AnyNumber}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true} */
 m_you_may_exile_any_number_of_tokens ::= "you" "may" "exile" "any" "number" "of" "tokens" "created" "with" object_ref
 
 /* 1 cards, level:operation, e.g. [−2]: Conjure a card named Lumbering Lightshield onto the battlefield. */
@@ -17559,7 +17559,7 @@ m_each_opponent_may_scry_value ::= "each" "opponent" "may" "scry" value
 
 
 /* 2 cards, level:plural, e.g. When this enchantment leaves the battlefield, destroy all tokens created with this enchantment. They */
-/* @sem ObjectFilter::MadeBy($object_ref) */
+/* @sem ObjectFilter::AllOf([Token, MadeBy($object_ref)]) */
 m_tokens_created_with_object_ref ::= "tokens" "created" "with" object_ref
 
 /* 2 cards, level:operation, e.g. Each creature deals damage to itself equal to its power. */
@@ -20270,7 +20270,7 @@ m_event_clause_that_player_adds_value_mana_of_s1 ::= "that" "player" "adds" valu
 m_players_singular_chooses_a_number_of_affected_they_3_s1 ::= players_singular "chooses" "a" "number" "of" affected "they" "control" "equal" "to" "the" "number" "of" filter_plural "controlled" "by" "the" "player" "who" "controls" "the" "fewest" "," "then" "sacrifices" "the" "rest" "." "players" "sacrifice" affected "and" "discard" "cards" "the" "same" "way"
 
 /* 1 cards, level:instruction, e.g. When this creature enters, each player who controls fewer lands than the player who controls the mos */
-/* @sem Instruction::[Effect{result:@next, operation:BindValue{value:AmongPlayers{players:$players_singular, number:Permanents($filter_plural), aggregation:Maximum}}}, ForEachPlayer{players:Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural_2, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Less, value:BoundValue(0)}}}, binding:0, body:_{instructions:[Effect{result:@next, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[_{filter:$filter_phrase, count:UpTo(Subtract(CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural_2, ControlledBy(One(Bound(0)))])}), BoundValue(@prior)))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(Bound(0)), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
+/* @sem Instruction::[Effect{result:@next, operation:BindValue{value:AmongPlayers{players:$players_singular, number:Permanents($filter_plural), aggregation:Maximum}}}, ForEachPlayer{players:Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural_2, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Less, value:BoundValue(0)}}}, binding:0, body:_{instructions:[Effect{result:@next, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[_{filter:$filter_phrase, count:UpTo(Subtract(BoundValue(@prior), CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural_2, ControlledBy(One(Bound(0)))])})))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(Bound(0)), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
 m_event_clause_players_singular_who_controls_fewer_filter_plural_than_s1 ::= players_singular "who" "controls" "fewer" filter_plural "than" "the" "player" "who" "controls" "the" "most" filter_plural "searches" "their" "library" "for" "a" "number" "of" filter_phrase "cards" "less" "than" "or" "equal" "to" "the" "difference" "," "puts" "those" "cards" "onto" "the" "battlefield" "tapped" "," "then" "shuffles"
 
 /* 1 cards, level:instruction, e.g. When this creature enters, choose target creature an opponent controls, then roll a d20. / 1—9 | Tap */

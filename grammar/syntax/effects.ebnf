@@ -330,8 +330,14 @@ instead_draw ::= instead_draw_action "." NEWLINE? "if" condition "," instead_dra
 /* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_life_action_2}, otherwise:Program{instructions:$instead_life_action}}] */
 instead_life ::= instead_life_action "." NEWLINE? "if" condition "," instead_life_action "instead"
 
-/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_mana_action_2}, otherwise:Program{instructions:$instead_mana_action}}] */
-instead_mana ::= instead_mana_action "." NEWLINE? "if" condition "," instead_mana_action "instead"
+instead_mana ::= instead_mana_replaced | instead_mana_may
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_mana_required}, otherwise:Program{instructions:$instead_mana_action}}] */
+instead_mana_replaced ::= instead_mana_action "." NEWLINE? "if" condition "," instead_mana_required "instead"
+instead_mana_required ::= mana_clause_plain | mana_clause_plain_you
+/* Declining an optional replacement keeps the first production, so the
+   condition offers both (CR 614.1a, 616.1). */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Optional{decider:$player_ref_2, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One($player_ref_2), mana:ManaProduction::ChooseOne([$mana_production, $mana_production_2])}}]}}]}, otherwise:Program{instructions:[Optional{decider:$player_ref, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One($player_ref), mana:$mana_production}}]}}]}}] */
+instead_mana_may ::= player_ref "may" "add" ("an" "additional")? mana_production "." NEWLINE? "if" condition "," player_ref "may" "add" ("an" "additional")? mana_production "instead"
 
 /* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_destroy_action_2}, otherwise:Program{instructions:$instead_destroy_action}}] */
 instead_destroy ::= instead_destroy_action "." NEWLINE? "if" condition "," instead_destroy_action "instead"

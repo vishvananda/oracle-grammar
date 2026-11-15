@@ -68,8 +68,15 @@ pub enum Instruction {
     /// `amount` is a total-run cap, not an unconditional iteration count.
     RepeatableWithLimit { amount: Expr, body: Program },
     /// Run `body` once for each of these objects, read as `ObjectRef::Bound`.
-    /// The binding stays local; immediate body results are gathered for later
-    /// reads. This does not turn separate child instructions into one batch.
+    /// The objects are fixed as the loop begins; a later change to the set adds
+    /// or removes no runs. The binding stays local; immediate body results are
+    /// gathered for later reads. This does not turn separate child instructions
+    /// into one batch.
+    ///
+    /// The set has no order of its own (101.4, 101.4c). Runs whose first choice
+    /// or payment is a player's are grouped by that player in APNAP order, and
+    /// each player picks the order of their own runs. Runs that ask nobody run
+    /// in an order this ability's controller picks.
     ForEachObject {
         objects: ObjectSet,
         binding: LoopBinding,
