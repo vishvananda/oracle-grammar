@@ -1,3 +1,4 @@
+import fcntl
 import multiprocessing
 import os
 from pathlib import Path
@@ -63,19 +64,54 @@ class LeaseTests(unittest.TestCase):
                     pass
         release.set()
 
-    def test_waiting_bundle_releases_partial_tokens(self):
+    def wait_for_priority(self):
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            try:
+                with (self.root/'priority.lock').open('a') as gate:
+                    fcntl.flock(gate, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return
+            time.sleep(0.02)
+        self.fail('large waiter never acquired priority')
+
+    def test_waiting_large_bundle_blocks_new_small_bundles_until_acquired(self):
         ready, release = multiprocessing.Event(), multiprocessing.Event()
-        self.start(holder, self.root, 1, 3, ready, release)
+        self.start(holder, self.root, 5, 8, ready, release)
         self.assertTrue(ready.wait(5))
         waiting, acquired, finish = (multiprocessing.Event() for _ in range(3))
-        self.start(waiting_bundle, self.root, 3, 3, waiting, acquired, finish)
+        self.start(waiting_bundle, self.root, 4, 8, waiting, acquired, finish)
         self.assertTrue(waiting.wait(5))
-        time.sleep(0.5)
-        with retire_cpu.reserve(self.root, 2, 3, wait=False):
-            self.assertFalse(acquired.is_set())
+        self.wait_for_priority()
+        for _ in range(3):
+            with self.assertRaises(BlockingIOError):
+                with retire_cpu.reserve(self.root, 2, 8, wait=False):
+                    pass
+        # The waiter returned partial scans; it does not hold otherwise free tokens.
+        with (self.root/'token-05.lock').open('a') as token:
+            fcntl.flock(token, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        self.assertFalse(acquired.is_set())
         release.set()
         self.assertTrue(acquired.wait(5))
+        # Priority is released once the large bundle is acquired; headroom is usable.
+        with retire_cpu.reserve(self.root, 2, 8, wait=False) as tokens:
+            self.assertEqual(len(tokens), 2)
         finish.set()
+
+    def test_dead_large_waiter_releases_priority_gate(self):
+        ready, release = multiprocessing.Event(), multiprocessing.Event()
+        self.start(holder, self.root, 5, 8, ready, release)
+        self.assertTrue(ready.wait(5))
+        waiting, acquired, finish = (multiprocessing.Event() for _ in range(3))
+        child = self.start(waiting_bundle, self.root, 4, 8, waiting, acquired, finish)
+        self.assertTrue(waiting.wait(5))
+        self.wait_for_priority()
+        child.terminate()
+        child.join(5)
+        self.assertFalse(child.is_alive())
+        with retire_cpu.reserve(self.root, 2, 8, wait=False) as tokens:
+            self.assertEqual(len(tokens), 2)
+        release.set()
 
     def test_inherited_fd_survives_reserver_exit(self):
         # The intermediate process exits without unlocking; the helper remains

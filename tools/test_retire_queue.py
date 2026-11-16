@@ -137,6 +137,40 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(self.queue.claim("other", kinds=["author"])["job"]["id"], "author")
         self.assertEqual([event["kind"] for event in self.queue.audit()].count("split"), 1)
 
+    def test_progress_matches_coverage_through_lifecycle(self):
+        def equivalent():
+            detailed, progress = self.queue.coverage(), self.queue.progress()
+            for key in ("total_rules", "counts", "accepted_rules", "checkpoint"):
+                self.assertEqual(progress[key], detailed[key])
+            jobs = {}
+            for job in detailed["jobs"]:
+                jobs[job["status"]] = jobs.get(job["status"], 0) + 1
+            self.assertEqual(progress["job_counts"], jobs)
+        equivalent()
+        self.add(2)
+        equivalent()
+        self.queue.split_pending("job0", [{"id": "split1", "rules": ["r0a"]},
+                                          {"id": "split2", "rules": ["r0b"]}], "proof")
+        equivalent()
+        first = self.queue.claim("first")
+        equivalent()
+        self.queue.finish(first["attempt_id"], "provisional-pass", "proof", self.passed(first))
+        equivalent()
+        self.queue.accept_jobs([first["job"]["id"]], "base", "gates")
+        equivalent()
+        second = self.queue.claim("second")
+        self.queue.finish(second["attempt_id"], "failed", "proof", self.passed(second))
+        equivalent()
+        lease = self.path.parent / "leases" / second["job"]["id"]
+        lease.parent.mkdir()
+        lease.touch()
+        proof = {"launch_not_attempted": True, "controller_terminal": {
+            "unit": "test", "invocation": "id", "verification": {"inactive": True}}}
+        self.queue.retry_unstarted(second["job"]["id"], second["attempt_id"], proof)
+        equivalent()
+        self.queue.add_checkpoint("new", "proof", expected_parent="base")
+        equivalent()
+
     def test_retry_requires_terminal_process_released_lease_and_preserves_history(self):
         self.add()
         claim = self.queue.claim("worker")

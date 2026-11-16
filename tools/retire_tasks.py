@@ -76,10 +76,14 @@ def _paths(source, job):
     if discovery:
         modules = {f'grammar/syntax/{name}.ebnf' for name in ('actions', 'nouns', 'conditions', 'events')
                    if (source/f'grammar/syntax/{name}.ebnf').is_file()}
+    hints = sorted(modules)
+    # Any existing runtime syntax module may be needed for a compositional fix.
+    modules = {p.relative_to(source).as_posix() for p in (source/'grammar/syntax').glob('*.ebnf')
+               if p.is_file() and p.name != 'mined.ebnf'}
     # Both seeded files may contain hooks referring to the assigned rule.
     seeded = {f'grammar/{kind}/mined.ebnf' for kind in ('syntax', 'tail')
               if (source/f'grammar/{kind}/mined.ebnf').is_file()}
-    return fixture, edits, sorted(modules | seeded | {fixture, edits}), discovery
+    return fixture, edits, sorted(modules | seeded | {fixture, edits}), discovery, hints
 
 
 _PACKET_LOCK = RLock()
@@ -152,7 +156,7 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
     run = campaign/'.cache/attempts'/attempt
     checkout = campaign/'workspaces'/attempt
     r.require(not checkout.exists(), 'attempt checkout already exists')
-    fixture, edits, write_files, discovery = _paths(source, job)
+    fixture, edits, write_files, discovery, hints = _paths(source, job)
     packet = _packet(inputs, job, cohort_detail)
     run.mkdir(parents=True, exist_ok=False)
     created_checkout = False
@@ -185,11 +189,14 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
         task = dict(job, model=job.get('model', 'gpt-6.1-terra'), effort=job.get('effort', 'high'),
                     checkout=str(checkout), fixture=fixture, edits=edits,
                     hooks='.cache/author-hooks.json', write_files=write_files,
+                    allowedwritepaths=write_files, module_hints=hints,
                     module_discovery_required=discovery, cohort=cohort_detail['names'],
                     cohort_detail=cohort_detail, packet=str(run/'packet.json'),
                     rule_dispositions_required=job['rules'], max_diagnostic_attempts=3,
                     wall_budget_seconds=900, helper_threads=2,
                     cpu_pool=str(campaign/'cpu'), cpu_capacity=32)
+        task['goal'] = (task['goal'] + ' Start with module_hints; related runtime syntax modules may be edited. '
+                        'Request root dispatch hooks through .cache/author-hooks.json.')
         if reuse:
             task['reuse'] = reuse
             task['goal'] = ('Private checkout starts with a prior infrastructure-tainted candidate; '

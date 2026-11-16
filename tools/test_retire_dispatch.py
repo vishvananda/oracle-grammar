@@ -3,6 +3,7 @@ from contextlib import redirect_stdout
 import io
 import sys
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,6 +15,7 @@ from unittest.mock import patch
 
 import retire as r
 import retire_batch
+import retire_cpu
 import retire_dispatch as dispatch
 import retire_tasks
 
@@ -86,6 +88,53 @@ class DispatchCanaries(unittest.TestCase):
                 child.terminate()
                 child.wait()
                 child.stdout.close()
+
+    def test_checkpoint_scan_reserves_cpu_and_inherits_batch_guard(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cp = {'cpu_pool': str(root/'cpu'), 'cpu_capacity': 16, 'audit_threads': 16}
+            child_code = """
+import fcntl, os, pathlib, sys
+sys.path.insert(0, sys.argv[1])
+import retire_cpu
+for fd in map(int, sys.argv[4:]):
+    os.fstat(fd)
+try:
+    with retire_cpu.reserve(pathlib.Path(sys.argv[2]), 1, 16, wait=False):
+        raise AssertionError('CPU pool was not held')
+except BlockingIOError:
+    pass
+with open(sys.argv[3], 'a') as guard:
+    try:
+        fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        raise AssertionError('batch guard was not held')
+    except BlockingIOError:
+        pass
+"""
+            for fail in (False, True):
+                def scan(args):
+                    self.assertEqual(args.run, root/'inputs')
+                    self.assertIsNone(args.rules)
+                    fds = tuple(r._LEASES)
+                    self.assertEqual(len(fds), 17)
+                    paths = [os.readlink(f'/proc/self/fd/{fd}') for fd in fds]
+                    self.assertEqual(sum('/token-' in path for path in paths), 16)
+                    self.assertIn(str(root/'batch.lock'), paths)
+                    subprocess.run([sys.executable, '-c', child_code, str(Path(retire_cpu.__file__).parent),
+                                    cp['cpu_pool'], str(root/'batch.lock'), *map(str, fds)],
+                                   pass_fds=fds, check=True)
+                    if fail:
+                        raise RuntimeError('scan failed')
+                with patch.object(dispatch.r, 'scan', side_effect=scan), \
+                        patch.object(dispatch, '_batch', side_effect=lambda _: dispatch.scan_checkpoint(root/'inputs', cp)):
+                    if fail:
+                        with self.assertRaisesRegex(RuntimeError, 'scan failed'):
+                            dispatch.batch(root)
+                    else:
+                        dispatch.batch(root)
+                self.assertEqual(r._LEASES, [])
+                with retire_cpu.reserve(root/'cpu', 16, 16, wait=False) as fds:
+                    self.assertEqual(len(fds), 16)
 
     def test_real_mechanical_task_report_and_batch_stage(self):
         with tempfile.TemporaryDirectory() as temporary:

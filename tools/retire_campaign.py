@@ -72,6 +72,7 @@ def prepare(args):
     config = {'format': 1, 'workers': args.workers, 'model': 'gpt-6.1-terra', 'effort': 'high',
               'max_diagnostic_attempts': 3, 'wall_budget_seconds': 900,
               'cpu_capacity': 32, 'batch_size': 48, 'first_batch_size': 12, 'batch_wait_seconds': 900,
+              'audit_threads': getattr(args, 'audit_threads', 16),
               'initial_commit': commit, 'expected_rules': sorted(plan['manifest']['expected_rules']),
               'source_repo': str(source), 'main_repo': str(args.main.resolve()),
               'target_dir': str(args.target.resolve()), 'scope': 'complete first pass; failures remain for deeper review'}
@@ -108,6 +109,7 @@ def main():
     for name in ('source','helpers','baseline','gold','oracle','allowed','main','target'):
         p.add_argument('--'+name, type=Path, required=True)
     p.add_argument('--workers', type=int, default=12, choices=range(1,13))
+    p.add_argument('--audit-threads', type=int, default=16, choices=(16,24))
     p.add_argument('--usage-estimator', type=Path)
     p.add_argument('--pricing', type=Path)
     for name in ('run','status'):

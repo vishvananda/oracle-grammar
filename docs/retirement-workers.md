@@ -15,6 +15,10 @@ lane; uncertain cohorts, retained users and failed checks remain for review.
 Workers do not write shared grammar, model or reference files. Their descriptor
 bounds the writable files; ordinary root hooks are registered explicitly, and
 seeded removals use `mined.remove` rather than manual hook edits.
+Workers start with the inferred module hints and may compose changes across the
+existing runtime syntax modules. Direct changes to the protected `ability`,
+`line` and `event_clause` dispatchers are rejected; typed hook requests supply
+their additions. Lexical, model and reference files remain outside the write set.
 
 The SQLite queue records the exact inventory, atomic claims, immutable attempt
 results and an append-only audit. Running work has no time-based expiry: an
@@ -32,7 +36,11 @@ are parked with their reason. The first batch targets 12 proposals, later batche
 its family checks, full audit and repository gates pass. A failed combined audit
 is evidence about the batch; it does not identify an individual culprit.
 
-One full audit runs at a time, using 24 tokens from a shared 32-token CPU pool.
+One full audit runs at a time, reserving 16 tokens by default from a shared
+32-token CPU pool; a 24-thread option is also supported. Helpers reserve two
+tokens through verified wrappers. A pending large allocation temporarily stops
+new small allocations; after it acquires its tokens, workers may use the remaining
+capacity. Checkpoint rule scans use the same reservation mechanism.
 For the current explicitly allowed population, that means all 32,755
 occurrences: preserve every native reading and every baseline-successful
 verified, exact keyed, default and exact-default print gate. The population and
@@ -53,7 +61,15 @@ python3 tools/retire_campaign.py prepare CAMPAIGN --source CHECKOUT --helpers HE
   --gold GOLD --oracle ORACLE --allowed ALLOWED --baseline BASELINE \
   --main MAIN_CHECKOUT --target CARGO_TARGET
 python3 tools/retire_campaign.py status CAMPAIGN
+python3 tools/retire_observe.py CAMPAIGN
 ```
+
+The read-only observer separates model time from claim-to-finish slot time and
+reports every retained attempt, including verified infrastructure retries.
+Provisional candidates, accepted rules and parked reviews remain separate.
+For a controlled runner upgrade, write a reason to `CAMPAIGN/drain.json`; the
+controller finishes active attempts without claiming new work. Verify its process
+is terminal before replacing the runner or removing the drain request.
 
 This describes the campaign workflow, not evidence that a campaign has started
 or completed. See [the authoring pilot](retirement-authoring-pilot-20261116.md)

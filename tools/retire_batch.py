@@ -277,6 +277,11 @@ def _validate(manifest, checkpoint, slots):
     """Freeze and run full allowed-population and repository gates for a candidate."""
     if manifest.get('status') != 'provisional':
         raise ValueError('only a provisional candidate can be validated')
+    threads = checkpoint.get('audit_threads', 24)
+    capacity = checkpoint.get('cpu_capacity', 32)
+    if (type(threads) is not int or not 16 <= threads <= 24
+            or type(capacity) is not int or not threads <= capacity <= 32):
+        raise ValueError('audit threads must be 16–24 and within CPU capacity')
     source = Path(manifest['source']).resolve()
     if (_git(source, 'rev-parse', 'HEAD') != manifest['commit']
             or _git(source, 'status', '--porcelain')
@@ -293,25 +298,28 @@ def _validate(manifest, checkpoint, slots):
                 'scope': 'combined-batch',
                 'included_jobs': [job['job_id'] for job in manifest['jobs'] if job['status'] == 'included'],
                 'baseline_sha256': r.digest(baseline), 'inputs': str(output),
-                'source_checkpoint': checkpoint['commit']}
-    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), 24, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
+                'source_checkpoint': checkpoint['commit'], 'audit_threads': threads,
+                'cpu_capacity': capacity}
+    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, capacity) if checkpoint.get('cpu_pool') else nullcontext(())
     try:
       with lease as fds:
         r._LEASES.extend(fds)
         r.freeze(Namespace(run=output, source=source, helpers=Path(checkpoint['helpers']).resolve(),
-                           slots=1, threads=24, allowed=inputs/'allowed.json', gold=inputs/'gold.jsonl',
+                           slots=1, threads=threads, allowed=inputs/'allowed.json', gold=inputs/'gold.jsonl',
                            oracle=inputs/'oracle.json', parse=baseline, prints=[baseline]))
         data = w.payload(output)
         checks = folder/'full-checks'
         checks.mkdir()
-        report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()], data, 24)
+        report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()], data, threads)
         evidence['full_checks'] = report
         if report['failures']:
             raise ValueError('full allowed-population checks failed')
         # dev.py runs families and library tests concurrently. Divide the lease
         # between those two gates, leaving headroom for the fast gates.
-        gate_env = {**os.environ, 'CARGO_BUILD_JOBS': '20', 'RAYON_NUM_THREADS': '10',
-                    'ORACLE_GRAMMAR_THREADS': '10', 'RUST_TEST_THREADS': '10'}
+        gate_threads = str(max(2, threads//2-2))
+        gate_env = {**os.environ, 'CARGO_BUILD_JOBS': str(max(4, threads-4)),
+                    'RAYON_NUM_THREADS': gate_threads, 'ORACLE_GRAMMAR_THREADS': gate_threads,
+                    'RUST_TEST_THREADS': gate_threads}
         with (folder/'repository-check.log').open('w') as log:
             code = subprocess.run(['python3', 'tools/dev.py', 'check'], cwd=source, env=gate_env,
                                   stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode

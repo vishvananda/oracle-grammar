@@ -421,6 +421,21 @@ class Queue:
     def reject_jobs(self, jobids, evidence):
         self._adjudicate(jobids, "integration-rejected", evidence)
 
+    def progress(self):
+        """Return a consistent aggregate without loading job or rule payloads."""
+        with closing(self._connect()) as db:
+            db.execute("BEGIN")
+            rows = db.execute(
+                "SELECT j.status, count(r.rule), count(DISTINCT j.id) "
+                "FROM jobs j JOIN rules r ON r.job_id=j.id "
+                "WHERE j.status != 'superseded' GROUP BY j.status").fetchall()
+            latest = db.execute("SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1").fetchone()
+            counts = {row[0]: row[1] for row in rows}
+            job_counts = {row[0]: row[2] for row in rows}
+            return {"total_rules": sum(counts.values()), "counts": counts,
+                    "job_counts": job_counts, "accepted_rules": counts.get("accepted", 0),
+                    "checkpoint": latest[0] if latest else None}
+
     def coverage(self):
         with closing(self._connect()) as db:
             db.execute("BEGIN")

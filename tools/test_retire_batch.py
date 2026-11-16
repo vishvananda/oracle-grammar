@@ -41,6 +41,12 @@ class BatchTests(unittest.TestCase):
                     batch.stage(temporary, {'source': temporary, 'commit': 'base'}, [{}] * 96)
 
     def test_validate_reserves_cpu_and_uses_24_threads(self):
+        self._validate_threads(24, False)
+
+    def test_validate_reserves_cpu_and_uses_16_threads(self):
+        self._validate_threads(16, True)
+
+    def _validate_threads(self, expected, configured):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -60,25 +66,39 @@ class BatchTests(unittest.TestCase):
                         'folder': str(folder), 'grammar': batch.r.tree(source/'grammar'), 'jobs': [{'job_id': 'j1', 'status': 'included'}]}
             cp = {'commit': 'base', 'inputs': str(root/'checkpoint'), 'baseline': str(baseline),
                   'helpers': str(root/'helpers'), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
+            if configured:
+                cp['audit_threads'] = expected
             def git(_source, *args):
                 return 'candidate' if args[0] == 'rev-parse' else ''
             def checks(run, directory, grammar, names, data, threads):
-                self.assertEqual(threads, 24)
-                self.assertEqual(len(batch.r._LEASES), 24)
+                self.assertEqual(threads, expected)
+                self.assertEqual(len(batch.r._LEASES), expected)
                 for fd in batch.r._LEASES:
                     os.fstat(fd)
                 (directory/'rows.jsonl').write_text('rows')
                 return {'failures': []}
             def gate(*args, **kwargs):
-                self.assertEqual(len(kwargs['pass_fds']), 24)
+                self.assertEqual(len(kwargs['pass_fds']), expected)
+                self.assertEqual(kwargs['env']['CARGO_BUILD_JOBS'], str(expected - 4))
+                for name in ('RAYON_NUM_THREADS', 'ORACLE_GRAMMAR_THREADS', 'RUST_TEST_THREADS'):
+                    self.assertEqual(kwargs['env'][name], str(expected//2-2))
                 return SimpleNamespace(returncode=0)
-            with patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze'), patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks), patch.object(batch.subprocess, 'run', side_effect=gate):
+            with patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze') as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks), patch.object(batch.subprocess, 'run', side_effect=gate):
                 result = batch.validate(manifest, cp)
+            self.assertEqual(freeze.call_args.args[0].threads, expected)
+            self.assertEqual(freeze.call_args.args[0].slots, 1)
             self.assertEqual(result['status'], 'passed')
             self.assertEqual(result['scope'], 'combined-batch')
+            self.assertEqual(result['audit_threads'], expected)
             self.assertEqual(result['included_jobs'], ['j1'])
             self.assertEqual(result['inputs'], str(folder/'validation-inputs'))
             self.assertEqual(batch.r._LEASES, [])
+
+    def test_validate_rejects_unsafe_audit_thread_budgets(self):
+        manifest = {'status': 'provisional'}
+        for threads, capacity in ((15, 32), (25, 32), (16, 15), (True, 32), (16, 33)):
+            with self.subTest(threads=threads, capacity=capacity), self.assertRaises(ValueError):
+                batch._validate(manifest, {'audit_threads': threads, 'cpu_capacity': capacity}, 12)
 
     def test_mechanical_stages_without_fixtures_and_reuses_clean_workspace(self):
         import shutil

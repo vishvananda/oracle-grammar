@@ -249,8 +249,12 @@ def proposals(run, count):
 
 def batch(run):
     try:
-        with lease(run/'batch.lock'):
-            return _batch(run)
+        with lease(run/'batch.lock') as fd:
+            r._LEASES.append(fd)
+            try:
+                return _batch(run)
+            finally:
+                r._LEASES.remove(fd)
     except BlockingIOError:
         return
 
@@ -259,6 +263,7 @@ def _batch(run):
     queue=Queue(run/'queue.sqlite')
     cp=campaign_api.checkpoint(run,queue.coverage()['checkpoint'])
     config=r.read(run/'config.json')
+    cp=dict(cp,audit_threads=config.get('audit_threads',24))
     limit=config['first_batch_size'] if cp['commit']==config['initial_commit'] else config['batch_size']
     items=proposals(run,limit)
     if not items:
@@ -281,13 +286,23 @@ def _batch(run):
     source.parent.mkdir(parents=True)
     subprocess.run(['git','worktree','add','--detach',str(source),commit],cwd=cp['source'],check=True)
     inputs=Path(result['inputs'])
-    r.scan(argparse.Namespace(run=inputs,rules=None))
+    scan_checkpoint(inputs,cp)
     next_cp=dict(cp,commit=commit,source=str(source),inputs=str(inputs),baseline=result['rows'])
     campaign_api.save_checkpoint(run,next_cp)
     queue.advance_and_accept(commit,cp['commit'],included,{'manifest':manifest['id'],'validation':result})
     reclassify(run,next_cp)
     r.write(run/'latest-checkpoint.json',next_cp)
     publish_main(run, cp, next_cp, manifest)
+
+
+def scan_checkpoint(inputs, cp):
+    with retire_cpu.reserve(Path(cp['cpu_pool']),cp.get('audit_threads',24),cp.get('cpu_capacity',32)) as fds:
+        r._LEASES.extend(fds)
+        try:
+            r.scan(argparse.Namespace(run=inputs,rules=None))
+        finally:
+            for fd in fds:
+                r._LEASES.remove(fd)
 
 
 def publish_main(run, previous, current, manifest):
@@ -366,7 +381,7 @@ def run_campaign(run):
                     for future in finished:
                         future.result()
                         del futures[future]
-                coverage=queue.coverage()
+                coverage=queue.progress()
                 pending=coverage['counts'].get('pending',0)
                 limit=config['first_batch_size'] if coverage['checkpoint']==config['initial_commit'] else config['batch_size']
                 ready=queue.get_jobs('provisional-pass',limit=limit)

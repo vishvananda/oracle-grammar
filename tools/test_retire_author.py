@@ -65,6 +65,64 @@ class AuthoringTests(unittest.TestCase):
             self.assertEqual((Path(result['backups'])/'syntax/mined.ebnf').read_text(),
                              'broken dangling hook\n')
 
+    def test_root_hooks_reject_direct_edits_even_in_an_allowed_syntax_module(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, root = Path(tmp)/'run', Path(tmp)/'worker'
+            base = run/'inputs/frozen'
+            for directory in (base/'grammar/syntax', root/'grammar/syntax',
+                              run/'tasks', run/'support/runner'):
+                directory.mkdir(parents=True)
+            original = ('/* @sem Ability::$existing */\nability ::= existing\n'
+                        'line ::= existing_line\nevent_clause ::= existing_event\n')
+            for folder in (base, root):
+                (folder/'grammar/syntax/card.ebnf').write_text(original)
+                (folder/'grammar/syntax/events.ebnf').write_text(
+                    '/* @sem Ability::Triggered{} */\nshared_trigger ::= "at"\n')
+            descriptor = run/'tasks/task.json'
+            r.write(descriptor, {'checkout': str(root), 'write_files': ['grammar/syntax/card.ebnf']})
+            shutil.copy2(Path(a.__file__), run/'support/runner/retire_author.py')
+            r.write(run/'support.json', {'files': r.tree(run/'support'),
+                                        'tasks': {'task': r.digest(descriptor)}})
+            mock_manifest = {'commit': 'base', 'source': 'compiled'}
+            def command(args, **kwargs):
+                return 'base\n' if 'rev-parse' in args else ''
+            with patch.object(r, 'verify', return_value=mock_manifest), \
+                 patch.object(a.dev, 'source', return_value='compiled'), \
+                 patch.object(a.subprocess, 'check_output', side_effect=command), \
+                 patch.object(a, 'changed_files', return_value=['grammar/syntax/card.ebnf']):
+                a.verify(run, 'task')
+                with (root/'grammar/syntax/events.ebnf').open('a') as stream:
+                    stream.write('/* @sem EventSpec::Attack */\nnew_event ::= "attacks"\n')
+                a.check_root_hooks(base, root)
+                (root/'grammar/syntax/card.ebnf').write_text(original.replace(
+                    'ability ::= existing', 'ability ::= existing | shared_trigger'))
+                with self.assertRaisesRegex(ValueError, 'direct root'):
+                    a.verify(run, 'task')
+                (root/'grammar/syntax/card.ebnf').write_text(original.replace(
+                    'ability ::= existing', 'ability ::=   existing'))
+                a.verify(run, 'task')
+            # The same addition is accepted through the typed diagnostic hook.
+            a.check_root_hooks(base, root)
+            a.apply_hooks(root/'grammar', [{'root': 'ability', 'production': 'shared_trigger'}])
+            self.assertIn('existing | shared_trigger', (root/'grammar/syntax/card.ebnf').read_text())
+
+    def test_root_hook_semantics_and_locations_cannot_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base, root = Path(tmp)/'base', Path(tmp)/'worker'
+            for folder in (base, root):
+                (folder/'grammar/syntax').mkdir(parents=True)
+                (folder/'grammar/syntax/card.ebnf').write_text(
+                    '/* @sem Ability::$original */\nability ::= original\n')
+            path = root/'grammar/syntax/card.ebnf'
+            path.write_text(path.read_text().replace('$original', '$different'))
+            with self.assertRaisesRegex(ValueError, 'direct root'):
+                a.check_root_hooks(base, root)
+            path.write_text('')
+            (root/'grammar/syntax/moved.ebnf').write_text(
+                '/* @sem Ability::$original */\nability ::= original\n')
+            with self.assertRaisesRegex(ValueError, 'direct root'):
+                a.check_root_hooks(base, root)
+
     def test_ordinary_hook_registration_is_typed_and_rejects_mined_roots(self):
         with tempfile.TemporaryDirectory() as tmp:
             grammar = Path(tmp)/'grammar'

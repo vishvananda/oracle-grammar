@@ -26,7 +26,8 @@ class TaskTests(unittest.TestCase):
         for directory in ('grammar/syntax', 'grammar/tail', 'families', 'tests/fixtures'):
             (self.source/directory).mkdir(parents=True)
         for path in ('grammar/syntax/mined.ebnf', 'grammar/tail/mined.ebnf',
-                     'grammar/syntax/actions.ebnf'):
+                     'grammar/syntax/actions.ebnf', 'grammar/syntax/library.ebnf',
+                     'grammar/syntax/nouns.ebnf', 'grammar/lexical.ebnf'):
             (self.source/path).write_text('original\n')
         (self.source/'.gitignore').write_text('.cache/\n')
         self.git('init', '-q')
@@ -93,6 +94,15 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(support['packet_sha256'], r.digest(run/'packet.json'))
         self.assertEqual(support['files'], r.tree(run/'support'))
         self.assertEqual(descriptor['rule_dispositions_required'], ['m_one'])
+        self.assertEqual(descriptor['module_hints'], ['grammar/syntax/actions.ebnf'])
+        self.assertIn('grammar/syntax/library.ebnf', descriptor['write_files'])
+        self.assertIn('grammar/syntax/nouns.ebnf', descriptor['write_files'])
+        self.assertIn('grammar/syntax/mined.ebnf', descriptor['write_files'])
+        self.assertIn('grammar/tail/mined.ebnf', descriptor['write_files'])
+        self.assertNotIn('grammar/lexical.ebnf', descriptor['write_files'])
+        self.assertNotIn('crates/oracle-ir/src/lib.rs', descriptor['write_files'])
+        self.assertEqual(descriptor['allowedwritepaths'], descriptor['write_files'])
+        self.assertIn('root dispatch hooks', descriptor['goal'])
         self.assertEqual(descriptor['max_diagnostic_attempts'], 3)
         self.assertEqual(descriptor['model'], 'gpt-6.1-terra')
         self.assertEqual(descriptor['effort'], 'high')
@@ -211,6 +221,7 @@ class TaskTests(unittest.TestCase):
         task = r.read(Path(result['run'])/'tasks/job-123.json')
         self.assertTrue(task['module_discovery_required'])
         self.assertIn('grammar/syntax/actions.ebnf', task['write_files'])
+        self.assertIn('grammar/syntax/nouns.ebnf', task['module_hints'])
         self.assertNotIn('grammar/syntax/nonexistent.ebnf', task['write_files'])
 
 

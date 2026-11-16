@@ -4,6 +4,7 @@ import argparse
 import copy
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -113,6 +114,34 @@ def apply_hooks(grammar, requests):
     return requests
 
 
+ROOT_HOOKS = ('ability', 'line', 'event_clause')
+# Preserve quoted text and identifier boundaries while ignoring layout whitespace.
+ROOT_TOKEN = re.compile(r'''"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[A-Za-z_]\w*|\d+|[^\s]''')
+
+
+def root_declarations(root):
+    """Return locations and whitespace-insensitive declarations of protected hooks."""
+    found = {name: [] for name in ROOT_HOOKS}
+    for path in mined.grammar_files(root):
+        lines = path.read_text().splitlines()
+        definitions = mined.definitions(lines)
+        for index, line, owner, comments in mined.code(lines):
+            if owner not in found or not mined.DEFINITION.match(line):
+                continue
+            prefix = '\n'.join(lines[n] for n in comments)
+            sem = re.findall(r'@sem\s+(.*?)(?:\*/)', prefix, re.S)
+            code = '\n'.join(line for _, line in definitions[owner])
+            tokens = tuple(ROOT_TOKEN.findall(code))
+            meanings = tuple(tuple(ROOT_TOKEN.findall(item)) for item in sem)
+            found[owner].append((path.relative_to(root).as_posix(), tokens, meanings))
+    return found
+
+
+def check_root_hooks(base, root):
+    r.require(root_declarations(base) == root_declarations(root),
+              'direct root dispatch edits are forbidden; request typed hooks')
+
+
 def verify(run, task_id):
     support = r.read(run/'support.json')
     r.require(r.tree(run/'support') == support['files'], 'trial tooling or helpers changed')
@@ -129,6 +158,7 @@ def verify(run, task_id):
     r.require(not subprocess.check_output(['git', 'diff', '--cached', '--name-only'], cwd=root),
               'workers cannot stage or commit')
     r.require(set(changed_files(root)) <= set(task['write_files']), 'worker exceeded its write set')
+    check_root_hooks(run/'inputs/frozen', root)
     return task, root, manifest
 
 
