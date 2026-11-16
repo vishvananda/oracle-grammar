@@ -249,15 +249,19 @@ fn rewritten(node: &Value, scope: &Frame, lower: bool) -> Option<Value> {
         "value":{"kind":"Constant","args":0}}});
     match kind(node) {
         "Compare" if lower && args["test"] == above_zero => {
-            let matching = &args["left"]["args"];
-            let set = &matching["args"]["objects"];
+            let counted = &args["left"]["args"];
+            let any = json!({"kind":"Any"});
+            let (set, filter) = if kind(counted) == "Matching" {
+                (&counted["args"]["objects"], &counted["args"]["filter"])
+            } else {
+                (counted, &any)
+            };
             (kind(&args["left"]) == "CountObjects"
-                && kind(matching) == "Matching"
                 && kind(set) == "Transition"
                 && scope.transition(&set["args"]).one)
                 .then(|| {
                     json!({"kind":"ObjectMatches","args":{"object":receipt(&set["args"]),
-                        "filter":matching["args"]["filter"]}})
+                        "filter":filter}})
                 })
         }
         "Aggregate" if lower && args["aggregation"] == "Sum" => {

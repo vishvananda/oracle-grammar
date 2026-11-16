@@ -553,12 +553,15 @@ the IR path, the value it replaces and why.
   Gustha's Scepter, Northampton Farm, Vault 13 and Ugin's Labyrinth are removed
   with the exact same-zone proof. Historical arrival guards remain distinct.
 - `U0071` (normalization, #33): Chandra retains its already-proved singleton
-  result without a vacuous filter; Esper Maduin moves its explicit observation
-  immediately after a pure condition with the same library player.
+  result without a vacuous filter; 49 immediate branch moves on 32 explicitly
+  named faces, including Esper Maduin, use their own reveal observations.
 - `U0072` (correction, #19): Naked Singularity and Reality Twist each keep one
   replacement identity and choose among applicable outputs for the full amount.
 - `U0073` (correction, #20): Tetravus keeps Token and uses the creating ability's
   linked text/acquisition, rather than every creation by the source object.
+  The same explicit creation links cover Arcane Artisan, Dual Nature, Saproling
+  Burst, Tombstone Stairwell and Faerie Artisans; Faerie excludes its whole
+  current creation batch.
 - `U0074` (correction, #21): Krovikan Vampire tests pre-death views and projects
   their first surviving graveyard incarnations when its query resolves.
 - `U0075` (correction, #22): Wood Elemental counts linked historical entry

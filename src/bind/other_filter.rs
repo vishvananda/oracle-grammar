@@ -29,7 +29,15 @@ pub(super) fn resolve(scope: &Scope, filter: &Value) -> Result<Value, String> {
                 .map(|(_, part)| part.clone())
                 .collect(),
         );
-        if qualified::created_matches(scope, result, &domain) {
+        let linked_batch = domain["kind"] == "AllOf"
+            && domain["args"].as_array().is_some_and(|parts| {
+                parts.len() == 2
+                    && parts.contains(&json!({"kind":"Token"}))
+                    && parts.contains(&json!({"kind":"CreatedWith","args":{"kind":"Source"}}))
+            });
+        if qualified::created_matches(scope, result, &domain)
+            || linked_batch && qualified::created_matches(scope, result, &json!({"kind":"Any"}))
+        {
             changed["args"][index] = json!({"kind":"Not","args":{
                 "kind":"InSet","args":{"kind":"Created","args":result}
             }});

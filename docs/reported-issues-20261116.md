@@ -48,9 +48,13 @@ creating ability of the same source object is insufficient. Separately acquired
 copies and unrelated granted abilities never share the relation.
 
 The relation can include nontoken objects put onto the battlefield. Tetravus's
-selector therefore remains `Token ∩ CreatedWith(Source)`. U0073 replaces only the
-too-broad creation relation, retaining its optional exile payment and the actual
-payment quantity used for counters. `MadeBy` remains broad, and `Created(result)`
+selector therefore remains `Token ∩ CreatedWith(Source)`. U0073 replaces the broad relation on Tetravus, Arcane Artisan, Dual Nature,
+Saproling Burst and Tombstone Stairwell, retaining the actual payment and creation
+receipts. Faerie Artisans uses the same acquisition-bound creation population and
+excludes the whole current Created receipt, even if replacements create several
+tokens; neither a source exclusion nor an index-zero exclusion is sufficient.
+A deferred program captures its enclosing linked text/acquisition when created,
+rather than searching for a new link when the delayed trigger later resolves. `MadeBy` remains broad, and `Created(result)`
 still refers to a receipt from the current resolution. Neither is an alias for
 the new linked relation.
 
@@ -162,12 +166,27 @@ is proved Any; nonvacuous predicates remain required.
 
 ## Evidence and validation
 
-The focused fixture contains the 19 explicitly allowed reported/control faces.
-The registered families add the 32 observation-proof faces and two raw mana
-reminder faces with two altered-reminder refusal controls.
+The focused fixture contains 24 explicitly allowed reported/control faces.
+Tombstone Stairwell's native card-context print gap also reproduces with the
+immutable 0.2.14 helper. Its new linked meaning and sole reading remain checked;
+the full prepared-reference audit checks its wording separately.
+The observation regression checks all 32 native reading sets and 31 native
+wording/default prints. Hans Eriksson's native card-context printing gap was
+reproduced using the immutable 0.2.14 helper; its expected meaning remains checked,
+and the separate prepared-reference print audit still checks its exact/default
+wording. The registered mana family checks two raw reminder faces and two
+altered-reminder refusal controls.
 Regressions exercise corrected native readings, encoded relations, exact wording,
 verified defaults, edited operands, intrinsic comparisons and schema-191 origin
 migration. The full unsealed audit remains separate from those family checks.
+The singleton receipt reduction also accepts a vacuous filter already removed
+from CountObjects, retaining its existing cardinality proof. Ardyn, Break
+Expectations and Corpse Appraiser keep their prior supported meanings.
+
+The old two Living Lore readings differ only by a vacuous Matching(..., Any)
+wrapper around the same linked-card singleton. Their native canonical merge is counted separately from the explicit
+replacement of incorrect historical or linked-creation readings.
+
 Record completed gate and audit results with the final implementation; a reference
 match alone is not proof of the historical or replacement contract.
 

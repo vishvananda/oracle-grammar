@@ -58,7 +58,12 @@ fn check_wording(cases: Vec<Value>) {
             case.get("context").unwrap_or(&case["characteristics"]),
         );
         let default = engine().print_keyed(name, &abilities, &types, &[]).unwrap();
-        assert!(default.is_some(), "{name}: no verified default print");
+        if case["default"].as_bool().unwrap_or(true) {
+            assert!(default.is_some(), "{name}: no verified default print");
+        }
+        if case["exact"].as_bool() == Some(false) {
+            continue;
+        }
         if default.as_deref() == Some(text) {
             continue;
         }
