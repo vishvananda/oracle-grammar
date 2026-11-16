@@ -5,6 +5,7 @@ SQLite transactions serialize claims, checkpoint advancement, and adjudication.
 """
 import errno
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -285,6 +286,60 @@ class Queue:
                 self._event(db, "retry", {"job_id": job_id, "attempt_id": attempt_id,
                                           "pid": pid, "process": "absent", "lease": "acquired",
                                           "retry_number": attempts, "evidence": evidence})
+
+    def retry_tainted(self, job_id, attempt_id, evidence):
+        """Retry only an explicitly verified read-only CPU-pool infrastructure failure.
+
+        The controller must independently verify its terminal invocation and the
+        provenance of the cited artifact. An absent recorded PID and an unlocked
+        job lease are checked again here while the queue transaction is held.
+        """
+        _evidence(evidence)
+        terminal = evidence.get("controller_terminal") if isinstance(evidence, dict) else None
+        failure = evidence.get("infrastructure_failure") if isinstance(evidence, dict) else None
+        if (not isinstance(terminal, dict)
+                or not isinstance(terminal.get("unit"), str) or not terminal["unit"]
+                or not isinstance(terminal.get("invocation"), str) or not terminal["invocation"]
+                or not isinstance(terminal.get("verification"), dict) or not terminal["verification"]
+                or not isinstance(failure, dict)
+                or failure.get("kind") != "sandbox-cpu-pool-read-only"
+                or not isinstance(failure.get("artifact"), str) or not failure["artifact"]
+                or not isinstance(failure.get("sha256"), str) or len(failure["sha256"]) != 64):
+            raise ValueError("terminal controller and infrastructure failure evidence required")
+        try:
+            path = Path(failure["artifact"])
+            if not path.is_file() or path.stat().st_size > 32 * 1024 * 1024:
+                raise ValueError("infrastructure artifact is unavailable or too large")
+            artifact = path.read_bytes()
+        except OSError as exc:
+            raise ValueError("infrastructure artifact is unavailable") from exc
+        if (hashlib.sha256(artifact).hexdigest() != failure["sha256"]
+                or b"Errno 30" not in artifact or b"allocator.lock" not in artifact):
+            raise ValueError("infrastructure artifact does not prove the stated failure")
+        with self._retry_lease(job_id):
+            with self._transaction() as db:
+                row = db.execute(
+                    "SELECT j.status,j.attempt_id,a.started,a.result FROM jobs j "
+                    "JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?", (job_id,)).fetchone()
+                if not row or row[0] not in ("needs-review", "failed") or row[1] != attempt_id or not row[3]:
+                    raise ValueError("retry requires the current terminal review or failed attempt")
+                start = json.loads(row[2]) if row[2] else {}
+                pid = start.get("pid")
+                if type(pid) is not int or pid <= 0:
+                    raise ValueError("attempt process identity is unknown")
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    pass
+                except OSError as exc:
+                    if exc.errno != errno.ESRCH:
+                        raise ValueError("attempt process state is unknown") from exc
+                else:
+                    raise ValueError("attempt process is still present")
+                db.execute("UPDATE jobs SET status='pending',attempt_id=NULL WHERE id=?", (job_id,))
+                self._event(db, "retry-tainted", {"job_id": job_id, "attempt_id": attempt_id,
+                                                  "pid": pid, "process": "absent", "lease": "acquired",
+                                                  "evidence": evidence})
 
     def retry_unstarted(self, job_id, attempt_id, evidence):
         """Administrative recovery of an explicitly proved pre-launch failure.

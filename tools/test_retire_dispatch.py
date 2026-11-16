@@ -1,11 +1,13 @@
 """Small real Git and frozen-artifact canaries for campaign integration."""
 from contextlib import redirect_stdout
 import io
+import sys
 import json
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+from types import SimpleNamespace
 import unittest
 import uuid
 from unittest.mock import patch
@@ -40,6 +42,51 @@ def repository(path):
 
 
 class DispatchCanaries(unittest.TestCase):
+    def test_drain_stops_before_claiming_or_launching(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'runner').mkdir()
+            r.write(root/'runner.json', {})
+            r.write(root/'config.json', {'workers': 2, 'main_repo': str(root),
+                                        'max_operational_retries': 1, 'first_batch_size': 12,
+                                        'batch_size': 48, 'batch_wait_seconds': 900,
+                                        'initial_commit': 'base'})
+            r.write(root/'drain.json', {'reason': 'planned controller drain'})
+            queue = dispatch.Queue(root/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'test'})
+            queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'mechanical'},
+                            {'id': 'two', 'rules': ['r_two'], 'kind': 'author'}])
+            disk = SimpleNamespace(free=100 * 1024**3)
+            with patch.object(dispatch.shutil, 'disk_usage', return_value=disk), \
+                    patch.object(dispatch, 'perform') as perform, \
+                    patch.object(dispatch.subprocess, 'Popen') as launch:
+                dispatch.run_campaign(root)
+            perform.assert_not_called()
+            launch.assert_not_called()
+            self.assertEqual(queue.coverage()['counts'], {'pending': 2})
+            status = r.read(root/'status.json')
+            self.assertEqual(status['status'], 'needs-operator')
+            self.assertEqual(status['reason'], 'planned controller drain')
+
+    def test_batch_lock_held_by_another_process_skips_staging(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            code = ("import fcntl, sys, time; "
+                    "f=open(sys.argv[1], 'a'); fcntl.flock(f, fcntl.LOCK_EX); "
+                    "print('locked', flush=True); time.sleep(60)")
+            child = subprocess.Popen([sys.executable, '-c', code, str(root/'batch.lock')],
+                                     stdout=subprocess.PIPE, text=True)
+            try:
+                self.assertEqual(child.stdout.readline().strip(), 'locked')
+                with patch.object(dispatch, '_batch') as work, patch.object(dispatch.retire_batch, 'stage') as stage:
+                    dispatch.batch(root)
+                work.assert_not_called()
+                stage.assert_not_called()
+            finally:
+                child.terminate()
+                child.wait()
+                child.stdout.close()
+
     def test_real_mechanical_task_report_and_batch_stage(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

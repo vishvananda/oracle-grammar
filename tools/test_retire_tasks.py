@@ -1,4 +1,7 @@
 import json
+import hashlib
+import io
+import tarfile
 import os
 from pathlib import Path
 import shutil
@@ -11,6 +14,7 @@ from unittest.mock import patch
 import retire as r
 import retire_tasks as tasker
 import retire_queue
+import retire_reuse
 
 
 class TaskTests(unittest.TestCase):
@@ -104,7 +108,7 @@ class TaskTests(unittest.TestCase):
         (checkout/file).write_text('changed')
         self.assertEqual((self.source/file).read_text(), 'original\n')
         for name in tasker.HELPERS:
-            self.assertEqual(os.stat(run/'support/bin'/name).st_ino, os.stat(self.helpers/name).st_ino)
+            self.assertEqual(os.stat(run/'support/native'/name).st_ino, os.stat(self.helpers/name).st_ino)
         other = self.prepare('bbbbbbbbbbbb4bbb8bbbbbbbbbbbbbbb')
         self.assertNotEqual(result['run'], other['run'])
         self.assertEqual(support, r.read(run/'support.json'))
@@ -150,6 +154,56 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(str(uuid.UUID(claim['attempt_id'])), claim['attempt_id'])
         result = tasker.prepare_task(self.campaign, claim, self.checkpoint, self.job, self.cohort)
         self.assertEqual(Path(result['run']).name, claim['attempt_id'])
+
+    def test_verified_reuse_restores_patch_fixture_and_hook(self):
+        first = self.prepare()
+        prior_run, prior_checkout = Path(first['run']), Path(first['checkout'])
+        task = r.read(prior_run/'tasks/job-123.json')
+        (prior_checkout/'grammar/syntax/actions.ebnf').write_text('candidate\n')
+        fixture = prior_checkout/task['fixture']
+        fixture.parent.mkdir(parents=True, exist_ok=True)
+        fixture.write_text('{"cases": []}')
+        (prior_checkout/'.cache/author-hooks.json').write_text('[]')
+        patch_bytes = subprocess.check_output(['git', 'diff', '--binary', '--full-index'], cwd=prior_checkout)
+        names = ['grammar/syntax/actions.ebnf', task['fixture'], '.cache/author-hooks.json']
+        contents = {name: (prior_checkout/name).read_bytes() for name in names}
+        files = {name: {'sha256': hashlib.sha256(data).hexdigest(),
+                        'mode': (prior_checkout/name).stat().st_mode & 0o777}
+                 for name, data in contents.items()}
+        attempt = prior_run.name
+        manifest = {'format': 1, 'task': 'job-123', 'attempt': attempt, 'base_commit': self.commit,
+                    'descriptor_sha256': r.digest(prior_run/'tasks/job-123.json'),
+                    'patch_sha256': hashlib.sha256(patch_bytes).hexdigest(), 'files': files, 'deleted': []}
+        folder = self.campaign/'.cache/archives'
+        folder.mkdir()
+        archive_path = folder/(attempt+'.tar.gz')
+        with tarfile.open(archive_path, 'w:gz') as archive:
+            for name, data in [('manifest.json', json.dumps(manifest).encode()), ('candidate.patch', patch_bytes),
+                               *[('files/'+name, data) for name, data in contents.items()]]:
+                entry = tarfile.TarInfo(name)
+                entry.size = len(data)
+                entry.mode = files[name[6:]]['mode'] if name.startswith('files/') else 0o600
+                archive.addfile(entry, io.BytesIO(data))
+        reuse = {'path': str(archive_path), 'sha256': r.digest(archive_path), 'attempt': attempt}
+        with self.assertRaises(ValueError):
+            retire_reuse.restore_candidate(self.campaign, prior_checkout, 'job-123', 'wrong-base', task['write_files'], reuse)
+        with self.assertRaises(ValueError):
+            retire_reuse.restore_candidate(self.campaign, prior_checkout, 'job-123', self.commit, [], reuse)
+        claim = {'attempt_id': 'bbbbbbbbbbbb4bbb8bbbbbbbbbbbbbbb', 'base_commit': self.commit,
+                 'job': self.job, 'reuse_archive': reuse}
+        result = tasker.prepare_task(self.campaign, claim, self.checkpoint, self.job, self.cohort)
+        checkout, run = Path(result['checkout']), Path(result['run'])
+        self.assertEqual((checkout/'grammar/syntax/actions.ebnf').read_text(), 'candidate\n')
+        self.assertEqual((checkout/task['fixture']).read_text(), '{"cases": []}')
+        self.assertEqual((checkout/'.cache/author-hooks.json').read_text(), '[]')
+        descriptor = r.read(run/'tasks/job-123.json')
+        self.assertEqual(descriptor['reuse']['prior_attempt'], attempt)
+        self.assertIn('infrastructure-tainted', descriptor['goal'])
+        self.assertEqual(r.read(run/'packet.json')['reuse']['sha256'], reuse['sha256'])
+        bad_claim = dict(claim, attempt_id='cccccccccccc4ccc8ccccccccccccccc',
+                         reuse_archive=dict(reuse, sha256='bad'))
+        with self.assertRaises(ValueError):
+            tasker.prepare_task(self.campaign, bad_claim, self.checkpoint, self.job, self.cohort)
 
     def test_missing_modules_marked_for_discovery(self):
         self.job['allowedwritepaths'] = ['grammar/syntax/nonexistent.ebnf']

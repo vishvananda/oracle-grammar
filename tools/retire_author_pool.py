@@ -19,7 +19,10 @@ def prompt(run, task_id):
     task = r.read(run/'tasks'/f'{task_id}.json')
     packet = task.get('packet')
     packet_note = (f'Read the compact immutable task packet {packet}. It contains the rule declarations, '
-                   'assigned reference operands and original record addresses. Filter it with Python; '
+                   'assigned reference operands and original record addresses. Join gold and Oracle records by face name '
+                   'and their own record/face addresses independently; never zip the two arrays or assume matching order. '
+                   'Use packet baseline text for original family wording; separately flag Oracle exact-text/reminder discrepancies. '
+                   'Filter it with Python; '
                    'do not dump whole corpora. Start with declared modules and use rg --files before guessing paths.\n'
                    if packet else '')
     limit = task.get('max_diagnostic_attempts', 8)
@@ -55,8 +58,9 @@ ordinary hook requests to its private diagnostic snapshot and records them.
 This is syntax-only. If Rust, lexical, IR, binding or out-of-scope module changes
 are necessary, record the exact reason and escalate. Do not edit those files.
 No Cargo, git commits/staging, whole-corpus scans, additional agents or network.
-Prebuilt probe, inspect, family-check helpers are under {run/'support/bin'}.
-To use them set ORACLE_GRAMMAR_DIR=$PWD/grammar and ORACLE_GRAMMAR_THREADS=2.
+Prebuilt probe, inspect, family-check wrappers are under {run/'support/bin'}.
+These wrappers acquire CPU leases; invoke them directly and never invoke the
+private native helpers. Set ORACLE_GRAMMAR_DIR=$PWD/grammar and ORACLE_GRAMMAR_THREADS=2.
 Read their -- usage from src/bin if needed, instead of building anything.
 Create {task['fixture']} with 4-64 focused family cases including an explicit
 expected IR, a refusal and exact/default printing controls. It will run with
@@ -109,9 +113,12 @@ does not establish review of its individual members. Do not mark review solely
 because the coordinator's full batch audit has not run yet.\n'''
     (folder/'prompt.txt').write_text(text)
     cmd = pool.command(run, folder, descriptor['model'], descriptor['effort'])
-    # The author may write only its private checkout. No shared epoch write root.
+    # Only the CPU lease pool is writable outside the private checkout.
     pos = cmd.index('--add-dir')
-    del cmd[pos:pos+2]
+    if descriptor.get('cpu_pool'):
+        cmd[pos+1] = str(Path(descriptor['cpu_pool']))
+    else:
+        del cmd[pos:pos+2]
     cmd[cmd.index('--cd')+1] = descriptor['checkout']
     if descriptor.get('full_pass'):
         schema = run/'response-schema.json'
@@ -126,16 +133,33 @@ because the coordinator's full batch audit has not run yet.\n'''
         fcntl.flock(lock, fcntl.LOCK_EX)
         process = subprocess.Popen(cmd, stdin=input_stream, stdout=output, stderr=error,
                                    text=True, start_new_session=True, pass_fds=tuple(extra_fds))
-        receipt.update(pid=process.pid, status='running')
-        r.write(folder/'receipt.json', receipt)
-        if on_started:
-            on_started(process.pid, str(folder/'receipt.json'))
-        deadline = time.monotonic()+60
-        while process.poll() is None and time.monotonic() < deadline:
-            if '"thread.started"' in (folder/'events.jsonl').read_text():
-                break
-            time.sleep(.1)
-        fcntl.flock(lock, fcntl.LOCK_UN)
+        try:
+            receipt.update(pid=process.pid, status='running')
+            r.write(folder/'receipt.json', receipt)
+            if on_started:
+                on_started(process.pid, str(folder/'receipt.json'))
+            deadline = time.monotonic()+60
+            while process.poll() is None and time.monotonic() < deadline:
+                if '"thread.started"' in (folder/'events.jsonl').read_text():
+                    break
+                time.sleep(.1)
+        except BaseException:
+            if process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                try:
+                    process.wait(timeout=30)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.wait()
+            raise
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
         try:
             process.wait(timeout=descriptor.get('wall_budget_seconds', 1500))
         except subprocess.TimeoutExpired:

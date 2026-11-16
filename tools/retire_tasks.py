@@ -12,9 +12,10 @@ import uuid
 
 import dev
 import retire as r
+import retire_reuse
 
 RUNNERS = tuple(dict.fromkeys((*r.TOOLING, 'retire_author.py', 'retire_author_pool.py',
-                               'retire_pool.py', 'retire_cpu.py')))
+                               'retire_pool.py', 'retire_cpu.py', 'retire_helper.py')))
 HELPERS = ('family-check', 'probe', 'inspect')
 
 
@@ -159,14 +160,25 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
         _checkout(source, checkout, claim['base_commit'])
         created_checkout = True
         r.require(dev.source(checkout) == manifest['source'], 'private checkout compiled source differs')
+        (checkout/'.cache').mkdir(exist_ok=True)
+        reuse = None
+        if claim.get('reuse_archive'):
+            reuse = retire_reuse.restore_candidate(campaign, checkout, job['id'], claim['base_commit'],
+                                                     write_files, claim['reuse_archive'], rules=job['rules'])
+            r.require(dev.source(checkout) == manifest['source'], 'restored candidate changed compiled inputs')
+            packet['reuse'] = reuse
         (run/'inputs').symlink_to(inputs, target_is_directory=True)
         runner, binaries = run/'support/runner', run/'support/bin'
         runner.mkdir(parents=True)
         binaries.mkdir()
+        native = run/'support/native'
+        native.mkdir()
         for name in RUNNERS:
             shutil.copy2(campaign/'runner'/name, runner/name)
         for name in HELPERS:
-            os.link(helpers/name, binaries/name)
+            os.link(helpers/name, native/name)
+            shutil.copy2(campaign/'runner/retire_helper.py', binaries/name)
+            (binaries/name).chmod(0o755)
         tasks = run/'tasks'
         tasks.mkdir()
         (run/'workers').mkdir()
@@ -178,6 +190,10 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
                     rule_dispositions_required=job['rules'], max_diagnostic_attempts=3,
                     wall_budget_seconds=900, helper_threads=2,
                     cpu_pool=str(campaign/'cpu'), cpu_capacity=32)
+        if reuse:
+            task['reuse'] = reuse
+            task['goal'] = ('Private checkout starts with a prior infrastructure-tainted candidate; '
+                            'recheck current files and retain or revise them. ' + task['goal'])
         r.write(tasks/(job['id']+'.json'), task)
         r.write(run/'packet.json', packet)
         support = {'files': r.tree(run/'support'), 'tasks': {job['id']: r.digest(tasks/(job['id']+'.json'))},

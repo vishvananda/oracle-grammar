@@ -1,5 +1,6 @@
 import concurrent.futures
 import fcntl
+import hashlib
 import subprocess
 import tempfile
 import unittest
@@ -212,6 +213,62 @@ class QueueTests(unittest.TestCase):
         self.queue.finish(attempt, "needs-review", "proof", self.passed(claim))
         with self.assertRaisesRegex(ValueError, "current finished failed"):
             self.queue.retry_failed("job0", attempt, "proof", 1)
+
+    def test_tainted_retry_requires_terminal_pid_and_matching_infrastructure_artifact(self):
+        self.add()
+        claim = self.queue.claim("worker")
+        attempt = claim["attempt_id"]
+        lease = self.path.parent / "leases" / "job0"
+        lease.parent.mkdir()
+        lease.touch()
+        artifact = self.path.parent / "error.log"
+        artifact.write_text("OSError: [Errno 30] Read-only file system: cpu/allocator.lock\n")
+        proof = {"controller_terminal": {"unit": "controller.service", "invocation": "abc",
+                                          "verification": {"inactive": True}},
+                 "infrastructure_failure": {"kind": "sandbox-cpu-pool-read-only", "artifact": str(artifact),
+                                            "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest()}}
+        child = subprocess.Popen(["true"])
+        child.wait()
+        self.queue.mark_started(attempt, pid=child.pid)
+        with self.assertRaisesRegex(ValueError, "terminal review"):
+            self.queue.retry_tainted("job0", attempt, proof)
+        self.queue.finish(attempt, "needs-review", "diagnostic interrupted", self.passed(claim))
+        old = self.queue.get_attempt(attempt)
+        with lease.open("w") as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError, "still held"):
+                self.queue.retry_tainted("job0", attempt, proof)
+        with self.assertRaises(ValueError):
+            self.queue.retry_tainted("job0", attempt, {**proof, "infrastructure_failure": {**proof["infrastructure_failure"], "sha256": "0" * 64}})
+        self.queue.retry_tainted("job0", attempt, proof)
+        self.assertEqual(self.queue.get_attempt(attempt), old)
+        self.assertEqual(self.queue.coverage()["counts"], {"pending": 2})
+        self.assertEqual(self.queue.audit()[-1]["kind"], "retry-tainted")
+        self.assertEqual(self.queue.audit()[-1]["data"]["evidence"], proof)
+
+    def test_tainted_retry_rejects_unknown_and_live_pid(self):
+        self.add(2)
+        lease_dir = self.path.parent / "leases"
+        lease_dir.mkdir()
+        (lease_dir / "job0").touch()
+        (lease_dir / "job1").touch()
+        artifact = self.path.parent / "error.log"
+        artifact.write_text("[Errno 30] cpu/allocator.lock")
+        proof = {"controller_terminal": {"unit": "u", "invocation": "i", "verification": {"inactive": True}},
+                 "infrastructure_failure": {"kind": "sandbox-cpu-pool-read-only", "artifact": str(artifact),
+                                            "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest()}}
+        first = self.queue.claim("one")
+        self.queue.mark_started(first["attempt_id"], receipt="unknown pid")
+        self.queue.finish(first["attempt_id"], "failed", "proof", self.passed(first))
+        with self.assertRaisesRegex(ValueError, "identity is unknown"):
+            self.queue.retry_tainted("job0", first["attempt_id"], proof)
+        second = self.queue.claim("two")
+        child = subprocess.Popen(["sleep", "60"])
+        self.addCleanup(lambda: (child.kill(), child.wait()) if child.poll() is None else None)
+        self.queue.mark_started(second["attempt_id"], pid=child.pid)
+        self.queue.finish(second["attempt_id"], "failed", "proof", self.passed(second))
+        with self.assertRaisesRegex(ValueError, "still present"):
+            self.queue.retry_tainted("job1", second["attempt_id"], proof)
 
     def test_administrative_unstarted_retry_requires_explicit_evidence_and_lease(self):
         self.add()

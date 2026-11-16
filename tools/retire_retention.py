@@ -89,6 +89,24 @@ def _snapshot(checkout, task):
             modes[name] = path.stat().st_mode & 0o777
         else:
             raise ValueError('changed path is not a regular file')
+    hooks = task.get('hooks')
+    if hooks is not None:
+        if not isinstance(hooks, str):
+            raise ValueError('invalid hooks path')
+        relative = _safe_name(hooks)
+        if len(relative.parts) < 2 or relative.parts[0] != '.cache':
+            raise ValueError('hooks path must be inside .cache')
+        path = checkout/relative
+        cache = checkout/'.cache'
+        if (cache.is_symlink() or path.is_symlink()
+                or not path.resolve().is_relative_to(cache.resolve())
+                or not cache.resolve().is_relative_to(checkout)):
+            raise ValueError('hooks path escapes checkout or is a symlink')
+        if path.exists():
+            if not path.is_file():
+                raise ValueError('hooks path is not a regular file')
+            files[hooks] = path.read_bytes()
+            modes[hooks] = path.stat().st_mode & 0o777
     diagnostics = checkout/'.cache/author-checks'
     if diagnostics.exists():
         r.require(diagnostics.resolve().is_relative_to(checkout), 'diagnostics escape checkout')
@@ -159,6 +177,10 @@ def archive_checkout(run, taskid, terminal_receipt):
                       'checkout file changed during archival: '+name)
         for name in deleted:
             r.require(not (checkout/_safe_name(name)).exists(), 'deleted file reappeared during archival')
+        hooks = task.get('hooks')
+        if hooks is not None and hooks not in files:
+            path = checkout/_safe_name(hooks)
+            r.require(not path.exists() and not path.is_symlink(), 'hooks appeared during archival')
         current_names = (set(_names(_git(checkout, 'diff', '--no-ext-diff', '--name-only', '-z')))
                          | set(_names(_git(checkout, 'ls-files', '--others', '--exclude-standard', '-z'))))
         expected_names = (set(files) & set(task['write_files'])) | set(deleted)

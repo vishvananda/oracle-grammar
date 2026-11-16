@@ -136,6 +136,14 @@ def helper(run, folder, grammar, program, arguments):
     command = [str(run/'support/bin'/program), *map(str, arguments)]
     env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}
     env.update(ORACLE_GRAMMAR_DIR=str(grammar), ORACLE_GRAMMAR_THREADS='2')
+    # check() owns these descriptors; the wrapper verifies their token paths.
+    cpu_fds = getattr(r, '_CPU_LEASES', ())
+    if cpu_fds:
+        env['RETIRE_CPU_LEASE_FDS'] = ','.join(map(str, cpu_fds))
+        env['RETIRE_HELPER_EXTRA_FDS'] = ','.join(map(str, r._LEASES))
+    else:
+        env.pop('RETIRE_CPU_LEASE_FDS', None)
+        env.pop('RETIRE_HELPER_EXTRA_FDS', None)
     started = time.perf_counter()
     with (folder/(program+'.log')).open('w') as stream:
         process = subprocess.run(command, stdout=stream, stderr=stream, env=env, cwd=folder,
@@ -269,12 +277,14 @@ def check(run, task_id, coordinator=False):
     with retire_cpu.reserve(Path(task['cpu_pool']), task.get('helper_threads', 2),
                             capacity=task.get('cpu_capacity', 32)) as fds:
         r._LEASES.extend(fds)
+        r._CPU_LEASES = fds
         inherited = os.environ.get('RETIRE_JOB_FD')
         if inherited:
             r._LEASES.append(int(inherited))
         try:
             return _check(run, task_id, coordinator)
         finally:
+            r._CPU_LEASES = ()
             if inherited:
                 r._LEASES.remove(int(inherited))
             for fd in fds:

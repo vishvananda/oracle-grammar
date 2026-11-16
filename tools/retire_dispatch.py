@@ -136,6 +136,13 @@ def perform(run, claim, contexts):
                 job['target_faces'] = names
             else:
                 detail = planner.select_cohort_detail(job,inverted,data[1],scan)
+            reused=run/'reuse'/(job['id']+'.json')
+            if reused.exists():
+                prior=r.read(reused)
+                if prior.get('review_notes'):
+                    job['goal']+=' Coordinator review: '+' '.join(prior['review_notes'])
+                if prior.get('base_commit')==cp['commit']:
+                    claim=dict(claim,reuse_archive=prior)
             prepared = prepare_task(run,claim,cp,job,detail)
             working = Path(prepared['run'])
             task_id = prepared['task_id']
@@ -241,6 +248,14 @@ def proposals(run, count):
 
 
 def batch(run):
+    try:
+        with lease(run/'batch.lock'):
+            return _batch(run)
+    except BlockingIOError:
+        return
+
+
+def _batch(run):
     queue=Queue(run/'queue.sqlite')
     cp=campaign_api.checkpoint(run,queue.coverage()['checkpoint'])
     config=r.read(run/'config.json')
@@ -334,6 +349,9 @@ def run_campaign(run):
                         pass
                 if len(queue.get_jobs('failed'))>=3:
                     stop_reason='Repeated operational failures require tooling review'
+                drain=run/'drain.json'
+                if drain.exists():
+                    stop_reason=r.read(drain).get('reason','Explicit controller drain requested')
                 if shutil.disk_usage(run).free < 15*1024**3:
                     stop_reason='Campaign filesystem has less than 15 GiB free'
                 if shutil.disk_usage(Path(config['main_repo'])).free < 2*1024**3:
@@ -352,7 +370,7 @@ def run_campaign(run):
                 pending=coverage['counts'].get('pending',0)
                 limit=config['first_batch_size'] if coverage['checkpoint']==config['initial_commit'] else config['batch_size']
                 ready=queue.get_jobs('provisional-pass',limit=limit)
-                if not batching and ready and (len(ready)>=limit or not pending
+                if not stop_reason and not batching and ready and (len(ready)>=limit or not pending
                         or time.monotonic()-last_batch>=config['batch_wait_seconds']):
                     log=(run/'batch-controller.log').open('a')
                     batching=subprocess.Popen([sys.executable,str(run/'runner/retire_dispatch.py'),'batch',str(run)],

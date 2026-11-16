@@ -43,6 +43,7 @@ class RetentionTests(unittest.TestCase):
         self.taskid = 'job-one'
         self.descriptor = self.run/'tasks/job-one.json'
         r.write(self.descriptor, {'checkout': str(self.checkout), 'rules': ['m_one'],
+                                  'hooks': '.cache/author-hooks.json',
                                   'write_files': ['grammar/shared.ebnf', 'grammar/remove.ebnf',
                                                   'families/new.json']})
         r.write(self.run/'support.json', {'tasks': {self.taskid: r.digest(self.descriptor)}})
@@ -65,6 +66,9 @@ class RetentionTests(unittest.TestCase):
         (self.checkout/'grammar/remove.ebnf').unlink()
         (self.checkout/'families').mkdir()
         (self.checkout/'families/new.json').write_text('{"test":true}')
+        hooks = self.checkout/'.cache/author-hooks.json'
+        hooks.parent.mkdir()
+        hooks.write_text('[{"root":"ability","production":"shared"}]')
         diagnostics = self.checkout/'.cache/author-checks/attempt-1'
         (diagnostics/'grammar').mkdir(parents=True)
         (diagnostics/'report.json').write_text('{"passed":false}')
@@ -83,6 +87,8 @@ class RetentionTests(unittest.TestCase):
             self.assertEqual(archive.extractfile('files/grammar/shared.ebnf').read(), b'changed\n')
             self.assertEqual(archive.extractfile('files/families/new.json').read(), b'{"test":true}')
             self.assertIn('files/.cache/author-checks/attempt-1/report.json', archive.getnames())
+            hook_copy = archive.extractfile('files/.cache/author-hooks.json').read()
+            self.assertEqual(hook_copy, b'[{"root":"ability","production":"shared"}]')
             self.assertNotIn('files/.cache/author-checks/attempt-1/grammar/huge.json', archive.getnames())
             self.assertIn(b'grammar/shared.ebnf', archive.extractfile('candidate.patch').read())
             self.assertIn(b'grammar/remove.ebnf', archive.extractfile('candidate.patch').read())
@@ -91,6 +97,9 @@ class RetentionTests(unittest.TestCase):
                            cwd=self.origin, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             subprocess.run(['git', 'apply', '--binary', '-'], cwd=restored, check=True,
                            input=archive.extractfile('candidate.patch').read())
+            (restored/'.cache').mkdir()
+            (restored/'.cache/author-hooks.json').write_bytes(hook_copy)
+            self.assertEqual((restored/'.cache/author-hooks.json').read_bytes(), hook_copy)
             (restored/'families').mkdir()
             (restored/'families/new.json').write_bytes(archive.extractfile('files/families/new.json').read())
             self.assertEqual((restored/'grammar/shared.ebnf').read_text(), 'changed\n')
@@ -98,6 +107,21 @@ class RetentionTests(unittest.TestCase):
             self.assertEqual((restored/'families/new.json').read_text(), '{"test":true}')
         self.assertNotIn(str(self.checkout), subprocess.check_output(
             ['git', 'worktree', 'list', '--porcelain'], cwd=self.origin, text=True))
+
+    def test_hooks_without_evaluation_and_unsafe_paths(self):
+        (self.checkout/'.cache').mkdir()
+        (self.checkout/'.cache/author-hooks.json').write_text('[{"root":"ability"}]')
+        task = r.read(self.descriptor)
+        files, modes, _, _ = retention._snapshot(self.checkout, task)
+        self.assertEqual(files['.cache/author-hooks.json'], b'[{"root":"ability"}]')
+        self.assertIn('.cache/author-hooks.json', modes)
+        for bad in ('../outside', '/tmp/outside', '.cache/../outside', 'grammar/shared.ebnf', '.cache'):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                retention._snapshot(self.checkout, dict(task, hooks=bad))
+        (self.checkout/'.cache/author-hooks.json').unlink()
+        (self.checkout/'.cache/author-hooks.json').symlink_to(self.checkout/'grammar/shared.ebnf')
+        with self.assertRaises(ValueError):
+            retention._snapshot(self.checkout, task)
 
     def test_refuses_running_and_unmatched_receipts(self):
         with self.assertRaises(ValueError):
