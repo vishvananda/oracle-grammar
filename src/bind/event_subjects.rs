@@ -107,6 +107,26 @@ fn own_subject(event: &Value) -> bool {
         .is_some_and(|event| event["objects"] == source)
 }
 
+/// The unqualified tribute sentence names this exact entering source. Keep its
+/// lexical event-subject view local to the direct intervening condition; other
+/// events, predicates and independent bodies retain their current references.
+pub(super) fn tribute_surface(ability: &Value) -> Option<Value> {
+    let event = &ability["args"]["event"];
+    let condition = &ability["args"]["intervening_if"];
+    if ability["kind"] != "Triggered"
+        || !own_subject(event)
+        || event["ZoneChange"]["to"] != "Battlefield"
+        || *condition
+            != json!({"kind":"ObjectMatches","args":{
+            "object":{"kind":"Source"},"filter":{"kind":"State","args":"TributeNotPaid"}}})
+    {
+        return None;
+    }
+    let mut view = ability.clone();
+    view["args"]["intervening_if"]["args"]["object"] = json!({"kind":"EventSubject"});
+    Some(view)
+}
+
 /// Connive names the conniving object itself (CR 701.50a): under the source's own
 /// event that is the source, and its controller connives.
 pub(super) fn name_conniving_sources(ability: &mut Value) {
@@ -204,6 +224,36 @@ fn captured_target(event: &Value) -> Option<(Value, Value)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tribute_spelling_requires_its_own_entry_and_only_changes_the_direct_condition() {
+        let mut ability = json!({"kind":"Triggered","args":{
+            "event":{"ZoneChange":{"objects":{"kind":"SameObject","args":{"kind":"Source"}},
+                "from":null,"to":"Battlefield"}},
+            "intervening_if":{"kind":"ObjectMatches","args":{"object":{"kind":"Source"},
+                "filter":{"kind":"State","args":"TributeNotPaid"}}},
+            "limits":{"per_turn":null,"total":null},"announcement":{"targets":[],"modes":null},
+            "body":{"instructions":[]}}});
+        let view = tribute_surface(&ability).unwrap();
+        assert_eq!(
+            view["args"]["intervening_if"]["args"]["object"],
+            json!({"kind":"EventSubject"})
+        );
+        assert_eq!(view["args"]["body"], ability["args"]["body"]);
+        assert_eq!(
+            crate::engine::canonical_abilities(&json!([view])).unwrap(),
+            crate::engine::canonical_abilities(&json!([ability])).unwrap()
+        );
+        ability["args"]["event"]["ZoneChange"]["objects"] =
+            json!({"kind":"CardType","args":"Creature"});
+        assert!(tribute_surface(&ability).is_none());
+        ability["args"]["event"] = json!({"Object":{"event":"Attacks",
+            "objects":{"kind":"SameObject","args":{"kind":"Source"}}}});
+        assert!(tribute_surface(&ability).is_none());
+        ability["args"]["event"] = json!({"ZoneChange":{"objects":{"kind":"SameObject","args":{"kind":"Source"}},"from":null,"to":"Battlefield"}});
+        ability["args"]["intervening_if"]["args"]["filter"]["args"] = json!("Kicked");
+        assert!(tribute_surface(&ability).is_none());
+    }
 
     #[test]
     fn the_subject_is_named_up_to_the_next_independent_event() {

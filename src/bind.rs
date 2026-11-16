@@ -1134,6 +1134,9 @@ fn own_forms(ability: &Value) -> Vec<Value> {
         ability = &plain;
     }
     let mut forms = spelled_forms(ability);
+    if let Some(tribute) = event_subjects::tribute_surface(ability) {
+        forms.extend(spelled_forms(&tribute));
+    }
     if let Some(hand) = observed_hands::surface(ability) {
         forms.extend(spelled_forms(&hand));
     }
