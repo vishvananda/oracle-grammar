@@ -50,6 +50,12 @@ event_self_leaves ::= event_self "leaves" "the" "battlefield"
 
 event_object ::= event_self | event_a | event_another | event_attached | event_target
 
+/* A recalled singular object keeps its identity in face-up and source-damage
+   events, including delayed triggers about a previously named object. */
+event_singular_subject ::= event_object | event_referenced_subject
+/* @sem ObjectFilter::SameObject($object_ref) */
+event_referenced_subject ::= object_ref
+
 /* @sem ObjectFilter::SameObject($attached_ref) */
 event_attached ::= attached_ref
 
@@ -346,8 +352,8 @@ event_becomes_blocked ::= event_object "becomes" "blocked"
 /* @sem EventSpec::@either_event(EventSpec::Object{event:Blocks, objects:$event_object}, EventSpec::Object{event:BecomesBlocked, objects:$event_object}) */
 event_blocks_or_blocked_once ::= event_object "blocks" "or" "becomes" "blocked"
 
-/* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_object, recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}) */
-event_combat_damage_player ::= event_object "deals" "combat" "damage" "to" "a" "player"
+/* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_singular_subject, recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}) */
+event_combat_damage_player ::= event_singular_subject "deals" "combat" "damage" "to" "a" "player"
 
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_object, recipients:Players(All), kind:Any, grouping:SourceRecipient, subject:Source}) */
 event_damage_player ::= event_object "deals" "damage" "to" "a" "player"
@@ -355,8 +361,8 @@ event_damage_player ::= event_object "deals" "damage" "to" "a" "player"
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_object, recipients:Objects($filter_phrase), kind:Any, grouping:SourceRecipient, subject:Source}) */
 event_damage_object ::= event_object "deals" "damage" "to" ("a" | "an") filter_phrase
 
-/* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_object, recipients:Any, kind:Any, grouping:Source, subject:Source}) */
-event_damage ::= event_object "deals" "damage"
+/* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_singular_subject, recipients:Any, kind:Any, grouping:Source, subject:Source}) */
+event_damage ::= event_singular_subject "deals" "damage"
 
 /* @sem EventSpec::@either_event(EventSpec::ZoneChange{objects:SameObject(ObjectRef::Source), to:Battlefield}, EventSpec::ZoneChange{objects:$event_another, to:Battlefield}) */
 event_self_or_enters ::= self_text "or" event_another "enters"
@@ -695,8 +701,8 @@ event_enters_or_dies ::= event_object "enters" "or" "dies"
 /* @sem EventSpec::ZoneChangeFromElsewhere{objects:@and($card_filter, ObjectFilter::OwnedBy(One(PlayerRef::AbilityController))), except:[Battlefield], to:Graveyard} */
 event_card_from_elsewhere ::= ("a" | "an") card_filter "card" "is" "put" "into" "your" "graveyard" "from" "anywhere" "other" "than" "the" "battlefield"
 
-/* @sem EventSpec::Object{event:TurnsFaceUp, objects:$event_self} */
-event_turns_face_up ::= event_self "is" "turned" "face" "up"
+/* @sem EventSpec::Object{event:TurnsFaceUp, objects:$event_singular_subject} */
+event_turns_face_up ::= event_singular_subject "is" "turned" "face" "up"
 
 /* A state trigger: it fires when the count first reaches the threshold. */
 /* @sem EventSpec::State{condition:ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})}} */
