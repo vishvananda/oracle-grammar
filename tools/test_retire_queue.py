@@ -478,9 +478,10 @@ class DiagnosticRecoveryTests(unittest.TestCase):
         self.git('init', '-q')
         self.git('config', 'user.name', 'Test')
         self.git('config', 'user.email', 'test@invalid')
-        for folder in ('grammar', 'src/bin', 'src/tests', 'tools'):
+        for folder in ('grammar', 'src/bin', 'src/tests', 'tools', 'tests'):
             (self.repo/folder).mkdir(parents=True)
         (self.repo/'grammar/syntax.ebnf').write_text('base')
+        (self.repo/'tests/families.json').write_text(json.dumps([f'families/{i}.json' for i in range(67)]))
         (self.repo/'src/lib.rs').write_text('native')
         (self.repo/'tools/dev.py').write_text('dev')
         (self.repo/'tools/pin.py').write_text('pin')
@@ -515,16 +516,31 @@ class DiagnosticRecoveryTests(unittest.TestCase):
             self.queue.mark_started(attempt, pid=child.pid)
             directory = self.root/'.cache/attempts'/attempt/'evaluations'/job/'attempt-a'
             directory.mkdir(parents=True)
+            run = self.root/'.cache/attempts'/attempt
+            (run/'tasks').mkdir()
+            descriptor = run/'tasks'/f'{job}.json'
+            descriptor.write_text('{}')
+            digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+            support = run/'support.json'
+            support.write_text(json.dumps({'tasks': {job: digest(descriptor)}}))
+            family = directory/'family.json'
+            family.write_text(json.dumps({'family': 'test', 'cases': []}))
+            grammar = directory/'grammar'
+            grammar.mkdir()
+            (grammar/'example.ebnf').write_text('grammar')
             report = directory/'report.json'
             report.write_text(json.dumps({'passed': True, 'failures': [], 'task': job,
-                 'source': self.parent, 'descriptor_sha256': 'd', 'support_sha256': 's'}))
+                 'source': self.parent, 'directory': str(directory), 'fixture_sha256': digest(family),
+                 'descriptor_sha256': digest(descriptor), 'support_sha256': digest(support),
+                 'grammar': {'example.ebnf': digest(grammar/'example.ebnf')}}))
             outcomes = {name: {'status': 'pass', 'evidence': 'native'} for name in claim['job']['rules']}
             decisions = {name: {'rule': name, 'status': 'proposed'} for name in claim['job']['rules']}
-            original = {'task': job, 'base_commit': self.parent, 'report': str(report), 'dispositions': decisions}
+            original = {'task': job, 'base_commit': self.parent, 'report': str(report),
+                        'kind': 'author', 'dispositions': decisions}
             self.queue.finish(attempt, 'provisional-pass', original, outcomes)
             self.items.append({'job_id': job, 'attempt_id': attempt, 'status': 'included',
                                'base_commit': self.parent, 'rules': claim['job']['rules'],
-                               'descriptor_sha256': 'd', 'support_sha256': 's'})
+                               'descriptor_sha256': digest(descriptor), 'support_sha256': digest(support)})
         folder = self.root/'.cache/batches/batch1'
         folder.mkdir(parents=True)
         self.manifest = folder/'manifest.json'
@@ -655,6 +671,94 @@ class DiagnosticRecoveryTests(unittest.TestCase):
             with self.subTest(scope=scope), self.assertRaisesRegex(ValueError, 'verified Git source'):
                 self.queue.advance_recovered_diagnostics(self.commit, self.parent, self.jobs, self.proof)
         self.assertEqual(self.queue.coverage()['checkpoint'], self.parent)
+
+    def family_limit_proof(self, item=None):
+        item = item or self.items[0]
+        report = self.root/'.cache/attempts'/item['attempt_id']/'evaluations'/item['job_id']/'attempt-a/report.json'
+        return {'kind': 'family-limit-revalidation', 'previous_manifest': self.spec(self.manifest),
+                'validation': self.spec(self.validation), 'previous_repo_log': self.spec(self.old_log),
+                'report': self.spec(report)}
+
+    def test_family_limit_readmission_restages_without_reusing_audit_as_acceptance(self):
+        item, proof = self.items[0], self.family_limit_proof()
+        attempt = item['attempt_id']
+        original = self.queue.get_attempt(attempt)
+        self.queue.add_checkpoint('new', {'family_case_modes': True, 'family_registry_limit': 67},
+                                  expected_parent=self.parent)
+        self.queue.readmit_family_limit_proposal('job0', attempt, 'new', proof)
+        self.assertEqual(self.queue.get_attempt(attempt), original)
+        job = self.queue.get_jobs('provisional-pass')[0]
+        self.assertEqual(job['id'], 'job0')
+        self.assertEqual(job['attempt_id'], attempt)
+        self.assertIsNone(job['adjudication'])
+        self.assertEqual(self.queue.coverage()['checkpoint'], 'new')
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+        event = self.queue.audit()[-1]
+        self.assertEqual(event['kind'], 'readmitted-family-limit')
+        self.assertEqual(event['data']['old_registry_count'], 67)
+        self.assertEqual(event['data']['previous_adjudication']['status'], 'integration-rejected')
+        self.assertTrue(any(e['kind'] == 'adjudicated' for e in self.queue.audit()))
+
+    def test_family_limit_readmission_rejects_stale_missing_capabilities_and_lease(self):
+        item, proof = self.items[0], self.family_limit_proof()
+        attempt = item['attempt_id']
+        with self.assertRaisesRegex(ValueError, 'stale'):
+            self.queue.readmit_family_limit_proposal('job0', attempt, 'stale', proof)
+        self.queue.add_checkpoint('old-cli', {'family_case_modes': True, 'family_registry_limit': 66},
+                                  expected_parent=self.parent)
+        with self.assertRaisesRegex(ValueError, 'registry limit'):
+            self.queue.readmit_family_limit_proposal('job0', attempt, 'old-cli', proof)
+        self.queue.add_checkpoint('new', {'family_case_modes': True, 'family_registry_limit': 67},
+                                  expected_parent='old-cli')
+        with (self.root/'leases/job0').open('w') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError, 'still held'):
+                self.queue.readmit_family_limit_proposal('job0', attempt, 'new', proof)
+        with patch('retire_queue.os.kill', return_value=None):
+            with self.assertRaisesRegex(ValueError, 'still present'):
+                self.queue.readmit_family_limit_proposal('job0', attempt, 'new', proof)
+        wrong = dict(proof, report={**proof['report'], 'sha256': '0'*64})
+        with self.assertRaisesRegex(ValueError, 'hash differs'):
+            self.queue.readmit_family_limit_proposal('job0', attempt, 'new', wrong)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 2})
+
+    def test_family_limit_readmission_refuses_nonproposed_and_false_case_mode(self):
+        item, proof = self.items[0], self.family_limit_proof()
+        attempt = item['attempt_id']
+        self.queue.add_checkpoint('no-mode', {'family_case_modes': False, 'family_registry_limit': 4096},
+                                  expected_parent=self.parent)
+        with self.assertRaisesRegex(ValueError, 'registry limit'):
+            self.queue.readmit_family_limit_proposal('job0', attempt, 'no-mode', proof)
+        self.queue.add_checkpoint('enabled', {'family_case_modes': True, 'family_registry_limit': 4096},
+                                  expected_parent='no-mode')
+        with self.queue._connect() as db:
+            result = json.loads(db.execute('SELECT result FROM attempts WHERE id=?', (attempt,)).fetchone()[0])
+            result['evidence']['dispositions']['a']['status'] = 'needs-review'
+            db.execute('UPDATE attempts SET result=? WHERE id=?', (json.dumps(result), attempt))
+        with self.assertRaisesRegex(ValueError, 'dispositions'):
+            self.queue.readmit_family_limit_proposal('job0', attempt, 'enabled', proof)
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+
+    def test_family_limit_readmission_refuses_nonincluded_or_other_gate_failures(self):
+        item, proof = self.items[0], self.family_limit_proof()
+        attempt = item['attempt_id']
+        self.queue.add_checkpoint('new', {'family_case_modes': True, 'family_registry_limit': 4096},
+                                  expected_parent=self.parent)
+        manifest = json.loads(self.manifest.read_text())
+        manifest['jobs'][0]['status'] = 'integration-rejected'
+        self.manifest.write_text(json.dumps(manifest))
+        proof['previous_manifest'] = self.spec(self.manifest)
+        with self.assertRaisesRegex(ValueError, 'included native-pass'):
+            self.queue.readmit_family_limit_proposal('job0', attempt, 'new', proof)
+        manifest['jobs'][0]['status'] = 'included'
+        self.manifest.write_text(json.dumps(manifest))
+        proof['previous_manifest'] = self.spec(self.manifest)
+        self.old_log.write_text(self.gates('FAILED').replace('tools passed', 'tools FAILED')
+                                + 'Error: family-check at most 64\n')
+        proof['previous_repo_log'] = self.spec(self.old_log)
+        with self.assertRaisesRegex(ValueError, 'not limited'):
+            self.queue.readmit_family_limit_proposal('job0', attempt, 'new', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 2})
 
 
 if __name__ == "__main__":

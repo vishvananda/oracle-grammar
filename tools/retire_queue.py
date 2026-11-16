@@ -56,7 +56,22 @@ def _verify_readmission_artifacts(campaign, job_id, attempt_id, base_commit, ori
     logs = Path(matches[0].get('family_logs', '')).resolve()
     if not logs.is_relative_to(expected_manifest.parent.resolve()) or gate_path.resolve().parent != logs:
         raise ValueError('gate proof is outside the rejected proposal logs')
-    report_path, report_bytes = _proof_file(evidence.get('report'))
+    report, authored = _verify_original_report(campaign, job_id, attempt_id, base_commit, original, evidence.get('report'))
+    edited = report.get('edited', [])
+    try:
+        gate = json.loads(gate_bytes.splitlines()[0])
+        failure_names = {item['name'] for item in gate['failures']}
+        edited_names = {item['face'] for item in edited}
+    except (ValueError, IndexError, KeyError, TypeError) as exc:
+        raise ValueError('invalid family gate proof') from exc
+    if (not edited or not failure_names or not failure_names <= edited_names
+            or gate.get('family') != authored.get('family') or gate.get('compositional') is not True
+            or gate.get('cases') != len(authored.get('cases', [])) + len(edited)):
+        raise ValueError('family gate proof does not match generated operand cases')
+
+
+def _verify_original_report(campaign, job_id, attempt_id, base_commit, original, report_spec):
+    report_path, report_bytes = _proof_file(report_spec)
     if report_path != Path(original.get('report', '')):
         raise ValueError('report is not the original independently evaluated report')
     expected_run = campaign/'.cache/attempts'/attempt_id
@@ -89,17 +104,7 @@ def _verify_readmission_artifacts(campaign, job_id, attempt_id, base_commit, ori
     if grammar_files != report.get('grammar'):
         raise ValueError('original evaluated grammar changed')
     authored = json.loads(family.read_bytes())
-    edited = report.get('edited', [])
-    try:
-        gate = json.loads(gate_bytes.splitlines()[0])
-        failure_names = {item['name'] for item in gate['failures']}
-        edited_names = {item['face'] for item in edited}
-    except (ValueError, IndexError, KeyError, TypeError) as exc:
-        raise ValueError('invalid family gate proof') from exc
-    if (not edited or not failure_names or not failure_names <= edited_names
-            or gate.get('family') != authored.get('family') or gate.get('compositional') is not True
-            or gate.get('cases') != len(authored.get('cases', [])) + len(edited)):
-        raise ValueError('family gate proof does not match generated operand cases')
+    return report, authored
 
 
 _GATE_NAMES = {'fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test'}
@@ -202,6 +207,62 @@ def _verify_diagnostic_recovery(campaign, commit, parent, jobids, evidence):
         if identity.get(field) != actual[field]:
             raise ValueError('identity proof hash differs from verified Git source: '+field)
     return manifest, validation, included
+
+
+def _verify_family_limit_revalidation(campaign, job_id, attempt_id, base_commit, original,
+                                      rejection, evidence, checkpoint_evidence):
+    manifest_path, manifest_bytes = _proof_file(evidence.get('previous_manifest'))
+    validation_path, validation_bytes = _proof_file(evidence.get('validation'))
+    log_path, log = _proof_file(evidence.get('previous_repo_log'))
+    manifest, validation = json.loads(manifest_bytes), json.loads(validation_bytes)
+    previous = rejection.get('evidence', {}).get('manifest')
+    if (not isinstance(previous, str) or not previous or Path(previous).name != previous
+            or manifest_path.resolve() != (campaign/'.cache/batches'/previous/'manifest.json').resolve()
+            or validation_path.resolve() != (manifest_path.parent/'validation.json').resolve()
+            or log_path.resolve() != (manifest_path.parent/'repository-check.log').resolve()):
+        raise ValueError('original batch artifact paths differ')
+    included = [item for item in manifest.get('jobs', []) if item.get('status') == 'included']
+    ids = [item.get('job_id') for item in included]
+    matches = [item for item in included if item.get('job_id') == job_id and item.get('attempt_id') == attempt_id]
+    full = validation.get('full_checks', {})
+    if (manifest.get('id') != previous or len(matches) != 1 or len(set(ids)) != len(ids)
+            or len(validation.get('included_jobs', [])) != len(ids)
+            or set(validation.get('included_jobs', [])) != set(ids)
+            or validation != rejection.get('evidence', {}).get('validation')
+            or validation.get('candidate') != manifest.get('commit')
+            or validation.get('source_checkpoint') != manifest.get('base_commit')
+            or validation.get('status') != 'failed' or validation.get('reason') != 'repository gates failed'
+            or type(validation.get('repository_check_returncode')) is not int
+            or validation['repository_check_returncode'] == 0
+            or type(full.get('faces')) is not int or full['faces'] <= 0 or full.get('failures') != []):
+        raise ValueError('original batch is not an included native-pass family-limit rejection')
+    gates = _gates(log)
+    if (gates.get('families') != 'FAILED' or any(value == 'FAILED' for key, value in gates.items() if key != 'families')
+            or b'family-check' not in log or b'at most 64' not in log):
+        raise ValueError('original repository failure is not limited to the family CLI')
+    candidate = validation['candidate']
+    if not isinstance(candidate, str) or not re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', candidate):
+        raise ValueError('audited candidate commit is invalid')
+    config = json.loads((campaign/'config.json').read_bytes())
+    try:
+        registry_data = subprocess.check_output(['git', '-C', str(config['source_repo']), 'show',
+                                                 candidate+':tests/families.json'], stderr=subprocess.PIPE)
+        registry = json.loads(registry_data)
+    except (OSError, subprocess.CalledProcessError, ValueError, KeyError) as exc:
+        raise ValueError('cannot verify original family registry') from exc
+    if (not isinstance(registry, list) or len(registry) <= 64
+            or any(not isinstance(x, str) or not x for x in registry) or len(set(registry)) != len(registry)):
+        raise ValueError('original family registry does not prove a limit overflow')
+    limit = checkpoint_evidence.get('family_registry_limit')
+    if (checkpoint_evidence.get('family_case_modes') is not True or type(limit) is not int
+            or limit < len(registry)):
+        raise ValueError('latest checkpoint lacks sufficient family registry limit and case modes')
+    report, _ = _verify_original_report(campaign, job_id, attempt_id, base_commit, original, evidence.get('report'))
+    item = matches[0]
+    if (item.get('base_commit') != base_commit or item.get('descriptor_sha256') != report.get('descriptor_sha256')
+            or item.get('support_sha256') != report.get('support_sha256')):
+        raise ValueError('manifest and original independent report differ')
+    return item, len(registry)
 
 
 class Queue:
@@ -487,6 +548,66 @@ class Queue:
                 self._event(db, 'readmitted', {'job_id': job_id, 'attempt_id': attempt_id,
                             'checkpoint': checkpoint, 'pid': pid, 'process': 'absent',
                             'lease': 'acquired', 'previous_adjudication': rejection, 'evidence': evidence})
+
+    def readmit_family_limit_proposal(self, job_id, attempt_id, checkpoint, evidence):
+        """Readmit one native-passed proposal for complete restaging at the latest checkpoint.
+
+        No audit is treated as proof of the new union; all trial, native and
+        repository gates must run again. The rejected attempt stays immutable.
+        """
+        if not isinstance(evidence, dict) or evidence.get('kind') != 'family-limit-revalidation':
+            raise ValueError('family-limit-revalidation evidence is required')
+        with self._retry_lease(job_id):
+            with self._transaction() as db:
+                latest = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if not latest or latest[0] != checkpoint:
+                    raise ValueError('checkpoint is stale')
+                checkpoint_evidence = json.loads(latest[1])
+                if not isinstance(checkpoint_evidence, dict):
+                    raise ValueError('latest checkpoint has no family capability evidence')
+                row = db.execute(
+                    'SELECT j.status,j.attempt_id,j.adjudication,j.payload,a.base_commit,a.started,a.result '
+                    'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?', (job_id,)).fetchone()
+                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6]:
+                    raise ValueError('readmission requires the current rejected attempt')
+                pid = (json.loads(row[5]) if row[5] else {}).get('pid')
+                if type(pid) is not int or pid <= 0:
+                    raise ValueError('attempt process identity is unknown')
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    pass
+                except OSError as exc:
+                    if exc.errno != errno.ESRCH:
+                        raise ValueError('attempt process state is unknown') from exc
+                else:
+                    raise ValueError('attempt process is still present')
+                result = json.loads(row[6])
+                rules = {record[0] for record in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
+                payload_rules = json.loads(row[3])['rules']
+                original = result.get('evidence', {})
+                dispositions = original.get('dispositions', {}) if isinstance(original, dict) else {}
+                outcomes = result.get('outcomes', {})
+                if (not rules or len(payload_rules) != len(rules) or set(payload_rules) != rules
+                        or result.get('status') != 'provisional-pass' or set(outcomes) != rules
+                        or any(not isinstance(value, dict) or value.get('status') != 'pass' for value in outcomes.values())
+                        or not isinstance(dispositions, dict) or set(dispositions) != rules
+                        or any(not isinstance(value, dict) or value.get('status') != 'proposed'
+                               or value.get('rule') != name for name, value in dispositions.items())
+                        or original.get('kind') != 'author' or original.get('task') != job_id
+                        or original.get('base_commit') != row[4]):
+                    raise ValueError('original proposal lacks complete independently passed rule dispositions')
+                rejection = json.loads(row[2]) if row[2] else {}
+                item, registry_count = _verify_family_limit_revalidation(
+                    Path(self.path).parent, job_id, attempt_id, row[4], original, rejection, evidence,
+                    checkpoint_evidence)
+                if len(item.get('rules', [])) != len(rules) or set(item.get('rules', [])) != rules:
+                    raise ValueError('original manifest rule ownership differs')
+                db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (job_id,))
+                self._event(db, 'readmitted-family-limit', {'job_id': job_id, 'attempt_id': attempt_id,
+                            'checkpoint': checkpoint, 'old_registry_count': registry_count,
+                            'pid': pid, 'process': 'absent', 'lease': 'acquired',
+                            'previous_adjudication': rejection, 'evidence': evidence})
 
     def retry_failed(self, job_id, attempt_id, evidence, max_retries):
         """Requeue a finished failure only after proving its process and lease are gone.
