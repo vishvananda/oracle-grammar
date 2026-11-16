@@ -81,7 +81,8 @@ becomes free, rather than waiting for the whole first wave. The measured trial
 kept its original frozen wave launcher; no queue-speed improvement is claimed.
 
 The authoring tooling's 113 Python tests pass, as do hygiene, pin and diff checks.
-The paused R36 source changes in the main checkout remain byte-for-byte intact.
+The previously paused R36 source changes are preserved on the archived branch
+`pending/r36-preserved-20261117` at commit `4cdf418`.
 
 ## Accepted isolated checkpoint
 
@@ -94,7 +95,10 @@ The candidate removes six seeded rules and is now an accepted isolated checkpoin
 The full audit passed all 32,755 occurrences, preserved all 33,730 native readings
 and every baseline-successful print gate, with no failures. All eight repository
 gates passed, including 996 library tests (one ignored) and 802 family cases.
-The full audit took 18m 51s. Nothing has been merged into main or released.
+The full audit took 18m 51s. The validated mechanical and authoring changes
+were subsequently integrated into main as `093b41a` and `2d83443` respectively,
+retiring 13 seeded rules in total. These commits record integration into main;
+they do not claim a release or completion of the remaining campaign.
 
 The rescan reports 9,986 seeded rules, of which 9,979 are still needed and seven
 are unused. Two are newly exposed mechanical candidates:

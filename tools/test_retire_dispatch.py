@@ -1,0 +1,129 @@
+"""Small real Git and frozen-artifact canaries for campaign integration."""
+from contextlib import redirect_stdout
+import io
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+import uuid
+from unittest.mock import patch
+
+import retire as r
+import retire_batch
+import retire_dispatch as dispatch
+import retire_tasks
+
+
+def git(root, *args):
+    return subprocess.check_output(['git', *args], cwd=root, text=True, stderr=subprocess.DEVNULL).strip()
+
+
+def repository(path):
+    path.mkdir()
+    subprocess.run(['git', 'init', '-q', str(path)], check=True)
+    git(path, 'config', 'user.email', 'test@example.invalid')
+    git(path, 'config', 'user.name', 'Test')
+    (path/'grammar/syntax').mkdir(parents=True)
+    (path/'families').mkdir()
+    (path/'tests').mkdir()
+    (path/'grammar/syntax/mined.ebnf').write_text(
+        'mined_action ::= m_one | never_action\n'
+        '/* @sem Operation::Test */\nm_one ::= "one"\n'
+        '/* @sem () */\nnever_action ::= "never"\n')
+    (path/'families/base.json').write_text('{}\n')
+    (path/'tests/families.json').write_text('[]\n')
+    git(path, 'add', '.')
+    git(path, 'commit', '-qm', 'base')
+    return git(path, 'rev-parse', 'HEAD')
+
+
+class DispatchCanaries(unittest.TestCase):
+    def test_real_mechanical_task_report_and_batch_stage(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, campaign, helpers, inputs = (root/'source', root/'campaign', root/'helpers', root/'inputs')
+            commit = repository(source)
+            campaign.mkdir()
+            (campaign/'runner').mkdir()
+            tools = Path(__file__).resolve().parent
+            for name in retire_tasks.RUNNERS:
+                shutil.copy2(tools/name, campaign/'runner'/name)
+            helpers.mkdir()
+            for name in retire_tasks.HELPERS:
+                (helpers/name).write_text('helper '+name)
+            build = {'source_sha256': 'compiled', 'binaries': {n: r.digest(helpers/n) for n in retire_tasks.HELPERS}}
+            r.write(helpers/'build.json', build)
+            frozen = inputs/'frozen'
+            frozen.mkdir(parents=True)
+            shutil.copytree(source/'grammar', frozen/'grammar')
+            r.write(frozen/'build.json', build)
+            r.write(frozen/'index.json', {'0': {'name': 'Example', 'text': 'one', 'record': 0, 'face': 0, 'flags': [True]*4}})
+            r.jsonl(frozen/'gold.jsonl', [{'faces': [{'name': 'Example', 'abilities': []}]}])
+            r.write(frozen/'oracle.json', [{'cards': [{'name': 'Example', 'text': 'one'}]}])
+            manifest = {'format': 3, 'commit': commit, 'source': 'compiled', 'files': r.tree(frozen), 'tooling': r.tooling()}
+            r.write(inputs/'manifest.json', manifest)
+            (inputs/'scan').mkdir()
+            r.write(inputs/'scan/rules.json', {'unused': ['m_one']})
+            checkpoint = {'source': str(source), 'commit': commit, 'inputs': str(inputs), 'helpers': str(helpers)}
+            job = {'id': 'mech', 'rules': ['m_one'], 'goal': 'remove audited unused rule',
+                   'kind': 'mechanical', 'target_faces': ['Example']}
+            claim = {'attempt_id': str(uuid.uuid4()), 'base_commit': commit, 'job': job}
+            detail = {'names': ['Example']}
+            with patch.object(retire_tasks.dev, 'source', return_value='compiled'):
+                prepared = retire_tasks.prepare_task(campaign, claim, checkpoint, job, detail)
+                run = Path(prepared['run'])
+                with patch.object(dispatch.w, 'checks', return_value={'faces': 1, 'failures': []}), redirect_stdout(io.StringIO()):
+                    dispatch.mechanical(run, prepared['task_id'])
+                reports = list((run/'evaluations'/'mech').glob('*/report.json'))
+                self.assertEqual(len(reports), 1)
+                report = r.read(reports[0])
+                self.assertTrue(report['passed'])
+                proposal = {'kind': 'mechanical', 'job_id': 'mech', 'attempt_id': claim['attempt_id'],
+                            'run': str(run), 'report': report}
+                candidate = retire_batch.stage(campaign, checkpoint, [proposal])
+            self.assertEqual(candidate['status'], 'provisional', candidate)
+            self.assertEqual(candidate['fixtures'], [])
+            self.assertEqual(candidate['jobs'][0]['status'], 'included')
+            self.assertNotIn('m_one ::=', (Path(candidate['source'])/'grammar/syntax/mined.ebnf').read_text())
+            self.assertIn('m_one ::=', (source/'grammar/syntax/mined.ebnf').read_text())
+
+    def test_publish_main_checks_semantic_parent_tree(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            main, campaign = root/'main', root/'campaign'
+            base = repository(main)
+            campaign.mkdir()
+            previous = root/'previous'
+            subprocess.run(['git', 'worktree', 'add', '--detach', str(previous), base], cwd=main, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            candidate = root/'candidate'
+            subprocess.run(['git', 'worktree', 'add', '-b', 'candidate', str(candidate), base], cwd=main, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            (candidate/'grammar/syntax/mined.ebnf').write_text('never_action ::= "never"\n')
+            git(candidate, 'add', '.')
+            git(candidate, 'commit', '-qm', 'candidate')
+            commit = git(candidate, 'rev-parse', 'HEAD')
+            # An unrelated clean main commit must not block a semantic-parent match.
+            (main/'readme.txt').write_text('unrelated\n')
+            git(main, 'add', '.')
+            git(main, 'commit', '-qm', 'unrelated')
+            r.write(campaign/'config.json', {'main_repo': str(main)})
+            folder = root/'proof'
+            folder.mkdir()
+            with patch.object(dispatch.dev, 'source', return_value='compiled'):
+                dispatch.publish_main(campaign, {'source': str(previous)}, {'commit': commit}, {'folder': str(folder)})
+            proof = r.read(folder/'main-integration.json')
+            self.assertEqual(proof['status'], 'integrated')
+            self.assertEqual(r.tree(main/'grammar'), r.tree(candidate/'grammar'))
+            # Replaying against the old semantic parent must fail without changing main.
+            before = git(main, 'rev-parse', 'HEAD')
+            with patch.object(dispatch.dev, 'source', return_value='compiled'):
+                dispatch.publish_main(campaign, {'source': str(previous)}, {'commit': commit}, {'folder': str(folder)})
+            proof = r.read(folder/'main-integration.json')
+            self.assertEqual(proof['status'], 'pending')
+            self.assertIn('semantic source differs', proof['reason'])
+            self.assertEqual(git(main, 'rev-parse', 'HEAD'), before)
+
+
+if __name__ == '__main__':
+    unittest.main()

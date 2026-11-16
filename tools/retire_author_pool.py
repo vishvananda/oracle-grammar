@@ -17,8 +17,16 @@ import retire_pool as pool
 
 def prompt(run, task_id):
     task = r.read(run/'tasks'/f'{task_id}.json')
+    packet = task.get('packet')
+    packet_note = (f'Read the compact immutable task packet {packet}. It contains the rule declarations, '
+                   'assigned reference operands and original record addresses. Filter it with Python; '
+                   'do not dump whole corpora. Start with declared modules and use rg --files before guessing paths.\n'
+                   if packet else '')
+    limit = task.get('max_diagnostic_attempts', 8)
+    minutes = task.get('wall_budget_seconds', 1500) // 60
     return f'''Author shared Oracle grammar for this bounded pilot task.
 Read AGENTS.md, SPEC.md, docs/print-shapes.md and {run/'tasks'/f'{task_id}.json'}.
+{packet_note}
 Goal: {task['goal']}
 Remove exactly these seeded rules: {json.dumps(task['rules'])}.
 Write only: {json.dumps(task['write_files'])}.
@@ -63,7 +71,8 @@ values. Include independent operands when the family supports them.
 After grouped changes run this exact bounded diagnostic command and read its report:
 {json.dumps([sys.executable, str(run/'support/runner/retire_author.py'), str(run), task_id])}
 Keep/wait on the same exec handle; do not restart a running helper. There are at
-most eight diagnostic attempts and 25 minutes for this task. Fix useful bounded
+most {limit} diagnostic attempts and {minutes} minutes for this task. Allow one repair round,
+then park failures with evidence rather than extending the task. Fix useful bounded
 failures; escalate when the next step needs a different contract. All four print
 gates compare baseline successes: an already-false gate is not a new regression.
 Do not forge or edit diagnostic reports or create files outside the write set
@@ -74,27 +83,53 @@ provisional; coordinator independently evaluates frozen candidate snapshots.
 '''
 
 
-def launch(run, task_id):
+def response_schema(rules):
+    return {'type': 'object', 'additionalProperties': False,
+            'required': ['summary', 'rules'], 'properties': {
+                'summary': {'type': 'string'},
+                'rules': {'type': 'array', 'items': {'type': 'object',
+                    'additionalProperties': False, 'required': ['rule', 'status', 'reason', 'evidence'],
+                    'properties': {'rule': {'type': 'string', 'enum': rules},
+                        'status': {'type': 'string', 'enum': ['proposed', 'needs-review']},
+                        'reason': {'type': 'string'}, 'evidence': {'type': 'string'}}}}}}
+
+
+def launch(run, task_id, on_started=None, extra_fds=(), startup_lock=None):
     descriptor = r.read(run/'tasks'/f'{task_id}.json')
     folder = run/'workers'/task_id
     folder.mkdir()
     text = prompt(run, task_id)
+    if descriptor.get('full_pass'):
+        text += '''\nReturn the required structured JSON response with exactly one disposition for
+EVERY assigned rule. Use proposed only when the candidate diagnostic passes;
+otherwise needs-review with that rule's concrete missing capability, unsupported
+contract, dependency or failed gate. Cite a source fragment, reproduction or
+diagnostic artifact in evidence. A generic refusal covering the entire bundle
+does not establish review of its individual members. Do not mark review solely
+because the coordinator's full batch audit has not run yet.\n'''
     (folder/'prompt.txt').write_text(text)
     cmd = pool.command(run, folder, descriptor['model'], descriptor['effort'])
     # The author may write only its private checkout. No shared epoch write root.
     pos = cmd.index('--add-dir')
     del cmd[pos:pos+2]
     cmd[cmd.index('--cd')+1] = descriptor['checkout']
+    if descriptor.get('full_pass'):
+        schema = run/'response-schema.json'
+        r.write(schema, response_schema(descriptor['rules']))
+        cmd[-1:-1] = ['--output-schema', str(schema)]
     receipt = {'task': task_id, 'model': descriptor['model'], 'effort': descriptor['effort'],
                'started_unix': time.time(), 'status': 'starting'}
     r.write(folder/'receipt.json', receipt)
+    startup = Path(startup_lock) if startup_lock else run/'startup.lock'
     with (folder/'events.jsonl').open('w') as output, (folder/'stderr.log').open('w') as error, \
-            (folder/'prompt.txt').open() as input_stream, (run/'startup.lock').open('a') as lock:
+            (folder/'prompt.txt').open() as input_stream, startup.open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         process = subprocess.Popen(cmd, stdin=input_stream, stdout=output, stderr=error,
-                                   text=True, start_new_session=True)
+                                   text=True, start_new_session=True, pass_fds=tuple(extra_fds))
         receipt.update(pid=process.pid, status='running')
         r.write(folder/'receipt.json', receipt)
+        if on_started:
+            on_started(process.pid, str(folder/'receipt.json'))
         deadline = time.monotonic()+60
         while process.poll() is None and time.monotonic() < deadline:
             if '"thread.started"' in (folder/'events.jsonl').read_text():
@@ -102,7 +137,7 @@ def launch(run, task_id):
             time.sleep(.1)
         fcntl.flock(lock, fcntl.LOCK_UN)
         try:
-            process.wait(timeout=1500)
+            process.wait(timeout=descriptor.get('wall_budget_seconds', 1500))
         except subprocess.TimeoutExpired:
             os.killpg(process.pid, signal.SIGTERM)
             try:
@@ -119,9 +154,12 @@ def launch(run, task_id):
     try:
         # Each evaluation owns its descriptor leases in one process. Sharing
         # retire._LEASES between executor threads could inherit another task's FD.
+        env = dict(os.environ)
+        if extra_fds:
+            env['RETIRE_JOB_FD'] = str(extra_fds[0])
         checked = subprocess.run([sys.executable, str(run/'support/runner/retire_author.py'),
                                   str(run), task_id, '--coordinator'],
-                                 text=True, capture_output=True)
+                                 text=True, capture_output=True, env=env, pass_fds=tuple(extra_fds))
         (folder/'evaluation.log').write_text(checked.stdout+checked.stderr)
         r.require(checked.returncode == 0, 'independent evaluation failed; inspect evaluation.log')
         evaluation = json.loads(checked.stdout.strip())

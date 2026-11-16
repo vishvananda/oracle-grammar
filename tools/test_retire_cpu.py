@@ -1,0 +1,115 @@
+import multiprocessing
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+
+import retire_cpu
+
+
+def holder(root, threads, capacity, ready, release):
+    with retire_cpu.reserve(root, threads, capacity):
+        ready.set()
+        release.wait(10)
+
+
+def waiting_bundle(root, threads, capacity, ready, acquired, release):
+    ready.set()
+    with retire_cpu.reserve(root, threads, capacity):
+        acquired.set()
+        release.wait(10)
+
+
+class LeaseTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.children = []
+
+    def tearDown(self):
+        for child in self.children:
+            if child.is_alive():
+                child.terminate()
+            child.join(timeout=5)
+        self.tmp.cleanup()
+
+    def start(self, target, *args):
+        process = multiprocessing.Process(target=target, args=args)
+        process.start()
+        self.children.append(process)
+        return process
+
+    def test_validation(self):
+        for threads, capacity in [(0, 2), (3, 2), (1, 0), (1, 33), (True, 2)]:
+            with self.subTest(threads=threads, capacity=capacity):
+                with self.assertRaises(ValueError):
+                    with retire_cpu.reserve(self.root, threads, capacity):
+                        pass
+
+    def test_real_contention_never_overcommits(self):
+        ready, release = multiprocessing.Event(), multiprocessing.Event()
+        self.start(holder, self.root, 2, 3, ready, release)
+        self.assertTrue(ready.wait(5))
+        with self.assertRaises(BlockingIOError):
+            with retire_cpu.reserve(self.root, 2, 3, wait=False):
+                pass
+        with retire_cpu.reserve(self.root, 1, 3, wait=False) as lease:
+            self.assertEqual(len(lease), 1)
+            with self.assertRaises(BlockingIOError):
+                with retire_cpu.reserve(self.root, 1, 3, wait=False):
+                    pass
+        release.set()
+
+    def test_waiting_bundle_releases_partial_tokens(self):
+        ready, release = multiprocessing.Event(), multiprocessing.Event()
+        self.start(holder, self.root, 1, 3, ready, release)
+        self.assertTrue(ready.wait(5))
+        waiting, acquired, finish = (multiprocessing.Event() for _ in range(3))
+        self.start(waiting_bundle, self.root, 3, 3, waiting, acquired, finish)
+        self.assertTrue(waiting.wait(5))
+        time.sleep(0.5)
+        with retire_cpu.reserve(self.root, 2, 3, wait=False):
+            self.assertFalse(acquired.is_set())
+        release.set()
+        self.assertTrue(acquired.wait(5))
+        finish.set()
+
+    def test_inherited_fd_survives_reserver_exit(self):
+        # The intermediate process exits without unlocking; the helper remains
+        # alive with the token descriptor inherited via pass_fds.
+        marker = self.root / 'helper-ready'
+        code = """
+import os, subprocess, sys
+from pathlib import Path
+import retire_cpu
+root, marker = map(Path, sys.argv[1:])
+with retire_cpu.reserve(root, 1, 1) as fds:
+    helper = "import pathlib,sys,time; pathlib.Path(sys.argv[1]).touch(); time.sleep(2)"
+    subprocess.Popen([sys.executable, '-c', helper, str(marker)], pass_fds=fds)
+    os._exit(0)
+"""
+        subprocess.run([sys.executable, '-c', code, str(self.root), str(marker)],
+                       check=True, env={**os.environ, 'PYTHONPATH': str(Path(retire_cpu.__file__).parent)})
+        deadline = time.monotonic() + 5
+        while not marker.exists() and time.monotonic() < deadline:
+            time.sleep(0.05)
+        self.assertTrue(marker.exists())
+        with self.assertRaises(BlockingIOError):
+            with retire_cpu.reserve(self.root, 1, 1, wait=False):
+                pass
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                with retire_cpu.reserve(self.root, 1, 1, wait=False):
+                    break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    self.fail('helper did not release inherited token')
+                time.sleep(0.05)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -188,14 +188,15 @@ def edited_checks(run, directory, grammar, task, root, data):
     return results
 
 
-def check(run, task_id, coordinator=False):
+def _check(run, task_id, coordinator=False):
     task, root, manifest = verify(run, task_id)
     parent = (run/'evaluations'/task_id if coordinator else root/'.cache/author-checks')
     parent.mkdir(parents=True, exist_ok=True)
     with r.locked(root/'.cache/author-check.lock', blocking=False) as acquired:
         r.require(acquired, 'a diagnostic helper is still running; retain and wait on its handle')
         attempts = list(parent.glob('attempt-*'))
-        r.require(coordinator or len(attempts) < 8, 'eight diagnostic attempts exhausted; escalate')
+        limit = task.get('max_diagnostic_attempts', 8)
+        r.require(coordinator or len(attempts) < limit, 'diagnostic attempt budget exhausted; escalate')
         directory = parent/('attempt-'+uuid.uuid4().hex)
         directory.mkdir()
         started = time.perf_counter()
@@ -246,6 +247,26 @@ def check(run, task_id, coordinator=False):
         r.write(directory/'report.json', report)
         print(json.dumps(report), flush=True)
         return report
+
+
+def check(run, task_id, coordinator=False):
+    task = r.read(run/'tasks'/f'{task_id}.json')
+    if not task.get('cpu_pool'):
+        return _check(run, task_id, coordinator)
+    import retire_cpu
+    with retire_cpu.reserve(Path(task['cpu_pool']), task.get('helper_threads', 2),
+                            capacity=task.get('cpu_capacity', 32)) as fds:
+        r._LEASES.extend(fds)
+        inherited = os.environ.get('RETIRE_JOB_FD')
+        if inherited:
+            r._LEASES.append(int(inherited))
+        try:
+            return _check(run, task_id, coordinator)
+        finally:
+            if inherited:
+                r._LEASES.remove(int(inherited))
+            for fd in fds:
+                r._LEASES.remove(fd)
 
 
 def main():

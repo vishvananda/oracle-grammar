@@ -1,4 +1,70 @@
-# Deletion-only retirement workers
+# Retirement campaigns
+
+`tools/retire_campaign.py` prepares a durable first-pass campaign over every
+remaining seeded rule. Its inventory assigns each rule to exactly one family
+job. A rule is accepted only after its attempt has an explicit per-rule pass
+and the coordinator accepts the combined checkpoint. Unsupported, failed and
+needs-review rules stay visible with their reasons; a successful helper exit is
+not a semantic disposition.
+
+The rolling pool has up to twelve Terra High authoring workers. Each works in a
+private checkout from its claimed checkpoint, diagnoses every assigned rule and
+may perform at most three diagnostic checks within a 900-second budget. A rule
+shown unused by the current audit can instead take the deterministic mechanical
+lane; uncertain cohorts, retained users and failed checks remain for review.
+Workers do not write shared grammar, model or reference files. Their descriptor
+bounds the writable files; ordinary root hooks are registered explicitly, and
+seeded removals use `mined.remove` rather than manual hook edits.
+
+The SQLite queue records the exact inventory, atomic claims, immutable attempt
+results and an append-only audit. Running work has no time-based expiry: an
+unknown or orphaned child is not silently stolen or retried. Recovery requires
+verified evidence. Each attempt retains its original checkpoint even as later
+claims use a newer one. After a terminal receipt, the private checkout can be
+verified and archived before its worktree is removed; retain the evaluation,
+report, patch and provenance needed for review.
+
+The coordinator stages disjoint proposals in a private integration workspace.
+It merges ordinary productions conservatively, replays the union of assigned
+seeded removals, applies approved hooks and registers family fixtures. Conflicts
+are parked with their reason. The first batch targets 12 proposals, later batches
+48, with a hard staging bound of 96. A candidate commit is provisional until
+its family checks, full audit and repository gates pass. A failed combined audit
+is evidence about the batch; it does not identify an individual culprit.
+
+One full audit runs at a time, using 24 tokens from a shared 32-token CPU pool.
+For the current explicitly allowed population, that means all 32,755
+occurrences: preserve every native reading and every baseline-successful
+verified, exact keyed, default and exact-default print gate. The population and
+its immutable gold, Oracle, baseline and helper hashes belong to the checkpoint;
+the count is not a claim about a different corpus. Eight repository gates run
+against the candidate. On success the coordinator freezes the candidate, rescans
+for newly mechanical rules and makes it the base for subsequent claims. The
+stable integration workspace and shared Cargo target retain build caches, while
+checkpoint inputs, candidate commits and audit evidence remain separate.
+
+Configured usage collection records attempt-scoped token counts and estimates
+Standard API-equivalent cost using a pinned estimator and explicit pricing.
+Unavailable or partial usage is reported as such, not as zero cost; estimates
+are not subscription charges. Preparation and status use the campaign CLI:
+
+```sh
+python3 tools/retire_campaign.py prepare CAMPAIGN --source CHECKOUT --helpers HELPERS \
+  --gold GOLD --oracle ORACLE --allowed ALLOWED --baseline BASELINE \
+  --main MAIN_CHECKOUT --target CARGO_TARGET
+python3 tools/retire_campaign.py status CAMPAIGN
+```
+
+This describes the campaign workflow, not evidence that a campaign has started
+or completed. See [the authoring pilot](retirement-authoring-pilot-20261116.md)
+for measured results and their population.
+
+## Legacy deletion-only worker
+
+The following `tools/retire.py` lane predates the rolling authoring campaign.
+Its frozen jobs and commands remain useful for a bounded deletion-only audit;
+its pool, claim barrier and checkpoint procedure are distinct from the campaign
+queue above.
 
 Use `tools/retire.py` to delegate mechanical candidate removal to Luna workers.
 The coordinator owns one frozen campaign; workers own jobs, never source files.
@@ -164,7 +230,7 @@ With `--validate`, a complete successful worker phase automatically assembles
 provisional rule names and runs full allowed-population validation. Repository
 gates, source integration and checkpoint promotion remain coordinator work.
 The [shared grammar lane design](retirement-authoring-design.md) describes the
-additional protocol needed for authoring; that lane is not launched by this tool.
+protocol for authoring; the legacy `retire_pool.py` tool does not launch it.
 
 A coordinator can retain checkpoint finalization while the audit runs. First
 stage the exact assembled patch in a private clean checkout of the frozen commit,
