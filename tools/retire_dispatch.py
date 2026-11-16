@@ -119,6 +119,23 @@ class Contexts:
             return self.values[commit]
 
 
+def attempt_usage(run, job, working, receipt):
+    """Collect this attempt's paid usage, or preserve why its cost is unknown."""
+    if job['kind'] != 'author':
+        return None
+    if working is None or not isinstance(receipt, dict) or not receipt.get('finished_unix'):
+        return {'status': 'unavailable', 'error': 'terminal model receipt unavailable', 'estimated_usd': None}
+    try:
+        config = r.read(run/'config.json')
+        metrics = config.get('metrics')
+        r.require(metrics is not None, 'usage estimator is not configured')
+        r.require(r.digest(Path(metrics['usage_estimator'])) == metrics['estimator_sha256'],
+                  'usage estimator changed')
+        return retire_metrics.collect(working, job['id'], receipt, metrics)
+    except Exception as error:
+        return {'status': 'unavailable', 'error': str(error), 'estimated_usd': None}
+
+
 def perform(run, claim, contexts):
     queue = Queue(run/'queue.sqlite')
     cp = campaign_api.checkpoint(run,claim['base_commit'])
@@ -128,6 +145,8 @@ def perform(run, claim, contexts):
     evidence.parent.mkdir(parents=True,exist_ok=True)
     working=None
     receipt=None
+    usage=None
+    usage_collected=False
     with lease(run/'leases'/job['id']) as fd:
         try:
             data,scan,inverted = contexts.get(cp)
@@ -179,23 +198,24 @@ def perform(run, claim, contexts):
                     'evidence':{'model':row['evidence'],'report':str(paths[0]) if paths else None}}
             result={'run':str(working),'task':task_id,'report':str(paths[0]) if paths else None,
                     'kind':job['kind'],'dispositions':reviewed,'base_commit':claim['base_commit']}
-            config=r.read(run/'config.json')
-            if job['kind']=='author' and config.get('metrics'):
-                try:
-                    r.require(r.digest(Path(config['metrics']['usage_estimator']))==
-                              config['metrics']['estimator_sha256'],'usage estimator changed')
-                    result['usage']=retire_metrics.collect(working,task_id,receipt,config['metrics'])
-                except Exception as error:
-                    result['usage']={'status':'unavailable','error':str(error),'estimated_usd':None}
+            usage=attempt_usage(run,job,working,receipt)
+            usage_collected=True
+            if usage is not None:
+                result['usage']=usage
             r.write(evidence,result)
             queue.finish(attempt,'provisional-pass' if passed else 'needs-review',
                          {'receipt':str(evidence),**result},outcome)
         except Exception as error:
-            result={'attempt':attempt,'job':job['id'],'status':'operational-failure','error':str(error),
+            result={'attempt':attempt,'job':job['id'],'kind':job['kind'],
+                    'status':'operational-failure','error':str(error),
                     'run':str(working) if working else None,'task':job['id'],'base_commit':claim['base_commit']}
+            if not usage_collected:
+                usage=attempt_usage(run,job,working,receipt)
+            if usage is not None:
+                result['usage']=usage
             r.write(evidence,result)
-            status='needs-review' if receipt and receipt.get('finished_unix') else 'failed'
-            queue.finish(attempt,status,{'receipt':str(evidence)},
+            status='needs-review' if isinstance(receipt, dict) and receipt.get('finished_unix') else 'failed'
+            queue.finish(attempt,status,{'receipt':str(evidence),**result},
                 {rule:{'status':'needs-review','reason':'Operational failure before complete review: '+str(error),
                        'evidence':str(evidence)} for rule in job['rules']})
         if working:

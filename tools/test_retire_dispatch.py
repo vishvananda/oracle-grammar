@@ -44,6 +44,90 @@ def repository(path):
 
 
 class DispatchCanaries(unittest.TestCase):
+    def test_invalid_paid_model_response_keeps_usage_in_queue_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            (run/'leases').mkdir()
+            estimator = run/'estimator.py'
+            estimator.write_text('estimator')
+            metrics = {'usage_estimator': str(estimator), 'estimator_sha256': r.digest(estimator)}
+            r.write(run/'config.json', {'metrics': metrics})
+            queue = dispatch.Queue(run/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'test'})
+            job = {'id': 'one', 'rules': ['r_one'], 'kind': 'author'}
+            queue.add_jobs([job])
+            claim = queue.claim('worker')
+            working = run/'attempt'
+            working.mkdir()
+            contexts = SimpleNamespace(get=lambda cp: (('index', 'gold', 'oracle'), {}, 'inverted'))
+            paid = {'status': 'recorded', 'estimated_usd': 0.42, 'tokens': {'input_tokens': 120}}
+            receipt = {'finished_unix': 100, 'returncode': 0}
+            with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
+                 patch.object(dispatch.planner, 'select_cohort_detail', return_value={'names': []}), \
+                 patch.object(dispatch, 'prepare_task', return_value={'run': str(working), 'task_id': 'one'}), \
+                 patch.object(dispatch.models, 'launch', return_value=receipt), \
+                 patch.object(dispatch, 'decisions', side_effect=ValueError('invalid final JSON')), \
+                 patch.object(dispatch.retire_metrics, 'collect', return_value=paid) as collect, \
+                 patch.object(dispatch.retire_retention, 'archive_checkout', return_value={}):
+                dispatch.perform(run, claim, contexts)
+            collect.assert_called_once_with(working, 'one', receipt, metrics)
+            attempt = queue.get_attempt(claim['attempt_id'])
+            self.assertEqual(attempt['result']['status'], 'needs-review')
+            evidence = attempt['result']['evidence']
+            self.assertEqual(evidence['usage'], paid)
+            self.assertEqual(evidence['kind'], 'author')
+            self.assertIn('invalid final JSON', evidence['error'])
+            self.assertEqual(r.read(Path(evidence['receipt']))['usage'], paid)
+
+    def test_missing_receipt_unknown_and_mechanical_skips_collection(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            with patch.object(dispatch.retire_metrics, 'collect') as collect:
+                unknown = dispatch.attempt_usage(run, {'id': 'x', 'kind': 'author'}, run, None)
+                self.assertEqual(unknown['status'], 'unavailable')
+                self.assertIsNone(unknown['estimated_usd'])
+                self.assertIsNone(dispatch.attempt_usage(run, {'id': 'x', 'kind': 'mechanical'}, run, None))
+                collect.assert_not_called()
+
+    def test_failed_launch_without_receipt_records_unknown_in_queue(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            (run/'leases').mkdir()
+            queue = dispatch.Queue(run/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'test'})
+            queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'author'}])
+            claim = queue.claim('worker')
+            working = run/'attempt'
+            working.mkdir()
+            contexts = SimpleNamespace(get=lambda cp: (('index', 'gold', 'oracle'), {}, 'inverted'))
+            with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
+                 patch.object(dispatch.planner, 'select_cohort_detail', return_value={'names': []}), \
+                 patch.object(dispatch, 'prepare_task', return_value={'run': str(working), 'task_id': 'one'}), \
+                 patch.object(dispatch.models, 'launch', side_effect=RuntimeError('launch failed')), \
+                 patch.object(dispatch.retire_metrics, 'collect') as collect, \
+                 patch.object(dispatch.retire_retention, 'archive_checkout', return_value={}):
+                dispatch.perform(run, claim, contexts)
+            collect.assert_not_called()
+            result = queue.get_attempt(claim['attempt_id'])['result']
+            self.assertEqual(result['status'], 'failed')
+            self.assertEqual(result['evidence']['usage']['status'], 'unavailable')
+            self.assertIsNone(result['evidence']['usage']['estimated_usd'])
+
+    def test_estimator_hash_guard_preserves_unknown(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            estimator = run/'estimator'
+            estimator.write_text('changed')
+            r.write(run/'config.json', {'metrics': {'usage_estimator': str(estimator),
+                                                    'estimator_sha256': '0'*64}})
+            with patch.object(dispatch.retire_metrics, 'collect') as collect:
+                usage = dispatch.attempt_usage(run, {'id': 'one', 'kind': 'author'}, run,
+                                               {'finished_unix': 10})
+                self.assertEqual(usage['status'], 'unavailable')
+                self.assertIn('estimator changed', usage['error'])
+                self.assertIsNone(usage['estimated_usd'])
+                collect.assert_not_called()
+
     def test_drain_stops_before_claiming_or_launching(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
