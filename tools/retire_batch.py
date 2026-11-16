@@ -322,13 +322,6 @@ def _validate(manifest, checkpoint, slots):
         r.freeze(Namespace(run=output, source=source, helpers=Path(checkpoint['helpers']).resolve(),
                            slots=1, threads=threads, allowed=inputs/'allowed.json', gold=inputs/'gold.jsonl',
                            oracle=inputs/'oracle.json', parse=baseline, prints=[baseline]))
-        data = w.payload(output)
-        checks = folder/'full-checks'
-        checks.mkdir()
-        report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()], data, threads)
-        evidence['full_checks'] = report
-        if report['failures']:
-            raise ValueError('full allowed-population checks failed')
         # dev.py runs families and library tests concurrently. Divide the lease
         # between those two gates, leaving headroom for the fast gates.
         gate_threads = str(max(2, threads//2-2))
@@ -341,6 +334,13 @@ def _validate(manifest, checkpoint, slots):
         evidence['repository_check_returncode'] = code
         if code:
             raise ValueError('repository gates failed')
+        data = w.payload(output)
+        checks = folder/'full-checks'
+        checks.mkdir()
+        report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()], data, threads)
+        evidence['full_checks'] = report
+        if report['failures']:
+            raise ValueError('full allowed-population checks failed')
         if (r.digest(baseline) != evidence['baseline_sha256']
                 or r.read(input_run/'manifest.json')['files'] != r.tree(inputs)):
             raise ValueError('checkpoint inputs changed during validation')

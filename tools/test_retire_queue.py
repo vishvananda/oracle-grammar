@@ -1,12 +1,15 @@
+from contextlib import closing
 import concurrent.futures
 import fcntl
 import hashlib
+import json
+from unittest.mock import patch
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from retire_queue import Queue
+from retire_queue import Queue, _git_source_identity
 
 
 class QueueTests(unittest.TestCase):
@@ -338,6 +341,119 @@ class QueueTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "recorded start"):
             self.queue.retry_unstarted("job0", second["attempt_id"], proof)
 
+    def rejected_with_family_evidence(self):
+        self.add()
+        claim = self.queue.claim('worker')
+        attempt = claim['attempt_id']
+        child = subprocess.Popen(['true'])
+        child.wait()
+        self.queue.mark_started(attempt, pid=child.pid)
+        lease = self.path.parent/'leases/job0'
+        lease.parent.mkdir()
+        lease.touch()
+        run = self.path.parent/'.cache/attempts'/attempt
+        report_dir = run/'evaluations/job0/attempt-1'
+        report_dir.mkdir(parents=True)
+        (run/'tasks').mkdir()
+        descriptor = run/'tasks/job0.json'
+        descriptor.write_text('{}')
+        support = run/'support.json'
+        support.write_text(json.dumps({'tasks': {'job0': hashlib.sha256(descriptor.read_bytes()).hexdigest()}}))
+        grammar = report_dir/'grammar'
+        grammar.mkdir()
+        (grammar/'example.ebnf').write_text('example ::= \"x\"')
+        family = report_dir/'family.json'
+        family.write_text(json.dumps({'family': 'assigned', 'cases': [{}, {}, {}, {}]}))
+        digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+        report = report_dir/'report.json'
+        report.write_text(json.dumps({'passed': True, 'failures': [], 'task': 'job0',
+                                      'source': 'base', 'directory': str(report_dir),
+                                      'descriptor_sha256': digest(descriptor), 'support_sha256': digest(support),
+                                      'fixture_sha256': digest(family), 'grammar': {'example.ebnf': digest(grammar/'example.ebnf')},
+                                      'edited': [{'face': 'Target'}]}))
+        dispositions = {name: {'rule': name, 'status': 'proposed'} for name in claim['job']['rules']}
+        original = {'report': str(report), 'task': 'job0', 'base_commit': 'base',
+                    'kind': 'author', 'dispositions': dispositions}
+        self.queue.finish(attempt, 'provisional-pass', original, self.passed(claim))
+        self.queue.reject_jobs(['job0'], {'manifest': 'batch1', 'reason': 'family gate'})
+        manifest_dir = self.path.parent/'.cache/batches/batch1'
+        logs = manifest_dir/'proposal-0'
+        logs.mkdir(parents=True)
+        manifest = manifest_dir/'manifest.json'
+        manifest.write_text(json.dumps({'id': 'batch1', 'jobs': [{'job_id': 'job0', 'attempt_id': attempt,
+            'status': 'integration-rejected', 'reason': 'family check failed: test', 'family_logs': str(logs)}]}))
+        gate = logs/'family-0.log'
+        gate.write_text(json.dumps({'family': 'assigned', 'cases': 5, 'compositional': True,
+                                    'failures': [{'name': 'Target', 'why': 'no parse'}]}) + '\n')
+        proof = {'kind': 'family-case-mode-revalidation',
+                 'previous_manifest': {'path': str(manifest), 'sha256': digest(manifest)},
+                 'gate_proof': {'path': str(gate), 'sha256': digest(gate)},
+                 'report': {'path': str(report), 'sha256': digest(report)}}
+        return claim, proof, lease, report
+
+    def test_readmit_preserves_rejection_and_reuses_exact_passed_attempt(self):
+        claim, proof, lease, report = self.rejected_with_family_evidence()
+        attempt = claim['attempt_id']
+        old_attempt = self.queue.get_attempt(attempt)
+        with self.assertRaisesRegex(ValueError, 'case modes'):
+            self.queue.readmit_proposal('job0', attempt, 'base', proof)
+        self.queue.add_checkpoint('migrated', {'family_case_modes': True}, expected_parent='base')
+        with self.assertRaisesRegex(ValueError, 'stale'):
+            self.queue.readmit_proposal('job0', attempt, 'base', proof)
+        with lease.open('w') as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError, 'still held'):
+                self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
+        with self.assertRaises(ValueError):
+            self.queue.readmit_proposal('job0', attempt, 'migrated',
+                {**proof, 'gate_proof': {**proof['gate_proof'], 'sha256': '0'*64}})
+        self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
+        self.assertEqual(self.queue.get_attempt(attempt), old_attempt)
+        job = self.queue.get_jobs('provisional-pass')[0]
+        self.assertEqual(job['attempt_id'], attempt)
+        self.assertIsNone(job['adjudication'])
+        self.assertEqual([e['kind'] for e in self.queue.audit()][-1], 'readmitted')
+        event = self.queue.audit()[-1]['data']
+        self.assertEqual(event['previous_adjudication']['status'], 'integration-rejected')
+        self.assertEqual(event['evidence'], proof)
+        self.assertTrue(any(e['kind'] == 'adjudicated' for e in self.queue.audit()))
+        with self.assertRaises(ValueError):
+            self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
+
+    def test_readmit_rejects_bad_report_dispositions_or_live_pid(self):
+        claim, proof, lease, report = self.rejected_with_family_evidence()
+        attempt = claim['attempt_id']
+        self.queue.add_checkpoint('migrated', {'family_case_modes': True}, expected_parent='base')
+        with patch('retire_queue.os.kill', return_value=None):
+            with self.assertRaisesRegex(ValueError, 'still present'):
+                self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
+        changed = json.loads(report.read_text())
+        changed['passed'] = False
+        report.write_text(json.dumps(changed))
+        proof['report']['sha256'] = hashlib.sha256(report.read_bytes()).hexdigest()
+        with self.assertRaisesRegex(ValueError, 'did not pass'):
+            self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 2})
+
+    def test_readmit_refuses_nonproposed_or_incomplete_original_dispositions(self):
+        claim, proof, lease, report = self.rejected_with_family_evidence()
+        attempt = claim['attempt_id']
+        self.queue.add_checkpoint('migrated', {'family_case_modes': True}, expected_parent='base')
+        original = self.queue.get_attempt(attempt)['result']
+        for mutation in ('missing', 'review', 'outcome'):
+            changed = json.loads(json.dumps(original))
+            if mutation == 'missing':
+                del changed['evidence']['dispositions']['r0a']
+            elif mutation == 'review':
+                changed['evidence']['dispositions']['r0a']['status'] = 'needs-review'
+            else:
+                changed['outcomes']['r0a']['status'] = 'needs-review'
+            with closing(self.queue._connect()) as db:
+                db.execute('UPDATE attempts SET result=? WHERE id=?', (json.dumps(changed), attempt))
+            with self.subTest(mutation=mutation), self.assertRaisesRegex(ValueError, 'dispositions'):
+                self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 2})
+
     def test_review_requires_reason_and_pass_cannot_hide_review(self):
         self.add()
         claim = self.queue.claim("worker")
@@ -350,6 +466,195 @@ class QueueTests(unittest.TestCase):
             self.queue.finish(claim["attempt_id"], "provisional-pass", "proof", outcomes)
         self.queue.finish(claim["attempt_id"], "needs-review", "proof", outcomes)
         self.assertEqual(self.queue.coverage()["counts"], {"needs-review": 2})
+
+
+class DiagnosticRecoveryTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.repo = self.root/'repo'
+        self.repo.mkdir()
+        self.git('init', '-q')
+        self.git('config', 'user.name', 'Test')
+        self.git('config', 'user.email', 'test@invalid')
+        for folder in ('grammar', 'src/bin', 'src/tests', 'tools'):
+            (self.repo/folder).mkdir(parents=True)
+        (self.repo/'grammar/syntax.ebnf').write_text('base')
+        (self.repo/'src/lib.rs').write_text('native')
+        (self.repo/'tools/dev.py').write_text('dev')
+        (self.repo/'tools/pin.py').write_text('pin')
+        (self.repo/'src/bin/family-check.rs').write_text('old cli')
+        (self.repo/'src/tests/family_check_modes.rs').write_text('old test')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'base')
+        self.parent = self.git('rev-parse', 'HEAD')
+        (self.repo/'grammar/syntax.ebnf').write_text('audited')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'audited')
+        self.audited = self.git('rev-parse', 'HEAD')
+        (self.repo/'src/bin/family-check.rs').write_text('fixed cli')
+        (self.repo/'src/tests/family_check_modes.rs').write_text('fixed test')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'repaired')
+        self.commit = self.git('rev-parse', 'HEAD')
+        (self.root/'config.json').write_text(json.dumps({'source_repo': str(self.repo)}))
+        self.queue = Queue(self.root/'queue.sqlite')
+        self.queue.add_checkpoint(self.parent, {'proof': 'base'})
+        self.queue.add_jobs([{'id': 'job0', 'rules': ['a']}, {'id': 'job1', 'rules': ['b']}])
+        self.jobs = ['job0', 'job1']
+        claims = [self.queue.claim('worker0'), self.queue.claim('worker1')]
+        (self.root/'leases').mkdir()
+        self.items = []
+        for claim in claims:
+            job = claim['job']['id']
+            attempt = claim['attempt_id']
+            (self.root/'leases'/job).touch()
+            child = subprocess.Popen(['true'])
+            child.wait()
+            self.queue.mark_started(attempt, pid=child.pid)
+            directory = self.root/'.cache/attempts'/attempt/'evaluations'/job/'attempt-a'
+            directory.mkdir(parents=True)
+            report = directory/'report.json'
+            report.write_text(json.dumps({'passed': True, 'failures': [], 'task': job,
+                 'source': self.parent, 'descriptor_sha256': 'd', 'support_sha256': 's'}))
+            outcomes = {name: {'status': 'pass', 'evidence': 'native'} for name in claim['job']['rules']}
+            decisions = {name: {'rule': name, 'status': 'proposed'} for name in claim['job']['rules']}
+            original = {'task': job, 'base_commit': self.parent, 'report': str(report), 'dispositions': decisions}
+            self.queue.finish(attempt, 'provisional-pass', original, outcomes)
+            self.items.append({'job_id': job, 'attempt_id': attempt, 'status': 'included',
+                               'base_commit': self.parent, 'rules': claim['job']['rules'],
+                               'descriptor_sha256': 'd', 'support_sha256': 's'})
+        folder = self.root/'.cache/batches/batch1'
+        folder.mkdir(parents=True)
+        self.manifest = folder/'manifest.json'
+        self.manifest.write_text(json.dumps({'id': 'batch1', 'base_commit': self.parent,
+                                             'commit': self.audited, 'jobs': self.items}))
+        validation = {'status': 'failed', 'reason': 'repository gates failed', 'candidate': self.audited,
+                      'source_checkpoint': self.parent, 'included_jobs': self.jobs,
+                      'full_checks': {'faces': 42, 'failures': []}, 'repository_check_returncode': 1}
+        self.validation = folder/'validation.json'
+        self.validation.write_text(json.dumps(validation))
+        self.queue.reject_jobs(self.jobs, {'manifest': 'batch1', 'validation': validation})
+        self.old_log = folder/'repository-check.log'
+        self.old_log.write_text(self.gates('FAILED') + 'Error: family-check at most 64\\n')
+        self.new_log = self.root/'new-gates.log'
+        self.new_log.write_text(self.gates('passed'))
+        self.identity = self.root/'identity.json'
+        source_identity = _git_source_identity(self.repo, self.audited, self.commit)
+        self.identity.write_text(json.dumps({**source_identity, 'parent_checkpoint': self.parent}))
+        self.proof = {'kind': 'diagnostic-only-family-limit', 'manifest': self.spec(self.manifest),
+            'validation': self.spec(self.validation), 'previous_repo_log': self.spec(self.old_log),
+            'new_repo_log': self.spec(self.new_log), 'identity_proof': self.spec(self.identity)}
+
+    def git(self, *args):
+        return subprocess.check_output(['git', *args], cwd=self.repo, text=True).strip()
+
+    @staticmethod
+    def spec(path):
+        return {'path': str(path), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+
+    @staticmethod
+    def gates(families):
+        return ''.join(f'{gate} {families if gate == "families" else "passed"} 1.0 s\n'
+                       for gate in ('fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test'))
+
+    def test_recovery_atomically_advances_and_retains_rejection_history(self):
+        self.queue.advance_recovered_diagnostics(self.commit, self.parent, self.jobs, self.proof)
+        coverage = self.queue.coverage()
+        self.assertEqual(coverage['checkpoint'], self.commit)
+        self.assertEqual(coverage['counts'], {'accepted': 2})
+        self.assertTrue(all(job['adjudication']['kind'] == 'diagnostic-only' for job in coverage['jobs']))
+        recovery = self.queue.audit()[-1]
+        self.assertEqual(recovery['kind'], 'diagnostic-recovery')
+        self.assertEqual(set(recovery['data']['previous_adjudications']), set(self.jobs))
+        self.assertTrue(any(event['kind'] == 'adjudicated' for event in self.queue.audit()))
+
+    def test_recovery_rejects_stale_partial_bad_gate_and_held_lease(self):
+        with self.assertRaisesRegex(ValueError, 'parent conflict'):
+            self.queue.advance_recovered_diagnostics(self.commit, 'stale', self.jobs, self.proof)
+        with self.assertRaisesRegex(ValueError, 'specified native-pass'):
+            self.queue.advance_recovered_diagnostics(self.commit, self.parent, self.jobs[:1], self.proof)
+        with (self.root/'leases/job0').open('w') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError, 'still held'):
+                self.queue.advance_recovered_diagnostics(self.commit, self.parent, self.jobs, self.proof)
+        self.new_log.write_text(self.gates('FAILED'))
+        self.proof['new_repo_log'] = self.spec(self.new_log)
+        with self.assertRaisesRegex(ValueError, 'repository gates'):
+            self.queue.advance_recovered_diagnostics(self.commit, self.parent, self.jobs, self.proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 2})
+        self.assertEqual(self.queue.coverage()['checkpoint'], self.parent)
+
+    def test_recovery_refuses_native_or_grammar_changes(self):
+        (self.repo/'src/lib.rs').write_text('changed native')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'bad native')
+        bad = self.git('rev-parse', 'HEAD')
+        identity = json.loads(self.identity.read_text())
+        identity['new_commit'] = bad
+        self.identity.write_text(json.dumps(identity))
+        self.proof['identity_proof'] = self.spec(self.identity)
+        with self.assertRaisesRegex(ValueError, 'native implementation changed'):
+            self.queue.advance_recovered_diagnostics(bad, self.parent, self.jobs, self.proof)
+        self.assertEqual(self.queue.coverage()['checkpoint'], self.parent)
+
+    def test_recovery_rejects_failed_rule_or_changed_original_evidence(self):
+        with closing(self.queue._connect()) as db:
+            attempt, result = db.execute('SELECT id,result FROM attempts WHERE job_id=?', ('job0',)).fetchone()
+            value = json.loads(result)
+            value['evidence']['dispositions']['a']['status'] = 'needs-review'
+            db.execute('UPDATE attempts SET result=? WHERE id=?', (json.dumps(value), attempt))
+        with self.assertRaisesRegex(ValueError, 'per-rule pass'):
+            self.queue.advance_recovered_diagnostics(self.commit, self.parent, self.jobs, self.proof)
+        self.assertEqual(self.queue.coverage()['checkpoint'], self.parent)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 2})
+
+    def test_recovery_refuses_other_original_failures_and_grammar_drift(self):
+        self.old_log.write_text(self.gates('FAILED').replace('tools passed', 'tools FAILED')
+                                + 'Error: family-check at most 64\\n')
+        self.proof['previous_repo_log'] = self.spec(self.old_log)
+        with self.assertRaisesRegex(ValueError, 'repository gates'):
+            self.queue.advance_recovered_diagnostics(self.commit, self.parent, self.jobs, self.proof)
+        self.old_log.write_text(self.gates('FAILED') + 'Error: family-check at most 64\\n')
+        self.proof['previous_repo_log'] = self.spec(self.old_log)
+        (self.repo/'grammar/syntax.ebnf').write_text('different grammar')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'bad grammar')
+        bad = self.git('rev-parse', 'HEAD')
+        identity = json.loads(self.identity.read_text())
+        identity['new_commit'] = bad
+        self.identity.write_text(json.dumps(identity))
+        self.proof['identity_proof'] = self.spec(self.identity)
+        with self.assertRaisesRegex(ValueError, 'audited grammar changed'):
+            self.queue.advance_recovered_diagnostics(bad, self.parent, self.jobs, self.proof)
+
+    def test_recovery_refuses_compiled_tool_input_changes(self):
+        for name in ('tools/dev.py', 'tools/pin.py'):
+            with self.subTest(path=name):
+                self.git('reset', '--hard', self.commit)
+                (self.repo/name).write_text('changed')
+                self.git('add', '.')
+                self.git('commit', '-qm', 'changed compiled tool')
+                bad = self.git('rev-parse', 'HEAD')
+                identity = json.loads(self.identity.read_text())
+                identity['new_commit'] = bad
+                self.identity.write_text(json.dumps(identity))
+                self.proof['identity_proof'] = self.spec(self.identity)
+                with self.assertRaisesRegex(ValueError, 'native implementation changed'):
+                    self.queue.advance_recovered_diagnostics(bad, self.parent, self.jobs, self.proof)
+        self.assertEqual(self.queue.coverage()['checkpoint'], self.parent)
+
+    def test_recovery_refuses_self_consistent_false_claimed_identity_hashes(self):
+        original = json.loads(self.identity.read_text())
+        for scope in ('native', 'grammar'):
+            identity = dict(original)
+            identity[scope+'_before_sha256'] = identity[scope+'_after_sha256'] = 'c'*64
+            self.identity.write_text(json.dumps(identity))
+            self.proof['identity_proof'] = self.spec(self.identity)
+            with self.subTest(scope=scope), self.assertRaisesRegex(ValueError, 'verified Git source'):
+                self.queue.advance_recovered_diagnostics(self.commit, self.parent, self.jobs, self.proof)
+        self.assertEqual(self.queue.coverage()['checkpoint'], self.parent)
 
 
 if __name__ == "__main__":

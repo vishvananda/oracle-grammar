@@ -86,7 +86,10 @@ class BatchTests(unittest.TestCase):
     def test_validate_reserves_cpu_and_uses_16_threads(self):
         self._validate_threads(16, True)
 
-    def _validate_threads(self, expected, configured):
+    def test_repository_failure_does_not_start_full_score(self):
+        self._validate_threads(16, True, gate_code=1)
+
+    def _validate_threads(self, expected, configured, gate_code=0):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -108,9 +111,11 @@ class BatchTests(unittest.TestCase):
                   'helpers': str(root/'helpers'), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
             if configured:
                 cp['audit_threads'] = expected
+            order = []
             def git(_source, *args):
                 return 'candidate' if args[0] == 'rev-parse' else ''
             def checks(run, directory, grammar, names, data, threads):
+                order.append('checks')
                 self.assertEqual(threads, expected)
                 self.assertEqual(len(batch.r._LEASES), expected)
                 for fd in batch.r._LEASES:
@@ -118,15 +123,33 @@ class BatchTests(unittest.TestCase):
                 (directory/'rows.jsonl').write_text('rows')
                 return {'failures': []}
             def gate(*args, **kwargs):
+                order.append('gate')
                 self.assertEqual(len(kwargs['pass_fds']), expected)
                 self.assertEqual(kwargs['env']['CARGO_BUILD_JOBS'], str(expected - 4))
                 for name in ('RAYON_NUM_THREADS', 'ORACLE_GRAMMAR_THREADS', 'RUST_TEST_THREADS'):
                     self.assertEqual(kwargs['env'][name], str(expected//2-2))
-                return SimpleNamespace(returncode=0)
-            with patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze') as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks), patch.object(batch.subprocess, 'run', side_effect=gate):
+                return SimpleNamespace(returncode=gate_code)
+            def freeze_input(args):
+                order.append('freeze')
+                args.run.mkdir()
+            with patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate):
                 result = batch.validate(manifest, cp)
             self.assertEqual(freeze.call_args.args[0].threads, expected)
             self.assertEqual(freeze.call_args.args[0].slots, 1)
+            if gate_code:
+                self.assertEqual(order, ['freeze', 'gate'])
+                full_checks.assert_not_called()
+                self.assertEqual(result['status'], 'failed')
+                self.assertEqual(result['reason'], 'repository gates failed')
+                self.assertEqual(result['repository_check_returncode'], gate_code)
+                self.assertTrue((folder/'repository-check.log').is_file())
+                self.assertTrue((folder/'validation-inputs').is_dir())
+                self.assertFalse((folder/'full-checks').exists())
+                self.assertNotIn('rows', result)
+                self.assertEqual(json.loads((folder/'validation.json').read_text()), result)
+                self.assertEqual(batch.r._LEASES, [])
+                return
+            self.assertEqual(order, ['freeze', 'gate', 'checks'])
             self.assertEqual(result['status'], 'passed')
             self.assertEqual(result['scope'], 'combined-batch')
             self.assertEqual(result['audit_threads'], expected)

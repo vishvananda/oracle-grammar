@@ -8,11 +8,13 @@ import fcntl
 import hashlib
 import json
 import os
+import re
+import subprocess
 from pathlib import Path
 import stat
 import sqlite3
 import uuid
-from contextlib import closing, contextmanager
+from contextlib import ExitStack, closing, contextmanager
 
 
 def _json(value):
@@ -23,6 +25,183 @@ def _evidence(value):
     if not value:
         raise ValueError("evidence is required")
     return _json(value)
+
+
+def _proof_file(spec):
+    if not isinstance(spec, dict) or not isinstance(spec.get('path'), str) or not isinstance(spec.get('sha256'), str):
+        raise ValueError('artifact path and SHA-256 are required')
+    path = Path(spec['path'])
+    if not path.is_absolute() or not path.is_file() or path.is_symlink() or path.stat().st_size > 32 * 1024 * 1024:
+        raise ValueError('evidence artifact is unavailable or too large')
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != spec['sha256']:
+        raise ValueError('evidence artifact hash differs')
+    return path, data
+
+
+def _verify_readmission_artifacts(campaign, job_id, attempt_id, base_commit, original, rejection, evidence):
+    manifest_path, manifest_bytes = _proof_file(evidence.get('previous_manifest'))
+    previous = rejection.get('evidence', {}).get('manifest')
+    if not isinstance(previous, str) or not previous or Path(previous).name != previous:
+        raise ValueError('previous rejection manifest identity is missing')
+    expected_manifest = campaign/'.cache/batches'/previous/'manifest.json'
+    if manifest_path.resolve() != expected_manifest.resolve():
+        raise ValueError('previous manifest does not match rejection')
+    manifest = json.loads(manifest_bytes)
+    matches = [x for x in manifest.get('jobs', []) if x.get('job_id') == job_id and x.get('attempt_id') == attempt_id]
+    if (manifest.get('id') != previous or len(matches) != 1 or matches[0].get('status') != 'integration-rejected'
+            or not str(matches[0].get('reason', '')).startswith('family check failed:')):
+        raise ValueError('manifest does not show the original family-gate rejection')
+    gate_path, gate_bytes = _proof_file(evidence.get('gate_proof'))
+    logs = Path(matches[0].get('family_logs', '')).resolve()
+    if not logs.is_relative_to(expected_manifest.parent.resolve()) or gate_path.resolve().parent != logs:
+        raise ValueError('gate proof is outside the rejected proposal logs')
+    report_path, report_bytes = _proof_file(evidence.get('report'))
+    if report_path != Path(original.get('report', '')):
+        raise ValueError('report is not the original independently evaluated report')
+    expected_run = campaign/'.cache/attempts'/attempt_id
+    expected_eval = expected_run/'evaluations'/job_id
+    if not report_path.resolve().is_relative_to(expected_eval.resolve()) or report_path.name != 'report.json':
+        raise ValueError('report is outside the original evaluation')
+    report = json.loads(report_bytes)
+    if (report.get('passed') is not True or report.get('failures') != []
+            or report.get('task') != job_id or report.get('source') != base_commit
+            or Path(report.get('directory', '')).resolve() != report_path.parent.resolve()):
+        raise ValueError('original independent report did not pass')
+    descriptor = expected_run/'tasks'/f'{job_id}.json'
+    support = expected_run/'support.json'
+    family = report_path.parent/'family.json'
+    for path, key in ((descriptor, 'descriptor_sha256'), (support, 'support_sha256'), (family, 'fixture_sha256')):
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != report.get(key):
+            raise ValueError('original evaluation artifact hash differs: '+key)
+    support_data = json.loads(support.read_bytes())
+    if support_data.get('tasks', {}).get(job_id) != report.get('descriptor_sha256'):
+        raise ValueError('original support manifest does not bind the task')
+    grammar = report_path.parent/'grammar'
+    if not grammar.is_dir():
+        raise ValueError('original evaluated grammar is missing')
+    grammar_files = {}
+    for path in sorted(grammar.rglob('*')):
+        if path.is_symlink():
+            raise ValueError('original evaluated grammar contains a symlink')
+        if path.is_file():
+            grammar_files[str(path.relative_to(grammar))] = hashlib.sha256(path.read_bytes()).hexdigest()
+    if grammar_files != report.get('grammar'):
+        raise ValueError('original evaluated grammar changed')
+    authored = json.loads(family.read_bytes())
+    edited = report.get('edited', [])
+    try:
+        gate = json.loads(gate_bytes.splitlines()[0])
+        failure_names = {item['name'] for item in gate['failures']}
+        edited_names = {item['face'] for item in edited}
+    except (ValueError, IndexError, KeyError, TypeError) as exc:
+        raise ValueError('invalid family gate proof') from exc
+    if (not edited or not failure_names or not failure_names <= edited_names
+            or gate.get('family') != authored.get('family') or gate.get('compositional') is not True
+            or gate.get('cases') != len(authored.get('cases', [])) + len(edited)):
+        raise ValueError('family gate proof does not match generated operand cases')
+
+
+_GATE_NAMES = {'fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test'}
+_DIAGNOSTIC_EXCLUSIONS = {'src/bin/family-check.rs', 'src/tests/family_check_modes.rs'}
+
+
+def _gates(data):
+    text = data.decode('utf-8')
+    rows = re.findall(r'^(fmt|pin|hygiene|tools|clippy|build|families|test)\s+(passed|reused|FAILED)\s+', text, re.M)
+    if len(rows) != len(_GATE_NAMES) or {name for name, _ in rows} != _GATE_NAMES:
+        raise ValueError('repository gate report is incomplete or duplicated')
+    return dict(rows)
+
+
+def _git_source_identity(repo, old, new):
+    for commit in (old, new):
+        if not isinstance(commit, str) or not re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', commit):
+            raise ValueError('source commit must be an immutable full Git ID')
+    def read(*args):
+        try:
+            return subprocess.check_output(['git', '-C', str(repo), *args], stderr=subprocess.PIPE)
+        except (OSError, subprocess.CalledProcessError) as exc:
+            raise ValueError('unable to verify recovery source commits') from exc
+    grammar_before = read('rev-parse', old+':grammar').strip()
+    grammar_after = read('rev-parse', new+':grammar').strip()
+    if grammar_before != grammar_after:
+        raise ValueError('audited grammar changed')
+    selected = {'Cargo.toml', 'Cargo.lock', 'pins/model.json', '.cargo/config.toml',
+                'rust-toolchain.toml', 'clippy.toml', 'grammar/lexical.ebnf',
+                'grammar/print-model.txt', 'grammar/print-weights.txt', 'tools/dev.py', 'tools/pin.py'}
+    def native(commit):
+        records = {}
+        for item in read('ls-tree', '-r', '-z', '--full-tree', commit).split(b'\0'):
+            if not item:
+                continue
+            head, raw = item.split(b'\t', 1)
+            name = os.fsdecode(raw)
+            if ((name.startswith(('src/', 'crates/')) or name in selected)
+                    and name not in _DIAGNOSTIC_EXCLUSIONS):
+                records[name] = head
+        return records
+    native_before, native_after = native(old), native(new)
+    if native_before != native_after:
+        raise ValueError('native implementation changed beyond diagnostic exclusions')
+    def digest_native(records):
+        digest = hashlib.sha256()
+        for name in sorted(records):
+            digest.update(os.fsencode(name)+b'\0'+records[name]+b'\n')
+        return digest.hexdigest()
+    return {'old_commit': old, 'new_commit': new,
+            'grammar_before_sha256': hashlib.sha256(grammar_before).hexdigest(),
+            'grammar_after_sha256': hashlib.sha256(grammar_after).hexdigest(),
+            'native_before_sha256': digest_native(native_before),
+            'native_after_sha256': digest_native(native_after),
+            'excluded_native_paths': sorted(_DIAGNOSTIC_EXCLUSIONS)}
+
+
+
+def _verify_diagnostic_recovery(campaign, commit, parent, jobids, evidence):
+    if not isinstance(evidence, dict) or evidence.get('kind') != 'diagnostic-only-family-limit':
+        raise ValueError('diagnostic-only-family-limit evidence is required')
+    manifest_path, manifest_data = _proof_file(evidence.get('manifest'))
+    validation_path, validation_data = _proof_file(evidence.get('validation'))
+    old_log_path, old_log = _proof_file(evidence.get('previous_repo_log'))
+    _, new_log = _proof_file(evidence.get('new_repo_log'))
+    _, identity_bytes = _proof_file(evidence.get('identity_proof'))
+    manifest, validation, identity = map(json.loads, (manifest_data, validation_data, identity_bytes))
+    batch_id = manifest.get('id')
+    if (not isinstance(batch_id, str) or not batch_id or Path(batch_id).name != batch_id
+            or manifest_path.resolve() != (campaign/'.cache/batches'/batch_id/'manifest.json').resolve()
+            or validation_path.resolve() != (manifest_path.parent/'validation.json').resolve()
+            or old_log_path.resolve() != (manifest_path.parent/'repository-check.log').resolve()):
+        raise ValueError('original batch artifact paths differ')
+    included = [item for item in manifest.get('jobs', []) if item.get('status') == 'included']
+    ids = [item.get('job_id') for item in included]
+    full = validation.get('full_checks', {})
+    if (not included or len(set(ids)) != len(ids) or set(ids) != set(jobids)
+            or len(validation.get('included_jobs', [])) != len(ids)
+            or set(validation.get('included_jobs', [])) != set(ids)
+            or validation.get('status') != 'failed' or validation.get('reason') != 'repository gates failed'
+            or type(validation.get('repository_check_returncode')) is not int
+            or validation['repository_check_returncode'] == 0
+            or type(full.get('faces')) is not int or full['faces'] <= 0 or full.get('failures') != []
+            or validation.get('candidate') != manifest.get('commit')
+            or validation.get('source_checkpoint') != parent or manifest.get('base_commit') != parent):
+        raise ValueError('original combined audit is not the specified native-pass repository-gate failure')
+    if (_gates(old_log).get('families') != 'FAILED'
+            or any(status == 'FAILED' for name, status in _gates(old_log).items() if name != 'families')
+            or b'at most 64' not in old_log or b'family-check' not in old_log
+            or any(status == 'FAILED' for status in _gates(new_log).values())):
+        raise ValueError('repository gates do not prove the bounded-family-only failure and recovery')
+    if (identity.get('old_commit') != validation['candidate'] or identity.get('new_commit') != commit
+            or identity.get('parent_checkpoint') != parent
+            or set(identity.get('excluded_native_paths', [])) != _DIAGNOSTIC_EXCLUSIONS):
+        raise ValueError('source identity proof does not match the recovery commits or exclusions')
+    config = json.loads((campaign/'config.json').read_bytes())
+    actual = _git_source_identity(config['source_repo'], validation['candidate'], commit)
+    for field in ('grammar_before_sha256', 'grammar_after_sha256',
+                  'native_before_sha256', 'native_after_sha256'):
+        if identity.get(field) != actual[field]:
+            raise ValueError('identity proof hash differs from verified Git source: '+field)
+    return manifest, validation, included
 
 
 class Queue:
@@ -250,6 +429,65 @@ class Queue:
         finally:
             os.close(fd)
 
+    def readmit_proposal(self, job_id, attempt_id, checkpoint, evidence):
+        """Return one independently passed, rejected proposal to batch review.
+
+        The caller must independently establish that the cited gate failure is
+        limited to coordinator-generated whole-card cases. This does not accept
+        a proposal or waive any gate; the new batch reruns validation.
+        """
+        if not isinstance(evidence, dict) or evidence.get('kind') != 'family-case-mode-revalidation':
+            raise ValueError('family-case-mode-revalidation evidence is required')
+        # Files are checked again within the transaction, with the job lease held.
+        with self._retry_lease(job_id):
+            with self._transaction() as db:
+                latest = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if not latest or latest[0] != checkpoint:
+                    raise ValueError('checkpoint is stale')
+                checkpoint_evidence = json.loads(latest[1])
+                if not isinstance(checkpoint_evidence, dict) or checkpoint_evidence.get('family_case_modes') is not True:
+                    raise ValueError('latest checkpoint does not prove family case modes')
+                row = db.execute(
+                    'SELECT j.status,j.attempt_id,j.adjudication,j.payload,a.base_commit,a.started,a.result '
+                    'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?', (job_id,)).fetchone()
+                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6]:
+                    raise ValueError('readmission requires the current rejected attempt')
+                start = json.loads(row[5]) if row[5] else {}
+                pid = start.get('pid')
+                if type(pid) is not int or pid <= 0:
+                    raise ValueError('attempt process identity is unknown')
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    pass
+                except OSError as exc:
+                    if exc.errno != errno.ESRCH:
+                        raise ValueError('attempt process state is unknown') from exc
+                else:
+                    raise ValueError('attempt process is still present')
+                result = json.loads(row[6])
+                rules = {r[0] for r in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
+                payload_rules = json.loads(row[3])['rules']
+                original = result.get('evidence', {})
+                dispositions = original.get('dispositions', {}) if isinstance(original, dict) else {}
+                outcomes = result.get('outcomes', {})
+                if (not rules or len(payload_rules) != len(rules) or set(payload_rules) != rules
+                        or result.get('status') != 'provisional-pass' or set(outcomes) != rules
+                        or any(not isinstance(v, dict) or v.get('status') != 'pass' for v in outcomes.values())
+                        or not isinstance(dispositions, dict) or set(dispositions) != rules
+                        or any(not isinstance(v, dict) or v.get('status') != 'proposed'
+                               or v.get('rule') != name for name, v in dispositions.items())
+                        or original.get('kind') != 'author' or original.get('task') != job_id
+                        or original.get('base_commit') != row[4]):
+                    raise ValueError('original proposal lacks complete independently passed rule dispositions')
+                rejection = json.loads(row[2]) if row[2] else {}
+                _verify_readmission_artifacts(Path(self.path).parent, job_id, attempt_id, row[4],
+                                             original, rejection, evidence)
+                db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (job_id,))
+                self._event(db, 'readmitted', {'job_id': job_id, 'attempt_id': attempt_id,
+                            'checkpoint': checkpoint, 'pid': pid, 'process': 'absent',
+                            'lease': 'acquired', 'previous_adjudication': rejection, 'evidence': evidence})
+
     def retry_failed(self, job_id, attempt_id, evidence, max_retries):
         """Requeue a finished failure only after proving its process and lease are gone.
 
@@ -414,6 +652,96 @@ class Queue:
                            (_json(detail), job_id))
             self._event(db, "checkpoint", {"commit": commit, "parent": parent, "evidence": evidence})
             self._event(db, "adjudicated", {"jobs": jobids, **detail})
+
+    def advance_recovered_diagnostics(self, commit, parent, jobids, evidence):
+        """Atomically accept a fully audited batch after a diagnostic-only repair.
+
+        This requires the complete included batch and preserves its original
+        rejection events; no native, printing, reference, or authored-case gate
+        is relaxed. Evidence and source identity are rechecked under the leases.
+        """
+        if not isinstance(commit, str) or not commit:
+            raise ValueError('commit is required')
+        jobids = list(jobids)
+        if not jobids or len(set(jobids)) != len(jobids):
+            raise ValueError('distinct jobs are required')
+        encoded = _evidence(evidence)
+        campaign = Path(self.path).parent
+        with ExitStack() as leases:
+            for job_id in sorted(jobids):
+                leases.enter_context(self._retry_lease(job_id))
+            with self._transaction() as db:
+                latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if not latest or latest[0] != parent:
+                    raise ValueError('checkpoint parent conflict')
+                manifest, validation, included = _verify_diagnostic_recovery(campaign, commit, parent, jobids, evidence)
+                by_job = {item['job_id']: item for item in included}
+                previous = {}
+                for job_id in jobids:
+                    row = db.execute(
+                        'SELECT j.status,j.attempt_id,j.adjudication,j.payload,a.base_commit,a.started,a.result '
+                        'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?', (job_id,)).fetchone()
+                    item = by_job[job_id]
+                    if not row or row[0] != 'integration-rejected' or row[1] != item.get('attempt_id') or not row[6]:
+                        raise ValueError('recovery requires the original rejected attempts')
+                    rejection = json.loads(row[2]) if row[2] else {}
+                    if (rejection.get('status') != 'integration-rejected'
+                            or rejection.get('evidence', {}).get('manifest') != manifest['id']
+                            or rejection.get('evidence', {}).get('validation') != validation):
+                        raise ValueError('original rejection does not match the full audit')
+                    pid = (json.loads(row[5]) if row[5] else {}).get('pid')
+                    if type(pid) is not int or pid <= 0:
+                        raise ValueError('attempt process identity is unknown')
+                    try:
+                        os.kill(pid, 0)
+                    except ProcessLookupError:
+                        pass
+                    except OSError as exc:
+                        if exc.errno != errno.ESRCH:
+                            raise ValueError('attempt process state is unknown') from exc
+                    else:
+                        raise ValueError('attempt process is still present')
+                    result = json.loads(row[6])
+                    rules = {r[0] for r in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
+                    original_rules = json.loads(row[3])['rules']
+                    data = result.get('evidence', {})
+                    outcomes = result.get('outcomes', {})
+                    dispositions = data.get('dispositions', {}) if isinstance(data, dict) else {}
+                    if (not rules or len(original_rules) != len(rules) or set(original_rules) != rules
+                            or len(item.get('rules', [])) != len(rules)
+                            or set(item.get('rules', [])) != rules or item.get('base_commit') != row[4]
+                            or result.get('status') != 'provisional-pass' or set(outcomes) != rules
+                            or any(not isinstance(v, dict) or v.get('status') != 'pass' for v in outcomes.values())
+                            or not isinstance(dispositions, dict) or set(dispositions) != rules
+                            or any(not isinstance(v, dict) or v.get('status') != 'proposed'
+                                   or v.get('rule') != name for name, v in dispositions.items())
+                            or data.get('task') != job_id or data.get('base_commit') != row[4]):
+                        raise ValueError('original batch proposal is not a complete per-rule pass')
+                    report_path = Path(data.get('report', ''))
+                    expected = campaign/'.cache/attempts'/row[1]/'evaluations'/job_id
+                    if (not report_path.is_absolute() or not report_path.resolve().is_relative_to(expected.resolve())
+                            or not report_path.is_file() or report_path.is_symlink()):
+                        raise ValueError('original independent report is unavailable')
+                    report = json.loads(report_path.read_bytes())
+                    if (report.get('passed') is not True or report.get('failures') != []
+                            or report.get('task') != job_id or report.get('source') != row[4]
+                            or report.get('descriptor_sha256') != item.get('descriptor_sha256')
+                            or report.get('support_sha256') != item.get('support_sha256')):
+                        raise ValueError('original independent report differs from the audited manifest')
+                    previous[job_id] = rejection
+                try:
+                    db.execute('INSERT INTO checkpoints(commit_id,parent,evidence) VALUES (?,?,?)',
+                               (commit, parent, encoded))
+                except sqlite3.IntegrityError as exc:
+                    raise ValueError('checkpoint already exists') from exc
+                detail = {'status': 'accepted', 'checkpoint': commit, 'kind': 'diagnostic-only',
+                          'evidence': evidence}
+                for job_id in jobids:
+                    db.execute("UPDATE jobs SET status='accepted',adjudication=? WHERE id=?",
+                               (_json(detail), job_id))
+                self._event(db, 'checkpoint', {'commit': commit, 'parent': parent, 'evidence': evidence})
+                self._event(db, 'diagnostic-recovery', {'jobs': jobids, 'checkpoint': commit,
+                            'previous_adjudications': previous, 'evidence': evidence})
 
     def accept_jobs(self, jobids, checkpoint, evidence):
         self._adjudicate(jobids, "accepted", evidence, checkpoint)
