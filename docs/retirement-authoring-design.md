@@ -1,6 +1,8 @@
 # Shared grammar retirement lane
 
-Status: a bounded paired authoring pilot is running. The mechanical Luna lane
+Status: a [paired authoring pilot](retirement-authoring-pilot-20261116.md) is
+evaluated; its selected combined candidate is undergoing full integration gates.
+The mechanical Luna lane
 has produced an accepted isolated seven-rule checkpoint. The deletion runner
 does not authorize grammar or Rust edits; the pilot uses separate private task
 descriptors, checkouts, frozen helpers and coordinator evaluations. Broad
@@ -177,7 +179,9 @@ Seeded files must match the canonical assigned-rule removal, ignoring blank line
 adding handwritten roots to a mined dispatcher is rejected even when a
 compositional-prefix check would otherwise pass.
 
-Every candidate remains provisional. The pilot does not merge author patches,
-run a corpus per worker, or infer acceptance from agent prose. Its results should
+Every candidate remains provisional until coordinator integration gates pass.
+Workers never merge source or run a corpus per job; the coordinator stages a
+combined candidate and audits it once. Acceptance is not inferred from agent prose.
+The results should
 determine which families Luna can handle, which go directly to a larger model,
 and whether to increase authoring concurrency toward twelve.
