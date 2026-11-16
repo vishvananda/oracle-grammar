@@ -81,6 +81,8 @@ def mechanical(run, task_id):
                 r.require(cohort and len(cohort)<=500,'mechanical cohort uncertain or too large')
                 names.update(cohort)
             r.require(len(names)<=500,'combined mechanical cohort too large')
+            r.require(names <= set(task['cohort']), 'mechanical targets outside prepared cohort')
+            names = set(task['cohort'])
             report.update(w.checks(inputs,directory,directory/'grammar',names,data,2))
             report['passed'] = not report['failures']
         except Exception as error:

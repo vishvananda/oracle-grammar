@@ -155,9 +155,16 @@ with open(sys.argv[3], 'a') as guard:
             frozen.mkdir(parents=True)
             shutil.copytree(source/'grammar', frozen/'grammar')
             r.write(frozen/'build.json', build)
-            r.write(frozen/'index.json', {'0': {'name': 'Example', 'text': 'one', 'record': 0, 'face': 0, 'flags': [True]*4}})
-            r.jsonl(frozen/'gold.jsonl', [{'faces': [{'name': 'Example', 'abilities': []}]}])
-            r.write(frozen/'oracle.json', [{'cards': [{'name': 'Example', 'text': 'one'}]}])
+            r.write(frozen/'index.json', {
+                '0': {'name': 'Example', 'text': 'one', 'record': 0, 'face': 0, 'flags': [True]*4},
+                '1': {'name': 'Companion', 'text': 'other', 'record': 0, 'face': 1, 'flags': [True]*4},
+                '2': {'name': 'Companion', 'text': 'other', 'record': 1, 'face': 0, 'flags': [True]*4}})
+            r.jsonl(frozen/'gold.jsonl', [
+                {'faces': [{'name': 'Example', 'abilities': []}, {'name': 'Companion', 'abilities': []}]},
+                {'faces': [{'name': 'Companion', 'abilities': []}]}])
+            r.write(frozen/'oracle.json', [{'cards': [{'name': 'Example', 'text': 'one'},
+                                                   {'name': 'Companion', 'text': 'other'}]},
+                                            {'cards': [{'name': 'Companion', 'text': 'other'}]}])
             manifest = {'format': 3, 'commit': commit, 'source': 'compiled', 'files': r.tree(frozen), 'tooling': r.tooling()}
             r.write(inputs/'manifest.json', manifest)
             (inputs/'scan').mkdir()
@@ -170,8 +177,10 @@ with open(sys.argv[3], 'a') as guard:
             with patch.object(retire_tasks.dev, 'source', return_value='compiled'):
                 prepared = retire_tasks.prepare_task(campaign, claim, checkpoint, job, detail)
                 run = Path(prepared['run'])
-                with patch.object(dispatch.w, 'checks', return_value={'faces': 1, 'failures': []}), redirect_stdout(io.StringIO()):
+                with patch.object(dispatch.w, 'checks', return_value={'faces': 3, 'failures': []}) as checks, redirect_stdout(io.StringIO()):
                     dispatch.mechanical(run, prepared['task_id'])
+                self.assertEqual(set(checks.call_args.args[3]), {'Example', 'Companion'})
+                self.assertEqual(r.read(run/'tasks/mech.json')['target_faces'], ['Example'])
                 reports = list((run/'evaluations'/'mech').glob('*/report.json'))
                 self.assertEqual(len(reports), 1)
                 report = r.read(reports[0])
