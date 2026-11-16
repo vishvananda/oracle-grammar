@@ -35,6 +35,22 @@ are parked with their reason. The first batch targets 12 proposals, later batche
 48, with a hard staging bound of 96. A candidate commit is provisional until
 its family checks, full audit and repository gates pass. A failed combined audit
 is evidence about the batch; it does not identify an individual culprit.
+Repository gates run before the expensive whole-population score. Trial grammar
+must retain the families from earlier included proposals; a failing new proposal
+is parked without discarding those earlier proposals.
+
+Worker-authored cases always run compositionally. Coordinator-generated
+whole-card operand cases may explicitly retain unrelated seeded clauses; these
+cases still require their independently mutated expected IR and verified prints.
+The family checker reports compositional and seeded case counts separately.
+It accepts at most 4,096 files, with aggregate limits of 1 GiB of actual input
+and 262,144 cases, retaining the per-file limits of 4 MiB and 4,096 cases.
+
+A completed native audit can be recovered after a diagnostic-only runner repair
+only when Git independently proves identical grammar and native implementation,
+excluding the diagnostic CLI and its tests, and all repository gates pass again.
+The original failure remains in the audit trail. Readmission of other parked
+proposals only restores provisional status; their combined grammar is rechecked.
 
 One full audit runs at a time, reserving 16 tokens by default from a shared
 32-token CPU pool; a 24-thread option is also supported. Helpers reserve two
