@@ -71,16 +71,18 @@ class BatchTests(unittest.TestCase):
             (helpers/'build.json').write_text(json.dumps({'source_sha256': 'source',
                                                          'binaries': {'family-check': batch.r.digest(binary)}}))
             trial = root/'trial/grammar'
-            trial.mkdir(parents=True)
+            (trial/'syntax').mkdir(parents=True)
+            (trial/'syntax/events.ebnf').write_text('event ::= "trial"')
             checkpoint = {'helpers': str(helpers), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
             def execute(*args, **kwargs):
                 self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(trial))
                 self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_THREADS'], '2')
                 self.assertEqual(len(kwargs['pass_fds']), 2)
+                self.assertIn(f'--module=events={trial/"syntax/events.ebnf"}', args[0])
                 kwargs['stdout'].write(json.dumps({'family': 'one', 'cases': 1, 'passed': 1, 'failures': []}))
                 kwargs['stdout'].flush()
                 return SimpleNamespace(returncode=0)
-            with patch.object(batch.dev, 'source', return_value='source'), \
+            with patch.object(batch.dev, 'source', return_value='source'), patch.object(batch.dev, 'modules', return_value=['--module=events=/base/events.ebnf']), \
                     patch.object(batch.subprocess, 'run', side_effect=execute):
                 batch._helper(checkpoint, root, root/'family.json', root/'check.log', grammar_dir=trial)
             self.assertEqual(batch.r._LEASES, [])
@@ -104,7 +106,7 @@ class BatchTests(unittest.TestCase):
                 kwargs['stdout'].write(json.dumps({'schema': 1, 'families': reports})+'\n')
                 kwargs['stdout'].flush()
                 return SimpleNamespace(returncode=1)
-            with patch.object(batch.dev, 'source', return_value='source'), \
+            with patch.object(batch.dev, 'source', return_value='source'), patch.object(batch.dev, 'modules', return_value=[]), \
                     patch.object(batch.subprocess, 'run', side_effect=execute):
                 with self.assertRaisesRegex(ValueError, 'family check failed'):
                     batch._helper({'helpers': str(helpers)}, root, fixtures, root/'family.log')
@@ -286,7 +288,12 @@ class BatchTests(unittest.TestCase):
             subprocess.run(['git', 'init', '-q', str(repo)], check=True)
             (repo/'grammar/syntax').mkdir(parents=True)
             (repo/'tests').mkdir()
-            (repo/'tests/families.json').write_text('[]\n')
+            (repo/'tests/fixtures').mkdir()
+            (repo/'tests/fixtures/reported-mana-reminders.json').write_text('{"family":"reported","cases":[]}')
+            (repo/'families').mkdir()
+            (repo/'families/baseline.json').write_text('{"family":"baseline","cases":[]}')
+            (repo/'tests/families.json').write_text(
+                '["families/baseline.json","tests/fixtures/reported-mana-reminders.json"]\n')
             (repo/'grammar/syntax/mined.ebnf').write_text(
                 'm_first ::= "first"\nm_bad ::= "bad"\nm_last ::= "last"\nm_mech ::= "mech"\n')
             subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
@@ -319,7 +326,8 @@ class BatchTests(unittest.TestCase):
                 calls.append((text, [fixture.name for fixture in fixtures]))
                 log.write_text('checked')
                 if 'bad\n' in text:
-                    raise ValueError('interaction family failure')
+                    self.assertEqual(fixtures[0].name, 'baseline.json')
+                    raise ValueError('baseline family failure')
             with patch.object(batch, '_proposal', side_effect=proposal), \
                     patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), \
                     patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
@@ -333,12 +341,25 @@ class BatchTests(unittest.TestCase):
             self.assertEqual((candidate/'grammar/syntax/shared.ebnf').read_text(), 'first\nlast\n')
             self.assertIn('m_bad ::= ', (candidate/'grammar/syntax/mined.ebnf').read_text())
             self.assertEqual(json.loads((candidate/'tests/families.json').read_text()),
-                             ['families/first.json', 'families/last.json'])
+                             ['families/baseline.json', 'tests/fixtures/reported-mana-reminders.json',
+                              'families/first.json', 'families/last.json'])
             self.assertEqual([names for text, names in calls if text == 'first\nlast\n'],
-                             [['first.json', 'family.json'], ['first.json', 'last.json']])
+                             [['baseline.json', 'reported-mana-reminders.json', 'first.json', 'family.json'],
+                              ['baseline.json', 'reported-mana-reminders.json', 'first.json', 'last.json']])
             self.assertEqual(len(calls), 4)
             self.assertTrue((Path(result['jobs'][1]['family_logs'])/'family.log').is_file())
+            self.assertEqual(result['jobs'][2]['family_checks'][-1],
+                             {'fixture': 'families/last.json', 'kind': 'new-proposal', 'log': 'family-003.log'})
             self.assertFalse((repo/'grammar/syntax/shared.ebnf').exists())
+
+    def test_baseline_paths_do_not_relax_author_fixture_scope(self):
+        self.assertEqual(batch._baseline_fixture_path('tests/fixtures/reported-mana-reminders.json'),
+                         Path('tests/fixtures/reported-mana-reminders.json'))
+        for invalid in ('tests/other/x.json', 'tests/fixtures/../../secret.json', '/tests/fixtures/x.json'):
+            with self.subTest(path=invalid), self.assertRaises(ValueError):
+                batch._baseline_fixture_path(invalid)
+        with self.assertRaises(ValueError):
+            batch._fixture_path('tests/fixtures/reported-mana-reminders.json')
 
 
 if __name__ == '__main__':

@@ -31,6 +31,15 @@ def _fixture_path(value):
     return path
 
 
+def _baseline_fixture_path(value):
+    path = Path(value)
+    allowed = path.parts[:1] == ('families',) or path.parts[:2] == ('tests', 'fixtures')
+    if (path.is_absolute() or '..' in path.parts or str(path) != value
+            or not allowed or path.suffix != '.json'):
+        raise ValueError('baseline fixture must be under families/ or tests/fixtures/')
+    return path
+
+
 def _proposal(proposal):
     run = Path(proposal['run']).resolve()
     report = proposal['report']
@@ -101,14 +110,20 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
     if build['source_sha256'] != dev.source(source) or r.digest(helpers/'family-check') != build['binaries']['family-check']:
         raise ValueError('family helper does not match compiled source')
     env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}
-    env.update(ORACLE_GRAMMAR_DIR=str(grammar_dir or source/'grammar'), ORACLE_GRAMMAR_THREADS='2')
+    grammar = grammar_dir or source/'grammar'
+    env.update(ORACLE_GRAMMAR_DIR=str(grammar), ORACLE_GRAMMAR_THREADS='2')
+    declared = {entry.removeprefix('--module=').split('=', 1)[0] for entry in dev.modules(source)}
+    current = {path.stem: path for path in (grammar/'syntax').glob('*.ebnf')}
+    if (grammar/'tail/mined.ebnf').is_file():
+        current['tail'] = grammar/'tail/mined.ebnf'
+    overrides = [f'--module={name}={current.get(name, os.devnull)}' for name in sorted(declared | current.keys())]
     lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), 2, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
     with lease as fds:
         r._LEASES.extend(fds)
         try:
             with log.open('w') as stream:
                 code = subprocess.run([str((helpers/'family-check').resolve()),
-                                       *(str(path) for path in fixtures), '--compositional'],
+                                       *(str(path) for path in fixtures), '--compositional', *overrides],
                                       cwd=source, env=env, stdout=stream, stderr=stream, check=False,
                                       pass_fds=tuple(r._LEASES)).returncode
         finally:
@@ -206,6 +221,28 @@ def _stage(campaign, checkpoint, proposals):
         _git(origin, 'worktree', 'add', '-b', branch, str(source), checkpoint['commit'])
     manifest = {'id': ident, 'folder': str(folder), 'source': str(source), 'branch': branch, 'base_commit': checkpoint['commit'],
                 'status': 'staging', 'jobs': [], 'fixtures': [], 'rules': []}
+    registry_path = source/'tests/families.json'
+    registry_hash = r.digest(registry_path)
+    baseline_names = r.read(registry_path)
+    if (not isinstance(baseline_names, list) or any(not isinstance(name, str) for name in baseline_names)
+            or len(set(baseline_names)) != len(baseline_names)):
+        raise ValueError('baseline family registry must contain unique paths')
+    baseline = []
+    for name in baseline_names:
+        relative = _baseline_fixture_path(name)
+        path = source/relative
+        symlink = any((source/Path(*relative.parts[:index])).is_symlink()
+                      for index in range(1, len(relative.parts)+1))
+        if symlink or not path.is_file() or not path.resolve().is_relative_to(source):
+            raise ValueError('baseline family is missing or escapes source')
+        baseline.append((name, r.digest(path)))
+    if _git(source, 'status', '--porcelain', '--', 'tests/families.json', *baseline_names):
+        raise ValueError('baseline family registry or fixtures differ from checkpoint')
+    tracked = set(_git(source, 'ls-files', '--', 'tests/families.json', *baseline_names).splitlines())
+    if tracked != {'tests/families.json', *baseline_names}:
+        raise ValueError('baseline family registry or fixtures differ from checkpoint')
+    manifest['baseline_families'] = [{'path': name, 'sha256': digest} for name, digest in baseline]
+    manifest['baseline_registry_sha256'] = registry_hash
     r.write(folder/'manifest.json', manifest)
     if state:
         r.write(state, {'folder': str(folder)})
@@ -244,9 +281,20 @@ def _stage(campaign, checkpoint, proposals):
                 logs = folder/f'proposal-{proposal_index:03d}'
                 logs.mkdir()
                 item['family_logs'] = str(logs)
-                fixtures = [source/path for path in manifest['fixtures']]
+                if (r.digest(registry_path) != registry_hash
+                        or any(r.digest(source/name) != digest for name, digest in baseline)):
+                    raise ValueError('baseline family changed during staging')
+                fixtures = [source/name for name, _ in baseline] + [source/path for path in manifest['fixtures']]
                 if fixture:
                     fixtures.append(trial/'family.json')
+                if len(fixtures) > 4096:
+                    raise ValueError('trial exceeds family-check fixture limit')
+                descriptions = ([{'fixture': name, 'kind': 'baseline'} for name, _ in baseline]
+                                + [{'fixture': name, 'kind': 'prior-proposal'} for name in manifest['fixtures']])
+                if fixture:
+                    descriptions.append({'fixture': str(fixture), 'kind': 'new-proposal'})
+                item['family_checks'] = [dict(entry, log=f'family-{index:03d}.log')
+                                         for index, entry in enumerate(descriptions)]
                 if fixtures:
                     _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
                 if fixture:
@@ -275,6 +323,9 @@ def _stage(campaign, checkpoint, proposals):
         manifest['status'] = 'no-proposals'
     else:
         try:
+            if (r.digest(registry_path) != registry_hash
+                    or any(r.digest(source/name) != digest for name, digest in baseline)):
+                raise ValueError('baseline family changed during staging')
             registry = source/'tests/families.json'
             families = r.read(registry)
             if any(f in families for f in manifest['fixtures']):
