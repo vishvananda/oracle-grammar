@@ -165,3 +165,23 @@ provisional rule names and runs full allowed-population validation. Repository
 gates, source integration and checkpoint promotion remain coordinator work.
 The [shared grammar lane design](retirement-authoring-design.md) describes the
 additional protocol needed for authoring; that lane is not launched by this tool.
+
+A coordinator can retain checkpoint finalization while the audit runs. First
+stage the exact assembled patch in a private clean checkout of the frozen commit,
+verify its grammar hashes and run `tools/dev.py check` in a retained user service.
+Record that service's exact systemd invocation ID, then run:
+
+```sh
+python3 tools/retire_checkpoint.py /absolute/campaign/epoch \
+  --checkout /absolute/private/integration \
+  --gates-invocation SYSTEMD_INVOCATION_ID \
+  --branch retirement/mechanical-batch
+```
+
+This coordinator requires all eight repository gates from that invocation,
+matching source/grammar/patch hashes, and a successful full audit. It creates a
+local branch and commit in the private checkout, rescans the allowed population,
+and records an isolated checkpoint plus any newly mechanical candidates. It
+never merges into the main checkout or pushes. Missing/failed evidence blocks
+promotion; expiration leaves the checks running for inspection. Retrying an
+existing checkpoint directory fails closed, including after a partial commit.
