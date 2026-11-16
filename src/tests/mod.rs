@@ -799,6 +799,12 @@ fn granted_unsuspecting_keeps_the_named_creator_separate_from_the_holder() {
 #[path = "shared_clauses/phrase_gaps.rs"]
 mod phrase_gaps;
 
+#[path = "shared_clauses/library_splits.rs"]
+mod library_splits;
+
+#[path = "shared_clauses/announced_groups.rs"]
+mod announced_groups;
+
 #[path = "shared_clauses/continuous_gaps.rs"]
 mod continuous_gaps;
 

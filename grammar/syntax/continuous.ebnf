@@ -489,7 +489,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if
+static_ability ::= static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -1100,7 +1100,7 @@ attached_other_auras ::= "can't" "be" "enchanted" "by" "other" "Auras"
 /* @sem Change::GrantAbility(@holder($granted_mechanic)) */
 grant_native_mechanic ::= granted_mechanic
 
-granted_mechanic ::= mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost
+granted_mechanic ::= bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost
 /* @sem Ability::Mechanic{mechanic:Affinity, filter:$filter_plural} */
 granted_affinity ::= "affinity" "for" filter_plural
 /* Source belongs to the receiving spell, not the static granting permanent. */
@@ -2259,3 +2259,7 @@ static_graveyard_cards_grant_during_turn ::= "during" "your" "turn" "," static_g
 /* Keep shared color heads separate from a list of independently qualified cards. */
 /* @sem @and($quality, $graveyard_grant_filter) */
 graveyard_grant_qualified ::= quality graveyard_grant_filter
+
+/* A graveyard casting permission uses the receiving card's own sneak ability. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}, from:Graveyard, action:CastSpell, filter:$card_filter}, terms:_{cost:Using(Sneak)}})]} */
+static_cast_graveyard_using_sneak ::= "you" "may" "cast" card_filter "spells" "from" "your" "graveyard" "using" "their" "sneak" "abilities" "."

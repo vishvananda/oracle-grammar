@@ -2,6 +2,44 @@
 use super::*;
 
 #[test]
+fn distinct_names_count_the_controlled_population_and_print_changed_operands() {
+    let mut frame =
+        compositional("If you control seven or more lands with different names, draw a card.");
+    let condition = &mut frame[0]["args"]["body"]["instructions"][0]["args"]["condition"]["args"];
+    assert_eq!(condition["left"]["kind"], "CountDistinct");
+    assert_eq!(condition["left"]["args"]["property"], "Names");
+    let filter = &condition["left"]["args"]["objects"]["args"]["filter"];
+    assert!(filter["args"].as_array().unwrap().contains(
+        &json!({"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}})
+    ));
+    condition["left"]["args"]["objects"]["args"]["filter"] = json!({"kind":"AllOf","args":[
+        {"kind":"CardType","args":"Artifact"},
+        {"kind":"ControlledBy","args":{"kind":"One","args":{"kind":"AbilityController"}}}
+    ]});
+    condition["test"]["args"]["value"] = json!({"kind":"Constant","args":5});
+    let text = printed_types(&frame, &["Instant"]).to_lowercase();
+    assert!(text.contains("artifact"), "{text}");
+    assert!(text.contains("five") || text.contains('5'), "{text}");
+    assert!(
+        text.contains("different names") || text.contains("differently named"),
+        "{text}"
+    );
+}
+
+#[test]
+fn quoted_ward_cost_does_not_capture_the_granting_controller_as_payer() {
+    let mut frame = compositional("Permanents you control have \"Ward—Sacrifice a permanent.\"");
+    let cost = &mut frame[0]["args"]["changes"][0]["args"]["args"]["parts"][0]["Sacrifice"];
+    assert_eq!(cost["objects"]["args"]["filter"], json!({"kind":"Any"}));
+    cost["objects"]["args"]["filter"] = json!({"kind":"CardType","args":"Artifact"});
+    let text = printed_types(&frame, &["Creature"]).to_lowercase();
+    assert!(
+        text.contains("ward") && text.contains("sacrifice an artifact"),
+        "{text}"
+    );
+}
+
+#[test]
 fn graveyard_grants_keep_card_ownership_and_receiving_holder_costs() {
     let mut frame = compositional(
         "Each creature card in your graveyard has scavenge. The scavenge cost is equal to its mana cost.",
