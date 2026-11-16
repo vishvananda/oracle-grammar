@@ -67,6 +67,20 @@ for newly mechanical rules and makes it the base for subsequent claims. The
 stable integration workspace and shared Cargo target retain build caches, while
 checkpoint inputs, candidate commits and audit evidence remain separate.
 
+Task cohorts close transitively over shared face names in frozen gold records,
+including every duplicate occurrence and companion face. This expansion does not
+change the assigned target faces. Diagnostics refuse closures above 1,024 face
+occurrences instead of truncating them. Old population-mismatch failures can be
+retried only with artifact-backed proof, a terminal controller, an absent worker
+process and a released job lease; the original attempt remains in the history.
+
+Before admitting each proposal to a batch, staging checks every registered
+baseline family, earlier admitted families and the new family against the trial
+grammar in one helper invocation. A failing proposal stays out of the union;
+later proposals can continue. Baseline fixture hashes and explicit trial module
+overrides keep this check tied to the checkpoint. Repository gates and the full
+allowed-population audit still decide acceptance.
+
 Configured usage collection records attempt-scoped token counts and estimates
 Standard API-equivalent cost using a pinned estimator and explicit pricing.
 Unavailable or partial usage is reported as such, not as zero cost; estimates
@@ -79,6 +93,12 @@ python3 tools/retire_campaign.py prepare CAMPAIGN --source CHECKOUT --helpers HE
 python3 tools/retire_campaign.py status CAMPAIGN
 python3 tools/retire_observe.py CAMPAIGN
 ```
+
+Completed paid attempts retain usage even when their final review is invalid.
+For older attempts missing usage, `python3 tools/retire_usage_refresh.py CAMPAIGN`
+can collect only the assigned thread's usage into separate, hash-bound receipts.
+It does not edit queue results. The observer uses a matching receipt only when
+original usage is absent, so an attempt is counted once.
 
 The read-only observer separates model time from claim-to-finish slot time and
 reports every retained attempt, including verified infrastructure retries.
