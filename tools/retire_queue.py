@@ -254,9 +254,14 @@ def _verify_batch_readmission(campaign, job_id, attempt_id, checkpoint, base_com
     artifacts = isolation.get('evidence')
     if not isinstance(artifacts, dict):
         raise ValueError('isolation diagnostic artifacts are missing')
+    config_path = campaign/'config.json'
+    config = json.loads(config_path.read_bytes()) if config_path.exists() else {}
+    allowed_caches = [(campaign/'.cache').resolve()]
+    if isinstance(config.get('main_repo'), str):
+        allowed_caches.append((Path(config['main_repo'])/'.cache').resolve())
     for key in ('base_log', 'trial_log', 'without_modifier_log', 'probe_log'):
         path, data = _proof_file(artifacts.get(key))
-        if not data or not path.resolve().is_relative_to((campaign/'.cache').resolve()):
+        if not data or not any(path.resolve().is_relative_to(cache) for cache in allowed_caches):
             raise ValueError('isolation diagnostic artifact is unavailable')
     item = matches[0]
     if (item.get('base_commit') != base_commit or item.get('rules') != job.get('rules')
@@ -270,7 +275,12 @@ def _verify_batch_readmission(campaign, job_id, attempt_id, checkpoint, base_com
         report = _verify_mechanical_readmission(campaign, job_id, attempt_id, base_commit, original, evidence.get('report'))
     else:
         raise ValueError('original proposal kind is unsupported')
-    if (report.get('faces', 0) <= 0 or item.get('descriptor_sha256') != report.get('descriptor_sha256')
+    descriptor_path = campaign/'.cache/attempts'/attempt_id/'tasks'/f'{job_id}.json'
+    descriptor = json.loads(descriptor_path.read_bytes())
+    if descriptor.get('id') != job_id or descriptor.get('rules') != job.get('rules'):
+        raise ValueError('individual descriptor does not match assigned rules')
+    if (type(report.get('faces')) is not int or report['faces'] <= 0
+            or item.get('descriptor_sha256') != report.get('descriptor_sha256')
             or item.get('support_sha256') != report.get('support_sha256')):
         raise ValueError('individual native/print report does not match the proposal')
     return {'manifest': batch, 'culprit_job': culprit, 'family': isolation['family'],
@@ -825,8 +835,12 @@ class Queue:
                 outcomes = original.get('outcomes', {})
                 if (original.get('status') != 'provisional-pass' or set(decisions) != set(rules)
                         or set(outcomes) != set(rules)
-                        or any(decisions[rule].get('status') != 'proposed'
-                               or outcomes[rule].get('status') != 'pass' for rule in rules)):
+                        or any(not isinstance(decisions[rule], dict)
+                               or decisions[rule].get('rule', rule if job.get('kind') == 'mechanical' else None) != rule
+                               or decisions[rule].get('status') != 'proposed' or not decisions[rule].get('reason')
+                               or not decisions[rule].get('evidence') or not isinstance(outcomes[rule], dict)
+                               or outcomes[rule].get('status') != 'pass' or not outcomes[rule].get('evidence')
+                               for rule in rules)):
                     raise ValueError('original per-rule dispositions do not all pass')
                 audit = _verify_batch_readmission(Path(self.path).parent, job_id, attempt_id,
                                                     checkpoint, row[4], job, original['evidence'],
