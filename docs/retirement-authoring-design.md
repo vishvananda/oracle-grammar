@@ -1,9 +1,10 @@
 # Shared grammar retirement lane
 
-Status: design, not an active authoring campaign. The mechanical lane continues
-with Luna Max. The existing deletion runner does not authorize grammar or Rust
-edits. Extending its worker prompt would bypass its isolation and evidence model;
-authoring requires a separate job type and integration protocol.
+Status: a bounded paired authoring pilot is running. The mechanical Luna lane
+has produced an accepted isolated seven-rule checkpoint. The deletion runner
+does not authorize grammar or Rust edits; the pilot uses separate private task
+descriptors, checkouts, frozen helpers and coordinator evaluations. Broad
+authoring scheduling and automatic integration remain outside this pilot.
 
 ## Job and checkpoint contracts
 
@@ -148,6 +149,17 @@ and correct escalation. Do not require byte-identical implementations. Report
 incomplete/escalated tasks rather than dropping them from medians. The earlier
 mechanical pilot does not establish authoring quality or speed.
 
-The paired authoring trial has not started. Its results should determine which
-families Luna can handle, which go directly to a larger model, and whether to
-increase authoring concurrency toward twelve.
+The paired pilot uses `tools/retire_author.py` for bounded checks and
+`tools/retire_author_pool.py` for a retained three-slot model launcher. Three
+tasks cover mixed trigger headers, AnyNumber search choices and optional
+creature/planeswalker graveyard targets. Each pair starts from the same accepted
+checkpoint; first-model order alternates across tasks. Workers have eight
+diagnostic attempts and a 25-minute task budget, with two helper threads each.
+They author focused families and current-operand edit fixtures. The runner
+applies those primitive edits to immutable reference IR before score/print/reparse,
+and the coordinator independently snapshots and rechecks final candidates.
+
+Every candidate remains provisional. The pilot does not merge author patches,
+run a corpus per worker, or infer acceptance from agent prose. Its results should
+determine which families Luna can handle, which go directly to a larger model,
+and whether to increase authoring concurrency toward twelve.
