@@ -142,7 +142,7 @@ search_either_one ::= "and" found_action
 /* @sem Instruction::[Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:$found_action_2}] */
 search_either_two ::= "," found_action "," ("and" | "then") found_action
 
-search_filter ::= search_filter_plain | search_filter_modified | search_filter_either
+search_filter ::= search_filter_subtype_list | search_filter_plain | search_filter_modified | search_filter_either
 
 /* "A basic land card or a Desert card": either kind, each with its own noun. */
 /* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
@@ -1178,3 +1178,18 @@ looked_top_graveyard ::= "into" looked_top_owner "graveyard"
 looked_top_bottom ::= "on" "the" "bottom" "of" looked_top_owner "library"
 /* @sem () */
 looked_top_owner ::= "their" | "that" "player's"
+
+/* A shared final card noun qualifies every subtype in this disjunction. The
+   unordered filter remains printable after native canonicalization. */
+/* @sem $search_subtype_list */
+search_filter_subtype_list ::= search_subtype_list "card"
+search_subtype_list ::= search_subtype_more | search_subtype_last
+/* @sem ObjectFilter::@or($subtype, $search_subtype_list) */
+search_subtype_more ::= subtype "," search_subtype_list
+/* @sem ObjectFilter::@or($subtype, $subtype_2) */
+search_subtype_last ::= subtype ","? "or" subtype
+
+/* The complete search episode is a program: its final shuffle sentence cannot
+   become part of an unrelated conditional's instruction prefix. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]} */
+program_sentence_search_and_move ::= search "and" found_action "." "then" "shuffle" "."

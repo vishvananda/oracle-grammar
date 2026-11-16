@@ -21,19 +21,28 @@ fn keys(path: &[Step], names: &[&str]) -> bool {
             .zip(names)
             .all(|(step, name)| matches!(step, Step::Key(key) if key.as_str() == *name))
 }
-fn scalar_suffix(path: &[Step], objects: &Value) -> bool {
-    if objects["kind"] == "One" {
-        return keys(path, &["args"]);
+fn scalar_suffix(mut path: &[Step], mut objects: &Value) -> bool {
+    // Each exact unary annotation consumes two path steps. The existing path
+    // bound therefore also bounds this transparent-operand walk.
+    while matches!(
+        symbol_name(objects),
+        Some("zone_members" | "exile_followup")
+    ) {
+        let Some([inner]) = objects["args"].as_array().map(Vec::as_slice) else {
+            return false;
+        };
+        if path.len() < 2
+            || !matches!(&path[0], Step::Key(key) if key == "args")
+            || path[1] != Step::Index(0)
+        {
+            return false;
+        }
+        path = &path[2..];
+        objects = inner;
     }
-    symbol_name(objects) == Some("exile_followup")
-        && objects["args"]
-            .as_array()
-            .is_some_and(|a| a.len() == 1 && a[0]["kind"] == "One")
-        && path.len() == 3
-        && keys(&path[..1], &["args"])
-        && path[1] == Step::Index(0)
-        && keys(&path[2..], &["args"])
+    objects["kind"] == "One" && keys(path, &["args"])
 }
+
 struct Proof {
     result: Option<u32>,
 }
@@ -96,7 +105,7 @@ fn eligible(root: &Value, path: &[Step]) -> Result<Option<Proof>, String> {
 
 /// A first optional move still follows the observation immediately. Neither a
 /// different branch nor an intervening instruction can borrow that antecedent.
-fn look_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Value> {
+fn single_card_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Value> {
     let mut sequences =
         (1..path.len())
             .rev()
@@ -134,9 +143,27 @@ fn look_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Value> {
     let previous = at(root, sequence)?.get(index.checked_sub(1)?)?;
     let operation = &previous["args"]["operation"];
     (previous["kind"] == "Effect"
-        && operation["kind"] == "LookAt"
-        && one_library_card(&operation["args"]["objects"]))
+        && (operation["kind"] == "LookAt" && one_library_card(&operation["args"]["objects"])
+            || one_searched_card(operation)))
     .then_some(previous)
+}
+
+/// One ordinary library search selects at most one card, even when finding
+/// one is optional. An earlier object cannot stand in for that selection.
+fn one_searched_card(operation: &Value) -> bool {
+    if operation["kind"] != "Search"
+        || operation["args"]["also"] != json!([])
+        || operation["args"]["either"] != false
+        || operation["args"]["outside"] != false
+    {
+        return false;
+    }
+    let Some([choice]) = operation["args"]["choices"].as_array().map(Vec::as_slice) else {
+        return false;
+    };
+    ["Exactly", "AsManyAsCan", "UpTo"]
+        .iter()
+        .any(|kind| choice["count"][*kind] == json!({"kind":"Constant","args":1}))
 }
 
 pub(super) fn resolve(
@@ -150,17 +177,26 @@ pub(super) fn resolve(
     let reference = qualified::card(scope)?;
     if own
         && at(root, path).is_some_and(|node| symbol_name(node) == Some("current_named_object"))
-        && let Some(previous) = look_before_move(root, path)
+        && let Some(previous) = single_card_before_move(root, path)
     {
-        let objects = &previous["args"]["operation"]["args"]["objects"];
-        crate::functions::branch_bounds(objects)?;
-        let observed = json!({"kind":"Query","args":{
-            "objects":{"kind":"Observed","args":previous["args"]["result"]},"index":0}});
-        let queried = json!({"kind":"Query","args":{"objects":objects,"index":0}});
-        let direct = objects["kind"] == "One" && reference == objects["args"];
-        if reference != observed && reference != queried && !direct {
+        let operation = &previous["args"]["operation"];
+        let result = &previous["args"]["result"];
+        let searched = operation["kind"] == "Search";
+        crate::functions::branch_bounds(operation)?;
+        let receipt = json!({"kind":"Query","args":{
+            "objects":{"kind":if searched { "Selected" } else { "Observed" },"args":result},"index":0}});
+        let same_card = if searched {
+            reference
+                == json!({"kind":"Result","args":{
+                "result":result,"phase":"After","index":0}})
+        } else {
+            let objects = &operation["args"]["objects"];
+            let queried = json!({"kind":"Query","args":{"objects":objects,"index":0}});
+            reference == queried || objects["kind"] == "One" && reference == objects["args"]
+        };
+        if reference != receipt && !same_card {
             return Err(
-                "that card after looking at one library card needs that actual card".into(),
+                "that card after a one-card observation or search needs that actual card".into(),
             );
         }
     }

@@ -38,9 +38,9 @@ verb_base ::= verb_operation_base
 /* @sem Instruction::Effect{result:@next, operation:$verb_operation_third} */
 verb_third ::= verb_operation_third
 
-verb_operation_base ::= energy_get_base | create_base | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | gain_life_base | lose_life_base
+verb_operation_base ::= shuffle_base | energy_get_base | create_base | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | gain_life_base | lose_life_base
     | lose_game_base | win_game_base
-verb_operation_third ::= energy_get_third | create_third | create_tapped_third | create_attacking_third | mill_third | scry_third | surveil_third | draw_third | discard_random_third | discard_third | gain_life_third | lose_life_third | sacrifice_choice_third
+verb_operation_third ::= shuffle_third | energy_get_third | create_third | create_tapped_third | create_attacking_third | mill_third | scry_third | surveil_third | draw_third | discard_random_third | discard_third | gain_life_third | lose_life_third | sacrifice_choice_third
     | lose_game_third | win_game_third
 
 /* Choice and following conjoined verbs share the clause's actual player set,
@@ -59,7 +59,7 @@ sacrifice_that_many_third ::= "sacrifices" "that" "many" filter_plural "of" "the
 /* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verb_operation_imperative) */
 operation_imperative ::= verb_operation_imperative
 
-verb_operation_imperative ::= create_copy_tapped_attacking | create_copy_each_leading | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base
+verb_operation_imperative ::= shuffle_base | create_copy_tapped_attacking | create_copy_each_leading | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base
     | discard_random_base | discard_base | discard_hand_base | discard_all_base
 
 /* "Each opponent attacking that player does the same": every opponent attacking the
@@ -230,7 +230,7 @@ operation_plain ::= put_its_counters | cast_exiled_card_permission | exiled_card
     | continuous_loses_defender | continuous_becomes_artifact_too | continuous_attack_if_able
     | continuous_attack_despite_defender | change_target_single_target_spell | change_target_single_target_stack | owner_puts_top_or_bottom
     | untap_all_that_attacked | additional_land_this_turn | add_mana_combination | exile_with_counter
-    | reveal_at_random_from_hand | have_player_discard | remove_all_counters_any_kind
+    | reveal_at_random_from_hand | have_player_shuffle | have_player_discard | remove_all_counters_any_kind
     | operation_third | operation_you | hand_observation_look
     | next_draw_replaced
 
@@ -800,3 +800,13 @@ have_player_discard ::= "have" players_singular "discard" card_count
 
 /* @sem Operation::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), amount:All}]} */
 remove_all_counters_any_kind ::= "remove" "all" "counters" "from" affected
+
+/* A shuffle follows the clause's player, independently of its controller. */
+/* @sem Operation::Shuffle{players:@subject} */
+shuffle_base ::= "shuffle"
+/* @sem Operation::Shuffle{players:@subject} */
+shuffle_third ::= "shuffles" ("their" "library")?
+
+/* The named player acts; an enclosing may keeps its separate decider. */
+/* @sem @apply($players_singular, $shuffle_base) */
+have_player_shuffle ::= "have" players_singular shuffle_base

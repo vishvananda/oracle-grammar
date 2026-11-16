@@ -952,3 +952,6 @@ mod top_card_tests;
 
 #[path = "shared_clauses/observed_top.rs"]
 mod observed_top;
+
+#[path = "shared_clauses/searched_card.rs"]
+mod searched_card;
