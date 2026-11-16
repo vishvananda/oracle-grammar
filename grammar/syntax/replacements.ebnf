@@ -369,8 +369,13 @@ hand_look_owner ::= target_possessive | hand_look_that | zone_your | possessive_
 hand_look_that ::= "that" "player's"
 
 /* An immediate choice from the revealed hand uses that observation. */
-/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:@and($hand_pick_source, ObjectFilter::OwnedBy(One($hand_player)))}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:$hand_loss}] */
-instructions_hand_pick ::= hand_player "reveals" "their" "hand" "." "you" "choose" hand_pick_source ("." | "and") hand_loss
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:@and($hand_pick_source, ObjectFilter::OwnedBy(One($hand_player)))}, count:AsManyAsCan(Constant(1))}}] */
+instructions_hand_choice ::= hand_player "reveals" "their" "hand" ("." | "and") "you" "choose" hand_pick_source
+/* @sem Instruction::[...$instructions_hand_choice, Effect{result:@next, operation:$hand_loss}] */
+instructions_hand_pick ::= instructions_hand_choice ("." | "and") hand_loss
+/* The actual exile supplies the arrival receipt for the later return. */
+/* @sem Instruction::[...$instructions_hand_choice, Effect{result:@next, operation:$hand_exile}, Effect{result:@next, operation:ReturnAfter{objects:Transition{result:@prior, phase:After}, duration:WhileOnBattlefield($self_explicit_ref)}}] */
+instructions_hand_pick_until ::= instructions_hand_choice "." hand_exile "until" self_explicit_ref "leaves" "the" "battlefield"
 
 /* A subset observation and the controller's choice have independent counts.
    Every later choice stays inside the observed cards still owned in that hand. */
@@ -388,7 +393,7 @@ hand_subset_equal ::= "a" "number" "of" "cards" "from" "their" "hand" "equal" "t
 
 /* A choice of one can be read as its selected set or its sole result object.
    These remain distinct native readings, never comparison aliases. */
-hand_subset_loss ::= hand_loss | hand_subset_discard_single
+hand_subset_loss ::= hand_loss
 /* @sem Operation::DiscardObjects{objects:One(Result{result:@marked, phase:After, index:0})} */
 hand_subset_discard_single ::= "that" "player" "discards" "that" "card"
 
@@ -436,7 +441,7 @@ hand_pick_any ::= "a" "card"
 /* @sem $card_filter */
 hand_pick_filter ::= ("a" | "an") card_filter "card"
 
-hand_loss ::= hand_exile | hand_exile_owner | hand_exile_owner_it | hand_discard
+hand_loss ::= hand_exile | hand_exile_owner | hand_exile_owner_it | hand_discard | hand_subset_discard_single | hand_put_library_depth
 
 /* @sem Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
 hand_exile ::= "exile" "that" "card"
@@ -896,3 +901,8 @@ replacement_enter_cost_or_graveyard ::= "if" object_ref "would" "enter" "," cost
 /* The next draw this turn is replaced by the written action. */
 /* @sem Operation::CreateReplacement{event:Player{event:Draw, players:One(AbilityController)}, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$operation}]}} */
 next_draw_replaced ::= "the" "next" "time" "you" "would" "draw" "a" "card" this_duration "," operation "instead"
+
+/* The chosen card belongs to the revealed hand's owner; its native single
+   object result and the written library depth remain distinct operands. */
+/* @sem Operation::Move{objects:One(Result{result:@marked, phase:After, index:0}), destination:Library{position:FromTop($library_depth), order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
+hand_put_library_depth ::= "that" "player" "puts" "that" "card" "into" "their" "library" library_depth "from" "the" "top"

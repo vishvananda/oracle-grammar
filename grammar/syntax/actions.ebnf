@@ -153,7 +153,7 @@ counter_pt_minus1_minus0 ::= "-" "1" "/" "-" "0"
 action ::= copy_effect_indefinite_except | copy_effect_duration_except | copy_effect_indefinite | copy_effect_duration | keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | goad_while_present | clash_opponent | attach_each_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_ordered_face_down | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard
     | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | move_battlefield | move_battlefield_attached | put_battlefield_attached | move_battlefield_counter | move_battlefield_tapped | move_battlefield_owner
     | move_battlefield_transformed | move_battlefield_owner_transformed
-    | move_owner_counter_untapped | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | prevent_clause | tap_or_untap | create_emblem | reveal_hand
+    | move_owner_counter_untapped | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | look_objects | prevent_clause | tap_or_untap | create_emblem | reveal_hand
     | remove_counters_from_affected | remove_all_counters_from_affected | put_that_many_counters
     | double_counters | put_counter_for_each | recipients_gets_counter | recipients_get_counter
     | recipients_gets_counters | support_action | choose_a_color | choose_a_card_name | choose_value
@@ -287,7 +287,7 @@ battlefield_control_yours ::= "under" "your" "control"
 /* @sem MovementDestination::Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
 battlefield_control_owner ::= "under" owner_possessive "control"
 
-move_hand ::= move_hand_explicit_owner | move_hand_other_possessive
+move_hand ::= move_hand_explicit_owner | move_hand_other_possessive | move_linked_card_hand
 /* The explicit owner phrase introduces that player for later clauses. */
 /* @sem Operation::@owner_return(Operation::Move{objects:@implicit_card_set($affected), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}) */
 move_hand_explicit_owner ::= ("return" | "put") affected ("to" | "into") owner_possessive ("hand" | "hands")
@@ -1949,3 +1949,7 @@ flip_outcome ::= flip_won | flip_lost
 flip_won ::= "win"
 /* @sem CoinOutcome::Lost */
 flip_lost ::= "lose"
+
+/* The linked card is read in exile, then returns to its own owner. */
+/* @sem Operation::Move{objects:@zone_members(ObjectSet::One($linked_exiled_card)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+move_linked_card_hand ::= "return" linked_exiled_card "to" owner_possessive "hand"

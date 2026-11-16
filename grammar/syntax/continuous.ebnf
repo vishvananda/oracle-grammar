@@ -754,8 +754,12 @@ named_flash_if_after ::= self_named "has" "flash" "as" "long" "as" condition "."
 /* @sem Ability::[FlashIf($condition)] */
 named_flash_if_before ::= "as" "long" "as" condition "," self_named "has" "flash" "."
 
-/* @sem Ability::Conditional{condition:PlayerIsActive(PlayerRef::AbilityController), then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
-static_your_turn ::= "during" "your" "turn" "," affected static_changes "."
+/* @sem Ability::Conditional{condition:$static_turn_window, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_during_turn ::= static_turn_window "," affected static_changes "."
+
+static_turn_window ::= window_your_turn | window_other_turns
+/* @sem Condition::ExistsPlayer{players:OthersThan(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))} */
+window_other_turns ::= "during" "turns" "other" "than" "yours"
 
 /* Definition words retain their context until references are bound (CR604.3a).
    Only an intrinsic, unconditional definition of the holder is a CDA. */
@@ -775,8 +779,8 @@ static_defining_toughness ::= self_possessive "toughness" "is" "equal" "to" valu
 static_defining_every_type ::= self_explicit_ref "is" "every" "creature" "type" "."
 
 static_definition ::= static_defining_both | static_defining_power | static_defining_toughness | static_defining_every_type
-/* @sem Ability::Conditional{condition:PlayerIsActive(PlayerRef::AbilityController), then:[$static_definition]} */
-static_definition_during_turn ::= "during" "your" "turn" "," static_definition
+/* @sem Ability::Conditional{condition:$static_turn_window, then:[$static_definition]} */
+static_definition_during_turn ::= static_turn_window "," static_definition
 /* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
 static_definition_if ::= "as" "long" "as" condition "," static_definition
 

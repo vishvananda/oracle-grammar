@@ -34,28 +34,38 @@ fn a_copy_population_excludes_the_actual_copied_target_and_prints_edited_types()
 }
 
 #[test]
-fn immediate_hand_choices_have_one_shape_and_keep_the_observation_after_a_prefix() {
+fn immediate_hand_choices_keep_both_single_card_reads_after_a_prefix() {
     let text = "Draw a card. Target opponent reveals their hand. You choose a nonlegendary, nonland card from it. That player discards that card.";
     let parsed = engine().parse("Context example", text).unwrap();
-    assert_eq!(parsed.readings.len(), 1);
-    let mut reading = parsed.readings[0].clone();
-    let mut choices = Vec::new();
-    visit(&reading, "ChooseObjects", &mut choices);
-    assert_eq!(choices.len(), 1);
-    let chosen = &choices[0];
-    assert_eq!(chosen["objects"]["kind"], "Matching");
-    assert_eq!(
-        chosen["objects"]["args"]["objects"]["args"]["objects"],
-        json!({"kind":"Observed","args":0})
-    );
-    crate::traverse::rewrite(&mut reading, &mut |v| {
-        if v["kind"] == "Not" && v["args"] == json!({"kind":"CardType","args":"Land"}) {
-            *v = json!({"kind":"CardType","args":"Artifact"});
-        }
-        crate::traverse::Visit::Children
-    });
-    let printed = printed_types(&reading, &["Sorcery"]);
-    assert!(printed.contains("artifact"), "{printed}");
+    assert_eq!(parsed.readings.len(), 2);
+    let mut discarded = Vec::new();
+    for mut reading in parsed.readings {
+        let mut choices = Vec::new();
+        visit(&reading, "ChooseObjects", &mut choices);
+        assert_eq!(choices.len(), 1);
+        let chosen = &choices[0];
+        assert_eq!(chosen["objects"]["kind"], "Matching");
+        assert_eq!(
+            chosen["objects"]["args"]["objects"]["args"]["objects"],
+            json!({"kind":"Observed","args":0})
+        );
+        let mut loss = Vec::new();
+        visit(&reading, "DiscardObjects", &mut loss);
+        assert_eq!(loss.len(), 1);
+        discarded.push(loss[0]["objects"].clone());
+        crate::traverse::rewrite(&mut reading, &mut |v| {
+            if v["kind"] == "Not" && v["args"] == json!({"kind":"CardType","args":"Land"}) {
+                *v = json!({"kind":"CardType","args":"Artifact"});
+            }
+            crate::traverse::Visit::Children
+        });
+        let printed = printed_types(&reading, &["Sorcery"]);
+        assert!(printed.contains("artifact"), "{printed}");
+    }
+    assert!(discarded.contains(&json!({"kind":"Selected","args":1})));
+    assert!(discarded.contains(&json!({"kind":"One","args":{
+        "kind":"Result","args":{"result":1,"phase":"After","index":0}
+    }})));
 }
 
 #[test]

@@ -949,3 +949,6 @@ mod optional_costs;
 mod player_exiles;
 mod target_bans;
 mod top_card_tests;
+
+#[path = "shared_clauses/observed_top.rs"]
+mod observed_top;

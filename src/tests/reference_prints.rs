@@ -190,7 +190,19 @@ fn a_target_named_twice_is_a_pronoun_afterwards() {
             "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card. If you control a Warrior, that player loses 2 life.",
         ),
     ] {
-        assert_prints_as_written(name, types, text);
+        let readings = engine().parse(name, text).unwrap().readings;
+        assert_eq!(
+            readings.len(),
+            if name == "Diplomacy of the Wastes" {
+                2
+            } else {
+                1
+            }
+        );
+        for reading in readings {
+            let types = [types.to_string()];
+            assert_eq!(keyed(name, &reading, &types, text).as_deref(), Some(text));
+        }
     }
 }
 

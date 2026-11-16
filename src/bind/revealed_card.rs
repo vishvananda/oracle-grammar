@@ -94,6 +94,51 @@ fn eligible(root: &Value, path: &[Step]) -> Result<Option<Proof>, String> {
     }))
 }
 
+/// A first optional move still follows the observation immediately. Neither a
+/// different branch nor an intervening instruction can borrow that antecedent.
+fn look_before_move<'a>(root: &'a Value, path: &[Step]) -> Option<&'a Value> {
+    let mut sequences =
+        (1..path.len())
+            .rev()
+            .filter_map(|depth| match (&path[depth - 1], &path[depth]) {
+                (Step::Key(key), Step::Index(index)) if key == "instructions" => {
+                    Some((&path[..depth], *index))
+                }
+                _ => None,
+            });
+    let (sequence, index) = sequences.next()?;
+    let instruction = at(root, sequence)?.get(index)?;
+    let suffix = path.strip_prefix(sequence)?.get(1..)?;
+    if instruction["kind"] != "Effect"
+        || instruction["args"]["operation"]["kind"] != "Move"
+        || suffix.len() < 5
+        || !keys(&suffix[..4], &["args", "operation", "args", "objects"])
+        || !scalar_suffix(
+            &suffix[4..],
+            &instruction["args"]["operation"]["args"]["objects"],
+        )
+    {
+        return None;
+    }
+    let (sequence, index) = if index == 0 {
+        let (outer, index) = sequences.next()?;
+        let optional = at(root, outer)?.get(index)?;
+        let inner = sequence.strip_prefix(outer)?.get(1..)?;
+        if optional["kind"] != "Optional" || !keys(inner, &["args", "body", "instructions"]) {
+            return None;
+        }
+        (outer, index)
+    } else {
+        (sequence, index)
+    };
+    let previous = at(root, sequence)?.get(index.checked_sub(1)?)?;
+    let operation = &previous["args"]["operation"];
+    (previous["kind"] == "Effect"
+        && operation["kind"] == "LookAt"
+        && one_library_card(&operation["args"]["objects"]))
+    .then_some(previous)
+}
+
 pub(super) fn resolve(
     root: &Value,
     path: &[Step],
@@ -103,6 +148,22 @@ pub(super) fn resolve(
     // Decide ownership/shape before invoking the existing reference clone path.
     let proof = if own { eligible(root, path)? } else { None };
     let reference = qualified::card(scope)?;
+    if own
+        && at(root, path).is_some_and(|node| symbol_name(node) == Some("current_named_object"))
+        && let Some(previous) = look_before_move(root, path)
+    {
+        let objects = &previous["args"]["operation"]["args"]["objects"];
+        crate::functions::branch_bounds(objects)?;
+        let observed = json!({"kind":"Query","args":{
+            "objects":{"kind":"Observed","args":previous["args"]["result"]},"index":0}});
+        let queried = json!({"kind":"Query","args":{"objects":objects,"index":0}});
+        let direct = objects["kind"] == "One" && reference == objects["args"];
+        if reference != observed && reference != queried && !direct {
+            return Err(
+                "that card after looking at one library card needs that actual card".into(),
+            );
+        }
+    }
     if let Some(proof) = proof {
         let same = proof.result.is_some_and(|result| {
             reference

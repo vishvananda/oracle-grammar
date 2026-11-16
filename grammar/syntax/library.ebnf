@@ -269,6 +269,10 @@ reveal_top ::= "reveal" your_top
 /* @sem Operation::LookAt{player:AbilityController, objects:$your_top} */
 look_top ::= "look" "at" your_top
 
+/* Inspect the specified objects without moving or choosing any of them. */
+/* @sem Operation::LookAt{player:AbilityController, objects:$affected} */
+look_objects ::= "look" "at" affected
+
 /* Cards looked at stay observed; what is left of them is what was not moved. */
 /* @sem CardOrder::Random */
 order_random ::= "in" "a" "random" "order"
@@ -1159,3 +1163,18 @@ search_two ::= "search" "your" "library" "for" search_two_choice
 search_two_choice ::= search_two_any | search_two_filtered
 /* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:UpTo(Constant(2))} */
 search_two_filtered ::= "up" "to" "two" search_filter_many
+
+/* With no intervening action, the same single library top is inspected and
+   optionally moved. Its owner remains the independently announced player. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:$looked_library_top}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$looked_library_top, destination:$looked_top_destination, qualifiers:[]}}]}}] */
+instructions_look_one_optional_move ::= "look" "at" looked_library_top "." "you" "may" "put" "that" "card" looked_top_destination
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One($looked_library_owner)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
+looked_library_top ::= "the" "top" "card" "of" looked_library_owner "library"
+looked_library_owner ::= target_possessive | possessive_defending
+looked_top_destination ::= looked_top_graveyard | looked_top_bottom
+/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
+looked_top_graveyard ::= "into" looked_top_owner "graveyard"
+/* @sem MovementDestination::Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+looked_top_bottom ::= "on" "the" "bottom" "of" looked_top_owner "library"
+/* @sem () */
+looked_top_owner ::= "their" | "that" "player's"
