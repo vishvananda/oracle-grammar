@@ -132,3 +132,36 @@ receipts separate helper execution from agent turnaround. CLI exit zero means
 the queue command completed, including jobs marked needs-review; it is not a
 semantic or printing acceptance signal. Per-reading print reports, including
 Station metadata, require complete coverage and all matching readings to pass.
+
+## Durable model pool
+
+After freezing with twelve slots and two helper threads, and completing the scan,
+the external CLI launcher can run twelve model workers independently of the chat
+agent-slot limit:
+
+```sh
+python3 tools/retire_pool.py /absolute/campaign/epoch \
+  --workers 12 --model gpt-6-luna --effort max --validate
+```
+
+Run under a retained process manager for a campaign that outlives the terminal.
+The pool partitions audited-unused rules into fixed disjoint assignments. It
+records prompts, CLI event streams, process receipts, an all-rule inventory and
+an escalation queue under `pool/`. The optional `--prior /absolute/prior/epoch`
+imports diagnostic references only when all frozen files match. It never imports
+acceptance or skips assigned checks. A second launch against an existing pool
+fails closed; inspect children and leases before arranging recovery.
+
+The launcher serializes CLI initialization to avoid races installing shared
+system skills, then allows model turns to overlap. Each agent's writable root
+is the epoch and its private notes directory. Models run the deterministic
+worker/report commands; they do not edit shared source or results. Treat their
+prose as review notes, not machine evidence. All four print gates are checked
+for losses against the baseline; an already missing exact-default spelling does
+not become a new regression merely because a worker notices it.
+
+With `--validate`, a complete successful worker phase automatically assembles
+provisional rule names and runs full allowed-population validation. Repository
+gates, source integration and checkpoint promotion remain coordinator work.
+The [shared grammar lane design](retirement-authoring-design.md) describes the
+additional protocol needed for authoring; that lane is not launched by this tool.
