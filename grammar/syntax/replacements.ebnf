@@ -551,32 +551,26 @@ clause_exile_holder_or_target_return ::= "exile" self_explicit_ref "or" "up" "to
 /* @sem EventSpec::Turn{point:UpkeepBegins, players:One(AbilityController)} */
 exile_choice_return_event ::= "at" "the" "beginning" "of" "your" "next" "upkeep"
 
-/* One common tapping-for-mana condition and trailing type replacement apply
-   independently to every listed source population. ReplaceMana is per original
-   mana; it preserves the produced total, unlike AddMana's replacement amount. */
-/* @sem $mana_type_items */
+/* One sentence describes one replacement identity. The tapping player chooses
+   among the outputs applicable to the proposed source's current types. */
+/* @sem Ability::[Replacement{active:Battlefield, event:ProduceMana{sources:Any}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceManaChoices($mana_type_items)}}]}}] */
 line_mana_type_replacements ::= "if" "tapped" "for" "mana" "," mana_type_items "instead" "of" "any" "other" "type" "."
 
-mana_type_items ::= mana_type_one | mana_type_pair | mana_type_list
-/* @sem Ability::[$mana_type_item] */
-mana_type_one ::= mana_type_item
-/* @sem Ability::[$mana_type_item, $mana_type_item_2] */
+mana_type_items ::= mana_type_pair | mana_type_list
+/* @sem ManaReplacementOption::[$mana_type_item, $mana_type_item_2] */
 mana_type_pair ::= mana_type_item "and" mana_type_item
-/* @sem Ability::[$mana_type_item, ...$mana_type_tail] */
+/* @sem ManaReplacementOption::[$mana_type_item, ...$mana_type_tail] */
 mana_type_list ::= mana_type_item "," mana_type_tail
 mana_type_tail ::= mana_type_last | mana_type_list
-/* @sem Ability::[$mana_type_item] */
+/* @sem ManaReplacementOption::[$mana_type_item] */
 mana_type_last ::= "and" mana_type_item
 
-/* Only one mana symbol replaces each original unit. Producing a fixed amount
-   instead of the original amount is a separate contract and spelling. */
-/* @sem Ability::Replacement{active:Battlefield, event:ProduceMana{sources:$mana_plural_sources}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceMana(Amount{color:$mana_color, amount:Constant(1)})}}]}} */
+/* @sem ManaReplacementOption::ManaReplacementOption{sources:$mana_plural_sources, color:$mana_color} */
 mana_type_item ::= mana_plural_sources "produce" mana_color
 
-/* A singleton can itself be granted; its controller and source filter then
-   belong to that new holder, independently of the granting object. */
-/* @sem Ability::$mana_type_item */
-replacement_mana_type_single ::= "if" "tapped" "for" "mana" "," mana_type_item "instead" "of" "any" "other" "type" "."
+/* A single fixed output retains its ordinary replacement form. */
+/* @sem Ability::Replacement{active:Battlefield, event:ProduceMana{sources:$mana_plural_sources}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceMana(Amount{color:$mana_color, amount:Constant(1)})}}]}} */
+replacement_mana_type_single ::= "if" "tapped" "for" "mana" "," mana_plural_sources "produce" mana_color "instead" "of" "any" "other" "type" "."
 
 /* Existing lower-case vocabulary makes these capitalized land names after
    a comma explicit spelling tokens. The marker changes no filter meaning.

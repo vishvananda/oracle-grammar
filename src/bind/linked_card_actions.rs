@@ -371,7 +371,7 @@ fn group(card: &Value, site: &Site) -> Option<Value> {
             && empty_announcement(value)
             && returned["args"]["destination"].get("OwnersHand").is_some()
             && linked_entry(card, site.ability))
-        .then(|| guarded(linked_zone()))
+        .then(linked_zone)
     } else {
         (returned["args"]["destination"].get("Battlefield").is_some())
             .then(|| actual_group(value, site))

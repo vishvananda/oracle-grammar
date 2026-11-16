@@ -40,6 +40,9 @@ impl Visit for Normalize {
         _: &str,
         walker: &mut Walker<'_>,
     ) -> Result<(), String> {
+        if matches!(ty, Ty::Named(name) if name == "Program") {
+            self.changed |= super::observed_top::program(value, self.tracing)?;
+        }
         if !self.keep_order && matches!(ty, Ty::Named(name) if name == "ManaProduction") {
             self.changed |= super::fixed_mana::bundle(value, self.tracing);
         }

@@ -61,6 +61,21 @@ fn alternatives(fields: &[(String, Pattern)]) -> Option<usize> {
 fn relax(pattern: &Pattern, changed: &mut bool) -> Pattern {
     match pattern {
         Pattern::Object(fields) => {
+            if let [(kind, Pattern::Value(name)), (args, Pattern::Object(parts))] =
+                fields.as_slice()
+                && kind == "kind"
+                && name == "Matching"
+                && args == "args"
+                && let [(objects, set), (filter, predicate)] = parts.as_slice()
+                && objects == "objects"
+                && filter == "filter"
+            {
+                *changed = true;
+                return Pattern::Symbol(
+                    "matching_set_inverse".into(),
+                    vec![relax(set, changed), relax(predicate, changed)],
+                );
+            }
             if let Some(items) = members(fields) {
                 *changed = true;
                 let args = items

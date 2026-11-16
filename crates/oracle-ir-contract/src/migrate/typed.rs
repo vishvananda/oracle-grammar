@@ -21,7 +21,7 @@ pub struct MappedMigration {
 pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
     let value = crate::json_input::value(input)?;
     match value["schema_version"].as_u64() {
-        Some(180..=190) => upgrade(value, true),
+        Some(180..=191) => upgrade(value, true),
         Some(v) if v == u64::from(SCHEMA_VERSION) => {
             let card = super::checked(value.clone())?;
             let sites = binding_map::sites(
@@ -38,17 +38,14 @@ pub fn mapped_read_json(input: &str) -> Result<MappedMigration, String> {
                 },
             })
         }
-        _ => Err(
-            "mapped migration requires schema 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190 or the current epoch"
-                .into(),
-        ),
+        _ => Err("mapped migration requires schema 180 through 191 or the current epoch".into()),
     }
 }
 pub(super) fn upgrade(mut value: Value, track: bool) -> Result<MappedMigration, String> {
     let version = value["schema_version"]
         .as_u64()
         .ok_or("legacy IR requires a schema version")? as u32;
-    if !matches!(version, 179..=190)
+    if !matches!(version, 179..=191)
         || value["faces"]
             .as_array()
             .ok_or("legacy IR requires faces")?

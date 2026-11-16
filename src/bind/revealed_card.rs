@@ -21,7 +21,7 @@ fn keys(path: &[Step], names: &[&str]) -> bool {
             .zip(names)
             .all(|(step, name)| matches!(step, Step::Key(key) if key.as_str() == *name))
 }
-fn scalar_suffix(mut path: &[Step], mut objects: &Value) -> bool {
+pub(super) fn scalar_suffix(mut path: &[Step], mut objects: &Value) -> bool {
     // Each exact unary annotation consumes two path steps. The existing path
     // bound therefore also bounds this transparent-operand walk.
     while matches!(
@@ -175,6 +175,12 @@ pub(super) fn resolve(
     // Decide ownership/shape before invoking the existing reference clone path.
     let proof = if own { eligible(root, path)? } else { None };
     let reference = qualified::card(scope)?;
+    if reference == json!({"kind":"Source"}) && super::historical_death::unproved_source(root, path)
+    {
+        return Err(
+            "a historical death card requires its destination query, not the source".into(),
+        );
+    }
     if own
         && at(root, path).is_some_and(|node| symbol_name(node) == Some("current_named_object"))
         && let Some(previous) = single_card_before_move(root, path)

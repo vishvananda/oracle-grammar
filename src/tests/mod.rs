@@ -934,6 +934,7 @@ mod nonlegendary;
 mod print_frontier;
 mod reference_prints;
 mod reported_corrections;
+mod reported_issue_contracts;
 mod spell_x;
 
 mod arrivals_and_receipts;

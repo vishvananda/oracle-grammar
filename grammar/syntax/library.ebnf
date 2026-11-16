@@ -326,7 +326,7 @@ dig_block_more ::= dig_block "." instructions
 dig_block_untaken ::= dig_look_split "." dig_untaken_if
 
 /* Nothing was taken when the take's move, just before the rest, moved no card. */
-/* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Matching{objects:Union([Transition{result:@back(2), phase:Before}]), filter:Any}), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
+/* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
 dig_block ::= dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined
@@ -356,17 +356,17 @@ dig_reveal_joined ::= reveal_top "." dig_put_take dig_rest_and
    battlefield. Otherwise, put that card into your hand." The test reads the revealed
    card; "it" in each branch is still the top card of your library, which the branch
    takes. */
-/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:$top_reveal_branch}, otherwise:Program{}}] */
-instructions_top_reveal_if ::= "reveal" "the" "top" "card" "of" "your" "library" "." "if" "it's" top_reveal_quality "," top_reveal_branch
-/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:$top_reveal_branch}, otherwise:Program{instructions:$top_reveal_branch_2}}] */
-instructions_top_reveal_if_otherwise ::= "reveal" "the" "top" "card" "of" "your" "library" "." "if" "it's" top_reveal_quality "," top_reveal_branch "." "otherwise" "," top_reveal_branch
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:$observed_top_reveal_branch}, otherwise:Program{}}] */
+instructions_top_reveal_if ::= "reveal" "the" "top" "card" "of" "your" "library" "." "if" "it's" top_reveal_quality "," observed_top_reveal_branch
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:$observed_top_reveal_branch}, otherwise:Program{instructions:$observed_top_reveal_branch_2}}] */
+instructions_top_reveal_if_otherwise ::= "reveal" "the" "top" "card" "of" "your" "library" "." "if" "it's" top_reveal_quality "," observed_top_reveal_branch "." "otherwise" "," observed_top_reveal_branch
 
 /* "Defending player reveals the top card of their library. If it's a land card, that
    player puts it into their hand": another player's single revealed card, tested and
    moved by that player. */
-/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:Program{}}] */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:Program{}}] */
 instructions_player_reveal_to_hand ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," "that" "player" "puts" "it" "into" "their" "hand"
-/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Optional{decider:$player_ref, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}, destination:Battlefield{controller:Player($player_ref), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}, otherwise:Program{}}] */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Expr::Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Optional{decider:$player_ref, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:Battlefield{controller:Player($player_ref), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}, otherwise:Program{}}] */
 instructions_player_reveal_may_battlefield ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," "the" "player" "may" "put" "it" "onto" "the" "battlefield"
 
 /* "You may pay {2}{R}. If you do, reveal the top card of your library. If it's ...": the
@@ -494,7 +494,7 @@ look_exile_card ::= "you" "may" "exile" a_card "from" "among" "them"
 look_put_remainder ::= "put" rest_bottom
 
 /* The actual exile incarnation stays the cast operand after reordering. */
-/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:One(Result{result:@back(3), phase:After, index:0}), filter:Any}, count:Exactly(Constant(1)), cost:Free}}]}}] */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:One(Result{result:@back(3), phase:After, index:0}), count:Exactly(Constant(1)), cost:Free}}]}}] */
 look_cast_exiled ::= "you" "may" "cast" "the" "exiled" "card" "without" "paying" "its" "mana" "cost"
 
 /* @sem Instruction::[...$look_exile_card, ...$look_put_remainder, ...$look_cast_exiled] */
@@ -510,8 +510,6 @@ until_hand ::= "into" "your" "hand"
 /* @sem MovementDestination::Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
 until_battlefield ::= "onto" "the" "battlefield"
 
-/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Reveal{objects:$your_top}}, Instruction::If{condition:Compare{left:Expr::CountObjects(Matching{objects:Observed(@last_result), filter:$card_filter}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Expr::Constant(1)}}, then:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Move{objects:$your_top, destination:$until_destination, qualifiers:[]}}]}, otherwise:Program{}}] */
-instructions_reveal_if ::= "reveal" your_top "." "if" "it's" ("a" | "an") card_filter "card" "," "put" "it" until_destination
 
 /* "If it's a land card, you may reveal it and put it into your hand": an optional move
    of the top card that only a matching card can make. A later sentence about putting
@@ -1193,3 +1191,13 @@ search_subtype_last ::= subtype ","? "or" subtype
    become part of an unrelated conditional's instruction prefix. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]} */
 program_sentence_search_and_move ::= search "and" found_action "." "then" "shuffle" "."
+
+/* These branches are immediately inside the explicit one-card reveal above.
+   A pure condition does not move the top card; each branch names that reveal's
+   actual observation. The live-query branch remains separate for unpaid
+   reveal/move payments, which have supplied no observation receipt. */
+observed_top_reveal_branch ::= observed_top_reveal_put | observed_top_reveal_may_put | top_reveal_draw | top_reveal_continuous | clause_you | top_reveal_you_and
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:$top_reveal_destination, qualifiers:[]}}] */
+observed_top_reveal_put ::= "put" top_reveal_it top_reveal_destination
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$observed_top_reveal_put}}] */
+observed_top_reveal_may_put ::= "you" "may" observed_top_reveal_put

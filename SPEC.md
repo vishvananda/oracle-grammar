@@ -129,8 +129,14 @@ weaken predicates or turn an unsupported structure into agreement.
 A negated object-bound condition compares in one form: `ObjectFilter::Not(Condition(c))`
 is `Condition(Not(c))`, since both evaluate `c` once for the same candidate. Only
 comparison merges them; each prints from its own form. Selection encodings and
-live versus observed card references are not merged. Their producer normal forms
-are in [the 2026-11-15 issue audit](docs/reported-issues-20261115.md#producer-normal-forms-29).
+arbitrary live versus observed card references remain distinct. An adjacent
+one-card library Reveal and If can use the observation in the first Move of a
+pure branch only when the condition already consumes that same observation and
+the moved query is exactly the producer's query. Intervening effects and independent
+ability frames invalidate the proof; it never escapes the branch join. The print
+inverse reconstructs its query from the current producer operands and verifies
+the reparse. See [the bounded producer proof](docs/reported-issues-20261116.md#producer-consistency-with-scope-proofs-33)
+and [the earlier producer forms](docs/reported-issues-20261115.md#producer-normal-forms-29).
 
 A sole-use scalar capture immediately before a pure Snapshot pump may be inlined:
 that effect evaluates both stat operands when it resolves, with no intervening

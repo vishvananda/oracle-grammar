@@ -1,7 +1,7 @@
-//! A current battlefield population already enforces battlefield membership.
+//! Remove only proven redundant predicates from object-set matching.
 use serde_json::{Value, json};
 
-pub(super) fn matching_battlefield(value: &mut Value) {
+pub(super) fn matching(value: &mut Value) {
     if !value.as_object().is_some_and(|fields| fields.len() == 2) {
         return;
     }
@@ -10,9 +10,10 @@ pub(super) fn matching_battlefield(value: &mut Value) {
         return;
     }
     let objects = &args["objects"];
-    if objects["kind"] == "Zone"
-        && objects["args"]["scope"] == json!({"Shared":"Battlefield"})
-        && args["filter"] == json!({"kind":"InZone","args":{"Shared":"Battlefield"}})
+    if args["filter"] == json!({"kind":"Any"})
+        || (objects["kind"] == "Zone"
+            && objects["args"]["scope"] == json!({"Shared":"Battlefield"})
+            && args["filter"] == json!({"kind":"InZone","args":{"Shared":"Battlefield"}}))
     {
         // Move the intact subtree, including ID-origin annotations. Unknown
         // inner fields remain available for native validation to reject.

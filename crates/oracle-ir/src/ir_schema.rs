@@ -22,6 +22,7 @@ pub fn frozen_json(version: u32) -> Option<&'static str> {
         189 => include_str!("../schema/189.json"),
         190 => include_str!("../schema/190.json"),
         191 => include_str!("../schema/191.json"),
+        192 => include_str!("../schema/192.json"),
         _ => return None,
     })
 }
@@ -44,6 +45,7 @@ pub fn frozen_signature(version: u32) -> Option<&'static str> {
         189 => include_str!("../schema/189.txt"),
         190 => include_str!("../schema/190.txt"),
         191 => include_str!("../schema/191.txt"),
+        192 => include_str!("../schema/192.txt"),
         _ => return None,
     })
 }

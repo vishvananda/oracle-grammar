@@ -50,3 +50,29 @@ fn frozen_descriptors_match_the_compiled_contract() {
     let saved: Schema = serde_json::from_value(value["schema"].clone()).unwrap();
     assert_eq!(serde_json::to_value(saved).unwrap(), value["schema"]);
 }
+
+#[test]
+fn schema_192_appends_variants_without_moving_existing_wire_ordinals() {
+    let old: serde_json::Value = serde_json::from_str(super::frozen_json(191).unwrap()).unwrap();
+    let old: Schema = serde_json::from_value(old["schema"].clone()).unwrap();
+    let current = Schema::of_ir().unwrap();
+    for name in ["ObjectSet", "ObjectFilter", "EventChange"] {
+        let super::TypeDef::Enum {
+            variants: before, ..
+        } = &old.types[name]
+        else {
+            panic!("{name} must remain an enum")
+        };
+        let super::TypeDef::Enum {
+            variants: after, ..
+        } = &current.types[name]
+        else {
+            panic!("{name} must remain an enum")
+        };
+        assert_eq!(
+            serde_json::to_value(&after[..before.len()]).unwrap(),
+            serde_json::to_value(before).unwrap(),
+            "{name}: existing ordinal or operand changed"
+        );
+    }
+}

@@ -182,9 +182,9 @@ fn infernal_denizen_pays_both_swamps_or_none() {
 }
 
 #[test]
-fn tetravus_exiles_only_tokens_it_created() {
+fn tetravus_exiles_only_tokens_from_its_linked_creating_ability() {
     let reading = reading("Tetravus");
-    let made = json!({"kind":"MadeBy","args":{"kind":"Source"}});
+    let made = json!({"kind":"CreatedWith","args":{"kind":"Source"}});
     let conjunctions: Vec<_> = found(&reading, "AllOf")
         .into_iter()
         .filter(|parts| parts.as_array().unwrap().contains(&made))

@@ -538,15 +538,40 @@ the IR path, the value it replaces and why.
   that card" keeps the exile receipt (Anikthea, Hand of Erebos, Tamiyo,
   Compleated Sage).
 
-- `U0068` (correction): the five Alchemy Gates (Gate to Manorborn and its
+- `U0068` (normalization): the five Alchemy Gates (Gate to Manorborn and its
   cycle) print "{T}: Add {G}." on its own line, outside reminder
   parentheses. The records dropped that printed ability; Abandoned Air
   Temple and Ba Sing Se record printed mana lines as Activated abilities.
+  This preserves wording: the basic land types already derive these intrinsic
+  abilities. The card-context comparison and consumer projection in the
+  [2026-11-16 contract](../../docs/reported-issues-20261116.md#intrinsic-basic-land-mana-32)
+  prevent a printed manifestation from becoming a second activation.
+
+- `U0069` (correction, #31): Mimeoplasm's recorded creature arrivals must also
+  have arrived in Exile. The result identity, After view and multiplier remain.
+- `U0070` (normalization, #33): five redundant live Exile-query wrappers on
+  Gustha's Scepter, Northampton Farm, Vault 13 and Ugin's Labyrinth are removed
+  with the exact same-zone proof. Historical arrival guards remain distinct.
+- `U0071` (normalization, #33): Chandra retains its already-proved singleton
+  result without a vacuous filter; Esper Maduin moves its explicit observation
+  immediately after a pure condition with the same library player.
+- `U0072` (correction, #19): Naked Singularity and Reality Twist each keep one
+  replacement identity and choose among applicable outputs for the full amount.
+- `U0073` (correction, #20): Tetravus keeps Token and uses the creating ability's
+  linked text/acquisition, rather than every creation by the source object.
+- `U0074` (correction, #21): Krovikan Vampire tests pre-death views and projects
+  their first surviving graveyard incarnations when its query resolves.
+- `U0075` (correction, #22): Wood Elemental counts linked historical entry
+  sacrifices through its current words, preserving the entering incarnation.
+
+These contracts and their scoped proofs are documented in
+[the 2026-11-16 issue audit](../../docs/reported-issues-20261116.md).
 
 The remaining reported reference/lowering issues and their current dispositions
 are tracked in [the issue audit](../../docs/reported-issues-20261113.md) and
 its follow-ups of [2026-11-14](../../docs/reported-issues-20261114.md) and
-[2026-11-15](../../docs/reported-issues-20261115.md). Their
+[2026-11-15](../../docs/reported-issues-20261115.md) and
+[2026-11-16](../../docs/reported-issues-20261116.md). A report's
 open status does not create a corpus equality exception.
 
 ## Open in the grammar

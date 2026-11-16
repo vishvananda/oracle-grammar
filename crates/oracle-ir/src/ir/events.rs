@@ -180,6 +180,14 @@ pub enum DiceIgnore {
     ChosenBy(PlayerRef),
 }
 
+/// An eligible output of one grouped mana-type replacement. `sources` matches
+/// the proposed mana source, independently of the replacement ability's Source.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ManaReplacementOption {
+    pub sources: ObjectFilter,
+    pub color: ManaColor,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum EventChange {
     SetTapped(bool),
@@ -240,6 +248,16 @@ pub enum EventChange {
     /// planeswalker recipient (or its existing count if smaller). This is not
     /// damage prevention, cancellation, or a separate counter-removal action.
     LeaveLoyalty(Expr),
+    /// One replacement, with one choice by the player tapping the mana source.
+    /// Each option tests that source's current, text-adjusted characteristics.
+    /// With no applicable option the replacement is inapplicable. Otherwise the
+    /// player chooses one applicable output type and all the pending mana becomes
+    /// that type, preserving its full quantity. Matching several options never
+    /// creates several replacement identities or allows this replacement to
+    /// apply to the same event again. Applicability is quantity-independent.
+    /// This must be the replacement's complete single-effect body, so no earlier
+    /// action or conditional branch can change its applicability or eligibility.
+    ReplaceManaChoices(Vec<ManaReplacementOption>),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

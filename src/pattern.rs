@@ -14,6 +14,7 @@ use std::borrow::Cow;
 
 mod constraints;
 mod damage_actor;
+mod filtered_sets;
 mod reference_symbols;
 mod repeated;
 pub(crate) mod root_type;
@@ -877,6 +878,7 @@ impl Pattern {
             }
             "unordered" => return crate::functions::unordered::unify(args, value, bindings),
             "and" => return unify_and(args, value, bindings),
+            "matching_set_inverse" => return filtered_sets::unify(args, value, bindings),
             "either_event" => return unify_either_event(args, value, bindings),
             "agree" => return unify_agree(args, value, bindings),
             "or"

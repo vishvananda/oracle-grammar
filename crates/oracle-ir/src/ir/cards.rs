@@ -95,6 +95,12 @@ pub struct Card {
     pub schema_version: u32,
     pub name: String,
     pub characteristics: Characteristics,
+    /// Written ability definitions. A plain basic-land mana line may be retained
+    /// for wording, but denotes the intrinsic ability derived from the land's
+    /// current types (CR 305.6), not a second activation. Unprinted intrinsic
+    /// abilities need not be materialized here. Consumers derive them from types
+    /// and use the contract's card-context intrinsic projection to avoid counting
+    /// a printed manifestation twice; independently granted abilities stay distinct.
     pub abilities: Vec<Ability>,
 }
 

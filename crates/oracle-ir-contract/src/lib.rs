@@ -12,6 +12,7 @@ pub mod complete;
 pub mod copying;
 pub mod cost_history;
 pub mod human;
+pub mod intrinsic;
 pub mod json_input;
 pub mod keyword_actions;
 pub mod migrate;
@@ -47,3 +48,7 @@ mod extraction_tests;
 
 #[cfg(test)]
 mod history_windows_tests;
+
+#[cfg(test)]
+#[path = "tests/reported_issues_20261116.rs"]
+mod reported_issues_20261116;

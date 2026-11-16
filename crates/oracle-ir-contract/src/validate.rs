@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 mod arrival;
 mod bounds;
 mod copying;
+mod grouped_mana;
 mod layout;
 
 /// The slot in `casting_costs` that holds the enclosing cost branch's cost.
@@ -56,6 +57,7 @@ struct Scope<'a> {
     affected: bool,
     affected_player: bool,
     replacement: bool,
+    mana_replacement: bool,
     players: BTreeSet<u32>,
     declaration: bool,
     candidate: bool,
@@ -710,6 +712,7 @@ fn validate_ability_in_case_2(
                 return Err("source-entry replacement must match only its source".into());
             }
             scope.replacement = true;
+            scope.mana_replacement = grouped_mana::applies_to(event, body);
             scope.event = crate::semantics::replacement_bindings(event);
             scope.program(body)
         }

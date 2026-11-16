@@ -28,6 +28,7 @@ pub(crate) mod exiled_card;
 mod fight_counterpart;
 mod filters;
 pub(crate) mod group_contrast;
+mod historical_death;
 mod optional_entered_card;
 mod optional_entries;
 mod optional_exile_target;

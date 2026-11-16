@@ -340,6 +340,24 @@ pub enum ObjectSet {
     /// exist through LKI. Copies of the object/ability acquire no link. A card
     /// that left exile and returned is a new incarnation and is not included.
     CreationLinkedCards(ObjectRef),
+    /// Match historical zone changes using the departing objects' historical
+    /// characteristics, then project their first public destination incarnations.
+    /// Re-evaluate the history window when this query is evaluated. A projected
+    /// object must still be in the destination produced by that event: a second
+    /// zone change, including leaving and returning, permanently breaks the link.
+    /// This never changes FromHistory's departed-subject projection.
+    FromHistoryDestinations {
+        event: Box<EventSpec>,
+        window: HistoryWindow,
+    },
+    /// Historical views of objects actually sacrificed by the linked entry
+    /// ability when this exact permanent incarnation entered. Selection alone,
+    /// unrelated sacrifices, failed entry attempts and earlier incarnations do
+    /// not contribute. The consuming ability's linked acquisition is part of the
+    /// relation, as for ExiledWith; copies do not acquire another object's history.
+    /// Matching and aggregation use the sacrificed objects' historical views,
+    /// interpreting predicates through the consuming source's current words.
+    SacrificedAsEntered(ObjectRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -566,6 +584,13 @@ pub enum ObjectFilter {
     /// Candidate is a host that this Aura could legally enchant. Unlike
     /// CouldEnchant, the candidate is not the Aura. This does not target.
     CouldBeEnchantedBy(ObjectRef),
+    /// Created or put onto the battlefield by the creating ability linked to
+    /// this consuming ability (CR 607.2c). Identity includes the object's exact
+    /// incarnation, the linked text and its acquisition (CR 607.5), not just the
+    /// source object. Unrelated granted abilities and separately acquired copies
+    /// never share a link. This relation includes nontokens; intersect Token when
+    /// the words ask for tokens. Created(ResultId) remains a resolution receipt.
+    CreatedWith(ObjectRef),
 }
 
 /// Something that happened to an object. See `ObjectFilter::History`.

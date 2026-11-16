@@ -20,6 +20,7 @@ impl<'a> Scope<'a> {
             ObjectFilter::ArrivedThisTurn { .. } | ObjectFilter::ChosenFilter => Ok(()),
             ObjectFilter::SharesColorWith(object)
             | ObjectFilter::ExiledWith(object)
+            | ObjectFilter::CreatedWith(object)
             | ObjectFilter::MadeBy(object)
             | ObjectFilter::WasAttachedTo(object) => self.object(object),
             ObjectFilter::DealtExcessBy(result) if self.results.contains_key(&result.0) => Ok(()),

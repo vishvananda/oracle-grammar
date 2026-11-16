@@ -34,6 +34,17 @@ impl<'a> Scope<'a> {
             ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::SplicedOnto(object) | ObjectSet::TargetsOf(object) => self.object(object),
             ObjectSet::FromHistory { event, .. } => self.event(event),
+            ObjectSet::FromHistoryDestinations { event, window } => {
+                if !matches!(event.as_ref(), EventSpec::ZoneChange { from: Some(_), to,
+                    .. } if matches!(to, EventZone::Battlefield | EventZone::Graveyard
+                        | EventZone::Exile | EventZone::Stack | EventZone::Command))
+                {
+                    return Err("historical destinations require an explicit zone change into a public zone".into());
+                }
+                self.event(event)?;
+                self.history_window(window)
+            }
+            ObjectSet::SacrificedAsEntered(object) => self.object(object),
             ObjectSet::DraftRandom { .. } | ObjectSet::DraftChosen { .. } => {
                 Err("a draft selector has no canonical choice at this execution site".into())
             }

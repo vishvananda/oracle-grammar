@@ -58,6 +58,7 @@ impl<'a> Scope<'a> {
                     EventChange::AddMana(mana)
                     | EventChange::ReplaceMana(mana)
                     | EventChange::ReplaceColoredMana(mana) => self.mana(mana),
+                    EventChange::ReplaceManaChoices(options) => self.grouped_mana(options),
                     EventChange::RollExtraDie(DiceIgnore::Lowest) => Ok(()),
                     EventChange::RollExtraDie(DiceIgnore::ChosenBy(player)) => self.player(player),
                     EventChange::Then(body) => {
@@ -148,6 +149,7 @@ impl<'a> Scope<'a> {
                 self.replacement_event(event)?;
                 let mut child = self.clone();
                 child.replacement = true;
+                child.mana_replacement = grouped_mana::applies_to(event, body);
                 child.open_searches.clear();
                 child.join_groups.clear();
                 child.event = crate::semantics::replacement_bindings(event);

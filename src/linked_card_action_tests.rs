@@ -180,9 +180,10 @@ fn an_explicit_foreign_linked_population_keeps_its_announced_target() {
         for frame in parsed.unwrap().readings {
             let objects = &frame[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]
                 ["objects"];
-            assert_eq!(objects["kind"], "InZone");
+            assert_eq!(objects["kind"], "Zone");
+            assert_eq!(objects["args"]["scope"], json!({"Shared":"Exile"}));
             assert_eq!(
-                objects["args"]["objects"]["args"]["filter"],
+                objects["args"]["filter"],
                 json!({"kind":"ExiledWith","args":{"kind":"Target","args":{"slot":0,"index":0}}})
             );
         }

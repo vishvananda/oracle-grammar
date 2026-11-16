@@ -2,6 +2,34 @@
 use crate::{canonical, corpus, human, ir::UnifiedCard, migrate, validate};
 use serde_json::Value;
 
+fn current_expected(name: &str, mut value: Value, source: &Value) -> Value {
+    let delta: Value =
+        serde_json::from_str(include_str!("fixtures/extraction-192-delta.json")).unwrap();
+    assert_eq!(
+        delta["source_fixture_sha256"],
+        source["source_fixture_sha256"]
+    );
+    assert_eq!(delta["schema_version"], crate::ir::SCHEMA_VERSION);
+    for change in delta["changes"].as_array().unwrap() {
+        if change["name"] != name {
+            continue;
+        }
+        let mut place = &mut value;
+        for step in change["path"].as_array().unwrap() {
+            place = if let Some(key) = step.as_str() {
+                place.get_mut(key).unwrap()
+            } else {
+                place
+                    .get_mut(usize::try_from(step.as_u64().unwrap()).unwrap())
+                    .unwrap()
+            };
+        }
+        assert_eq!(*place, change["from"], "{name}: reviewed schema-192 delta");
+        *place = change["to"].clone();
+    }
+    value
+}
+
 #[test]
 fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts() {
     corpus::on_large_stack(|| {
@@ -38,7 +66,7 @@ fn schema_190_extraction_preserves_json_binary_canonical_and_authoring_contracts
                 validate::card(face).unwrap_or_else(|e| panic!("{name}: {e}"));
             }
             let expected = migrate::read_json(&record["canonical"].to_string()).unwrap();
-            let expected = serde_json::to_value(expected).unwrap();
+            let expected = current_expected(name, serde_json::to_value(expected).unwrap(), &packet);
             let normalized = canonical::unified(&card).unwrap();
             assert_eq!(
                 serde_json::to_value(&normalized).unwrap(),

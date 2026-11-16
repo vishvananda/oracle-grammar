@@ -15,6 +15,8 @@ mod entry;
 mod events;
 mod filters;
 mod fixed_mana;
+#[cfg(test)]
+mod issue_sets_tests;
 mod joins;
 mod keywords;
 mod mana_uses;
@@ -22,6 +24,7 @@ mod mana_uses;
 mod mode_results;
 mod movement;
 mod observed_hands;
+pub mod observed_top;
 mod programs;
 #[cfg(test)]
 mod result_scopes;
@@ -547,7 +550,7 @@ impl Walker {
                     }
                 }
                 ("ObjectSet", "InZone") => repeated_current_zone(value),
-                ("ObjectSet", "Matching") => sets::matching_battlefield(value),
+                ("ObjectSet", "Matching") => sets::matching(value),
                 ("EventSpec", "ZoneChange") => {
                     if value["ZoneChange"]["to"] == "Battlefield" {
                         drop_permanent_types(&mut value["ZoneChange"]["objects"]);
@@ -986,8 +989,25 @@ fn merge_triggers(items: &mut Vec<Value>, tracing: bool) {
 /// Keep the inner query: unlike EventSubject/Source, it selects nothing after
 /// the object leaves. No history view or mismatched zone is simplified here.
 fn repeated_current_zone(value: &mut Value) {
+    if !value.as_object().is_some_and(|fields| fields.len() == 2)
+        || !value["args"]
+            .as_object()
+            .is_some_and(|fields| fields.len() == 2)
+    {
+        return;
+    }
     let outer = &value["args"];
     let one = &outer["objects"];
+    let scope = &one["args"]["scope"];
+    if one["kind"] == "Zone"
+        && outer["zone"].is_string()
+        && (scope["Shared"] == outer["zone"] || scope["Players"]["zone"] == outer["zone"])
+    {
+        // A live query already guarantees its exact zone. Retain the whole
+        // query, including its player, linked-object predicates and origins.
+        *value = one.clone();
+        return;
+    }
     let reference = &one["args"];
     let query = &reference["args"];
     let objects = &query["objects"];
@@ -1213,6 +1233,21 @@ pub fn card(card: &Card) -> Result<Card, String> {
     let abilities = value.get_mut("abilities").ok_or("card has no abilities")?;
     self::abilities(abilities)?;
     serde_json::from_value(value).map_err(|e| e.to_string())
+}
+
+/// Full-face meaning comparison, with the card context that derives intrinsic
+/// basic-land mana. A retained printed manifestation and its omission compare
+/// alike; ordinary `card` preserves the written definition for printing.
+pub fn semantic_card(card: &Card) -> Result<Card, String> {
+    crate::validate::card(card)?;
+    let mut compared = card.clone();
+    compared.abilities = crate::intrinsic::nonintrinsic_printed_abilities(card)
+        .cloned()
+        .collect();
+    let mut abilities = serde_json::to_value(&compared.abilities).map_err(|e| e.to_string())?;
+    semantic_abilities(&mut abilities)?;
+    compared.abilities = serde_json::from_value(abilities).map_err(|e| e.to_string())?;
+    Ok(compared)
 }
 
 /// Only shared, permanent battlefield queries imply the permanent type domain.

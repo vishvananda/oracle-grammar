@@ -1256,3 +1256,13 @@ event_card_put_into_opponent_graveyard ::= "a" "card" "is" "put" "into" "an" "op
 
 /* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:AllOf([$adjective_color, $adjective_color_2])} */
 event_cast_two_color_spell ::= "you" "cast" "a" "spell" "that's" "both" adjective_color "and" adjective_color
+
+/* Historical deaths test the departing incarnation, including the damage
+   predicate; the resolution separately projects its first graveyard object. */
+/* @sem EventSpec::ZoneChange{objects:@and($filter_phrase, ObjectFilter::Condition(Compare{left:EventHistory{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Objects(SameObject(Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})), from:Battlefield, to:Graveyard} */
+historical_damaged_death ::= ("a" | "an") filter_phrase "dealt" "damage" "by" object_ref "this" "turn" "died"
+
+/* Both uses share the one declared historical predicate. Resolving this query
+   re-evaluates deaths this turn, rather than capturing them at trigger time. */
+/* @sem Ability::Triggered{event:$turn_event, intervening_if:Compare{left:EventHistory{event:$historical_damaged_death, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:FromHistoryDestinations{event:$historical_damaged_death, window:ThisTurn}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:$operation}]}} */
+triggered_historical_death_return ::= "at" turn_event "," "if" historical_damaged_death "," "put" "that" "card" "onto" "the" "battlefield" "under" "your" "control" "." operation "."
