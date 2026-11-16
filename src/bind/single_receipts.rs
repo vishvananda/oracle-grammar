@@ -290,9 +290,13 @@ fn rewritten(node: &Value, scope: &Frame, lower: bool) -> Option<Value> {
                 return None;
             }
             Some(if kind(node) == "ObjectMatches" {
-                json!({"kind":"Compare","args":{"left":{"kind":"CountObjects","args":{
-                    "kind":"Matching","args":{"objects":moved(&object["args"]),
-                    "filter":args["filter"]}}},"test":above_zero}})
+                let objects = moved(&object["args"]);
+                let counted = if args["filter"] == json!({"kind":"Any"}) {
+                    objects
+                } else {
+                    json!({"kind":"Matching","args":{"objects":objects,"filter":args["filter"]}})
+                };
+                json!({"kind":"Compare","args":{"left":{"kind":"CountObjects","args":counted},"test":above_zero}})
             } else if args["information"] == "CurrentOrLastKnown" {
                 json!({"kind":"Aggregate","args":{"objects":moved(&object["args"]),
                     "property":args["property"],"aggregation":"Sum"}})

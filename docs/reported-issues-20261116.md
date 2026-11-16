@@ -3,7 +3,7 @@
 This change addresses the seven open reports #19–#22 and #31–#33. The issue
 bodies and all current comments were reviewed. Work uses the pinned Oracle
 words and an explicit, immutable unsealed population; no held-out examples or
-new Oracle snapshot are used. Reference changes are ledger amendments U0069–U0075.
+new Oracle snapshot are used. Reference changes are ledger amendments U0069–U0076.
 U0068 is clarified as wording preservation, not a missing-gameplay correction.
 
 Schema 192 adds the typed relations below. Schema 191 remains an immutable input
@@ -181,7 +181,12 @@ verified defaults, edited operands, intrinsic comparisons and schema-191 origin
 migration. The full unsealed audit remains separate from those family checks.
 The singleton receipt reduction also accepts a vacuous filter already removed
 from CountObjects, retaining its existing cardinality proof. Ardyn, Break
-Expectations and Corpse Appraiser keep their prior supported meanings.
+Expectations and Corpse Appraiser keep their prior supported meanings. U0076
+records that same proved convention for Inscribed Tablet's at-most-one selected
+card arrival and the successful single-target Before receipts on Kaervek's Purge,
+Kalitas and Saw in Half. It preserves result IDs, phase and surrounding negation;
+zero successful objects still fails the positive test. Multi-object receipts and
+replaceable one-card mill requests retain their batch forms.
 
 The old two Living Lore readings differ only by a vacuous Matching(..., Any)
 wrapper around the same linked-card singleton. Their native canonical merge is counted separately from the explicit

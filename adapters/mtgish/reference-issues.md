@@ -567,6 +567,10 @@ the IR path, the value it replaces and why.
 - `U0075` (correction, #22): Wood Elemental counts linked historical entry
   sacrifices through its current words, preserving the entering incarnation.
 
+- `U0076` (normalization, #33): Inscribed Tablet, Kaervek's Purge, Kalitas and
+  Saw in Half use the existing singleton receipt test only after their own
+  at-most-one proof. Phases, IDs, negation and later effects are preserved.
+
 These contracts and their scoped proofs are documented in
 [the 2026-11-16 issue audit](../../docs/reported-issues-20261116.md).
 

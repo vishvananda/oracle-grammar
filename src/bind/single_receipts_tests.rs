@@ -36,10 +36,13 @@ fn a_vacuous_count_wrapper_is_unnecessary_but_cardinality_is_still_proved() {
         json!({"kind":"Transition","args":{"result":0,"phase":"After"}});
     let batch_test = test.clone();
     let mut ability = spell(json!([exiled(top_card()), test]));
+    let original = ability.clone();
     assert!(lower(&mut ability));
     let condition = &ability["args"]["body"]["instructions"][1]["args"]["condition"];
     assert_eq!(condition["kind"], "ObjectMatches");
     assert_eq!(condition["args"]["filter"], json!({"kind":"Any"}));
+    assert!(surface(&mut ability));
+    assert_eq!(ability, original);
     let mut multiple = top_card();
     multiple["args"]["count"]["args"] = json!(2);
     let mut batch = spell(json!([exiled(multiple), batch_test]));
