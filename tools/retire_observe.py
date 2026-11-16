@@ -12,6 +12,8 @@ import sqlite3
 import statistics
 import tempfile
 
+from retire_usage_refresh import verified_sidecar
+
 TOKENS = ('input_tokens', 'cached_input_tokens', 'cache_write_input_tokens',
           'output_tokens', 'reasoning_output_tokens')
 
@@ -75,7 +77,7 @@ def snapshot(campaign):
         jobs = list(db.execute('SELECT id,payload,status FROM jobs'))
         rules = list(db.execute('SELECT j.status,j.payload,count(*) FROM rules r '
                                 'JOIN jobs j ON j.id=r.job_id GROUP BY j.id'))
-        attempts = list(db.execute('SELECT id,job_id,result FROM attempts'))
+        attempts = list(db.execute('SELECT id,job_id,started,result FROM attempts'))
         events = list(db.execute("SELECT kind,data,at FROM events WHERE kind IN "
                                  "('claimed','finished','retry-tainted','retry-unstarted') ORDER BY seq"))
         db.commit()
@@ -103,11 +105,13 @@ def snapshot(campaign):
                                   'known_estimated_usd': 0.0, 'unknown_cost': 0,
                                   'model_seconds': [], 'slot_seconds': []})
     failures = Counter()
-    for attempt_id, job_id, raw in attempts:
+    for attempt_id, job_id, started_raw, raw in attempts:
         result = json.loads(raw) if raw else None
         state = result.get('status', 'unknown') if isinstance(result, dict) else 'running'
         evidence = result.get('evidence', {}) if isinstance(result, dict) else {}
         usage = evidence.get('usage') if isinstance(evidence, dict) else None
+        if not isinstance(usage, dict) and raw and started_raw and kinds.get(job_id) == 'author':
+            usage = verified_sidecar(campaign, attempt_id, job_id, started_raw, raw, config)
         usage = usage if isinstance(usage, dict) else {}
         cohort = tainted.get(attempt_id, 'ordinary')
         no_model = not usage and (kinds.get(job_id) == 'mechanical' or attempt_id in unstarted)

@@ -15,6 +15,7 @@ import retire as r
 import retire_tasks as tasker
 import retire_queue
 import retire_reuse
+import retire_worker as worker
 
 
 class TaskTests(unittest.TestCase):
@@ -146,6 +147,56 @@ class TaskTests(unittest.TestCase):
         self.assertEqual([row['text'] for row in packet['baseline']], ['first A', 'second A'])
         self.assertEqual(packet['gold_records'][0]['value']['faces'][0]['name'], 'A')
         self.assertEqual(packet['oracle_records'][0]['value']['cards'][0]['name'], 'B')
+
+    def test_cohort_closure_covers_chained_shared_names_and_all_occurrences(self):
+        frozen = self.inputs/'frozen'
+        gold = [{'faces': [{'name': 'A'}, {'name': 'B'}]},
+                {'faces': [{'name': 'B'}, {'name': 'C'}]},
+                {'faces': [{'name': 'C'}]}]
+        oracle = [{'cards': [{'name': 'B'}, {'name': 'A'}]},
+                  {'cards': [{'name': 'C'}, {'name': 'B'}]},
+                  {'cards': [{'name': 'C'}]}]
+        index = {}
+        for record, value in enumerate(gold):
+            for face, entry in enumerate(value['faces']):
+                name = entry['name']
+                row = {'name': name, 'text': f'{record}:{face}', 'record': record, 'face': face,
+                       'parse': {'name': name, 'address': [record, face]}, 'flags': [True]*4}
+                index[str(len(index))] = row
+        r.write(frozen/'index.json', index)
+        r.jsonl(frozen/'gold.jsonl', gold)
+        r.write(frozen/'oracle.json', oracle)
+        manifest = r.read(self.inputs/'manifest.json')
+        manifest['files'] = r.tree(frozen)
+        r.write(self.inputs/'manifest.json', manifest)
+        tasker._packet_data.cache_clear()
+        self.cohort = {'names': ['A'], 'sampled': False, 'scope': 'bounded triage'}
+        result = self.prepare()
+        run = Path(result['run'])
+        task = r.read(run/'tasks/job-123.json')
+        self.assertEqual(task['target_faces'], ['A'])
+        self.assertEqual(task['cohort'], ['A', 'B', 'C'])
+        meta = task['cohort_detail']
+        self.assertEqual(meta['closure_added_names'], ['B', 'C'])
+        self.assertEqual(meta['closure_occurrence_count'], 5)
+        self.assertEqual(meta['closure_record_count'], 3)
+        self.assertEqual(meta, r.read(run/'packet.json')['cohort'])
+        selected_dir = self.base/'slice'
+        selected_dir.mkdir()
+        selected = worker.subset(selected_dir, set(task['cohort']), (index, gold, oracle))
+        sliced_gold = r.rows(selected_dir/'gold.jsonl')
+        before = r.rows(selected_dir/'before.jsonl')
+        scored_rows = [{'name': face['name'], 'address': [record, pos]}
+                       for record, row in enumerate(sliced_gold) for pos, face in enumerate(row['faces'])]
+        self.assertEqual(selected, {'A', 'B', 'C'})
+        self.assertEqual(sliced_gold, gold)
+        self.assertEqual(before, scored_rows)
+        self.assertEqual([row['name'] for row in before], ['A', 'B', 'B', 'C', 'C'])
+        self.assertEqual(r.read(selected_dir/'oracle.json'), oracle)
+        with self.assertRaises(tasker.CohortClosureLimit) as caught:
+            tasker.close_cohort(self.inputs, self.cohort, max_occurrences=4)
+        self.assertEqual(caught.exception.count, 5)
+        self.assertEqual(caught.exception.limit, 4)
 
     def test_reject_mismatched_identity_and_population(self):
         self.checkpoint['commit'] = 'wrong'

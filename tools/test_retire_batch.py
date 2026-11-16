@@ -77,11 +77,39 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(trial))
                 self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_THREADS'], '2')
                 self.assertEqual(len(kwargs['pass_fds']), 2)
+                kwargs['stdout'].write(json.dumps({'family': 'one', 'cases': 1, 'passed': 1, 'failures': []}))
+                kwargs['stdout'].flush()
                 return SimpleNamespace(returncode=0)
             with patch.object(batch.dev, 'source', return_value='source'), \
                     patch.object(batch.subprocess, 'run', side_effect=execute):
                 batch._helper(checkpoint, root, root/'family.json', root/'check.log', grammar_dir=trial)
             self.assertEqual(batch.r._LEASES, [])
+
+    def test_trial_helper_parses_multi_family_and_writes_individual_proofs(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            helpers = root/'helpers'
+            helpers.mkdir()
+            binary = helpers/'family-check'
+            binary.write_bytes(b'helper')
+            (helpers/'build.json').write_text(json.dumps({'source_sha256': 'source',
+                                                         'binaries': {'family-check': batch.r.digest(binary)}}))
+            fixtures = [root/'first.json', root/'second.json']
+            reports = [{'family': 'first', 'cases': 1, 'passed': 1, 'failures': []},
+                       {'family': 'second', 'cases': 1, 'passed': 0,
+                        'failures': [{'name': 'edited', 'why': 'failure'}]}]
+            def execute(command, **kwargs):
+                self.assertEqual(command[1:-1], [str(path) for path in fixtures])
+                kwargs['stdout'].write(json.dumps({'schema': 1, 'families': reports})+'\n')
+                kwargs['stdout'].flush()
+                return SimpleNamespace(returncode=1)
+            with patch.object(batch.dev, 'source', return_value='source'), \
+                    patch.object(batch.subprocess, 'run', side_effect=execute):
+                with self.assertRaisesRegex(ValueError, 'family check failed'):
+                    batch._helper({'helpers': str(helpers)}, root, fixtures, root/'family.log')
+            self.assertEqual(json.loads((root/'family-001.log').read_text()), reports[1])
+            self.assertEqual(json.loads((root/'family-001.log').read_text().splitlines()[0]), reports[1])
 
     def test_validate_reserves_cpu_and_uses_16_threads(self):
         self._validate_threads(16, True)
@@ -286,9 +314,9 @@ class BatchTests(unittest.TestCase):
                 path.write_text(path.read_text().replace(f'm_{name} ::= "{name}"\n', ''))
                 return rules, {}
             calls = []
-            def helper(checkpoint, source, fixture, log, grammar_dir=None):
+            def helper(checkpoint, source, fixtures, log, grammar_dir=None):
                 text = (grammar_dir/'syntax/shared.ebnf').read_text()
-                calls.append((text, fixture.name))
+                calls.append((text, [fixture.name for fixture in fixtures]))
                 log.write_text('checked')
                 if 'bad\n' in text:
                     raise ValueError('interaction family failure')
@@ -306,9 +334,10 @@ class BatchTests(unittest.TestCase):
             self.assertIn('m_bad ::= ', (candidate/'grammar/syntax/mined.ebnf').read_text())
             self.assertEqual(json.loads((candidate/'tests/families.json').read_text()),
                              ['families/first.json', 'families/last.json'])
-            self.assertEqual([name for text, name in calls if text == 'first\nlast\n'],
-                             ['first.json', 'family.json', 'first.json', 'last.json'])
-            self.assertTrue((Path(result['jobs'][1]['family_logs'])/'family-000.log').is_file())
+            self.assertEqual([names for text, names in calls if text == 'first\nlast\n'],
+                             [['first.json', 'family.json'], ['first.json', 'last.json']])
+            self.assertEqual(len(calls), 4)
+            self.assertTrue((Path(result['jobs'][1]['family_logs'])/'family.log').is_file())
             self.assertFalse((repo/'grammar/syntax/shared.ebnf').exists())
 
 

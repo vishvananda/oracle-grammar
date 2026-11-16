@@ -93,6 +93,9 @@ def _family(directory, report, run, modes=False):
 
 
 def _helper(checkpoint, source, fixture, log, grammar_dir=None):
+    fixtures = [fixture] if isinstance(fixture, (str, Path)) else list(fixture)
+    if not fixtures:
+        raise ValueError('family check requires at least one fixture')
     helpers = Path(checkpoint['helpers'])
     build = r.read(helpers/'build.json')
     if build['source_sha256'] != dev.source(source) or r.digest(helpers/'family-check') != build['binaries']['family-check']:
@@ -104,12 +107,30 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
         r._LEASES.extend(fds)
         try:
             with log.open('w') as stream:
-                code = subprocess.run([str((helpers/'family-check').resolve()), str(fixture), '--compositional'],
+                code = subprocess.run([str((helpers/'family-check').resolve()),
+                                       *(str(path) for path in fixtures), '--compositional'],
                                       cwd=source, env=env, stdout=stream, stderr=stream, check=False,
                                       pass_fds=tuple(r._LEASES)).returncode
         finally:
             for fd in fds:
                 r._LEASES.remove(fd)
+    try:
+        data = json.loads(log.read_text().splitlines()[0])
+        reports = data['families'] if len(fixtures) > 1 and data.get('schema') == 1 else [data]
+        if not isinstance(reports, list) or len(reports) != len(fixtures):
+            raise ValueError('family report count differs')
+        for index, report in enumerate(reports):
+            if (not isinstance(report, dict) or not isinstance(report.get('family'), str)
+                    or type(report.get('cases')) is not int or type(report.get('passed')) is not int
+                    or not isinstance(report.get('failures'), list)):
+                raise ValueError('invalid family report')
+            (log.parent/f'family-{index:03d}.log').write_text(json.dumps(report, sort_keys=True)+'\n')
+        if any(report.get('failures') != [] or report.get('passed') != report.get('cases')
+               for report in reports):
+            code = code or 1
+    except (IndexError, ValueError, KeyError, TypeError, AttributeError) as error:
+        if not code:
+            raise ValueError('invalid family check report') from error
     if code:
         raise ValueError(f'family check failed: {fixture}')
 
@@ -226,9 +247,8 @@ def _stage(campaign, checkpoint, proposals):
                 fixtures = [source/path for path in manifest['fixtures']]
                 if fixture:
                     fixtures.append(trial/'family.json')
-                for index, check_fixture in enumerate(fixtures):
-                    _helper(checkpoint, source, check_fixture, logs/f'family-{index:03d}.log',
-                            grammar_dir=trial/'grammar')
+                if fixtures:
+                    _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
                 if fixture:
                     (source/fixture).parent.mkdir(parents=True, exist_ok=True)
                 backup = trial/'previous-grammar'
