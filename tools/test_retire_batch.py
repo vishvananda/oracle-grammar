@@ -43,6 +43,29 @@ class BatchTests(unittest.TestCase):
     def test_validate_reserves_cpu_and_uses_24_threads(self):
         self._validate_threads(24, False)
 
+    def test_trial_helper_uses_verified_binary_and_trial_grammar(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            helpers = root/'helpers'
+            helpers.mkdir()
+            binary = helpers/'family-check'
+            binary.write_bytes(b'helper')
+            (helpers/'build.json').write_text(json.dumps({'source_sha256': 'source',
+                                                         'binaries': {'family-check': batch.r.digest(binary)}}))
+            trial = root/'trial/grammar'
+            trial.mkdir(parents=True)
+            checkpoint = {'helpers': str(helpers), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
+            def execute(*args, **kwargs):
+                self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(trial))
+                self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_THREADS'], '2')
+                self.assertEqual(len(kwargs['pass_fds']), 2)
+                return SimpleNamespace(returncode=0)
+            with patch.object(batch.dev, 'source', return_value='source'), \
+                    patch.object(batch.subprocess, 'run', side_effect=execute):
+                batch._helper(checkpoint, root, root/'family.json', root/'check.log', grammar_dir=trial)
+            self.assertEqual(batch.r._LEASES, [])
+
     def test_validate_reserves_cpu_and_uses_16_threads(self):
         self._validate_threads(16, True)
 
@@ -183,6 +206,67 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(json.loads((candidate/'tests/families.json').read_text()), ['families/good.json'])
             self.assertEqual(batch._git(source, 'rev-parse', 'HEAD'), commit)
             self.assertNotIn('shared', (source/'grammar/syntax/mined.ebnf').read_text())
+
+    def test_trial_family_failure_rejects_only_new_proposal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repo = root/'repo'
+            repo.mkdir()
+            subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+            (repo/'grammar/syntax').mkdir(parents=True)
+            (repo/'tests').mkdir()
+            (repo/'tests/families.json').write_text('[]\n')
+            (repo/'grammar/syntax/mined.ebnf').write_text(
+                'm_first ::= "first"\nm_bad ::= "bad"\nm_last ::= "last"\nm_mech ::= "mech"\n')
+            subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+            subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=t@x',
+                            'commit', '-qm', 'base'], cwd=repo, check=True)
+            commit = batch._git(repo, 'rev-parse', 'HEAD')
+            report = {'task': 'task', 'source': commit, 'descriptor_sha256': 'd',
+                      'support_sha256': 's', 'fixture_sha256': 'f', 'edited': []}
+            names = ('first', 'bad', 'last', 'mech')
+            proposals = [{'job_id': n, 'attempt_id': n, 'run': str(root/n),
+                          'report': dict(report), 'kind': 'mechanical' if n == 'mech' else 'author'}
+                         for n in names]
+            def proposal(p):
+                name = p['job_id']
+                return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
+            def merge(base, trial, proposed, rules, hooks):
+                if rules == ['m_mech']:
+                    return {}
+                name = rules[0][2:]
+                existing = trial/'grammar/syntax/shared.ebnf'
+                return {'grammar/syntax/shared.ebnf': (existing.read_text() if existing.exists() else '') + name+'\n'}
+            def remove(trial, rules):
+                path = trial/'grammar/syntax/mined.ebnf'
+                name = rules[0][2:]
+                path.write_text(path.read_text().replace(f'm_{name} ::= "{name}"\n', ''))
+                return rules, {}
+            calls = []
+            def helper(checkpoint, source, fixture, log, grammar_dir=None):
+                text = (grammar_dir/'syntax/shared.ebnf').read_text()
+                calls.append((text, fixture.name))
+                log.write_text('checked')
+                if 'bad\n' in text:
+                    raise ValueError('interaction family failure')
+            with patch.object(batch, '_proposal', side_effect=proposal), \
+                    patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), \
+                    patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
+                    patch.object(batch.mined, 'remove', side_effect=remove), \
+                    patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=helper):
+                result = batch.stage(root, {'source': str(repo), 'commit': commit}, proposals)
+            self.assertEqual(result['status'], 'provisional')
+            self.assertEqual([j['status'] for j in result['jobs']],
+                             ['included', 'integration-rejected', 'included', 'included'])
+            candidate = Path(result['source'])
+            self.assertEqual((candidate/'grammar/syntax/shared.ebnf').read_text(), 'first\nlast\n')
+            self.assertIn('m_bad ::= ', (candidate/'grammar/syntax/mined.ebnf').read_text())
+            self.assertEqual(json.loads((candidate/'tests/families.json').read_text()),
+                             ['families/first.json', 'families/last.json'])
+            self.assertEqual([name for text, name in calls if text == 'first\nlast\n'],
+                             ['first.json', 'family.json', 'first.json', 'last.json'])
+            self.assertTrue((Path(result['jobs'][1]['family_logs'])/'family-000.log').is_file())
+            self.assertFalse((repo/'grammar/syntax/shared.ebnf').exists())
 
 
 if __name__ == '__main__':

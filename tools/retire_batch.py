@@ -88,13 +88,13 @@ def _family(directory, report, run):
     return family
 
 
-def _helper(checkpoint, source, fixture, log):
+def _helper(checkpoint, source, fixture, log, grammar_dir=None):
     helpers = Path(checkpoint['helpers'])
     build = r.read(helpers/'build.json')
     if build['source_sha256'] != dev.source(source) or r.digest(helpers/'family-check') != build['binaries']['family-check']:
         raise ValueError('family helper does not match compiled source')
     env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}
-    env.update(ORACLE_GRAMMAR_DIR=str(source/'grammar'), ORACLE_GRAMMAR_THREADS='2')
+    env.update(ORACLE_GRAMMAR_DIR=str(grammar_dir or source/'grammar'), ORACLE_GRAMMAR_THREADS='2')
     lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), 2, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
     with lease as fds:
         r._LEASES.extend(fds)
@@ -184,7 +184,7 @@ def _stage(campaign, checkpoint, proposals):
     r.write(folder/'manifest.json', manifest)
     if state:
         r.write(state, {'folder': str(folder)})
-    for proposal in proposals:
+    for proposal_index, proposal in enumerate(proposals):
         item = {'job_id': proposal['job_id'], 'attempt_id': proposal['attempt_id']}
         try:
             run, task, directory, hooks = _proposal(proposal)
@@ -194,6 +194,8 @@ def _stage(campaign, checkpoint, proposals):
             fixture = None if mechanical else _fixture_path(task['fixture'])
             if fixture and ((source/fixture).exists() or str(fixture) in manifest['fixtures']):
                 raise ValueError('fixture path already exists')
+            if fixture and str(fixture) in r.read(source/'tests/families.json'):
+                raise ValueError('fixture already registered')
             family = _family(directory, proposal['report'], run) if fixture else None
             if fixture and not (source/fixture).resolve().is_relative_to(source):
                 raise ValueError('fixture escapes candidate source')
@@ -213,6 +215,16 @@ def _stage(campaign, checkpoint, proposals):
                 a.apply_hooks(trial/'grammar', hooks)
                 if fixture:
                     r.write(trial/'family.json', family)
+                logs = folder/f'proposal-{proposal_index:03d}'
+                logs.mkdir()
+                item['family_logs'] = str(logs)
+                fixtures = [source/path for path in manifest['fixtures']]
+                if fixture:
+                    fixtures.append(trial/'family.json')
+                for index, check_fixture in enumerate(fixtures):
+                    _helper(checkpoint, source, check_fixture, logs/f'family-{index:03d}.log',
+                            grammar_dir=trial/'grammar')
+                if fixture:
                     (source/fixture).parent.mkdir(parents=True, exist_ok=True)
                 backup = trial/'previous-grammar'
                 os.replace(source/'grammar', backup)
@@ -244,8 +256,6 @@ def _stage(campaign, checkpoint, proposals):
                 raise ValueError('fixture already registered')
             if manifest['fixtures']:
                 r.write(registry, families + manifest['fixtures'])
-            for index, fixture in enumerate(manifest['fixtures']):
-                _helper(checkpoint, source, source/fixture, folder/f'family-{index}.log')
             manifest['grammar'] = r.tree(source/'grammar')
             _git(source, 'add', '--', 'grammar', 'tests/families.json', *manifest['fixtures'])
             _git(source, '-c', 'user.name=Retirement Coordinator', '-c', 'user.email=retirement@localhost',
