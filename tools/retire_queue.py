@@ -16,6 +16,8 @@ import sqlite3
 import uuid
 from contextlib import ExitStack, closing, contextmanager
 
+import retire_cohort_proof
+
 
 def _json(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -207,6 +209,104 @@ def _verify_diagnostic_recovery(campaign, commit, parent, jobids, evidence):
         if identity.get(field) != actual[field]:
             raise ValueError('identity proof hash differs from verified Git source: '+field)
     return manifest, validation, included
+
+
+def _verify_batch_readmission(campaign, job_id, attempt_id, checkpoint, base_commit, job,
+                             original, rejection, evidence):
+    manifest_path, manifest_data = _proof_file(evidence.get('manifest'))
+    validation_path, validation_data = _proof_file(evidence.get('validation'))
+    log_path, log = _proof_file(evidence.get('repository_log'))
+    isolation_path, isolation_data = _proof_file(evidence.get('isolation'))
+    manifest, validation, isolation = map(json.loads, (manifest_data, validation_data, isolation_data))
+    batch = manifest.get('id')
+    if (not isinstance(batch, str) or not batch or Path(batch).name != batch
+            or manifest_path.resolve() != (campaign/'.cache/batches'/batch/'manifest.json').resolve()
+            or validation_path.resolve() != (manifest_path.parent/'validation.json').resolve()
+            or log_path.resolve() != (manifest_path.parent/'repository-check.log').resolve()
+            or not isolation_path.resolve().is_relative_to((campaign/'.cache').resolve())):
+        raise ValueError('original batch evidence paths differ')
+    included = [item for item in manifest.get('jobs', []) if item.get('status') == 'included']
+    ids = [item.get('job_id') for item in included]
+    matches = [item for item in included if item.get('job_id') == job_id and item.get('attempt_id') == attempt_id]
+    if (not included or len(ids) != len(set(ids)) or len(matches) != 1
+            or manifest.get('base_commit') != checkpoint
+            or rejection.get('evidence', {}).get('manifest') != batch
+            or rejection.get('evidence', {}).get('validation') != validation
+            or validation.get('scope') != 'combined-batch' or validation.get('status') != 'failed'
+            or validation.get('reason') != 'repository gates failed'
+            or type(validation.get('repository_check_returncode')) is not int
+            or validation['repository_check_returncode'] == 0
+            or validation.get('candidate') != manifest.get('commit')
+            or validation.get('source_checkpoint') != checkpoint
+            or len(validation.get('included_jobs', [])) != len(ids)
+            or set(validation['included_jobs']) != set(ids)):
+        raise ValueError('batch is not the matching rejected combined integration')
+    gates = _gates(log)
+    if gates.get('families') != 'FAILED' or any(status == 'FAILED' for name, status in gates.items() if name != 'families'):
+        raise ValueError('repository failure is not limited to families')
+    culprit = isolation.get('culprit_job')
+    if (isolation.get('kind') != 'isolated-ambiguity-regression' or isolation.get('manifest') != batch
+            or isolation.get('candidate') != manifest.get('commit') or isolation.get('parent') != checkpoint
+            or culprit not in ids or culprit == job_id or not isinstance(isolation.get('family'), str)
+            or not isolation['family'] or not isinstance(isolation.get('case'), str) or not isolation['case']
+            or not isinstance(isolation.get('reason'), str) or not isolation['reason'].strip()):
+        raise ValueError('isolation evidence does not exclude the identified culprit')
+    artifacts = isolation.get('evidence')
+    if not isinstance(artifacts, dict):
+        raise ValueError('isolation diagnostic artifacts are missing')
+    for key in ('base_log', 'trial_log', 'without_modifier_log', 'probe_log'):
+        path, data = _proof_file(artifacts.get(key))
+        if not data or not path.resolve().is_relative_to((campaign/'.cache').resolve()):
+            raise ValueError('isolation diagnostic artifact is unavailable')
+    item = matches[0]
+    if (item.get('base_commit') != base_commit or item.get('rules') != job.get('rules')
+            or item.get('kind') != original.get('kind')):
+        raise ValueError('original proposal identity differs')
+    if original.get('kind') == 'author':
+        report, _ = _verify_original_report(campaign, job_id, attempt_id, base_commit, original, evidence.get('report'))
+        if report.get('family_returncode') != 0:
+            raise ValueError('author family check did not pass')
+    elif original.get('kind') == 'mechanical':
+        report = _verify_mechanical_readmission(campaign, job_id, attempt_id, base_commit, original, evidence.get('report'))
+    else:
+        raise ValueError('original proposal kind is unsupported')
+    if (report.get('faces', 0) <= 0 or item.get('descriptor_sha256') != report.get('descriptor_sha256')
+            or item.get('support_sha256') != report.get('support_sha256')):
+        raise ValueError('individual native/print report does not match the proposal')
+    return {'manifest': batch, 'culprit_job': culprit, 'family': isolation['family'],
+            'case': isolation['case'], 'requires_fresh_full_validation': True}
+
+
+def _verify_mechanical_readmission(campaign, job_id, attempt_id, base_commit, original, report_spec):
+    report_path, data = _proof_file(report_spec)
+    expected = campaign/'.cache/attempts'/attempt_id/'evaluations'/job_id
+    if (report_path != Path(original.get('report', '')) or report_path.name != 'report.json'
+            or not report_path.resolve().is_relative_to(expected.resolve())):
+        raise ValueError('mechanical report is outside the assigned evaluation')
+    report = json.loads(data)
+    if (report.get('passed') is not True or report.get('failures') != [] or report.get('kind') != 'mechanical'
+            or report.get('task') != job_id or report.get('source') != base_commit
+            or report.get('hooks') != [] or Path(report.get('directory', '')).resolve() != report_path.parent.resolve()):
+        raise ValueError('mechanical individual report did not pass')
+    run = campaign/'.cache/attempts'/attempt_id
+    descriptor, support = run/'tasks'/f'{job_id}.json', run/'support.json'
+    for path, key in ((descriptor, 'descriptor_sha256'), (support, 'support_sha256')):
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != report.get(key):
+            raise ValueError('mechanical evaluation artifact hash differs: '+key)
+    if json.loads(support.read_bytes()).get('tasks', {}).get(job_id) != report['descriptor_sha256']:
+        raise ValueError('mechanical support does not bind descriptor')
+    grammar = report_path.parent/'grammar'
+    if not grammar.is_dir():
+        raise ValueError('mechanical evaluated grammar is missing')
+    actual = {}
+    for path in sorted(grammar.rglob('*')):
+        if path.is_symlink():
+            raise ValueError('mechanical evaluated grammar contains a symlink')
+        if path.is_file():
+            actual[str(path.relative_to(grammar))] = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != report.get('grammar'):
+        raise ValueError('mechanical evaluated grammar changed')
+    return report
 
 
 def _verify_family_limit_revalidation(campaign, job_id, attempt_id, base_commit, original,
@@ -699,6 +799,94 @@ class Queue:
                 self._event(db, "retry-tainted", {"job_id": job_id, "attempt_id": attempt_id,
                                                   "pid": pid, "process": "absent", "lease": "acquired",
                                                   "evidence": evidence})
+
+    def readmit_batch_proposal(self, job_id, attempt_id, checkpoint, evidence):
+        """Return one individually passed proposal to fresh integration review."""
+        if not isinstance(evidence, dict) or evidence.get('kind') != 'isolated-batch-family-revalidation':
+            raise ValueError('isolated batch revalidation evidence is required')
+        with self._retry_lease(job_id):
+            with self._transaction() as db:
+                latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if not latest or latest[0] != checkpoint:
+                    raise ValueError('checkpoint is stale')
+                row = db.execute(
+                    'SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result '
+                    'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?', (job_id,)).fetchone()
+                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6]:
+                    raise ValueError('readmission requires the current rejected attempt')
+                job, rejection, original = map(json.loads, (row[2], row[3], row[6]))
+                started = json.loads(row[5]) if row[5] else {}
+                pid = started.get('pid')
+                if type(pid) is not int or pid <= 0:
+                    raise ValueError('attempt process identity is unknown')
+                self._require_absent_pid(pid)
+                rules = job['rules']
+                decisions = original.get('evidence', {}).get('dispositions', {})
+                outcomes = original.get('outcomes', {})
+                if (original.get('status') != 'provisional-pass' or set(decisions) != set(rules)
+                        or set(outcomes) != set(rules)
+                        or any(decisions[rule].get('status') != 'proposed'
+                               or outcomes[rule].get('status') != 'pass' for rule in rules)):
+                    raise ValueError('original per-rule dispositions do not all pass')
+                audit = _verify_batch_readmission(Path(self.path).parent, job_id, attempt_id,
+                                                    checkpoint, row[4], job, original['evidence'],
+                                                    rejection, evidence)
+                for event in db.execute("SELECT data FROM events WHERE kind='readmitted-batch'"):
+                    previous = json.loads(event[0])
+                    if previous.get('job_id') == job_id and previous.get('manifest') == audit['manifest']:
+                        raise ValueError('batch readmission already used for this job')
+                db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (job_id,))
+                self._event(db, 'readmitted-batch', {'job_id': job_id, 'attempt_id': attempt_id,
+                            'checkpoint': checkpoint, 'manifest': audit['manifest'], 'proof': audit,
+                            'previous_adjudication': rejection, 'evidence': evidence})
+
+    def retry_cohort_tainted(self, job_id, attempt_id, evidence):
+        """Retry one proved old shared-face cohort defect; never accept its result."""
+        with self._retry_lease(job_id):
+            with closing(self._connect()) as db:
+                row = db.execute(
+                    "SELECT j.status,j.attempt_id,j.payload,a.base_commit,a.started,a.result "
+                    "FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?", (job_id,)).fetchone()
+            if not row or row[0] not in ("needs-review", "failed") or row[1] != attempt_id or not row[5]:
+                raise ValueError("retry requires the current terminal review or failed attempt")
+            snapshot = tuple(row)
+            started = json.loads(row[4]) if row[4] else {}
+            pid = started.get("pid")
+            if type(pid) is not int or pid <= 0:
+                raise ValueError("attempt process identity is unknown")
+            self._require_absent_pid(pid)
+            result = json.loads(row[5])
+            original = result.get("evidence")
+            if not isinstance(original, dict):
+                raise ValueError("original evaluation evidence is missing")
+            proof = retire_cohort_proof.verify(Path(self.path).parent, job_id, attempt_id, row[3],
+                                                original, evidence, json.loads(row[2])["rules"])
+            with self._transaction() as db:
+                current = db.execute(
+                    "SELECT j.status,j.attempt_id,j.payload,a.base_commit,a.started,a.result "
+                    "FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?", (job_id,)).fetchone()
+                if not current or tuple(current) != snapshot:
+                    raise ValueError("attempt changed during proof verification")
+                self._require_absent_pid(pid)
+                existing = db.execute("SELECT data FROM events WHERE kind='retry-cohort-tainted'")
+                if any(json.loads(event[0]).get("job_id") == job_id for event in existing):
+                    raise ValueError("cohort retry already used for this job")
+                db.execute("UPDATE jobs SET status='pending',attempt_id=NULL WHERE id=?", (job_id,))
+                self._event(db, "retry-cohort-tainted", {"job_id": job_id, "attempt_id": attempt_id,
+                            "pid": pid, "process": "absent", "lease": "acquired",
+                            "proof": proof, "evidence": evidence})
+
+    @staticmethod
+    def _require_absent_pid(pid):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            pass
+        except OSError as exc:
+            if exc.errno != errno.ESRCH:
+                raise ValueError("attempt process state is unknown") from exc
+        else:
+            raise ValueError("attempt process is still present")
 
     def retry_unstarted(self, job_id, attempt_id, evidence):
         """Administrative recovery of an explicitly proved pre-launch failure.
