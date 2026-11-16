@@ -83,18 +83,25 @@ kept its original frozen wave launcher; no queue-speed improvement is claimed.
 The authoring tooling's 113 Python tests pass, as do hygiene, pin and diff checks.
 The paused R36 source changes in the main checkout remain byte-for-byte intact.
 
-## Selected candidate and remaining validation
+## Accepted isolated checkpoint
 
 Candidate `4b19f55` combines Luna's normalized header and narrower target changes
 with Terra's search changes. Seed removals are replayed centrally from the fixed
 base. Three registered regression families contain 23 compositional cases,
 including independently mutated reference operands; all 23 pass together.
 
-The candidate removes six seeded rules. It is committed only on an isolated
-candidate branch. Full allowed-population parse/native/four-print-gate validation
-and all repository gates are running against that exact candidate. A retained
-coordinator records an accepted isolated checkpoint and rescans only if every
-gate passes. Nothing from this candidate has been merged into main or released.
+The candidate removes six seeded rules and is now an accepted isolated checkpoint.
+The full audit passed all 32,755 occurrences, preserved all 33,730 native readings
+and every baseline-successful print gate, with no failures. All eight repository
+gates passed, including 996 library tests (one ignored) and 802 family cases.
+The full audit took 18m 51s. Nothing has been merged into main or released.
+
+The rescan reports 9,986 seeded rules, of which 9,979 are still needed and seven
+are unused. Two are newly exposed mechanical candidates:
+`t_search_your_library_for_up_to_value_4` and
+`t_you_get_an_emblem_with_affected_static_changes_3`. The other five retain prior
+review findings. Accepted checkpoints should feed new unused candidates back to
+the mechanical lane and publish their shared capabilities for later authoring jobs.
 
 The preceding seven-rule mechanical checkpoint already passed all 32,755 allowed
 occurrences, preserved all 33,730 native readings, and passed every repository

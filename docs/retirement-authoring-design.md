@@ -1,7 +1,8 @@
 # Shared grammar retirement lane
 
 Status: a [paired authoring pilot](retirement-authoring-pilot-20261116.md) is
-evaluated; its selected combined candidate is undergoing full integration gates.
+evaluated; its selected combined candidate passed all integration gates and is
+an accepted isolated checkpoint.
 The mechanical Luna lane
 has produced an accepted isolated seven-rule checkpoint. The deletion runner
 does not authorize grammar or Rust edits; the pilot uses separate private task
