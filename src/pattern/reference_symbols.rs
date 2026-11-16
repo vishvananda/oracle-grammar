@@ -5,7 +5,7 @@ use std::borrow::Cow;
 pub(super) fn is_context(name: &str) -> bool {
     matches!(
         name,
-        "card_name" | "group_reference" | "that_much" | "that_many"
+        "card_name" | "group_reference" | "that_much" | "that_many" | "discard_event_amount"
     )
 }
 
@@ -119,6 +119,13 @@ pub(super) fn unify<'p, 'v>(
     value: &Value,
     bindings: Bindings<'p, 'v>,
 ) -> Vec<Bindings<'p, 'v>> {
+    if name == "discard_event_amount" {
+        return if value["kind"] == "EventAmount" {
+            vec![bindings]
+        } else {
+            Vec::new()
+        };
+    }
     if name == "group_reference" {
         let shape = if value["kind"] == "InZone" {
             &value["args"]["objects"]

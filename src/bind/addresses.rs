@@ -2,14 +2,46 @@
 use super::{Scope, Step};
 use serde_json::{Value, json};
 
+/// Before any earlier action, "cards discarded this way" can name the current
+/// discard batch. Keep this proof inside its direct first effect and event frame.
+fn discard_event_amount(root: &Value, scope: &Scope, path: &[Step]) -> Result<Value, String> {
+    let event = &root["args"]["event"]["Discard"];
+    let direct_effect = matches!(path,
+        [Step::Key(args), Step::Key(body), Step::Key(instructions), Step::Index(0),
+         Step::Key(effect_args), Step::Key(operation), rest @ ..]
+        if args == "args" && body == "body" && instructions == "instructions"
+            && effect_args == "args" && operation == "operation"
+            && !rest.iter().any(|step| matches!(step, Step::Key(key)
+                if matches!(key.as_str(), "body" | "ability"))));
+    if root["kind"] != "Triggered"
+        || event["grouping"] != "Player"
+        || event["kind"] != "Any"
+        || event["cards"] != json!({"kind":"Any"})
+        || root["args"]["body"]["instructions"][0]["kind"] != "Effect"
+        || scope.results.lexical_issued() != 1
+        || !direct_effect
+    {
+        return Err(
+            "this count requires the current unfiltered discard batch's first effect".into(),
+        );
+    }
+    Ok(json!({"kind":"EventAmount"}))
+}
+
 /// An earlier lexical instruction supersedes an event count. Generated value
 /// definitions consume result addresses without becoming such antecedents.
 pub(super) fn quantity(
     root: &Value,
     scope: &Scope,
-    many: bool,
+    word: &str,
     path: &[Step],
 ) -> Result<Value, String> {
+    let many = match word {
+        "that_many" => true,
+        "that_much" => false,
+        "discard_event_amount" => return discard_event_amount(root, scope, path),
+        _ => return Err("unknown quantity reference".into()),
+    };
     if !many && unresolved_mana_quantity(root, path) {
         return Err(
             "that much after a mana-spent test needs its explicit numeric antecedent".into(),
@@ -246,7 +278,7 @@ mod tests {
     fn mana_threshold_cannot_make_self_sacrifice_the_implicit_damage_amount() {
         let value = branch();
         assert!(unresolved_mana_quantity(&value, &amount_path()));
-        assert!(quantity(&value, &Scope::default(), false, &amount_path()).is_err());
+        assert!(quantity(&value, &Scope::default(), "that_much", &amount_path()).is_err());
         let mut nested = json!({"kind":"If","args":{"then":{"instructions":[value]}}});
         let mut path = vec![
             Step::Key("args".into()),
@@ -275,7 +307,7 @@ mod tests {
         let mut scope = Scope::default();
         scope.results.allocate().unwrap();
         scope.results.allocate().unwrap();
-        assert!(quantity(&value, &scope, true, &amount_path()).is_ok());
+        assert!(quantity(&value, &scope, "that_many", &amount_path()).is_ok());
         let mut path = amount_path();
         path.extend([Step::Key("args".into()), Step::Index(0)]);
         assert!(!unresolved_mana_quantity(&value, &path));

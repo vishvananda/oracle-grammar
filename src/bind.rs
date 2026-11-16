@@ -561,8 +561,8 @@ fn bind_scope(root: &mut Value, scope: &mut Scope) -> Result<(), String> {
                     .before(&item.path, scope)
                     .preceding()
                     .ok_or("no object for this named reference")?,
-                "that_much" | "that_many" => {
-                    addresses::quantity(root, scope, name == "that_many", &item.path)?
+                "that_much" | "that_many" | "discard_event_amount" => {
+                    addresses::quantity(root, scope, &name, &item.path)?
                 }
                 "next_slot" => json!(scope.target_base + scope.targets.len()),
                 "last_slot" => json!(scope.target_base + scope.targets.len().saturating_sub(1)),
