@@ -959,3 +959,5 @@ mod searched_card;
 
 #[path = "shared_clauses/resolving_untaps.rs"]
 mod resolving_untaps;
+
+mod characteristic_tail_replacements;
