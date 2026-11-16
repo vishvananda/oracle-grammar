@@ -267,20 +267,11 @@ fn check_source_card(
 
 fn run() -> Result<(), String> {
     let args: Vec<_> = std::env::args().skip(1).collect();
-    let paths: Vec<_> = args.iter().filter(|a| !a.starts_with("--")).collect();
-    if paths.is_empty() || paths.len() > 64 {
-        return Err(
-            "usage: family-check <family.json>... (at most 64) [--compositional] [--module=name=path]...".into(),
-        );
-    }
-    for arg in args.iter().filter(|a| a.starts_with("--")) {
-        if arg != "--compositional" && !arg.starts_with("--module=") {
-            return Err(format!("unknown option {arg}"));
-        }
-    }
+    let paths = family_paths(&args)?;
+    let mut budget = FamilyBudget::default();
     let families = paths
         .iter()
-        .map(|path| load_family(path))
+        .map(|path| load_family(path, &mut budget))
         .collect::<Result<Vec<_>, _>>()?;
     let engine = Engine::load_from_args()?;
     let compositional = args.iter().any(|arg| arg == "--compositional");
@@ -330,20 +321,66 @@ fn check_case(
     check(engine, off, case)
 }
 
-fn load_family(path: &str) -> Result<Family, String> {
+const MAX_FAMILY_FILES: usize = 4096;
+const MAX_FIXTURE_BYTES: usize = 4 * 1024 * 1024;
+const MAX_TOTAL_BYTES: usize = 1024 * 1024 * 1024;
+const MAX_TOTAL_CASES: usize = 262_144;
+
+fn family_paths(args: &[String]) -> Result<Vec<&String>, String> {
+    let paths: Vec<_> = args.iter().filter(|a| !a.starts_with("--")).collect();
+    if paths.is_empty() || paths.len() > MAX_FAMILY_FILES {
+        return Err("usage: family-check <family.json>... (at most 4096) [--compositional] [--module=name=path]...".into());
+    }
+    for arg in args.iter().filter(|a| a.starts_with("--")) {
+        if arg != "--compositional" && !arg.starts_with("--module=") {
+            return Err(format!("unknown option {arg}"));
+        }
+    }
+    Ok(paths)
+}
+
+struct FamilyBudget {
+    remaining_bytes: usize,
+    remaining_cases: usize,
+}
+
+impl Default for FamilyBudget {
+    fn default() -> Self {
+        Self {
+            remaining_bytes: MAX_TOTAL_BYTES,
+            remaining_cases: MAX_TOTAL_CASES,
+        }
+    }
+}
+
+fn load_family(path: &str, budget: &mut FamilyBudget) -> Result<Family, String> {
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    read_family(file, budget)
+}
+
+fn read_family(reader: impl Read, budget: &mut FamilyBudget) -> Result<Family, String> {
+    // Count bytes actually read, and read one extra byte to detect either limit.
+    let limit = MAX_FIXTURE_BYTES.min(budget.remaining_bytes);
     let mut bytes = Vec::new();
-    std::fs::File::open(path)
-        .map_err(|e| e.to_string())?
-        .take(4 * 1024 * 1024 + 1)
+    reader
+        .take(limit as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|e| e.to_string())?;
-    if bytes.len() > 4 * 1024 * 1024 {
+    if bytes.len() > MAX_FIXTURE_BYTES {
         return Err("family fixture exceeds 4 MiB".into());
     }
+    budget.remaining_bytes = budget
+        .remaining_bytes
+        .checked_sub(bytes.len())
+        .ok_or("family fixtures exceed 1 GiB in total")?;
     let family: Family = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
     if family.family.is_empty() || family.cases.is_empty() || family.cases.len() > 4096 {
         return Err("a named family needs between 1 and 4096 cases".into());
     }
+    budget.remaining_cases = budget
+        .remaining_cases
+        .checked_sub(family.cases.len())
+        .ok_or("family fixtures exceed 262144 cases in total")?;
     Ok(family)
 }
 

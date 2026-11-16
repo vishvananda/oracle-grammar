@@ -59,3 +59,40 @@ fn mixed_mode_uses_each_case_override_and_reports_actual_coverage() {
     family.cases[1].compositional = Some(true);
     assert!(check_case(&engine, &off_seeded, &off_none, &family.cases[1], false).is_err());
 }
+
+#[test]
+fn family_argument_count_accepts_large_batches_and_rejects_excess() {
+    let mut args = vec!["family.json".to_string(); 65];
+    args.push("--compositional".into());
+    assert_eq!(family_paths(&args).unwrap().len(), 65);
+    args.extend(vec!["another.json".to_string(); 4031]);
+    assert_eq!(family_paths(&args).unwrap().len(), 4096);
+    args.push("excess.json".into());
+    assert!(family_paths(&args).is_err());
+}
+
+#[test]
+fn aggregate_limits_use_actual_read_bytes_and_case_counts() {
+    let fixture = br#"{"family":"x","cases":[{"name":"a","text":"a"}]}"#;
+    let mut budget = FamilyBudget {
+        remaining_bytes: fixture.len() * 2,
+        remaining_cases: 2,
+    };
+    assert!(read_family(&fixture[..], &mut budget).is_ok());
+    assert!(read_family(&fixture[..], &mut budget).is_ok());
+    assert_eq!(budget.remaining_bytes, 0);
+    assert_eq!(budget.remaining_cases, 0);
+    assert!(read_family(&fixture[..], &mut budget).is_err());
+
+    let mut bytes_limited = FamilyBudget {
+        remaining_bytes: fixture.len() - 1,
+        remaining_cases: 2,
+    };
+    assert!(read_family(&fixture[..], &mut bytes_limited).is_err());
+    let mut cases_limited = FamilyBudget {
+        remaining_bytes: fixture.len() * 2,
+        remaining_cases: 1,
+    };
+    assert!(read_family(&fixture[..], &mut cases_limited).is_ok());
+    assert!(read_family(&fixture[..], &mut cases_limited).is_err());
+}
