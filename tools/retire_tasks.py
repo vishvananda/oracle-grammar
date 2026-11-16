@@ -95,7 +95,7 @@ def _packet_data(inputs, manifest_hash):
     gold = r.rows(frozen/'gold.jsonl')
     oracle = {}
     for number, value in enumerate(r.read(frozen/'oracle.json')):
-        key = tuple(face['name'] for face in value['cards'])
+        key = tuple(sorted(face['name'] for face in value['cards']))
         oracle.setdefault(key, []).append((number, value))
     return by_name, gold, oracle
 
@@ -110,15 +110,26 @@ def _packet(inputs, job, cohort):
     matches = sorted((pair for name in targets for pair in by_name[name]), key=lambda pair: pair[0])
     record_ids = sorted({entry['record'] for _, entry in matches})
     gold = [{'record': number, 'value': records[number]} for number in record_ids]
-    names = {tuple(face['name'] for face in record['value']['faces']) for record in gold}
+    # Reference and Oracle preserve their own face order; match the full name
+    # multiset while retaining both original record and face addresses.
+    names = {tuple(sorted(face['name'] for face in record['value']['faces'])) for record in gold}
     oracle = [{'record': number, 'value': value} for key in sorted(names)
               for number, value in oracle_index.get(key, [])]
     r.require(all(key in oracle_index for key in names), 'target oracle record missing')
+    baseline = []
+    for ordinal, row in matches:
+        text = row.get('text')
+        occurrences = [{'record': record['record'], 'face': face_number,
+                        'exact_text': text is not None and face.get('text') == text}
+                       for record in oracle for face_number, face in enumerate(record['value']['cards'])
+                       if face['name'] == row['name']]
+        baseline.append({'ordinal': ordinal, 'record': row['record'], 'face': row['face'],
+                         'name': row['name'], 'text': text, 'flags': row.get('flags'),
+                         'oracle_occurrences': occurrences})
     return {'rules': job['rules'], 'source_fragments': job.get('source_fragments', []),
             'target_faces': sorted(targets), 'gold_records': gold, 'oracle_records': oracle,
-            'baseline': [{'ordinal': ordinal, 'record': row['record'], 'face': row['face'],
-                          'name': row['name'], 'flags': row.get('flags')} for ordinal, row in matches],
-            'cohort': cohort, 'notice': 'Target records only; cohort is diagnostic, not acceptance proof.'}
+            'baseline': baseline,
+            'cohort': cohort, 'notice': 'Records match by complete face-name multiset; original orders and addresses are retained. Text identity is not inferred. Cohort is diagnostic, not acceptance proof.'}
 
 
 def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohort_detail: dict) -> dict:
@@ -158,6 +169,7 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
             os.link(helpers/name, binaries/name)
         tasks = run/'tasks'
         tasks.mkdir()
+        (run/'workers').mkdir()
         task = dict(job, model=job.get('model', 'gpt-6.1-terra'), effort=job.get('effort', 'high'),
                     checkout=str(checkout), fixture=fixture, edits=edits,
                     hooks='.cache/author-hooks.json', write_files=write_files,

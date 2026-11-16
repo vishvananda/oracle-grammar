@@ -228,18 +228,11 @@ class Queue:
             db.execute("UPDATE jobs SET status=? WHERE id=?", (status, row[0]))
             self._event(db, "finished", {"attempt_id": attempt, **result})
 
-    def retry_failed(self, job_id, attempt_id, evidence, max_retries):
-        """Requeue a finished failure only after proving its process and lease are gone.
-
-        A live or reused PID, unknown start, missing lease or held lease refuses
-        recovery. The kernel lock stays held through the transactional update.
-        """
-        _evidence(evidence)
+    @contextmanager
+    def _retry_lease(self, job_id):
         if (not isinstance(job_id, str) or not job_id or job_id in (".", "..")
                 or Path(job_id).name != job_id or "\x00" in job_id):
             raise ValueError("job ID must identify a single lease file")
-        if type(max_retries) is not int or max_retries < 0:
-            raise ValueError("max_retries must be a nonnegative integer")
         lease_path = Path(self.path).parent / "leases" / job_id
         try:
             fd = os.open(lease_path, os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC)
@@ -252,6 +245,20 @@ class Queue:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as exc:
                 raise ValueError("attempt lease is still held") from exc
+            yield
+        finally:
+            os.close(fd)
+
+    def retry_failed(self, job_id, attempt_id, evidence, max_retries):
+        """Requeue a finished failure only after proving its process and lease are gone.
+
+        A live or reused PID, unknown start, missing lease or held lease refuses
+        recovery. The kernel lock stays held through the transactional update.
+        """
+        _evidence(evidence)
+        if type(max_retries) is not int or max_retries < 0:
+            raise ValueError("max_retries must be a nonnegative integer")
+        with self._retry_lease(job_id):
             with self._transaction() as db:
                 row = db.execute(
                     "SELECT j.status,j.attempt_id,a.started,a.result FROM jobs j "
@@ -278,8 +285,33 @@ class Queue:
                 self._event(db, "retry", {"job_id": job_id, "attempt_id": attempt_id,
                                           "pid": pid, "process": "absent", "lease": "acquired",
                                           "retry_number": attempts, "evidence": evidence})
-        finally:
-            os.close(fd)
+
+    def retry_unstarted(self, job_id, attempt_id, evidence):
+        """Administrative recovery of an explicitly proved pre-launch failure.
+
+        The caller verifies the named controller is terminal and launch never
+        occurred; a missing or unknown PID is not sufficient evidence.
+        """
+        _evidence(evidence)
+        terminal = evidence.get("controller_terminal") if isinstance(evidence, dict) else None
+        if (not isinstance(evidence, dict) or evidence.get("launch_not_attempted") is not True
+                or not isinstance(terminal, dict)
+                or not isinstance(terminal.get("unit"), str) or not terminal["unit"]
+                or not isinstance(terminal.get("invocation"), str) or not terminal["invocation"]
+                or not isinstance(terminal.get("verification"), dict) or not terminal["verification"]):
+            raise ValueError("explicit terminal controller and pre-launch evidence required")
+        with self._retry_lease(job_id):
+            with self._transaction() as db:
+                row = db.execute(
+                    "SELECT j.status,j.attempt_id,a.started,a.result FROM jobs j "
+                    "JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?", (job_id,)).fetchone()
+                if not row or row[0] != "failed" or row[1] != attempt_id or not row[3]:
+                    raise ValueError("retry requires the current finished failed attempt")
+                if row[2] is not None:
+                    raise ValueError("attempt has a recorded start")
+                db.execute("UPDATE jobs SET status='pending',attempt_id=NULL WHERE id=?", (job_id,))
+                self._event(db, "retry-unstarted", {"job_id": job_id, "attempt_id": attempt_id,
+                                                    "lease": "acquired", "evidence": evidence})
 
     def _adjudicate(self, jobids, status, evidence, checkpoint=None):
         _evidence(evidence)

@@ -13,6 +13,21 @@ import retire as r
 
 
 class AuthoringTests(unittest.TestCase):
+    def test_edited_pair_preserves_independent_face_order_and_refuses_ambiguity(self):
+        gold = [{'faces': [{'name': 'Back'}, {'name': 'Front'}]}]
+        oracle = [{'cards': [{'name': 'Front', 'text': 'front'}, {'name': 'Back', 'text': 'back'}]}]
+        paired_gold, paired_oracle = a.edited_record_pair(gold, oracle, 'Back')
+        self.assertEqual([f['name'] for f in paired_gold['faces']], ['Back', 'Front'])
+        self.assertEqual([f['name'] for f in paired_oracle['cards']], ['Front', 'Back'])
+        paired_oracle['cards'][1]['text'] = 'changed'
+        self.assertEqual(oracle[0]['cards'][1]['text'], 'back')
+        with self.assertRaises(ValueError):
+            a.edited_record_pair(gold + gold, oracle, 'Back')
+        with self.assertRaises(ValueError):
+            a.edited_record_pair(gold, oracle + oracle, 'Back')
+        with self.assertRaises(ValueError):
+            a.edited_record_pair(gold, [{'cards': [{'name': 'Back'}, {'name': 'Other'}]}], 'Back')
+
     def test_operand_edits_change_a_leaf_without_replacing_programs(self):
         source = [{'args': {'amount': 1}}]
         changed = copy.deepcopy(source)

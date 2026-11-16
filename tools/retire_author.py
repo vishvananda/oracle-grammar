@@ -146,6 +146,19 @@ def helper(run, folder, grammar, program, arguments):
     return process.returncode
 
 
+def edited_record_pair(gold_records, oracle_records, name):
+    """Pair a unique target across original independent face orderings."""
+    gold = [record for record in gold_records if any(face['name'] == name for face in record['faces'])]
+    oracle = [record for record in oracle_records if any(face['name'] == name for face in record['cards'])]
+    r.require(len(gold) == len(oracle) == 1, 'edited face must uniquely identify gold and Oracle records')
+    gold_names = [face['name'] for face in gold[0]['faces']]
+    oracle_names = [face['name'] for face in oracle[0]['cards']]
+    r.require(gold_names.count(name) == oracle_names.count(name) == 1
+              and sorted(gold_names) == sorted(oracle_names),
+              'edited gold and Oracle records have ambiguous or different face identities')
+    return copy.deepcopy(gold[0]), copy.deepcopy(oracle[0])
+
+
 def edited_checks(run, directory, grammar, task, root, data):
     path = root/task['edits']
     r.require(path.exists(), 'missing operand edits fixture')
@@ -156,9 +169,8 @@ def edited_checks(run, directory, grammar, task, root, data):
         name = edit['face']
         r.require(name in task['target_faces'], 'operand edit is outside the assigned face population')
         r.require(isinstance(edit['text'], str) and len(edit['text']) <= 16384, 'invalid edited text')
-        gold = copy.deepcopy(next(g for g in data[1] if any(f['name'] == name for f in g['faces'])))
+        gold, oracle = edited_record_pair(data[1], data[2], name)
         names = [f['name'] for f in gold['faces']]
-        oracle = copy.deepcopy(next(o for o in data[2] if [f['name'] for f in o['cards']] == names))
         face = next(f for f in gold['faces'] if f['name'] == name)
         r.require(1 <= len(edit['set']) <= 8, 'bound each edit to eight primitive operands')
         for change in edit['set']:

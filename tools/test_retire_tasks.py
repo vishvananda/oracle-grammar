@@ -85,6 +85,7 @@ class TaskTests(unittest.TestCase):
         descriptor = r.read(run/'tasks/job-123.json')
         support = r.read(run/'support.json')
         self.assertEqual(support['tasks']['job-123'], r.digest(run/'tasks/job-123.json'))
+        self.assertTrue((run/'workers').is_dir())
         self.assertEqual(support['packet_sha256'], r.digest(run/'packet.json'))
         self.assertEqual(support['files'], r.tree(run/'support'))
         self.assertEqual(descriptor['rule_dispositions_required'], ['m_one'])
@@ -107,6 +108,30 @@ class TaskTests(unittest.TestCase):
         other = self.prepare('bbbbbbbbbbbb4bbb8bbbbbbbbbbbbbbb')
         self.assertNotEqual(result['run'], other['run'])
         self.assertEqual(support, r.read(run/'support.json'))
+
+    def test_reversed_companions_and_duplicate_record_addresses_are_retained(self):
+        frozen = self.inputs/'frozen'
+        r.write(frozen/'index.json', {
+            '0': {'name': 'A', 'record': 0, 'face': 0, 'text': 'first A', 'flags': [True]*4},
+            '1': {'name': 'B', 'record': 0, 'face': 1, 'text': 'first B', 'flags': [True]*4},
+            '2': {'name': 'A', 'record': 1, 'face': 1, 'text': 'second A', 'flags': [True]*4},
+            '3': {'name': 'B', 'record': 1, 'face': 0, 'text': 'second B', 'flags': [True]*4}})
+        r.jsonl(frozen/'gold.jsonl', [{'faces': [{'name': 'A'}, {'name': 'B'}]},
+                                      {'faces': [{'name': 'B'}, {'name': 'A'}]}])
+        r.write(frozen/'oracle.json', [
+            {'cards': [{'name': 'B', 'text': 'first B'}, {'name': 'A', 'text': 'first A'}]},
+            {'cards': [{'name': 'A', 'text': 'second A'}, {'name': 'B', 'text': 'second B'}]}])
+        manifest = r.read(self.inputs/'manifest.json')
+        manifest['files'] = r.tree(frozen)
+        r.write(self.inputs/'manifest.json', manifest)
+        tasker._packet_data.cache_clear()
+        result = self.prepare()
+        packet = r.read(Path(result['run'])/'packet.json')
+        self.assertEqual([row['record'] for row in packet['gold_records']], [0, 1])
+        self.assertEqual([row['record'] for row in packet['oracle_records']], [0, 1])
+        self.assertEqual([row['text'] for row in packet['baseline']], ['first A', 'second A'])
+        self.assertEqual(packet['gold_records'][0]['value']['faces'][0]['name'], 'A')
+        self.assertEqual(packet['oracle_records'][0]['value']['cards'][0]['name'], 'B')
 
     def test_reject_mismatched_identity_and_population(self):
         self.checkpoint['commit'] = 'wrong'

@@ -213,6 +213,40 @@ class QueueTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "current finished failed"):
             self.queue.retry_failed("job0", attempt, "proof", 1)
 
+    def test_administrative_unstarted_retry_requires_explicit_evidence_and_lease(self):
+        self.add()
+        claim = self.queue.claim("worker")
+        attempt = claim["attempt_id"]
+        proof = {"launch_not_attempted": True, "controller_terminal": {
+            "unit": "controller.service", "invocation": "abc", "verification": {"inactive": True}}}
+        lease = self.path.parent / "leases" / "job0"
+        lease.parent.mkdir()
+        lease.touch()
+        with self.assertRaisesRegex(ValueError, "current finished failed"):
+            self.queue.retry_unstarted("job0", attempt, proof)
+        self.queue.finish(attempt, "failed", "preparation failed", self.passed(claim))
+        for invalid in ({}, {"launch_not_attempted": True},
+                        {"launch_not_attempted": False, "controller_terminal": proof["controller_terminal"]},
+                        {"launch_not_attempted": True, "controller_terminal": {"unit": "x", "invocation": "y"}}):
+            with self.assertRaises(ValueError):
+                self.queue.retry_unstarted("job0", attempt, invalid)
+        with lease.open("w") as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError, "still held"):
+                self.queue.retry_unstarted("job0", attempt, proof)
+        with self.assertRaises(ValueError):
+            self.queue.retry_unstarted("job0", "wrong", proof)
+        old = self.queue.get_attempt(attempt)
+        self.queue.retry_unstarted("job0", attempt, proof)
+        self.assertEqual(self.queue.get_attempt(attempt), old)
+        self.assertEqual(self.queue.coverage()["counts"], {"pending": 2})
+        self.assertEqual(self.queue.audit()[-1]["data"]["evidence"], proof)
+        second = self.queue.claim("worker")
+        self.queue.mark_started(second["attempt_id"], receipt="pid unknown")
+        self.queue.finish(second["attempt_id"], "failed", "proof", self.passed(second))
+        with self.assertRaisesRegex(ValueError, "recorded start"):
+            self.queue.retry_unstarted("job0", second["attempt_id"], proof)
+
     def test_review_requires_reason_and_pass_cannot_hide_review(self):
         self.add()
         claim = self.queue.claim("worker")
