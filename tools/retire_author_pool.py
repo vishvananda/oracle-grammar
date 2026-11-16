@@ -65,6 +65,9 @@ Read their -- usage from src/bin if needed, instead of building anything.
 Create {task['fixture']} with 4-64 focused family cases including an explicit
 expected IR, a refusal and exact/default printing controls. It will run with
 --compositional. Derive expected IR from the fixed allowed gold, not changed output.
+Keep every authored family case compositional; do not set compositional:false.
+The coordinator separately checks whole-card operand edits with any unrelated,
+unassigned seeded clauses retained; that check does not establish phrase coverage.
 Create {task['edits']} containing 2-8 current-operand edit tests. Each is:
 {{"face":"assigned target face", "text":"complete edited Oracle text",
 "set":[{{"path":[0,"args",...],"value":"new primitive"}}]}}.

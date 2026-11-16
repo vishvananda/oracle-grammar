@@ -62,8 +62,9 @@ def _proposal(proposal):
     return run, r.read(descriptor), directory, hooks
 
 
-def _family(directory, report, run):
+def _family(directory, report, run, modes=False):
     family = r.read(directory/'family.json')
+    a.validate_author_family(family)
     original = r.rows(run/'inputs/frozen/gold.jsonl')
     for number, edit in enumerate(report['edited']):
         folder = directory/f'edited-{number}'
@@ -82,9 +83,12 @@ def _family(directory, report, run):
             a.edit_leaf(expected_face['abilities'], mutation['path'], mutation['value'])
         if gold != [expected]:
             raise ValueError('edited gold differs from the declared operand mutations')
-        family['cases'].append({'name': face['name'], 'text': row['text'],
-                                'context': face['characteristics'], 'expected': face['abilities'],
-                                'readings': None, 'exact': bool(edit['flags'][1]), 'default': True})
+        case = {'name': face['name'], 'text': row['text'],
+                'context': face['characteristics'], 'expected': face['abilities'],
+                'readings': None, 'exact': bool(edit['flags'][1]), 'default': True}
+        if modes is True:
+            case['compositional'] = False
+        family['cases'].append(case)
     return family
 
 
@@ -196,7 +200,8 @@ def _stage(campaign, checkpoint, proposals):
                 raise ValueError('fixture path already exists')
             if fixture and str(fixture) in r.read(source/'tests/families.json'):
                 raise ValueError('fixture already registered')
-            family = _family(directory, proposal['report'], run) if fixture else None
+            family = _family(directory, proposal['report'], run,
+                             modes=checkpoint.get('family_case_modes') is True) if fixture else None
             if fixture and not (source/fixture).resolve().is_relative_to(source):
                 raise ValueError('fixture escapes candidate source')
             with tempfile.TemporaryDirectory(dir=folder) as temporary:

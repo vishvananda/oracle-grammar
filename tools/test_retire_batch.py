@@ -15,17 +15,34 @@ class BatchTests(unittest.TestCase):
             frozen, evaluation = root/'inputs/frozen', root/'evaluation'
             frozen.mkdir(parents=True)
             (evaluation/'edited-0').mkdir(parents=True)
-            (evaluation/'family.json').write_text('{"family":"test","cases":[]}')
+            (evaluation/'family.json').write_text(json.dumps({'family': 'test', 'cases': [
+                {'name': 'positive', 'expected': [{'kind': 'Original'}]},
+                {'name': 'reject', 'reject': True}, {'name': 'other'},
+                {'name': 'explicit', 'compositional': True}]}))
             original = {'faces': [{'name': 'Example', 'characteristics': {'types': ['Instant']}, 'abilities': [{'amount': 1}]}]}
             edited = {'faces': [{'name': 'Example', 'characteristics': {'types': ['Instant']}, 'abilities': [{'amount': 2}]}]}
             (frozen/'gold.jsonl').write_text(json.dumps(original)+'\n')
             (evaluation/'edited-0/gold.jsonl').write_text(json.dumps(edited)+'\n')
             (evaluation/'edited-0/rows.jsonl').write_text(json.dumps({'name': 'Example', 'text': 'two', 'status': 'equal'})+'\n')
             report = {'edited': [{'face': 'Example', 'mutations': [{'path': [0, 'amount'], 'value': 2}], 'flags': [True, False, True, False]}]}
-            case = batch._family(evaluation, report, root)['cases'][0]
+            family = batch._family(evaluation, report, root)
+            case = family['cases'][-1]
             self.assertEqual(case['expected'], [{'amount': 2}])
             self.assertFalse(case['exact'])
             self.assertEqual(case['context'], {'types': ['Instant']})
+            self.assertNotIn('compositional', case)
+            modes = batch._family(evaluation, report, root, modes=True)
+            self.assertIs(modes['cases'][-1]['compositional'], False)
+            self.assertEqual(modes['cases'][-1]['expected'], edited['faces'][0]['abilities'])
+            self.assertEqual(modes['cases'][-1]['context'], edited['faces'][0]['characteristics'])
+            self.assertEqual(modes['cases'][:-1], family['cases'][:-1])
+            authored = json.loads((evaluation/'family.json').read_text())
+            authored['cases'][0]['compositional'] = False
+            (evaluation/'family.json').write_text(json.dumps(authored))
+            with self.assertRaisesRegex(ValueError, 'compositional'):
+                batch._family(evaluation, report, root, modes=True)
+            authored['cases'][0].pop('compositional')
+            (evaluation/'family.json').write_text(json.dumps(authored))
             edited['faces'][0]['abilities'][0]['amount'] = 3
             (evaluation/'edited-0/gold.jsonl').write_text(json.dumps(edited)+'\n')
             with self.assertRaises(ValueError):
@@ -196,8 +213,11 @@ class BatchTests(unittest.TestCase):
                 path = trial/'grammar/syntax/mined.ebnf'
                 path.write_text(path.read_text().replace('m_good ::= "good"\n', ''))
                 return rules, {}
-            with patch.object(batch, '_proposal', side_effect=proposal), patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), patch.object(batch.merger, 'merge_grammar', side_effect=merge), patch.object(batch.mined, 'remove', side_effect=remove), patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper'):
-                result = batch.stage(root, {'source': str(source), 'commit': commit}, proposals)
+            with patch.object(batch, '_proposal', side_effect=proposal), patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}) as family_mock, patch.object(batch.merger, 'merge_grammar', side_effect=merge), patch.object(batch.mined, 'remove', side_effect=remove), patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper'):
+                result = batch.stage(root, {'source': str(source), 'commit': commit,
+                                            'family_case_modes': True}, proposals)
+            self.assertTrue(family_mock.call_args_list)
+            self.assertTrue(all(call.kwargs['modes'] is True for call in family_mock.call_args_list))
             self.assertEqual(result['status'], 'provisional')
             self.assertEqual([j['status'] for j in result['jobs']], ['integration-rejected', 'integration-rejected', 'included'])
             candidate = Path(result['source'])

@@ -28,6 +28,18 @@ class AuthoringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             a.edited_record_pair(gold, [{'cards': [{'name': 'Back'}, {'name': 'Other'}]}], 'Back')
 
+    def test_author_family_cannot_disable_compositional_checks(self):
+        family = {'cases': [{'expected': []}, {'reject': True}, {}, {'compositional': True}]}
+        a.validate_author_family(family)
+        family['cases'][2]['compositional'] = None
+        a.validate_author_family(family)
+        for invalid in (False, 0, 'false'):
+            family['cases'][2]['compositional'] = invalid
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, 'compositional'):
+                a.validate_author_family(family)
+        with self.assertRaises(ValueError):
+            a.validate_author_family({'cases': [{'expected': []}, {'reject': True}]})
+
     def test_operand_edits_change_a_leaf_without_replacing_programs(self):
         source = [{'args': {'amount': 1}}]
         changed = copy.deepcopy(source)

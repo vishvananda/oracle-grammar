@@ -238,6 +238,19 @@ def edited_checks(run, directory, grammar, task, root, data):
     return results
 
 
+def validate_author_family(family):
+    """Keep every worker-authored family case compositional."""
+    r.require(isinstance(family, dict) and isinstance(family.get('cases'), list),
+              'family cases must be an array')
+    cases = family['cases']
+    r.require(4 <= len(cases) <= 64 and all(isinstance(case, dict) for case in cases)
+              and any(case.get('reject') for case in cases)
+              and any(case.get('expected') is not None for case in cases),
+              'family needs positive, expected-IR and refusal controls')
+    r.require(all(case.get('compositional') is None or case.get('compositional') is True
+                  for case in cases), 'worker-authored family cases must be compositional')
+
+
 def _check(run, task_id, coordinator=False):
     task, root, manifest = verify(run, task_id)
     parent = (run/'evaluations'/task_id if coordinator else root/'.cache/author-checks')
@@ -270,10 +283,7 @@ def _check(run, task_id, coordinator=False):
             report['hooks'] = apply_hooks(grammar, hooks)
             r.write(directory/'hooks.json', hooks)
             fixture = root/task['fixture']
-            cases = r.read(fixture)['cases']
-            r.require(4 <= len(cases) <= 64 and any(c.get('reject') for c in cases)
-                      and any(c.get('expected') is not None for c in cases),
-                      'family needs positive, expected-IR and refusal controls')
+            validate_author_family(r.read(fixture))
             shutil.copy2(fixture, directory/'family.json')
             report['fixture_sha256'] = r.digest(fixture)
             report['edits_sha256'] = r.digest(root/task['edits'])
