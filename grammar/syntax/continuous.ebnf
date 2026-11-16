@@ -171,7 +171,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add
+change ::= change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add
     | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
@@ -649,7 +649,7 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= change_loses_flying | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change
+static_change ::= change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change
     | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap
     | change_cant_block_kind | change_block_additional | change_is_goaded
     | change_cant_block_or_be_blocked_by | change_cant_attack_alone
@@ -671,8 +671,7 @@ protectable_red ::= "red"
 /* @sem Operand::Term{family:ProtectableColor, form:Colors, operands:[Vocabulary{family:Color, form:Green}]} */
 protectable_green ::= "green"
 
-/* @sem Change::[LosesAbility(Term{family:CheckHasable, form:Flying, operands:[]})] */
-change_loses_flying ::= ("loses" | "lose") "flying"
+
 
 /* Retention changes the copied creature-type operation, not its statistics. */
 trait_copy_change ::= trait_copy_replace | trait_copy_add | trait_copy_note | trait_copy_other_note
@@ -2267,3 +2266,19 @@ graveyard_grant_qualified ::= quality graveyard_grant_filter
 /* A graveyard casting permission uses the receiving card's own sneak ability. */
 /* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}, from:Graveyard, action:CastSpell, filter:$card_filter}, terms:_{cost:Using(Sneak)}})]} */
 static_cast_graveyard_using_sneak ::= "you" "may" "cast" card_filter "spells" "from" "your" "graveyard" "using" "their" "sneak" "abilities" "."
+
+/* Keyword removal shares its native check term; each inflection owns one
+   print shape, independently of the affected object's source identity. */
+/* @sem Change::[LosesAbility($lost_keyword)] */
+change_loses_keyword ::= "loses" lost_keyword
+/* @sem Change::[LosesAbility($lost_keyword)] */
+change_lose_keyword ::= "lose" lost_keyword
+lost_keyword ::= lost_flying | lost_first_strike | lost_trample | lost_defender
+/* @sem Operand::Term{family:CheckHasable, form:Flying, operands:[]} */
+lost_flying ::= "flying"
+/* @sem Operand::Term{family:CheckHasable, form:FirstStrike, operands:[]} */
+lost_first_strike ::= "first" "strike"
+/* @sem Operand::Term{family:CheckHasable, form:Trample, operands:[]} */
+lost_trample ::= "trample"
+/* @sem Operand::Term{family:CheckHasable, form:Defender, operands:[]} */
+lost_defender ::= "defender"
