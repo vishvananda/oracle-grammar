@@ -12,7 +12,6 @@ import time
 
 sys.dont_write_bytecode = True
 import retire as r
-import retire_author as a
 import retire_pool as pool
 
 
@@ -106,7 +105,14 @@ def launch(run, task_id):
     r.write(folder/'receipt.json', receipt)
     # Agent prose and mutable local reports never establish quality.
     try:
-        evaluation = a.check(run, task_id, coordinator=True)
+        # Each evaluation owns its descriptor leases in one process. Sharing
+        # retire._LEASES between executor threads could inherit another task's FD.
+        checked = subprocess.run([sys.executable, str(run/'support/runner/retire_author.py'),
+                                  str(run), task_id, '--coordinator'],
+                                 text=True, capture_output=True)
+        (folder/'evaluation.log').write_text(checked.stdout+checked.stderr)
+        r.require(checked.returncode == 0, 'independent evaluation failed; inspect evaluation.log')
+        evaluation = json.loads(checked.stdout.strip())
         receipt['evaluation'] = {'passed': evaluation['passed'], 'directory': evaluation['directory']}
     except Exception as error:
         receipt['evaluation'] = {'passed': False, 'error': str(error)}

@@ -49,6 +49,8 @@ def verify(run, task_id):
     manifest = r.verify(run/'inputs')
     descriptor = run/'tasks'/f'{task_id}.json'
     r.require(r.digest(descriptor) == support['tasks'][task_id], 'task descriptor changed')
+    r.require(r.digest(Path(__file__)) == support['files'].get('runner/retire_author.py'),
+              'use the campaign frozen authoring runner')
     task = r.read(descriptor)
     root = Path(task['checkout'])
     r.require(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
