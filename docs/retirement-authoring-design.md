@@ -168,6 +168,15 @@ share another task's lease descriptors. The rolling scheduler starts a pair's
 second model as soon as its first finishes; it retains the chosen first-model
 ordering without waiting for unrelated tasks.
 
+Workers declare cross-module registration in `.cache/author-hooks.json`, for
+example `[{"root":"ability","production":"shared_trigger_name"}]`. The runner
+admits only bounded, typed entries for ordinary `ability`, `line` or
+`event_clause` lists and applies them to its diagnostic copy. The authored source
+keeps its private write set. The tested grammar hash includes these registrations.
+Seeded files must match the canonical assigned-rule removal, ignoring blank lines;
+adding handwritten roots to a mined dispatcher is rejected even when a
+compositional-prefix check would otherwise pass.
+
 Every candidate remains provisional. The pilot does not merge author patches,
 run a corpus per worker, or infer acceptance from agent prose. Its results should
 determine which families Luna can handle, which go directly to a larger model,

@@ -5,6 +5,7 @@ from unittest.mock import patch
 from pathlib import Path
 import tempfile
 import threading
+import shutil
 
 import retire_author as a
 import retire_author_pool as pool
@@ -48,6 +49,41 @@ class AuthoringTests(unittest.TestCase):
             self.assertEqual((root/'grammar/syntax/custom.ebnf').read_text(), 'authored phrase\n')
             self.assertEqual((Path(result['backups'])/'syntax/mined.ebnf').read_text(),
                              'broken dangling hook\n')
+
+    def test_ordinary_hook_registration_is_typed_and_rejects_mined_roots(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            grammar = Path(tmp)/'grammar'
+            (grammar/'syntax').mkdir(parents=True)
+            (grammar/'syntax/card.ebnf').write_text('ability ::= existing\nevent_clause ::= event_when\n')
+            (grammar/'syntax/events.ebnf').write_text(
+                '/* @sem Ability::Triggered{} */\nshared_trigger ::= "at"\n')
+            requests = [{'root': 'ability', 'production': 'shared_trigger'}]
+            a.apply_hooks(grammar, requests)
+            self.assertIn('ability ::= existing | shared_trigger',
+                          (grammar/'syntax/card.ebnf').read_text())
+            for root in ('mined_ability', 'event_clause'):
+                with self.assertRaises(ValueError):
+                    a.apply_hooks(grammar, [{'root': root, 'production': 'shared_trigger'}])
+
+    def test_seeded_dispatcher_cannot_hide_a_renamed_handwritten_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base, root, output = Path(tmp)/'base', Path(tmp)/'worker', Path(tmp)/'output'
+            (base/'grammar/syntax').mkdir(parents=True)
+            (base/'grammar/syntax/mined.ebnf').write_text(
+                'mined_action ::= m_a | m_b\n'
+                '/* @sem A */\nm_a ::= "alpha"\n'
+                '/* @sem B */\nm_b ::= "beta"\n')
+            shutil.copytree(base/'grammar', root/'grammar')
+            a.regenerate_removals(base, root, {'rules': ['m_a'],
+                'write_files': ['grammar/syntax/mined.ebnf']})
+            output.mkdir()
+            a.check_seeded_files(base, root, ['m_a'], output)
+            p = root/'grammar/syntax/mined.ebnf'
+            p.write_text(p.read_text().replace('mined_action ::= m_b',
+                                               'mined_action ::= m_b | renamed_seed'))
+            second = Path(tmp)/'second'; second.mkdir()
+            with self.assertRaisesRegex(ValueError, 'non-removal edits'):
+                a.check_seeded_files(base, root, ['m_a'], second)
 
     def test_descriptor_and_support_hashes_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:

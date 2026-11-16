@@ -38,6 +38,12 @@ of editing huge seeded hook lines or semantic comments manually:
 It reconstructs seeded files from the fixed base, removes exactly the assigned
 rules and saves private backups. Put new shared productions in your declared
 handwritten modules, never in mined.ebnf.
+If a new shared production needs registration in another module, write an array
+in ignored .cache/author-hooks.json, for example
+[{{"root":"ability","production":"your_new_shared_trigger"}}]. Allowed roots are
+ability, line and event_clause. Do not place handwritten roots into mined hooks
+or edit the root module outside your write set. The coordinator applies typed
+ordinary hook requests to its private diagnostic snapshot and records them.
 This is syntax-only. If Rust, lexical, IR, binding or out-of-scope module changes
 are necessary, record the exact reason and escalate. Do not edit those files.
 No Cargo, git commits/staging, whole-corpus scans, additional agents or network.

@@ -69,6 +69,50 @@ def regenerate_removals(base, root, task):
             'status': 'mechanical edit only; run diagnostics before claiming a pass'}
 
 
+def check_seeded_files(base, root, rules, directory):
+    expected = directory/'expected-removals'
+    shutil.copytree(base/'grammar', expected/'grammar')
+    removed, kept = mined.remove(expected, rules)
+    r.require(set(removed) == set(rules) and not kept, 'seeded removal has retained users')
+    for name in ('syntax/mined.ebnf', 'tail/mined.ebnf'):
+        reference = expected/'grammar'/name
+        if reference.exists():
+            clean = lambda text: [line.strip() for line in text.splitlines() if line.strip()]
+            r.require(clean(reference.read_text()) == clean((root/'grammar'/name).read_text()),
+                      'seeded file has non-removal edits; use --remove-assigned and ordinary hook requests')
+
+
+def apply_hooks(grammar, requests):
+    r.require(isinstance(requests, list) and len(requests) <= 4, 'at most four ordinary hook requests')
+    kinds = {'ability': 'Ability::', 'line': 'Ability::', 'event_clause': 'EventSpec::'}
+    seen = set()
+    for entry in requests:
+        r.require(set(entry) == {'root', 'production'}, 'invalid hook request fields')
+        root, production = entry['root'], entry['production']
+        r.require(root in kinds and isinstance(production, str)
+                  and mined.BARE.fullmatch(production) and not mined.SEEDED.fullmatch(production)
+                  and (root, production) not in seen, 'invalid or repeated ordinary hook request')
+        seen.add((root, production))
+        definitions, declarations = [], []
+        for path in mined.grammar_files(grammar.parent):
+            lines = path.read_text().splitlines()
+            found = mined.definitions(lines)
+            if root in found:
+                definitions.append((path, lines, found[root]))
+            for _, line, owner, comments in mined.code(lines):
+                if mined.DEFINITION.match(line) and owner == production:
+                    declarations.append('\n'.join(lines[n] for n in comments))
+        r.require(len(definitions) == len(declarations) == 1
+                  and '@sem '+kinds[root] in declarations[0], 'hook needs one correctly typed declaration')
+        path, lines, entries = definitions[0]
+        names = mined.alternatives(entries)
+        r.require(names is not None, 'ordinary hook root must be a bare alternative list')
+        if production not in {name for group in names for name in group}:
+            lines[entries[-1][0]] += ' | '+production
+            path.write_text('\n'.join(lines)+'\n')
+    return requests
+
+
 def verify(run, task_id):
     support = r.read(run/'support.json')
     r.require(r.tree(run/'support') == support['files'], 'trial tooling or helpers changed')
@@ -167,6 +211,13 @@ def check(run, task_id, coordinator=False):
             remaining = seeded(root)
             r.require(expected-remaining == set(task['rules']) and not remaining-expected,
                       'remove exactly assigned rules; never rename or adopt seeded rules')
+            check_seeded_files(run/'inputs/frozen', root, task['rules'], directory)
+            hooks_path = Path(task.get('hooks', '.cache/author-hooks.json'))
+            r.require(not hooks_path.is_absolute() and hooks_path.parts and hooks_path.parts[0] == '.cache'
+                      and '..' not in hooks_path.parts, 'hook requests belong in private .cache')
+            hooks = r.read(root/hooks_path) if (root/hooks_path).exists() else []
+            report['hooks'] = apply_hooks(grammar, hooks)
+            r.write(directory/'hooks.json', hooks)
             fixture = root/task['fixture']
             cases = r.read(fixture)['cases']
             r.require(4 <= len(cases) <= 64 and any(c.get('reject') for c in cases)
@@ -190,7 +241,8 @@ def check(run, task_id, coordinator=False):
             report['failures'].append(str(error))
         verify(run, task_id)
         r.require(before == r.tree(root/'grammar'), 'worker changed grammar during diagnostics')
-        report.update(grammar=before, wall_seconds=time.perf_counter()-started)
+        report.update(grammar=r.tree(grammar), source_grammar=before,
+                      wall_seconds=time.perf_counter()-started)
         r.write(directory/'report.json', report)
         print(json.dumps(report), flush=True)
         return report
