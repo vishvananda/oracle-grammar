@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import re
 import shutil
+import time
 import uuid
 
 import mined
@@ -30,7 +31,7 @@ def cohort(run, rule, index):
     def matches(text):
         tokens = iter(re.findall(r'\w+', text.lower()))
         return all(any(token == word for token in tokens) for word in words)
-    return sorted(name for name, entry in index.items() if matches(entry['text']))
+    return sorted({entry['name'] for entry in index.values() if matches(entry['text'])})
 
 
 def payload(run):
@@ -46,11 +47,12 @@ def subset(directory, names, data):
     # same complete face-name tuple. All companions were explicitly allowed.
     selected = {f['name'] for record in gold for f in record['faces']}
     oracle = [record for record in oracle if any(f['name'] in selected for f in record['cards'])]
-    r.require(selected and selected <= index.keys(), 'cohort escaped the allowed population')
+    r.require(selected and selected <= {e['name'] for e in index.values()},
+              'cohort escaped the allowed population')
     r.jsonl(directory/'gold.jsonl', gold)
     r.write(directory/'oracle.json', oracle)
     r.write(directory/'slice.json', {'cards': sorted(selected)})
-    r.jsonl(directory/'before.jsonl', [index[name]['parse'] for name in sorted(selected)])
+    r.jsonl(directory/'before.jsonl', [e['parse'] for e in index.values() if e['name'] in selected])
     return selected
 
 
@@ -70,12 +72,12 @@ def native_failures(report, count):
 
 
 def compare(current, index, selected):
-    r.require(len(current) == len(selected) and {row['name'] for row in current} == selected,
+    expected = [e for e in index.values() if e['name'] in selected]
+    r.require(len(current) == len(expected) and {row['name'] for row in current} == selected,
               'score did not cover the exact cohort')
     failures = []
-    for row in current:
-        old = index[row['name']]
-        if (row['status'] != 'equal' or row['text'] != old['text']
+    for row, old in zip(current, expected, strict=True):
+        if (row['name'] != old['name'] or row['status'] != 'equal' or row['text'] != old['text']
                 or row['readings'] != old['parse']['readings']):
             failures.append({'face': row['name'], 'gate': 'parse/reading-count/text'})
         now = r.flags(row)
@@ -95,9 +97,10 @@ def checks(run, directory, grammar, names, data, threads):
               [directory/'gold.jsonl', directory/'rows.jsonl', directory/'native.json',
                directory/'native-failures.jsonl', '--preserve-from', directory/'before.jsonl'],
               threads)
-    failures = native_failures(r.read(directory/'native.json'), len(selected))
+    count = sum(e['name'] in selected for e in data[0].values())
+    failures = native_failures(r.read(directory/'native.json'), count)
     failures.extend(compare(r.rows(directory/'rows.jsonl'), data[0], selected))
-    return {'faces': len(selected), 'failures': failures}
+    return {'faces': count, 'failures': failures}
 
 
 def job_inputs(run, job):
@@ -118,11 +121,17 @@ def attempt_path(job, result):
 
 def perform(run, job, name, data, manifest):
     description = job_inputs(run, job)
+    started = time.perf_counter()
     result = {'worker': name, 'rule': description['rule'], 'snapshot': description['snapshot'],
-              'status': 'running', 'attempt': uuid.uuid4().hex}
+              'status': 'running', 'attempt': uuid.uuid4().hex, 'started_unix': time.time()}
     r.write(job/'result.json', result)
     candidate = attempt_path(job, result)
     candidate.mkdir(parents=True)
+    result['artifacts'] = {name: str((candidate/filename).relative_to(run)) for name, filename in (
+        ('scores', 'rows.jsonl'), ('score_log', 'score.log'), ('native', 'native.json'),
+        ('native_log', 'validate-readings.log'), ('native_failures', 'native-failures.jsonl'),
+        ('cohort', 'slice.json'), ('commands', 'commands.jsonl'))}
+    r.write(job/'result.json', result)
     try:
         shutil.copytree(run/'frozen/grammar', candidate/'grammar')
         removed, kept = mined.remove(candidate, [description['rule']])
@@ -139,25 +148,58 @@ def perform(run, job, name, data, manifest):
         result['grammar'] = grammar
     except Exception as error:
         result.update(status='failed', reason=str(error))
+    result['wall_seconds'] = time.perf_counter() - started
     r.write(job/'result.json', result)
     return result
 
 
+def selected_jobs(run, rules):
+    jobs = sorted((run/'jobs').iterdir())
+    requested = set(rules or ())
+    if requested:
+        available = {r.read(job/'job.json')['rule'] for job in jobs}
+        r.require(requested <= available, 'requested worker rules are not queued')
+        jobs = [job for job in jobs if r.read(job/'job.json')['rule'] in requested]
+    return jobs
+
+
 def worker(args):
+    started, wall = time.time(), time.perf_counter()
     run = args.run.resolve()
     manifest = r.verify(run)
+    directory = run/'workers'
+    directory.mkdir(exist_ok=True)
+    path = directory/(uuid.uuid4().hex + '.json')
+    receipt = {'worker': args.name, 'started_unix': started, 'status': 'running',
+               'snapshot': r.digest(run/'manifest.json')}
+    r.write(path, receipt)
+    print(json.dumps({'event': 'worker-started', 'receipt': str(path)}), flush=True)
+    try:
+        receipt.update(work(args, run, manifest))
+    except BaseException as error:
+        receipt.update(status='failed', reason=str(error))
+        raise
+    finally:
+        receipt.update(finished_unix=time.time(), wall_seconds=time.perf_counter() - wall)
+        r.write(path, receipt)
+        print(json.dumps({'event': 'worker-finished', 'status': receipt['status'],
+                          'receipt': str(path), 'wall_seconds': receipt['wall_seconds']}), flush=True)
+
+
+def work(args, run, manifest):
     r.require(1 <= args.limit <= 1000, 'worker limit must be between 1 and 1000')
     r.require((run/'scan-complete.json').is_file(), 'coordinator scan has not completed')
+    jobs = selected_jobs(run, getattr(args, 'rules', None))
     with ExitStack() as leases:
         slot = next((n for n in range(manifest['slots']) if leases.enter_context(
             r.locked(run/'slots'/str(n), blocking=False))), None)
         if slot is None:
             print(json.dumps({'status': 'capacity-full'}))
-            return
+            return {'status': 'capacity-full', 'jobs': []}
         data = payload(run)
-        completed = 0
-        for job in sorted((run/'jobs').iterdir()):
-            if completed >= args.limit:
+        completed = []
+        for job in jobs:
+            if len(completed) >= args.limit:
                 break
             with ExitStack() as claim:
                 # Assembly holds this barrier while checking every job lease.
@@ -165,7 +207,7 @@ def worker(args):
                 with r.locked(run/'coordinator.lock', blocking=False) as coordinator:
                     if not coordinator or (run/'combined').exists():
                         print(json.dumps({'status': 'coordinator-busy-or-batch-closed'}))
-                        return
+                        return {'status': 'coordinator-busy-or-batch-closed', 'jobs': completed}
                     acquired = claim.enter_context(r.locked(job/'lease', blocking=False))
                     if not acquired:
                         continue
@@ -177,7 +219,26 @@ def worker(args):
                                   if key in result} | {
                     'failures': len(result.get('failures', [])),
                     'report': str(job/'result.json')}), flush=True)
-                completed += 1
+                completed.append({'rule': result['rule'], 'status': result['status'],
+                                  'result': str((job/'result.json').relative_to(run))})
+        return {'status': 'completed', 'jobs': completed}
+
+
+def report(args):
+    run = args.run.resolve()
+    r.verify(run)
+    reports = []
+    for job in selected_jobs(run, args.rules):
+        description = r.read(job/'job.json')
+        result = r.read(job/'result.json') if (job/'result.json').exists() else {'status': 'pending'}
+        failures = result.get('failures', [])
+        reports.append({'rule': description['rule'], 'status': result['status'],
+                        'provisional': result['status'] == 'provisional-pass',
+                        'faces': result.get('faces'), 'wall_seconds': result.get('wall_seconds'),
+                        'failures': failures, 'reason': result.get('reason'),
+                        'artifacts': result.get('artifacts', {}),
+                        'result': str((job/'result.json').relative_to(run))})
+    print(json.dumps({'acceptance': 'not established by worker reports', 'jobs': reports}))
 
 
 def validate(args):

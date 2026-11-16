@@ -8,6 +8,8 @@ import sys
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from unittest.mock import patch
 
 import retire as r
@@ -29,12 +31,12 @@ class RetirementTests(unittest.TestCase):
             '/* @sem B */\nm_b ::= "beta"\n')
         for name in ('jobs', 'slots', 'scan'):
             (self.run/name).mkdir()
-        r.write(self.run/'manifest.json', {'format': 1, 'slots': 2, 'threads': 1,
+        r.write(self.run/'manifest.json', {'format': 3, 'slots': 2, 'threads': 1,
                                          'population': 2, 'files': r.tree(self.run/'frozen'),
                                          'tooling': r.tooling()})
         r.write(self.run/'scan/rules.json', {'unused': ['m_a', 'm_b']})
         r.write(self.run/'scan-complete.json', {'report': r.digest(self.run/'scan/rules.json')})
-        self.index = {name: {'text': text, 'parse': {'name': name, 'text': text,
+        self.index = {name: {'name': name, 'text': text, 'parse': {'name': name, 'text': text,
                       'status': 'equal', 'readings': 1}, 'flags': [True, True, True, True]}
                       for name, text in [('A', 'Alpha.'), ('B', 'Beta.')]}
 
@@ -129,6 +131,88 @@ class RetirementTests(unittest.TestCase):
         self.assertEqual(w.subset(directory, ['A'], data), {'A', 'B'})
         self.assertEqual(len(r.rows(directory/'gold.jsonl')[0]['faces']), 2)
 
+    def test_same_name_and_text_occurrences_keep_their_individual_baselines(self):
+        from copy import deepcopy
+        other = deepcopy(self.index['A'])
+        other['parse']['readings'] = 2
+        index = {'first': self.index['A'], 'second': other}
+        current = [entry['parse'] | {'exact': True} for entry in index.values()]
+        self.assertEqual(w.compare(current, index, {'A'}), [])
+        with self.assertRaisesRegex(ValueError, 'exact cohort'):
+            w.compare(current[:1], index, {'A'})
+        current.reverse()
+        self.assertEqual(len(w.compare(current, index, {'A'})), 2)
+
+    def test_all_matching_readings_must_retain_each_print_gate(self):
+        row = {'matching_readings': [0, 2], 'printing': [
+            {'reading': 0, 'exact': True},
+            {'reading': 2, 'exact': False, 'default': None, 'round_trip': [8, 0]}]}
+        self.assertEqual(r.flags(row), [False, False, False, False])
+        row['printing'][1] = {'reading': 2, 'exact': True, 'default': 'Other valid words.'}
+        self.assertEqual(r.flags(row), [True, True, True, False])
+        row['printing'].pop()
+        with self.assertRaisesRegex(ValueError, 'coverage'):
+            r.flags(row)
+
+    def test_worker_receipts_and_reports_do_not_depend_on_retaining_a_tool_handle(self):
+        job = self.job('m_a')
+        with patch.object(w, 'payload', return_value=(self.index, [], [])), \
+                patch.object(w, 'checks', return_value={'faces': 1, 'failures': []}), \
+                redirect_stdout(StringIO()):
+            w.worker(Namespace(run=self.run, name='luna', limit=1, rules=['m_a']))
+        receipts = list((self.run/'workers').glob('*.json'))
+        self.assertEqual(len(receipts), 1)
+        receipt = r.read(receipts[0])
+        self.assertEqual(receipt['status'], 'completed')
+        self.assertEqual(receipt['jobs'][0]['rule'], 'm_a')
+        self.assertGreaterEqual(receipt['wall_seconds'], 0)
+        self.assertGreaterEqual(receipt['finished_unix'], receipt['started_unix'])
+        result = r.read(job/'result.json')
+        self.assertEqual(result['artifacts']['scores'],
+                         str((w.attempt_path(job, result)/'rows.jsonl').relative_to(self.run)))
+        output = StringIO()
+        with redirect_stdout(output):
+            w.report(Namespace(run=self.run, rules=['m_a']))
+        self.assertEqual(json.loads(output.getvalue())['jobs'][0]['status'], 'provisional-pass')
+
+    def test_freeze_keeps_duplicate_occurrences_and_runs_without_mutating_its_runner(self):
+        source = self.run/'frozen'
+        inputs = self.run/'inputs'
+        inputs.mkdir()
+        helpers = inputs/'helpers'
+        helpers.mkdir()
+        for name in r.HELPERS:
+            (helpers/name).write_text('fixture helper: ' + name)
+        r.write(helpers/'build.json', {'source_sha256': 'fixture-source',
+                                     'binaries': {n: r.digest(helpers/n) for n in r.HELPERS}})
+        first = dict(self.index['A']['parse'])
+        second = dict(first, readings=2)
+        r.jsonl(inputs/'gold.jsonl', [{'faces': [{'name': 'A'}]}, {'faces': [{'name': 'A'}]}])
+        r.write(inputs/'oracle.json', [{'cards': [{'name': 'A'}]}, {'cards': [{'name': 'A'}]}])
+        r.write(inputs/'allowed.json', {'cards': ['A']})
+        r.jsonl(inputs/'parse.jsonl', [first, second])
+        r.jsonl(inputs/'prints.jsonl', [dict(first, exact=True),
+                                       dict(second, exact=True, default='Other valid spelling.')])
+        target = self.run/'campaign'
+        args = Namespace(run=target, source=source, helpers=helpers,
+                         gold=inputs/'gold.jsonl', oracle=inputs/'oracle.json',
+                         allowed=inputs/'allowed.json', parse=inputs/'parse.jsonl',
+                         prints=[inputs/'prints.jsonl'], slots=2, threads=1)
+        with patch.object(r.dev, 'source', return_value='fixture-source'), \
+                patch.object(r.subprocess, 'check_output', side_effect=[b'', 'fixture-commit\n']), \
+                redirect_stdout(StringIO()):
+            r.freeze(args)
+        manifest = r.verify(target)
+        self.assertEqual((manifest['population'], manifest['names']), (2, 1))
+        entries = list(r.read(target/'frozen/index.json').values())
+        self.assertEqual([(e['record'], e['face']) for e in entries], [(0, 0), (1, 0)])
+        self.assertTrue(entries[0]['flags'][3])
+        self.assertFalse(entries[1]['flags'][3])
+        before = r.tree(target/'frozen')
+        subprocess.run([sys.executable, str(target/'frozen/runner/retire.py'), 'status', str(target)],
+                       check=True, capture_output=True, text=True)
+        self.assertEqual(r.tree(target/'frozen'), before)
+
     def test_a_modified_worker_candidate_is_not_assembled(self):
         job = self.perform('m_a')
         (w.attempt_path(job, r.read(job/'result.json'))/'grammar/syntax/mined.ebnf').write_text('changed')
@@ -148,9 +232,11 @@ class RetirementTests(unittest.TestCase):
         directory = self.run/'command'
         directory.mkdir()
         with r.locked(self.run/'slots/0'), patch.object(r.subprocess, 'run') as execute:
+            execute.return_value.returncode = 0
             r.execute(self.run, directory, self.run/'frozen/grammar', 'score', [], 1)
             self.assertEqual(execute.call_args.kwargs['pass_fds'], tuple(r._LEASES))
             self.assertTrue(execute.call_args.kwargs['pass_fds'])
+        self.assertGreaterEqual(r.rows(directory/'commands.jsonl')[0]['wall_seconds'], 0)
         job = self.perform('m_a')
         old = w.attempt_path(job, r.read(job/'result.json'))
         with patch.object(w, 'checks', return_value={'faces': 1, 'failures': []}):

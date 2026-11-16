@@ -2,6 +2,7 @@
 """Frozen, deletion-only retirement jobs. Workers never edit a source checkout."""
 import argparse
 from contextlib import contextmanager
+from collections import defaultdict
 import fcntl
 import hashlib
 import json
@@ -10,8 +11,11 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 
+# Imports from a frozen runner must not add bytecode files to its input bundle.
+sys.dont_write_bytecode = True
 import dev
 import mined
 
@@ -75,8 +79,15 @@ def locked(path, blocking=True):
 
 
 def flags(row):
-    if 'printing' in row or 'matching_readings' in row:
-        raise ValueError('this workflow accepts prepared-text score rows only')
+    if 'printing' in row:
+        details, matching = row['printing'], row.get('matching_readings', [])
+        require(matching and len(set(matching)) == len(matching)
+                and len(details) == len(matching)
+                and {d.get('reading') for d in details} == set(matching),
+                'per-reading print coverage is missing, duplicated or incomplete')
+        values = [flags(detail) for detail in details]
+        return [all(value[i] for value in values) for i in range(len(PRINT_GATES))]
+    require('matching_readings' not in row, 'matching readings lack printing reports')
     exact = row.get('exact') is True
     default = isinstance(row.get('default'), str) or exact and 'default' not in row
     trip = row.get('round_trip', [0, 0])
@@ -91,7 +102,7 @@ def require(condition, message):
 
 def verify(run):
     manifest = read(run/'manifest.json')
-    require(manifest['format'] == 1, 'unsupported retirement manifest')
+    require(manifest['format'] == 3, 'unsupported manifest; use the campaign frozen runner')
     require(manifest['tooling'] == tooling(), 'workflow implementation changed; freeze a new run')
     actual = tree(run/'frozen')
     require(actual == manifest['files'], 'frozen input changed or a file was added/removed')
@@ -104,6 +115,7 @@ def tooling():
 
 def freeze(args):
     run, source = args.run.resolve(), args.source.resolve()
+    runner_identity = tooling()
     require(not run.exists(), 'run directory already exists')
     require(1 <= args.slots <= 16 and 1 <= args.threads <= 32
             and args.slots * args.threads <= 32, 'worker CPU budget must be at most 32')
@@ -117,22 +129,34 @@ def freeze(args):
                 'helper checksum mismatch: ' + name)
     allowed = read(args.allowed)['cards']
     require(allowed and len(allowed) == len(set(allowed)), 'allowed faces must be unique/nonempty')
+    allowed = set(allowed)
     gold = rows(args.gold)
     names = [f['name'] for record in gold for f in record['faces']]
-    require(len(names) == len(set(names)) and set(names) == set(allowed),
-            'gold must contain exactly the explicit allowed population, with unique names')
+    require(set(names) == set(allowed), 'gold must contain exactly the explicit allowed population')
     oracle = read(args.oracle)
     require({f['name'] for record in oracle for f in record['cards']} == set(allowed),
             'Oracle input must contain exactly the allowed population')
     baseline = rows(args.parse)
-    require(len(baseline) == len(allowed) and {r['name'] for r in baseline} == set(allowed)
+    require([r['name'] for r in baseline] == names
             and all(r['status'] == 'equal' for r in baseline), 'baseline parse is incomplete/unequal')
-    index = {r['name']: {'text': r['text'], 'parse': r} for r in baseline}
+    index, occurrences = {}, defaultdict(list)
+    addresses = [(record, face) for record, value in enumerate(gold)
+                 for face in range(len(value['faces']))]
+    for ordinal, (row, (record, face)) in enumerate(zip(baseline, addresses, strict=True)):
+        entry = {'name': row['name'], 'text': row['text'], 'parse': row,
+                 'record': record, 'face': face}
+        index[str(ordinal)] = entry
+        occurrences[row['name'], row['text']].append(entry)
     for path in args.prints:
+        groups = defaultdict(list)
         for row in rows(path):
-            if row['name'] in index:
-                entry = index[row['name']]
-                require(row['text'] == entry['text'], 'print baseline text differs')
+            if row['name'] in allowed:
+                groups[row['name'], row['text']].append(row)
+        for key, reports in groups.items():
+            entries = occurrences[key]
+            require(entries and len(entries) == len(reports),
+                    'print overlay occurrence count/text differs: ' + key[0])
+            for entry, row in zip(entries, reports, strict=True):
                 entry['flags'] = flags(row)
     require(all('flags' in entry for entry in index.values()), 'print baseline is incomplete')
     # Prepare privately, then publish one complete immutable input bundle.
@@ -141,6 +165,9 @@ def freeze(args):
     frozen.mkdir(parents=True)
     try:
         shutil.copytree(source/'grammar', frozen/'grammar')
+        (frozen/'runner').mkdir()
+        for name in TOOLING:
+            shutil.copy2(Path(__file__).parent/name, frozen/'runner'/name)
         (frozen/'bin').mkdir()
         for name in HELPERS:
             shutil.copy2(args.helpers/name, frozen/'bin'/name)
@@ -152,18 +179,22 @@ def freeze(args):
         write(frozen/'index.json', index)
         require(before == dev.source(source) and tree(source/'grammar') == tree(frozen/'grammar'),
                 'source changed while freezing')
+        require(runner_identity == tooling() == tree(frozen/'runner'),
+                'workflow implementation changed while freezing')
         for directory in ('jobs', 'slots'):
             (temporary/directory).mkdir()
-        manifest = {'format': 1, 'source': before, 'commit': subprocess.check_output(
+        manifest = {'format': 3, 'source': before, 'commit': subprocess.check_output(
             ['git', 'rev-parse', 'HEAD'], cwd=source, text=True).strip(),
-            'population': len(allowed), 'slots': args.slots, 'threads': args.threads,
-            'files': tree(frozen), 'tooling': tooling()}
+            'population': len(baseline), 'names': len(allowed),
+            'slots': args.slots, 'threads': args.threads,
+            'files': tree(frozen), 'tooling': runner_identity}
         write(temporary/'manifest.json', manifest)
         os.rename(temporary, run)
     finally:
         if temporary.exists():
             shutil.rmtree(temporary)
-    print(json.dumps({'run': str(run), 'population': len(allowed), 'source': before}))
+    print(json.dumps({'run': str(run), 'population': len(baseline), 'names': len(allowed),
+                      'source': before, 'runner': str(run/'frozen/runner/retire.py')}))
 
 
 def execute(run, directory, grammar, program, arguments, threads):
@@ -173,9 +204,20 @@ def execute(run, directory, grammar, program, arguments, threads):
     environment.update(ORACLE_GRAMMAR_DIR=str(grammar.resolve()),
                        ORACLE_GRAMMAR_THREADS=str(threads))
     command = [str((run/'frozen/bin'/program).resolve()), *map(str, arguments)]
-    with (directory/(program + '.log')).open('w') as log:
-        subprocess.run(command, cwd=directory, env=environment, stdout=log,
-                       stderr=log, check=True, pass_fds=tuple(_LEASES))
+    started, wall, code = time.time(), time.perf_counter(), None
+    try:
+        with (directory/(program + '.log')).open('w') as log:
+            completed = subprocess.run(command, cwd=directory, env=environment, stdout=log,
+                                       stderr=log, check=True, pass_fds=tuple(_LEASES))
+            code = completed.returncode
+    except subprocess.CalledProcessError as error:
+        code = error.returncode
+        raise
+    finally:
+        with (directory/'commands.jsonl').open('a') as stream:
+            stream.write(json.dumps({'program': program, 'started_unix': started,
+                                     'wall_seconds': time.perf_counter() - wall,
+                                     'returncode': code}) + '\n')
 
 
 def scan(args):
@@ -262,7 +304,7 @@ def main():
                    help='oldest to newest complete print ledger overlays')
     f.add_argument('--slots', type=int, default=2)
     f.add_argument('--threads', type=int, default=2)
-    for name in ('scan', 'assemble', 'validate', 'worker', 'status'):
+    for name in ('scan', 'assemble', 'validate', 'worker', 'status', 'report'):
         command = commands.add_parser(name)
         command.add_argument('run', type=Path)
         if name == 'scan':
@@ -270,6 +312,9 @@ def main():
         if name == 'worker':
             command.add_argument('--name', required=True)
             command.add_argument('--limit', type=int, default=1)
+            command.add_argument('--rules', nargs='+', help='claim only these rules for a paired trial')
+        if name == 'report':
+            command.add_argument('--rules', nargs='+', help='report only the assigned rule bundle')
     args = parser.parse_args()
     if args.command in ('freeze', 'scan', 'assemble'):
         globals()[args.command](args)
