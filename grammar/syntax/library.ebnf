@@ -1,8 +1,25 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
+clause_search ::= clause_search_general | clause_search_any_number
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
-clause_search ::= search search_follow
+clause_search_general ::= search search_follow
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_any_number}, ...$search_plural_follow] */
+clause_search_any_number ::= search_any_number search_plural_follow
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_any_number]} */
+search_any_number ::= "search" "your" "library" "for" search_choice_any_number
+search_plural_follow ::= search_plural_more | search_shuffle | search_shuffle_top_any_order
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:$found_plural_action}, ...$search_plural_follow] */
+search_plural_more ::= "," found_plural_action search_plural_follow
+found_plural_action ::= found_plural_reveal | found_plural_exile | found_plural_battlefield | found_plural_battlefield_tapped
+/* @sem Operation::Reveal{objects:Selected(@marked)} */
+found_plural_reveal ::= "reveal" "them"
+/* @sem Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+found_plural_exile ::= "exile" "them"
+/* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}) */
+found_plural_battlefield ::= "put" "them" "onto" "the" "battlefield"
+/* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}) */
+found_plural_battlefield_tapped ::= "put" "them" "onto" "the" "battlefield" "tapped"
 
 /* A where-X definition can close the search sentence; the next sentence moves
    what was found. */
@@ -74,6 +91,10 @@ mill_take_modified ::= "a" "card" modifier
 
 /* What a search looks for: one find clause. */
 search_choice ::= search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where
+/* An unrestricted plural choice composes with the ordinary search follow-ups. */
+/* @sem SearchChoice::SearchChoice{filter:$filter_phrase, count:AnyNumber} */
+search_choice_any_number ::= "any" "number" "of" filter_phrase "cards"
+
 /* The count's definition follows the cards it counts. */
 /* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:UpTo($value)} */
 search_choice_many_where ::= "up" "to" "X" search_filter_many "," "where" "X" "is" value
@@ -183,13 +204,16 @@ search_follow ::= search_follow_more | search_follow_last
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:$found_action}, ...$search_follow] */
 search_follow_more ::= "," found_action search_follow
 
-search_follow_last ::= search_shuffle | search_shuffle_top
+search_follow_last ::= search_shuffle | search_shuffle_top | search_shuffle_top_any_order
 
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Shuffle{players:One(PlayerRef::AbilityController)}}] */
 search_shuffle ::= "," "then" "shuffle" ("your" "library")?
 
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Shuffle{players:One(PlayerRef::AbilityController), excluding:Selected(@marked)}}, Instruction::Effect{result:@next, operation:Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@marked), end:Top, order:Chosen}}] */
 search_shuffle_top ::= "," "then" "shuffle" "and" "put" found "on" "top"
+
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Shuffle{players:One(PlayerRef::AbilityController), excluding:Selected(@marked)}}, Instruction::Effect{result:@next, operation:Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@marked), end:Top, order:Chosen}}] */
+search_shuffle_top_any_order ::= "," "then" "shuffle" "and" "put" "those" "cards" "on" "top" "in" "any" "order"
 
 /* @sem () */
 found ::= "it" | "them" | "that" "card" | "those" "cards"

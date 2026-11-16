@@ -643,6 +643,11 @@ event_lose_life ::= event_player "loses" "life"
 /* Points in a turn. */
 turn_event ::= turn_end_any | turn_end_combat | turn_controller_upkeep | turn_controller_draw | turn_controller_end | turn_upkeep | turn_draw | turn_end | turn_combat | turn_combat_each | turn_second_main | turn_each_main | turn_each_postcombat_main
 
+/* These headers name two independent trigger events. The shared inverse tries
+   both event bindings, while the alternative index preserves the written order. */
+/* @sem EventSpec::@either_event($event_clause, $turn_event) */
+event_clause_and_turn_event ::= event_clause "and" "at" turn_event | "at" turn_event "and" event_clause
+
 /* @sem EventSpec::Turn{point:CombatBegins, players:All} */
 turn_combat_each ::= "the" "beginning" "of" "each" "combat"
 
@@ -748,6 +753,10 @@ death_exile_object ::= event_object "dies" "or" "is" "put" "into" "exile" ("from
    shared program independently in each ability; adjacent abilities stay outside. */
 /* @sem Ability::[Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence}, Scoped{zones:[Exile], ability:@scope(Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence})}] */
 line_additional_exile_trigger ::= event_clause "," program_sentence "this" "ability" "also" "triggers" "if" "this" "card" "is" "in" "exile" "."
+
+/* One ordinary trigger body composes with either event-header order above. */
+/* @sem Ability::Triggered{event:$event_clause_and_turn_event, limits:_{}, announcement:@announcement, body:$program} */
+triggered_event_clause_and_turn_event ::= event_clause_and_turn_event "," program "."
 
 /* A controller-named turn header names an object as well as a player. Binding
    captures that object/player for demonstratives in the body; an explicit

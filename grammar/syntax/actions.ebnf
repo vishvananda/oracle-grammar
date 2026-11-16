@@ -151,7 +151,7 @@ counter_pt_plus0_plus2 ::= "+" "0" "/" "+" "2"
 counter_pt_minus1_minus0 ::= "-" "1" "/" "-" "0"
 
 action ::= copy_effect_indefinite_except | copy_effect_duration_except | copy_effect_indefinite | copy_effect_duration | keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | goad_while_present | clash_opponent | attach_each_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_ordered_face_down | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard
-    | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | move_battlefield | move_battlefield_attached | put_battlefield_attached | move_battlefield_counter | move_battlefield_tapped | move_battlefield_owner
+    | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | put_optional_graveyard_target_battlefield | move_battlefield | move_battlefield_attached | put_battlefield_attached | move_battlefield_counter | move_battlefield_tapped | move_battlefield_owner
     | move_battlefield_transformed | move_battlefield_owner_transformed
     | move_owner_counter_untapped | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | look_objects | prevent_clause | tap_or_untap | create_emblem | reveal_hand
     | remove_counters_from_affected | remove_all_counters_from_affected | put_that_many_counters
@@ -316,6 +316,11 @@ move_graveyard_bottom_ordered ::= "put" graveyard_target_cards "on" "the" "botto
 move_shuffled ::= "shuffle" affected "into" owners ("library" | "libraries")
 /* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
 move_battlefield ::= ("return" | "put") affected ("to" | "onto") "the" "battlefield" ("under" "your" "control")?
+/* Prefer the source's `put` wording for this compositional optional graveyard
+   target while retaining the shared target phrase and generic move semantics. */
+/* @prefer always */
+/* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set(ObjectSet::One($target_card_a_graveyard_up_to_one))), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+put_optional_graveyard_target_battlefield ::= "put" target_card_a_graveyard_up_to_one "onto" "the" "battlefield" "under" "your" "control"
 /* An Aura or Equipment that arrives attached names its host: this object, a target or
    what this object is attached to. */
 /* @sem Operation::Move{objects:@zone_members(ObjectSet::@implicit_card_set($affected)), destination:Battlefield{controller:Player(PlayerRef::AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($attach_host)]}}, qualifiers:[]} */
