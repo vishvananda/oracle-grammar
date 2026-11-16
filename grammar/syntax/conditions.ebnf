@@ -18,7 +18,7 @@ condition_one ::= condition_control_distinct_names | condition_die_result_at_mos
     | condition_opponents_control_none | condition_same_color_spent | condition_not_that_players_turn
     | condition_permanent_cards_graveyard | condition_entered_under_you | condition_defending_no
     | condition_property_bounded | condition_property_compared | condition_property_equal
-    | condition_object_color | condition_it_color | condition_escaped
+    | condition_object_state | condition_object_color | condition_it_color | condition_escaped
     | condition_object_has_property | condition_controller_poison | condition_object_is_kind | condition_top_card_kind | condition_object_is_either_kind
     | condition_mana_values_graveyard | condition_committed_crime
     | condition_object_has_keyword | condition_object_lacks_keyword
@@ -705,3 +705,14 @@ sacrificed_quality_adjective ::= adjectives
 /* Count names across the controlled population, rather than imposing a per-object test. */
 /* @sem Condition::Compare{left:Expr::CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One($condition_control_subject)))}, property:Names}, test:NumberTest::Compare{comparison:$bound_words, value:$count}} */
 condition_control_distinct_names ::= condition_control_subject count bound_words filter_plural "with" "different" "names"
+
+/* An explicitly named object and its current state are independent operands. */
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:$condition_object_state_filter} */
+condition_object_state ::= object_ref "is" condition_object_state_filter
+condition_object_state_filter ::= adjective_tapped | adjective_untapped | state_renowned | condition_state_face_down | condition_state_modified | condition_state_chosen_type
+/* @sem ObjectFilter::State(FaceDown) */
+condition_state_face_down ::= "face" "down"
+/* @sem ObjectFilter::Modified */
+condition_state_modified ::= "modified"
+/* @sem ObjectFilter::Chosen(CreatureType) */
+condition_state_chosen_type ::= "the" "chosen" "type"

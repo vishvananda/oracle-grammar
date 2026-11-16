@@ -394,7 +394,7 @@ rule_changes_and ::= rule_change "and" rule_changes
 
 rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack
     | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power
-    | rule_cant_be_targeted
+    | rule_cant_be_targeted | rule_prohibit_action
 
 /* A spell is a stack object of kind Spell; "abilities" are every other stack
    object, and an ability "from" a source is an ability of that source. "Spells or
@@ -493,7 +493,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if
+static_ability ::= static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -655,7 +655,7 @@ static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
 static_change ::= change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change
     | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap
-    | change_cant_block_kind | change_block_additional | change_is_goaded
+    | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded
     | change_cant_block_or_be_blocked_by | change_cant_attack_alone
 /* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
    the protection names the object it keeps attached. */
@@ -1107,7 +1107,7 @@ attached_other_auras ::= "can't" "be" "enchanted" "by" "other" "Auras"
 /* @sem Change::GrantAbility(@holder($granted_mechanic)) */
 grant_native_mechanic ::= granted_mechanic
 
-granted_mechanic ::= bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost
+granted_mechanic ::= bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast
 /* @sem Ability::Mechanic{mechanic:Affinity, filter:$filter_plural} */
 granted_affinity ::= "affinity" "for" filter_plural
 /* Source belongs to the receiving spell, not the static granting permanent. */
@@ -2306,3 +2306,71 @@ bare_battle_cry ::= "battle" "cry"
 /* A stat bonus and its replacement creature types form one characteristic list. */
 /* @sem Change::[...$change_pump, ...$change_creature_types] */
 changes_pump_and_creature_types ::= change_pump "and" change_creature_types
+
+/* Blocking permissions share the verb while retaining each distinct rule and
+   its own current operands. The shadow rationales are separate print shapes. */
+/* @sem Change::[Rule($block_permission)] */
+change_block_permission ::= "can" "block" block_permission
+block_permission ::= block_capacity_permission | block_tapped_permission | block_shadow_permission
+/* @sem RuleChange::BlockCapacity(Additional($block_extra_count)) */
+block_capacity_permission ::= "an" "additional" block_extra_count
+block_extra_count ::= block_extra_singular | block_extra_plural | block_extra_per_object
+/* @sem Expr::Constant(1) */
+block_extra_singular ::= "creature" "each" "combat"
+/* @sem Expr::$count_plural */
+block_extra_plural ::= count_plural "creatures" "each" "combat"
+/* @sem Expr::CountObjects($affected) */
+block_extra_per_object ::= "creature" "each" "combat" "for" affected
+/* @sem RuleChange::BlockWhileTapped */
+block_tapped_permission ::= "as" "though" "they" "were" "untapped"
+/* @sem RuleChange::BlocksDespite{attackers:Any, evasion:$block_shadow_rationale} */
+block_shadow_permission ::= "creatures" "with" "shadow" block_shadow_rationale
+block_shadow_rationale ::= block_shadow_holder | block_shadow_attackers
+/* @sem BlockEvasion::Shadow */
+block_shadow_holder ::= "as" "though" "it" "had" "shadow"
+/* @sem BlockEvasion::Shadow */
+block_shadow_attackers ::= "as" "though" "they" "didn't" "have" "shadow"
+
+/* Attachment eligibility is a filter, independent of the equipment holder. */
+/* @sem Change::[Rule(AttachOnlyTo($attachment_eligible))] */
+change_attachment_permission ::= "can" "be" "attached" "only" "to" attachment_eligible
+
+/* Shared numeric mechanics retain their current amount on the granted ability. */
+/* @sem Ability::Mechanic{mechanic:$granted_valued_name, amount:$value} */
+granted_valued_mechanic ::= granted_valued_name value
+
+granted_valued_name ::= mechanic_fabricate_name | granted_frenzy_name
+
+/* @sem Mechanic::Frenzy */
+granted_frenzy_name ::= "frenzy"
+
+/* Prohibited actions compose with any ordinary affected population or other rule. */
+/* @sem Change::[Rule(Prohibit($prohibited_object_action))] */
+rule_prohibit_action ::= "can't" prohibited_object_action
+
+prohibited_object_action ::= prohibit_phase_in | prohibit_transform | prohibit_be_beamed | prohibit_receive_named_them | prohibit_receive_any_it
+
+/* @sem ObjectAction::PhaseIn */
+prohibit_phase_in ::= "phase" "in"
+
+/* @sem ObjectAction::Transform */
+prohibit_transform ::= "transform"
+
+/* @sem ObjectAction::BeBeamedUp */
+prohibit_be_beamed ::= "be" "beamed" "up"
+
+/* @sem ObjectAction::ReceiveCounters($counter_kind) */
+prohibit_receive_named_them ::= "have" counter_kind "counters" "put" "on" "them"
+
+/* @sem ObjectAction::ReceiveCounters(None) */
+prohibit_receive_any_it ::= "have" "counters" "put" "on" "it"
+
+/* A counter-first sentence still affects the objects from which counters leave. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[Rule(Prohibit(LoseCounters($counter_kind)))]} */
+static_counter_removal_prohibition ::= counter_kind "counters" "can't" "be" "removed" "from" affected "."
+
+/* @sem Ability::Mechanic{mechanic:Poisonous, amount:$value} */
+granted_poisonous ::= "poisonous" value
+
+/* @sem Ability::Mechanic{mechanic:Outlast, cost:Cost{parts:[Mana($mana_symbols)]}} */
+granted_outlast ::= "outlast" mana_symbols
