@@ -23,6 +23,9 @@ struct Case {
     text: String,
     #[serde(default)]
     types: Vec<String>,
+    /// None inherits the invocation's mode; false permits seeded rules for this case.
+    #[serde(default)]
+    compositional: Option<bool>,
     #[serde(default)]
     context: Option<Characteristics>,
     #[serde(default)]
@@ -281,11 +284,14 @@ fn run() -> Result<(), String> {
         .collect::<Result<Vec<_>, _>>()?;
     let engine = Engine::load_from_args()?;
     let compositional = args.iter().any(|arg| arg == "--compositional");
-    let off =
-        engine.rule_set(|name| compositional && (name.starts_with("m_") || name.starts_with("t_")));
+    let off_seeded = engine.rule_set(|name| name.starts_with("m_") || name.starts_with("t_"));
+    let off_none = RuleSet::default();
     // Cases are independent reads of one immutable engine. Results keep input order.
     let cases: Vec<&Case> = families.iter().flat_map(|f| &f.cases).collect();
-    let mut checked = corpus::parallel(&cases, |case| check(&engine, &off, case))?.into_iter();
+    let mut checked = corpus::parallel(&cases, |case| {
+        check_case(&engine, &off_seeded, &off_none, case, compositional)
+    })?
+    .into_iter();
     let reports: Vec<_> = families
         .iter()
         .map(|family| {
@@ -307,6 +313,21 @@ fn run() -> Result<(), String> {
     } else {
         Err("family checks failed".into())
     }
+}
+
+fn check_case(
+    engine: &Engine,
+    off_seeded: &RuleSet,
+    off_none: &RuleSet,
+    case: &Case,
+    compositional: bool,
+) -> Result<usize, String> {
+    let off = if case.compositional.unwrap_or(compositional) {
+        off_seeded
+    } else {
+        off_none
+    };
+    check(engine, off, case)
 }
 
 fn load_family(path: &str) -> Result<Family, String> {
@@ -340,8 +361,16 @@ fn report_family(
         }
     }
     let passed = failures.is_empty();
+    let compositional_cases = family
+        .cases
+        .iter()
+        .filter(|case| case.compositional.unwrap_or(compositional))
+        .count();
     let report = json!({"family":family.family,"cases":family.cases.len(),
-            "passed":family.cases.len()-failures.len(),"compositional":compositional,
+            "passed":family.cases.len()-failures.len(),
+            "compositional":compositional_cases == family.cases.len(),
+            "compositional_cases":compositional_cases,
+            "seeded_cases":family.cases.len()-compositional_cases,
             "readings":readings,"expected_ir_cases":family.cases.iter().filter(|c| c.expected.is_some()).count(),
             "exact_cases":family.cases.iter().filter(|c| c.exact).count(),
             "default_cases":family.cases.iter().filter(|c| c.default).count(),
@@ -357,3 +386,7 @@ fn main() -> Result<(), String> {
         .join()
         .map_err(|_| "family worker panicked")?
 }
+
+#[cfg(test)]
+#[path = "../tests/family_check_modes.rs"]
+mod family_check_modes;
