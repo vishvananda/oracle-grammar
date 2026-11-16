@@ -32,6 +32,12 @@ whole seeded rule. Preserve all readings, holder/actor/owner/controller/result
 identities and original Oracle words. Do not rewrite text, widen equality,
 change expected reference IR or use first-match semantics. Split inflections
 and pronouns into separate productions per docs/print-shapes.md.
+Apply the mechanical seeded removals with this descriptor-bound command instead
+of editing huge seeded hook lines or semantic comments manually:
+{json.dumps([sys.executable, str(run/'support/runner/retire_author.py'), str(run), task_id, '--remove-assigned'])}
+It reconstructs seeded files from the fixed base, removes exactly the assigned
+rules and saves private backups. Put new shared productions in your declared
+handwritten modules, never in mined.ebnf.
 This is syntax-only. If Rust, lexical, IR, binding or out-of-scope module changes
 are necessary, record the exact reason and escalate. Do not edit those files.
 No Cargo, git commits/staging, whole-corpus scans, additional agents or network.

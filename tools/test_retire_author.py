@@ -27,6 +27,28 @@ class AuthoringTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'identifier'):
                 a.edit_leaf([{field: 0}], [0, field], 1)
 
+    def test_mechanical_removal_repairs_hook_damage_and_preserves_authored_modules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base, root = Path(tmp)/'base', Path(tmp)/'worker'
+            for folder in (base, root):
+                (folder/'grammar/syntax').mkdir(parents=True)
+                (folder/'grammar/syntax/mined.ebnf').write_text(
+                    'mined_action ::= m_a | m_b\n'
+                    '/* @sem A */\nm_a ::= "alpha"\n'
+                    '/* @sem B */\nm_b ::= "beta"\n')
+            (root/'grammar/syntax/mined.ebnf').write_text('broken dangling hook\n')
+            (root/'grammar/syntax/custom.ebnf').write_text('authored phrase\n')
+            result = a.regenerate_removals(base, root, {'rules': ['m_a'],
+                'write_files': ['grammar/syntax/mined.ebnf', 'grammar/syntax/custom.ebnf']})
+            self.assertEqual(result['removed'], ['m_a'])
+            self.assertEqual(a.seeded(root), {'m_b'})
+            text = (root/'grammar/syntax/mined.ebnf').read_text()
+            self.assertIn('mined_action ::= m_b', text)
+            self.assertIn('/* @sem B */\nm_b', text)
+            self.assertEqual((root/'grammar/syntax/custom.ebnf').read_text(), 'authored phrase\n')
+            self.assertEqual((Path(result['backups'])/'syntax/mined.ebnf').read_text(),
+                             'broken dangling hook\n')
+
     def test_descriptor_and_support_hashes_fail_closed(self):
         with tempfile.TemporaryDirectory() as tmp:
             run = Path(tmp)

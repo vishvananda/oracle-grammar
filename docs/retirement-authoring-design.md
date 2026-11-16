@@ -159,6 +159,15 @@ They author focused families and current-operand edit fixtures. The runner
 applies those primitive edits to immutable reference IR before score/print/reparse,
 and the coordinator independently snapshots and rechecks final candidates.
 
+The descriptor-bound `--remove-assigned` command reconstructs seeded files from
+the immutable baseline and removes the assigned rules with the existing removal
+implementation. It saves private backups and preserves authored modules. Workers
+should use it instead of editing large seeded hook lists and semantic comments.
+Coordinator evaluations run in separate processes so concurrent checks cannot
+share another task's lease descriptors. The rolling scheduler starts a pair's
+second model as soon as its first finishes; it retains the chosen first-model
+ordering without waiting for unrelated tasks.
+
 Every candidate remains provisional. The pilot does not merge author patches,
 run a corpus per worker, or infer acceptance from agent prose. Its results should
 determine which families Luna can handle, which go directly to a larger model,

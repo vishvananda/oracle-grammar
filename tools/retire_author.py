@@ -5,6 +5,7 @@ import copy
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
@@ -41,6 +42,31 @@ def changed_files(root):
     untracked = subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard'],
                                         cwd=root, text=True).splitlines()
     return sorted(set(tracked + untracked))
+
+
+def regenerate_removals(base, root, task):
+    """Rebuild seeded hooks from the immutable base; retain private backups."""
+    directory = root/'.cache'/('assigned-removal-'+uuid.uuid4().hex)
+    directory.mkdir(parents=True)
+    shutil.copytree(base/'grammar', directory/'grammar')
+    removed, kept = mined.remove(directory, task['rules'])
+    r.require(set(removed) == set(task['rules']) and not kept, 'assigned rules have retained users')
+    before, after = r.tree(base/'grammar'), r.tree(directory/'grammar')
+    changed = [name for name in before if before[name] != after[name]]
+    r.require(all('grammar/'+name in task['write_files'] for name in changed),
+              'removal would change files outside the task write set')
+    for name in changed:
+        backup = directory/'backup'/name
+        backup.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(root/'grammar'/name, backup)
+        r.require(Path(name).name == 'mined.ebnf', 'coordinator must admit non-mined hook changes')
+    for name in changed:
+        target = root/'grammar'/name
+        temporary = target.with_name(target.name+'.'+uuid.uuid4().hex+'.tmp')
+        shutil.copy2(directory/'grammar'/name, temporary)
+        os.replace(temporary, target)
+    return {'removed': removed, 'backups': str(directory/'backup'),
+            'status': 'mechanical edit only; run diagnostics before claiming a pass'}
 
 
 def verify(run, task_id):
@@ -134,7 +160,6 @@ def check(run, task_id, coordinator=False):
                   'support_sha256': r.digest(run/'support.json'),
                   'directory': str(directory), 'failures': []}
         before = r.tree(root/'grammar')
-        import shutil
         shutil.copytree(root/'grammar', directory/'grammar')
         grammar = directory/'grammar'
         try:
@@ -147,7 +172,6 @@ def check(run, task_id, coordinator=False):
             r.require(4 <= len(cases) <= 64 and any(c.get('reject') for c in cases)
                       and any(c.get('expected') is not None for c in cases),
                       'family needs positive, expected-IR and refusal controls')
-            import shutil
             shutil.copy2(fixture, directory/'family.json')
             report['fixture_sha256'] = r.digest(fixture)
             report['edits_sha256'] = r.digest(root/task['edits'])
@@ -177,8 +201,17 @@ def main():
     parser.add_argument('run', type=Path)
     parser.add_argument('task')
     parser.add_argument('--coordinator', action='store_true')
+    parser.add_argument('--remove-assigned', action='store_true')
     args = parser.parse_args()
-    check(args.run.resolve(), args.task, args.coordinator)
+    if args.remove_assigned:
+        task, root, _ = verify(args.run.resolve(), args.task)
+        with r.locked(root/'.cache/author-check.lock', blocking=False) as acquired:
+            r.require(acquired, 'a diagnostic helper is still running')
+            result = regenerate_removals(args.run.resolve()/'inputs/frozen', root, task)
+            verify(args.run.resolve(), args.task)
+            print(json.dumps(result))
+    else:
+        check(args.run.resolve(), args.task, args.coordinator)
 
 
 if __name__ == '__main__':
