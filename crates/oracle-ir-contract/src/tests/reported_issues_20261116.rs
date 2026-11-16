@@ -255,6 +255,24 @@ fn every_basic_land_type_has_one_intrinsic_output_with_or_without_printed_text()
             serde_json::to_value(crate::canonical::semantic_card(&unprinted).unwrap()).unwrap()
         );
         assert_eq!(printed.abilities.len(), 1);
+        let mut reminded = printed.clone();
+        reminded.abilities[0] = Ability::WithPresentation {
+            label: Some("Mana".into()),
+            reminder: true,
+            ability: Box::new(reminded.abilities[0].clone()),
+        };
+        assert_eq!(
+            intrinsic::nonintrinsic_printed_abilities(&reminded).count(),
+            0
+        );
+        assert_eq!(
+            serde_json::to_value(crate::canonical::semantic_card(&reminded).unwrap()).unwrap(),
+            serde_json::to_value(crate::canonical::semantic_card(&unprinted).unwrap()).unwrap()
+        );
+        assert_eq!(
+            crate::canonical::card(&reminded).unwrap().abilities.len(),
+            1
+        );
     }
 }
 

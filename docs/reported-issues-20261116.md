@@ -130,6 +130,8 @@ The owned `intrinsic` API provides the operational boundary:
 The classifier requires the land type, a sole tap-symbol cost, no limits or
 targets, one fixed mana of the matching color for the controller, and no other
 action or spending restriction. It never coalesces arbitrary equal operations.
+Reminder and label metadata retain that same printed definition and do not
+create another activation. Scope restrictions and grants remain distinct.
 Validate the face before meaning comparison. `canonical::semantic_card` supplies
 the card-context normal form; ordinary `canonical::card` preserves wording.
 Ability-only comparison has no card-type proof and does not remove these lines.

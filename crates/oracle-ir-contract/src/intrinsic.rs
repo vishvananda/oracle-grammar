@@ -49,6 +49,18 @@ pub fn printed_basic_land_mana(
     characteristics: &Characteristics,
     ability: &Ability,
 ) -> Option<ManaColor> {
+    // Presentation retains this same printed definition and acquisition. It
+    // cannot turn the manifestation into another activation. Other wrappers,
+    // including scope restrictions and grants, still fail the exact proof.
+    let mut ability = ability;
+    let mut remaining = 128;
+    while let Ability::WithPresentation { ability: inner, .. } = ability {
+        if remaining == 0 {
+            return None;
+        }
+        remaining -= 1;
+        ability = inner;
+    }
     let Ability::Activated {
         origin,
         cost,
