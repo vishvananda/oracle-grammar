@@ -94,3 +94,43 @@ For mechanical work, the CLI can perform the changes without a model. Luna is
 the cheaper option for supervised reporting in this pilot; Terra completes the
 same reporting sooner. Reduce manual timing wrappers and artifact hunting with
 the generated receipts, and send semantic/printing repairs to a separate lane.
+
+## Twelve-worker resource probe
+
+A separate capacity probe ran twelve local workflow processes against a frozen
+32,755-occurrence campaign, with two helper threads per worker and one job each.
+It made no additional model calls and applied no grammar changes. All twelve
+claimed distinct jobs and exited normally: six provisional passes and six
+review cases. The helper thread budget was 24.
+
+| Resource | Observed |
+| --- | ---: |
+| Available logical CPUs | 88 |
+| Batch wall time | 97.26 s |
+| Aggregate CPU time, including waited-for helpers | 394.84 core-seconds |
+| Average busy cores over the batch | 4.06 |
+| Peak sampled busy cores | 15.59 |
+| Peak summed RSS, workers and helpers | 11.52 GiB |
+| Minimum host available memory | 66.73 GiB |
+| Campaign file-accounted allocation before the CoW canary | 363 MiB |
+
+Sampling was every 250 ms. Summed RSS is a conservative memory measure because
+it includes shared pages; short CPU bursts can fall between samples. Job lengths
+differed, leaving a long tail, so the average core count does not represent a
+fully busy twelve-worker pool. The host had no applicable CPU or memory cgroup
+quota. This measures the existing quick release helpers as a workflow load,
+rather than claiming an optimized grammar-engine performance result.
+
+The earlier model experiment occupied approximately 740 MiB on its original
+filesystem. The capacity campaign used a roomier Btrfs volume. Ordinary grammar
+copies there already shared unchanged extents: a 10.91 MiB candidate had 3.01 MiB
+exclusive data after editing. An explicit reflink copy produced identical edited
+bytes and left the frozen source unchanged. Full CoW Git worktrees are therefore
+unnecessary for the deletion-only lane; they remain useful for workers that need
+source checkouts and compilation. Keep large campaigns on a volume with space
+and CoW support, and retain the two-thread-per-worker budget initially.
+
+This probe establishes local process capacity. Twelve simultaneous model-backed
+agents were not tested; model-service concurrency and the launching tool's agent
+slots are separate limits. Raw samples and per-process resource records remain
+under ignored cache directories.

@@ -117,6 +117,15 @@ Oracle words can miss print dependencies. Add trace-based invalidation only
 with evidence that it preserves default search, refusal and every reading.
 No throughput or speedup is claimed without measurements.
 
+For larger pools, place the campaign on a filesystem with ample space and CoW
+support. Workers need private grammar directories rather than complete Git
+checkouts. In the measured Btrfs environment, the existing copies already shared
+unchanged extents while edits stayed isolated; full CoW worktrees are reserved
+for lanes that need source changes or builds. The
+[resource probe](retirement-worker-pilot-20261116.md#twelve-worker-resource-probe)
+completed twelve workers at two helper threads each. Model-service concurrency
+limits are independent of this local process budget.
+
 `worker --rules RULE_A RULE_B --limit 2` reserves a fixed bundle for paired model
 trials. Per-helper `commands.jsonl`, per-job elapsed times and per-worker invocation
 receipts separate helper execution from agent turnaround. CLI exit zero means
