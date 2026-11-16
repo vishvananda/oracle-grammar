@@ -54,7 +54,9 @@ fn check_wording(cases: Vec<Value>) {
         let name = case["name"].as_str().unwrap();
         let text = case["text"].as_str().unwrap();
         let abilities = reading_case(&case);
-        let types = crate::corpus::print_context(&case);
+        let types = crate::corpus::object_print_context(
+            case.get("context").unwrap_or(&case["characteristics"]),
+        );
         let default = engine().print_keyed(name, &abilities, &types, &[]).unwrap();
         assert!(default.is_some(), "{name}: no verified default print");
         if default.as_deref() == Some(text) {
