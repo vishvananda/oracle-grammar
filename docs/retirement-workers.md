@@ -370,6 +370,9 @@ once into two balanced pending jobs of at most three rules each, against the
 latest accepted checkpoint. An operator may instead retry an original
 one-to-three-rule timeout once on the latest checkpoint with the same rule
 owner and a fresh attempt. The
-original attempt, archive and cost history remain intact. Timeout children cannot
+original attempt, archive and cost history remain intact.
+A verified singleton mechanical removal with named native or print regressions
+can move to an author job scoped to those faces. The original evidence stays
+with the terminal mechanical attempt and the author runs fresh gates. Timeout children cannot
 use this recovery recursively, and neither the split nor a pending child is an
 acceptance; each child must complete the normal review and validation gates.

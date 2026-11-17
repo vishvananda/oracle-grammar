@@ -131,3 +131,89 @@ def resolve_origin(db, job_id, row):
     if origin is None and set(payload['rules']) != set(result['outcomes']):
         raise ValueError('original outcomes differ from assigned rules')
     return payload, resolved, attempt[1], attempt[2], attempt[3]
+
+
+def _digest_large(path):
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+MECHANICAL_OUTCOME_FILES = ('commands.jsonl', 'native.json', 'native-failures.jsonl',
+                            'before.jsonl', 'rows.jsonl', 'slice.json')
+
+
+def recheck_mechanical_failure(inputs, evidence):
+    report = Path(evidence['report']['path'])
+    artifacts = evidence.get('artifacts')
+    if not isinstance(artifacts, dict) or set(artifacts) != set(MECHANICAL_OUTCOME_FILES):
+        raise ValueError('complete mechanical outcome artifacts are required')
+    data = {name: _artifact(artifacts, name, report.parent/name)[0] for name in MECHANICAL_OUTCOME_FILES}
+    # The full frozen index can be larger than a focused diagnostic artifact.
+    index = evidence.get('index', {})
+    path = inputs/'frozen/index.json'
+    if (index.get('path') != str(path) or path.is_symlink() or path.stat().st_size > 1024*1024*1024
+            or _digest_large(path) != index.get('sha256')):
+        raise ValueError('mechanical diagnostic index differs')
+    _artifact(evidence['scan'], 'manifest', inputs/'manifest.json')
+    return data
+
+
+def mechanical_failure(inputs, run, rules, report, evidence):
+    """Recompute the named semantic regressions of a verified pure removal."""
+    import subprocess
+    import tempfile
+
+    import retire as r
+    import retire_batch as batch
+    import retire_native_outcome as native_outcome
+    import retire_parse_screen as screen
+    import retire_worker as worker
+
+    directory = Path(report['directory'])
+    task = r.read(run/'tasks'/f"{report['task']}.json")
+    if ((run/'inputs').resolve() != inputs or task.get('rules') != rules or task.get('kind') != 'mechanical'
+            or task.get('mechanical_chunks') is not None or 'chunks_expected' in report):
+        raise ValueError('unpartitioned mechanical report differs from its assigned inputs')
+    manifest = r.read(inputs/'manifest.json')
+    if evidence['index'].get('sha256') != manifest['files'].get('index.json'):
+        raise ValueError('mechanical diagnostic index differs from the frozen manifest')
+    frozen = r.verify(inputs)
+    with tempfile.TemporaryDirectory(prefix='retire-mechanical-proof-') as scratch:
+        root = Path(scratch)
+        batch._mechanical_removal(run, directory, rules, root)
+        raw = recheck_mechanical_failure(inputs, evidence)
+        names = set(json.loads(raw['slice.json'])['cards'])
+        if not 1 <= len(names) <= 1024 or names != set(task['cohort']):
+            raise ValueError('mechanical diagnostic cohort differs')
+        index = {key: entry for key,entry in r.read(inputs/'frozen/index.json').items() if entry['name'] in names}
+        (root/'frozen').mkdir()
+        r.write(root/'manifest.json', {'population': len(index)})
+        r.write(root/'frozen/allowed.json', {'cards': sorted(names)})
+        for name, value in raw.items():
+            (root/name).write_bytes(value)
+        commands = [json.loads(line) for line in raw['commands.jsonl'].splitlines()]
+        native = json.loads(raw['native.json'])
+        completed = [(c.get('program'), c.get('returncode')) for c in commands]
+        data = (index, None, None)
+        if completed == [('score', 0), ('validate-readings', 1)]:
+            command = [str((inputs/'frozen/bin/validate-readings').resolve()), str(directory/'gold.jsonl'),
+                       str(directory/'rows.jsonl'), str(directory/'native.json'), str(directory/'native-failures.jsonl'),
+                       '--preserve-from', str(directory/'before.jsonl')]
+            error = subprocess.CalledProcessError(1, command)
+            if report.get('failures') != [str(error)]:
+                raise ValueError('mechanical native failure does not match its command')
+            actual = native_outcome.preservation_failure(error, inputs, directory, data)
+        else:
+            screen.assess(root, root, data, 0)
+            failures = worker.native_failures(native, len(index)) + worker.compare(r.rows(root/'rows.jsonl'), index, names)
+            actual = {'faces': len(index), 'failures': failures}
+            if actual != {key: report.get(key) for key in ('faces', 'failures')}:
+                raise ValueError('mechanical native and print failure differs from its report')
+        preserved = native['reading_preservation']
+        faces = {item['face'] for item in actual['failures'] if isinstance(item, dict)}
+        faces.update(item['name'] for key in ('missing', 'additions') for item in preserved[key])
+        if not 1 <= len(faces) <= 500 or not faces <= names or sum(entry['name'] in faces for entry in index.values()) == 0:
+            raise ValueError('mechanical failure lacks named target evidence')
+    if r.verify(inputs) != frozen:
+        raise ValueError('mechanical frozen inputs changed during review')
+    return sorted(faces)

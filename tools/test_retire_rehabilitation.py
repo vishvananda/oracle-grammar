@@ -131,6 +131,42 @@ class RehabilitationTests(unittest.TestCase):
                 self.queue.rehabilitate_unused('family', 'new', self.proof)
         self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
 
+    def test_semantic_mechanical_failure_creates_a_targeted_author_owner(self):
+        self.new_checkpoint('mechanical-tip', ['m_extra'], 'new')
+        job = {'id': 'mechanical-extra', 'kind': 'mechanical', 'rules': ['m_extra'],
+               'goal': 'Retire the assigned fallback.', 'target_faces': []}
+        self.queue.add_jobs([job])
+        claim = self.queue.claim('worker', kinds=['mechanical'])
+        attempt = claim['attempt_id']
+        child = subprocess.Popen(['true'])
+        child.wait()
+        self.queue.mark_started(attempt, pid=child.pid)
+        (self.root/'leases'/job['id']).touch()
+        self.queue.finish(attempt, 'needs-review', {'kind': 'mechanical'},
+                          {'m_extra': {'status': 'needs-review', 'reason': 'exact print regressed', 'evidence': 'receipt'}})
+        before = self.queue.get_attempt(attempt)
+        evidence = {'kind': 'mechanical-author-escalation', 'scan': self.proof}
+        with patch('retire_queue._verify_mechanical_readmission', return_value={}) as verify, \
+             patch('retire_rehabilitation.mechanical_failure', return_value=['Target']), \
+             patch('retire_rehabilitation.recheck_mechanical_failure', side_effect=ValueError('proof changed')):
+            with self.assertRaisesRegex(ValueError, 'proof changed'):
+                self.queue.escalate_mechanical_failure(job['id'], attempt, 'mechanical-tip', evidence)
+            self.assertTrue(all(call.kwargs == {'passed': False} for call in verify.call_args_list))
+        self.assertEqual(self.queue.coverage()['rules']['m_extra']['disposition'], 'needs-review')
+        with patch('retire_queue._verify_mechanical_readmission', return_value={}), \
+             patch('retire_rehabilitation.mechanical_failure', return_value=['Target']), \
+             patch('retire_rehabilitation.recheck_mechanical_failure'):
+            decision = self.queue.escalate_mechanical_failure(job['id'], attempt, 'mechanical-tip', evidence)
+            with self.assertRaisesRegex(ValueError, 'stale'):
+                self.queue.escalate_mechanical_failure(job['id'], attempt, 'mechanical-tip', evidence)
+        self.assertEqual(self.queue.get_attempt(attempt), before)
+        accepted = self.queue.claim('terra', kinds=['author'])
+        self.assertEqual(accepted['job']['id'], decision['child_job'])
+        self.assertEqual(accepted['job']['rules'], ['m_extra'])
+        self.assertEqual(accepted['job']['target_faces'], ['Target'])
+        self.assertEqual(self.queue.coverage()['total_rules'], 4)
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+
     def test_parked_singleton_mechanical_and_terminal_failed(self):
         self.queue.add_jobs([{'id': 'unused-mechanical', 'kind': 'mechanical', 'rules': ['m_other']}])
         claim = self.queue.claim('mechanical')

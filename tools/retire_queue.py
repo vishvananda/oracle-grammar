@@ -362,14 +362,16 @@ def _verify_batch_readmission(campaign, job_id, attempt_id, checkpoint, base_com
             'case': isolation['case'], 'requires_fresh_full_validation': True}
 
 
-def _verify_mechanical_readmission(campaign, job_id, attempt_id, base_commit, original, report_spec):
+def _verify_mechanical_readmission(campaign, job_id, attempt_id, base_commit, original, report_spec, *, passed=True):
     report_path, data = _proof_file(report_spec)
     expected = campaign/'.cache/attempts'/attempt_id/'evaluations'/job_id
     if (report_path != Path(original.get('report', '')) or report_path.name != 'report.json'
             or not report_path.resolve().is_relative_to(expected.resolve())):
         raise ValueError('mechanical report is outside the assigned evaluation')
     report = json.loads(data)
-    if (report.get('passed') is not True or report.get('failures') != [] or report.get('kind') != 'mechanical'
+    failures = report.get('failures')
+    if (report.get('passed') is not passed or not isinstance(failures, list) or bool(failures) == passed
+            or report.get('kind') != 'mechanical'
             or report.get('task') != job_id or report.get('source') != base_commit
             or report.get('hooks') != [] or Path(report.get('directory', '')).resolve() != report_path.parent.resolve()):
         raise ValueError('mechanical individual report did not pass')
@@ -656,6 +658,65 @@ class Queue:
                           'mechanical_jobs': mechanical, 'review_job': review_job, 'rules': selected,
                           'manifest_sha256': manifest_hash, 'scan_sha256': scan_hash}
                 self._event(db, 'rehabilitated-unused', {**result, 'evidence': evidence})
+                return result
+
+    def escalate_mechanical_failure(self, job_id, attempt_id, checkpoint, evidence):
+        """Schedule a Terra author attempt for one diagnosed pure-removal failure."""
+        if not isinstance(evidence, dict) or evidence.get('kind') != 'mechanical-author-escalation':
+            raise ValueError('mechanical-author-escalation evidence is required')
+        query = ('SELECT j.status,j.attempt_id,j.payload,a.base_commit,a.started,a.result,a.job_id FROM jobs j '
+                 'JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?')
+        campaign = Path(self.path).parent
+        with self._retry_lease(job_id):
+            with closing(self._connect()) as db:
+                row = db.execute(query, (job_id,)).fetchone()
+                head = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if (not row or tuple(row[:2]) != ('needs-review', attempt_id) or row[3] != checkpoint
+                        or row[6] != job_id or not head or head[0] != checkpoint):
+                    raise ValueError('mechanical attempt or checkpoint is stale')
+                snapshot, tip = tuple(row), tuple(head)
+            payload, start, original = map(json.loads, (row[2], row[4], row[5]))
+            rules = payload['rules']
+            outcomes = original.get('outcomes', {})
+            receipt = original.get('evidence', {})
+            pid = start.get('pid')
+            if (payload.get('kind') != 'mechanical' or len(rules) != 1 or payload.get('mechanical_failure_origin')
+                    or original.get('status') != 'needs-review' or set(outcomes) != set(rules)
+                    or outcomes[rules[0]].get('status') != 'needs-review' or receipt.get('kind') != 'mechanical'
+                    or type(pid) is not int or pid <= 0):
+                raise ValueError('one finished mechanical rule with diagnosed failure is required')
+            self._require_absent_pid(pid)
+            inputs, unused, manifest_hash, scan_hash = retire_rehabilitation.verify_scan(
+                campaign, checkpoint, json.loads(tip[1]), evidence.get('scan'))
+            if not set(rules) <= unused:
+                raise ValueError('mechanical rule is absent from the unused audit')
+            retire_rehabilitation.verify_rule_receipts(inputs, rules, manifest_hash, scan_hash)
+            run = campaign/'.cache/attempts'/attempt_id
+            report = _verify_mechanical_readmission(campaign, job_id, attempt_id, checkpoint, receipt,
+                                                       evidence.get('report'), passed=False)
+            faces = retire_rehabilitation.mechanical_failure(inputs, run, rules, report, evidence)
+            suffix = hashlib.sha256((job_id+'\0'+attempt_id+'\0'+checkpoint).encode()).hexdigest()[:20]
+            origin = {'job_id': job_id, 'attempt_id': attempt_id, 'checkpoint': checkpoint}
+            child = dict(payload, id='repair-mech-'+suffix, kind='author', target_faces=faces,
+                         requires_diagnosis=True, mechanical_failure_origin=origin,
+                         goal=payload['goal']+' Preserve the readings and print gates of the diagnosed target faces.')
+            for key in ('rehabilitation_origin', 'review_origin', 'review_checkpoint'):
+                child.pop(key, None)
+            with self._transaction() as db:
+                latest = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                current = db.execute(query, (job_id,)).fetchone()
+                owned = [rule for rule, in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))]
+                if not latest or tuple(latest) != tip or not current or tuple(current) != snapshot or owned != rules:
+                    raise ValueError('mechanical checkpoint, attempt or ownership changed')
+                self._require_absent_pid(pid)
+                _verify_mechanical_readmission(campaign, job_id, attempt_id, checkpoint, receipt,
+                                                evidence.get('report'), passed=False)
+                retire_rehabilitation.recheck_mechanical_failure(inputs, evidence)
+                db.execute("INSERT INTO jobs(id,payload,status) VALUES (?,?,'pending')", (child['id'], _json(child)))
+                db.execute("UPDATE rules SET job_id=? WHERE job_id=? AND rule=?", (child['id'], job_id, rules[0]))
+                db.execute("UPDATE jobs SET status='superseded' WHERE id=?", (job_id,))
+                result = {**origin, 'child_job': child['id'], 'rules': rules, 'target_faces': faces, 'evidence': evidence}
+                self._event(db, 'escalated-mechanical-failure', result)
                 return result
 
     def publish_priorities(self, checkpoint, plan):
