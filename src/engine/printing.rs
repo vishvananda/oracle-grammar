@@ -353,25 +353,6 @@ impl Engine {
         Ok(self.reads_as(name, &text, &wanted).then_some(text))
     }
 
-    /// The round-trip gate: how many enumerated texts there are, and those that do not
-    /// reparse to the same IR. `render` drops those, so it cannot measure this.
-    pub fn round_trip(
-        &self,
-        name: &str,
-        abilities: &Value,
-        types: &[String],
-        cap: usize,
-    ) -> Result<(u64, Vec<String>), String> {
-        let wanted = canonical_abilities(abilities)?;
-        let texts = self.enumerated(name, abilities, types, cap, &[])?.texts;
-        let count = texts.len() as u64;
-        let lost = texts
-            .into_iter()
-            .filter(|text| !self.reads_as(name, text, &wanted))
-            .collect();
-        Ok((count, lost))
-    }
-
     /// Whether one of these trees builds the wanted abilities.
     fn means(&self, name: &str, trees: &[Rc<Node>], wanted: &Value) -> bool {
         trees.iter().any(|tree| {
@@ -381,7 +362,7 @@ impl Engine {
         })
     }
 
-    fn reads_as(&self, name: &str, text: &str, wanted: &Value) -> bool {
+    pub(super) fn reads_as(&self, name: &str, text: &str, wanted: &Value) -> bool {
         self.parse(name, text)
             .is_ok_and(|parsed| parsed.readings.contains(wanted))
     }

@@ -112,21 +112,34 @@ fn render_row(
 ) -> Result<(), String> {
     let name = face["name"].as_str().unwrap_or_default();
     let types = oracle_ir_grammar::corpus::print_context(face);
+    let printed = engine.print_keyed(name, &face["abilities"], &types, &[])?;
+    render_row_with_default(engine, face, text, &types, row, score, printed)
+}
+
+fn render_row_with_default(
+    engine: &Engine,
+    face: &Value,
+    text: &str,
+    types: &[String],
+    row: &mut Value,
+    score: &mut Score,
+    printed: Option<String>,
+) -> Result<(), String> {
+    let name = face["name"].as_str().unwrap_or_default();
     let abilities = &face["abilities"];
-    let printed = engine.print_keyed(name, abilities, &types, &[])?;
     score.round_trip += u64::from(printed.is_some());
     let first = printed.as_deref() == Some(text);
     let mut any = first;
     if !first {
         row["default"] = json!(printed);
-        let default = engine.productions_of(name, abilities, &types)?;
+        let default = engine.productions_of(name, abilities, types)?;
         if let Some(full) = engine.derivation_of(name, abilities, text)? {
             score.reachable += 1;
             let trimmed = Engine::trim_key(&full, &default);
             // A key is a set, so a short one can make every candidate wrong the same way
             // and fail only after the whole fallback search. Try it narrowly, then the full
             // key, and give the short key its whole search only if the full key fails too.
-            let narrow = engine.print_keyed_narrow(name, abilities, &types, &trimmed)?;
+            let narrow = engine.print_keyed_narrow(name, abilities, types, &trimmed)?;
             let mut found = (narrow.as_deref() == Some(text)).then_some(&trimmed);
             let rest = if trimmed == full {
                 vec![&full]
@@ -135,7 +148,7 @@ fn render_row(
             };
             for key in rest {
                 if found.is_none()
-                    && engine.print_keyed(name, abilities, &types, key)?.as_deref() == Some(text)
+                    && engine.print_keyed(name, abilities, types, key)?.as_deref() == Some(text)
                 {
                     found = Some(key);
                 }
@@ -175,7 +188,12 @@ fn round_trip_row(
 ) -> Result<(), String> {
     let name = face["name"].as_str().unwrap_or_default();
     let types = oracle_ir_grammar::corpus::print_context(face);
-    let (texts, lost) = engine.round_trip(name, &face["abilities"], &types, 8)?;
+    let result = engine.round_trip(name, &face["abilities"], &types, 8)?;
+    record_round_trip(row, score, result);
+    Ok(())
+}
+
+fn record_round_trip(row: &mut Value, score: &mut Score, (texts, lost): (u64, Vec<String>)) {
     let same = texts - lost.len() as u64;
     score.candidates += texts;
     score.candidates_kept += same;
@@ -183,7 +201,6 @@ fn round_trip_row(
     if !lost.is_empty() {
         row["lost"] = json!(lost);
     }
-    Ok(())
 }
 
 /// Source gold has no presentation. In raw mode every reading with matching
@@ -388,11 +405,21 @@ fn judge(
                 render_raw_readings(
                     engine, face, &matching, &notes, &mut row, &mut score, options,
                 )?;
-            } else if options.render && equal {
-                render_row(engine, face, &text, &mut row, &mut score)?;
-            }
-            if !options.raw && !source_context.station_present && options.round_trip && equal {
-                round_trip_row(engine, face, &mut row, &mut score)?;
+            } else if equal {
+                match (options.render, options.round_trip) {
+                    (true, true) => {
+                        let types = oracle_ir_grammar::corpus::print_context(face);
+                        let (printed, round_trip) =
+                            engine.audit_default_print(name, &face["abilities"], &types, 8)?;
+                        render_row_with_default(
+                            engine, face, &text, &types, &mut row, &mut score, printed,
+                        )?;
+                        record_round_trip(&mut row, &mut score, round_trip);
+                    }
+                    (true, false) => render_row(engine, face, &text, &mut row, &mut score)?,
+                    (false, true) => round_trip_row(engine, face, &mut row, &mut score)?,
+                    (false, false) => {}
+                }
             }
         }
     }

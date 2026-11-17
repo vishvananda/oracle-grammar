@@ -20,6 +20,7 @@ pub fn empty_card_characteristics() -> crate::model::ir::Characteristics {
 }
 mod ability_joins;
 mod presentation;
+mod print_audit;
 mod printing;
 pub use printing::Enumerated;
 
