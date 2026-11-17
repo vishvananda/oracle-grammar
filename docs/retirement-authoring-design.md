@@ -1,13 +1,12 @@
 # Shared grammar retirement lane
 
-Status: a [paired authoring pilot](retirement-authoring-pilot-20261116.md) is
-evaluated; its selected combined candidate passed all integration gates and is
-an accepted isolated checkpoint.
-The mechanical Luna lane
-has produced an accepted isolated seven-rule checkpoint. The deletion runner
-does not authorize grammar or Rust edits; the pilot uses separate private task
-descriptors, checkouts, frozen helpers and coordinator evaluations. Broad
-authoring scheduling and automatic integration remain outside this pilot.
+Status: the [paired authoring pilot](retirement-authoring-pilot-20261116.md) and
+the seven-rule mechanical checkpoint passed their integration gates. The rolling
+campaign now supports mechanical deletion, shared grammar authoring and automatic
+integration after validation. Each attempt uses a private checkout, fixed task
+descriptor, frozen helpers and independent coordinator evaluation. The deletion
+lane does not authorize shared grammar or Rust edits; the authoring lane permits
+only its declared grammar and fixture changes.
 
 ## Job and checkpoint contracts
 
@@ -218,6 +217,18 @@ commands, compiler settings, gate timing and receipt implementation. Gate
 processes inherit the coordinator's lease descriptors. Old checkpoint release
 tests remain independent of a parent's grammar override.
 
+The optional boolean `full_parse_screen` adds a rejection screen after the
+repository gates and before the full print audit. It scores the complete frozen
+allowed population without rendering, then validates every native reading against
+the checkpoint baseline. The screen checks complete population coverage, source
+and native counters, reading identities and command receipts. A validator exit
+of zero alone is insufficient: its preservation report can still list added
+readings. Invalid or incomplete evidence stops validation as an operational
+failure. Candidate, baseline and frozen input hashes are checked before and after
+the screen. A semantic rejection is recorded separately as `parse_screen`;
+passing still requires every existing full print and native check. The screen
+does not supply a full-validation result.
+
 An optional `candidate_validation_helpers` setting names a hash-bound optimized
 helper build. It remains separate from the parent checkpoint's helpers while
 staging. Promotion requires a private verified helper snapshot, the full candidate
@@ -233,6 +244,31 @@ controls against explicitly selected grammars. Atomic multi-job readmission
 verifies the shared replay once, checks every proposal's original evidence and
 ownership, and rechecks artifacts before changing any queue rows. It preserves
 the rejection history and requires fresh combined staging and full validation.
+
+Historical batches whose native validator exited one can retain an operational
+exception in their original validation record even when the artifacts establish
+a complete preservation rejection. The native exit-one readmission API handles
+only that narrow case. It verifies the exact command and receipts, original
+repository gates, frozen population and baseline, and a hash-bound diagnostic
+supplement without rewriting the rejection. It recomputes the historical native
+comparison once and independently replays the retained proposals once. Baseline,
+full-candidate and remainder controls must use the same explicit population and
+cover every originally reported failing face. All selected jobs are readmitted
+atomically under their leases, with dead-process, artifact, checkpoint and row
+checks repeated before the transaction. Readmission is allowed once per job and
+failed batch; the excluded proposals stay parked. These jobs still need fresh
+staging and the complete integration audit.
+
+An attempt with no usable model response is an operational gap, not a semantic
+finding. A verified original timeout owning four to six rules can be split once
+into two children of at most three rules. Recovery requires the archived attempt,
+an empty final response, exact timeout and process evidence, a released job lease,
+the current checkpoint proof and unchanged rule ownership. The parent and its
+evidence remain available; children cannot recursively use this recovery. Smaller
+timeouts require separate review. A coordinator triage supplement may identify
+per-rule parse dependencies or inspect saved candidate diagnostics, but must keep
+the unavailable model disposition and any untested gates explicit. An earlier
+passing diagnostic cannot validate subsequent edits to the archived candidate.
 
 Per-worker native helpers use verified independent copies. Copy-on-write support
 can share their storage without sharing a writable inode; a private helper edit
