@@ -20,6 +20,7 @@ import retire as r
 import retire_author as a
 import retire_cpu
 import retire_library_controls as library_controls
+import retire_native_outcome
 import retire_merge as merger
 import retire_tasks as tasks
 import retire_worker as w
@@ -758,7 +759,10 @@ def _validate(manifest, checkpoint, slots):
         data = w.payload(output)
         checks = folder/'full-checks'
         checks.mkdir()
-        report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()], data, threads)
+        try:
+            report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()], data, threads)
+        except subprocess.CalledProcessError as error:
+            report = retire_native_outcome.preservation_failure(error, output, checks, data)
         evidence['full_checks'] = report
         if report['failures']:
             raise ValueError('full allowed-population checks failed')

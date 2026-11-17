@@ -156,7 +156,8 @@ class DriverTests(unittest.TestCase):
                                                     'commit': 'bad-candidate', 'jobs': [item]})
                     if stage == 'provisional':
                         r.write(folder/'validation.json', {'status': 'failed', 'candidate': 'bad-candidate',
-                                'source_checkpoint': 'parent', 'reason': 'full allowed-population checks failed'})
+                                'source_checkpoint': 'parent', 'reason': 'full allowed-population checks failed',
+                                'full_checks': {'faces': 2, 'failures': ['native readings changed or failed validation']}})
                     evidence = ({'manifest': 'bad', 'validation': r.read(folder/'validation.json')} if stage == 'provisional'
                                 else {'manifest': 'bad', 'reason': 'merge or staging rejected'})
                     self.queue.rejected = [{'id': 'bad', 'attempt_id': 'a1', 'adjudication': {'evidence': evidence}}]

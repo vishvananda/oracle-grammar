@@ -167,7 +167,10 @@ class BatchTests(unittest.TestCase):
     def test_gate_driver_mutation_does_not_start_full_score(self):
         self._validate_threads(16, True, driver_changed=True)
 
-    def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False):
+    def test_complete_native_preservation_rejection_is_recorded(self):
+        self._validate_threads(16, True, native_rejection=True)
+
+    def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False, native_rejection=False):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -202,6 +205,8 @@ class BatchTests(unittest.TestCase):
                 for fd in batch.r._LEASES:
                     os.fstat(fd)
                 (directory/'rows.jsonl').write_text('rows')
+                if native_rejection:
+                    raise subprocess.CalledProcessError(1, ['validate-readings'])
                 return {'failures': []}
             def gate(*args, **kwargs):
                 command = args[0]
@@ -220,7 +225,7 @@ class BatchTests(unittest.TestCase):
             def freeze_input(args):
                 order.append('freeze')
                 args.run.mkdir()
-            with patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar', 'ORACLE_GRAMMAR_POISON': 'wrong'}), patch.object(batch, 'REPOSITORY_DRIVER', driver), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate):
+            with patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar', 'ORACLE_GRAMMAR_POISON': 'wrong'}), patch.object(batch, 'REPOSITORY_DRIVER', driver), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate), patch.object(batch.retire_native_outcome, 'preservation_failure', return_value={'faces': 1, 'failures': ['native readings changed or failed validation']}) as recovered:
                 result = batch.validate(manifest, cp)
             self.assertEqual(freeze.call_args.args[0].threads, expected)
             self.assertEqual(freeze.call_args.args[0].slots, 1)
@@ -247,6 +252,16 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(batch.r._LEASES, [])
                 return
             self.assertEqual(order, ['freeze', 'gate', 'checks'])
+            if native_rejection:
+                recovered.assert_called_once()
+                self.assertEqual(result['status'], 'failed')
+                self.assertEqual(result['reason'], 'full allowed-population checks failed')
+                self.assertEqual(result['full_checks']['faces'], 1)
+                self.assertTrue(result['full_checks']['failures'])
+                self.assertNotIn('rows', result)
+                self.assertEqual(batch.r._LEASES, [])
+                return
+            recovered.assert_not_called()
             self.assertEqual(result['repository_driver_sha256'], driver_hash)
             self.assertEqual(result['repository_grammar'], str(source/'grammar'))
             self.assertEqual(result['status'], 'passed')
