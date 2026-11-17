@@ -153,15 +153,32 @@ class RehabilitationTests(unittest.TestCase):
                 self.queue.escalate_mechanical_failure(job['id'], attempt, 'mechanical-tip', evidence)
             self.assertTrue(all(call.kwargs == {'passed': False} for call in verify.call_args_list))
         self.assertEqual(self.queue.coverage()['rules']['m_extra']['disposition'], 'needs-review')
+        self.new_checkpoint('later-tip', [], 'mechanical-tip')
+        with self.assertRaisesRegex(ValueError, 'stale'):
+            self.queue.escalate_mechanical_failure(job['id'], attempt, 'mechanical-tip', evidence)
+
+        def advance(*_):
+            self.new_checkpoint('raced-tip', [], 'later-tip')
+            return ['Target']
+
         with patch('retire_queue._verify_mechanical_readmission', return_value={}), \
+             patch('retire_rehabilitation.mechanical_failure', side_effect=advance):
+            with self.assertRaisesRegex(ValueError, 'checkpoint, attempt or ownership changed'):
+                self.queue.escalate_mechanical_failure(job['id'], attempt, 'later-tip', evidence)
+        self.assertEqual(self.queue.coverage()['rules']['m_extra']['disposition'], 'needs-review')
+        with patch('retire_queue._verify_mechanical_readmission', return_value={}) as verify, \
              patch('retire_rehabilitation.mechanical_failure', return_value=['Target']), \
              patch('retire_rehabilitation.recheck_mechanical_failure'):
-            decision = self.queue.escalate_mechanical_failure(job['id'], attempt, 'mechanical-tip', evidence)
+            decision = self.queue.escalate_mechanical_failure(job['id'], attempt, 'raced-tip', evidence)
+            self.assertEqual([call.args[3] for call in verify.call_args_list], ['mechanical-tip', 'mechanical-tip'])
             with self.assertRaisesRegex(ValueError, 'stale'):
-                self.queue.escalate_mechanical_failure(job['id'], attempt, 'mechanical-tip', evidence)
+                self.queue.escalate_mechanical_failure(job['id'], attempt, 'raced-tip', evidence)
+        self.assertEqual(decision['checkpoint'], 'mechanical-tip')
+        self.assertEqual(decision['scheduled_checkpoint'], 'raced-tip')
         self.assertEqual(self.queue.get_attempt(attempt), before)
         accepted = self.queue.claim('terra', kinds=['author'])
         self.assertEqual(accepted['job']['id'], decision['child_job'])
+        self.assertEqual(accepted['base_commit'], 'raced-tip')
         self.assertEqual(accepted['job']['rules'], ['m_extra'])
         self.assertEqual(accepted['job']['target_faces'], ['Target'])
         self.assertEqual(self.queue.coverage()['total_rules'], 4)

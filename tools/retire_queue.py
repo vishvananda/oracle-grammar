@@ -462,7 +462,7 @@ def _verify_readmission_origin(db, checkpoint, origin):
         if commit == origin:
             return
         expected = parent
-    raise ValueError('parse readmission origin is outside the accepted checkpoint chain')
+    raise ValueError('proof origin is outside the accepted checkpoint chain')
 
 
 class RehabilitationIneligible(ValueError):
@@ -663,7 +663,7 @@ class Queue:
                 return result
 
     def escalate_mechanical_failure(self, job_id, attempt_id, checkpoint, evidence):
-        """Schedule a Terra author attempt for one diagnosed pure-removal failure."""
+        """Schedule a fresh author attempt for a failure on the accepted chain."""
         if not isinstance(evidence, dict) or evidence.get('kind') != 'mechanical-author-escalation':
             raise ValueError('mechanical-author-escalation evidence is required')
         query = ('SELECT j.status,j.attempt_id,j.payload,a.base_commit,a.started,a.result,a.job_id FROM jobs j '
@@ -671,11 +671,15 @@ class Queue:
         campaign = Path(self.path).parent
         with self._retry_lease(job_id):
             with closing(self._connect()) as db:
+                db.execute('BEGIN')
                 row = db.execute(query, (job_id,)).fetchone()
                 head = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
-                if (not row or tuple(row[:2]) != ('needs-review', attempt_id) or row[3] != checkpoint
+                if (not row or tuple(row[:2]) != ('needs-review', attempt_id)
                         or row[6] != job_id or not head or head[0] != checkpoint):
                     raise ValueError('mechanical attempt or checkpoint is stale')
+                base = row[3]
+                _verify_readmission_origin(db, checkpoint, base)
+                source_evidence = db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (base,)).fetchone()[0]
                 snapshot, tip = tuple(row), tuple(head)
             payload, start, original = map(json.loads, (row[2], row[4], row[5]))
             rules = payload['rules']
@@ -689,16 +693,16 @@ class Queue:
                 raise ValueError('one finished mechanical rule with diagnosed failure is required')
             self._require_absent_pid(pid)
             inputs, unused, manifest_hash, scan_hash = retire_rehabilitation.verify_scan(
-                campaign, checkpoint, json.loads(tip[1]), evidence.get('scan'))
+                campaign, base, json.loads(source_evidence), evidence.get('scan'))
             if not set(rules) <= unused:
                 raise ValueError('mechanical rule is absent from the unused audit')
             retire_rehabilitation.verify_rule_receipts(inputs, rules, manifest_hash, scan_hash)
             run = campaign/'.cache/attempts'/attempt_id
-            report = _verify_mechanical_readmission(campaign, job_id, attempt_id, checkpoint, receipt,
+            report = _verify_mechanical_readmission(campaign, job_id, attempt_id, base, receipt,
                                                        evidence.get('report'), passed=False)
             faces = retire_rehabilitation.mechanical_failure(inputs, run, rules, report, evidence)
             suffix = hashlib.sha256((job_id+'\0'+attempt_id+'\0'+checkpoint).encode()).hexdigest()[:20]
-            origin = {'job_id': job_id, 'attempt_id': attempt_id, 'checkpoint': checkpoint}
+            origin = {'job_id': job_id, 'attempt_id': attempt_id, 'checkpoint': base}
             goal = payload['goal']
             if not payload.get('mechanical_failure_origin'):
                 goal += ' Preserve the readings and print gates of the diagnosed target faces.'
@@ -712,14 +716,19 @@ class Queue:
                 owned = [rule for rule, in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))]
                 if not latest or tuple(latest) != tip or not current or tuple(current) != snapshot or owned != rules:
                     raise ValueError('mechanical checkpoint, attempt or ownership changed')
+                _verify_readmission_origin(db, checkpoint, base)
+                proof = db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (base,)).fetchone()
+                if not proof or proof[0] != source_evidence:
+                    raise ValueError('mechanical proof checkpoint changed')
                 self._require_absent_pid(pid)
-                _verify_mechanical_readmission(campaign, job_id, attempt_id, checkpoint, receipt,
+                _verify_mechanical_readmission(campaign, job_id, attempt_id, base, receipt,
                                                 evidence.get('report'), passed=False)
                 retire_rehabilitation.recheck_mechanical_failure(inputs, evidence)
                 db.execute("INSERT INTO jobs(id,payload,status) VALUES (?,?,'pending')", (child['id'], _json(child)))
                 db.execute("UPDATE rules SET job_id=? WHERE job_id=? AND rule=?", (child['id'], job_id, rules[0]))
                 db.execute("UPDATE jobs SET status='superseded' WHERE id=?", (job_id,))
-                result = {**origin, 'child_job': child['id'], 'rules': rules, 'target_faces': faces, 'evidence': evidence}
+                result = {**origin, 'scheduled_checkpoint': checkpoint, 'child_job': child['id'],
+                          'rules': rules, 'target_faces': faces, 'evidence': evidence}
                 self._event(db, 'escalated-mechanical-failure', result)
                 return result
 
