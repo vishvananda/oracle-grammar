@@ -19,6 +19,7 @@ from contextlib import ExitStack, closing, contextmanager
 import retire_cohort_proof
 import retire_rehabilitation
 import retire_native_readmission
+import retire_native_exit_readmission
 import retire_library_readmission
 import retire_priority
 import retire_timeout_recovery
@@ -1032,13 +1033,23 @@ class Queue:
                             'previous_adjudication': rejection, 'evidence': evidence})
 
     def readmit_library_batch_proposals(self, job_ids, checkpoint, evidence):
-        """Atomically return independently passed jobs for fresh integration review."""
+        """Atomically return library-isolated jobs for fresh integration review."""
+        return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='library')
+
+    def readmit_native_exit_one_batch_proposals(self, job_ids, checkpoint, evidence):
+        """Atomically return native exit-one isolated jobs for fresh validation."""
+        return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='native-exit-one')
+
+    def _readmit_shared_batch(self, job_ids, checkpoint, evidence, *, mode):
+        """Keep leases and compare-and-swap all protected attempts together."""
         if (not isinstance(job_ids, list) or not 1 <= len(job_ids) <= 96
                 or any(not isinstance(name, str) or not name for name in job_ids)
                 or len(set(job_ids)) != len(job_ids)):
             raise ValueError('readmission requires 1–96 distinct job IDs')
-        if not isinstance(evidence, dict) or evidence.get('kind') != 'isolated-batch-library-revalidation':
-            raise ValueError('isolated library batch revalidation evidence is required')
+        kind = {'library': 'isolated-batch-library-revalidation',
+                'native-exit-one': 'isolated-native-exit-one-revalidation'}[mode]
+        if not isinstance(evidence, dict) or evidence.get('kind') != kind:
+            raise ValueError('matching isolated batch revalidation evidence is required')
         reports = evidence.get('reports')
         if not isinstance(reports, dict) or set(reports) != set(job_ids):
             raise ValueError('individual report evidence must cover every selected job')
@@ -1078,15 +1089,15 @@ class Queue:
                 rejections[name] = rejection
             campaign = Path(self.path).parent
             selected = {name: row[1] for name, row in rows.items()}
-            proof = retire_library_readmission.verify(campaign, selected, checkpoint, rejections,
-                                                       evidence, _proof_file, _gates)
+            verifier = retire_library_readmission if mode == 'library' else retire_native_exit_readmission
+            proof = verifier.verify(campaign, selected, checkpoint, rejections, evidence, _proof_file, _gates)
             with self._transaction() as db:
                 latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
                 if not latest or latest[0] != checkpoint:
                     raise ValueError('checkpoint changed during library proof verification')
                 previous_readmissions = set()
                 for event in db.execute("SELECT data FROM events WHERE kind IN "
-                                        "('readmitted-batch','readmitted-native-batch','readmitted-library-batch')"):
+                                        "('readmitted-batch','readmitted-native-batch','readmitted-library-batch','readmitted-native-exit-one-batch')"):
                     previous = json.loads(event[0])
                     previous_readmissions.add((previous.get('job_id'), previous.get('manifest')))
                 for name in job_ids:
@@ -1098,7 +1109,8 @@ class Queue:
                     self._require_absent_pid(pids[name])
                 for name in job_ids:
                     db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (name,))
-                    self._event(db, 'readmitted-library-batch', {'job_id': name, 'attempt_id': snapshots[name][1],
+                    event = 'readmitted-library-batch' if mode == 'library' else 'readmitted-native-exit-one-batch'
+                    self._event(db, event, {'job_id': name, 'attempt_id': snapshots[name][1],
                                 'checkpoint': checkpoint, 'manifest': proof['manifest'], 'proof': proof,
                                 'previous_adjudication': rejections[name], 'evidence': evidence})
             return {'jobs': list(job_ids), 'checkpoint': checkpoint, 'proof': proof}
