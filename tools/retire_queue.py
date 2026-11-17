@@ -19,6 +19,7 @@ from contextlib import ExitStack, closing, contextmanager
 import retire_cohort_proof
 import retire_rehabilitation
 import retire_native_readmission
+import retire_library_readmission
 import retire_priority
 
 
@@ -1024,6 +1025,78 @@ class Queue:
                 self._event(db, 'readmitted-batch', {'job_id': job_id, 'attempt_id': attempt_id,
                             'checkpoint': checkpoint, 'manifest': audit['manifest'], 'proof': audit,
                             'previous_adjudication': rejection, 'evidence': evidence})
+
+    def readmit_library_batch_proposals(self, job_ids, checkpoint, evidence):
+        """Atomically return independently passed jobs for fresh integration review."""
+        if (not isinstance(job_ids, list) or not 1 <= len(job_ids) <= 96
+                or any(not isinstance(name, str) or not name for name in job_ids)
+                or len(set(job_ids)) != len(job_ids)):
+            raise ValueError('readmission requires 1–96 distinct job IDs')
+        if not isinstance(evidence, dict) or evidence.get('kind') != 'isolated-batch-library-revalidation':
+            raise ValueError('isolated library batch revalidation evidence is required')
+        reports = evidence.get('reports')
+        if not isinstance(reports, dict) or set(reports) != set(job_ids):
+            raise ValueError('individual report evidence must cover every selected job')
+        query = ('SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result '
+                 'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?')
+        with ExitStack() as leases:
+            for name in sorted(job_ids):
+                leases.enter_context(self._retry_lease(name))
+            with closing(self._connect()) as db:
+                db.execute('BEGIN')
+                latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if not latest or latest[0] != checkpoint:
+                    raise ValueError('checkpoint is stale')
+                rows = {name: db.execute(query, (name,)).fetchone() for name in job_ids}
+            snapshots, rejections, pids = {}, {}, {}
+            for name, row in rows.items():
+                if not row or row[0] != 'integration-rejected' or not row[1] or not row[6]:
+                    raise ValueError('readmission requires current rejected attempts')
+                snapshots[name] = tuple(row)
+                job, rejection, original = map(json.loads, (row[2], row[3], row[6]))
+                pid = (json.loads(row[5]) if row[5] else {}).get('pid')
+                if type(pid) is not int or pid <= 0:
+                    raise ValueError('attempt process identity is unknown')
+                self._require_absent_pid(pid)
+                pids[name] = pid
+                rules = job['rules']
+                dispositions, outcomes = original.get('evidence', {}).get('dispositions', {}), original.get('outcomes', {})
+                if (original.get('status') != 'provisional-pass' or set(dispositions) != set(rules)
+                        or set(outcomes) != set(rules)
+                        or any(not isinstance(dispositions[rule], dict)
+                               or dispositions[rule].get('rule', rule if job.get('kind') == 'mechanical' else None) != rule
+                               or dispositions[rule].get('status') != 'proposed' or not dispositions[rule].get('reason')
+                               or not dispositions[rule].get('evidence') or not isinstance(outcomes[rule], dict)
+                               or outcomes[rule].get('status') != 'pass' or not outcomes[rule].get('evidence')
+                               for rule in rules)):
+                    raise ValueError('original per-rule dispositions do not all pass')
+                rejections[name] = rejection
+            campaign = Path(self.path).parent
+            selected = {name: row[1] for name, row in rows.items()}
+            proof = retire_library_readmission.verify(campaign, selected, checkpoint, rejections,
+                                                       evidence, _proof_file, _gates)
+            with self._transaction() as db:
+                latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if not latest or latest[0] != checkpoint:
+                    raise ValueError('checkpoint changed during library proof verification')
+                previous_readmissions = set()
+                for event in db.execute("SELECT data FROM events WHERE kind IN "
+                                        "('readmitted-batch','readmitted-native-batch','readmitted-library-batch')"):
+                    previous = json.loads(event[0])
+                    previous_readmissions.add((previous.get('job_id'), previous.get('manifest')))
+                for name in job_ids:
+                    current = db.execute(query, (name,)).fetchone()
+                    if not current or tuple(current) != snapshots[name]:
+                        raise ValueError('attempt changed during library proof verification')
+                    if (name, proof['manifest']) in previous_readmissions:
+                        raise ValueError('batch readmission already used for this job')
+                    self._require_absent_pid(pids[name])
+                for name in job_ids:
+                    db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (name,))
+                    self._event(db, 'readmitted-library-batch', {'job_id': name, 'attempt_id': snapshots[name][1],
+                                'checkpoint': checkpoint, 'manifest': proof['manifest'], 'proof': proof,
+                                'previous_adjudication': rejections[name], 'evidence': evidence})
+            return {'jobs': list(job_ids), 'checkpoint': checkpoint, 'proof': proof}
 
     def readmit_native_batch_proposal(self, job_id, attempt_id, checkpoint, evidence):
         """Return one independently passed proposal for a new full batch audit."""

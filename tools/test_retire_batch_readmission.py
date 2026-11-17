@@ -209,6 +209,71 @@ class BatchReadmissionTests(unittest.TestCase):
         return {'kind': 'isolated-batch-native-revalidation', 'manifest': spec(manifest),
                 'validation': spec(self.validation), 'repository_log': spec(self.log), 'isolation': spec(isolation)}
 
+    def library_fixture(self):
+        import retire_library_readmission as library
+        folder = self.root/'.cache/batches/batch'
+        inputs = self.root/'checkpoints/parent/inputs'
+        base = inputs/'frozen/grammar'
+        base.mkdir(parents=True)
+        (base/'test.ebnf').write_bytes(b'base grammar')
+        write(inputs/'manifest.json', {'commit': 'parent', 'source': 'a'*64,
+                                      'files': {'grammar/test.ebnf': spec(base/'test.ebnf')['sha256']}})
+        write(self.root/'checkpoints/parent.json', {'commit': 'parent', 'inputs': str(inputs),
+                                                   'cpu_pool': str(self.root/'cpu'), 'cpu_capacity': 32})
+        manifest = folder/'manifest.json'
+        data = json.loads(manifest.read_text())
+        data['grammar'] = {'test.ebnf': hashlib.sha256(b'candidate grammar').hexdigest()}
+        write(manifest, data)
+        validation_inputs = folder/'validation-inputs'
+        (validation_inputs/'frozen/grammar').mkdir(parents=True)
+        (validation_inputs/'frozen/grammar/test.ebnf').write_bytes(b'candidate grammar')
+        write(validation_inputs/'manifest.json', {'commit': 'candidate', 'source': 'a'*64,
+                                                  'files': {'grammar/test.ebnf': data['grammar']['test.ebnf']}})
+        validation = {'status': 'failed', 'scope': 'combined-batch', 'reason': 'repository gates failed',
+                      'repository_check_returncode': 1, 'candidate': 'candidate', 'source_checkpoint': 'parent',
+                      'inputs': str(validation_inputs), 'included_jobs': [item['job_id'] for item in self.items]}
+        write(self.validation, validation)
+        with closing(self.queue._connect()) as db:
+            for item in self.items:
+                value = {'status': 'integration-rejected', 'checkpoint': None,
+                         'evidence': {'manifest': 'batch', 'validation': validation}}
+                db.execute('UPDATE jobs SET adjudication=? WHERE id=?', (json.dumps(value), item['job_id']))
+        tests = ['bind::member_focus::tests::end_to_end_native_members_and_both_paid_and_ordinary_goblin_bomb_sources', 'tests::target_bans::a_prohibition_ends_this_turn_after_its_verb']
+        self.log.write_text(''.join(f'{name} {"FAILED" if name == "test" else "passed"} 1.0 s\n'
+                                    for name in ('fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test'))
+                            +'\nfailures:\n'+''.join('    '+test+'\n' for test in tests)+'\ntest result: FAILED. 995 passed; 2 failed; 0 ignored;\n')
+        binary = self.root/'.cache/test-binary'
+        binary.write_bytes(b'compiled test executable')
+        controls = {}
+        for name, content, indices, returncode in (
+                ('base', b'base grammar', [], 0), ('full', b'candidate grammar', [0, 1, 2], 101),
+                ('remaining', b'replayed grammar', [0, 1], 0)):
+            root = self.root/'.cache'/('library-'+name)
+            (root/'grammar').mkdir(parents=True)
+            (root/'grammar/test.ebnf').write_bytes(content)
+            identity = root/'identity.json'
+            write(identity, {'method': 'ordered-proposal-replay-v1', 'indices': indices,
+                             'proposals': [{'job_id': self.items[i]['job_id'], 'attempt_id': self.items[i]['attempt_id']}
+                                           for i in indices],
+                             'tree': {'test.ebnf': spec(root/'grammar/test.ebnf')['sha256']}})
+            trial_tests = []
+            for index, test in enumerate(tests):
+                result = root/f'test-{index:03d}-result.json'
+                write(result, {'test': test, 'source_sha256': 'a'*64, 'returncode': returncode,
+                               'binary': spec(binary), 'command': [str(binary), '--exact', test, '--nocapture'],
+                               'environment': {'ORACLE_GRAMMAR_DIR': str(root/'grammar')}})
+                log = root/f'test-{index:03d}.log'
+                status, summary = ('FAILED', 'FAILED. 0 passed; 1 failed;') if returncode else ('ok', 'ok. 1 passed; 0 failed;')
+                log.write_text(f'running 1 test\ntest {test} ... {status}\ntest result: {summary}\n')
+                trial_tests.append({'test': test, 'result': spec(result), 'log': spec(log)})
+            controls[name] = {'identity': spec(identity), 'tests': trial_tests}
+        isolation = self.root/'.cache/library-isolation.json'
+        write(isolation, {'kind': 'isolated-library-test-regression', 'manifest': 'batch', 'candidate': 'candidate',
+                          'parent': 'parent', 'excluded_jobs': ['culprit'], 'failed_tests': tests, 'controls': controls, 'reason': 'verified replay'})
+        return {'kind': 'isolated-batch-library-revalidation', 'manifest': spec(manifest),
+                'validation': spec(self.validation), 'repository_log': spec(self.log), 'isolation': spec(isolation),
+                'reports': {name: spec(self.reports[name]) for name in ('author', 'mechanical')}}
+
     def test_native_readmission_author_and_mechanical_require_fresh_audit(self):
         proof = self.native_fixture()
         for job in ('author', 'mechanical'):
@@ -227,6 +292,152 @@ class BatchReadmissionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'already used'):
             self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent',
                                                      {**proof, 'report': spec(self.reports['author'])})
+
+    def test_library_batch_readmission_is_atomic_and_requires_fresh_validation(self):
+        proof = self.library_fixture()
+        with patch('retire_library_readmission._replay') as replay:
+            result = self.queue.readmit_library_batch_proposals(['mechanical', 'author'], 'parent', proof)
+        self.assertEqual(result['jobs'], ['mechanical', 'author'])
+        self.assertTrue(result['proof']['requires_fresh_full_validation'])
+        self.assertEqual(replay.call_count, 1)
+        self.assertEqual(self.queue.coverage()['counts'], {'provisional-pass': 2, 'integration-rejected': 1})
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+        validation = json.loads(self.validation.read_text())
+        self.queue.reject_jobs(['author', 'mechanical'], {'manifest': 'batch', 'validation': validation})
+        with patch('retire_library_readmission._replay'):
+            with self.assertRaisesRegex(ValueError, 'already used'):
+                self.queue.readmit_library_batch_proposals(['author', 'mechanical'], 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_library_batch_rejects_invalid_selection_and_held_lease_without_partial_mutation(self):
+        proof = self.library_fixture()
+        for jobs in ([], ['author', 'author'], ['author', 'missing'], ['author']*97):
+            with self.subTest(jobs=jobs[:2]), self.assertRaises(ValueError):
+                self.queue.readmit_library_batch_proposals(jobs, 'parent', proof)
+        with (self.root/'leases/mechanical').open('w') as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError, 'still held'):
+                self.queue.readmit_library_batch_proposals(['author', 'mechanical'], 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_library_batch_rejects_partial_or_tampered_proof(self):
+        proof = self.library_fixture()
+        isolation_path = self.root/'.cache/library-isolation.json'
+        isolation = json.loads(isolation_path.read_text())
+        mutations = [
+            lambda value: value.update(excluded_jobs=['author']),
+            lambda value: value.update(failed_tests=value['failed_tests'][:1]),
+            lambda value: value.update(excluded_jobs=['culprit', 'culprit']),
+            lambda value: value['controls']['full'].update(identity=value['controls']['base']['identity']),
+            lambda value: value['controls']['remaining']['tests'][1].update(result=value['controls']['full']['tests'][1]['result']),
+        ]
+        for change in mutations:
+            current = json.loads(json.dumps(isolation))
+            change(current)
+            write(isolation_path, current)
+            proof['isolation'] = spec(isolation_path)
+            with self.subTest(change=change), self.assertRaises(ValueError), patch('retire_library_readmission._replay'):
+                self.queue.readmit_library_batch_proposals(['author', 'mechanical'], 'parent', proof)
+        write(isolation_path, isolation)
+        proof['isolation'] = spec(isolation_path)
+        self.log.write_text(self.log.read_text().replace('families passed', 'families FAILED'))
+        proof['repository_log'] = spec(self.log)
+        with self.assertRaisesRegex(ValueError, 'not limited'):
+            self.queue.readmit_library_batch_proposals(['author', 'mechanical'], 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_library_batch_two_exclusions_replay_once(self):
+        proof = self.library_fixture()
+        isolation_path = self.root/'.cache/library-isolation.json'
+        isolation = json.loads(isolation_path.read_text())
+        isolation['excluded_jobs'] = ['mechanical', 'culprit']
+        identity_path = self.root/'.cache/library-remaining/identity.json'
+        identity = json.loads(identity_path.read_text())
+        identity['indices'] = [0]
+        identity['proposals'] = identity['proposals'][:1]
+        write(identity_path, identity)
+        isolation['controls']['remaining']['identity'] = spec(identity_path)
+        write(isolation_path, isolation)
+        proof['isolation'] = spec(isolation_path)
+        proof['reports'] = {'author': proof['reports']['author']}
+        with patch('retire_library_readmission._replay') as replay:
+            result = self.queue.readmit_library_batch_proposals(['author'], 'parent', proof)
+        self.assertEqual(replay.call_count, 1)
+        self.assertEqual(replay.call_args.args[3], [0])
+        self.assertEqual(result['proof']['excluded_jobs'], ['mechanical', 'culprit'])
+        self.assertEqual(self.queue.coverage()['counts'], {'provisional-pass': 1, 'integration-rejected': 2})
+
+    def test_library_failure_set_requires_complete_bounded_summary(self):
+        import retire_library_readmission as library
+        name = 'bind::member_focus::tests::end_to_end_native_members_and_both_paid_and_ordinary_goblin_bomb_sources'
+        good = f'failures:\n    {name}\n\ntest result: FAILED. 1 passed; 1 failed;\n'
+        self.assertEqual(library._failed_tests(good), [name])
+        for log in (good.replace('1 failed;', '2 failed;'), good.replace(name, 'bad name'),
+                    good.replace('FAILED.', 'ok.'), good.replace('    '+name, '    '+name+'\n    '+name)):
+            with self.subTest(log=log), self.assertRaises(ValueError):
+                library._failed_tests(log)
+
+    def test_library_batch_rechecks_artifacts_after_replay(self):
+        proof = self.library_fixture()
+        log = self.root/'.cache/library-remaining/test-001.log'
+        def tamper(*args):
+            log.write_text('changed during replay')
+        with patch('retire_library_readmission._replay', side_effect=tamper):
+            with self.assertRaises(ValueError):
+                self.queue.readmit_library_batch_proposals(['author', 'mechanical'], 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_library_batch_rechecks_checkpoint_before_atomic_update(self):
+        proof = self.library_fixture()
+        def advance(*args):
+            self.queue.add_checkpoint('next', 'proof', expected_parent='parent')
+        with patch('retire_library_readmission._replay', side_effect=advance):
+            with self.assertRaisesRegex(ValueError, 'checkpoint changed'):
+                self.queue.readmit_library_batch_proposals(['author', 'mechanical'], 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_library_replay_reconstructs_ordered_remaining_grammar(self):
+        import retire_library_readmission as library
+        import retire_queue
+        import retire_batch
+        import retire_merge
+        import mined
+        import retire_author
+        proof = self.library_fixture()
+        for item in self.items:
+            if item['kind'] == 'author':
+                item['fixture_sha256'] = json.loads(self.reports[item['job_id']].read_text())['fixture_sha256']
+        with closing(self.queue._connect()) as db:
+            for item in self.items:
+                row = db.execute('SELECT result FROM attempts WHERE id=?', (item['attempt_id'],)).fetchone()
+                result = json.loads(row[0])
+                result['evidence']['run'] = str(self.root/'.cache/attempts'/item['attempt_id'])
+                db.execute('UPDATE attempts SET result=? WHERE id=?', (json.dumps(result), item['attempt_id']))
+        def proposed(value):
+            report = value['report']
+            name = report['task']
+            item = next(row for row in self.items if row['job_id'] == name)
+            return self.root, {'id': name, 'rules': item['rules']}, self.root, []
+        def report_author(campaign, job, attempt, base, original, report_spec):
+            return json.loads(self.reports[job].read_text()), {}
+        def report_mechanical(campaign, job, attempt, base, original, report_spec):
+            return json.loads(self.reports[job].read_text())
+        calls = []
+        def merge(base, current, proposed_dir, rules, hooks):
+            calls.append(rules[0])
+            return {'grammar/test.ebnf': 'replayed grammar'} if rules == ['a'] else {}
+        expected = {'test.ebnf': hashlib.sha256(b'replayed grammar').hexdigest()}
+        with patch.object(retire_batch, '_proposal', side_effect=proposed), \
+                patch.object(retire_queue, '_verify_original_report', side_effect=report_author), \
+                patch.object(retire_queue, '_verify_mechanical_readmission', side_effect=report_mechanical), \
+                patch.object(retire_merge, 'merge_grammar', side_effect=merge), \
+                patch.object(mined, 'remove', side_effect=lambda root, rules: (rules, {})), \
+                patch.object(retire_author, 'apply_hooks'):
+            library._replay(self.root, 'parent', self.items, [0, 1], expected, self.root/'.cache', proof['reports'])
+            self.assertEqual(calls, ['a', 'b'])
+            with self.assertRaisesRegex(ValueError, 'ordered replay differs'):
+                library._replay(self.root, 'parent', self.items, [0, 1], {'test.ebnf': 'bad'},
+                                self.root/'.cache', proof['reports'])
 
     def test_native_readmission_rechecks_checkpoint_after_expensive_proof(self):
         import retire_native_readmission
