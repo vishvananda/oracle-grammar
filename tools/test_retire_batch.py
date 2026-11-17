@@ -825,7 +825,7 @@ class BatchTests(unittest.TestCase):
         for mode in ('clean-subgroups', 'bad-member', 'cross-interaction', 'fatal-integrity',
                      'trailing-single', 'equal-size', 'configured-singletons',
                      'isolated-family', 'multiple-families', 'family-reordered-pass',
-                     'family-survivors-still-fail', 'removed-rule'):
+                     'family-survivors-still-fail', 'removed-rule', 'merge-conflicts'):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 repo = root/'repo'
@@ -850,7 +850,11 @@ class BatchTests(unittest.TestCase):
                 def merge(base, trial, proposed, rules, hooks):
                     name = rules[0][2:]
                     path = trial/'grammar/syntax/shared.ebnf'
-                    return {'grammar/syntax/shared.ebnf': (path.read_text() if path.exists() else '')+name+'\n'}
+                    prior = path.read_text() if path.exists() else ''
+                    competing = {'j2': 'j0', 'j6': 'j4'}
+                    if mode == 'merge-conflicts' and name in competing and competing[name] in prior.splitlines():
+                        raise batch.merger.MergeConflict('conflicting addition or deletion')
+                    return {'grammar/syntax/shared.ebnf': prior+name+'\n'}
                 def remove(trial, rules):
                     path = trial/'grammar/syntax/mined.ebnf'
                     name = rules[0][2:]
@@ -889,6 +893,18 @@ class BatchTests(unittest.TestCase):
                         patch.object(batch, '_removed_rule_conflict', return_value=(
                             {'without_proposal_indices': [2]} if mode == 'removed-rule' else None)):
                     result = batch.stage(root, cp, proposals, combine_selected=True)
+                if mode == 'merge-conflicts':
+                    self.assertNotIn('fallback_trials', result)
+                    self.assertEqual([name for name, _ in calls], ['without-merge-conflict-002'])
+                    attempts = result['merge_retry_attempts']
+                    self.assertEqual([x['without_proposal_indices'] for x in attempts], [[2], [2, 6]])
+                    self.assertEqual([x['status'] for x in attempts], ['failed', 'passed'])
+                    initial = batch.r.read(Path(result['group_trials'][0]['proof']['path']))
+                    second = batch.r.read(Path(attempts[0]['proof']['path']))
+                    self.assertEqual([initial['merge_conflict_at'], second['merge_conflict_at']], [2, 6])
+                    self.assertEqual({x['job_id'] for x in result['jobs'] if x['status'] != 'included'}, {'j2', 'j6'})
+                    self.assertEqual(result['rules'], [f'm_{name}' for name in names if name not in ('j2', 'j6')])
+                    continue
                 if mode == 'equal-size':
                     self.assertNotIn('fallback_group_size', result)
                     self.assertNotIn('fallback_trials', result)

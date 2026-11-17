@@ -528,7 +528,7 @@ def _stage_trial(context, entries, label):
             trial = Path(temporary)
             shutil.copytree(source/'grammar', trial/'grammar')
             additions, prepared = [], []
-            for offset, ((_, proposal), item) in enumerate(zip(entries, items, strict=True)):
+            for offset, ((index, proposal), item) in enumerate(zip(entries, items, strict=True)):
                 run, task, directory, hooks = _proposal(proposal)
                 mechanical = proposal.get('kind', 'author') == 'mechanical'
                 if mechanical and hooks:
@@ -552,7 +552,11 @@ def _stage_trial(context, entries, label):
                 if mechanical:
                     _mechanical_removal(run, directory, task['rules'], folder)
                 else:
-                    changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
+                    try:
+                        changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
+                    except merger.MergeConflict:
+                        proof['merge_conflict_at'] = index
+                        raise
                     for name, text in changes.items():
                         target = trial/name
                         target.parent.mkdir(parents=True, exist_ok=True)
@@ -654,23 +658,33 @@ def _stage_trial(context, entries, label):
     return items, proof
 
 
-def _retry_without(context, entries, whole_proof, failed_indices, size, *, dependency=False):
+def _retry_without(context, entries, whole_proof, failed_indices, size, *, route):
     """Use a bounded diagnosis to route fresh guarded trials."""
-    if not 1 <= len(failed_indices) <= size:
-        return False
-    withheld = [entry for entry in entries if entry[0] in failed_indices]
-    survivors = [entry for entry in entries if entry[0] not in failed_indices]
-    if len(withheld) != len(failed_indices) or not survivors:
-        return False
     manifest, folder = context['manifest'], context['folder']
-    label = 'without-conflicting-removal' if dependency else 'without-failed-families'
-    receipt = 'dependency_retry' if dependency else 'family_retry'
-    items, proof = _stage_trial(context, survivors, label)
-    survivor_proof = items[0]['trial_proof']
-    manifest[receipt] = {'without_proposal_indices': failed_indices, 'jobs': proof['jobs'],
-                         'status': proof['status'], 'proof': survivor_proof, 'group_attempt': whole_proof}
-    if proof['status'] != 'passed':
+    label = {'dependency': 'without-conflicting-removal', 'family': 'without-failed-families',
+             'merge': 'without-merge-conflict'}[route]
+    receipt = route+'_retry'
+    while 1 <= len(failed_indices) <= size:
+        withheld = [entry for entry in entries if entry[0] in failed_indices]
+        survivors = [entry for entry in entries if entry[0] not in failed_indices]
+        if len(withheld) != len(failed_indices) or not survivors:
+            return False
+        attempt_label = label if len(failed_indices) == 1 or route != 'merge' else f'{label}-{len(failed_indices):03d}'
+        items, proof = _stage_trial(context, survivors, attempt_label)
+        survivor_proof = items[0]['trial_proof']
+        record = {'without_proposal_indices': failed_indices, 'jobs': proof['jobs'],
+                  'status': proof['status'], 'proof': survivor_proof, 'group_attempt': whole_proof}
+        manifest[receipt] = record
+        if route == 'merge':
+            manifest.setdefault('merge_retry_attempts', []).append(record)
+        if proof['status'] == 'passed':
+            break
         r.write(folder/'manifest.json', manifest)
+        next_conflict = proof.get('merge_conflict_at')
+        if route != 'merge' or next_conflict not in {index for index, _ in survivors}:
+            return False
+        failed_indices = sorted([*failed_indices, next_conflict])
+    else:
         return False
     for item in items:
         item.update(group_attempt=whole_proof, **{receipt: survivor_proof})
@@ -822,8 +836,13 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
             group_proof = items[0]['trial_proof']
             if combine_selected and len(entries) > fallback_size:
                 conflict = proof.get('removed_rule_conflict')
-                failed = (conflict['without_proposal_indices'] if conflict else proof.get('new_families_failed_at', ()))
-                if not _retry_without(context, entries, group_proof, failed, fallback_size, dependency=bool(conflict)):
+                if 'merge_conflict_at' in proof:
+                    route, failed = 'merge', [proof['merge_conflict_at']]
+                elif conflict:
+                    route, failed = 'dependency', conflict['without_proposal_indices']
+                else:
+                    route, failed = 'family', proof.get('new_families_failed_at', ())
+                if not _retry_without(context, entries, group_proof, failed, fallback_size, route=route):
                     _subgroup_fallback(context, entries, group_proof, fallback_size)
                 continue
             for index, proposal in entries:
