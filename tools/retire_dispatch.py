@@ -42,6 +42,23 @@ def lease(path):
         yield stream.fileno()
 
 
+def batch_available(run):
+    """Probe the existing batch lease; the child must still acquire it itself."""
+    try:
+        fd = os.open(run/'batch.lock', os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        return True
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return True
+    finally:
+        os.close(fd)
+
+
 def decisions(path, rules):
     value = r.read(path)
     rows = value['rules']
@@ -420,7 +437,7 @@ def run_campaign(run, runner=None):
                 limit=config['first_batch_size'] if coverage['checkpoint']==config['initial_commit'] else config['batch_size']
                 ready=queue.get_jobs('provisional-pass',limit=limit)
                 if not stop_reason and not batching and ready and (len(ready)>=limit or not pending
-                        or time.monotonic()-last_batch>=config['batch_wait_seconds']):
+                        or time.monotonic()-last_batch>=config['batch_wait_seconds']) and batch_available(run):
                     validate_runner(run,selected)
                     log=(run/'batch-controller.log').open('a')
                     batching=subprocess.Popen([sys.executable,str(selected/'retire_dispatch.py'),'batch',str(run)],

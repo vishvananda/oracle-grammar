@@ -211,6 +211,74 @@ def _verify_diagnostic_recovery(campaign, commit, parent, jobids, evidence):
     return manifest, validation, included
 
 
+def _verify_disk_retry(campaign, job_id, attempt_id, base, job, started, result, evidence):
+    run = campaign/'.cache/attempts'/attempt_id
+    worker = run/'workers'/job_id
+    expected = {'evaluation_log': worker/'evaluation.log', 'model_receipt': worker/'receipt.json',
+                'final': worker/'final.txt', 'descriptor': run/'tasks'/f'{job_id}.json',
+                'support': run/'support.json'}
+    data = {}
+    for key, wanted in expected.items():
+        path, contents = _proof_file(evidence.get(key))
+        if path.resolve() != wanted.resolve() or any(part.is_symlink() for part in
+                (run, run/'workers', worker, run/'tasks', wanted)):
+            raise ValueError('disk retry artifact is outside the assigned attempt: '+key)
+        data[key] = contents
+    receipt, final, descriptor, support = map(json.loads, (data['model_receipt'], data['final'],
+                                                            data['descriptor'], data['support']))
+    original = result.get('evidence')
+    if not isinstance(original, dict):
+        raise ValueError('original attempt evidence is missing')
+    if (job.get('kind') != 'author' or original.get('kind') != 'author'
+            or original.get('task') != job_id or original.get('base_commit') != base
+            or original.get('run') != str(run) or original.get('report') is not None
+            or descriptor.get('id') != job_id or descriptor.get('rules') != job.get('rules')
+            or support.get('tasks', {}).get(job_id) != hashlib.sha256(data['descriptor']).hexdigest()):
+        raise ValueError('attempt or descriptor identity differs')
+    evaluation = receipt.get('evaluation')
+    if (not isinstance(evaluation, dict)
+            or started.get('receipt') != str(expected['model_receipt']) or receipt.get('task') != job_id
+            or receipt.get('pid') != started.get('pid') or receipt.get('status') != 'completed'
+            or type(receipt.get('returncode')) is not int or receipt['returncode'] != 0
+            or type(receipt.get('started_unix')) not in (int, float) or receipt['started_unix'] <= 0
+            or type(receipt.get('finished_unix')) not in (int, float)
+            or not receipt['finished_unix'] >= receipt['started_unix'] or receipt.get('timed_out') is True
+            or evaluation.get('passed') is not False
+            or evaluation.get('error') != 'independent evaluation failed; inspect evaluation.log'):
+        raise ValueError('model receipt is not completed with the independent evaluation failure')
+    rules = job.get('rules', [])
+    rows = final.get('rules') if isinstance(final, dict) else None
+    decisions = original.get('dispositions')
+    outcomes = result.get('outcomes')
+    if (not rules or len(set(rules)) != len(rules) or not isinstance(rows, list) or len(rows) != len(rules)
+            or any(not isinstance(value, dict) for value in rows)
+            or {value.get('rule') for value in rows} != set(rules)
+            or not isinstance(decisions, dict) or {value['rule']: value for value in rows} != decisions
+            or not isinstance(outcomes, dict) or set(outcomes) != set(rules)
+            or any(value.get('status') != 'proposed' or not isinstance(value.get('reason'), str)
+                   or not value['reason'].strip() or not isinstance(value.get('evidence'), str)
+                   or not value['evidence'].strip() for value in rows)
+            or any(not isinstance(value, dict) or value.get('status') != 'needs-review'
+                   or 'independent evaluation failed' not in str(value.get('reason')) for value in outcomes.values())):
+        raise ValueError('model dispositions are incomplete or contain a separate review')
+    log = data['evaluation_log']
+    index_path = (b'/worktrees/' + attempt_id.encode() + b'/index.lock')
+    index_error = any(b'fatal:' in line and b'/.git/worktrees/' in line and index_path in line
+                      and b'write error. Out of diskspace' in line for line in log.splitlines())
+    if (not index_error or b'Traceback (most recent call last):' not in log
+            or b'changed_files' not in log or b"['git', 'diff', '--name-only']" not in log
+            or b'CalledProcessError' not in log or b'non-zero exit status 128' not in log):
+        raise ValueError('assigned evaluator log does not prove Git index ENOSPC')
+    evaluations = run/'evaluations'/job_id
+    if evaluations.is_symlink():
+        raise ValueError('evaluation directory must not be a symlink')
+    if evaluations.exists():
+        children = list(evaluations.iterdir())
+        if len(children) > 128 or any(child.is_symlink() or (child/'report.json').is_symlink()
+                                      or (child/'report.json').exists() for child in children):
+            raise ValueError('an independent evaluation report exists or evaluation state is ambiguous')
+
+
 def _verify_batch_readmission(campaign, job_id, attempt_id, checkpoint, base_commit, job,
                              original, rejection, evidence):
     manifest_path, manifest_data = _proof_file(evidence.get('manifest'))
@@ -853,6 +921,46 @@ class Queue:
                 self._event(db, 'readmitted-batch', {'job_id': job_id, 'attempt_id': attempt_id,
                             'checkpoint': checkpoint, 'manifest': audit['manifest'], 'proof': audit,
                             'previous_adjudication': rejection, 'evidence': evidence})
+
+    def retry_disk_tainted(self, job_id, attempt_id, evidence):
+        """Retry one proved independent-evaluator Git index ENOSPC failure.
+
+        The caller independently verifies the named old controller's unit and
+        invocation are terminal. Neither the retry nor model output is acceptance.
+        """
+        if not isinstance(evidence, dict) or evidence.get('kind') != 'git-index-enospc':
+            raise ValueError('git-index-enospc evidence is required')
+        terminal = evidence.get('controller_terminal')
+        verification = terminal.get('verification') if isinstance(terminal, dict) else None
+        if (not isinstance(terminal, dict) or not isinstance(terminal.get('unit'), str) or not terminal['unit']
+                or not isinstance(terminal.get('invocation'), str) or not terminal['invocation']
+                or not isinstance(verification, dict) or verification.get('inactive') is not True
+                or type(verification.get('main_pid')) is not int or verification['main_pid'] != 0
+                or type(verification.get('previous_pid')) is not int
+                or verification['previous_pid'] <= 0):
+            raise ValueError('verified terminal controller evidence is required')
+        with self._retry_lease(job_id):
+            with self._transaction() as db:
+                row = db.execute(
+                    'SELECT j.status,j.attempt_id,j.payload,a.base_commit,a.started,a.result '
+                    'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?', (job_id,)).fetchone()
+                if not row or row[0] not in ('needs-review', 'failed') or row[1] != attempt_id or not row[5]:
+                    raise ValueError('retry requires the current terminal review or failed attempt')
+                job, result = json.loads(row[2]), json.loads(row[5])
+                started = json.loads(row[4]) if row[4] else {}
+                pid = started.get('pid')
+                if type(pid) is not int or pid <= 0:
+                    raise ValueError('attempt process identity is unknown')
+                self._require_absent_pid(pid)
+                self._require_absent_pid(verification['previous_pid'])
+                _verify_disk_retry(Path(self.path).parent, job_id, attempt_id, row[3], job,
+                                   started, result, evidence)
+                for event in db.execute("SELECT data FROM events WHERE kind='retry-disk-tainted'"):
+                    if json.loads(event[0]).get('job_id') == job_id:
+                        raise ValueError('disk retry already used for this job')
+                db.execute("UPDATE jobs SET status='pending',attempt_id=NULL WHERE id=?", (job_id,))
+                self._event(db, 'retry-disk-tainted', {'job_id': job_id, 'attempt_id': attempt_id,
+                            'pid': pid, 'process': 'absent', 'lease': 'acquired', 'evidence': evidence})
 
     def retry_cohort_tainted(self, job_id, attempt_id, evidence):
         """Retry one proved old shared-face cohort defect; never accept its result."""

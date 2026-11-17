@@ -1,5 +1,6 @@
 """Small real Git and frozen-artifact canaries for campaign integration."""
 from contextlib import redirect_stdout
+import fcntl
 import io
 import sys
 import json
@@ -203,6 +204,34 @@ class DispatchCanaries(unittest.TestCase):
                 child.terminate()
                 child.wait()
                 child.stdout.close()
+
+    def test_controller_does_not_spawn_while_external_batch_holds_lease(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'runner').mkdir()
+            r.write(root/'runner.json', {})
+            r.write(root/'config.json', {'workers': 1, 'main_repo': str(root),
+                                        'max_operational_retries': 1, 'first_batch_size': 1,
+                                        'batch_size': 1, 'batch_wait_seconds': 0,
+                                        'initial_commit': 'base'})
+            queue = dispatch.Queue(root/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'test'})
+            queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'author'}])
+            claim = queue.claim('prior')
+            queue.finish(claim['attempt_id'], 'provisional-pass', 'proof',
+                         {'r_one': {'status': 'pass', 'evidence': 'proof'}})
+            def drain(_seconds):
+                r.write(root/'drain.json', {'reason': 'test drain'})
+            with (root/'batch.lock').open('w') as held:
+                fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                with patch.object(dispatch.shutil, 'disk_usage', return_value=SimpleNamespace(free=100 * 1024**3)), \
+                        patch.object(dispatch.time, 'sleep', side_effect=drain), \
+                        patch.object(dispatch.subprocess, 'Popen') as launch:
+                    dispatch.run_campaign(root)
+                launch.assert_not_called()
+                self.assertEqual(queue.coverage()['counts'], {'provisional-pass': 1})
+                self.assertEqual(r.read(root/'status.json')['reason'], 'test drain')
+            self.assertTrue(dispatch.batch_available(root))
 
     def test_checkpoint_scan_reserves_cpu_and_inherits_batch_guard(self):
         with tempfile.TemporaryDirectory() as temporary:

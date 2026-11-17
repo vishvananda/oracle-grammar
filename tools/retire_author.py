@@ -39,9 +39,11 @@ def edit_leaf(value, path, replacement):
 
 
 def changed_files(root):
-    tracked = subprocess.check_output(['git', 'diff', '--name-only'], cwd=root, text=True).splitlines()
+    environment = dict(os.environ, GIT_OPTIONAL_LOCKS='0')
+    tracked = subprocess.check_output(['git', 'diff', '--name-only'], cwd=root, text=True,
+                                      env=environment).splitlines()
     untracked = subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard'],
-                                        cwd=root, text=True).splitlines()
+                                        cwd=root, text=True, env=environment).splitlines()
     return sorted(set(tracked + untracked))
 
 
