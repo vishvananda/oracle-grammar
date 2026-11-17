@@ -18,7 +18,8 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
     with larger reservations. Pass the yielded descriptors in subprocess
     ``pass_fds`` to keep the lease alive after the reserving process exits.
     Tokens are released solely by closing every copy of each descriptor. A
-    large waiting bundle gates new allocations until it acquires all tokens;
+    waiting bundle above two tokens, or at least half the pool, gates new
+    allocations until it acquires all tokens;
     existing reservations continue and unused capacity is available afterward.
     """
     if (isinstance(capacity, bool) or not isinstance(capacity, int)
@@ -35,7 +36,7 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
         os.close(allocator)
         raise
     held = []
-    large = threads >= capacity // 2
+    large = threads > 2 or threads >= capacity // 2
     priority_held = False
     try:
         while True:

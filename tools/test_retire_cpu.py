@@ -113,6 +113,27 @@ class LeaseTests(unittest.TestCase):
             self.assertEqual(len(tokens), 2)
         release.set()
 
+    def test_coordinator_below_half_pool_gets_waiting_priority(self):
+        ready, release = multiprocessing.Event(), multiprocessing.Event()
+        self.start(holder, self.root, 8, 12, ready, release)
+        self.assertTrue(ready.wait(5))
+        waiting, acquired, finish = (multiprocessing.Event() for _ in range(3))
+        self.start(waiting_bundle, self.root, 5, 12, waiting, acquired, finish)
+        self.assertTrue(waiting.wait(5))
+        self.wait_for_priority()
+        self.assertFalse(acquired.is_set())
+        with self.assertRaises(BlockingIOError):
+            with retire_cpu.reserve(self.root, 1, 12, wait=False):
+                pass
+        # A free token exists; only the queued coordinator prevents allocation.
+        with (self.root/'token-08.lock').open('a') as token:
+            fcntl.flock(token, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        release.set()
+        self.assertTrue(acquired.wait(5))
+        with retire_cpu.reserve(self.root, 1, 12, wait=False) as tokens:
+            self.assertEqual(len(tokens), 1)
+        finish.set()
+
     def test_inherited_fd_survives_reserver_exit(self):
         # The intermediate process exits without unlocking; the helper remains
         # alive with the token descriptor inherited via pass_fds.
