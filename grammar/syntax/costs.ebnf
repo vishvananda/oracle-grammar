@@ -118,8 +118,8 @@ cost_sacrifice_self ::= "sacrifice" self_explicit_ref
 cost_sacrifice ::= "sacrifice" ("a" | "an") filter_phrase
 
 /* Exiling a permanent as a cost: one of the described permanents on the battlefield. */
-/* @sem CostPart::Move{selections:[$cost_one_permanent_selection], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
-cost_exile_permanent ::= "exile" cost_one_permanent_selection
+/* @sem CostPart::Move{selections:$cost_permanent_selections, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_permanent ::= "exile" cost_permanent_selections
 
 /* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_phrase)}, choose:Exactly(Expr::Constant(1))} */
 cost_sacrifice_another ::= "sacrifice" "another" filter_phrase
@@ -660,3 +660,15 @@ cost_discard_postmodified ::= "discard" card_count modifier_mana_value_numeric
 
 /* @sem CostPart::Discard{count:Constant(1), filter:$last_drawn_card_filter} */
 cost_discard_referenced_card ::= "discard" last_drawn_card_filter
+
+/* Exile selections share the movement destination while retaining each choice. */
+/* @sem CostObjectSelection::[$cost_one_permanent_selection] */
+cost_permanent_selections_one ::= cost_one_permanent_selection
+
+/* @sem CostObjectSelection::[$cost_one_permanent_selection, $cost_one_permanent_selection_2] */
+cost_permanent_selections_pair ::= cost_one_permanent_selection "and" cost_one_permanent_selection
+
+/* @sem CostObjectSelection::[CostObjectSelection{objects:One(Source)}, CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), AnyOf([$filter_plural, $filter_plural_2]), ControlledBy(One(AbilityController))])}, choose:Exactly($value)}] */
+cost_permanent_selections_self_and_other ::= self_text "and" value "other" filter_plural "and" "/" "or" filter_plural "you" "control"
+
+cost_permanent_selections ::= cost_permanent_selections_one | cost_permanent_selections_pair | cost_permanent_selections_self_and_other

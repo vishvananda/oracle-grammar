@@ -2627,3 +2627,54 @@ target_mana_grant_until_source_cast ::= "target" noun "gains" '"' "{" "T" "}" ":
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), from:Exile, action:CastSpell, filter:Any})], duration:Indefinite, evaluation:LiveObjects} */
 cast_source_while_exiled ::= "you" "may" "cast" "this" "card" "for" "as" "long" "as" "it" "remains" "exiled"
+
+/* Turning the linked population and referring to its recorded names are one
+   producer-consumer unit: the anaphor cannot bind an unrelated result. */
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::TurnFaceUp, objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([State(FaceDown), ExiledWith($object_ref)])})} */
+turn_linked_cards_face_up ::= "turn" "all" "cards" "exiled" "with" object_ref "face" "up"
+
+/* @sem Instruction::[Effect{result:@next, operation:$turn_linked_cards_face_up}, Effect{result:@next, operation:Counter{objects:Zone(_{scope:Shared(Stack), kind:Spell, filter:SharesNameWithAny(Zone(_{scope:Shared(Exile), kind:Card, filter:InSet(Recorded(@prior))}))}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}] */
+instructions_turn_linked_counter_names ::= turn_linked_cards_face_up "." "counter" "all" "spells" "with" "those" "names"
+
+/* The anaphoric removal shares the tested object and counter kind. */
+/* @sem Instruction::[If{condition:ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})}, then:Program{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:$counter_kind, amount:All}]}}, Effect{result:@next, operation:$operation}]}, otherwise:Program{}}] */
+clause_counter_threshold_remove_them ::= "if" object_ref "has" value "or" "more" counter_kind "counters" "on" "it" "," "remove" "them" "all" "and" operation
+
+/* @sem Instruction::[If{condition:ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$value})}, then:Program{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($object_ref)), kind:$counter_kind, amount:All}]}}, Effect{result:@next, operation:$operation}]}, otherwise:Program{}}] */
+clause_counter_threshold_remove_those ::= "if" "there" "are" value "or" "more" counter_kind "counters" "on" object_ref "," "remove" "those" "counters" "and" operation
+
+/* Conjured-card selection is independent of the destination and quantity. */
+/* @sem Operation::Conjure{actor:One(AbilityController), card:$conjured_exile_card, count:$conjure_singular_amount, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+conjure_card_into_exile ::= "conjure" conjure_singular_amount conjured_exile_card "into" "exile"
+
+/* @sem Expr::Constant(1) */
+conjure_singular_amount ::= "a"
+
+conjured_exile_card ::= conjured_duplicate | conjured_random_expansion_card
+
+/* @sem ConjuredCard::Duplicate($affected) */
+conjured_duplicate ::= "duplicate" "of" affected
+
+/* @sem ConjuredCard::Random($conjured_expansion_filter) */
+conjured_random_expansion_card ::= "random" conjured_expansion_filter "card" "from" "the" "Lorwyn" "Eclipsed" "expansion"
+
+/* @sem Operand::Term{family:CardsInOracle, form:And, operands:[Term{family:CardsInOracle, form:Or, operands:[$conjured_oracle_type, $conjured_oracle_type_2]}, Term{family:CardsInOracle, form:FromTheLorwynEclipsedExpansion}]} */
+conjured_expansion_filter ::= conjured_oracle_type "or" conjured_oracle_type
+
+conjured_oracle_type ::= conjured_oracle_instant | conjured_oracle_sorcery | conjured_oracle_artifact | conjured_oracle_creature
+
+/* @sem Operand::Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Instant}]} */
+conjured_oracle_instant ::= "instant"
+
+/* @sem Operand::Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Sorcery}]} */
+conjured_oracle_sorcery ::= "sorcery"
+
+/* @sem Operand::Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Artifact}]} */
+conjured_oracle_artifact ::= "artifact"
+
+/* @sem Operand::Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]} */
+conjured_oracle_creature ::= "creature"
+
+/* The prohibition refers to the actual objects affected by this phase-out. */
+/* @sem Instruction::[Effect{result:@next, operation:KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$objects_each}}, Effect{result:@next, operation:GameEffect{until:$duration, effect:Term{family:GameEffect, form:PermanentsCantPhaseIn, operands:[Objects(Affected(@prior))]}}}] */
+phase_out_each_cant_return ::= objects_each "phases" "out" "." duration "," "they" "can't" "phase" "in"

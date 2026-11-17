@@ -3195,3 +3195,51 @@ static_controller_you ::= "you" "control"
 
 /* @sem PlayerRef::Holder(Monarch) */
 static_controller_monarch ::= "the" "monarch" "controls"
+
+/* The turn restriction belongs to the ability controller; the first-spell
+   ordinal, threshold and granted spell effect remain independent operands. */
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$first_spell_threshold, nth_each_turn:Constant(1), abilities:List([$first_spell_effect])})]})]} */
+first_spell_turn_grant ::= "the" "first" "spell" "you" "cast" "during" "each" "of" "your" "turns" first_spell_threshold "has" first_spell_effect "."
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+first_spell_threshold ::= "with" "mana" "value" value "or" "greater"
+
+/* @sem Operand::Term{family:SpellEffect, form:Cascade} */
+first_spell_effect ::= "cascade"
+
+/* The alternative amount and the keyword cost being replaced are separate
+   operands. The turn condition applies to the player receiving the rule. */
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:$first_activation_keyword, cards:Any, change:Alternate($first_activation_payment), first_each_turn:true})]})]} */
+first_activation_alternative ::= "you" "may" "pay" first_activation_payment "rather" "than" "pay" "the" first_activation_keyword "you" "activate" "during" "each" "of" "your" "turns" "."
+
+/* @sem CostedKeyword::Equip */
+first_activation_keyword ::= "equip" "cost" "of" "the" "first" "equip" "ability"
+
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]} */
+first_activation_payment ::= "{" NUMBER "}"
+
+/* A spell's cost can repeat a cost part for a quantity tied to that spell.
+   The two subject shapes keep singular and plural agreement independent. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:$filter_phrase})), changes:[SpellCost($repeated_spell_cost_change)]}) */
+static_each_spell_repeated_cost ::= "each" filter_phrase "spell" "costs" repeated_spell_cost_change "."
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:Any})), changes:[SpellCost($repeated_spell_cost_change)]}) */
+static_spells_repeated_cost ::= "spells" "cost" repeated_spell_cost_change "."
+
+repeated_spell_cost_change ::= repeated_spell_mana_cost | repeated_spell_sacrifice_cost
+
+/* @sem SpellCostModifier::Increase{parts:[Repeated{part:Mana($mana_symbols), times:$spell_controller_permanent_count}]} */
+repeated_spell_mana_cost ::= mana_symbols "more" "to" "cast" "for" "each" spell_controller_permanent_count
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(ControllerOf(Candidate)))])}) */
+spell_controller_permanent_count ::= filter_phrase "its" "controller" "controls"
+
+/* @sem SpellCostModifier::Increase{parts:[Repeated{part:$cost_sacrifice, times:$spell_mana_symbol_count}]} */
+repeated_spell_sacrifice_cost ::= "an" "additional" '"' cost_sacrifice '"' "to" "cast" "for" "each" spell_mana_symbol_count
+
+/* @sem Expr::CountManaSymbols{objects:One(Affected), colors:[$devotion_color]} */
+spell_mana_symbol_count ::= devotion_color "mana" "symbol" "in" "their" "mana" "costs"
+
+/* A trailing defending-player condition composes with ordinary static changes. */
+/* @sem Ability::Conditional{condition:$condition_defending_control, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_defending_control_conditional ::= affected static_changes "as" "long" "as" condition_defending_control "."

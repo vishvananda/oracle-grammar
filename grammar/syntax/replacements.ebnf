@@ -456,8 +456,8 @@ hand_exile_owner_it ::= "that" "player" "exiles" "it"
 /* @sem Operation::DiscardObjects{objects:Selected(@marked)} */
 hand_discard ::= "that" "player" "discards" "that" "card"
 
-/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$shield_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
-replacement_prevent_all ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" shield_to "."
+/* @sem $replacement_prevent_all_phrase */
+replacement_prevent_all ::= replacement_prevent_all_phrase "."
 
 shield_to ::= prevent_to_you | shield_to_self | prevent_to_attached | shield_to_group | shield_to_other_group | prevent_to_you_and
 
@@ -886,8 +886,8 @@ entering_neither_day_nor_night ::= "if" "it's" "neither" "day" "nor" "night" ","
 /* @sem Ability::Replacement{active:Battlefield, event:Player{event:GainLife, players:One(AbilityController)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Add([EventAmount, $value])}}]}} */
 replacement_gain_life_plus ::= "if" "you" "would" "gain" "life" "," "you" "gain" "that" "much" "life" "plus" value "instead" "."
 
-/* @sem Ability::Replacement{active:Battlefield, event:Player{event:GainLife, players:One(AbilityController)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Multiply([Constant(2), EventAmount])}}]}} */
-replacement_gain_life_twice ::= "if" "you" "would" "gain" "life" "," "you" "gain" "twice" "that" "much" "life" "instead" "."
+/* @sem Ability::Replacement{active:Battlefield, event:$replacement_you_gain_event, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$replacement_you_gain_twice}]}} */
+replacement_gain_life_twice ::= "if" replacement_you_gain_event "," replacement_you_gain_twice "instead" "."
 
 /* A land that costs something to enter: unpaid, it goes to its owner's graveyard instead. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$cost}}, If{condition:PaymentChosen(0), then:_{}, otherwise:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(OwnersGraveyard)}}]}}]}}) */
@@ -1344,3 +1344,20 @@ replacement_skip_draw ::= "if" draw_event "," "you" "may" "skip" "that" "draw" "
 /* A death event binds the graveyard arrival used by its perpetual effect. */
 /* @sem Instruction::[Effect{result:@next, operation:Operation::@scope(Operation::CreateTrigger{event:ZoneChange{objects:$event_a, from:Battlefield, to:Graveyard}, duration:$duration, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), changes:[GrantAbility(Mechanic{mechanic:Unearth, cost:_{parts:[Mana($mana_symbols)]}})]}}]}})}] */
 temporary_death_unearth ::= duration "," "whenever" event_a "dies" "," "it" "perpetually" "gains" "unearth" mana_symbols
+
+/* The same prevention ability can be qualified by a turn window. */
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:$shield_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_all_phrase ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" shield_to
+
+/* @sem Ability::Conditional{condition:$static_turn_window, then:[$replacement_prevent_all_phrase]} */
+replacement_prevent_all_during ::= replacement_prevent_all_phrase static_turn_window "."
+
+/* The event and replacement action retain their shared controller independently. */
+/* @sem ReplacementEvent::Player{event:GainLife, players:One(AbilityController)} */
+replacement_you_gain_event ::= "you" "would" "gain" "life"
+
+/* @sem Operation::GainLife{players:One(AbilityController), amount:Multiply([Constant(2), EventAmount])} */
+replacement_you_gain_twice ::= "you" "gain" "twice" "that" "much" "life"
+
+/* @sem Ability::Conditional{condition:$condition, then:[Replacement{active:Battlefield, event:$replacement_you_gain_event, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$replacement_you_gain_twice}]}}]} */
+replacement_gain_while ::= "if" replacement_you_gain_event "while" condition "," replacement_you_gain_twice "instead" "."
