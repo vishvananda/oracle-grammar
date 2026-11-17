@@ -485,6 +485,31 @@ def _mechanical_removal(run, directory, rules, scratch):
             raise _UncertainPromotion('mechanical frozen base changed during verification')
 
 
+def _declares(root, rule):
+    declaration = re.compile(re.escape(rule) + r'\s*::=')
+    return any(declaration.match(line) for path in mined.grammar_files(root)
+               for _, line, _, _ in mined.code(path.read_text().splitlines()))
+
+
+def _removed_rule_conflict(source, entries, log):
+    """Find a uniquely deleted declaration cited by the grammar loader."""
+    try:
+        with log.open() as stream:
+            error = stream.read(4097)
+        message = re.fullmatch(r'Error: "([A-Za-z_]\w*): unknown rule ([A-Za-z_]\w*)"\s*', error)
+        if not message or not _declares(source, message[2]):
+            return None
+        missing = message[2]
+        owners = [index for index, proposal in entries if proposal.get('kind') != 'mechanical'
+                  and _declares(Path(proposal['run'])/'inputs/frozen', missing)
+                  and not _declares(Path(proposal['report']['directory']), missing)]
+    except (OSError, UnicodeError):
+        return None
+    if len(owners) != 1:
+        return None
+    return {'reference': message[1], 'missing_rule': missing, 'without_proposal_indices': owners}
+
+
 def _stage_trial(context, entries, label):
     """Merge and gate one ordered trial; publish nothing until every gate passes."""
     source, folder, manifest = context['source'], context['folder'], context['manifest']
@@ -608,6 +633,10 @@ def _stage_trial(context, entries, label):
                 proof['new_families_failed_at'] = [
                     index for (index, _), (_, fixture, _, _) in zip(entries, prepared, strict=True)
                     if fixture and str(fixture) in failed]
+        elif isinstance(error, _FamilyCheckFailure) and len(entries) > 1:
+            conflict = _removed_rule_conflict(source, entries, logs/'family.log')
+            if conflict is not None:
+                proof['removed_rule_conflict'] = conflict
         for item in items:
             item.update(status='integration-rejected', reason=str(error))
     try:
@@ -625,8 +654,8 @@ def _stage_trial(context, entries, label):
     return items, proof
 
 
-def _retry_without_failed_families(context, entries, whole_proof, failed_indices, size):
-    """Use a bounded set of failed families only to route fresh guarded trials."""
+def _retry_without(context, entries, whole_proof, failed_indices, size, *, dependency=False):
+    """Use a bounded diagnosis to route fresh guarded trials."""
     if not 1 <= len(failed_indices) <= size:
         return False
     withheld = [entry for entry in entries if entry[0] in failed_indices]
@@ -634,21 +663,22 @@ def _retry_without_failed_families(context, entries, whole_proof, failed_indices
     if len(withheld) != len(failed_indices) or not survivors:
         return False
     manifest, folder = context['manifest'], context['folder']
-    items, proof = _stage_trial(context, survivors, 'without-failed-families')
+    label = 'without-conflicting-removal' if dependency else 'without-failed-families'
+    receipt = 'dependency_retry' if dependency else 'family_retry'
+    items, proof = _stage_trial(context, survivors, label)
     survivor_proof = items[0]['trial_proof']
-    manifest['family_retry'] = {'without_proposal_indices': failed_indices, 'jobs': proof['jobs'],
-                                'status': proof['status'], 'proof': survivor_proof,
-                                'group_attempt': whole_proof}
+    manifest[receipt] = {'without_proposal_indices': failed_indices, 'jobs': proof['jobs'],
+                         'status': proof['status'], 'proof': survivor_proof, 'group_attempt': whole_proof}
     if proof['status'] != 'passed':
         r.write(folder/'manifest.json', manifest)
         return False
     for item in items:
-        item.update(group_attempt=whole_proof, family_retry=survivor_proof)
+        item.update(group_attempt=whole_proof, **{receipt: survivor_proof})
     manifest['jobs'].extend(items)
     r.write(folder/'manifest.json', manifest)
     for index, proposal in withheld:
         single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')
-        single[0].update(group_attempt=whole_proof, family_retry=survivor_proof)
+        single[0].update(group_attempt=whole_proof, **{receipt: survivor_proof})
         manifest['jobs'].extend(single)
         r.write(folder/'manifest.json', manifest)
     return True
@@ -791,8 +821,9 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
                 continue
             group_proof = items[0]['trial_proof']
             if combine_selected and len(entries) > fallback_size:
-                if not _retry_without_failed_families(context, entries, group_proof,
-                                                      proof.get('new_families_failed_at', ()), fallback_size):
+                conflict = proof.get('removed_rule_conflict')
+                failed = (conflict['without_proposal_indices'] if conflict else proof.get('new_families_failed_at', ()))
+                if not _retry_without(context, entries, group_proof, failed, fallback_size, dependency=bool(conflict)):
                     _subgroup_fallback(context, entries, group_proof, fallback_size)
                 continue
             for index, proposal in entries:

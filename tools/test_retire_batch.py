@@ -825,7 +825,7 @@ class BatchTests(unittest.TestCase):
         for mode in ('clean-subgroups', 'bad-member', 'cross-interaction', 'fatal-integrity',
                      'trailing-single', 'equal-size', 'configured-singletons',
                      'isolated-family', 'multiple-families', 'family-reordered-pass',
-                     'family-survivors-still-fail'):
+                     'family-survivors-still-fail', 'removed-rule'):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 repo = root/'repo'
@@ -862,12 +862,14 @@ class BatchTests(unittest.TestCase):
                     calls.append((log.parent.name, text))
                     log.write_text('family proof')
                     if log.parent.name == 'group-000':
+                        if mode == 'removed-rule':
+                            raise batch._FamilyCheckFailure(log)
                         if mode == 'multiple-families':
                             raise batch._FamilyCheckFailure(log, (2, 6))
                         if mode in ('isolated-family', 'family-reordered-pass', 'family-survivors-still-fail'):
                             raise batch._FamilyCheckFailure(log, (2,))
                         raise ValueError('initial union conflict')
-                    if log.parent.name == 'proposal-002' and mode in ('isolated-family', 'multiple-families'):
+                    if log.parent.name == 'proposal-002' and mode in ('isolated-family', 'multiple-families', 'removed-rule'):
                         raise ValueError('exact print failure reproduced')
                     if mode == 'family-survivors-still-fail' and log.parent.name == 'without-failed-families':
                         raise ValueError('remaining grammar does not pass')
@@ -883,7 +885,9 @@ class BatchTests(unittest.TestCase):
                         patch.object(batch, '_family', return_value={'family': 'test', 'cases': []}), \
                         patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
                         patch.object(batch.mined, 'remove', side_effect=remove), \
-                        patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family):
+                        patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family), \
+                        patch.object(batch, '_removed_rule_conflict', return_value=(
+                            {'without_proposal_indices': [2]} if mode == 'removed-rule' else None)):
                     result = batch.stage(root, cp, proposals, combine_selected=True)
                 if mode == 'equal-size':
                     self.assertNotIn('fallback_group_size', result)
@@ -892,19 +896,21 @@ class BatchTests(unittest.TestCase):
                                                                   'proposal-002', 'proposal-003'])
                     self.assertEqual([x['status'] for x in result['jobs']], ['included']*4)
                     continue
-                if mode in ('isolated-family', 'multiple-families', 'family-reordered-pass'):
+                if mode in ('isolated-family', 'multiple-families', 'family-reordered-pass', 'removed-rule'):
                     withheld = [2, 6] if mode == 'multiple-families' else [2]
                     retained = [name for index, name in enumerate(names) if index not in withheld]
                     self.assertNotIn('fallback_trials', result)
+                    label, receipt = ('without-conflicting-removal', 'dependency_retry') if mode == 'removed-rule' else (
+                        'without-failed-families', 'family_retry')
                     self.assertEqual([name for name, _ in calls],
-                                     ['group-000', 'without-failed-families'] +
+                                     ['group-000', label] +
                                      [f'proposal-{index:03d}' for index in withheld])
-                    self.assertEqual(result['family_retry']['status'], 'passed')
-                    self.assertEqual(result['family_retry']['without_proposal_indices'], withheld)
+                    self.assertEqual(result[receipt]['status'], 'passed')
+                    self.assertEqual(result[receipt]['without_proposal_indices'], withheld)
                     self.assertEqual([x['job_id'] for x in result['jobs']], retained+[names[i] for i in withheld])
                     bad = set() if mode == 'family-reordered-pass' else {'j2'}
                     self.assertEqual({x['job_id'] for x in result['jobs'] if x['status'] != 'included'}, bad)
-                    self.assertTrue(all(x['family_retry'] == result['family_retry']['proof'] for x in result['jobs']))
+                    self.assertTrue(all(x[receipt] == result[receipt]['proof'] for x in result['jobs']))
                     text = (Path(result['source'])/'grammar/syntax/shared.ebnf').read_text().splitlines()
                     self.assertEqual(text, retained+[names[i] for i in withheld if names[i] not in bad])
                     continue
@@ -948,6 +954,32 @@ class BatchTests(unittest.TestCase):
                     text = (Path(result['source'])/'grammar/syntax/shared.ebnf').read_text().splitlines()
                     self.assertEqual(text, [name for name in names if name != rejected])
                     self.assertFalse((Path(result['source'])/f'families/{rejected}.json').exists())
+
+    def test_unknown_compiler_rule_finds_only_a_unique_proposal_deletion(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            declaration = 'choose_land_type ::= "choose" "a" "land" "type"\n'
+            def grammar(folder, text):
+                syntax = folder/'grammar/syntax'
+                syntax.mkdir(parents=True, exist_ok=True)
+                (syntax/'actions.ebnf').write_text(text)
+            grammar(root/'source', declaration)
+            entries = []
+            for index in range(2):
+                run = root/f'run-{index}'
+                response = root/f'report-{index}'
+                grammar(run/'inputs/frozen', declaration)
+                grammar(response, declaration if index == 0 else '/*\n'+declaration+'*/\n')
+                entries.append((index, {'run': str(run), 'report': {'directory': str(response)}}))
+            log = root/'family.log'
+            log.write_text('Error: "choice_and_name_first: unknown rule choose_land_type"\n')
+            observed = batch._removed_rule_conflict(root/'source', entries, log)
+            self.assertEqual(observed, {'reference':'choice_and_name_first', 'missing_rule':'choose_land_type',
+                                        'without_proposal_indices':[1]})
+            grammar(root/'report-0', 'choose_new ::= "choose"\n')
+            self.assertIsNone(batch._removed_rule_conflict(root/'source', entries, log))
+            log.write_text('Error: "some other compiler message"\n')
+            self.assertIsNone(batch._removed_rule_conflict(root/'source', entries, log))
 
     def test_family_failure_hint_requires_a_complete_matching_report(self):
         with tempfile.TemporaryDirectory() as temporary:
