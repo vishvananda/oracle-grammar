@@ -358,6 +358,9 @@ def _batch(run, selected_job_ids=None):
     cp.pop('native_regression_controls',None)
     if config.get('native_regression_controls') is not None:
         cp['native_regression_controls']=config['native_regression_controls']
+    cp.pop('library_regression_controls',None)
+    if config.get('library_regression_controls') is not None:
+        cp['library_regression_controls']=config['library_regression_controls']
     cp.pop('candidate_validation_helpers',None)
     if config.get('candidate_validation_helpers') is not None:
         cp['candidate_validation_helpers']=config['candidate_validation_helpers']

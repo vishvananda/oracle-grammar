@@ -10,6 +10,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import uuid
 
@@ -18,9 +19,12 @@ import mined
 import retire as r
 import retire_author as a
 import retire_cpu
+import retire_library_controls as library_controls
 import retire_merge as merger
 import retire_tasks as tasks
 import retire_worker as w
+
+REPOSITORY_DRIVER = Path(__file__).with_name('retire_repository_checks.py')
 
 FAMILY_CHECK_THREADS = 6
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
@@ -480,6 +484,10 @@ def _stage_trial(context, entries, label):
                 for item in items:
                     item['native_control'] = str(logs/'native-control')
                 _control_check(checkpoint, control, trial/'grammar', logs/'native-control')
+            if context['library_control'] is not None:
+                for item in items:
+                    item['library_control'] = str(logs/'library-control')
+                library_controls.check(checkpoint, context['library_control'], trial/'grammar', logs/'library-control')
             if (r.tree(source/'grammar') != prefix_tree or r.tree(trial/'grammar') != proof['trial_grammar']
                     or r.digest(context['registry_path']) != context['registry_hash']
                     or any(r.digest(source/name) != digest for name, digest in context['baseline'])
@@ -508,7 +516,8 @@ def _stage_trial(context, entries, label):
             item.update(status='integration-rejected', reason=str(error))
     try:
         for name, path in (('family_log_sha256', logs/'family.log'),
-                           ('native_result_sha256', logs/'native-control/result.json')):
+                           ('native_result_sha256', logs/'native-control/result.json'),
+                           ('library_result_sha256', logs/'library-control/result.json')):
             if path.is_file():
                 proof[name] = r.digest(path)
         r.write(logs/'trial.json', proof)
@@ -534,6 +543,7 @@ def _stage(campaign, checkpoint, proposals):
     if type(group_size) is not int or not 1 <= group_size <= 4:
         raise ValueError('stage_group_size must be an integer from 1 to 4')
     control = _control_setup(checkpoint)
+    library_control = library_controls.setup(checkpoint, checkpoint['source'])
     campaign = Path(campaign).resolve()
     origin = Path(checkpoint['source']).resolve()
     if checkpoint.get('integration_workspace') and Path(checkpoint['integration_workspace']).resolve() == origin:
@@ -575,6 +585,9 @@ def _stage(campaign, checkpoint, proposals):
         manifest['native_regression_controls'] = {'profile': str(control['profile']),
             'profile_sha256': control['profile_sha256'], 'checkpoint_manifest_sha256': control['manifest_sha256'],
             'names': control['names'], 'occurrences': control['occurrences'], 'threads': FAMILY_CHECK_THREADS}
+    if library_control is not None:
+        manifest['library_regression_controls'] = {key: str(library_control[key]) if key == 'profile' else library_control[key]
+                                                  for key in ('profile', 'profile_sha256', 'binary_sha256', 'source_sha256', 'tests')}
     r.write(folder/'manifest.json', manifest)
     if state:
         r.write(state, {'folder': str(folder)})
@@ -585,8 +598,17 @@ def _stage(campaign, checkpoint, proposals):
             manifest.update(status='failed', reason=str(error), failure_scope='baseline-native-control')
             r.write(folder/'manifest.json', manifest)
             return manifest
+    if library_control is not None:
+        try:
+            library_controls.check(checkpoint, library_control, source/'grammar', folder/'library-control-base')
+            manifest['library_regression_controls']['base_result_sha256'] = r.digest(folder/'library-control-base/result.json')
+            r.write(folder/'manifest.json', manifest)
+        except (ValueError, OSError, subprocess.CalledProcessError, KeyError) as error:
+            manifest.update(status='failed', reason=str(error), failure_scope='baseline-library-control')
+            r.write(folder/'manifest.json', manifest)
+            return manifest
     context = {'source': source, 'folder': folder, 'manifest': manifest, 'checkpoint': checkpoint,
-               'control': control, 'baseline': baseline, 'baseline_names': baseline_names,
+               'control': control, 'library_control': library_control, 'baseline': baseline, 'baseline_names': baseline_names,
                'registry_path': registry_path, 'registry_hash': registry_hash}
     indexed = list(enumerate(proposals))
     try:
@@ -625,6 +647,8 @@ def _stage(campaign, checkpoint, proposals):
         try:
             if control is not None:
                 _control_verify(control)
+            if library_control is not None:
+                library_controls.verify(library_control)
             manifest['status'] = 'no-proposals'
         except (ValueError, OSError) as error:
             manifest.update(status='failed', reason=str(error), failure_scope='native-control-input')
@@ -632,6 +656,8 @@ def _stage(campaign, checkpoint, proposals):
         try:
             if control is not None:
                 _control_verify(control)
+            if library_control is not None:
+                library_controls.verify(library_control)
             if (r.digest(registry_path) != registry_hash
                     or any(r.digest(source/name) != digest for name, digest in baseline)):
                 raise ValueError('baseline family changed during staging')
@@ -714,22 +740,17 @@ def _validate(manifest, checkpoint, slots):
         gate_env = {key: value for key, value in os.environ.items() if not key.startswith('ORACLE_GRAMMAR_')}
         gate_env.update(CARGO_BUILD_JOBS=str(max(4, threads-4)), RAYON_NUM_THREADS=gate_threads,
                         ORACLE_GRAMMAR_THREADS=gate_threads, RUST_TEST_THREADS=gate_threads)
+        driver_sha256 = r.digest(REPOSITORY_DRIVER)
+        evidence.update(repository_driver_sha256=driver_sha256, repository_grammar=str(source/'grammar'))
         with (folder/'repository-check.log').open('w') as log:
-            code = subprocess.run(['python3', 'tools/dev.py', 'check'], cwd=source, env=gate_env,
+            code = subprocess.run([sys.executable, str(REPOSITORY_DRIVER), str(source),
+                                   '--lease-fds', ','.join(map(str, r._LEASES))], cwd=source, env=gate_env,
                                   stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode
         evidence['repository_check_returncode'] = code
+        if r.digest(REPOSITORY_DRIVER) != driver_sha256:
+            raise ValueError('repository gate driver changed during validation')
         if code:
             raise ValueError('repository gates failed')
-        explicit_log = folder/'repository-explicit-grammar-test.log'
-        explicit_env = {**gate_env, 'ORACLE_GRAMMAR_DIR': str(source/'grammar')}
-        with explicit_log.open('w') as log:
-            code = subprocess.run(['python3', 'tools/dev.py', 'test'], cwd=source, env=explicit_env,
-                                  stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode
-        evidence['explicit_grammar_test_log'] = str(explicit_log)
-        evidence['explicit_grammar_test_log_sha256'] = r.digest(explicit_log)
-        evidence['explicit_grammar_test_returncode'] = code
-        if code:
-            raise ValueError('explicit candidate grammar tests failed')
         if candidate_spec is not None:
             evidence['optimized_family_log'] = str(folder/'optimized-family-check.log')
             family_log = _optimized_families(source, selected_helpers, folder, int(gate_threads))

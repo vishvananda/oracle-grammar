@@ -211,11 +211,12 @@ group success and fallback rates before extrapolating the savings.
 Full candidate validation still requires the eight repository gates and the
 complete explicitly allowed population, including every native reading and each
 baseline print success. Shared Cargo targets can reuse a test executable with a
-different compiled checkout path. Batch validation therefore clears inherited
-grammar overrides for the normal repository gates and additionally runs the
-locked release library test preset with the candidate grammar selected explicitly.
-The separate log, hash and return code are required evidence. This also keeps old
-checkpoint release tests independent of a parent's grammar override.
+different compiled checkout path. The coordinator gate driver therefore binds
+the native gates and receipt identities to the candidate grammar and clears
+inherited grammar overrides for the fast gates. It reuses the candidate's own
+commands, compiler settings, gate timing and receipt implementation. Gate
+processes inherit the coordinator's lease descriptors. Old checkpoint release
+tests remain independent of a parent's grammar override.
 
 An optional `candidate_validation_helpers` setting names a hash-bound optimized
 helper build. It remains separate from the parent checkpoint's helpers while
@@ -236,3 +237,18 @@ the rejection history and requires fresh combined staging and full validation.
 Per-worker native helpers use verified independent copies. Copy-on-write support
 can share their storage without sharing a writable inode; a private helper edit
 must not change either the checkpoint helper or another worker's helper.
+
+Optional hash-bound library regression controls run a small list of exact tests
+against the baseline and each trial grammar before promotion. Their executable
+must match the checkpoint's compiled source and compiler identity. Each test must
+actually run once and pass; a zero-test result cannot pass. Failed groups fall
+back to individual checks. These controls supplement the normal complete suite
+and full population audit.
+
+The standalone batch driver can hold the campaign batch lease while model workers
+continue authoring under their separate controller lease. It runs the existing
+batch pipeline sequentially and records its own status. Expected semantic
+rejections remain parked and later ready work continues. Configuration, integrity
+or missing-evidence failures stop the driver for review. A drain takes effect
+after the current batch finishes. This permits validation-tool upgrades without
+restarting the authoring pool.

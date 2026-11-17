@@ -164,10 +164,10 @@ class BatchTests(unittest.TestCase):
     def test_repository_failure_does_not_start_full_score(self):
         self._validate_threads(16, True, gate_code=1)
 
-    def test_explicit_candidate_grammar_failure_does_not_start_full_score(self):
-        self._validate_threads(16, True, explicit_code=1)
+    def test_gate_driver_mutation_does_not_start_full_score(self):
+        self._validate_threads(16, True, driver_changed=True)
 
-    def _validate_threads(self, expected, configured, gate_code=0, explicit_code=0):
+    def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -183,6 +183,9 @@ class BatchTests(unittest.TestCase):
             baseline.write_text('baseline')
             folder = root/'batch'
             folder.mkdir()
+            driver = root/'retire_repository_checks.py'
+            driver.write_bytes(b'original coordinator gate driver')
+            driver_hash = batch.r.digest(driver)
             manifest = {'status': 'provisional', 'commit': 'candidate', 'source': str(source),
                         'folder': str(folder), 'grammar': batch.r.tree(source/'grammar'), 'jobs': [{'job_id': 'j1', 'status': 'included'}]}
             cp = {'commit': 'base', 'inputs': str(root/'checkpoint'), 'baseline': str(baseline),
@@ -202,23 +205,22 @@ class BatchTests(unittest.TestCase):
                 return {'failures': []}
             def gate(*args, **kwargs):
                 command = args[0]
-                action = command[-1]
-                self.assertIn(action, ('check', 'test'))
-                order.append('gate' if action == 'check' else 'explicit-test')
+                self.assertEqual(command[1:4], [str(driver), str(source), '--lease-fds'])
+                self.assertEqual(command[4], ','.join(map(str, kwargs['pass_fds'])))
+                order.append('gate')
                 self.assertEqual(len(kwargs['pass_fds']), expected)
                 self.assertEqual(kwargs['env']['CARGO_BUILD_JOBS'], str(expected - 4))
                 self.assertNotIn('ORACLE_GRAMMAR_POISON', kwargs['env'])
-                if action == 'check':
-                    self.assertNotIn('ORACLE_GRAMMAR_DIR', kwargs['env'])
-                else:
-                    self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(source/'grammar'))
+                self.assertNotIn('ORACLE_GRAMMAR_DIR', kwargs['env'])
                 for name in ('RAYON_NUM_THREADS', 'ORACLE_GRAMMAR_THREADS', 'RUST_TEST_THREADS'):
                     self.assertEqual(kwargs['env'][name], str(expected//2-2))
-                return SimpleNamespace(returncode=gate_code if action == 'check' else explicit_code)
+                if driver_changed:
+                    driver.write_bytes(b'changed coordinator gate driver')
+                return SimpleNamespace(returncode=gate_code)
             def freeze_input(args):
                 order.append('freeze')
                 args.run.mkdir()
-            with patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar', 'ORACLE_GRAMMAR_POISON': 'wrong'}), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate):
+            with patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar', 'ORACLE_GRAMMAR_POISON': 'wrong'}), patch.object(batch, 'REPOSITORY_DRIVER', driver), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate):
                 result = batch.validate(manifest, cp)
             self.assertEqual(freeze.call_args.args[0].threads, expected)
             self.assertEqual(freeze.call_args.args[0].slots, 1)
@@ -235,21 +237,18 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(json.loads((folder/'validation.json').read_text()), result)
                 self.assertEqual(batch.r._LEASES, [])
                 return
-            if explicit_code:
-                self.assertEqual(order, ['freeze', 'gate', 'explicit-test'])
+            if driver_changed:
+                self.assertEqual(order, ['freeze', 'gate'])
                 full_checks.assert_not_called()
                 self.assertEqual(result['status'], 'failed')
-                self.assertEqual(result['reason'], 'explicit candidate grammar tests failed')
-                self.assertEqual(result['explicit_grammar_test_returncode'], explicit_code)
-                self.assertTrue((folder/'repository-explicit-grammar-test.log').is_file())
+                self.assertEqual(result['reason'], 'repository gate driver changed during validation')
                 self.assertFalse((folder/'full-checks').exists())
                 self.assertNotIn('rows', result)
                 self.assertEqual(batch.r._LEASES, [])
                 return
-            self.assertEqual(order, ['freeze', 'gate', 'explicit-test', 'checks'])
-            self.assertEqual(result['explicit_grammar_test_returncode'], 0)
-            self.assertEqual(result['explicit_grammar_test_log_sha256'],
-                             batch.r.digest(folder/'repository-explicit-grammar-test.log'))
+            self.assertEqual(order, ['freeze', 'gate', 'checks'])
+            self.assertEqual(result['repository_driver_sha256'], driver_hash)
+            self.assertEqual(result['repository_grammar'], str(source/'grammar'))
             self.assertEqual(result['status'], 'passed')
             self.assertEqual(result['scope'], 'combined-batch')
             self.assertEqual(result['audit_threads'], expected)
@@ -652,7 +651,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(batch.r._LEASES, [])
 
     def test_optional_group_trials_gate_union_and_fallback_without_partial_publication(self):
-        for mode in ('pass', 'two-groups', 'family-interaction', 'native-interaction', 'structural', 'missing-metadata'):
+        for mode in ('pass', 'two-groups', 'family-interaction', 'native-interaction', 'library-interaction', 'structural', 'missing-metadata'):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 repo = root/'repo'
@@ -708,12 +707,25 @@ class BatchTests(unittest.TestCase):
                     native_calls.append(text)
                     failed = mode == 'native-interaction' and 'first\n' in text and 'bad\n' in text
                     return {'faces': 2, 'failures': ['union native conflict'] if failed else []}
+                library = {'profile': root/'profile', 'profile_sha256': 'p', 'binary_sha256': 'b',
+                           'source_sha256': 's', 'tests': ['tests::one']}
+                def library_check(checkpoint, control, grammar, directory):
+                    directory.mkdir()
+                    path = grammar/'syntax/shared.ebnf'
+                    text = path.read_text() if path.exists() else ''
+                    failed = 'first\nbad\n' in text
+                    (directory/'result.json').write_text(json.dumps({'passed': not failed}))
+                    if failed:
+                        raise ValueError('library interaction')
                 with patch.object(batch, '_proposal', side_effect=proposal), \
                         patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), \
                         patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
                         patch.object(batch.mined, 'remove', side_effect=remove), \
                         patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family), \
-                        patch.object(batch.w, 'checks', side_effect=native):
+                        patch.object(batch.w, 'checks', side_effect=native), \
+                        patch.object(batch.library_controls, 'setup', return_value=library if mode == 'library-interaction' else None), \
+                        patch.object(batch.library_controls, 'check', side_effect=library_check), \
+                        patch.object(batch.library_controls, 'verify'):
                     if mode in ('family-interaction', 'native-interaction'):
                         isolated = batch.stage(root, cp, [proposals[1]])
                         self.assertEqual(isolated['jobs'][0]['status'], 'included')
@@ -760,6 +772,31 @@ class BatchTests(unittest.TestCase):
                     self.assertEqual(fallback_progress['status'], 'staging')
                     self.assertEqual(fallback_progress['group_trials'][0]['status'], 'failed')
                 self.assertEqual(batch.r._LEASES, [])
+
+    def test_library_control_bad_baseline_fails_without_staging(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repo = root/'repo'
+            repo.mkdir()
+            subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+            (repo/'grammar').mkdir()
+            (repo/'grammar/example.ebnf').write_text('example')
+            (repo/'tests').mkdir()
+            (repo/'tests/families.json').write_text('[]')
+            subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+            subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=t@x',
+                            'commit', '-qm', 'base'], cwd=repo, check=True)
+            cp = {'source': str(repo), 'commit': batch._git(repo, 'rev-parse', 'HEAD')}
+            library = {'profile': root/'profile', 'profile_sha256': 'p', 'binary_sha256': 'b',
+                       'source_sha256': 's', 'tests': ['tests::one']}
+            with patch.object(batch.library_controls, 'setup', return_value=library), \
+                    patch.object(batch.library_controls, 'check', side_effect=ValueError('baseline fails')), \
+                    patch.object(batch, '_proposal') as proposal:
+                result = batch.stage(root, cp, [{'job_id': 'j'}])
+            self.assertEqual(result['status'], 'failed')
+            self.assertEqual(result['failure_scope'], 'baseline-library-control')
+            self.assertEqual(result['jobs'], [])
+            proposal.assert_not_called()
 
     def test_group_size_bounds_and_promotion_rolls_back_all_fixtures(self):
         for invalid in (0, 5, True, '2'):
