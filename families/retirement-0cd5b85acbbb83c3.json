@@ -1,0 +1,1017 @@
+{
+  "family": "retirement-spell-history",
+  "cases": [
+    {
+      "name": "I Bask in Your Silent Awe",
+      "text": "At the beginning of your upkeep, if no opponent cast a spell since your last turn ended, abandon this scheme.",
+      "types": [
+        "Scheme"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountPlayers",
+                  "args": {
+                    "kind": "Intersection",
+                    "args": [
+                      {
+                        "kind": "OpponentsOf",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      },
+                      {
+                        "kind": "Matching",
+                        "args": {
+                          "binding": 0,
+                          "condition": {
+                            "kind": "Compare",
+                            "args": {
+                              "left": {
+                                "kind": "EventHistory",
+                                "args": {
+                                  "event": {
+                                    "Spell": {
+                                      "event": "Cast",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        }
+                                      },
+                                      "spells": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "window": {
+                                    "SinceLastTurnOf": {
+                                      "kind": "AbilityController"
+                                    }
+                                  },
+                                  "measure": "Occurrences"
+                                }
+                              },
+                              "test": {
+                                "kind": "Compare",
+                                "args": {
+                                  "comparison": "GreaterOrEqual",
+                                  "value": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "AbandonScheme",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Lyse Hext",
+      "text": "As long as you've cast two or more noncreature spells this turn, Lyse Hext has double strike.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "Spell": {
+                        "event": "Cast",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "spells": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        }
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "GrantKeyword",
+                      "args": {
+                        "kind": "DoubleStrike"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Urabrask",
+      "text": "{R}: Exile Urabrask, then return it to the battlefield transformed under its owner's control. Activate only as a sorcery and only if you've cast three or more instant and/or sorcery spells this turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Color": "Red"
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": true,
+              "condition": {
+                "kind": "Compare",
+                "args": {
+                  "left": {
+                    "kind": "EventHistory",
+                    "args": {
+                      "event": {
+                        "Spell": {
+                          "event": "Cast",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "spells": {
+                            "kind": "AnyOf",
+                            "args": [
+                              {
+                                "kind": "CardType",
+                                "args": "Instant"
+                              },
+                              {
+                                "kind": "CardType",
+                                "args": "Sorcery"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "window": "ThisTurn",
+                      "measure": "Occurrences"
+                    }
+                  },
+                  "test": {
+                    "kind": "Compare",
+                    "args": {
+                      "comparison": "GreaterOrEqual",
+                      "value": {
+                        "kind": "Constant",
+                        "args": 3
+                      }
+                    }
+                  }
+                }
+              },
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 0,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "Battlefield": {
+                            "controller": "Owner",
+                            "arrival": {
+                              "controller": null,
+                              "tapped": false,
+                              "counters": [],
+                              "states": [
+                                "Transformed"
+                              ]
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Lyse Hext",
+      "text": "As long as you've cast two or more noncreature spells last turn, Lyse Hext has double strike.",
+      "types": [
+        "Creature"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Lyse Hext",
+      "text": "Prowess\nNoncreature spells you cast cost {1} less to cast.\nAs long as you've cast three or more noncreature spells this turn, Lyse Hext has double strike.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Rebel",
+          "Monk"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Prowess"
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    },
+                    "modifier": {
+                      "Reduce": {
+                        "reductions": [
+                          {
+                            "color": null,
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          }
+                        ],
+                        "spill_into_generic": true
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "Spell": {
+                        "event": "Cast",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "spells": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        }
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 3
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "GrantKeyword",
+                      "args": {
+                        "kind": "DoubleStrike"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Urabrask",
+      "text": "First strike\nWhenever you cast an instant or sorcery spell, Urabrask deals 1 damage to target opponent. Add {R}.\n{R}: Exile Urabrask, then return it to the battlefield transformed under its owner's control. Activate only as a sorcery and only if you've cast four or more instant and/or sorcery spells this turn.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Phyrexian",
+          "Praetor"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          4,
+          4
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "FirstStrike"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AnyOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Instant"
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Sorcery"
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Players",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "AddMana",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "mana": {
+                          "Amount": {
+                            "color": "Red",
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          }
+                        },
+                        "restriction": null
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Color": "Red"
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": true,
+              "condition": {
+                "kind": "Compare",
+                "args": {
+                  "left": {
+                    "kind": "EventHistory",
+                    "args": {
+                      "event": {
+                        "Spell": {
+                          "event": "Cast",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "spells": {
+                            "kind": "AnyOf",
+                            "args": [
+                              {
+                                "kind": "CardType",
+                                "args": "Instant"
+                              },
+                              {
+                                "kind": "CardType",
+                                "args": "Sorcery"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "window": "ThisTurn",
+                      "measure": "Occurrences"
+                    }
+                  },
+                  "test": {
+                    "kind": "Compare",
+                    "args": {
+                      "comparison": "GreaterOrEqual",
+                      "value": {
+                        "kind": "Constant",
+                        "args": 4
+                      }
+                    }
+                  }
+                }
+              },
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 0,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "Battlefield": {
+                            "controller": "Owner",
+                            "arrival": {
+                              "controller": null,
+                              "tapped": false,
+                              "counters": [],
+                              "states": [
+                                "Transformed"
+                              ]
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Lyse Hext",
+      "text": "Prowess\nNoncreature spells you cast cost {1} less to cast.\nAs long as you've cast two or more nonartifact spells this turn, Lyse Hext has double strike.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Rebel",
+          "Monk"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Prowess"
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    },
+                    "modifier": {
+                      "Reduce": {
+                        "reductions": [
+                          {
+                            "color": null,
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          }
+                        ],
+                        "spill_into_generic": true
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "Spell": {
+                        "event": "Cast",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "spells": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "CardType",
+                            "args": "Artifact"
+                          }
+                        }
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "GrantKeyword",
+                      "args": {
+                        "kind": "DoubleStrike"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

@@ -657,8 +657,8 @@ craft_at_least ::= "craft" "with" value "or" "more" craft_materials kicker_opera
 craft_exactly ::= "craft" "with" value craft_materials kicker_operands
 /* @sem Ability::Craft{materials:Term{family:Craftable, form:AnyCard}, count:[GreaterOrEqual, $value], cost:List($kicker_operands)} */
 craft_at_least_any ::= "craft" "with" value "or" "more" kicker_operands
-craft_material ::= craft_artifact | craft_creature | craft_land_type
-craft_materials ::= craft_artifacts | craft_creatures | craft_creature_types
+craft_material ::= craft_artifact | craft_creature | craft_land_type | craft_four_types
+craft_materials ::= craft_artifacts | craft_creatures | craft_creature_types | craft_nonlands_activated | craft_shared_card_type
 /* @sem Operand::Term{family:Craftable, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Artifact}]} */
 craft_artifact ::= "artifact"
 /* @sem Operand::Term{family:Craftable, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]} */
@@ -814,3 +814,13 @@ mechanic_impending ::= "impending" value "―" cost
 
 /* @sem Ability::Offering($filter_phrase) */
 mechanic_offering ::= filter_phrase "offering"
+
+/* Craft material descriptions share their operand with all Craft cost forms. */
+/* @sem Operand::List([$craft_type_item, $craft_type_item_2, $craft_type_item_3, $craft_type_item_4]) */
+craft_four_types ::= craft_type_item "," craft_type_item "," craft_type_item "," "and" craft_type_item
+/* @sem Operand::Term{family:Craftable, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]} */
+craft_type_item ::= "a" creature_subtype
+/* @sem Operand::Term{family:Craftable, form:And, operands:[Term{family:Craftable, form:IsNonCardtype, operands:[Vocabulary{family:CardType, form:Land}]}, Term{family:Craftable, form:HasAbility, operands:[Term{family:CheckHasable, form:ActivatedAbility}]}]} */
+craft_nonlands_activated ::= "nonlands" "with" "activated" "abilities"
+/* @sem Operand::List([Term{family:Craftable, form:AnyCard}, Term{family:GroupFilter, form:ShareACardType}]) */
+craft_shared_card_type ::= "that" "share" "a" "card" "type"

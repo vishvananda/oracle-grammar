@@ -1293,3 +1293,50 @@ each_player_returns_controlled ::= players_singular "returns" "a" "permanent" "t
 
 /* @sem Operation::CreateReplacement{event:Player{event:Draw, players:One(AbilityController)}, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, $each_player_returns_controlled]}} */
 next_draw_each_player_return ::= "the" "next" "time" "you" "would" "draw" "a" "card" this_duration "," each_player_returns_controlled "instead"
+
+/* Optional replacements share the event and the choice, while each offered
+   token recipe remains an independent current operand. */
+/* @sem Ability::Replacement{active:Battlefield, event:$optional_token_event, body:_{instructions:[Effect{result:@next, operation:ChooseAction{actor:One(AbilityController), options:$optional_token_choices}}]}} */
+optional_token_replacement ::= optional_token_event "," "you" "may" optional_token_choices "."
+
+optional_token_event ::= optional_token_event_any | optional_token_event_first
+
+/* @sem ReplacementEvent::Tokens{tokens:Any, creators:One(AbilityController)} */
+optional_token_event_any ::= "if" "you" "would" "create" "one" "or" "more" "tokens"
+
+/* @sem ReplacementEvent::FirstEachTurn(Tokens{tokens:Any, creators:One(AbilityController)}) */
+optional_token_event_first ::= "the" "first" "time" "you" "would" "create" "one" "or" "more" "tokens" "each" "turn"
+
+optional_token_choices ::= optional_token_choice_after | optional_token_choice_before | optional_token_choice_pair
+
+/* @sem Operand::[$replacement_token_option, Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1}}}]}] */
+optional_token_choice_after ::= "create" replacement_token_option "instead"
+
+/* @sem Operand::[$replacement_token_option_creating, Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1}}}]}] */
+optional_token_choice_before ::= "instead" "create" replacement_token_option_creating
+
+/* @sem Operand::[$replacement_token_option, $replacement_token_option_2, Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1}}}]}] */
+optional_token_choice_pair ::= "instead" "create" replacement_token_option "or" replacement_token_option
+
+/* @sem Operand::Program(Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:0, tokens:[$replacement_token_spec]}}}]}) */
+replacement_token_option ::= replacement_token_spec
+
+/* @sem Operand::Program(Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:0, tokens:[$replacement_token_creating]}}}]}) */
+replacement_token_option_creating ::= replacement_token_creating
+
+replacement_token_creating ::= replacement_token_defined | replacement_token_copy
+
+replacement_token_spec ::= replacement_token_creating | replacement_token_named
+
+/* @sem TokenSpec::TokenSpec{amount:EventAmount, words:CreatingEffect, recipe:$token_recipe} */
+replacement_token_defined ::= "that" "many" token_recipe
+
+/* @sem TokenSpec::TokenSpec{amount:EventAmount, words:Rules, recipe:$token_named_recipe} */
+replacement_token_named ::= "that" "many" token_named_recipe "tokens"
+
+/* @sem TokenSpec::TokenSpec{amount:EventAmount, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
+replacement_token_copy ::= "that" "many" "tokens" "that" "are" "copies" "of" object_ref
+
+/* Skipping the draw is a choice to cancel it or perform that same draw. */
+/* @sem Ability::Replacement{active:Battlefield, event:$draw_event, body:_{instructions:[Effect{result:@next, operation:ChooseAction{actor:One(AbilityController), options:[Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}]}, Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Constant(1)}}]}]}}]}} */
+replacement_skip_draw ::= "if" draw_event "," "you" "may" "skip" "that" "draw" "instead" "."

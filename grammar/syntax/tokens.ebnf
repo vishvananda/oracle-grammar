@@ -117,7 +117,7 @@ token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy
 
-token_copy ::= token_copy_plain | token_copy_modified
+token_copy ::= token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -478,3 +478,30 @@ create_attacking_copies_each ::= "for" "each" attacking_modified_controlled "," 
 
 /* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$each_opponent_targets, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
 clause_copy_each_opponent_target ::= "for" "each" "opponent" "," "you" "create" "a" "token" "that's" "a" "copy" "of" each_opponent_targets
+
+/* The exiled population and copy exceptions retain their independent operands. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)} */
+token_exiled_card ::= "a" "card" "exiled" "with" object_ref
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, ExiledWith($object_ref)])} */
+token_exiled_filtered_card ::= "a" filter_phrase "card" "exiled" "with" object_ref
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyOne{objects:$token_exiled_card, exceptions:[]}} */
+token_copy_exiled_plain ::= "a" "token" "that's" "a" "copy" "of" token_exiled_card
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyOne{objects:$token_exiled_filtered_card, exceptions:$token_copy_singular_exceptions}} */
+token_copy_exiled_singular ::= "a" "token" "that's" "a" "copy" "of" token_exiled_filtered_card "," "except" token_copy_singular_exceptions
+
+/* @sem TokenSpec::TokenSpec{amount:$count, words:CreatingEffect, recipe:CopyOne{objects:$token_exiled_filtered_card, exceptions:$token_copy_plural_exceptions}} */
+token_copy_exiled_plural ::= count "tokens" "that" "are" "copies" "of" token_exiled_filtered_card "," "except" token_copy_plural_exceptions
+
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::AddAbilities([Keyword($keyword_value)]), CopyException::AddAbilities([Keyword($keyword_value_2)])] */
+token_copy_singular_stats ::= "it's" value "/" value "and" "has" keyword_value "and" keyword_value
+
+/* @sem Vec<CopyException>::[CopyException::AddAbilities([Keyword($keyword_value)]), CopyException::AddAbilities([Keyword($keyword_value_2)])] */
+token_copy_singular_keywords ::= "it" "has" keyword_value "and" keyword_value
+
+token_copy_singular_exceptions ::= token_copy_singular_stats | token_copy_singular_keywords
+
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::AddAbilities([Keyword($keyword_value)])] */
+token_copy_plural_exceptions ::= "they're" value "/" value "and" "have" keyword_value

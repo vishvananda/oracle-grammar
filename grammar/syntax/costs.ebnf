@@ -39,10 +39,9 @@ cost_part ::= cost_symbols | cost_words
 cost_symbols ::= cost_mana | cost_tap
 
 cost_words ::= mined_cost | cost_words_owned
-    | cost_return_to_owners_hand
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected
+cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -119,8 +118,8 @@ cost_sacrifice_self ::= "sacrifice" self_explicit_ref
 cost_sacrifice ::= "sacrifice" ("a" | "an") filter_phrase
 
 /* Exiling a permanent as a cost: one of the described permanents on the battlefield. */
-/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
-cost_exile_permanent ::= "exile" ("a" | "an") filter_phrase
+/* @sem CostPart::Move{selections:[$cost_one_permanent_selection], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_permanent ::= "exile" cost_one_permanent_selection
 
 /* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_phrase)}, choose:Exactly(Expr::Constant(1))} */
 cost_sacrifice_another ::= "sacrifice" "another" filter_phrase
@@ -524,8 +523,8 @@ cast_window_opponent_after_upkeep ::= "an" "opponent's" "turn" "after" "their" "
 cast_window_opponent_before_attackers ::= "an" "opponent's" "turn" "," "before" "attackers" "are" "declared"
 
 /* Returning a permanent to its owner's hand as a cost. */
-/* @sem CostPart::Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))}], destination:OwnersHand(CardArrival{counters:[], states:[]})} */
-cost_return_to_owners_hand ::= "return" ("a" | "an") filter_phrase "to" "its" "owner's" "hand"
+/* @sem CostPart::Move{selections:[$cost_one_permanent_selection], destination:$cost_owner_hand_destination} */
+cost_return_to_owners_hand ::= "return" cost_one_permanent_selection cost_owner_hand_destination
 
 /* Flash for an extra payment to cast it. */
 /* @sem Ability::Casting(Flash{additional_cost:$cost}) */
@@ -625,3 +624,23 @@ cost_sacrifice_three ::= "sacrifice" cost_sacrifice_item "," cost_sacrifice_item
 
 /* @sem $cost_sacrifice_three */
 cost_sacrifice_three_later ::= "↑" cost_sacrifice_three
+
+/* Counted selections compose the payment with the complete battlefield filter. */
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count_plural)}], tapped:true} */
+cost_tap_counted_filter ::= "tap" count_plural filter_plural
+
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count_plural)}], tapped:false} */
+cost_untap_counted_filter ::= "untap" count_plural filter_plural
+
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))}], tapped:false} */
+cost_untap_single_filter ::= "untap" "a" filter_phrase
+
+/* Reveal a selected card from the payer’s hand, with its current filter. */
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$card_filter} */
+cost_reveal_filtered_hand ::= "reveal" "a" card_filter "card" "in" "your" "hand"
+
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))} */
+cost_one_permanent_selection ::= ("a" | "an") filter_phrase
+
+/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
+cost_owner_hand_destination ::= "to" "its" "owner's" "hand"

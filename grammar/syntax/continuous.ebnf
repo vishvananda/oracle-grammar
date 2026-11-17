@@ -175,8 +175,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add
-    | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types
+change ::= change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -358,7 +357,7 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types
+grant ::= grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types
 
 /* "Gains all creature types", "a 2/2 creature with all creature types": every creature
    type replaces the old ones (CR 205.3m), like a changeling's characteristic. */
@@ -651,7 +650,7 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular
+static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type
 /* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
    the protection names the object it keeps attached. */
 /* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
@@ -2272,7 +2271,7 @@ static_cast_graveyard_using_sneak ::= "you" "may" "cast" card_filter "spells" "f
 change_loses_keyword ::= "loses" lost_keyword
 /* @sem Change::[LosesAbility($lost_keyword)] */
 change_lose_keyword ::= "lose" lost_keyword
-lost_keyword ::= lost_flying | lost_first_strike | lost_trample | lost_defender
+lost_keyword ::= lost_flying | lost_first_strike | lost_trample | lost_defender | lost_infect | lost_nonmana_abilities | lost_this_ability
 /* @sem Operand::Term{family:CheckHasable, form:Flying, operands:[]} */
 lost_flying ::= "flying"
 /* @sem Operand::Term{family:CheckHasable, form:FirstStrike, operands:[]} */
@@ -3065,3 +3064,57 @@ self_counter_anaphoric_conditional ::= "as" "long" "as" self_explicit_ref "has" 
 
 /* @sem Change::[AddCardType(Artifact), AddCardType(Creature)] */
 anaphoric_artifact_creature ::= "an" "artifact" "creature"
+
+/* @sem Operand::Term{family:CheckHasable, form:Infect, operands:[]} */
+lost_infect ::= "infect"
+
+/* @sem Operand::Term{family:CheckHasable, form:NonManaAbility, operands:[]} */
+lost_nonmana_abilities ::= "all" "abilities" "except" "mana" "abilities"
+
+/* @sem Operand::Term{family:CheckHasable, form:ThisAbility, operands:[]} */
+lost_this_ability ::= "this" "ability"
+
+/* Additive artifact characteristics compose with other static changes. */
+/* @sem Change::[AddArtifactType($added_artifact_subtype)] */
+change_add_artifact_subtype ::= "are" added_artifact_subtype "in" "addition" "to" "their" "other" "types"
+
+added_artifact_subtype ::= added_food_type | added_clue_type
+
+/* @sem ArtifactType::Food */
+added_food_type ::= "Foods"
+
+/* @sem ArtifactType::Clue */
+added_clue_type ::= "Clues"
+
+/* @sem Change::[AddArtifactType(Food), AddCardType(Artifact)] */
+change_add_food_artifact ::= "are" "Food" "artifacts" "in" "addition" "to" "their" "other" "types"
+
+/* A granted activation creates its own ability scope and holder. */
+/* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})) */
+grant_quoted_activation ::= '"' cost ":" program "." '"'
+
+/* A final quoted activation carries the sentence's own period. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[...$additive_artifact_change, $grant_quoted_activation]}) */
+static_additive_quoted_activation ::= affected additive_artifact_change "and" "have" grant_quoted_activation
+
+additive_artifact_change ::= change_add_artifact_subtype | change_add_food_artifact
+
+/* The adjective supplies the shared change; agreement is spelled separately. */
+/* @sem $legendary_change */
+change_is_legendary ::= "is" legendary_change
+
+/* @sem $legendary_change */
+change_are_legendary ::= "are" legendary_change
+
+/* @sem Change::[AddSupertype(Legendary)] */
+legendary_change ::= "legendary"
+
+/* Agreement and possessive spelling are separate; the land-type change is shared. */
+/* @sem $every_basic_land_type_addition */
+change_is_every_basic_land_type ::= "is" every_basic_land_type_addition "its" "other" "types"
+
+/* @sem $every_basic_land_type_addition */
+change_are_every_basic_land_type ::= "are" every_basic_land_type_addition "their" "other" "types"
+
+/* @sem Change::[LandTypes{scope:Basic, mode:Add}] */
+every_basic_land_type_addition ::= "every" "basic" "land" "type" "in" "addition" "to"

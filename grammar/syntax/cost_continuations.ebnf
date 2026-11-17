@@ -222,3 +222,22 @@ repeat_mana_plural_union ::= plural "," plural "," "and" "/" "or" plural
 
 /* @sem Ability::Mechanic{mechanic:CumulativeUpkeep, cost:$keyword_payment} */
 keyword_cumulative_upkeep ::= "cumulative" "upkeep" keyword_payment
+
+/* A granted ability is held by each receiving card, including its own cost. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(InZone{objects:One($escape_grant_target), zone:Graveyard}), changes:[GrantAbility(@holder($escape_granted_ability))], duration:$duration, evaluation:Snapshot}}] */
+instructions_graveyard_escape_grant ::= escape_grant_target "gains" escape_grant_ability_prefix duration "." "the" "escape" "cost" "is" "equal" "to" "its" "mana" "cost" "plus" escape_granted_ability
+/* @sem () */
+escape_grant_ability_prefix ::= "escape"
+/* @sem Ability::Mechanic{mechanic:Escape, cost:Cost{parts:[ManaCostOf(Source), $escape_grant_extra_cost]}} */
+escape_granted_ability ::= escape_grant_extra_cost
+/* @sem CostPart::Move{selections:[_{objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Not(SameObject(Source))}), choose:Exactly($value)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+escape_grant_extra_cost ::= "exile" value "other" "cards" "from" "your" "graveyard"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([Supertype(Legendary), $noun, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
+escape_grant_legendary_target ::= "target" "legendary" noun "card" "in" "your" "graveyard"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([$noun, AnyOf([$noun_2, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$number}}]), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
+escape_grant_qualified_target ::= "target" noun "card" "in" "your" "graveyard" "that's" "an" noun "or" "that" "has" "mana" "value" number "or" "less"
+escape_grant_target ::= escape_grant_legendary_target | escape_grant_qualified_target
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$flashback_grant_filter})), changes:[GrantAbility(@holder(Ability::Casting(Permission{origin:Flashback, player:OwnerOf(Source), from:Players{zone:Graveyard, players:One(OwnerOf(Source))}, require:AnyOf([CardType(Instant), CardType(Sorcery)]), cost:Cost{parts:[ManaCostOf(Source)]}, leave_stack:Exile})))], duration:$duration, evaluation:Snapshot}}] */
+instructions_graveyard_flashback_grant ::= "each" flashback_grant_filter "card" "in" "your" "graveyard" "gains" "flashback" duration "." "the" "flashback" "cost" "is" "equal" "to" "its" "mana" "cost"
+/* @sem ObjectFilter::AnyOf([CardType(Instant), CardType(Sorcery)]) */
+flashback_grant_filter ::= "instant" "and" "sorcery"
