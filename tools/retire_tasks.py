@@ -55,10 +55,14 @@ def _identity(checkpoint, campaign, runner):
     r.require(dev.source(source) == manifest['source'], 'compiled source differs from frozen manifest')
     build = r.read(helpers/'build.json')
     r.require(build['source_sha256'] == manifest['source'], 'helper build source differs')
-    frozen_build = r.read(inputs/'frozen/build.json')
-    r.require(frozen_build['source_sha256'] == build['source_sha256'], 'frozen build source differs')
-    for name in HELPERS:
+    r.require(r.digest(helpers/'build.json') == r.digest(inputs/'frozen/build.json'),
+              'helper and frozen build manifests differ')
+    r.require(set(build['binaries']) == set(dev.BINS), 'helper binary set differs')
+    for name in dev.BINS:
         r.require(r.digest(helpers/name) == build['binaries'][name], 'helper checksum mismatch: '+name)
+    for name in r.HELPERS:
+        r.require(r.digest(inputs/'frozen/bin'/name) == build['binaries'][name],
+                  'frozen helper checksum mismatch: '+name)
     for name in r.TOOLING:
         r.require(r.digest(runner/name) == manifest['tooling'][name],
                   'frozen runner tooling mismatch: '+name)

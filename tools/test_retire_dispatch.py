@@ -247,7 +247,8 @@ class DispatchCanaries(unittest.TestCase):
                         'jobs': [{'job_id': 'one', 'status': 'included'}]}
             result = {'status': 'passed', 'inputs': str(root/'inputs'), 'rows': 'rows'}
             with patch.object(dispatch, 'Queue', return_value=queue), \
-                    patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base', 'source': str(root)}), \
+                    patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base', 'source': str(root),
+                                                                                   'helpers': str(root/'helpers')}), \
                     patch.object(dispatch, 'proposals', return_value=[{'job_id': 'one'}]), \
                     patch.object(dispatch.retire_batch, 'stage', return_value=manifest), \
                     patch.object(dispatch.retire_batch, 'validate', return_value=result), \
@@ -259,6 +260,71 @@ class DispatchCanaries(unittest.TestCase):
                 dispatch._batch(root)
             self.assertEqual(order, ['accept', 'reclassify', 'priority'])
             refresh.assert_called_once_with(root, 'next', dispatch.retire_priority.VERSION)
+
+    def test_optimized_helpers_propagate_only_after_pass(self):
+        for passed in (False, True):
+            with self.subTest(passed=passed), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                folder = root/'batch'
+                snapshot = folder/'candidate-validation-helpers'
+                snapshot.mkdir(parents=True)
+                inputs = root/'inputs'
+                frozen = inputs/'frozen'
+                (frozen/'bin').mkdir(parents=True)
+                (frozen/'build.json').write_text('build manifest')
+                binaries = {}
+                for name in r.HELPERS:
+                    (frozen/'bin'/name).write_text(name)
+                    binaries[name] = r.digest(frozen/'bin'/name)
+                override = {'path': str(root/'trusted'), 'build_sha256': r.digest(frozen/'build.json')}
+                r.write(root/'config.json', {'initial_commit': 'base', 'first_batch_size': 1,
+                                            'batch_size': 1, 'candidate_validation_helpers': override})
+                queue = Mock()
+                queue.coverage.return_value = {'checkpoint': 'base'}
+                manifest = {'status': 'provisional', 'commit': 'next', 'id': 'batch', 'folder': str(folder),
+                            'jobs': [{'job_id': 'one', 'status': 'included'}]}
+                result = {'status': 'passed' if passed else 'failed', 'inputs': str(inputs), 'rows': 'rows',
+                          'helpers': str(snapshot)}
+                with patch.object(dispatch, 'Queue', return_value=queue), \
+                        patch.object(dispatch.campaign_api, 'checkpoint', return_value={
+                            'commit': 'base', 'source': str(root), 'helpers': 'old-helpers'}), \
+                        patch.object(dispatch, 'proposals', return_value=[{'job_id': 'one'}]), \
+                        patch.object(dispatch.retire_batch, '_candidate_helper_preflight'), \
+                        patch.object(dispatch.retire_batch, 'stage', return_value=manifest) as stage, \
+                        patch.object(dispatch.retire_batch, 'validate', return_value=result), \
+                        patch.object(dispatch.retire_batch, '_verified_helper_build', return_value={'binaries': binaries}), \
+                        patch.object(dispatch.subprocess, 'run'), \
+                        patch.object(dispatch, 'scan_checkpoint') as scan, \
+                        patch.object(dispatch.campaign_api, 'save_checkpoint') as save, \
+                        patch.object(dispatch, 'reclassify'), patch.object(dispatch, 'publish_main'):
+                    dispatch._batch(root)
+                self.assertEqual(stage.call_args.args[1]['candidate_validation_helpers'], override)
+                if passed:
+                    next_cp = save.call_args.args[1]
+                    self.assertEqual(next_cp['helpers'], str(snapshot))
+                    self.assertEqual(next_cp['inputs'], str(inputs))
+                    self.assertNotIn('candidate_validation_helpers', next_cp)
+                    self.assertEqual(scan.call_args.args[0], inputs)
+                    queue.advance_and_accept.assert_called_once()
+                else:
+                    save.assert_not_called()
+                    scan.assert_not_called()
+                    queue.advance_and_accept.assert_not_called()
+
+    def test_invalid_candidate_helper_configuration_does_not_stage_or_reject(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            r.write(root/'config.json', {'candidate_validation_helpers': {'path': '/bad', 'build_sha256': 'bad'}})
+            queue = Mock()
+            queue.coverage.return_value = {'checkpoint': 'base'}
+            with patch.object(dispatch, 'Queue', return_value=queue), \
+                    patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base', 'source': str(root)}), \
+                    patch.object(dispatch.retire_batch, 'stage') as stage:
+                with self.assertRaises(ValueError):
+                    dispatch._batch(root)
+            stage.assert_not_called()
+            queue.reject_jobs.assert_not_called()
+            queue.advance_and_accept.assert_not_called()
 
     def test_controller_accepts_verified_explicit_runner_and_refuses_tampering(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -446,14 +512,17 @@ with open(sys.argv[3], 'a') as guard:
                 shutil.copy2(tools/name, campaign/'runner'/name)
             r.write(campaign/'runner.json', r.tree(campaign/'runner'))
             helpers.mkdir()
-            for name in retire_tasks.HELPERS:
+            for name in retire_tasks.dev.BINS:
                 (helpers/name).write_text('helper '+name)
-            build = {'source_sha256': 'compiled', 'binaries': {n: r.digest(helpers/n) for n in retire_tasks.HELPERS}}
+            build = {'source_sha256': 'compiled', 'binaries': {n: r.digest(helpers/n) for n in retire_tasks.dev.BINS}}
             r.write(helpers/'build.json', build)
             frozen = inputs/'frozen'
             frozen.mkdir(parents=True)
             shutil.copytree(source/'grammar', frozen/'grammar')
             r.write(frozen/'build.json', build)
+            (frozen/'bin').mkdir()
+            for name in r.HELPERS:
+                shutil.copy2(helpers/name, frozen/'bin'/name)
             r.write(frozen/'index.json', {
                 '0': {'name': 'Example', 'text': 'one', 'record': 0, 'face': 0, 'flags': [True]*4},
                 '1': {'name': 'Companion', 'text': 'other', 'record': 0, 'face': 1, 'flags': [True]*4},

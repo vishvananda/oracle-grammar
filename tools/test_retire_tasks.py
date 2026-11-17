@@ -48,14 +48,17 @@ class TaskTests(unittest.TestCase):
         r.write(self.campaign/'runner.json', r.tree(runner))
         self.helpers = self.base/'helpers'
         self.helpers.mkdir()
-        for name in tasker.HELPERS:
+        for name in tasker.dev.BINS:
             (self.helpers/name).write_text(name)
-        build = {'source_sha256': 'compiled', 'binaries': {n: r.digest(self.helpers/n) for n in tasker.HELPERS}}
+        build = {'source_sha256': 'compiled', 'binaries': {n: r.digest(self.helpers/n) for n in tasker.dev.BINS}}
         r.write(self.helpers/'build.json', build)
         self.inputs = self.base/'inputs'
         frozen = self.inputs/'frozen'
         frozen.mkdir(parents=True)
         r.write(frozen/'build.json', build)
+        (frozen/'bin').mkdir()
+        for name in r.HELPERS:
+            shutil.copy2(self.helpers/name, frozen/'bin'/name)
         r.write(frozen/'index.json', {'0': {'name': 'A', 'record': 0, 'face': 0, 'flags': [True]*4},
                                       '1': {'name': 'B', 'record': 1, 'face': 0, 'flags': [False]*4}})
         r.jsonl(frozen/'gold.jsonl', [{'faces': [{'name': 'A', 'abilities': []}]},
@@ -77,6 +80,18 @@ class TaskTests(unittest.TestCase):
         self.patch.stop()
         tasker._packet_data.cache_clear()
         self.tmp.cleanup()
+
+    def test_helper_identity_rejects_manifest_or_frozen_binary_changes(self):
+        tasker._identity(self.checkpoint, self.campaign, self.campaign/'runner')
+        frozen = self.inputs/'frozen'
+        original = (frozen/'build.json').read_bytes()
+        (frozen/'build.json').write_bytes(original+b' ')
+        with self.assertRaisesRegex(ValueError, 'build manifests differ'):
+            tasker._identity(self.checkpoint, self.campaign, self.campaign/'runner')
+        (frozen/'build.json').write_bytes(original)
+        (frozen/'bin/score').write_text('tampered')
+        with self.assertRaisesRegex(ValueError, 'frozen helper checksum mismatch'):
+            tasker._identity(self.checkpoint, self.campaign, self.campaign/'runner')
 
     def git(self, *args):
         return subprocess.check_output(['git', *args], cwd=self.source, text=True).strip()

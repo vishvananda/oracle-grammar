@@ -357,6 +357,10 @@ def _batch(run, selected_job_ids=None):
     cp.pop('native_regression_controls',None)
     if config.get('native_regression_controls') is not None:
         cp['native_regression_controls']=config['native_regression_controls']
+    cp.pop('candidate_validation_helpers',None)
+    if config.get('candidate_validation_helpers') is not None:
+        cp['candidate_validation_helpers']=config['candidate_validation_helpers']
+        retire_batch._candidate_helper_preflight(cp['candidate_validation_helpers'],cp,Path(cp['source']),run)
     limit=config['first_batch_size'] if cp['commit']==config['initial_commit'] else config['batch_size']
     items=proposals(run,limit,selected_job_ids)
     if not items:
@@ -374,13 +378,26 @@ def _batch(run, selected_job_ids=None):
     if result['status']!='passed':
         queue.reject_jobs(included,{'manifest':manifest['id'],'validation':result})
         return
+    next_helpers=cp['helpers']
+    override=cp.get('candidate_validation_helpers')
+    if override is not None:
+        snapshot=Path(result.get('helpers','')).resolve()
+        expected=(Path(manifest['folder'])/'candidate-validation-helpers').resolve()
+        r.require(snapshot==expected,'validated helper snapshot path differs')
+        build=retire_batch._verified_helper_build(snapshot,override['build_sha256'])
+        frozen=Path(result['inputs'])/'frozen'
+        r.require(r.digest(frozen/'build.json')==override['build_sha256']
+                  and all(r.digest(frozen/'bin'/name)==build['binaries'][name] for name in r.HELPERS),
+                  'validated frozen helper identity differs')
+        next_helpers=str(snapshot)
     commit=manifest['commit']
     source=run/'checkpoints'/commit/'source'
     source.parent.mkdir(parents=True)
     subprocess.run(['git','worktree','add','--detach',str(source),commit],cwd=cp['source'],check=True)
     inputs=Path(result['inputs'])
     scan_checkpoint(inputs,cp)
-    next_cp=dict(cp,commit=commit,source=str(source),inputs=str(inputs),baseline=result['rows'])
+    next_cp=dict(cp,commit=commit,source=str(source),inputs=str(inputs),baseline=result['rows'],helpers=next_helpers)
+    next_cp.pop('candidate_validation_helpers',None)
     campaign_api.save_checkpoint(run,next_cp)
     queue.advance_and_accept(commit,cp['commit'],included,{'manifest':manifest['id'],'validation':result})
     reclassify(run,next_cp)

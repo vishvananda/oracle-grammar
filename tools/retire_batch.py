@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -136,15 +137,8 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
             for fd in fds:
                 r._LEASES.remove(fd)
     try:
-        data = json.loads(log.read_text().splitlines()[0])
-        reports = data['families'] if len(fixtures) > 1 and data.get('schema') == 1 else [data]
-        if not isinstance(reports, list) or len(reports) != len(fixtures):
-            raise ValueError('family report count differs')
+        reports = _family_reports(log, len(fixtures))
         for index, report in enumerate(reports):
-            if (not isinstance(report, dict) or not isinstance(report.get('family'), str)
-                    or type(report.get('cases')) is not int or type(report.get('passed')) is not int
-                    or not isinstance(report.get('failures'), list)):
-                raise ValueError('invalid family report')
             (log.parent/f'family-{index:03d}.log').write_text(json.dumps(report, sort_keys=True)+'\n')
         if any(report.get('failures') != [] or report.get('passed') != report.get('cases')
                for report in reports):
@@ -154,6 +148,91 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
             raise ValueError('invalid family check report') from error
     if code:
         raise ValueError(f'family check failed: {log}')
+
+
+def _family_reports(log, count):
+    data = json.loads(log.read_text().splitlines()[0])
+    reports = data['families'] if count > 1 and data.get('schema') == 1 else [data]
+    if not isinstance(reports, list) or len(reports) != count:
+        raise ValueError('family report count differs')
+    for report in reports:
+        if (not isinstance(report, dict) or not isinstance(report.get('family'), str)
+                or type(report.get('cases')) is not int or type(report.get('passed')) is not int
+                or not isinstance(report.get('failures'), list)):
+            raise ValueError('invalid family report')
+    return reports
+
+
+def _verified_helper_build(path, build_sha256):
+    manifest = path/'build.json'
+    if manifest.is_symlink() or not manifest.is_file() or r.digest(manifest) != build_sha256:
+        raise ValueError('candidate helper build manifest changed')
+    build = r.read(manifest)
+    if (build.get('profile') != 'optimized' or not isinstance(build.get('binaries'), dict)
+            or set(build['binaries']) != set(dev.BINS)):
+        raise ValueError('candidate helper build must be complete and optimized')
+    for name in dev.BINS:
+        binary = path/name
+        if binary.is_symlink() or not binary.is_file() or r.digest(binary) != build['binaries'][name]:
+            raise ValueError('candidate helper binary changed: '+name)
+    return build
+
+
+def _candidate_helper_preflight(spec, checkpoint, source, campaign):
+    if not isinstance(spec, dict) or set(spec) != {'path', 'build_sha256'}:
+        raise ValueError('candidate helper path and build SHA-256 are required')
+    if not isinstance(spec['path'], str) or not isinstance(spec['build_sha256'], str) \
+            or not re.fullmatch(r'[0-9a-f]{64}', spec['build_sha256']):
+        raise ValueError('invalid candidate helper specification')
+    root = Path(spec['path'])
+    if not root.is_absolute() or '..' in root.parts or not root.is_dir():
+        raise ValueError('candidate helper path must be an absolute directory')
+    if any(path.is_symlink() for path in (root, *root.parents)):
+        raise ValueError('candidate helper path contains a symlink')
+    if root.resolve().is_relative_to(campaign.resolve()) or root.resolve().is_relative_to(source.resolve()):
+        raise ValueError('candidate helper build must be outside campaign and private workspace')
+    build = _verified_helper_build(root, spec['build_sha256'])
+    parent = r.read(Path(checkpoint['inputs'])/'frozen/build.json')
+    if build.get('source_sha256') != dev.source(source) or build.get('source_sha256') != parent.get('source_sha256'):
+        raise ValueError('candidate helper compiled source differs')
+    if not isinstance(build.get('compiler'), dict) or build['compiler'] != parent.get('compiler'):
+        raise ValueError('candidate helper compiler identity differs')
+    return root, build
+
+
+def _candidate_helper_snapshot(spec, checkpoint, source, folder):
+    root, build = _candidate_helper_preflight(spec, checkpoint, source, folder.parents[2])
+    snapshot = folder/'candidate-validation-helpers'
+    snapshot.mkdir()
+    for name in ('build.json', *dev.BINS):
+        shutil.copy2(root/name, snapshot/name)
+        (snapshot/name).chmod(0o444 if name == 'build.json' else 0o555)
+    if _verified_helper_build(snapshot, spec['build_sha256']) != build:
+        raise ValueError('candidate helper snapshot differs')
+    return snapshot, build
+
+
+def _optimized_families(source, helpers, folder, threads):
+    names = r.read(source/'tests/families.json')
+    if not isinstance(names, list) or not 1 <= len(names) <= 4096:
+        raise ValueError('optimized family registry is invalid')
+    paths = [source/_baseline_fixture_path(name) for name in names]
+    env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}
+    env.update(ORACLE_GRAMMAR_DIR=str(source/'grammar'), ORACLE_GRAMMAR_THREADS=str(threads))
+    log = folder/'optimized-family-check.log'
+    with log.open('w') as stream:
+        code = subprocess.run([str(helpers/'family-check'), *map(str, paths), '--compositional',
+                               *dev.modules(source)], cwd=source, env=env, stdout=stream, stderr=stream,
+                              check=False, pass_fds=tuple(r._LEASES)).returncode
+    if code:
+        raise ValueError('optimized family check failed: '+str(log))
+    try:
+        reports = _family_reports(log, len(paths))
+        if any(item['failures'] or item['passed'] != item['cases'] for item in reports):
+            raise ValueError('optimized family report contains failures')
+    except (IndexError, KeyError, TypeError, AttributeError) as error:
+        raise ValueError('optimized family report is invalid') from error
+    return log
 
 
 def _control_verify(control):
@@ -501,7 +580,13 @@ def _validate(manifest, checkpoint, slots):
     try:
       with lease as fds:
         r._LEASES.extend(fds)
-        r.freeze(Namespace(run=output, source=source, helpers=Path(checkpoint['helpers']).resolve(),
+        selected_helpers = Path(checkpoint['helpers']).resolve()
+        candidate_spec = checkpoint.get('candidate_validation_helpers')
+        if candidate_spec is not None:
+            selected_helpers, candidate_build = _candidate_helper_snapshot(candidate_spec, checkpoint, source, folder)
+            evidence['candidate_helper_build_sha256'] = candidate_spec['build_sha256']
+            evidence['candidate_helper_profile'] = candidate_build['profile']
+        r.freeze(Namespace(run=output, source=source, helpers=selected_helpers,
                            slots=1, threads=threads, allowed=inputs/'allowed.json', gold=inputs/'gold.jsonl',
                            oracle=inputs/'oracle.json', parse=baseline, prints=[baseline]))
         # dev.py runs families and library tests concurrently. Divide the lease
@@ -516,6 +601,10 @@ def _validate(manifest, checkpoint, slots):
         evidence['repository_check_returncode'] = code
         if code:
             raise ValueError('repository gates failed')
+        if candidate_spec is not None:
+            evidence['optimized_family_log'] = str(folder/'optimized-family-check.log')
+            family_log = _optimized_families(source, selected_helpers, folder, int(gate_threads))
+            evidence['optimized_family_log_sha256'] = r.digest(family_log)
         data = w.payload(output)
         checks = folder/'full-checks'
         checks.mkdir()
@@ -528,6 +617,14 @@ def _validate(manifest, checkpoint, slots):
             raise ValueError('checkpoint inputs changed during validation')
         if _git(source, 'rev-parse', 'HEAD') != manifest['commit'] or _git(source, 'status', '--porcelain'):
             raise ValueError('candidate changed during validation')
+        if candidate_spec is not None:
+            build = _verified_helper_build(selected_helpers, candidate_spec['build_sha256'])
+            if (dev.source(source) != build['source_sha256']
+                    or r.digest(output/'frozen/build.json') != candidate_spec['build_sha256']
+                    or any(r.digest(output/'frozen/bin'/name) != build['binaries'][name] for name in r.HELPERS)
+                    or r.read(output/'manifest.json')['files'] != r.tree(output/'frozen')):
+                raise ValueError('candidate frozen helper identity changed')
+            evidence['helpers'] = str(selected_helpers)
         evidence['rows'] = str(checks/'rows.jsonl')
         evidence['rows_sha256'] = r.digest(checks/'rows.jsonl')
         evidence['status'] = 'passed'

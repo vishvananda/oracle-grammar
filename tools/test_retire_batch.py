@@ -1,5 +1,7 @@
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -25,6 +27,27 @@ def control_fixture(root, commit):
     profile.write_text(json.dumps({'cards': ['A']}))
     return {'inputs': str(run), 'commit': commit, 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32,
             'native_regression_controls': {'path': str(profile), 'sha256': batch.r.digest(profile)}}
+
+
+def optimized_fixture(root):
+    candidate = root/'trusted-build'
+    candidate.mkdir()
+    for name in batch.dev.BINS:
+        (candidate/name).write_bytes(('optimized-'+name).encode())
+    compiler = {'environment': {}, 'versions': ['rustc-test', 'cargo-test']}
+    build = {'profile': 'optimized', 'source_sha256': 'compiled', 'compiler': compiler,
+             'binaries': {name: batch.r.digest(candidate/name) for name in batch.dev.BINS}}
+    (candidate/'build.json').write_text(json.dumps(build))
+    inputs = root/'checkpoint-inputs/frozen'
+    inputs.mkdir(parents=True)
+    (inputs/'build.json').write_text(json.dumps({'source_sha256': 'compiled', 'compiler': compiler}))
+    folder = root/'campaign/.cache/batches/test'
+    folder.mkdir(parents=True)
+    source = root/'campaign/workspaces/coordinator'
+    source.mkdir(parents=True)
+    cp = {'inputs': str(inputs.parent), 'helpers': str(root/'old-helpers')}
+    spec = {'path': str(candidate), 'build_sha256': batch.r.digest(candidate/'build.json')}
+    return cp, spec, source, folder, build
 
 
 class BatchTests(unittest.TestCase):
@@ -214,6 +237,128 @@ class BatchTests(unittest.TestCase):
         for threads, capacity in ((15, 32), (25, 32), (16, 15), (True, 32), (16, 33)):
             with self.subTest(threads=threads, capacity=capacity), self.assertRaises(ValueError):
                 batch._validate(manifest, {'audit_threads': threads, 'cpu_capacity': capacity}, 12)
+
+    def test_candidate_snapshot_copies_seven_pinned_helpers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cp, spec, source, folder, build = optimized_fixture(root)
+            with patch.object(batch.dev, 'source', return_value='compiled'):
+                snapshot, copied = batch._candidate_helper_snapshot(spec, cp, source, folder)
+            self.assertEqual(copied, build)
+            self.assertEqual(batch.r.digest(snapshot/'build.json'), spec['build_sha256'])
+            for name in batch.dev.BINS:
+                self.assertNotEqual(os.stat(snapshot/name).st_ino, os.stat(Path(spec['path'])/name).st_ino)
+                self.assertEqual(batch.r.digest(snapshot/name), build['binaries'][name])
+            (Path(spec['path'])/'probe').write_bytes(b'changed after snapshot')
+            self.assertEqual(batch._verified_helper_build(snapshot, spec['build_sha256']), build)
+
+    def test_candidate_snapshot_rejects_bad_provenance_or_workspace(self):
+        for case in ('source', 'compiler', 'profile', 'hash', 'binary', 'workspace'):
+            with self.subTest(case=case), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                cp, spec, source, folder, build = optimized_fixture(root)
+                original = Path(spec['path'])
+                if case == 'source':
+                    build['source_sha256'] = 'wrong'
+                elif case == 'compiler':
+                    build['compiler'] = {'environment': {}, 'versions': ['other']}
+                elif case == 'profile':
+                    build['profile'] = 'quick'
+                if case in ('source', 'compiler', 'profile'):
+                    (original/'build.json').write_text(json.dumps(build))
+                    spec['build_sha256'] = batch.r.digest(original/'build.json')
+                elif case == 'hash':
+                    spec['build_sha256'] = '0'*64
+                elif case == 'binary':
+                    (original/'score').write_bytes(b'tampered')
+                elif case == 'workspace':
+                    target = source/'worker-build'
+                    shutil.copytree(original, target)
+                    spec['path'] = str(target)
+                with patch.object(batch.dev, 'source', return_value='compiled'), self.assertRaises(ValueError):
+                    batch._candidate_helper_snapshot(spec, cp, source, folder)
+
+    def test_optimized_families_use_snapshot_and_case_modes(self):
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'tests').mkdir()
+            (root/'families').mkdir()
+            (root/'grammar').mkdir()
+            (root/'tests/families.json').write_text('["families/a.json"]')
+            (root/'families/a.json').write_text('{"cases":[{"compositional":false}]}')
+            def execute(command, **kwargs):
+                self.assertEqual(command[0], str(root/'helpers/family-check'))
+                self.assertIn('--compositional', command)
+                self.assertIn('--module=events=trial', command)
+                kwargs['stdout'].write(json.dumps({'family': 'a', 'cases': 1, 'passed': 1,
+                                                  'compositional': False, 'failures': []}))
+                kwargs['stdout'].flush()
+                return SimpleNamespace(returncode=0)
+            with patch.object(batch.dev, 'modules', return_value=['--module=events=trial']), \
+                    patch.object(batch.subprocess, 'run', side_effect=execute):
+                log = batch._optimized_families(root, root/'helpers', root, 6)
+            self.assertTrue(log.is_file())
+
+    def test_candidate_validation_only_publishes_verified_snapshot_after_gates(self):
+        from types import SimpleNamespace
+        for mode in ('pass', 'family-failure', 'snapshot-tamper'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                cp, spec, source, folder, _ = optimized_fixture(root)
+                (source/'grammar').mkdir()
+                (source/'grammar/x.ebnf').write_text('x ::= "x"')
+                (source/'tests').mkdir()
+                (source/'tests/families.json').write_text('["families/x.json"]')
+                (source/'families').mkdir()
+                (source/'families/x.json').write_text('{}')
+                frozen = Path(cp['inputs'])/'frozen'
+                (Path(cp['inputs'])/'manifest.json').write_text(json.dumps({'files': batch.r.tree(frozen)}))
+                baseline = root/'baseline.jsonl'
+                baseline.write_text('baseline')
+                cp.update(commit='base', baseline=str(baseline), cpu_pool=str(root/'cpu'),
+                          cpu_capacity=32, audit_threads=16, candidate_validation_helpers=spec)
+                manifest = {'status': 'provisional', 'commit': 'candidate', 'source': str(source),
+                            'folder': str(folder), 'grammar': batch.r.tree(source/'grammar'),
+                            'jobs': [{'job_id': 'one', 'status': 'included'}]}
+                def freeze(args):
+                    dest = args.run/'frozen'
+                    (dest/'bin').mkdir(parents=True)
+                    shutil.copy2(args.helpers/'build.json', dest/'build.json')
+                    for name in batch.r.HELPERS:
+                        shutil.copy2(args.helpers/name, dest/'bin'/name)
+                    (args.run/'manifest.json').write_text(json.dumps({'files': batch.r.tree(dest)}))
+                def execute(command, **kwargs):
+                    if Path(command[0]).name == 'family-check':
+                        kwargs['stdout'].write(json.dumps({'family': 'x', 'cases': 1, 'passed': 1, 'failures': []}))
+                        kwargs['stdout'].flush()
+                        return SimpleNamespace(returncode=int(mode == 'family-failure'))
+                    return SimpleNamespace(returncode=0)
+                def checks(run, directory, grammar, names, data, threads):
+                    (directory/'rows.jsonl').write_text('rows')
+                    if mode == 'snapshot-tamper':
+                        binary = folder/'candidate-validation-helpers/probe'
+                        binary.chmod(0o755)
+                        binary.write_bytes(b'tampered')
+                    return {'faces': 1, 'failures': []}
+                with patch.object(batch.dev, 'source', return_value='compiled'), \
+                        patch.object(batch.dev, 'modules', return_value=[]), \
+                        patch.object(batch, '_git', side_effect=lambda src, *args: 'candidate' if args[0] == 'rev-parse' else ''), \
+                        patch.object(batch.r, 'freeze', side_effect=freeze), \
+                        patch.object(batch.w, 'payload', return_value=({'0': {'name': 'A'}}, [], [])), \
+                        patch.object(batch.w, 'checks', side_effect=checks) as full, \
+                        patch.object(batch.subprocess, 'run', side_effect=execute):
+                    result = batch.validate(manifest, cp)
+                if mode == 'pass':
+                    self.assertEqual(result['status'], 'passed')
+                    self.assertEqual(result['helpers'], str(folder/'candidate-validation-helpers'))
+                    self.assertEqual(result['candidate_helper_build_sha256'], spec['build_sha256'])
+                else:
+                    self.assertEqual(result['status'], 'failed')
+                    self.assertNotIn('helpers', result)
+                    if mode == 'family-failure':
+                        full.assert_not_called()
+                self.assertEqual(batch.r._LEASES, [])
 
     def test_native_control_profile_closure_and_tampering_fail_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
