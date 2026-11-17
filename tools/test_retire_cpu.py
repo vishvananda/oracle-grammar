@@ -17,9 +17,9 @@ def holder(root, threads, capacity, ready, release):
         release.wait(10)
 
 
-def waiting_bundle(root, threads, capacity, ready, acquired, release):
+def waiting_bundle(root, threads, capacity, ready, acquired, release, priority_wait=False):
     ready.set()
-    with retire_cpu.reserve(root, threads, capacity):
+    with retire_cpu.reserve(root, threads, capacity, priority_wait=priority_wait):
         acquired.set()
         release.wait(10)
 
@@ -73,7 +73,7 @@ class LeaseTests(unittest.TestCase):
             except BlockingIOError:
                 return
             time.sleep(0.02)
-        self.fail('large waiter never acquired priority')
+        self.fail('waiter never acquired priority')
 
     def assert_token_available(self, number):
         # Observe between allocation scans: a waiter may briefly hold a partial
@@ -104,6 +104,31 @@ class LeaseTests(unittest.TestCase):
         with retire_cpu.reserve(self.root, 2, 8, wait=False) as tokens:
             self.assertEqual(len(tokens), 2)
         finish.set()
+
+    def test_waiting_priority_replay_claims_one_slot_and_releases_gate(self):
+        wide_ready, wide_release = multiprocessing.Event(), multiprocessing.Event()
+        small_ready, small_release = multiprocessing.Event(), multiprocessing.Event()
+        self.start(holder, self.root, 6, 8, wide_ready, wide_release)
+        self.assertTrue(wide_ready.wait(5))
+        self.start(holder, self.root, 2, 8, small_ready, small_release)
+        self.assertTrue(small_ready.wait(5))
+        waiting, acquired, finish = (multiprocessing.Event() for _ in range(3))
+        self.start(waiting_bundle, self.root, 1, 8, waiting, acquired, finish, True)
+        self.assertTrue(waiting.wait(5))
+        self.wait_for_priority()
+        self.assertFalse(acquired.is_set())
+        with self.assertRaises(BlockingIOError):
+            with retire_cpu.reserve(self.root, 1, 8, wait=False):
+                pass
+        small_release.set()
+        self.assertTrue(acquired.wait(5))
+        with retire_cpu.reserve(self.root, 1, 8, wait=False) as tokens:
+            self.assertEqual(len(tokens), 1)
+            with self.assertRaises(BlockingIOError):
+                with retire_cpu.reserve(self.root, 1, 8, wait=False):
+                    pass
+        finish.set()
+        wide_release.set()
 
     def test_dead_large_waiter_releases_priority_gate(self):
         ready, release = multiprocessing.Event(), multiprocessing.Event()

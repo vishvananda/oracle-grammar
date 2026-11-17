@@ -10,7 +10,8 @@ POLL_SECONDS = 0.2
 
 
 @contextmanager
-def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool = True):
+def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool = True,
+            *, priority_wait: bool = False):
     """Reserve all requested tokens together and yield their open file descriptors.
 
     Every process using the same root participates in the same pool. A smaller
@@ -18,9 +19,9 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
     with larger reservations. Pass the yielded descriptors in subprocess
     ``pass_fds`` to keep the lease alive after the reserving process exits.
     Tokens are released solely by closing every copy of each descriptor. A
-    waiting bundle above two tokens, or at least half the pool, gates new
-    allocations until it acquires all tokens;
-    existing reservations continue and unused capacity is available afterward.
+    waiting bundle above two tokens, at least half the pool, or explicitly
+    marked priority gates new allocations until it acquires all tokens. Existing
+    reservations continue and unused capacity is available afterward.
     """
     if (isinstance(capacity, bool) or not isinstance(capacity, int)
             or not 1 <= capacity <= MAX_CAPACITY):
@@ -36,12 +37,12 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
         os.close(allocator)
         raise
     held = []
-    large = threads > 2 or threads >= capacity // 2
+    exclusive_wait = priority_wait or threads > 2 or threads >= capacity // 2
     priority_held = False
     try:
         while True:
-            # A large waiter holds this gate while waiting for its full bundle.
-            # Small reservations take it only for an individual allocation scan.
+            # A priority waiter holds this gate until the full bundle is free.
+            # Other reservations take it for each allocation scan.
             if not priority_held:
                 fcntl.flock(priority, fcntl.LOCK_EX | (0 if wait else fcntl.LOCK_NB))
                 priority_held = True
@@ -67,7 +68,7 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
                     held.clear()
             finally:
                 fcntl.flock(allocator, fcntl.LOCK_UN)
-            if held or not large:
+            if held or not exclusive_wait:
                 fcntl.flock(priority, fcntl.LOCK_UN)
                 priority_held = False
             if held:

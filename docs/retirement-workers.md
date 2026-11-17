@@ -70,7 +70,9 @@ One full audit runs at a time, reserving 16 tokens by default from a shared
 32-token CPU pool; a 24-thread option is also supported. Worker helpers reserve two
 tokens through verified wrappers; batch trial family checks reserve six. A pending large allocation temporarily stops
 new small allocations; after it acquires its tokens, workers may use the remaining
-capacity. Checkpoint rule scans use the same reservation mechanism.
+capacity. Checkpoint rule scans use the same reservation mechanism. Ordered
+readmission replay uses one CPU slot with waiting priority so a busy worker pool
+cannot starve recovery. Active audits and worker checks retain their leases.
 For the current explicitly allowed population, that means all 32,755
 occurrences: preserve every native reading and every baseline-successful
 verified, exact keyed, default and exact-default print gate. The population and

@@ -36,7 +36,9 @@ def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, rep
         db.commit()
     finally:
         db.close()
-    with retire_cpu.reserve(Path(cp['cpu_pool']), 2, cp.get('cpu_capacity', 32)):
+    # Ordered replay is single-threaded and gets a slot ahead of newly queued
+    # worker checks while an audit and existing worker checks keep their leases.
+    with retire_cpu.reserve(Path(cp['cpu_pool']), 1, cp.get('cpu_capacity', 32), priority_wait=True):
         with tempfile.TemporaryDirectory(prefix='.library-replay-', dir=scratch) as temporary:
             trial = Path(temporary)
             shutil.copytree(base/'grammar', trial/'grammar')
