@@ -222,3 +222,17 @@ helper build. It remains separate from the parent checkpoint's helpers while
 staging. Promotion requires a private verified helper snapshot, the full candidate
 audit and all registered families under the optimized helpers. A failed candidate
 cannot replace the checkpoint's helper identity.
+
+A batch rejected only by a bounded set of library tests can return other
+independently passing proposals to validation after explicit isolation. The proof
+must reproduce the full frozen candidate, replay the remaining proposals in order
+with every identified culprit excluded, and show the exact failed tests passing
+on both the baseline and the remainder. The same hashed test executable runs all
+controls against explicitly selected grammars. Atomic multi-job readmission
+verifies the shared replay once, checks every proposal's original evidence and
+ownership, and rechecks artifacts before changing any queue rows. It preserves
+the rejection history and requires fresh combined staging and full validation.
+
+Per-worker native helpers use verified independent copies. Copy-on-write support
+can share their storage without sharing a writable inode; a private helper edit
+must not change either the checkpoint helper or another worker's helper.
