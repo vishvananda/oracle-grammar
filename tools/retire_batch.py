@@ -364,6 +364,162 @@ def _prepare_workspace(origin, checkpoint, source, branch):
     return state
 
 
+class _UncertainPromotion(RuntimeError):
+    """A failed publication could not restore the original workspace."""
+
+
+def _promote_trial(source, trial, fixtures):
+    """Install a verified union or restore its exact prior grammar and fixtures."""
+    installed = []
+    backup = trial/'previous-grammar'
+    for _, destination in fixtures:
+        target = source/destination
+        if target.exists() or target.is_symlink() or not target.resolve().is_relative_to(source):
+            raise ValueError('fixture appeared or escaped before publication')
+        target.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(source/'grammar', backup)
+    try:
+        os.replace(trial/'grammar', source/'grammar')
+        for temporary, destination in fixtures:
+            os.replace(temporary, source/destination)
+            installed.append(source/destination)
+    except OSError as error:
+        try:
+            for path in installed:
+                path.unlink()
+            if (source/'grammar').exists():
+                shutil.rmtree(source/'grammar')
+            os.replace(backup, source/'grammar')
+        except OSError as rollback:
+            raise _UncertainPromotion(f'publication failed: {error}; rollback failed: {rollback}') from rollback
+        raise
+
+
+def _stage_trial(context, entries, label):
+    """Merge and gate one ordered trial; publish nothing until every gate passes."""
+    source, folder, manifest = context['source'], context['folder'], context['manifest']
+    checkpoint, control = context['checkpoint'], context['control']
+    logs = folder/label
+    logs.mkdir()
+    items = [{'job_id': proposal['job_id'], 'attempt_id': proposal['attempt_id']} for _, proposal in entries]
+    prefix_tree = r.tree(source/'grammar')
+    prefix_fixtures = {name: r.digest(source/name) for name in manifest['fixtures']}
+    proof = {'proposal_indices': [index for index, _ in entries],
+             'jobs': [item['job_id'] for item in items], 'status': 'running',
+             'attempts': [item['attempt_id'] for item in items],
+             'prefix_grammar': prefix_tree, 'prefix_fixtures': prefix_fixtures}
+    try:
+        with tempfile.TemporaryDirectory(dir=folder) as temporary:
+            trial = Path(temporary)
+            shutil.copytree(source/'grammar', trial/'grammar')
+            additions, prepared = [], []
+            for offset, ((_, proposal), item) in enumerate(zip(entries, items, strict=True)):
+                run, task, directory, hooks = _proposal(proposal)
+                mechanical = proposal.get('kind', 'author') == 'mechanical'
+                if mechanical and hooks:
+                    raise ValueError('mechanical proposal cannot request hooks')
+                fixture = None if mechanical else _fixture_path(task['fixture'])
+                if fixture and ((source/fixture).exists() or str(fixture) in manifest['fixtures']
+                                or fixture in [destination for _, destination in additions]):
+                    raise ValueError('fixture path already exists')
+                if fixture and str(fixture) in context['baseline_names']:
+                    raise ValueError('fixture already registered')
+                if fixture and not (source/fixture).resolve().is_relative_to(source):
+                    raise ValueError('fixture escapes candidate source')
+                family = _family(directory, proposal['report'], run,
+                                 modes=checkpoint.get('family_case_modes') is True) if fixture else None
+                report = proposal['report']
+                metadata = {'rules': task['rules'], 'task': report['task'], 'base_commit': report['source'],
+                            'descriptor_sha256': report['descriptor_sha256'],
+                            'support_sha256': report['support_sha256'], 'fixture_sha256': report.get('fixture_sha256'),
+                            'kind': proposal.get('kind', 'author')}
+                changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
+                if mechanical and changes:
+                    raise ValueError('mechanical proposal contains non-removal grammar edits')
+                for name, text in changes.items():
+                    target = trial/name
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_text(text)
+                removed, kept = mined.remove(trial, task['rules'])
+                if set(removed) != set(task['rules']) or kept:
+                    raise ValueError('assigned removals have retained users')
+                a.apply_hooks(trial/'grammar', hooks)
+                if fixture:
+                    filename = 'family.json' if len(entries) == 1 else f'family-{offset:03d}.json'
+                    temporary_family = trial/filename
+                    r.write(temporary_family, family)
+                    additions.append((temporary_family, fixture))
+                prepared.append((task, fixture, item, metadata))
+            proof['proposals'] = [{'job_id': item['job_id'], 'attempt_id': item['attempt_id'],
+                                   'base_commit': metadata['base_commit'],
+                                   'descriptor_sha256': metadata['descriptor_sha256'],
+                                   'support_sha256': metadata['support_sha256'],
+                                   'fixture_sha256': metadata['fixture_sha256']}
+                                  for _, _, item, metadata in prepared]
+            if (r.digest(context['registry_path']) != context['registry_hash']
+                    or any(r.digest(source/name) != digest for name, digest in context['baseline'])):
+                raise ValueError('baseline family changed during staging')
+            fixtures = ([source/name for name, _ in context['baseline']]
+                        + [source/path for path in manifest['fixtures']] + [path for path, _ in additions])
+            if len(fixtures) > 4096:
+                raise ValueError('trial exceeds family-check fixture limit')
+            descriptions = ([{'fixture': name, 'kind': 'baseline'} for name, _ in context['baseline']]
+                            + [{'fixture': name, 'kind': 'prior-proposal'} for name in manifest['fixtures']]
+                            + [{'fixture': str(destination), 'kind': 'new-proposal'} for _, destination in additions])
+            family_checks = [dict(entry, log=f'family-{index:03d}.log')
+                             for index, entry in enumerate(descriptions)]
+            proof['family_checks'] = family_checks
+            proof['trial_grammar'] = r.tree(trial/'grammar')
+            proof['new_fixtures'] = [{'fixture': str(destination), 'sha256': r.digest(path)}
+                                     for path, destination in additions]
+            for item in items:
+                item.update(family_logs=str(logs), family_checks=family_checks)
+            if fixtures:
+                _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
+            if control is not None:
+                for item in items:
+                    item['native_control'] = str(logs/'native-control')
+                _control_check(checkpoint, control, trial/'grammar', logs/'native-control')
+            if (r.tree(source/'grammar') != prefix_tree or r.tree(trial/'grammar') != proof['trial_grammar']
+                    or r.digest(context['registry_path']) != context['registry_hash']
+                    or any(r.digest(source/name) != digest for name, digest in context['baseline'])
+                    or any(r.digest(source/name) != digest for name, digest in prefix_fixtures.items())
+                    or any(r.digest(path) != record['sha256']
+                           for (path, _), record in zip(additions, proof['new_fixtures'], strict=True))):
+                raise _UncertainPromotion('trial or accepted prefix changed during verification')
+            _promote_trial(source, trial, additions)
+        for task, fixture, item, metadata in prepared:
+            if fixture:
+                manifest['fixtures'].append(str(fixture))
+            manifest['rules'].extend(task['rules'])
+            item.update(status='included', **metadata)
+        proof['status'] = 'passed'
+    except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
+        try:
+            if (r.tree(source/'grammar') != prefix_tree
+                    or r.digest(context['registry_path']) != context['registry_hash']
+                    or any(r.digest(source/name) != digest for name, digest in context['baseline'])
+                    or any(r.digest(source/name) != digest for name, digest in prefix_fixtures.items())):
+                raise _UncertainPromotion('accepted prefix changed during failed trial')
+        except OSError as mismatch:
+            raise _UncertainPromotion('accepted prefix unavailable after failed trial') from mismatch
+        proof.update(status='failed', reason=str(error))
+        for item in items:
+            item.update(status='integration-rejected', reason=str(error))
+    try:
+        for name, path in (('family_log_sha256', logs/'family.log'),
+                           ('native_result_sha256', logs/'native-control/result.json')):
+            if path.is_file():
+                proof[name] = r.digest(path)
+        r.write(logs/'trial.json', proof)
+        proof_hash = r.digest(logs/'trial.json')
+    except (ValueError, OSError) as error:
+        raise _UncertainPromotion('trial evidence could not be retained: '+str(error)) from error
+    for item in items:
+        item['trial_proof'] = {'path': str(logs/'trial.json'), 'sha256': proof_hash}
+    return items, proof
+
+
 def stage(campaign, checkpoint, proposals):
     with _workspace_lock(checkpoint):
         return _stage(campaign, checkpoint, proposals)
@@ -374,6 +530,9 @@ def _stage(campaign, checkpoint, proposals):
     proposals = list(proposals)
     if not 1 <= len(proposals) <= 96:
         raise ValueError('a batch must contain one to ninety-six proposals')
+    group_size = checkpoint.get('stage_group_size', 1)
+    if type(group_size) is not int or not 1 <= group_size <= 4:
+        raise ValueError('stage_group_size must be an integer from 1 to 4')
     control = _control_setup(checkpoint)
     campaign = Path(campaign).resolve()
     origin = Path(checkpoint['source']).resolve()
@@ -389,7 +548,7 @@ def _stage(campaign, checkpoint, proposals):
         _git(origin, 'worktree', 'add', '-b', branch, str(source), checkpoint['commit'])
     manifest = {'id': ident, 'folder': str(folder), 'source': str(source), 'branch': branch, 'base_commit': checkpoint['commit'],
                 'status': 'staging', 'jobs': [], 'fixtures': [], 'rules': [],
-                'family_check_threads': FAMILY_CHECK_THREADS}
+                'family_check_threads': FAMILY_CHECK_THREADS, 'stage_group_size': group_size}
     registry_path = source/'tests/families.json'
     registry_hash = r.digest(registry_path)
     baseline_names = r.read(registry_path)
@@ -426,82 +585,42 @@ def _stage(campaign, checkpoint, proposals):
             manifest.update(status='failed', reason=str(error), failure_scope='baseline-native-control')
             r.write(folder/'manifest.json', manifest)
             return manifest
-    for proposal_index, proposal in enumerate(proposals):
-        item = {'job_id': proposal['job_id'], 'attempt_id': proposal['attempt_id']}
+    context = {'source': source, 'folder': folder, 'manifest': manifest, 'checkpoint': checkpoint,
+               'control': control, 'baseline': baseline, 'baseline_names': baseline_names,
+               'registry_path': registry_path, 'registry_hash': registry_hash}
+    indexed = list(enumerate(proposals))
+    try:
+        for first in range(0, len(indexed), group_size):
+            entries = indexed[first:first+group_size]
+            label = f'proposal-{first:03d}' if len(entries) == 1 else f'group-{first:03d}'
+            items, proof = _stage_trial(context, entries, label)
+            if len(entries) > 1:
+                manifest.setdefault('group_trials', []).append({'jobs': proof['jobs'], 'status': proof['status'],
+                                                                 'proof': items[0]['trial_proof']})
+                if proof['status'] != 'passed':
+                    r.write(folder/'manifest.json', manifest)
+            if proof['status'] == 'passed' or len(entries) == 1:
+                manifest['jobs'].extend(items)
+                r.write(folder/'manifest.json', manifest)
+                continue
+            group_proof = items[0]['trial_proof']
+            for index, proposal in entries:
+                single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')
+                single[0]['group_attempt'] = group_proof
+                manifest['jobs'].extend(single)
+                r.write(folder/'manifest.json', manifest)
+    except (_UncertainPromotion, OSError) as error:
+        manifest.update(status='failed', reason=str(error), failure_scope='combined-batch')
         try:
-            run, task, directory, hooks = _proposal(proposal)
-            mechanical = proposal.get('kind', 'author') == 'mechanical'
-            if mechanical and hooks:
-                raise ValueError('mechanical proposal cannot request hooks')
-            fixture = None if mechanical else _fixture_path(task['fixture'])
-            if fixture and ((source/fixture).exists() or str(fixture) in manifest['fixtures']):
-                raise ValueError('fixture path already exists')
-            if fixture and str(fixture) in r.read(source/'tests/families.json'):
-                raise ValueError('fixture already registered')
-            family = _family(directory, proposal['report'], run,
-                             modes=checkpoint.get('family_case_modes') is True) if fixture else None
-            if fixture and not (source/fixture).resolve().is_relative_to(source):
-                raise ValueError('fixture escapes candidate source')
-            with tempfile.TemporaryDirectory(dir=folder) as temporary:
-                trial = Path(temporary)
-                shutil.copytree(source/'grammar', trial/'grammar')
-                changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
-                if mechanical and changes:
-                    raise ValueError('mechanical proposal contains non-removal grammar edits')
-                for name, text in changes.items():
-                    target = trial/name
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_text(text)
-                removed, kept = mined.remove(trial, task['rules'])
-                if set(removed) != set(task['rules']) or kept:
-                    raise ValueError('assigned removals have retained users')
-                a.apply_hooks(trial/'grammar', hooks)
-                if fixture:
-                    r.write(trial/'family.json', family)
-                logs = folder/f'proposal-{proposal_index:03d}'
-                logs.mkdir()
-                item['family_logs'] = str(logs)
-                if (r.digest(registry_path) != registry_hash
-                        or any(r.digest(source/name) != digest for name, digest in baseline)):
-                    raise ValueError('baseline family changed during staging')
-                fixtures = [source/name for name, _ in baseline] + [source/path for path in manifest['fixtures']]
-                if fixture:
-                    fixtures.append(trial/'family.json')
-                if len(fixtures) > 4096:
-                    raise ValueError('trial exceeds family-check fixture limit')
-                descriptions = ([{'fixture': name, 'kind': 'baseline'} for name, _ in baseline]
-                                + [{'fixture': name, 'kind': 'prior-proposal'} for name in manifest['fixtures']])
-                if fixture:
-                    descriptions.append({'fixture': str(fixture), 'kind': 'new-proposal'})
-                item['family_checks'] = [dict(entry, log=f'family-{index:03d}.log')
-                                         for index, entry in enumerate(descriptions)]
-                if fixtures:
-                    _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
-                if control is not None:
-                    item['native_control'] = str(logs/'native-control')
-                    _control_check(checkpoint, control, trial/'grammar', logs/'native-control')
-                if fixture:
-                    (source/fixture).parent.mkdir(parents=True, exist_ok=True)
-                backup = trial/'previous-grammar'
-                os.replace(source/'grammar', backup)
-                try:
-                    os.replace(trial/'grammar', source/'grammar')
-                    if fixture:
-                        os.replace(trial/'family.json', source/fixture)
-                except OSError:
-                    if (source/'grammar').exists():
-                        shutil.rmtree(source/'grammar')
-                    os.replace(backup, source/'grammar')
-                    raise
-            if fixture:
-                manifest['fixtures'].append(str(fixture))
-            manifest['rules'].extend(task['rules'])
-            item.update(status='included', rules=task['rules'], task=proposal['report']['task'],
-                        base_commit=proposal['report']['source'], descriptor_sha256=proposal['report']['descriptor_sha256'],
-                        support_sha256=proposal['report']['support_sha256'], fixture_sha256=proposal['report'].get('fixture_sha256'), kind=proposal.get('kind', 'author'))
-        except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
-            item.update(status='integration-rejected', reason=str(error))
-        manifest['jobs'].append(item)
+            if _git(source, 'status', '--porcelain'):
+                _git(source, 'add', '-A', '--', '.')
+                _git(source, '-c', 'user.name=Retirement Coordinator', '-c', 'user.email=retirement@localhost',
+                     'commit', '-m', 'Preserve failed retirement batch')
+                manifest['failed_candidate_commit'] = _git(source, 'rev-parse', 'HEAD')
+        except (OSError, subprocess.CalledProcessError) as snapshot_error:
+            manifest['snapshot_error'] = str(snapshot_error)
+        r.write(folder/'manifest.json', manifest)
+        return manifest
     if not any(job['status'] == 'included' for job in manifest['jobs']):
         try:
             if control is not None:

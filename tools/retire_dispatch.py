@@ -354,6 +354,7 @@ def _batch(run, selected_job_ids=None):
     config=r.read(run/'config.json')
     policy=priority_policy(config)
     cp=dict(cp,audit_threads=config.get('audit_threads',24))
+    cp['stage_group_size']=config.get('stage_group_size',1)
     cp.pop('native_regression_controls',None)
     if config.get('native_regression_controls') is not None:
         cp['native_regression_controls']=config['native_regression_controls']

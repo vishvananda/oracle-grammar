@@ -626,6 +626,142 @@ class BatchTests(unittest.TestCase):
             self.assertEqual((Path(result['source'])/'grammar/syntax/shared.ebnf').read_text(), 'first\nlast\n')
             self.assertEqual(batch.r._LEASES, [])
 
+    def test_optional_group_trials_gate_union_and_fallback_without_partial_publication(self):
+        for mode in ('pass', 'two-groups', 'family-interaction', 'native-interaction', 'structural', 'missing-metadata'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                repo = root/'repo'
+                repo.mkdir()
+                subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+                (repo/'grammar/syntax').mkdir(parents=True)
+                (repo/'tests').mkdir()
+                (repo/'families').mkdir()
+                (repo/'families/base.json').write_text('{"family":"base","cases":[]}')
+                (repo/'tests/families.json').write_text('["families/base.json"]')
+                (repo/'grammar/syntax/mined.ebnf').write_text(
+                    'm_first ::= "first"\nm_bad ::= "bad"\nm_last ::= "last"\nm_mech ::= "mech"\n')
+                subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+                subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=t@x',
+                                'commit', '-qm', 'base'], cwd=repo, check=True)
+                commit = batch._git(repo, 'rev-parse', 'HEAD')
+                cp = dict(control_fixture(root, commit), source=str(repo),
+                          stage_group_size=2 if mode == 'two-groups' else 4)
+                report = {'task': 'task', 'source': commit, 'descriptor_sha256': 'd',
+                          'support_sha256': 's', 'fixture_sha256': 'f', 'edited': []}
+                names = ('first', 'bad', 'last', 'mech')
+                proposals = [{'job_id': name, 'attempt_id': name, 'report': dict(report),
+                              'kind': 'mechanical' if name == 'mech' else 'author'} for name in names]
+                if mode == 'missing-metadata':
+                    del proposals[1]['report']['descriptor_sha256']
+                def proposal(item):
+                    name = item['job_id']
+                    if mode == 'structural' and name == 'bad':
+                        raise ValueError('bad immutable report')
+                    return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
+                def merge(base, trial, proposed, rules, hooks):
+                    name = rules[0][2:]
+                    if name == 'mech':
+                        return {}
+                    path = trial/'grammar/syntax/shared.ebnf'
+                    return {'grammar/syntax/shared.ebnf': (path.read_text() if path.exists() else '')+name+'\n'}
+                def remove(trial, rules):
+                    path = trial/'grammar/syntax/mined.ebnf'
+                    name = rules[0][2:]
+                    path.write_text(path.read_text().replace(f'm_{name} ::= "{name}"\n', ''))
+                    return rules, {}
+                family_calls, native_calls, progress = [], [], []
+                def family(checkpoint, source, fixtures, log, grammar_dir=None):
+                    text = (grammar_dir/'syntax/shared.ebnf').read_text()
+                    family_calls.append((text, [p.name for p in fixtures]))
+                    progress.append(json.loads((log.parent.parent/'manifest.json').read_text()))
+                    log.write_text('family proof')
+                    if mode == 'family-interaction' and 'first\n' in text and 'bad\n' in text:
+                        raise ValueError('union family conflict')
+                def native(run, directory, grammar, names, data, threads):
+                    path = grammar/'syntax/shared.ebnf'
+                    text = path.read_text() if path.exists() else ''
+                    native_calls.append(text)
+                    failed = mode == 'native-interaction' and 'first\n' in text and 'bad\n' in text
+                    return {'faces': 2, 'failures': ['union native conflict'] if failed else []}
+                with patch.object(batch, '_proposal', side_effect=proposal), \
+                        patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), \
+                        patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
+                        patch.object(batch.mined, 'remove', side_effect=remove), \
+                        patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family), \
+                        patch.object(batch.w, 'checks', side_effect=native):
+                    if mode in ('family-interaction', 'native-interaction'):
+                        isolated = batch.stage(root, cp, [proposals[1]])
+                        self.assertEqual(isolated['jobs'][0]['status'], 'included')
+                        family_calls.clear()
+                        native_calls.clear()
+                        progress.clear()
+                    result = batch.stage(root, cp, proposals)
+                self.assertEqual(result['status'], 'provisional')
+                self.assertEqual(result['stage_group_size'], 2 if mode == 'two-groups' else 4)
+                candidate = Path(result['source'])
+                if mode == 'two-groups':
+                    self.assertEqual([item['status'] for item in result['jobs']], ['included']*4)
+                    self.assertEqual(len(family_calls), 2)
+                    self.assertEqual(family_calls[1][1], ['base.json', 'first.json', 'bad.json', 'family-000.json'])
+                    self.assertEqual(native_calls, ['', 'first\nbad\n', 'first\nbad\nlast\n'])
+                    self.assertEqual(progress[1]['status'], 'staging')
+                    self.assertEqual(len(progress[1]['jobs']), 2)
+                    self.assertEqual(result['jobs'][0]['trial_proof'], result['jobs'][1]['trial_proof'])
+                    self.assertEqual(result['jobs'][2]['trial_proof'], result['jobs'][3]['trial_proof'])
+                    self.assertNotEqual(result['jobs'][0]['trial_proof'], result['jobs'][2]['trial_proof'])
+                elif mode == 'pass':
+                    self.assertEqual([item['status'] for item in result['jobs']], ['included']*4)
+                    self.assertEqual(len(family_calls), 1)
+                    self.assertEqual(native_calls, ['', 'first\nbad\nlast\n'])
+                    self.assertEqual(family_calls[0][1], ['base.json', 'family-000.json', 'family-001.json', 'family-002.json'])
+                    self.assertEqual(len({item['trial_proof']['sha256'] for item in result['jobs']}), 1)
+                    self.assertEqual((candidate/'grammar/syntax/shared.ebnf').read_text(), 'first\nbad\nlast\n')
+                else:
+                    self.assertEqual([item['status'] for item in result['jobs']],
+                                     ['included', 'integration-rejected', 'included', 'included'])
+                    self.assertEqual((candidate/'grammar/syntax/shared.ebnf').read_text(), 'first\nlast\n')
+                    self.assertFalse((candidate/'families/bad.json').exists())
+                    group = result['jobs'][0]['group_attempt']
+                    self.assertTrue(all(item['group_attempt'] == group for item in result['jobs']))
+                    proof = json.loads(Path(group['path']).read_text())
+                    self.assertEqual(proof['status'], 'failed')
+                    self.assertEqual(proof['jobs'], list(names))
+                    self.assertEqual(batch.r.digest(Path(group['path'])), group['sha256'])
+                    if mode not in ('structural', 'missing-metadata'):
+                        self.assertEqual(family_calls[0][0], 'first\nbad\nlast\n')
+                        self.assertIn('first\n', [text for text, _ in family_calls])
+                        self.assertIn('first\nbad\n', [text for text, _ in family_calls])
+                    fallback_progress = progress[0 if mode in ('structural', 'missing-metadata') else 1]
+                    self.assertEqual(fallback_progress['status'], 'staging')
+                    self.assertEqual(fallback_progress['group_trials'][0]['status'], 'failed')
+                self.assertEqual(batch.r._LEASES, [])
+
+    def test_group_size_bounds_and_promotion_rolls_back_all_fixtures(self):
+        for invalid in (0, 5, True, '2'):
+            with self.subTest(size=invalid), tempfile.TemporaryDirectory() as temporary:
+                with self.assertRaisesRegex(ValueError, 'stage_group_size'):
+                    batch.stage(temporary, {'stage_group_size': invalid}, [{'job_id': 'j'}])
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, trial = root/'source', root/'trial'
+            (source/'grammar').mkdir(parents=True)
+            (trial/'grammar').mkdir(parents=True)
+            (source/'grammar/x').write_text('old')
+            (trial/'grammar/x').write_text('new')
+            (trial/'a').write_text('A')
+            (trial/'b').write_text('B')
+            real_replace = os.replace
+            def replace(src, dst):
+                if Path(src) == trial/'b':
+                    raise OSError('second fixture failed')
+                return real_replace(src, dst)
+            with patch.object(batch.os, 'replace', side_effect=replace):
+                with self.assertRaisesRegex(OSError, 'second fixture failed'):
+                    batch._promote_trial(source, trial, [(trial/'a', Path('families/a.json')),
+                                                         (trial/'b', Path('families/b.json'))])
+            self.assertEqual((source/'grammar/x').read_text(), 'old')
+            self.assertFalse((source/'families/a.json').exists())
+
     def test_native_base_failure_stops_before_any_trial(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
