@@ -299,7 +299,7 @@ def reclassify(run, cp):
     for row in queue.get_jobs('pending'):
         job=row['job']
         fresh=set(job['rules']) & unused
-        if not fresh or job['kind']=='mechanical':
+        if not fresh or job['kind']=='mechanical' or job.get('mechanical_failure_origin'):
             continue
         groups=[]
         remaining=[rule for rule in job['rules'] if rule not in fresh]
@@ -321,7 +321,8 @@ def reclassify(run, cp):
     for status in ('needs-review','integration-rejected','failed'):
         for row in queue.get_jobs(status):
             job=row['job']
-            if not set(job['rules']) & unused or job.get('review_checkpoint')==cp['commit']:
+            if (not set(job['rules']) & unused or job.get('review_checkpoint')==cp['commit']
+                    or job.get('mechanical_failure_origin')):
                 continue
             if proof is None:
                 inputs=Path(cp['inputs'])

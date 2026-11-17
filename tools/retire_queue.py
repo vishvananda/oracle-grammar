@@ -590,6 +590,8 @@ class Queue:
             if resolved is None:
                 raise RehabilitationIneligible('original attempt identity is unknown')
             payload, origin, base, started_raw, result_raw = resolved
+            if payload.get('mechanical_failure_origin'):
+                raise RehabilitationIneligible('diagnosed mechanical regression requires authoring')
             if base == checkpoint or payload.get('review_checkpoint') == checkpoint:
                 raise RehabilitationIneligible('job was already evaluated or split at this checkpoint')
             snapshot = tuple(row)
@@ -680,7 +682,7 @@ class Queue:
             outcomes = original.get('outcomes', {})
             receipt = original.get('evidence', {})
             pid = start.get('pid')
-            if (payload.get('kind') != 'mechanical' or len(rules) != 1 or payload.get('mechanical_failure_origin')
+            if (payload.get('kind') != 'mechanical' or len(rules) != 1
                     or original.get('status') != 'needs-review' or set(outcomes) != set(rules)
                     or outcomes[rules[0]].get('status') != 'needs-review' or receipt.get('kind') != 'mechanical'
                     or type(pid) is not int or pid <= 0):
@@ -697,9 +699,11 @@ class Queue:
             faces = retire_rehabilitation.mechanical_failure(inputs, run, rules, report, evidence)
             suffix = hashlib.sha256((job_id+'\0'+attempt_id+'\0'+checkpoint).encode()).hexdigest()[:20]
             origin = {'job_id': job_id, 'attempt_id': attempt_id, 'checkpoint': checkpoint}
+            goal = payload['goal']
+            if not payload.get('mechanical_failure_origin'):
+                goal += ' Preserve the readings and print gates of the diagnosed target faces.'
             child = dict(payload, id='repair-mech-'+suffix, kind='author', target_faces=faces,
-                         requires_diagnosis=True, mechanical_failure_origin=origin,
-                         goal=payload['goal']+' Preserve the readings and print gates of the diagnosed target faces.')
+                         requires_diagnosis=True, mechanical_failure_origin=origin, goal=goal)
             for key in ('rehabilitation_origin', 'review_origin', 'review_checkpoint'):
                 child.pop(key, None)
             with self._transaction() as db:

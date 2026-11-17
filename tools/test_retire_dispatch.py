@@ -197,6 +197,24 @@ class DispatchCanaries(unittest.TestCase):
             mechanical = next(row for row in queue.get_jobs('pending') if row['job']['kind'] == 'mechanical')
             self.assertEqual(mechanical['job']['rules'], ['m_unused'])
 
+    def test_reclassify_keeps_diagnosed_mechanical_regressions_with_authors(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            inputs = root/'inputs'
+            (inputs/'scan').mkdir(parents=True)
+            r.write(inputs/'scan/rules.json', {'unused': ['m_pending', 'm_review'], 'needed': {}})
+            repair = {'job_id': 'mechanical', 'attempt_id': 'attempt', 'checkpoint': 'prev'}
+            pending = {'id': 'pending', 'job': {'id': 'pending', 'kind': 'author', 'rules': ['m_pending'],
+                                                 'mechanical_failure_origin': repair}}
+            parked = {'id': 'parked', 'job': {'id': 'parked', 'kind': 'author', 'rules': ['m_review'],
+                                               'mechanical_failure_origin': repair}}
+            with patch.object(dispatch, 'Queue') as mocked:
+                queue = mocked.return_value
+                queue.get_jobs.side_effect = lambda status: {'pending': [pending], 'needs-review': [parked]}.get(status, [])
+                dispatch.reclassify(root, {'commit': 'next', 'inputs': str(inputs)})
+                queue.split_pending.assert_not_called()
+                queue.rehabilitate_unused.assert_not_called()
+
     def test_reclassify_does_not_hide_invalid_scan_proof(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
