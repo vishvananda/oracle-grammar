@@ -68,7 +68,10 @@ Generated files and build receipts stay under ignored `.cache/` and `target/`.
 its last build target directory for later rebuilds; an explicit environment or
 repository Cargo setting takes precedence. The test preset uses that same target
 selection, so omitting a one-command environment setting does not create a
-second dependency cache. A remembered directory that no longer exists is refused
+second dependency cache. When sharing a Cargo target across checkouts, set
+`ORACLE_GRAMMAR_DIR` to the intended checkout's absolute `grammar` directory for
+tests and gates, so a reused test executable reads that checkout's grammar.
+A remembered directory that no longer exists is refused
 until `CARGO_TARGET_DIR` selects one. Quick helper builds and the test preset
 compile the frontend incrementally; `build --optimized` does not.
 `ORACLE_GRAMMAR_THREADS` raises the library default of two worker threads for

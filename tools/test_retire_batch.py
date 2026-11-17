@@ -201,13 +201,14 @@ class BatchTests(unittest.TestCase):
                 order.append('gate')
                 self.assertEqual(len(kwargs['pass_fds']), expected)
                 self.assertEqual(kwargs['env']['CARGO_BUILD_JOBS'], str(expected - 4))
+                self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(source/'grammar'))
                 for name in ('RAYON_NUM_THREADS', 'ORACLE_GRAMMAR_THREADS', 'RUST_TEST_THREADS'):
                     self.assertEqual(kwargs['env'][name], str(expected//2-2))
                 return SimpleNamespace(returncode=gate_code)
             def freeze_input(args):
                 order.append('freeze')
                 args.run.mkdir()
-            with patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate):
+            with patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar'}), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate):
                 result = batch.validate(manifest, cp)
             self.assertEqual(freeze.call_args.args[0].threads, expected)
             self.assertEqual(freeze.call_args.args[0].slots, 1)

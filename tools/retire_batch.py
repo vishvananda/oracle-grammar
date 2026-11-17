@@ -713,7 +713,7 @@ def _validate(manifest, checkpoint, slots):
         gate_threads = str(max(2, threads//2-2))
         gate_env = {**os.environ, 'CARGO_BUILD_JOBS': str(max(4, threads-4)),
                     'RAYON_NUM_THREADS': gate_threads, 'ORACLE_GRAMMAR_THREADS': gate_threads,
-                    'RUST_TEST_THREADS': gate_threads}
+                    'RUST_TEST_THREADS': gate_threads, 'ORACLE_GRAMMAR_DIR': str(source/'grammar')}
         with (folder/'repository-check.log').open('w') as log:
             code = subprocess.run(['python3', 'tools/dev.py', 'check'], cwd=source, env=gate_env,
                                   stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode
