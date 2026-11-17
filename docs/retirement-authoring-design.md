@@ -198,6 +198,22 @@ Separate passing subsets never prove that their union passes. Manifests retain
 the ordered job dispositions, grammar and fixture hashes, group proofs and
 incremental staging progress.
 
+An operator can stage an explicitly selected cohort in one trial with
+`retire_dispatch.py batch RUN --jobs-file FILE --combine-selected`. This requires
+a nonempty list of at most 96 distinct provisional jobs; it does not expand the
+ordinary configuration limit of four. The union runs every baseline, previously
+admitted and new family, plus the native and library controls, before promotion.
+A failed union is discarded and its members follow the existing individual
+fallback. The manifest records both the option and actual group size. This is
+useful for an isolated recovery cohort whose union has already been investigated;
+it does not waive fresh staging or full integration validation.
+
+Family preparation shares a stage-local cache of at most two frozen gold blobs,
+keyed by SHA-256. Each access checks the expected hash and hashes the actual
+file, including on cache hits. The index retains every matching card record and
+does not collapse different cards sharing a face name. Operand edits use deep
+copies, and a new stage starts with an empty cache.
+
 Two retrospective replays exercised this path on identical immutable proposals,
 using quick diagnostic helpers and six shared CPU tokens. Four selected passing
 proposals took 365.37 seconds individually and 164.65 seconds together. Eight
