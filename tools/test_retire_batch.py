@@ -521,7 +521,7 @@ class BatchTests(unittest.TestCase):
             commit = batch._git(source, 'rev-parse', 'HEAD')
             report = {'edited': [], 'task': 'task', 'source': commit, 'descriptor_sha256': 'd', 'support_sha256': 's', 'fixture_sha256': 'f'}
             proposals = [{'job_id': n, 'attempt_id': n, 'run': str(root/n), 'report': dict(report)} for n in ('conflict', 'overwrite', 'good')]
-            def proposal(p):
+            def proposal(p, *, input_cache=None):
                 name = p['job_id']
                 return root/name, {'fixture': 'families/existing.json' if name == 'overwrite' else f'families/{name}.json',
                                    'rules': ['m_'+('old' if name == 'conflict' else 'good')]}, root/name, []
@@ -574,7 +574,7 @@ class BatchTests(unittest.TestCase):
             proposals = [{'job_id': n, 'attempt_id': n, 'run': str(root/n),
                           'report': dict(report), 'kind': 'mechanical' if n == 'mech' else 'author'}
                          for n in names]
-            def proposal(p):
+            def proposal(p, *, input_cache=None):
                 name = p['job_id']
                 return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
             def merge(base, trial, proposed, rules, hooks):
@@ -651,7 +651,7 @@ class BatchTests(unittest.TestCase):
                       'support_sha256': 's', 'fixture_sha256': 'f', 'edited': []}
             proposals = [{'job_id': n, 'attempt_id': n, 'report': dict(report)}
                          for n in ('first', 'bad', 'last')]
-            def proposal(p):
+            def proposal(p, *, input_cache=None):
                 name = p['job_id']
                 return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
             def merge(base, trial, proposed, rules, hooks):
@@ -719,7 +719,7 @@ class BatchTests(unittest.TestCase):
                               'kind': 'mechanical' if name == 'mech' else 'author'} for name in names]
                 if mode == 'missing-metadata':
                     del proposals[1]['report']['descriptor_sha256']
-                def proposal(item):
+                def proposal(item, *, input_cache=None):
                     name = item['job_id']
                     if mode == 'structural' and name == 'bad':
                         raise ValueError('bad immutable report')
@@ -844,7 +844,7 @@ class BatchTests(unittest.TestCase):
                 report = {'task': 'task', 'source': commit, 'descriptor_sha256': 'd',
                           'support_sha256': 's', 'fixture_sha256': 'f', 'edited': []}
                 proposals = [{'job_id': name, 'attempt_id': name, 'report': dict(report)} for name in names]
-                def proposal(item):
+                def proposal(item, *, input_cache=None):
                     name = item['job_id']
                     return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
                 def merge(base, trial, proposed, rules, hooks):
@@ -996,6 +996,38 @@ class BatchTests(unittest.TestCase):
             self.assertIsNone(batch._removed_rule_conflict(root/'source', entries, log))
             log.write_text('Error: "some other compiler message"\n')
             self.assertIsNone(batch._removed_rule_conflict(root/'source', entries, log))
+
+    def test_proposals_share_frozen_hashes_and_detect_mutation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            frozen = root/'checkpoint/frozen'
+            frozen.mkdir(parents=True)
+            gold = frozen/'gold.jsonl'
+            gold.write_text('baseline\n')
+            manifest = {'commit': 'checkpoint', 'files': batch.r.tree(frozen)}
+            batch.r.write(frozen.parent/'manifest.json', manifest)
+            aliases = [root/'attempt-one', root/'attempt-two']
+            for alias in aliases:
+                alias.symlink_to(frozen.parent, target_is_directory=True)
+            cache = batch._ProposalInputCache()
+            with patch.object(batch.r, 'tree', wraps=batch.r.tree) as hashed:
+                for alias in aliases:
+                    self.assertEqual(cache.read(alias), manifest)
+                self.assertTrue(cache.unchanged())
+                hashed.assert_called_once_with(frozen)
+            gold.write_text('modified\n')
+            self.assertFalse(cache.unchanged())
+            with self.assertRaisesRegex(ValueError, 'frozen inputs changed'):
+                cache.read(aliases[1])
+
+            gold.write_text('baseline\n')
+            new_cache = batch._ProposalInputCache()
+            self.assertEqual(new_cache.read(aliases[0]), manifest)
+            aliases[0].unlink()
+            aliases[0].symlink_to(root/'a-different-checkpoint', target_is_directory=True)
+            self.assertFalse(new_cache.unchanged())
+            with self.assertRaisesRegex(ValueError, 'input location changed'):
+                new_cache.read(aliases[0])
 
     def test_family_failure_hint_requires_a_complete_matching_report(self):
         with tempfile.TemporaryDirectory() as temporary:

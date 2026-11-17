@@ -458,7 +458,7 @@ class BatchReadmissionTests(unittest.TestCase):
                 result = json.loads(row[0])
                 result['evidence']['run'] = str(self.root/'.cache/attempts'/item['attempt_id'])
                 db.execute('UPDATE attempts SET result=? WHERE id=?', (json.dumps(result), item['attempt_id']))
-        def proposed(value):
+        def proposed(value, *, input_cache=None):
             report = value['report']
             name = report['task']
             item = next(row for row in self.items if row['job_id'] == name)

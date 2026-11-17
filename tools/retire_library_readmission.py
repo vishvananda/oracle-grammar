@@ -42,6 +42,7 @@ def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, rep
         with tempfile.TemporaryDirectory(prefix='.library-replay-', dir=scratch) as temporary:
             trial = Path(temporary)
             shutil.copytree(base/'grammar', trial/'grammar')
+            inputs = batch._ProposalInputCache()
             for index in indices:
                 item = included[index]
                 base_commit, result, job = originals[index]
@@ -76,7 +77,7 @@ def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, rep
                         or type(report.get('faces')) is not int or report['faces'] <= 0):
                     raise ValueError('replay proposal identity differs')
                 proposal = {'run': original['run'], 'report': report, 'kind': original['kind']}
-                run, task, directory, hooks = batch._proposal(proposal)
+                run, task, directory, hooks = batch._proposal(proposal, input_cache=inputs)
                 if task.get('id') != item['job_id'] or task.get('rules') != rules:
                     raise ValueError('replay descriptor differs from owned rules')
                 if original['kind'] == 'mechanical' and canonical_mechanical:
@@ -95,6 +96,8 @@ def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, rep
                 if set(removed) != set(rules) or kept:
                     raise ValueError('replay assigned removals have retained users')
                 author.apply_hooks(trial/'grammar', hooks)
+            if not inputs.unchanged():
+                raise ValueError('proposal frozen inputs changed during ordered replay')
             if _grammar_tree(trial/'grammar') != expected_tree:
                 raise ValueError('independent ordered replay differs from remaining control')
 

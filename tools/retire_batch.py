@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -55,7 +56,49 @@ def _baseline_fixture_path(value):
     return path
 
 
-def _proposal(proposal):
+class _ProposalInputCache:
+    """Verify each shared frozen checkpoint once within an ordered replay."""
+
+    def __init__(self):
+        self.snapshots = {}
+        self.locations = {}
+
+    @staticmethod
+    def identity(root):
+        files = []
+        frozen = root/'frozen'
+        if frozen.is_symlink() or not frozen.is_dir():
+            raise ValueError('proposal frozen inputs changed')
+        for path in sorted(frozen.rglob('*')):
+            meta = path.stat(follow_symlinks=False)
+            if stat.S_ISREG(meta.st_mode):
+                files.append((path.relative_to(frozen), meta.st_dev, meta.st_ino, meta.st_size,
+                              meta.st_ctime_ns, meta.st_mtime_ns))
+            elif not stat.S_ISDIR(meta.st_mode):
+                raise ValueError('proposal frozen inputs contain a nonregular path')
+        return r.digest(root/'manifest.json'), files
+
+    def read(self, directory):
+        root = directory.resolve()
+        if self.locations.setdefault(directory, root) != root:
+            raise ValueError('proposal frozen input location changed')
+        identity = self.identity(root)
+        if root not in self.snapshots:
+            manifest = r.read(root/'manifest.json')
+            if manifest['files'] != r.tree(root/'frozen') or self.identity(root) != identity:
+                raise ValueError('proposal frozen inputs changed')
+            self.snapshots[root] = identity, manifest
+        previous, manifest = self.snapshots[root]
+        if identity != previous:
+            raise ValueError('proposal frozen inputs changed')
+        return manifest
+
+    def unchanged(self):
+        return (all(directory.resolve() == root for directory, root in self.locations.items())
+                and all(self.identity(root) == original for root, (original, _) in self.snapshots.items()))
+
+
+def _proposal(proposal, *, input_cache=None):
     run = Path(proposal['run']).resolve()
     report = proposal['report']
     if not report.get('passed') or report.get('failures'):
@@ -70,9 +113,12 @@ def _proposal(proposal):
             or r.digest(descriptor) != report['descriptor_sha256']
             or support['tasks'][task] != report['descriptor_sha256']):
         raise ValueError('proposal support or descriptor changed')
-    inputs = r.read(run/'inputs/manifest.json')
-    if inputs['files'] != r.tree(run/'inputs/frozen'):
-        raise ValueError('proposal frozen inputs changed')
+    if input_cache is None:
+        inputs = r.read(run/'inputs/manifest.json')
+        if inputs['files'] != r.tree(run/'inputs/frozen'):
+            raise ValueError('proposal frozen inputs changed')
+    else:
+        inputs = input_cache.read(run/'inputs')
     if report['source'] != inputs['commit']:
         raise ValueError('proposal report base mismatch')
     directory = Path(report['directory']).resolve()
@@ -527,13 +573,14 @@ def _stage_trial(context, entries, label):
              'jobs': [item['job_id'] for item in items], 'status': 'running',
              'attempts': [item['attempt_id'] for item in items],
              'prefix_grammar': prefix_tree, 'prefix_fixtures': prefix_fixtures}
+    input_cache = _ProposalInputCache()
     try:
         with tempfile.TemporaryDirectory(dir=folder) as temporary:
             trial = Path(temporary)
             shutil.copytree(source/'grammar', trial/'grammar')
             additions, prepared = [], []
             for offset, ((index, proposal), item) in enumerate(zip(entries, items, strict=True)):
-                run, task, directory, hooks = _proposal(proposal)
+                run, task, directory, hooks = _proposal(proposal, input_cache=input_cache)
                 mechanical = proposal.get('kind', 'author') == 'mechanical'
                 if mechanical and hooks:
                     raise ValueError('mechanical proposal cannot request hooks')
@@ -609,7 +656,8 @@ def _stage_trial(context, entries, label):
                 for item in items:
                     item['library_control'] = str(logs/'library-control')
                 library_controls.check(checkpoint, context['library_control'], trial/'grammar', logs/'library-control')
-            if (r.tree(source/'grammar') != prefix_tree or r.tree(trial/'grammar') != proof['trial_grammar']
+            if (not input_cache.unchanged() or r.tree(source/'grammar') != prefix_tree
+                    or r.tree(trial/'grammar') != proof['trial_grammar']
                     or r.digest(context['registry_path']) != context['registry_hash']
                     or any(r.digest(source/name) != digest for name, digest in context['baseline'])
                     or any(r.digest(source/name) != digest for name, digest in prefix_fixtures.items())
