@@ -505,6 +505,8 @@ def publish_main(run, previous, current, manifest):
 def run_campaign(run, runner=None):
     config=r.read(run/'config.json')
     priority_policy(config)
+    external_driver = config.get('external_batch_driver', False)
+    r.require(type(external_driver) is bool, 'external_batch_driver must be boolean')
     selected=validate_runner(run,runner)
     if runner is not None:
         # The controller and its imported orchestration modules must all match
@@ -567,7 +569,7 @@ def run_campaign(run, runner=None):
                 pending=coverage['counts'].get('pending',0)
                 limit=config['first_batch_size'] if coverage['checkpoint']==config['initial_commit'] else config['batch_size']
                 ready=queue.get_jobs('provisional-pass',limit=limit)
-                if not stop_reason and not batching and ready and (len(ready)>=limit or not pending
+                if not external_driver and not stop_reason and not batching and ready and (len(ready)>=limit or not pending
                         or time.monotonic()-last_batch>=config['batch_wait_seconds']) and batch_available(run):
                     validate_runner(run,selected)
                     log=(run/'batch-controller.log').open('a')

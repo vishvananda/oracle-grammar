@@ -458,6 +458,70 @@ class DispatchCanaries(unittest.TestCase):
                     self.assertEqual(future.result(timeout=5), ['one', 'two'])
                     self.assertTrue(invoked.is_set())
 
+    def test_external_batch_driver_flag_preserves_ready_work_and_drain(self):
+        for setting in (None, False, True):
+            with self.subTest(setting=setting), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root/'runner').mkdir()
+                r.write(root/'runner.json', {})
+                config = {'workers': 1, 'main_repo': str(root), 'max_operational_retries': 1,
+                          'first_batch_size': 1, 'batch_size': 1, 'batch_wait_seconds': 0,
+                          'initial_commit': 'base'}
+                if setting is not None: config['external_batch_driver'] = setting
+                r.write(root/'config.json', config)
+                queue = dispatch.Queue(root/'queue.sqlite')
+                queue.add_checkpoint('base', {'proof': 'test'})
+                queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'author'}])
+                claim = queue.claim('prior')
+                queue.finish(claim['attempt_id'], 'provisional-pass', 'proof',
+                             {'r_one': {'status': 'pass', 'evidence': 'proof'}})
+                def drain(_seconds):
+                    r.write(root/'drain.json', {'reason': 'external owner test drain'})
+                child = SimpleNamespace(poll=lambda: 0, returncode=0, pid=12345)
+                with patch.object(dispatch.shutil, 'disk_usage', return_value=SimpleNamespace(free=100*1024**3)), \
+                        patch.object(dispatch.time, 'sleep', side_effect=drain), \
+                        patch.object(dispatch, 'batch_available', return_value=True) as available, \
+                        patch.object(dispatch.subprocess, 'Popen', return_value=child) as launch:
+                    dispatch.run_campaign(root)
+                self.assertEqual(launch.call_count, 0 if setting is True else 1)
+                self.assertEqual(available.call_count, 0 if setting is True else 1)
+                self.assertEqual(queue.coverage()['counts'], {'provisional-pass': 1})
+                self.assertEqual(r.read(root/'status.json')['reason'], 'external owner test drain')
+
+    def test_external_owner_advances_ready_work_and_controller_completes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'runner').mkdir()
+            r.write(root/'runner.json', {})
+            r.write(root/'config.json', {'workers': 1, 'main_repo': str(root), 'max_operational_retries': 1,
+                                        'first_batch_size': 1, 'batch_size': 1, 'batch_wait_seconds': 0,
+                                        'initial_commit': 'base', 'external_batch_driver': True})
+            queue = dispatch.Queue(root/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'test'})
+            queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'author'}])
+            claim = queue.claim('prior')
+            queue.finish(claim['attempt_id'], 'provisional-pass', 'proof',
+                         {'r_one': {'status': 'pass', 'evidence': 'proof'}})
+            def external_batch(_seconds):
+                queue.advance_and_accept('candidate', 'base', ['one'], {'proof': 'external'})
+                r.write(root/'publication.json', {'status': 'integrated'})
+            with patch.object(dispatch.shutil, 'disk_usage', return_value=SimpleNamespace(free=100*1024**3)), \
+                    patch.object(dispatch.time, 'sleep', side_effect=external_batch), \
+                    patch.object(dispatch.subprocess, 'Popen') as launch:
+                dispatch.run_campaign(root)
+            launch.assert_not_called()
+            self.assertEqual(queue.coverage()['counts'], {'accepted': 1})
+            self.assertEqual(r.read(root/'status.json')['status'], 'first-pass-complete')
+
+    def test_external_batch_driver_flag_rejects_nonboolean(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            r.write(root/'config.json', {'external_batch_driver': 1})
+            with patch.object(dispatch, 'validate_runner') as validate, \
+                    self.assertRaisesRegex(ValueError, 'external_batch_driver'):
+                dispatch.run_campaign(root)
+            validate.assert_not_called()
+
     def test_controller_does_not_spawn_while_external_batch_holds_lease(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
