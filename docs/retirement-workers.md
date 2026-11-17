@@ -39,6 +39,12 @@ Repository gates run before the expensive whole-population score. Trial grammar
 must retain the families from earlier included proposals; a failing new proposal
 is parked without discarding those earlier proposals.
 
+When the external batch driver has `fresh_union_trial` enabled, a fresh
+selection first tries its combined grammar in one guarded stage. If that trial
+fails, staging tries the configured subgroups and checks unsuccessful subgroups
+individually. Mechanical priority and recovery routing still govern selection.
+The same repository and full allowed-population checks gate acceptance.
+
 Worker-authored cases always run compositionally. Coordinator-generated
 whole-card operand cases may explicitly retain unrelated seeded clauses; these
 cases still require their independently mutated expected IR and verified prints.

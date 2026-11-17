@@ -19,8 +19,9 @@ class QueueStub:
         self.value = progress
         self.rejected = []
         self.ready = []
-    def get_jobs(self, status):
-        return self.rejected if status == 'integration-rejected' else self.ready if status == 'provisional-pass' else []
+    def get_jobs(self, status, limit=None):
+        rows = self.rejected if status == 'integration-rejected' else self.ready if status == 'provisional-pass' else []
+        return rows[:limit]
     def progress(self):
         return self.value
 
@@ -225,7 +226,7 @@ class DriverTests(unittest.TestCase):
 
     def test_small_mechanical_lane_preserves_recovered_cohort(self):
         config = r.read(self.run/'config.json')
-        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True)
+        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True, fresh_union_trial=True)
         r.write(self.run/'config.json', config)
         self.queue.value = progress(pending=5, ready=2)
         self.queue.ready = [{'id': 'm1', 'job': {'kind': 'mechanical'}},
@@ -239,6 +240,35 @@ class DriverTests(unittest.TestCase):
                 patch.object(driver.dispatch, '_batch', side_effect=selected):
             driver.run_driver(self.run, self.runner)
         self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'recovered')
+
+    def test_fresh_union_keeps_fifo_or_mechanical_priority_with_the_batch_limit(self):
+        for prioritize_mechanical, expected in (
+            (False, ['a1', 'm1', 'a2', 'a3']),
+            (True, ['m1', 'm2', 'a1', 'a2']),
+        ):
+            with self.subTest(prioritize_mechanical=prioritize_mechanical):
+                config = r.read(self.run/'config.json')
+                config.update(fresh_union_trial=True, mechanical_cohorts_first=prioritize_mechanical,
+                              recovered_cohorts_first=True)
+                r.write(self.run/'config.json', config)
+                self.queue.value = progress(pending=5, ready=5)
+                self.queue.ready = [{'id': name, 'job': {'kind': kind}} for name, kind in
+                                    [('a1', 'author'), ('m1', 'mechanical'), ('a2', 'author'),
+                                     ('a3', 'author'), ('m2', 'mechanical')]]
+                with patch.object(driver, 'recovered_cohort', return_value=[]), \
+                        patch.object(driver.dispatch, '_batch', side_effect=RuntimeError('staging reached')) as batch, \
+                        self.assertRaisesRegex(RuntimeError, 'staging reached'):
+                    driver.run_driver(self.run, self.runner)
+                batch.assert_called_once_with(self.run, expected, combine_selected=True)
+
+    def test_fresh_union_requires_boolean(self):
+        config = r.read(self.run/'config.json')
+        config['fresh_union_trial'] = 1
+        r.write(self.run/'config.json', config)
+        with patch.object(driver.dispatch, '_batch') as batch, \
+                self.assertRaisesRegex(ValueError, 'fresh_union_trial must be boolean'):
+            driver.run_driver(self.run, self.runner)
+        batch.assert_not_called()
 
     def test_small_mechanical_lane_waits_for_existing_trigger(self):
         config = r.read(self.run/'config.json')

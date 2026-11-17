@@ -183,6 +183,9 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         union_trial = config.get('recovered_union_trial', False)
                         if type(union_trial) is not bool:
                             raise ValueError('recovered_union_trial must be boolean')
+                        fresh_union = config.get('fresh_union_trial', False)
+                        if type(fresh_union) is not bool:
+                            raise ValueError('fresh_union_trial must be boolean')
                         mechanical_priority = config.get('mechanical_cohorts_first', False)
                         if type(mechanical_priority) is not bool:
                             raise ValueError('mechanical_cohorts_first must be boolean')
@@ -200,10 +203,14 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             status('running', progress, lane=chosen_lane['lane'] if chosen_lane else
                                    'recovered' if cohort else 'fifo')
                             if chosen_lane:
-                                dispatch._batch(run, chosen_lane['jobs'], combine_selected=chosen_lane['combine'])
+                                dispatch._batch(run, chosen_lane['jobs'],
+                                                combine_selected=chosen_lane['combine'] or fresh_union)
                             elif cohort:
                                 dispatch._batch(run, cohort['jobs'],
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)
+                            elif fresh_union:
+                                selected = queue.get_jobs('provisional-pass', limit=limit)
+                                dispatch._batch(run, [row['id'] for row in selected], combine_selected=True)
                             else:
                                 dispatch._batch(run)
                             observation = _batch_observation(run, before, queue, progress['checkpoint'])
