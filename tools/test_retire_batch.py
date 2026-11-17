@@ -759,7 +759,7 @@ class BatchTests(unittest.TestCase):
                     if failed:
                         raise ValueError('library interaction')
                 with patch.object(batch, '_proposal', side_effect=proposal), \
-                        patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), \
+                        patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}) as family_prepare, \
                         patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
                         patch.object(batch.mined, 'remove', side_effect=remove), \
                         patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family), \
@@ -773,7 +773,11 @@ class BatchTests(unittest.TestCase):
                         family_calls.clear()
                         native_calls.clear()
                         progress.clear()
+                    family_prepare.reset_mock()
                     result = batch.stage(root, cp, proposals, combine_selected=mode.startswith('selected-'))
+                    caches = [call.kwargs['gold_cache'] for call in family_prepare.call_args_list]
+                    self.assertTrue(caches)
+                    self.assertEqual(len({id(cache) for cache in caches}), 1)
                 self.assertEqual(result['status'], 'provisional')
                 self.assertEqual(result['stage_group_size'], 2 if mode == 'two-groups' else 4)
                 self.assertIs(result['combine_selected'], mode.startswith('selected-'))

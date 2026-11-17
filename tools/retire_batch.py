@@ -1,5 +1,6 @@
 """Private provisional integration and validation of retirement proposals."""
 from argparse import Namespace
+from collections import OrderedDict
 import copy
 from contextlib import contextmanager, nullcontext
 import fcntl
@@ -84,10 +85,40 @@ def _proposal(proposal):
     return run, r.read(descriptor), directory, hooks
 
 
-def _family(directory, report, run, modes=False):
+class _GoldIndexCache:
+    """Bounded stage-local index of frozen gold records, keyed by content hash."""
+    def __init__(self):
+        self._indices = OrderedDict()
+
+    def get(self, run):
+        manifest = r.read(run/'inputs/manifest.json')
+        expected = manifest.get('files', {}).get('gold.jsonl')
+        if not isinstance(expected, str) or not re.fullmatch(r'[0-9a-f]{64}', expected):
+            raise ValueError('frozen gold hash is missing or invalid')
+        path = run/'inputs/frozen/gold.jsonl'
+        if r.digest(path) != expected:
+            raise ValueError('frozen gold hash differs')
+        if expected in self._indices:
+            self._indices.move_to_end(expected)
+            return self._indices[expected]
+        if len(self._indices) == 2:
+            self._indices.popitem(last=False)
+        records = r.rows(path)
+        index = {}
+        for card in records:
+            for name in dict.fromkeys(face['name'] for face in card['faces']):
+                index.setdefault(name, []).append(card)
+        if r.digest(path) != expected:
+            raise ValueError('frozen gold changed while indexing')
+        self._indices[expected] = index
+        return index
+
+
+def _family(directory, report, run, modes=False, *, gold_cache=None):
     family = r.read(directory/'family.json')
     a.validate_author_family(family)
-    original = r.rows(run/'inputs/frozen/gold.jsonl')
+    original = r.rows(run/'inputs/frozen/gold.jsonl') if gold_cache is None else None
+    index = gold_cache.get(run) if gold_cache is not None else None
     for number, edit in enumerate(report['edited']):
         folder = directory/f'edited-{number}'
         gold, rows = r.rows(folder/'gold.jsonl'), r.rows(folder/'rows.jsonl')
@@ -96,7 +127,8 @@ def _family(directory, report, run, modes=False):
         if len(faces) != 1 or len(matches) != 1 or matches[0]['status'] != 'equal':
             raise ValueError('edited operand artifacts are incomplete')
         face, row = faces[0], matches[0]
-        originals = [card for card in original if any(f['name'] == edit['face'] for f in card['faces'])]
+        originals = (index.get(edit['face'], []) if index is not None else
+                     [card for card in original if any(f['name'] == edit['face'] for f in card['faces'])])
         if len(originals) != 1:
             raise ValueError('edited operand lacks original gold')
         expected = copy.deepcopy(originals[0])
@@ -433,7 +465,8 @@ def _stage_trial(context, entries, label):
                 if fixture and not (source/fixture).resolve().is_relative_to(source):
                     raise ValueError('fixture escapes candidate source')
                 family = _family(directory, proposal['report'], run,
-                                 modes=checkpoint.get('family_case_modes') is True) if fixture else None
+                                 modes=checkpoint.get('family_case_modes') is True,
+                                 gold_cache=context['gold_cache']) if fixture else None
                 report = proposal['report']
                 metadata = {'rules': task['rules'], 'task': report['task'], 'base_commit': report['source'],
                             'descriptor_sha256': report['descriptor_sha256'],
@@ -617,7 +650,8 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
             r.write(folder/'manifest.json', manifest)
             return manifest
     context = {'source': source, 'folder': folder, 'manifest': manifest, 'checkpoint': checkpoint,
-               'control': control, 'library_control': library_control, 'baseline': baseline, 'baseline_names': baseline_names,
+               'control': control, 'library_control': library_control, 'gold_cache': _GoldIndexCache(),
+               'baseline': baseline, 'baseline_names': baseline_names,
                'registry_path': registry_path, 'registry_hash': registry_hash}
     indexed = list(enumerate(proposals))
     try:
