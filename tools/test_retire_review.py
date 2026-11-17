@@ -144,6 +144,27 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(job['rules'][0]['model_reason'], 'native binding required')
         self.assertEqual(job['report']['sha256'], hashlib.sha256(report.read_bytes()).hexdigest())
         self.assertEqual(job['candidate_archive']['status'], 'verified')
+        # A passed proposal may later be rejected in integration, then leave a
+        # parked subset behind when other rules become mechanical. Its verified
+        # origin supplies that rejection without inventing a child attempt.
+        with closing(sqlite3.connect(self.root/'queue.sqlite', isolation_level=None)) as db:
+            result = json.loads(original)
+            result['status'] = 'provisional-pass'
+            result['evidence']['dispositions']['r1']['status'] = 'proposed'
+            encoded = json.dumps(result)
+            decision = json.dumps({'status': 'integration-rejected', 'evidence': {'reason': 'native regression'}})
+            origin.update(status='integration-rejected', result_sha256=hashlib.sha256(encoded.encode()).hexdigest(),
+                          adjudication_sha256=hashlib.sha256(decision.encode()).hexdigest())
+            child['review_origin'] = origin
+            db.execute('UPDATE attempts SET result=? WHERE id=?', (encoded, claim['attempt_id']))
+            db.execute("UPDATE jobs SET adjudication=? WHERE id='a'", (decision,))
+            db.execute("UPDATE jobs SET payload=? WHERE id='child'", (json.dumps(child),))
+        job = exporter.review(self.root)['jobs'][0]
+        self.assertTrue(job['review_origin_valid'])
+        self.assertIsNone(job['attempt_id'])
+        self.assertEqual(job['status'], 'needs-review')
+        self.assertEqual(job['rules'][0]['assessment'], 'integration-rejected')
+        self.assertIn('integration/tooling', job['rules'][0]['suggested_lanes'])
         with closing(sqlite3.connect(self.root/'queue.sqlite', isolation_level=None)) as db:
             db.execute("UPDATE attempts SET result='{}' WHERE id=?", (claim['attempt_id'],))
         job = exporter.review(self.root)['jobs'][0]

@@ -170,18 +170,19 @@ def review(campaign):
                             'candidate_archive': _archive(root, evidence_attempt)}
         model_status = model.get('status')
         source = 'mechanical' if task.get('kind') == 'mechanical' else 'model'
+        review_status = origin['status'] if origin_valid else status
         assessment = (f'{source}-proposed-bundle-not-passed' if model_status == 'proposed'
                       and result.get('status') != 'provisional-pass'
                       else f'{source}-needs-review' if model_status == 'needs-review'
-                      else 'integration-rejected' if status == 'integration-rejected'
-                      else 'attempt-failed' if status == 'failed' else 'unclassified')
+                      else 'integration-rejected' if review_status == 'integration-rejected'
+                      else 'attempt-failed' if review_status == 'failed' else 'unclassified')
         jobs[job_id]['rules'].append({'rule': rule, 'disposition_source': source, 'model_status': model_status,
                                       'model_reason': model.get('reason'),
                                       'outcome_status': status if origin_valid else outcome.get('status'),
                                       'origin_outcome_status': outcome.get('status') if origin_valid else None,
                                       'outcome_reason': outcome.get('reason'),
                                       'assessment': assessment,
-                                      'suggested_lanes': _lanes(status, task, outcome, model)})
+                                      'suggested_lanes': _lanes(review_status, task, outcome, model)})
     return {'latest_checkpoint': checkpoint[0] if checkpoint else None,
             'lane_note': 'Heuristic routing suggestions, not diagnoses or acceptance decisions.',
             'jobs': list(jobs.values()), 'rule_count': len(rows)}
