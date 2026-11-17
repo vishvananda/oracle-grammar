@@ -9,6 +9,8 @@ import re
 import sqlite3
 import tempfile
 
+import retire_review_coordinator
+
 
 STATUSES = ('needs-review', 'integration-rejected', 'failed')
 ROOT = re.compile(r'^\s*([A-Za-z][A-Za-z0-9_]*)\s*::')
@@ -94,9 +96,11 @@ def _lanes(status, task, outcome, model):
     return sorted(lanes)
 
 
-def review(campaign):
+def review(campaign, coordinator_manifest=None, coordinator_manifest_sha256=None):
     """Use only currently owned rules and their current attempt, never historical attempts."""
     root = Path(campaign).resolve()
+    if (coordinator_manifest is None) != (coordinator_manifest_sha256 is None):
+        raise ValueError('coordinator manifest and SHA-256 are both required')
     db = sqlite3.connect((root/'queue.sqlite').as_uri()+'?mode=ro', uri=True, isolation_level=None)
     try:
         db.execute('PRAGMA query_only=ON')
@@ -118,6 +122,14 @@ def review(campaign):
                 origins[identity] = row
         origin_links = {(json.loads(data).get('review_job'), json.loads(data).get('origin_attempt'))
                         for (data,) in db.execute("SELECT data FROM events WHERE kind='rehabilitated-unused'")}
+        supplements = (retire_review_coordinator.prepare(root, db, coordinator_manifest,
+                                                         coordinator_manifest_sha256)
+                       if coordinator_manifest is not None else None)
+        ownership = ({rule: {'job_id': job, 'status': status, 'attempt_id': attempt}
+                      for rule, job, status, attempt in db.execute(
+                          'SELECT r.rule,j.id,j.status,j.attempt_id FROM rules r '
+                          'JOIN jobs j ON j.id=r.job_id')}
+                     if supplements is not None else None)
         db.commit()
     finally:
         db.close()
@@ -183,17 +195,23 @@ def review(campaign):
                                       'outcome_reason': outcome.get('reason'),
                                       'assessment': assessment,
                                       'suggested_lanes': _lanes(review_status, task, outcome, model)})
-    return {'latest_checkpoint': checkpoint[0] if checkpoint else None,
-            'lane_note': 'Heuristic routing suggestions, not diagnoses or acceptance decisions.',
-            'jobs': list(jobs.values()), 'rule_count': len(rows)}
+    result = {'latest_checkpoint': checkpoint[0] if checkpoint else None,
+              'lane_note': 'Heuristic routing suggestions, not diagnoses or acceptance decisions.',
+              'jobs': list(jobs.values()), 'rule_count': len(rows)}
+    return retire_review_coordinator.attach(result, supplements, ownership) if supplements is not None else result
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('campaign', type=Path)
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--coordinator-manifest', type=Path)
+    parser.add_argument('--coordinator-manifest-sha256')
     args = parser.parse_args()
-    result = json.dumps(review(args.campaign), indent=2, sort_keys=True, allow_nan=False)+'\n'
+    if (args.coordinator_manifest is None) != (args.coordinator_manifest_sha256 is None):
+        parser.error('--coordinator-manifest and --coordinator-manifest-sha256 are both required')
+    result = json.dumps(review(args.campaign, args.coordinator_manifest, args.coordinator_manifest_sha256),
+                        indent=2, sort_keys=True, allow_nan=False)+'\n'
     if args.output is None:
         print(result, end='')
         return
