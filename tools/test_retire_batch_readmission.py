@@ -32,7 +32,9 @@ class BatchReadmissionTests(unittest.TestCase):
                              {'id': 'culprit', 'kind': 'author', 'rules': ['c']}])
         self.items, self.reports = [], {}
         for job in ('author', 'mechanical', 'culprit'):
-            claim = self.queue.claim('worker-'+job)
+            kind = 'mechanical' if job == 'mechanical' else 'author'
+            claim = self.queue.claim('worker-'+job, kinds=[kind])
+            self.assertEqual(claim['job']['id'], job)
             attempt = claim['attempt_id']
             child = subprocess.Popen(['true'])
             child.wait()

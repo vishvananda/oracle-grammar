@@ -14,7 +14,7 @@ import threading
 from types import SimpleNamespace
 import unittest
 import uuid
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import retire as r
 import retire_batch
@@ -215,6 +215,51 @@ class DispatchCanaries(unittest.TestCase):
                 queue.rehabilitate_unused.side_effect = dispatch.RehabilitationIneligible('worker still running')
                 dispatch.reclassify(root, {'commit': 'next', 'inputs': str(inputs)})
 
+    def test_priority_refresh_is_opt_in_and_checkpoint_bound(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            plan = {'checkpoint': 'next'}
+            self.assertIsNone(dispatch.priority_policy({}))
+            with self.assertRaisesRegex(ValueError, 'unsupported'):
+                dispatch.priority_policy({'priority_policy': 'wrong'})
+            with patch.object(dispatch.retire_priority, 'plan', return_value=plan) as planner, \
+                    patch.object(dispatch, 'Queue') as queue:
+                self.assertIsNone(dispatch.refresh_priorities(root, 'next', None))
+                planner.assert_not_called()
+                with self.assertRaisesRegex(ValueError, 'unsupported'):
+                    dispatch.refresh_priorities(root, 'next', 'other')
+                with self.assertRaisesRegex(ValueError, 'checkpoint changed'):
+                    dispatch.refresh_priorities(root, 'stale', dispatch.retire_priority.VERSION)
+                queue.assert_not_called()
+                dispatch.refresh_priorities(root, 'next', dispatch.retire_priority.VERSION)
+                queue.return_value.publish_priorities.assert_called_once_with('next', plan)
+
+    def test_batch_refreshes_priority_after_accept_and_reclassification(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            r.write(root/'config.json', {'initial_commit': 'base', 'first_batch_size': 1,
+                                        'batch_size': 1, 'priority_policy': dispatch.retire_priority.VERSION})
+            queue = Mock()
+            queue.coverage.return_value = {'checkpoint': 'base'}
+            order = []
+            queue.advance_and_accept.side_effect = lambda *args: order.append('accept')
+            manifest = {'status': 'provisional', 'commit': 'next', 'id': 'batch',
+                        'jobs': [{'job_id': 'one', 'status': 'included'}]}
+            result = {'status': 'passed', 'inputs': str(root/'inputs'), 'rows': 'rows'}
+            with patch.object(dispatch, 'Queue', return_value=queue), \
+                    patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base', 'source': str(root)}), \
+                    patch.object(dispatch, 'proposals', return_value=[{'job_id': 'one'}]), \
+                    patch.object(dispatch.retire_batch, 'stage', return_value=manifest), \
+                    patch.object(dispatch.retire_batch, 'validate', return_value=result), \
+                    patch.object(dispatch.subprocess, 'run'), patch.object(dispatch, 'scan_checkpoint'), \
+                    patch.object(dispatch.campaign_api, 'save_checkpoint'), \
+                    patch.object(dispatch, 'reclassify', side_effect=lambda *args: order.append('reclassify')), \
+                    patch.object(dispatch, 'refresh_priorities', side_effect=lambda *args: order.append('priority')) as refresh, \
+                    patch.object(dispatch, 'publish_main'):
+                dispatch._batch(root)
+            self.assertEqual(order, ['accept', 'reclassify', 'priority'])
+            refresh.assert_called_once_with(root, 'next', dispatch.retire_priority.VERSION)
+
     def test_controller_accepts_verified_explicit_runner_and_refuses_tampering(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -284,12 +329,15 @@ class DispatchCanaries(unittest.TestCase):
                              {f'r_{name}': outcome})
             rows = dispatch.proposals(root, 1, ['three', 'one'])
             self.assertEqual([row['job_id'] for row in rows], ['three', 'one'])
+            control = {'path': '/future/profile.json', 'sha256': 'abc'}
             r.write(root/'config.json', {'initial_commit': 'base', 'first_batch_size': 1,
-                                        'batch_size': 1, 'audit_threads': 16})
+                                        'batch_size': 1, 'audit_threads': 16,
+                                        'native_regression_controls': control})
             with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
                     patch.object(dispatch.retire_batch, 'stage', return_value={'jobs': [], 'status': 'no-proposals'}) as stage:
                 dispatch._batch(root, ['three', 'one'])
             self.assertEqual([row['job_id'] for row in stage.call_args.args[2]], ['three', 'one'])
+            self.assertEqual(stage.call_args.args[1]['native_regression_controls'], control)
             for invalid in ([], ['one', 'one'], ['one', 'unknown'], ['review'], ['one']*97, 'one'):
                 with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                     dispatch.proposals(root, 48, invalid)

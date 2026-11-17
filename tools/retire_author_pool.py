@@ -43,6 +43,15 @@ whole seeded rule. Preserve all readings, holder/actor/owner/controller/result
 identities and original Oracle words. Do not rewrite text, widen equality,
 change expected reference IR or use first-match semantics. Split inflections
 and pronouns into separate productions per docs/print-shapes.md.
+For receipt-derived counts such as milled, exiled or discarded this way, both
+parsing and inverse printing must match the actual producer and destination.
+Transition(@prior, After) alone does not justify action-specific wording; scope
+the whole producer-consumer contract or use a supported typed guard. If neither
+is available, record the missing proof and escalate rather than equating phrases.
+If an added reading appears meaningful but disagrees with baseline IR, mark it
+needs-review as reference-review or equivalence-needed with evidence. Do not
+suppress readings by first match or alter IR solely to match the reference.
+Exact keyed preservation does not waive default-print or semantic reparse gates.
 Apply the mechanical seeded removals with this descriptor-bound command instead
 of editing huge seeded hook lines or semantic comments manually:
 {json.dumps([sys.executable, str(run/'support/runner/retire_author.py'), str(run), task_id, '--remove-assigned'])}

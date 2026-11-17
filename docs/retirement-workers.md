@@ -74,6 +74,17 @@ stay parked with their original review evidence. This creates no model attempt
 or acceptance; the mechanical job still needs fresh checks and full batch
 validation.
 
+The optional `priority_policy` value `frontier-shape-v1` ranks pending author
+jobs once per accepted checkpoint. It uses source complexity, the audit's selected
+derivation and matching semantic shapes as scheduling hints. Mechanical jobs
+stay first; every fourth author claim uses FIFO. Stale checkpoint ranks are
+ignored, and publication never changes a job's payload, ownership or acceptance.
+
+An optional hash-bound `native_regression_controls` profile lists allowed face
+names. Staging verifies the base against that closed population, then checks each
+family-passing trial before admitting it. This catches known cross-family
+reading and default-print regressions early; the full audit still runs.
+
 Task cohorts close transitively over shared face names in frozen gold records,
 including every duplicate occurrence and companion face. This expansion does not
 change the assigned target faces. Diagnostics refuse closures above 1,024 face

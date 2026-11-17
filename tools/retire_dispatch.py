@@ -27,6 +27,7 @@ import retire_batch
 import retire_campaign as campaign_api
 import retire_cpu
 import retire_plan as planner
+import retire_priority
 import retire_metrics
 import retire_retention
 from retire_queue import Queue, RehabilitationIneligible
@@ -316,6 +317,25 @@ def proposals(run, count, selected_job_ids=None):
     return output
 
 
+def priority_policy(config):
+    policy = config.get('priority_policy')
+    if policy is not None and policy != retire_priority.VERSION:
+        raise ValueError('unsupported priority policy')
+    return policy
+
+
+def refresh_priorities(run, checkpoint, policy):
+    """Publish one checkpoint-bound scheduling plan when explicitly enabled."""
+    if policy is None:
+        return None
+    if policy != retire_priority.VERSION:
+        raise ValueError('unsupported priority policy')
+    plan = retire_priority.plan(run)
+    if plan.get('checkpoint') != checkpoint:
+        raise ValueError('priority plan checkpoint changed')
+    return Queue(run/'queue.sqlite').publish_priorities(checkpoint, plan)
+
+
 def batch(run, selected_job_ids=None, *, wait=False):
     try:
         with lease(run/'batch.lock', blocking=wait) as fd:
@@ -332,7 +352,11 @@ def _batch(run, selected_job_ids=None):
     queue=Queue(run/'queue.sqlite')
     cp=campaign_api.checkpoint(run,queue.coverage()['checkpoint'])
     config=r.read(run/'config.json')
+    policy=priority_policy(config)
     cp=dict(cp,audit_threads=config.get('audit_threads',24))
+    cp.pop('native_regression_controls',None)
+    if config.get('native_regression_controls') is not None:
+        cp['native_regression_controls']=config['native_regression_controls']
     limit=config['first_batch_size'] if cp['commit']==config['initial_commit'] else config['batch_size']
     items=proposals(run,limit,selected_job_ids)
     if not items:
@@ -360,6 +384,7 @@ def _batch(run, selected_job_ids=None):
     campaign_api.save_checkpoint(run,next_cp)
     queue.advance_and_accept(commit,cp['commit'],included,{'manifest':manifest['id'],'validation':result})
     reclassify(run,next_cp)
+    refresh_priorities(run,commit,policy)
     r.write(run/'latest-checkpoint.json',next_cp)
     publish_main(run, cp, next_cp, manifest)
 
@@ -403,6 +428,7 @@ def publish_main(run, previous, current, manifest):
 
 def run_campaign(run, runner=None):
     config=r.read(run/'config.json')
+    priority_policy(config)
     selected=validate_runner(run,runner)
     if runner is not None:
         # The controller and its imported orchestration modules must all match

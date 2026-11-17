@@ -47,6 +47,12 @@ class AuthorLaunchTests(unittest.TestCase):
         self.assertIn('baseline text for original family wording', text)
         self.assertIn('acquire CPU leases', text)
         self.assertIn('never invoke the\nprivate native helpers', text)
+        self.assertIn('actual producer and destination', text)
+        self.assertIn('Transition(@prior, After) alone does not justify', text)
+        self.assertIn('scope\nthe whole producer-consumer contract', text)
+        self.assertIn('reference-review or equivalence-needed with evidence', text)
+        self.assertIn('Do not\nsuppress readings by first match', text)
+        self.assertIn('Exact keyed preservation does not waive default-print', text)
 
     def test_start_callback_failure_stops_spawned_process(self):
         self.process = Mock(pid=123, returncode=None)

@@ -8,6 +8,25 @@ from unittest.mock import patch
 import retire_batch as batch
 
 
+def control_fixture(root, commit):
+    run = root/'inputs'
+    frozen = run/'frozen'
+    (frozen/'bin').mkdir(parents=True)
+    (frozen/'allowed.json').write_text(json.dumps({'cards': ['A', 'B']}))
+    (frozen/'gold.jsonl').write_text(json.dumps({'faces': [{'name': 'A'}, {'name': 'B'}]})+'\n')
+    (frozen/'oracle.json').write_text(json.dumps([{'cards': [{'name': 'A'}, {'name': 'B'}]}]))
+    (frozen/'index.json').write_text(json.dumps({'0': {'name': 'A', 'record': 0, 'face': 0},
+                                                '1': {'name': 'B', 'record': 0, 'face': 1}}))
+    for name in ('score', 'validate-readings'):
+        (frozen/'bin'/name).write_bytes(name.encode())
+    hashes = {name: batch.r.digest(frozen/name) for name in batch.CONTROL_INPUTS}
+    (run/'manifest.json').write_text(json.dumps({'format': 3, 'commit': commit, 'files': hashes}))
+    profile = root/'profile.json'
+    profile.write_text(json.dumps({'cards': ['A']}))
+    return {'inputs': str(run), 'commit': commit, 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32,
+            'native_regression_controls': {'path': str(profile), 'sha256': batch.r.digest(profile)}}
+
+
 class BatchTests(unittest.TestCase):
     def test_edited_family_gold_is_independently_reconstructed(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -196,6 +215,41 @@ class BatchTests(unittest.TestCase):
             with self.subTest(threads=threads, capacity=capacity), self.assertRaises(ValueError):
                 batch._validate(manifest, {'audit_threads': threads, 'cpu_capacity': capacity}, 12)
 
+    def test_native_control_profile_closure_and_tampering_fail_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cp = control_fixture(root, 'base')
+            control = batch._control_setup(cp)
+            self.assertEqual(control['names'], ['A', 'B'])
+            self.assertEqual(control['occurrences'], 2)
+            self.assertEqual(len(control['data'][0]), 2)
+            with self.assertRaisesRegex(ValueError, 'CPU lease'):
+                batch._control_setup(dict(cp, cpu_pool=None))
+            binary = Path(cp['inputs'])/'frozen/bin/score'
+            binary.write_bytes(b'tampered')
+            with self.assertRaisesRegex(ValueError, 'frozen input changed'):
+                batch._control_verify(control)
+            binary.write_bytes(b'score')
+            Path(cp['native_regression_controls']['path']).write_text('{"cards":["B"]}')
+            with self.assertRaisesRegex(ValueError, 'profile changed'):
+                batch._control_verify(control)
+            with self.assertRaisesRegex(ValueError, 'SHA-256 differs'):
+                batch._control_setup(cp)
+            cp['native_regression_controls']['path'] = str(root/'missing.json')
+            with self.assertRaises(ValueError):
+                batch._control_setup(cp)
+
+    def test_native_control_rejects_unknown_duplicate_and_disallowed_faces(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cp = control_fixture(root, 'base')
+            profile = Path(cp['native_regression_controls']['path'])
+            for names in (['A', 'A'], ['missing'], [], ['A']*501):
+                profile.write_text(json.dumps({'cards': names}))
+                cp['native_regression_controls']['sha256'] = batch.r.digest(profile)
+                with self.subTest(names=names[:2]), self.assertRaises(ValueError):
+                    batch._control_setup(cp)
+
     def test_mechanical_stages_without_fixtures_and_reuses_clean_workspace(self):
         import shutil
         import mined
@@ -364,6 +418,90 @@ class BatchTests(unittest.TestCase):
                 batch._baseline_fixture_path(invalid)
         with self.assertRaises(ValueError):
             batch._fixture_path('tests/fixtures/reported-mana-reminders.json')
+
+    def test_native_trial_guard_rejects_bad_proposal_and_keeps_later_good(self):
+        import os
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repo = root/'repo'
+            repo.mkdir()
+            subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+            (repo/'grammar/syntax').mkdir(parents=True)
+            (repo/'tests').mkdir()
+            (repo/'tests/families.json').write_text('[]\n')
+            (repo/'grammar/syntax/mined.ebnf').write_text(
+                'm_first ::= "first"\nm_bad ::= "bad"\nm_last ::= "last"\n')
+            subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+            subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=t@x',
+                            'commit', '-qm', 'base'], cwd=repo, check=True)
+            commit = batch._git(repo, 'rev-parse', 'HEAD')
+            cp = dict(control_fixture(root, commit), source=str(repo))
+            report = {'task': 'task', 'source': commit, 'descriptor_sha256': 'd',
+                      'support_sha256': 's', 'fixture_sha256': 'f', 'edited': []}
+            proposals = [{'job_id': n, 'attempt_id': n, 'report': dict(report)}
+                         for n in ('first', 'bad', 'last')]
+            def proposal(p):
+                name = p['job_id']
+                return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
+            def merge(base, trial, proposed, rules, hooks):
+                name = rules[0][2:]
+                existing = trial/'grammar/syntax/shared.ebnf'
+                return {'grammar/syntax/shared.ebnf': (existing.read_text() if existing.exists() else '') + name+'\n'}
+            def remove(trial, rules):
+                path = trial/'grammar/syntax/mined.ebnf'
+                name = rules[0][2:]
+                path.write_text(path.read_text().replace(f'm_{name} ::= "{name}"\n', ''))
+                return rules, {}
+            calls = []
+            def checks(run, directory, grammar, names, data, threads):
+                self.assertEqual(threads, 6)
+                self.assertEqual(len(batch.r._LEASES), 6)
+                for fd in batch.r._LEASES:
+                    os.fstat(fd)
+                self.assertEqual(names, ['A', 'B'])
+                self.assertEqual(len(data[0]), 2)
+                marker = grammar/'syntax/shared.ebnf'
+                text = marker.read_text() if marker.exists() else ''
+                calls.append(text)
+                return {'faces': 2, 'failures': ['native change'] if 'bad\n' in text else []}
+            with patch.object(batch, '_proposal', side_effect=proposal), \
+                    patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), \
+                    patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
+                    patch.object(batch.mined, 'remove', side_effect=remove), \
+                    patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper'), \
+                    patch.object(batch.w, 'checks', side_effect=checks):
+                result = batch.stage(root, cp, proposals)
+            self.assertEqual(calls, ['', 'first\n', 'first\nbad\n', 'first\nlast\n'])
+            self.assertEqual([job['status'] for job in result['jobs']],
+                             ['included', 'integration-rejected', 'included'])
+            self.assertEqual(result['status'], 'provisional')
+            self.assertEqual(result['native_regression_controls']['names'], ['A', 'B'])
+            self.assertEqual(json.loads((Path(result['jobs'][1]['native_control'])/'result.json').read_text())['failures'],
+                             ['native change'])
+            self.assertEqual((Path(result['source'])/'grammar/syntax/shared.ebnf').read_text(), 'first\nlast\n')
+            self.assertEqual(batch.r._LEASES, [])
+
+    def test_native_base_failure_stops_before_any_trial(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repo = root/'repo'
+            repo.mkdir()
+            subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+            (repo/'grammar').mkdir()
+            (repo/'grammar/x.ebnf').write_text('x ::= "x"\n')
+            (repo/'tests').mkdir()
+            (repo/'tests/families.json').write_text('[]')
+            subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+            subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=t@x',
+                            'commit', '-qm', 'base'], cwd=repo, check=True)
+            cp = dict(control_fixture(root, batch._git(repo, 'rev-parse', 'HEAD')), source=str(repo))
+            with patch.object(batch.w, 'checks', return_value={'faces': 2, 'failures': ['base failed']}), \
+                    patch.object(batch, '_proposal') as proposal:
+                result = batch.stage(root, cp, [{'job_id': 'j', 'attempt_id': 'a'}])
+            proposal.assert_not_called()
+            self.assertEqual(result['status'], 'failed')
+            self.assertEqual(result['failure_scope'], 'baseline-native-control')
+            self.assertTrue((Path(result['folder'])/'native-control-base/result.json').exists())
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@ from argparse import Namespace
 import copy
 from contextlib import contextmanager, nullcontext
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -17,9 +18,12 @@ import retire as r
 import retire_author as a
 import retire_cpu
 import retire_merge as merger
+import retire_tasks as tasks
 import retire_worker as w
 
 FAMILY_CHECK_THREADS = 6
+CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
+                  'bin/score', 'bin/validate-readings')
 
 
 def _git(source, *args):
@@ -152,6 +156,88 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
         raise ValueError(f'family check failed: {log}')
 
 
+def _control_verify(control):
+    profile = control['profile']
+    if (profile.is_symlink() or not profile.is_file() or profile.stat().st_size > 1024*1024
+            or r.digest(profile) != control['profile_sha256']):
+        raise ValueError('native control profile changed')
+    run = control['run']
+    if r.digest(run/'manifest.json') != control['manifest_sha256']:
+        raise ValueError('native control checkpoint manifest changed')
+    for name, digest in control['input_sha256'].items():
+        if r.digest(run/'frozen'/name) != digest:
+            raise ValueError('native control frozen input changed: '+name)
+
+
+def _control_setup(checkpoint):
+    spec = checkpoint.get('native_regression_controls')
+    if spec is None:
+        return None
+    capacity = checkpoint.get('cpu_capacity', 32)
+    if (not checkpoint.get('cpu_pool') or type(capacity) is not int
+            or not FAMILY_CHECK_THREADS <= capacity <= 32):
+        raise ValueError('native control requires six available CPU lease tokens')
+    if not isinstance(spec, dict) or set(spec) != {'path', 'sha256'}:
+        raise ValueError('native control requires profile path and SHA-256')
+    if not isinstance(spec['path'], str) or not isinstance(spec['sha256'], str):
+        raise ValueError('invalid native control profile specification')
+    profile = Path(spec['path'])
+    if (not profile.is_absolute() or profile.is_symlink() or not profile.is_file()
+            or profile.stat().st_size > 1024*1024):
+        raise ValueError('native control profile is missing, unsafe or too large')
+    data = profile.read_bytes()
+    if hashlib.sha256(data).hexdigest() != spec['sha256']:
+        raise ValueError('native control profile SHA-256 differs')
+    document = json.loads(data)
+    names = document.get('cards') if isinstance(document, dict) and set(document) == {'cards'} else None
+    if (not isinstance(names, list) or not 1 <= len(names) <= 500
+            or any(not isinstance(name, str) or not name for name in names) or len(set(names)) != len(names)):
+        raise ValueError('native control requires 1–500 unique face names')
+    run = Path(checkpoint['inputs']).resolve()
+    manifest = r.read(run/'manifest.json')
+    if manifest.get('format') != 3 or manifest.get('commit') != checkpoint['commit']:
+        raise ValueError('native control checkpoint identity differs')
+    files = manifest.get('files', {})
+    if any(not isinstance(files.get(name), str) for name in CONTROL_INPUTS):
+        raise ValueError('native control checkpoint lacks frozen input hashes')
+    control = {'profile': profile, 'profile_sha256': spec['sha256'], 'run': run,
+               'manifest_sha256': r.digest(run/'manifest.json'),
+               'input_sha256': {name: files[name] for name in CONTROL_INPUTS}}
+    _control_verify(control)
+    closure = tasks.close_cohort(run, {'names': names}, max_occurrences=1024)
+    allowed = r.read(run/'frozen/allowed.json').get('cards')
+    if (not isinstance(allowed, list) or any(not isinstance(name, str) for name in allowed)
+            or len(allowed) != len(set(allowed)) or not set(closure['names']) <= set(allowed)):
+        raise ValueError('native control cohort escapes allowed population')
+    control['names'] = closure['names']
+    control['occurrences'] = closure['closure_occurrence_count']
+    control['data'] = w.payload(run)
+    _control_verify(control)
+    return control
+
+
+def _control_check(checkpoint, control, grammar, directory):
+    _control_verify(control)
+    directory.mkdir()
+    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), FAMILY_CHECK_THREADS, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
+    with lease as fds:
+        r._LEASES.extend(fds)
+        try:
+            try:
+                report = w.checks(control['run'], directory, grammar, control['names'], control['data'], FAMILY_CHECK_THREADS)
+            except (ValueError, OSError, subprocess.CalledProcessError, KeyError) as error:
+                r.write(directory/'result.json', {'status': 'error', 'error': str(error)})
+                raise
+        finally:
+            for fd in fds:
+                r._LEASES.remove(fd)
+    r.write(directory/'result.json', report)
+    if report.get('faces') != control['occurrences'] or report.get('failures') != []:
+        raise ValueError('native regression control failed: '+str(directory/'result.json'))
+    _control_verify(control)
+    return report
+
+
 @contextmanager
 def _workspace_lock(checkpoint):
     workspace = checkpoint.get('integration_workspace')
@@ -209,6 +295,7 @@ def _stage(campaign, checkpoint, proposals):
     proposals = list(proposals)
     if not 1 <= len(proposals) <= 96:
         raise ValueError('a batch must contain one to ninety-six proposals')
+    control = _control_setup(checkpoint)
     campaign = Path(campaign).resolve()
     origin = Path(checkpoint['source']).resolve()
     if checkpoint.get('integration_workspace') and Path(checkpoint['integration_workspace']).resolve() == origin:
@@ -246,9 +333,20 @@ def _stage(campaign, checkpoint, proposals):
         raise ValueError('baseline family registry or fixtures differ from checkpoint')
     manifest['baseline_families'] = [{'path': name, 'sha256': digest} for name, digest in baseline]
     manifest['baseline_registry_sha256'] = registry_hash
+    if control is not None:
+        manifest['native_regression_controls'] = {'profile': str(control['profile']),
+            'profile_sha256': control['profile_sha256'], 'checkpoint_manifest_sha256': control['manifest_sha256'],
+            'names': control['names'], 'occurrences': control['occurrences'], 'threads': FAMILY_CHECK_THREADS}
     r.write(folder/'manifest.json', manifest)
     if state:
         r.write(state, {'folder': str(folder)})
+    if control is not None:
+        try:
+            _control_check(checkpoint, control, source/'grammar', folder/'native-control-base')
+        except (ValueError, OSError, subprocess.CalledProcessError, KeyError) as error:
+            manifest.update(status='failed', reason=str(error), failure_scope='baseline-native-control')
+            r.write(folder/'manifest.json', manifest)
+            return manifest
     for proposal_index, proposal in enumerate(proposals):
         item = {'job_id': proposal['job_id'], 'attempt_id': proposal['attempt_id']}
         try:
@@ -300,6 +398,9 @@ def _stage(campaign, checkpoint, proposals):
                                          for index, entry in enumerate(descriptions)]
                 if fixtures:
                     _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
+                if control is not None:
+                    item['native_control'] = str(logs/'native-control')
+                    _control_check(checkpoint, control, trial/'grammar', logs/'native-control')
                 if fixture:
                     (source/fixture).parent.mkdir(parents=True, exist_ok=True)
                 backup = trial/'previous-grammar'
@@ -319,13 +420,20 @@ def _stage(campaign, checkpoint, proposals):
             item.update(status='included', rules=task['rules'], task=proposal['report']['task'],
                         base_commit=proposal['report']['source'], descriptor_sha256=proposal['report']['descriptor_sha256'],
                         support_sha256=proposal['report']['support_sha256'], fixture_sha256=proposal['report'].get('fixture_sha256'), kind=proposal.get('kind', 'author'))
-        except (ValueError, OSError, KeyError, TypeError) as error:
+        except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
             item.update(status='integration-rejected', reason=str(error))
         manifest['jobs'].append(item)
     if not any(job['status'] == 'included' for job in manifest['jobs']):
-        manifest['status'] = 'no-proposals'
+        try:
+            if control is not None:
+                _control_verify(control)
+            manifest['status'] = 'no-proposals'
+        except (ValueError, OSError) as error:
+            manifest.update(status='failed', reason=str(error), failure_scope='native-control-input')
     else:
         try:
+            if control is not None:
+                _control_verify(control)
             if (r.digest(registry_path) != registry_hash
                     or any(r.digest(source/name) != digest for name, digest in baseline)):
                 raise ValueError('baseline family changed during staging')

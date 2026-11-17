@@ -19,6 +19,7 @@ from contextlib import ExitStack, closing, contextmanager
 import retire_cohort_proof
 import retire_rehabilitation
 import retire_native_readmission
+import retire_priority
 
 
 def _json(value):
@@ -481,6 +482,7 @@ class Queue:
                     data TEXT NOT NULL, at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 );
             """)
+            retire_priority.initialize(db)
             existing = db.execute("SELECT value FROM metadata WHERE key='config'").fetchone()
             if existing and config and existing[0] != _json(config):
                 raise ValueError("queue configuration differs from existing configuration")
@@ -639,6 +641,16 @@ class Queue:
                 self._event(db, 'rehabilitated-unused', {**result, 'evidence': evidence})
                 return result
 
+    def publish_priorities(self, checkpoint, plan):
+        """Publish one audited heuristic snapshot; do not change job ownership."""
+        inputs = retire_priority.verify_plan_inputs(Path(self.path).parent, checkpoint, plan)
+        with self._transaction() as db:
+            result = retire_priority.publish(db, checkpoint, plan)
+            if inputs != (result['metadata']['manifest_sha256'], result['metadata']['scan_sha256']):
+                raise ValueError('priority audit input hashes differ')
+            self._event(db, 'priority-published', result)
+            return result
+
     def add_checkpoint(self, commit, evidence, expected_parent=None):
         if not isinstance(commit, str) or not commit:
             raise ValueError("commit is required")
@@ -676,15 +688,17 @@ class Queue:
                 kinds = list(kinds)
                 if not kinds or any(not isinstance(kind, str) or not kind for kind in kinds):
                     raise ValueError("kinds must contain nonempty strings")
-            candidates = db.execute("SELECT id,payload FROM jobs WHERE status='pending' ORDER BY rowid")
+            candidates = retire_priority.candidates(db, base)
             row = next((candidate for candidate in candidates
                         if kinds is None or json.loads(candidate[1]).get("kind") in kinds), None)
             if not row:
                 return None
+            job = json.loads(row[1])
+            retire_priority.claimed(db, base, job)
             attempt = str(uuid.uuid4())
             db.execute("INSERT INTO attempts(id,job_id,worker,base_commit) VALUES (?,?,?,?)", (attempt, row[0], worker, base))
             db.execute("UPDATE jobs SET status='running',attempt_id=? WHERE id=?", (attempt, row[0]))
-            result = {"attempt_id": attempt, "job": json.loads(row[1]), "base_commit": base}
+            result = {"attempt_id": attempt, "job": job, "base_commit": base}
             self._event(db, "claimed", {**result, "worker": worker})
             return result
 
