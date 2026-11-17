@@ -310,7 +310,9 @@ creation evidence. This operator does not retry smaller timeouts, infer semantic
 success or accept a retirement.
 
 `tools/retire_auth_recovery.py` plans and rehearses retries for explicitly selected
-terminal HTTP 401 attempts. It requires an empty final response, no completed
+terminal HTTP 401 attempts or the exact CLI token-refresh error caused by signing
+out or changing accounts. Generic authentication, quota and semantic failures do
+not qualify. It requires an empty final response, no completed
 model disposition, a non-timeout failure receipt, matching descriptor and archive
 evidence, an absent recorded PID and the current job lease. Apply pins the plan
 and verifier hashes, rechecks the current attempt inside the queue transaction,

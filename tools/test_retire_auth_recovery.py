@@ -120,6 +120,30 @@ class AuthRecoveryTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'terminal HTTP 401'):
                     self.plan_it()
 
+    def test_exact_signed_out_refresh_error_qualifies_and_is_identified(self):
+        path = self.worker/'events.jsonl'
+        path.write_text(json.dumps({'type': 'turn.failed',
+                                    'error': {'message': auth.SIGNED_OUT_REFRESH_ERROR}})+'\n')
+        plan = self.plan_it()
+        self.assertEqual(plan['jobs'][0]['auth_failure_kind'], 'signed-out-token-refresh')
+        self.assertEqual(auth.apply(self.root, self.plan, r.digest(self.plan), self.receipt_out)['status'],
+                         'passed')
+        self.assertEqual(self.queue.coverage()['counts'], {'pending': 1})
+
+    def test_refresh_near_matches_semantic_refusal_and_quota_do_not_qualify(self):
+        path = self.worker/'events.jsonl'
+        messages = [auth.SIGNED_OUT_REFRESH_ERROR+' Extra reason.',
+                    auth.SIGNED_OUT_REFRESH_ERROR.replace('Please sign in again.', 'Try again.'),
+                    'Your access token could not be refreshed.',
+                    'Authentication failed for an unspecified reason',
+                    'Unsupported semantic contract; needs deeper review',
+                    'You have exceeded your current quota', '429 Too Many Requests']
+        for message in messages:
+            with self.subTest(message=message):
+                path.write_text(json.dumps({'type': 'turn.failed', 'error': {'message': message}})+'\n')
+                with self.assertRaisesRegex(ValueError, 'terminal HTTP 401 or exact signed-out'):
+                    self.plan_it()
+
     def test_support_archive_tamper_and_timeout_refuse(self):
         support = self.run/'support.json'; old = support.read_bytes()
         r.write(support, {'tasks': {self.job: '0'*64}})

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rehearse and explicitly retry terminal HTTP 401 attempts; never accept rules."""
+"""Rehearse and explicitly retry terminal authentication failures; never accept rules."""
 from contextlib import closing
 import argparse
 import hashlib
@@ -16,6 +16,16 @@ from retire_reuse import _read_archive
 from retire_timeout_operator import create_json, identity, inventory, new_output, update_receipt
 
 MAX_FILE = 32 * 1024 * 1024
+SIGNED_OUT_REFRESH_ERROR = ('Your access token could not be refreshed because you have since logged out '
+                            'or signed in to another account. Please sign in again.')
+
+
+def terminal_auth_failure(message):
+    if message == SIGNED_OUT_REFRESH_ERROR:
+        return 'signed-out-token-refresh'
+    if isinstance(message, str) and re.search(r'\b401\s+Unauthorized\b', message):
+        return 'http-401'
+    return None
 
 
 def verifier_hashes():
@@ -89,11 +99,11 @@ def inspect(root, db, job, attempt):
         raise ValueError('auth attempt has a usable or nonempty final response')
     events = [json.loads(line) for line in decoded['events'].splitlines() if line.strip()]
     if (not events or events[-1].get('type') != 'turn.failed'
-            or not re.search(r'\b401\s+Unauthorized\b', events[-1].get('error', {}).get('message', ''))
+            or terminal_auth_failure(events[-1].get('error', {}).get('message')) is None
             or any(e.get('type') == 'turn.completed' for e in events)
             or any(e.get('type') == 'item.completed' and e.get('item', {}).get('type') == 'agent_message'
                    for e in events)):
-        raise ValueError('events do not prove a terminal HTTP 401 without a model disposition')
+        raise ValueError('events do not prove a terminal HTTP 401 or exact signed-out refresh failure without a model disposition')
     receipt, model, task, support, archived = [json.loads(decoded[name]) for name in
                                             ('receipt', 'model_receipt', 'descriptor', 'support', 'archive_record')]
     pid = start.get('pid')
@@ -130,6 +140,7 @@ def inspect(root, db, job, attempt):
     return {'job_id': job, 'attempt_id': attempt, 'rules': rules, 'base_commit': row[4], 'pid': pid,
             'result_sha256': hashlib.sha256(row[6].encode()).hexdigest(),
             'payload_sha256': hashlib.sha256(row[2].encode()).hexdigest(), 'artifacts': specs,
+            'auth_failure_kind': terminal_auth_failure(events[-1]['error']['message']),
             'reuse': {'attempt': attempt, 'base_commit': row[4], 'path': str(paths['archive']),
                       'sha256': specs['archive']['sha256'], 'rules': rules},
             'archived_files': len(manifest['files']), 'archive_patch_bytes': len(members['candidate.patch'][0])}
