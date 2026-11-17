@@ -67,3 +67,47 @@ def close_cohort(by_name, records, detail, *, max_occurrences=MAX_COHORT_OCCURRE
                   closure_scope='transitive shared-face-name closure over frozen gold records; no truncation')
     return result
 
+
+
+MAX_MECHANICAL_CHUNKS = 8
+
+
+def mechanical_chunks(by_name, records, names):
+    """Partition every literal target by complete shared-record components."""
+    r.require(isinstance(names, list) and names and all(isinstance(n, str) and n for n in names),
+              'mechanical cohort needs nonempty target names')
+    initial = set(names)
+    r.require(len(initial) == len(names), 'mechanical cohort targets must be unique')
+    r.require(len(initial) <= MAX_BASE_COHORT_NAMES * MAX_MECHANICAL_CHUNKS,
+              'mechanical cohort exceeds bounded chunk count')
+    r.require(initial <= by_name.keys(), 'mechanical target outside frozen population')
+    remaining = set(initial)
+    components = []
+    while remaining:
+        seed = min(remaining)
+        closed = close_cohort(by_name, records, {'names': [seed]})
+        component = set(closed['names'])
+        targets = sorted(component & initial)
+        r.require(len(targets) <= MAX_BASE_COHORT_NAMES, 'mechanical component exceeds base-name limit')
+        remaining.difference_update(targets)
+        components.append((targets, component, closed['closure_occurrence_count']))
+    batches, base, closed_names, occurrences = [], [], set(), 0
+    for targets, component, count in components:
+        if base and (len(base)+len(targets) > MAX_BASE_COHORT_NAMES
+                     or occurrences+count > MAX_COHORT_OCCURRENCES):
+            batches.append((base, closed_names, occurrences))
+            base, closed_names, occurrences = [], set(), 0
+        base.extend(targets)
+        closed_names.update(component)
+        occurrences += count
+    if base:
+        batches.append((base, closed_names, occurrences))
+    r.require(len(batches) <= MAX_MECHANICAL_CHUNKS, 'mechanical cohort exceeds bounded chunk count')
+    result = []
+    for base, expected, count in batches:
+        detail = close_cohort(by_name, records, {'names': sorted(base)})
+        r.require(set(detail['names']) == expected and detail['closure_occurrence_count'] == count,
+                  'mechanical chunk closure differs from component partition')
+        result.append({'base_names': sorted(base), 'names': detail['names'],
+                       'occurrences': count, 'records': detail['closure_record_count']})
+    return result

@@ -151,6 +151,12 @@ def close_cohort(inputs, detail, *, max_occurrences=MAX_COHORT_OCCURRENCES):
     return cohort.close_cohort(by_name, records, detail, max_occurrences=max_occurrences)
 
 
+def mechanical_chunks(inputs, names):
+    with _PACKET_LOCK:
+        by_name, records, _ = _packet_data(str(inputs), r.digest(Path(inputs)/'manifest.json'))
+    return cohort.mechanical_chunks(by_name, records, names)
+
+
 def _packet(inputs, job, cohort):
     with _PACKET_LOCK:
         by_name, records, oracle_index = _packet_data(str(inputs), r.digest(inputs/'manifest.json'))

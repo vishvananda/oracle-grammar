@@ -31,7 +31,8 @@ import retire_priority
 import retire_metrics
 import retire_retention
 from retire_queue import Queue, RehabilitationIneligible
-from retire_tasks import prepare_task, validate_runner
+from retire_tasks import (CohortClosureLimit, close_cohort, mechanical_chunks,
+                          prepare_task, validate_runner)
 import retire_worker as w
 
 
@@ -94,18 +95,44 @@ def mechanical(run, task_id):
             r.require(set(removed)==set(task['rules']) and not kept,'removal has retained users')
             names = set()
             data = w.payload(inputs)
+            chunks = task.get('mechanical_chunks')
+            if chunks is not None:
+                report.update(chunks_expected=len(chunks) if isinstance(chunks, list) else 0,
+                              chunks_started=0, chunks_completed=0, coverage_complete=False, chunk_results=[])
             for rule in task['rules']:
                 cohort = w.cohort(inputs,rule,data[0])
-                r.require(cohort and len(cohort)<=500,'mechanical cohort uncertain or too large')
+                r.require(cohort and (chunks is not None or len(cohort)<=500),
+                          'mechanical cohort uncertain or too large')
                 names.update(cohort)
-            r.require(len(names)<=500,'combined mechanical cohort too large')
-            r.require(names <= set(task['cohort']), 'mechanical targets outside prepared cohort')
-            names = set(task['cohort'])
-            report.update(w.checks(inputs,directory,directory/'grammar',names,data,2))
-            report['passed'] = not report['failures']
+            if chunks is None:
+                r.require(len(names)<=500,'combined mechanical cohort too large')
+                r.require(names <= set(task['cohort']), 'mechanical targets outside prepared cohort')
+                report.update(w.checks(inputs,directory,directory/'grammar',set(task['cohort']),data,2))
+                report['passed'] = not report['failures']
+            else:
+                expected = mechanical_chunks(inputs, sorted(names))
+                r.require(len(expected) > 1 and chunks == expected, 'mechanical chunk plan differs')
+                r.require(task['target_faces'] == chunks[0]['base_names'] and task['cohort'] == chunks[0]['names'],
+                          'mechanical first chunk differs from task packet')
+                report['faces'] = 0
+                for index, chunk in enumerate(chunks):
+                    folder = directory/f'chunk-{index:03d}'
+                    folder.mkdir()
+                    report['chunks_started'] += 1
+                    result = w.checks(inputs,folder,directory/'grammar',chunk['names'],data,2)
+                    r.require(result['faces'] == chunk['occurrences'], 'mechanical chunk population differs')
+                    report['chunk_results'].append({'index': index, 'directory': str(folder), **result})
+                    report['chunks_completed'] += 1
+                    report['faces'] += result['faces']
+                    report['failures'].extend(result['failures'])
+                report['coverage_complete'] = report['chunks_completed'] == report['chunks_expected']
+                report['passed'] = report['coverage_complete'] and not report['failures']
         except Exception as error:
             report['failures'].append(str(error))
         finally:
+            if 'chunks_expected' in report:
+                report['chunks_unrun'] = report['chunks_expected'] - report['chunks_started']
+                report['chunks_incomplete'] = report['chunks_expected'] - report['chunks_completed']
             if inherited:
                 r._LEASES.remove(int(inherited))
             for fd in fds:
@@ -154,6 +181,24 @@ def attempt_usage(run, job, working, receipt):
         return {'status': 'unavailable', 'error': str(error), 'estimated_usd': None}
 
 
+def mechanical_detail(inputs, names):
+    """Keep ordinary tasks unchanged; partition only oversized diagnostics."""
+    chunked = len(names) > 500
+    if not chunked:
+        try:
+            close_cohort(inputs, {'names': names})
+        except CohortClosureLimit:
+            chunked = True
+    if chunked:
+        chunks = mechanical_chunks(inputs, names)
+        detail = {'names': chunks[0]['base_names'], 'sampled': False,
+                  'scope': 'first of complete bounded mechanical chunks',
+                  'full_batch_audit_required': True}
+        return detail, chunks[0]['base_names'], chunks
+    return ({'names': names, 'sampled': False, 'scope': 'audited-unused literal triage',
+             'full_batch_audit_required': True}, names, None)
+
+
 def perform(run, claim, contexts, runner=None):
     queue = Queue(run/'queue.sqlite')
     cp = campaign_api.checkpoint(run,claim['base_commit'])
@@ -170,9 +215,9 @@ def perform(run, claim, contexts, runner=None):
             data,scan,inverted = contexts.get(cp)
             if job['kind']=='mechanical':
                 names = sorted({name for rule in job['rules'] for name in w.cohort(Path(cp['inputs']),rule,data[0])})
-                detail = {'names':names,'sampled':False,'scope':'audited-unused literal triage',
-                          'full_batch_audit_required':True}
-                job['target_faces'] = names
+                detail, job['target_faces'], chunks = mechanical_detail(Path(cp['inputs']), names)
+                if chunks is not None:
+                    job['mechanical_chunks'] = chunks
             else:
                 detail = planner.select_cohort_detail(job,inverted,data[1],scan)
             reused=run/'reuse'/(job['id']+'.json')

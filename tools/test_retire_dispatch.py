@@ -595,6 +595,70 @@ with open(sys.argv[3], 'a') as guard:
             self.assertNotIn('m_one ::=', (Path(candidate['source'])/'grammar/syntax/mined.ebnf').read_text())
             self.assertIn('m_one ::=', (source/'grammar/syntax/mined.ebnf').read_text())
 
+    def test_chunked_mechanical_report_binds_descriptor_and_stages(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, campaign, helpers, inputs = (root/'source', root/'campaign', root/'helpers', root/'inputs')
+            commit = repository(source)
+            campaign.mkdir()
+            (campaign/'runner').mkdir()
+            tools = Path(__file__).resolve().parent
+            for name in retire_tasks.RUNNERS:
+                shutil.copy2(tools/name, campaign/'runner'/name)
+            r.write(campaign/'runner.json', r.tree(campaign/'runner'))
+            helpers.mkdir()
+            for name in retire_tasks.dev.BINS:
+                (helpers/name).write_text('helper '+name)
+            build = {'source_sha256': 'compiled', 'binaries': {n: r.digest(helpers/n) for n in retire_tasks.dev.BINS}}
+            r.write(helpers/'build.json', build)
+            frozen = inputs/'frozen'; frozen.mkdir(parents=True)
+            shutil.copytree(source/'grammar', frozen/'grammar')
+            r.write(frozen/'build.json', build)
+            (frozen/'bin').mkdir()
+            for name in r.HELPERS: shutil.copy2(helpers/name, frozen/'bin'/name)
+            names = [f'Face{i:03d}' for i in range(501)]
+            r.write(frozen/'index.json', {str(i): {'name': name, 'text': 'one', 'record': i, 'face': 0,
+                                                   'flags': [True]*4, 'parse': {'readings': 1}} for i, name in enumerate(names)})
+            r.jsonl(frozen/'gold.jsonl', [{'faces': [{'name': name, 'abilities': []}]} for name in names])
+            r.write(frozen/'oracle.json', [{'cards': [{'name': name, 'text': 'one'}]} for name in names])
+            r.write(inputs/'manifest.json', {'format': 3, 'commit': commit, 'source': 'compiled',
+                                             'files': r.tree(frozen), 'tooling': r.tooling()})
+            (inputs/'scan').mkdir()
+            r.write(inputs/'scan/rules.json', {'unused': ['m_one']})
+            checkpoint = {'source': str(source), 'commit': commit, 'inputs': str(inputs), 'helpers': str(helpers)}
+            chunks = retire_tasks.mechanical_chunks(inputs, names)
+            self.assertEqual(len(chunks), 2)
+            job = {'id': 'mech', 'rules': ['m_one'], 'goal': 'remove audited unused rule', 'kind': 'mechanical',
+                   'target_faces': chunks[0]['base_names'], 'mechanical_chunks': chunks}
+            claim = {'attempt_id': str(uuid.uuid4()), 'base_commit': commit, 'job': job}
+            with patch.object(retire_tasks.dev, 'source', return_value='compiled'):
+                prepared = retire_tasks.prepare_task(campaign, claim, checkpoint, job,
+                                                     {'names': chunks[0]['base_names']})
+                run = Path(prepared['run'])
+                def checks(inputs, directory, grammar, selected, data, threads):
+                    return {'faces': len(selected), 'failures': []}
+                with patch.object(dispatch.w, 'cohort', return_value=names), \
+                        patch.object(dispatch.w, 'checks', side_effect=checks) as checks_mock, \
+                        redirect_stdout(io.StringIO()):
+                    dispatch.mechanical(run, 'mech')
+                self.assertEqual(checks_mock.call_count, 2)
+                report = r.read(next((run/'evaluations/mech').glob('*/report.json')))
+                self.assertTrue(report['passed'])
+                self.assertTrue(report['coverage_complete'])
+                self.assertEqual(report['faces'], 501)
+                descriptor = run/'tasks/mech.json'
+                original = descriptor.read_bytes()
+                descriptor.write_bytes(original+b' ')
+                with self.assertRaisesRegex(ValueError, 'descriptor changed'):
+                    dispatch.author.verify(run, 'mech')
+                descriptor.write_bytes(original)
+                proposal = {'kind': 'mechanical', 'job_id': 'mech', 'attempt_id': claim['attempt_id'],
+                            'run': str(run), 'report': report}
+                candidate = retire_batch.stage(campaign, checkpoint, [proposal])
+            self.assertEqual(candidate['status'], 'provisional', candidate)
+            self.assertEqual(candidate['fixtures'], [])
+            self.assertEqual(candidate['jobs'][0]['status'], 'included')
+
     def test_publish_main_checks_semantic_parent_tree(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
