@@ -490,7 +490,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump
+static_ability ::= static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -1135,7 +1135,7 @@ spell_mana_grant_blitz ::= "blitz" "." "the" "blitz" "cost" "is" "equal" "to" "i
 /* Cast-time mechanics granted to spells, not to permanents in general. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($spell_holders), changes:[GrantAbility(@holder($spell_mechanic))]} */
 static_spell_mechanic_grant ::= spell_holders ("has" | "have") spell_mechanic "."
-spell_mechanic ::= mechanic_convoke | bare_cascade | bare_improvise | bare_demonstrate | bare_conspire | mechanic_cost_keyword
+spell_mechanic ::= bare_storm | mechanic_convoke | bare_cascade | bare_improvise | bare_demonstrate | bare_conspire | mechanic_cost_keyword
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($mechanic_grant_subject), changes:[GrantAbility(@holder($granted_mechanic))]} */
 static_object_mechanic_grant ::= mechanic_grant_subject ("has" | "have") granted_mechanic "."
 
@@ -2073,6 +2073,17 @@ cast_origin_graveyard ::= "your" "graveyard"
 /* @sem ZoneScope::Shared(Exile) */
 cast_origin_exile ::= "exile"
 
+/* The drawn-card history and cost modifier are independent operands. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:$drawn_cards_history})), changes:[SpellCost($spell_cost_change)]}) */
+static_drawn_cards_spell_cost ::= "spells" "cast" "from" "among" "cards" drawn_cards_history "cost" spell_cost_change "to" "cast" "."
+/* @sem ObjectFilter::History{event:Drawn($drawn_cards_player), window:ThisTurn} */
+drawn_cards_history ::= drawn_cards_player "drew" "this" "turn"
+drawn_cards_player ::= drawn_cards_you | drawn_cards_opponents
+/* @sem PlayerSet::One(AbilityController) */
+drawn_cards_you ::= "you"
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+drawn_cards_opponents ::= "your" "opponents"
+
 /* A tax on the chosen name's spells some player casts is on those spells. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone(_{scope:Shared(Stack), kind:Spell, filter:AllOf([Chosen(CardName), Cast{by:$players_singular}])})), changes:[SpellCost(Increase($cost))]}) */
 static_named_spells_player_casts_cost ::= "spells" "with" "the" "chosen" "name" players_singular "casts" "cost" cost "more" "to" "cast" "."
@@ -2797,7 +2808,7 @@ shared_type_grant_changes ::= shared_pump_trigger_type_changes | shared_trigger_
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$shared_quoted_pair_changes} */
 shared_quoted_pair_static ::= affected shared_quoted_pair_changes
 
-shared_quoted_pair_changes ::= shared_trigger_activation_changes | shared_hand_trigger_changes
+shared_quoted_pair_changes ::= shared_trigger_activation_changes | shared_hand_trigger_changes | shared_loyalty_pair_changes
 
 /* Graveyard casting permissions compose with independent cost and condition phrases. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Additional(Cost{parts:[$cast_additional_cost_part]})}})]})} */
@@ -3118,3 +3129,50 @@ change_are_every_basic_land_type ::= "are" every_basic_land_type_addition "their
 
 /* @sem Change::[LandTypes{scope:Basic, mode:Add}] */
 every_basic_land_type_addition ::= "every" "basic" "land" "type" "in" "addition" "to"
+
+/* The ordinal applies to the qualifying spells cast by the ability controller. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($ordinal_cast_subject), changes:[GrantAbility(@holder($spell_mechanic))]} */
+static_first_cast_mechanic ::= ordinal_cast_subject "has" spell_mechanic "."
+
+ordinal_cast_subject ::= ordinal_cast_any | ordinal_cast_mana_source
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:NthCast{ordinal:Constant(1), spells:Any, by:One(AbilityController), scope:Turn}} */
+ordinal_cast_any ::= "the" "first" "spell" "you" "cast" "each" "turn"
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:NthCast{ordinal:Constant(1), spells:ManaSpentFrom($filter_phrase), by:One(AbilityController), scope:Turn}} */
+ordinal_cast_mana_source ::= "the" "first" "spell" "you" "cast" "each" "turn" "that" "mana" "from" ("a" | "an") filter_phrase "was" "spent" "to" "cast"
+
+/* Quoted trigger bodies and creature-type additions are independent changes. */
+/* @sem Program::Program{instructions:[If{condition:$condition, then:$program, otherwise:$program_2}]} */
+shared_postcondition_otherwise_body ::= program "if" condition "." "otherwise" "," program
+
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$shared_postcondition_otherwise_body})) */
+shared_granted_trigger_conditional_closed ::= '"' event_clause "," shared_postcondition_otherwise_body "." '"'
+
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program})) */
+shared_granted_trigger_closed ::= '"' event_clause "," program "." '"'
+
+/* @sem Change::CreatureTypes{mode:Add, types:Listed([@subtype_name($subtype)])} */
+shared_added_singular_creature_type ::= "is" "a" subtype "in" "addition" "to" "its" "other" "creature" "types"
+
+/* @sem Change::[$shared_added_singular_creature_type, $shared_granted_trigger_closed] */
+shared_creature_type_and_trigger ::= shared_added_singular_creature_type "and" "has" shared_granted_trigger_closed
+
+/* @sem Change::[$shared_granted_trigger_conditional_closed] */
+shared_plural_conditional_grant ::= "have" shared_granted_trigger_conditional_closed
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$shared_closed_grant_changes} */
+shared_closed_grant_static ::= affected shared_closed_grant_changes
+
+shared_closed_grant_changes ::= shared_creature_type_and_trigger | shared_plural_conditional_grant
+
+/* Quoted loyalty activations share their holder but retain independent scopes,
+   costs and programs. Only the final quote carries the closing period. */
+/* @sem Change::GrantAbility(@holder(Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:$program})) */
+shared_loyalty_open ::= '"' "[" loyalty "]" ":" program '"'
+
+/* @sem Change::GrantAbility(@holder($activated_loyalty)) */
+shared_loyalty_closed ::= '"' activated_loyalty '"'
+
+/* @sem Change::[$shared_loyalty_open, $shared_loyalty_closed] */
+shared_loyalty_pair_changes ::= "have" shared_loyalty_open "and" shared_loyalty_closed

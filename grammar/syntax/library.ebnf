@@ -1252,3 +1252,41 @@ observed_mana_saddled ::= "you" "lose" "life" "equal" "to" "that" "card's" "mana
 /* The owner chooses a library position; the ordinal remains an editable operand. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseAction{actor:One(OwnerOf($object_ref)), options:[Program{instructions:[Effect{result:@next, operation:Move{objects:$affected, destination:Library{position:FromTop($library_depth), order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, Program{instructions:[Effect{result:@next, operation:Move{objects:$affected, destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}]}}] */
 clause_owner_library_depth_choice ::= "the" "owner" "of" object_ref "puts" affected "into" "their" "library" library_depth "from" "the" "top" "or" "on" "the" "bottom"
+
+/* The subject owns the hand and the library; the verb supplies the destination. */
+/* @sem Operation::Move{objects:Zone{scope:Players{zone:Hand, players:$players_singular}, kind:Card, filter:Any}, destination:Library{position:$hand_library_placement, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
+player_hand_to_library ::= players_singular hand_library_placement
+
+/* @sem Operation::Move{objects:Zone{scope:Players{zone:Hand, players:@subject}, kind:Card, filter:Any}, destination:Library{position:$hand_library_placement, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
+hand_to_library_third ::= hand_library_placement
+/* @sem LibraryPosition::Bottom */
+hand_library_bottom ::= "puts" "the" "cards" "in" "their" "hand" "on" "the" "bottom" "of" "their" "library" "in" "any" "order"
+/* @sem LibraryPosition::Shuffled */
+hand_library_shuffled ::= "shuffles" "their" "hand" "into" "their" "library"
+hand_library_placement ::= hand_library_bottom | hand_library_shuffled
+
+/* The count is the before receipt of this very hand-to-library move. */
+/* @sem Instruction::[Effect{result:@mark, operation:@apply($player_one, $hand_to_library_third)}, Effect{result:@next, operation:Draw{players:$player_one, amount:CountObjects(Transition{result:@marked, phase:Before})}}] */
+clause_hand_to_library_draw_receipt ::= player_one hand_to_library_third "," "then" "draws" "that" "many" "cards"
+
+/* A single explicit library top is shared by the reveal and its immediate
+   play continuation; both sides print from this same current operand. */
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
+single_library_top ::= "the" "top" "card" "of" player_possessive "library"
+
+/* @sem PlayAction::Either */
+revealed_it_free_action ::= "play" "it" "without" "paying" "its" "mana" "cost"
+
+/* @sem PlayAction::CastSpell */
+revealed_it_free_cast ::= "cast" "it" "without" "paying" "its" "mana" "cost"
+
+revealed_it_free ::= revealed_it_free_action | revealed_it_free_cast
+
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:$single_library_top}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:$revealed_it_free, cards:$single_library_top, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}] */
+instructions_reveal_single_free ::= "reveal" single_library_top "." "you" "may" revealed_it_free
+
+/* @sem ObjectFilter::Shares{property:ManaValues, with:EventSubject} */
+same_event_spell_mana_value ::= "if" "the" "two" "spells" "have" "the" "same" "mana" "value"
+
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:$single_library_top}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:$single_library_top, filter:$same_event_spell_mana_value}, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]}, otherwise:Program{}}] */
+instructions_optional_reveal_same_value_cast ::= "you" "may" "reveal" single_library_top "." "if" "you" "do" "," "you" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost" same_event_spell_mana_value

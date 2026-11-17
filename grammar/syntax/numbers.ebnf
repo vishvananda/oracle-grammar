@@ -77,7 +77,21 @@ card_count_equal ::= "cards" "equal" "to" value
 /* @sem Expr::Divide{numerator:$value_atom, denominator:Expr::Constant(2), rounding:$rounding_words} */
 card_count_half ::= "half" value_atom "cards" "," rounding_words
 
-count_each ::= count_each_kind_among_population | count_each_different_power | count_each_devoured | count_each_players_drew | count_each_vote | count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand | count_each_card_graveyard | count_each_destroyed | count_each_tapped | count_each_discarded | count_each_discarded_any | count_each_discarded_event | count_each_exiled_any | count_each_revealed_any | count_each_died | count_each_put_into_your_graveyard | count_each_land_type | count_each_color_among | count_each_color_spent | count_each_time_kicked | count_each_counter_on | count_each_attacked | count_each_you_attacked_with | count_each_spell_cast_history | count_each_attacking_you | count_each_chosen_type | count_each_damaged_opponent
+count_each ::= count_each_population_sum | count_each_counter_population_sum | count_each_kind_among_population | count_each_different_power | count_each_devoured | count_each_players_drew | count_each_vote | count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand | count_each_card_graveyard | count_each_destroyed | count_each_tapped | count_each_discarded | count_each_discarded_any | count_each_discarded_event | count_each_exiled_any | count_each_revealed_any | count_each_died | count_each_put_into_your_graveyard | count_each_land_type | count_each_color_among | count_each_color_spent | count_each_time_kicked | count_each_counter_on | count_each_attacked | count_each_you_attacked_with | count_each_spell_cast_history | count_each_attacking_you | count_each_chosen_type | count_each_damaged_opponent | count_each_opponents_graveyards | count_each_cycling_graveyard
+
+/* Live populations compose without assuming an action receipt. */
+/* @sem Expr::Add($count_controlled_other, $count_live_graveyard) */
+count_each_population_sum ::= count_controlled_other "and" "each" count_live_graveyard
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([ControlledBy(One(AbilityController)), Not(SameObject(Source)), $filter_phrase])}) */
+count_controlled_other ::= "other" filter_phrase "you" "control"
+count_live_graveyard ::= count_each_graveyard | count_each_card_graveyard
+
+/* @sem Expr::Add($count_counters_on_players, $count_counters_on_population) */
+count_each_counter_population_sum ::= "counter" "among" count_counters_on_players "and" count_counters_on_population
+/* @sem Expr::CountCounters(_{recipients:Players(All), information:CurrentOrLastKnown}) */
+count_counters_on_players ::= "players"
+/* @sem Expr::CountCounters(_{recipients:Objects($counter_battlefield_population), information:CurrentOrLastKnown}) */
+count_counters_on_population ::= counter_battlefield_population
 
 /* @sem Expr::EventHistory{event:$commander_cast_history, window:ThisGame, measure:Occurrences} */
 count_each_commander_cast ::= "time" commander_cast_history
@@ -781,3 +795,11 @@ count_each_damaged_opponent ::= "opponent" "who" "was" damaged_opponent_count
 
 /* @sem $damaged_opponent_count */
 value_damaged_opponents ::= "the" "number" "of" "opponents" "who" "were" damaged_opponent_count
+
+/* Count matching cards in the opponents’ graveyards as one population. */
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:OpponentsOf(AbilityController)}, kind:Card, filter:$card_filter}) */
+count_each_opponents_graveyards ::= card_filter "card" "in" "your" "opponents'" "graveyards"
+
+/* A cycling ability on each card, independent of the holder of the pump. */
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:HasActivatedAbility(Cycling)}) */
+count_each_cycling_graveyard ::= "card" "with" "cycling" "in" zone_owner "graveyard"
