@@ -679,3 +679,11 @@ cast_sacrifice_permanent_cost ::= "sacrificing" ("a" | "an") filter_phrase
 
 /* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]} */
 cast_remove_counter_permanent_cost ::= "removing" "a" "counter" "from" ("a" | "an") filter_phrase
+
+/* The pronoun refers to the one card selected by this single exile payment.
+   Keeping the producer and consumer together makes the inverse prove the receipt. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[$cost_exile_graveyard]}, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[$play_exile_payment_optional]}} */
+activated_single_graveyard_exile_play_limited ::= cost_exile_graveyard ":" play_exile_payment_optional "." activation_limits "."
+
+/* @sem Instruction::Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:Either, cards:One(Query{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:After}, index:0}), count:Exactly(Constant(1)), cost:Normal}}]}} */
+play_exile_payment_optional ::= "you" "may" "play" "it"

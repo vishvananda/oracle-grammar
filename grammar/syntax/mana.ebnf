@@ -102,3 +102,14 @@ mana_use_pay ::= "pay" mana_purpose
 mana_purpose ::= mana_purpose_cumulative
 /* @sem ManaPurpose::CumulativeUpkeep */
 mana_purpose_cumulative ::= "cumulative" "upkeep" "costs"
+
+/* Both alternatives use the same explicit producible mana type. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:$value, production:$mana_could_produce_type, choice:Once}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_could_produce_type}}]}}] */
+instructions_mana_producible_instead ::= "add" mana_could_produce_type "." "if" condition "," "add" value "mana" "of" "that" "type" "instead"
+
+/* The consequence is scoped to the player whose unspent mana is lost. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(AsManaEmpties{mana:Vocabulary{family:UnspentMana, form:AnyUnspentMana}, then:List([Program{instructions:[$mana_loss_consequence]}])})]}) */
+static_unspent_mana_consequence ::= "a" "player" "losing" "unspent" "mana" "causes" mana_loss_consequence "."
+
+/* @sem Instruction::Effect{result:@next, operation:LoseLife{players:One(Prior(That)), amount:Game(ManaLostThisWay)}} */
+mana_loss_consequence ::= "that" "player" "to" "lose" "that" "much" "life"

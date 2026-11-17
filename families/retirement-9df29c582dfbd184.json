@@ -1,0 +1,1206 @@
+{
+  "family": "retirement-9df29c582dfbd184",
+  "cases": [
+    {
+      "name": "Mana loss",
+      "text": "A player losing unspent mana causes that player to lose that much life.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "AsManaEmpties": {
+                    "mana": {
+                      "kind": "Vocabulary",
+                      "args": {
+                        "family": "UnspentMana",
+                        "form": "AnyUnspentMana"
+                      }
+                    },
+                    "then": {
+                      "kind": "List",
+                      "args": [
+                        {
+                          "kind": "Program",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "LoseLife",
+                                    "args": {
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Prior",
+                                          "args": "That"
+                                        }
+                                      },
+                                      "amount": {
+                                        "kind": "Game",
+                                        "args": "ManaLostThisWay"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Ninja equipment",
+      "text": "Equipped creature gets +1/+1, is a Ninja in addition to its other types, and has \"Whenever this creature deals combat damage to a player, draw a card, then discard a card. That player loses life equal to the discarded card's mana value.\"",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "AttachedTo",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Pump",
+                "args": {
+                  "power": {
+                    "kind": "Constant",
+                    "args": 1
+                  },
+                  "toughness": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                }
+              },
+              {
+                "kind": "CreatureTypes",
+                "args": {
+                  "mode": "Add",
+                  "types": {
+                    "Listed": [
+                      "Ninja"
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "GrantAbility",
+                "args": {
+                  "kind": "Triggered",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Permanent",
+                        "sources": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "recipients": {
+                          "Players": {
+                            "kind": "All"
+                          }
+                        },
+                        "kind": "Combat",
+                        "grouping": "SourceRecipient",
+                        "subject": "Source"
+                      }
+                    },
+                    "intervening_if": null,
+                    "limits": {
+                      "per_turn": null,
+                      "total": null
+                    },
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "ObjectProperty",
+                                  "args": {
+                                    "object": {
+                                      "kind": "Query",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 1,
+                                            "phase": "Before"
+                                          }
+                                        },
+                                        "index": 0
+                                      }
+                                    },
+                                    "property": "ManaValue",
+                                    "information": "CurrentOrLastKnown"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Power edited",
+      "text": "Equipped creature gets +2/+1, is a Ninja in addition to its other types, and has \"Whenever this creature deals combat damage to a player, draw a card, then discard a card. That player loses life equal to the discarded card's mana value.\"",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "AttachedTo",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Pump",
+                "args": {
+                  "power": {
+                    "kind": "Constant",
+                    "args": 2
+                  },
+                  "toughness": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                }
+              },
+              {
+                "kind": "CreatureTypes",
+                "args": {
+                  "mode": "Add",
+                  "types": {
+                    "Listed": [
+                      "Ninja"
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "GrantAbility",
+                "args": {
+                  "kind": "Triggered",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Permanent",
+                        "sources": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "recipients": {
+                          "Players": {
+                            "kind": "All"
+                          }
+                        },
+                        "kind": "Combat",
+                        "grouping": "SourceRecipient",
+                        "subject": "Source"
+                      }
+                    },
+                    "intervening_if": null,
+                    "limits": {
+                      "per_turn": null,
+                      "total": null
+                    },
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "ObjectProperty",
+                                  "args": {
+                                    "object": {
+                                      "kind": "Query",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 1,
+                                            "phase": "Before"
+                                          }
+                                        },
+                                        "index": 0
+                                      }
+                                    },
+                                    "property": "ManaValue",
+                                    "information": "CurrentOrLastKnown"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Toughness edited",
+      "text": "Equipped creature gets +1/+3, is a Ninja in addition to its other types, and has \"Whenever this creature deals combat damage to a player, draw a card, then discard a card. That player loses life equal to the discarded card's mana value.\"",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "AttachedTo",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Pump",
+                "args": {
+                  "power": {
+                    "kind": "Constant",
+                    "args": 1
+                  },
+                  "toughness": {
+                    "kind": "Constant",
+                    "args": 3
+                  }
+                }
+              },
+              {
+                "kind": "CreatureTypes",
+                "args": {
+                  "mode": "Add",
+                  "types": {
+                    "Listed": [
+                      "Ninja"
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "GrantAbility",
+                "args": {
+                  "kind": "Triggered",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Permanent",
+                        "sources": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "recipients": {
+                          "Players": {
+                            "kind": "All"
+                          }
+                        },
+                        "kind": "Combat",
+                        "grouping": "SourceRecipient",
+                        "subject": "Source"
+                      }
+                    },
+                    "intervening_if": null,
+                    "limits": {
+                      "per_turn": null,
+                      "total": null
+                    },
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "ObjectProperty",
+                                  "args": {
+                                    "object": {
+                                      "kind": "Query",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 1,
+                                            "phase": "Before"
+                                          }
+                                        },
+                                        "index": 0
+                                      }
+                                    },
+                                    "property": "ManaValue",
+                                    "information": "CurrentOrLastKnown"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Invalid mana consequence",
+      "text": "A player losing unspent mana causes that player to gain that much life.",
+      "reject": true
+    },
+    {
+      "name": "Ninja's Blades",
+      "text": "Job select\nEquipped creature gets +2/+1, is a Ninja in addition to its other types, and has \"Whenever this creature deals combat damage to a player, draw a card, then discard a card. That player loses life equal to the discarded card's mana value.\"\nEquip {2}",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [
+          "Equipment"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Mechanic",
+          "args": {
+            "mechanic": "JobSelect",
+            "cost": null,
+            "amount": null,
+            "filter": null
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "AttachedTo",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Pump",
+                "args": {
+                  "power": {
+                    "kind": "Constant",
+                    "args": 2
+                  },
+                  "toughness": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                }
+              },
+              {
+                "kind": "CreatureTypes",
+                "args": {
+                  "mode": "Add",
+                  "types": {
+                    "Listed": [
+                      "Ninja"
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "GrantAbility",
+                "args": {
+                  "kind": "Triggered",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Permanent",
+                        "sources": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "recipients": {
+                          "Players": {
+                            "kind": "All"
+                          }
+                        },
+                        "kind": "Combat",
+                        "grouping": "SourceRecipient",
+                        "subject": "Source"
+                      }
+                    },
+                    "intervening_if": null,
+                    "limits": {
+                      "per_turn": null,
+                      "total": null
+                    },
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "ObjectProperty",
+                                  "args": {
+                                    "object": {
+                                      "kind": "Query",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 1,
+                                            "phase": "Before"
+                                          }
+                                        },
+                                        "index": 0
+                                      }
+                                    },
+                                    "property": "ManaValue",
+                                    "information": "CurrentOrLastKnown"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Equip",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 2
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": true,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Attach",
+                      "args": {
+                        "attachments": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "host": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Ninja's Blades",
+      "text": "Job select\nEquipped creature gets +1/+3, is a Ninja in addition to its other types, and has \"Whenever this creature deals combat damage to a player, draw a card, then discard a card. That player loses life equal to the discarded card's mana value.\"\nEquip {2}",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [
+          "Equipment"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Mechanic",
+          "args": {
+            "mechanic": "JobSelect",
+            "cost": null,
+            "amount": null,
+            "filter": null
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "AttachedTo",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Pump",
+                "args": {
+                  "power": {
+                    "kind": "Constant",
+                    "args": 1
+                  },
+                  "toughness": {
+                    "kind": "Constant",
+                    "args": 3
+                  }
+                }
+              },
+              {
+                "kind": "CreatureTypes",
+                "args": {
+                  "mode": "Add",
+                  "types": {
+                    "Listed": [
+                      "Ninja"
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "GrantAbility",
+                "args": {
+                  "kind": "Triggered",
+                  "args": {
+                    "event": {
+                      "Damage": {
+                        "source_kind": "Permanent",
+                        "sources": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "recipients": {
+                          "Players": {
+                            "kind": "All"
+                          }
+                        },
+                        "kind": "Combat",
+                        "grouping": "SourceRecipient",
+                        "subject": "Source"
+                      }
+                    },
+                    "intervening_if": null,
+                    "limits": {
+                      "per_turn": null,
+                      "total": null
+                    },
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "ObjectProperty",
+                                  "args": {
+                                    "object": {
+                                      "kind": "Query",
+                                      "args": {
+                                        "objects": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 1,
+                                            "phase": "Before"
+                                          }
+                                        },
+                                        "index": 0
+                                      }
+                                    },
+                                    "property": "ManaValue",
+                                    "information": "CurrentOrLastKnown"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Equip",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 2
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": true,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Attach",
+                      "args": {
+                        "attachments": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "host": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

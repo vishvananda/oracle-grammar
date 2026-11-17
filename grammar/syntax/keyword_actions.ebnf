@@ -142,7 +142,7 @@ earthbend_action ::= "earthbend" value
 amass_action ::= "amass" subtype_plural value
 
 object_keyword_action ::= transform_object | goad_object | detain_object | convert_object | flip_object | airbend_object
-    | assimilate_object | turn_object_face_up | turn_object_face_down | exchange_control_pair | exchange_control_of_objects | unlock_door_of_object | lock_or_unlock_door
+    | assimilate_object | turn_object_face_up | turn_object_face_down | exchange_control_shared_pair | exchange_control_pair | exchange_control_of_objects | unlock_door_of_object | lock_or_unlock_door
     | object_explores | object_phases_out | object_intensifies | object_becomes_prepared | object_endures
     | object_becomes_saddled
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Transform{object:$object_ref}} */
@@ -210,3 +210,15 @@ detain_each ::= "detain" "each" filter_phrase
 /* Goad applies independently to every member of the selected set. */
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Goad{}, objects:$objects_targets} */
 goad_affected ::= "goad" objects_targets
+
+/* The second target is distinct and must share the named property with the first. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ExchangeControl{first:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_plural}), index:0}, second:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($filter_plural, @and(ObjectFilter::Not(ObjectFilter::SameObject(Target{slot:@next_slot, index:0})), ObjectFilter::Shares{property:$exchange_shared_property, with:Target{slot:@next_slot, index:0}}))}), index:0}}} */
+exchange_control_shared_pair ::= "exchange" "control" "of" "two" "target" filter_plural "that" "share" "a" exchange_shared_property
+
+/* @sem DistinctProperty::PermanentTypes */
+exchange_shared_property_type ::= "permanent" "type"
+
+/* @sem DistinctProperty::Colors */
+exchange_shared_property_color ::= "color"
+
+exchange_shared_property ::= exchange_shared_property_type | exchange_shared_property_color

@@ -1748,3 +1748,34 @@ event_put_graveyard_or_exile ::= event_object "is" "put" "into" "a" "graveyard" 
 /* The other subject retains its own filter and excludes the referenced object. */
 /* @sem EventSpec::AnyOf([ZoneChange{objects:AllOf([SameObject($object_ref), OwnedBy(All)]), from:Battlefield, to:Graveyard}, ZoneChange{objects:SameObject($object_ref), from:Battlefield, to:Exile}, ZoneChange{objects:AllOf([Not(SameObject($object_ref)), $filter_phrase, OwnedBy(All)]), from:Battlefield, to:Graveyard}, ZoneChange{objects:AllOf([Not(SameObject($object_ref)), $filter_phrase]), from:Battlefield, to:Exile}]) */
 event_reference_or_another_put_graveyard_or_exile ::= object_ref "or" "another" filter_phrase "is" "put" "into" "a" "graveyard" "from" "the" "battlefield" "or" "is" "put" "into" "exile" "from" "the" "battlefield"
+
+/* Event subjects preserve who cast the spell or controlled the permanent. */
+opponent_caused_event ::= opponent_countered_cast_event | opponent_destroyed_controlled_event
+
+/* @sem EventSpec::Object{event:Countered, objects:AllOf([$filter_phrase, Cast{by:One(AbilityController)}])} */
+opponent_countered_cast_event ::= filter_phrase "spell" "you" "cast" "this" "turn" "was" "countered"
+
+/* @sem EventSpec::Object{event:Destroyed, objects:AllOf([$filter_phrase, ControlledBy(One(AbilityController))])} */
+opponent_destroyed_controlled_event ::= filter_phrase "under" "your" "control" "was" "destroyed" "this" "turn"
+
+/* Subject-elided event lists keep each event's own count and filter. */
+/* @sem EventSpec::Batch{event:Attack{attackers:$filter_plural, by:OpponentsOf(AbilityController), defenders:Players(One(AbilityController))}, per:Defender, count:[GreaterOrEqual, $value]} */
+event_opponent_attack_you_count ::= "an" "opponent" "attacks" "you" "with" value "or" "more" filter_plural
+
+/* @sem EventSpec::NthEachTurn{event:Player{event:Draws, players:OpponentsOf(AbilityController)}, test:NumberTest::Compare{comparison:Equal, value:$ordinal}} */
+event_opponent_draw_nth_elided ::= "draws" "their" ordinal "card" "each" "turn"
+
+/* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:OpponentsOf(AbilityController), spells:Any}, test:NumberTest::Compare{comparison:Equal, value:$ordinal}} */
+event_opponent_cast_nth_elided ::= "casts" "their" ordinal "spell" "each" "turn"
+
+/* @sem EventSpec::AnyOf([$event_opponent_attack_you_count, $event_opponent_draw_nth_elided, $event_opponent_cast_nth_elided]) */
+event_clause_opponent_three ::= "whenever" event_opponent_attack_you_count "," event_opponent_draw_nth_elided "," "or" event_opponent_cast_nth_elided
+
+/* @sem EventSpec::Batch{event:Attack{attackers:Any, by:One(AbilityController), defenders:PlayersAndPlaneswalkers(One(EnchantedBy(Source)))}, per:Defender} */
+event_you_attack_enchanted_walkers ::= "you" "attack" "enchanted" "opponent" "or" "a" "planeswalker" "they" "control"
+
+/* @sem EventSpec::Batch{event:Attack{attackers:Any, by:One(EnchantedBy(Source)), defenders:PlayersAndPlaneswalkers(One(AbilityController))}, per:Defender} */
+event_enchanted_attack_you_walkers ::= "they" "attack" "you" "or" "a" "planeswalker" "you" "control"
+
+/* @sem EventSpec::@either_event($event_you_attack_enchanted_walkers, $event_enchanted_attack_you_walkers) */
+event_clause_enchanted_mutual_attack ::= "when" event_you_attack_enchanted_walkers "or" "when" event_enchanted_attack_you_walkers

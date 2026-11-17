@@ -175,3 +175,16 @@ spell_kicker_token_replacement ::= "kicker" keyword_payment NEWLINE "create" num
 /* Madness replaces both actions, keeping their quantities independently bound. */
 /* @sem Ability::CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_x, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_x_2}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_digits}}]}})} */
 spell_madness_token_life_replacement ::= "madness" keyword_payment NEWLINE "create" number_words "tapped" token_recipe "and" "you" "gain" number_digits "life" "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," "instead" "create" number_x "of" "those" "tokens" "and" "you" "gain" number_x "life" "."
+
+/* The unbracketed instructions occur in both independently bound spell branches;
+   the bracketed instruction applies only when cleave was not paid. */
+/* @sem Ability::CostBranch{keyword:Cleave, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, $cleave_hand_size_reduction]}})} */
+spell_cleave_hand_size_branch ::= "cleave" cost NEWLINE instructions "." "[" cleave_hand_size_reduction "." "]"
+
+/* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Adjust(@negate($number))))], duration:Indefinite, evaluation:LiveObjects}} */
+cleave_hand_size_reduction ::= "Your" "maximum" "hand" "size" "is" "reduced" "by" number "for" "the" "rest" "of" "the" "game"
+
+/* The common prefix is independently bound in both teamwork branches. The
+   unless clause is performed only in the unpaid branch. */
+/* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$clause]}})} */
+spell_teamwork_unless_branch ::= "teamwork" NUMBER NEWLINE instructions "." "then" clause "unless" "this" "spell" "was" "cast" "using" "teamwork" "."

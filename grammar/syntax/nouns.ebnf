@@ -293,7 +293,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
+target_object ::= target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -936,7 +936,7 @@ bound_less ::= "less"
 bound_greater ::= "greater"
 
 /* Players. */
-players_singular ::= players_fewest_permanents | mined_players | player_one | players_each_opponent | players_each | players_or_controller | players_each_other | players_each_other_opponent
+players_singular ::= players_coin_tails | players_fewest_permanents | mined_players | player_one | players_each_opponent | players_each | players_or_controller | players_each_other | players_each_other_opponent
     | players_each_friend | players_each_foe | players_enchanted
 
 /* A Curse's player: the player this Aura enchants. */
@@ -1025,7 +1025,7 @@ players_each_opponent ::= "each" "opponent" | "each" "of" "your" "opponents"
 players_each ::= "each" "player"
 
 /* Damage recipients. */
-recipients ::= mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker
+recipients ::= recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker
     | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many
     | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs
     | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle
@@ -1582,8 +1582,9 @@ modifier_attacking_you_walkers ::= "that's" "attacking" "you" "or" "a" "planeswa
 /* @sem ObjectFilter::Property{property:ColorCount, test:NumberTest::Compare{comparison:NotEqual, value:$number}} */
 modifier_not_exactly_colors ::= "that" "isn't" "exactly" number "colors"
 
-/* @sem ObjectFilter::AnyOf([Condition(Compare{left:EventHistory{event:Pair{event:Blocks, objects:SameObject(Candidate), others:$subtype}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}), Condition(Compare{left:EventHistory{event:Pair{event:BecomesBlockedBy, objects:SameObject(Candidate), others:$subtype}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})]) */
-modifier_blocked_or_blocked_by_subtype_turn ::= "that" "blocked" "or" "was" "blocked" "by" "a" subtype "this" "turn"
+/* The same combat history predicate can qualify a noun or a named object. */
+/* @sem $historical_combat_peer */
+modifier_blocked_or_blocked_by_subtype_turn ::= "that" historical_combat_peer
 
 /* Battlefield population whose counters are counted. */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
@@ -1636,3 +1637,20 @@ counter_one_linked_name ::= "target" "spell" linked_name_any
 /* A historical blocking relation retains the named blocker and the turn window. */
 /* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Pair{event:BecomesBlockedBy, objects:SameObject(ObjectRef::Candidate), others:SameObject($that_noun)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}) */
 modifier_blocked_this_turn ::= "that" "were" "blocked" "by" that_noun "this" "turn"
+
+/* A target player selected by their attack history this turn. */
+/* @sem Recipients::Players(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:Attacks, players:One(Bound(0))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}}), index:0})) */
+recipients_attacked_player_target ::= "target" "player" "who" "attacked" "this" "turn"
+
+/* @sem ObjectFilter::AnyOf([Condition(Compare{left:EventHistory{event:Pair{event:BecomesBlockedBy, objects:SameObject(Candidate), others:$filter_phrase}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}), Condition(Compare{left:EventHistory{event:Pair{event:Blocks, objects:SameObject(Candidate), others:$filter_phrase}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})]) */
+historical_combat_peer ::= "blocked" "or" "was" "blocked" "by" "a" filter_phrase "this" "turn"
+
+/* @sem PlayerSet::Matching{binding:0, condition:CoinCameUp{player:Bound(0), outcome:Tails}} */
+players_coin_tails ::= "each" "player" "whose" "coin" "comes" "up" "tails"
+
+/* An announced target with a current-combat constraint. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$filter_phrase, State(AttackingAlone)])}), index:0} */
+target_attacking_alone ::= "target" filter_phrase "that's" "attacking" "alone"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Chosen(CreatureType)])} */
+chosen_type_population ::= "all" filter_plural "of" "the" "creature" "type" "of" "your" "choice"

@@ -1952,8 +1952,8 @@ static_may_not_untap ::= "you" "may" "choose" "not" "to" "untap" affected "durin
 static_untap_each_other_untap ::= "untap" affected "during" "each" "other" "player's" "untap" "step" "."
 
 /* Exerting as it attacks. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(MayExert(Program($program)))]}) */
-static_may_exert ::= "you" "may" "exert" affected "as" "it" "attacks" "." "when" "you" "do" "," program "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(MayExert(Program($exert_callback_program)))]}) */
+static_may_exert ::= "you" "may" "exert" affected "as" "it" "attacks" "." "when" "you" "do" "," exert_callback_program "."
 
 /* You control the affected objects. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[SetController(AbilityController)]}) */
@@ -2803,7 +2803,7 @@ shared_hand_trigger_changes ::= "has" shared_granted_unlimited_hand "and" shared
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$shared_type_grant_changes} */
 shared_type_grant_static ::= affected shared_type_grant_changes "."
 
-shared_type_grant_changes ::= shared_pump_trigger_type_changes | shared_trigger_type_changes
+shared_type_grant_changes ::= shared_pump_type_receipt_trigger_changes | shared_pump_trigger_type_changes | shared_trigger_type_changes
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$shared_quoted_pair_changes} */
 shared_quoted_pair_static ::= affected shared_quoted_pair_changes
@@ -3273,3 +3273,47 @@ emblem_cast_spell_subject ::= cast_spells_filter "you" "cast"
 /* A top-card casting permission with a separately composed additional cost. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Additional(Cost{parts:[$cast_additional_cost_part]})}})]}) */
 static_top_cast_additional ::= "you" "may" "cast" cast_spells_filter "from" "the" "top" "of" "your" "library" "by" cast_additional_cost_part "in" "addition" "to" "paying" "their" "other" "costs" "."
+
+/* The counted attachments and the static change share the same scalar host. */
+/* @sem Ability::Conditional{condition:Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$subtype}, filter:AttachedTo(SameObject($attachment_count_subject))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, then:[Static(_{kind:Ordinary, affected:Objects(One($attachment_count_subject)), changes:$attachment_count_changes})]} */
+static_attachment_count ::= attachment_count_subject attachment_count_changes "as" "long" "as" number "or" "more" subtype "are" "attached" "to" "it" "."
+
+attachment_count_subject ::= self_explicit_ref | equipped_ref
+
+attachment_count_changes ::= attachment_count_has | attachment_count_gets
+
+/* @sem $grants */
+attachment_count_has ::= "has" grants
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+attachment_count_gets ::= "gets" signed "/" signed
+
+/* The life-gain event and its amount definition form one contract. */
+/* @sem Ability::Triggered{event:$event_gain_life, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:[Pump{power:EventAmount, toughness:EventAmount}], duration:$duration, evaluation:Snapshot}}]}} */
+triggered_life_amount_pump ::= "whenever" event_gain_life "," affected "gets" "+" "X" "/" "+" "X" duration "," "where" "X" "is" "the" "amount" "of" "life" "you" "gained" "."
+
+exert_callback_program ::= program | exert_callback_pump_rule
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$shared_rule_characteristics, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected), changes:$rule_changes, duration:$this_duration, evaluation:LiveObjects}}]} */
+exert_callback_pump_rule ::= affected shared_rule_characteristics duration "and" rule_changes this_duration
+
+/* A condition can gate a complete static permission or player prohibition. */
+/* @sem Ability::Conditional{condition:$condition, then:[$conditional_static_body]} */
+conditional_static_first ::= "if" condition "," conditional_static_body
+
+conditional_static_body ::= static_may_exert | static_player_prohibition
+
+/* A type addition and a scoped trigger share the same affected holder. */
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}, $shared_added_singular_type, $shared_receipt_trigger_closed] */
+shared_pump_type_receipt_trigger_changes ::= "gets" signed "/" signed "," shared_added_singular_type "," "and" "has" shared_receipt_trigger_closed
+
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$draw_discard_property_program})) */
+shared_receipt_trigger_closed ::= '"' event_clause "," draw_discard_property_program "." '"'
+
+/* Quoted final sentence supplies the closing punctuation of this static ability. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$shared_pump_type_receipt_trigger_changes} */
+shared_type_receipt_grant_static ::= affected shared_pump_type_receipt_trigger_changes
+
+/* The subject and the two independently chosen keyword operands compose here. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Ability, terms:_{count:Exactly(Constant(1)), options:[Ability(Keyword($keyword_value)), Ability(Keyword($keyword_value_2))]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($object_set), changes:[ChosenAbility], duration:$duration, evaluation:Snapshot}}] */
+instructions_gains_keyword_choice ::= object_set "gains" "your" "choice" "of" keyword_value "or" keyword_value duration

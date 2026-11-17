@@ -1,0 +1,914 @@
+{
+  "family": "retirement-f42d26687fcb2b90",
+  "cases": [
+    {
+      "name": "Goblin Assassin",
+      "text": "Whenever this creature or another Goblin enters, each player flips a coin. Each player whose coin comes up tails sacrifices a creature of their choice.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "AnyOf": [
+                {
+                  "ZoneChange": {
+                    "objects": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "from": null,
+                    "to": "Battlefield"
+                  }
+                },
+                {
+                  "ZoneChange": {
+                    "objects": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "SameObject",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Subtype",
+                          "args": "Goblin"
+                        }
+                      ]
+                    },
+                    "from": null,
+                    "to": "Battlefield"
+                  }
+                }
+              ]
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "All"
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "FlipCoin",
+                              "args": {
+                                "player": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                },
+                                "protocol": "Uncalled"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "Sacrifice",
+                      "args": {
+                        "players": {
+                          "kind": "Matching",
+                          "args": {
+                            "binding": 0,
+                            "condition": {
+                              "kind": "CoinCameUp",
+                              "args": {
+                                "player": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                },
+                                "outcome": "Tails"
+                              }
+                            }
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            }
+                          }
+                        },
+                        "choose": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": null
+    },
+    {
+      "name": "Mana Clash",
+      "text": "You and target opponent each flip a coin. Mana Clash deals 1 damage to each player whose coin comes up tails. Repeat this process until both players' coins come up heads on the same flip.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "ForEachPlayer",
+                        "args": {
+                          "players": {
+                            "kind": "Union",
+                            "args": [
+                              {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "binding": 0,
+                          "starting_with": null,
+                          "in_chosen_direction": false,
+                          "body": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 0,
+                                  "operation": {
+                                    "kind": "FlipCoin",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Bound",
+                                        "args": 0
+                                      },
+                                      "protocol": "Uncalled"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "DealDamage",
+                            "args": {
+                              "source": {
+                                "kind": "Source"
+                              },
+                              "recipients": {
+                                "kind": "Players",
+                                "args": {
+                                  "kind": "Matching",
+                                  "args": {
+                                    "binding": 0,
+                                    "condition": {
+                                      "kind": "CoinCameUp",
+                                      "args": {
+                                        "player": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        },
+                                        "outcome": "Tails"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "preventable": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CoinCameUp",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "outcome": "Heads"
+                                  }
+                                },
+                                {
+                                  "kind": "CoinCameUp",
+                                  "args": {
+                                    "player": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    },
+                                    "outcome": "Heads"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": null
+    },
+    {
+      "name": "Mana Clash",
+      "text": "You and target opponent each flip a coin. Mana Clash deals 2 damage to each player whose coin comes up tails. Repeat this process until both players' coins come up heads on the same flip.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "ForEachPlayer",
+                        "args": {
+                          "players": {
+                            "kind": "Union",
+                            "args": [
+                              {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "binding": 0,
+                          "starting_with": null,
+                          "in_chosen_direction": false,
+                          "body": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 0,
+                                  "operation": {
+                                    "kind": "FlipCoin",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Bound",
+                                        "args": 0
+                                      },
+                                      "protocol": "Uncalled"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "DealDamage",
+                            "args": {
+                              "source": {
+                                "kind": "Source"
+                              },
+                              "recipients": {
+                                "kind": "Players",
+                                "args": {
+                                  "kind": "Matching",
+                                  "args": {
+                                    "binding": 0,
+                                    "condition": {
+                                      "kind": "CoinCameUp",
+                                      "args": {
+                                        "player": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        },
+                                        "outcome": "Tails"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 2
+                              },
+                              "preventable": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CoinCameUp",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "outcome": "Heads"
+                                  }
+                                },
+                                {
+                                  "kind": "CoinCameUp",
+                                  "args": {
+                                    "player": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    },
+                                    "outcome": "Heads"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": null
+    },
+    {
+      "name": "Goblin Assassin",
+      "text": "Whenever this creature or another Goblin enters, each player flips a die. Each player whose coin comes up tails sacrifices a creature of their choice.",
+      "reject": true
+    },
+    {
+      "name": "Mana Clash",
+      "text": "You and target opponent each flip a coin. Mana Clash deals 2 damage to each player whose coin comes up tails. Repeat this process until both players' coins come up heads on the same flip.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "ForEachPlayer",
+                        "args": {
+                          "players": {
+                            "kind": "Union",
+                            "args": [
+                              {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "binding": 0,
+                          "starting_with": null,
+                          "in_chosen_direction": false,
+                          "body": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 0,
+                                  "operation": {
+                                    "kind": "FlipCoin",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Bound",
+                                        "args": 0
+                                      },
+                                      "protocol": "Uncalled"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "DealDamage",
+                            "args": {
+                              "source": {
+                                "kind": "Source"
+                              },
+                              "recipients": {
+                                "kind": "Players",
+                                "args": {
+                                  "kind": "Matching",
+                                  "args": {
+                                    "binding": 0,
+                                    "condition": {
+                                      "kind": "CoinCameUp",
+                                      "args": {
+                                        "player": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        },
+                                        "outcome": "Tails"
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 2
+                              },
+                              "preventable": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CoinCameUp",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "outcome": "Heads"
+                                  }
+                                },
+                                {
+                                  "kind": "CoinCameUp",
+                                  "args": {
+                                    "player": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    },
+                                    "outcome": "Heads"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Goblin Assassin",
+      "text": "Whenever this creature or another Elf enters, each player flips a coin. Each player whose coin comes up tails sacrifices a creature of their choice.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Goblin",
+          "Assassin"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "AnyOf": [
+                {
+                  "ZoneChange": {
+                    "objects": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "from": null,
+                    "to": "Battlefield"
+                  }
+                },
+                {
+                  "ZoneChange": {
+                    "objects": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "SameObject",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Subtype",
+                          "args": "Elf"
+                        }
+                      ]
+                    },
+                    "from": null,
+                    "to": "Battlefield"
+                  }
+                }
+              ]
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "All"
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "FlipCoin",
+                              "args": {
+                                "player": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                },
+                                "protocol": "Uncalled"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "Sacrifice",
+                      "args": {
+                        "players": {
+                          "kind": "Matching",
+                          "args": {
+                            "binding": 0,
+                            "condition": {
+                              "kind": "CoinCameUp",
+                              "args": {
+                                "player": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                },
+                                "outcome": "Tails"
+                              }
+                            }
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            }
+                          }
+                        },
+                        "choose": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

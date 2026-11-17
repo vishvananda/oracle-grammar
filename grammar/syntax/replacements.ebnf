@@ -974,7 +974,7 @@ controlled_explore_replacement ::= controlled_explore_event "," explore_twice_re
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_modification}) */
 entry_modified ::= object_ref "enters" entry_modification "."
 
-entry_modification ::= entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse
+entry_modification ::= entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]} */
 entry_tapped_and_counters ::= "tapped" "and" "with" value counter_kind "counters" "on" "it"
@@ -1404,3 +1404,10 @@ replacement_draw_exile_body ::= replacement_draw_exile_card | replacement_draw_e
 
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_player_draw_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, ...$replacement_draw_exile_body]}} */
 replacement_player_draw_exile ::= "if" replacement_player_draw_event "," replacement_draw_exile_body "instead" "."
+
+/* A single counter per historical occurrence retains the entry controller. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:$entry_death_count}}}]} */
+entry_counter_for_each ::= "with" "a" counter_kind "counter" "on" "it" "for" "each" entry_death_count
+
+/* @sem Expr::EventHistory{event:ZoneChange{objects:AllOf([$filter_phrase, ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences} */
+entry_death_count ::= filter_phrase "that" "died" "under" "your" "control" "this" "turn"
