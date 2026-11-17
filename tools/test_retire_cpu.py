@@ -75,6 +75,14 @@ class LeaseTests(unittest.TestCase):
             time.sleep(0.02)
         self.fail('large waiter never acquired priority')
 
+    def assert_token_available(self, number):
+        # Observe between allocation scans: a waiter may briefly hold a partial
+        # bundle while scanning, then releases it before dropping the allocator.
+        with (self.root/'allocator.lock').open('a') as allocator:
+            fcntl.flock(allocator, fcntl.LOCK_EX)
+            with (self.root/f'token-{number:02}.lock').open('a') as token:
+                fcntl.flock(token, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
     def test_waiting_large_bundle_blocks_new_small_bundles_until_acquired(self):
         ready, release = multiprocessing.Event(), multiprocessing.Event()
         self.start(holder, self.root, 5, 8, ready, release)
@@ -88,8 +96,7 @@ class LeaseTests(unittest.TestCase):
                 with retire_cpu.reserve(self.root, 2, 8, wait=False):
                     pass
         # The waiter returned partial scans; it does not hold otherwise free tokens.
-        with (self.root/'token-05.lock').open('a') as token:
-            fcntl.flock(token, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        self.assert_token_available(5)
         self.assertFalse(acquired.is_set())
         release.set()
         self.assertTrue(acquired.wait(5))
@@ -126,8 +133,7 @@ class LeaseTests(unittest.TestCase):
             with retire_cpu.reserve(self.root, 1, 12, wait=False):
                 pass
         # A free token exists; only the queued coordinator prevents allocation.
-        with (self.root/'token-08.lock').open('a') as token:
-            fcntl.flock(token, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        self.assert_token_available(8)
         release.set()
         self.assertTrue(acquired.wait(5))
         with retire_cpu.reserve(self.root, 1, 12, wait=False) as tokens:
