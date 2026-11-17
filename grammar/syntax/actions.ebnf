@@ -370,7 +370,7 @@ clause_may_then ::= "you" "may" may_body "," "then" conjoined
 may_body ::= graveyard_return_single | look_put_then_body | clause_have_continuous | clause_have_deal | clause_player_put_card | clause_imperative | clause_operation | clause_search | clause_search_where_split | clause_search_either | clause_exile_from | clause_put_from | clause_put_from_tapped
 
 /* A cost paid during resolution, and what depends on paying it. */
-payment ::= payment_put_counters | payment_return_controlled_permanent | payment_put_hand_card | payment_hand_draw | resolution_life_sacrifice_cost | payment_remove_counters | cost | pay_mana | payment_sacrifice | payment_action | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw
+payment ::= payment_mana_and_graveyard_exile | payment_put_counters | payment_return_controlled_permanent | payment_put_hand_card | payment_hand_draw | resolution_life_sacrifice_cost | payment_remove_counters | cost | pay_mana | payment_sacrifice | payment_action | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw
 
 /* An imperative action has an implicit "you". Other payers use native costs
    or an explicit "have [player]" action, never that implicit performer. */
@@ -2500,3 +2500,130 @@ clause_delay_repeated_payment ::= remove_all_delay_counters "." "for" "each" "de
 
 /* @sem Operation::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), kind:Named(DelayCounter), amount:All}]} */
 remove_all_delay_counters ::= "remove" "all" "delay" "counters" "from" affected
+
+/* The immediate conjure result is the card receiving the perpetual change. */
+/* @sem Instruction::[Effect{result:@next, operation:$conjure_duplicate_spell_hand}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$duplicate_card_perpetual_changes}}] */
+instructions_duplicate_perpetual ::= conjure_duplicate_spell_hand "." "that" "card" "perpetually" duplicate_card_perpetual_changes
+
+/* @sem Operation::Conjure{actor:One(AbilityController), card:Duplicate(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:Any}), index:0})), count:$counter_amount, destination:Hand(CardArrival{counters:[], states:[]})} */
+conjure_duplicate_spell_hand ::= "conjure" counter_amount "duplicate" "of" "target" "spell" "into" "your" "hand"
+
+/* @sem Change::[GrantAbility(Casting(SpendAsThoughAnyType))] */
+duplicate_card_perpetual_changes ::= "gains" '"' "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "this" "spell" "." '"'
+
+/* A selected hand-card set receives the quoted stack ability. */
+/* @sem Instruction::[Effect{result:@next, operation:$choose_hand_union}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Earlier{what:Selected}), changes:[$perpetual_cast_grant_once]}}] */
+instructions_hand_union_perpetual ::= choose_hand_union "." "they" "perpetually" "gain" '"' perpetual_cast_grant_once '"'
+
+/* @sem Operation::ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AnyOf([$filter_phrase, $filter_phrase_2])}), count:UpTo($value)} */
+choose_hand_union ::= "choose" "up" "to" value filter_phrase "and" "/" "or" filter_phrase "cards" "in" "your" "hand"
+
+/* @sem Change::GrantAbility(Scoped{zones:[Stack], ability:@scope(Ability::Triggered{event:Spell{event:Cast, players:One(AbilityController), spells:SameObject($object_ref)}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$operation}, Effect{result:@next, operation:CreatePerpetualEffect{objects:$affected, changes:[LosesAbility(Term{family:CheckHasable, form:ThisAbility})]}}]}})}) */
+perpetual_cast_grant_once ::= "when" "you" "cast" affected "," operation "and" object_ref "perpetually" "loses" "this" "ability" "."
+
+/* Keep the optional payment and its successful selection in one scope. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:$optional_hand_card_choice}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$incorporated_black_grant}}]}, otherwise:_{}}] */
+instructions_optional_hand_perpetual ::= "you" "may" optional_hand_card_choice "." "if" "you" "do" "," "that" "card" "perpetually" incorporated_black_grant
+
+/* @sem Operation::ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$adjective_nontype}), count:AsManyAsCan(Constant(1))} */
+optional_hand_card_choice ::= "choose" "a" adjective_nontype "card" "in" "your" "hand"
+
+/* @sem Change::[Incorporate([Generic(1), Color(Black)]), GrantAbility(Scoped{zones:[Stack], ability:@scope(Ability::Triggered{event:Spell{event:Cast, players:One(AbilityController), spells:SameObject($object_ref)}, limits:_{}, announcement:@announcement, body:$program})})] */
+incorporated_black_grant ::= "incorporates" "{" "1" "}" "{" "B" "}" "and" "gains" '"' "when" "you" "cast" object_ref "," program "." '"'
+
+/* Each opponent's failed sacrifice is determined from that opponent's own receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:Sacrifice{players:OpponentsOf(AbilityController), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Discard{players:Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Not(Compare{left:CountObjects(Matching{objects:MovedBy{result:@prior, phase:Before, player:Bound(0)}, filter:Any}), test:Compare{comparison:Greater, value:Constant(0)}})}]), amount:Constant(1), random:false}}] */
+instructions_opponents_sacrifice_cant_discard ::= "each" "opponent" "sacrifices" "a" filter_phrase "of" "their" "choice" "." "each" "opponent" "who" "can't" "discards" "a" "card"
+
+/* A resolving payment can combine mana with a graveyard exile cost. */
+/* @sem Cost::Cost{parts:[Mana($mana_symbols), $cost_exile_cards_graveyard]} */
+payment_mana_and_graveyard_exile ::= "pay" mana_symbols "and" cost_exile_cards_graveyard
+
+/* Keep the random selection, exile arrival and its permission in one scope. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), count:AsManyAsCan($random_single_card), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}] */
+random_graveyard_exile_play ::= "exile" random_single_card "from" "your" "graveyard" "at" "random" "." "you" "may" "play" "the" "exiled" "card" this_duration
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$random_an_card_filter}), count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, into_exile:true}})], duration:$this_duration, evaluation:LiveObjects}}] */
+random_graveyard_exile_cast ::= "exile" "an" random_an_card_filter "card" "at" "random" "from" "your" "graveyard" "." "you" "may" "cast" "it" this_duration "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead"
+
+/* @sem Expr::Constant(1) */
+random_single_card ::= ("a" | "one") "card"
+
+random_an_card_filter ::= filter_instant_or_sorcery | spell_instant
+
+/* The event subject's owner supplies both the graveyard and the controller. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(OwnerOf(EventSubject))}, kind:Card, filter:$card_filter}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(OwnerOf(EventSubject)), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]} */
+death_owner_return_program ::= "return" "a" card_filter "card" "from" "its" "owner's" "graveyard" "to" "the" "battlefield" "under" "the" "control" "of" "that" "creature's" "owner"
+
+/* The mode list supplies both the alternatives and the upper bound. */
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Conditional{condition:$graveyard_card_types_threshold, then:@length($modes), otherwise:Constant(1)}}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+choose_graveyard_types_or_more ::= "choose" "one" "." "if" graveyard_card_types_threshold "," "choose" "one" "or" "more" "instead" "." NEWLINE modes
+
+/* Delayed death triggers retain the prior target and their independent body. */
+/* @sem Instruction::[Effect{result:@next, operation:@scope(Operation::CreateTrigger{event:$controlled_target_death_event, duration:EndOfTurn, body:Program{instructions:$instructions}, announcement:@announcement})}] */
+temporary_controlled_target_death ::= "when" controlled_target_death_event "this" "turn" "," instructions
+
+/* @sem Instruction::[Effect{result:@next, operation:@scope(Operation::CreateTrigger{event:$damaged_target_death_event, duration:EndOfTurn, body:Program{instructions:$instructions}, announcement:@announcement})}] */
+temporary_damaged_target_death ::= "whenever" damaged_target_death_event "this" "turn" "," instructions
+
+/* The named player performs the flip and the immediately following outcome
+   refers to that same player and result. The branch remains compositional. */
+/* @sem Instruction::[Effect{result:@mark, operation:FlipCoin{player:$that_player_word, protocol:@coin_protocol}}, If{condition:CoinFlip{result:@marked, outcome:$that_player_flip_outcome}, then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_that_player_flip_if ::= that_player_word "flips" "a" "coin" "." "if" that_player_flip_outcome "the" "flip" "," conjoined
+
+that_player_flip_outcome ::= flip_player_wins | flip_player_loses | flip_they_win | flip_they_lose
+
+/* @sem CoinOutcome::Won */
+flip_player_wins ::= "the" "player" "wins"
+
+/* @sem CoinOutcome::Lost */
+flip_player_loses ::= "the" "player" "loses"
+
+/* @sem CoinOutcome::Won */
+flip_they_win ::= "they" "win"
+
+/* @sem CoinOutcome::Lost */
+flip_they_lose ::= "they" "lose"
+
+/* Simultaneous operations keep both independent operands in one effect. The
+   surface order is untap/tap while Together stores its members in reverse order. */
+/* @sem Operation::Together([$action_2, $action]) */
+simultaneous_imperative_pair ::= action "and" action
+
+/* @sem Operation::$simultaneous_imperative_pair */
+simultaneous_imperative ::= "simultaneously" simultaneous_imperative_pair
+
+/* The third-person forms are separate from the imperative forms. */
+simultaneous_third_action ::= simultaneous_third_tap | simultaneous_third_untap
+
+/* @sem Operation::SetTapped{objects:$affected, tapped:true} */
+simultaneous_third_tap ::= "taps" affected
+
+/* @sem Operation::SetTapped{objects:$affected} */
+simultaneous_third_untap ::= "untaps" affected
+
+/* @sem Operation::Together([$simultaneous_third_action_2, $simultaneous_third_action]) */
+simultaneous_third_pair ::= simultaneous_third_action "and" simultaneous_third_action
+
+/* @sem Operation::$simultaneous_third_pair */
+simultaneous_event_player ::= "that" "player" "simultaneously" simultaneous_third_pair
+
+/* The named player chooses the survivors from the specified population. */
+/* @sem Operation::SacrificeAllBut{players:@subject, objects:$affected, keep:$value} */
+sacrifice_choose_keep_third ::= "chooses" "up" "to" value affected "they" "control" "," "then" "sacrifices" "the" "rest"
+
+/* @sem Operation::SacrificeAllBut{players:@subject, objects:$affected, keep:ChosenNumber} */
+sacrifice_keep_chosen_third ::= "sacrifices" "all" "but" "that" "many" affected "of" "their" "choice"
+
+/* @sem Operation::ChooseValue{choosers:@subject, kind:Number, terms:_{count:Exactly(Constant(1)), options:[]}} */
+choose_number_third ::= "chooses" "a" "number"
+
+/* @sem Operation::Scry{players:@subject, amount:$value} */
+scry_where_value ::= "scry" "X" "," "where" "X" "is" value
+
+/* A temporary mana grant and the source card's independent casting permission. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun}), index:0})), changes:[GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[TapSymbol]}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production}}]}, announcement:@announcement}))], duration:UntilCast(Source), evaluation:Snapshot} */
+target_mana_grant_until_source_cast ::= "target" noun "gains" '"' "{" "T" "}" ":" "add" mana_production '"' "until" "this" "card" "is" "cast" "from" "exile"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), from:Exile, action:CastSpell, filter:Any})], duration:Indefinite, evaluation:LiveObjects} */
+cast_source_while_exiled ::= "you" "may" "cast" "this" "card" "for" "as" "long" "as" "it" "remains" "exiled"

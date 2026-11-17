@@ -1,0 +1,702 @@
+{
+  "family": "retirement-library-counts",
+  "cases": [
+    {
+      "name": "Battle of Wits",
+      "text": "At the beginning of your upkeep, if you have 200 or more cards in your library, you win the game.",
+      "readings": null,
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Library",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 200
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "WinGame"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Living Conundrum",
+      "text": "As long as there are no cards in your library, this creature has base power and toughness 10/10 and has flying and vigilance.",
+      "readings": null,
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Library",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "SetBasePowerToughness",
+                      "args": {
+                        "power": {
+                          "kind": "Constant",
+                          "args": 10
+                        },
+                        "toughness": {
+                          "kind": "Constant",
+                          "args": 10
+                        }
+                      }
+                    },
+                    {
+                      "kind": "GrantKeyword",
+                      "args": {
+                        "kind": "Flying"
+                      }
+                    },
+                    {
+                      "kind": "GrantKeyword",
+                      "args": {
+                        "kind": "Vigilance"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Magmatic Scorchwing",
+      "text": "When this creature enters, if there are no nonbasic land cards in your library, this creature deals 3 damage to any target.",
+      "readings": null,
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Library",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "Supertype",
+                              "args": "Basic"
+                            }
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Land"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "DamageRecipient",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 3
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Library count fixture",
+      "text": "At the beginning of your upkeep, if your library has ten or more cards in it, you win the game.",
+      "readings": null,
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Library",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 10
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "WinGame"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Battle of Wits",
+      "text": "At the beginning of your upkeep, if you have 200 or more cards in your library, you win the game. leftovers",
+      "reject": true
+    },
+    {
+      "name": "Battle of Wits",
+      "text": "At the beginning of your upkeep, if you have 150 or more cards in your library, you win the game.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Library",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 150
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "WinGame"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Magmatic Scorchwing",
+      "text": "Flying\nWhen this creature enters, if there are no nonbasic creature cards in your library, this creature deals 3 damage to any target.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Dragon"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          4,
+          4
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Library",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "Supertype",
+                              "args": "Basic"
+                            }
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "DamageRecipient",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 3
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

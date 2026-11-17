@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy
+token_group ::= token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named
 
 token_copy ::= token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural
 
@@ -166,7 +166,7 @@ token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_
 
 token_recipe ::= token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors
 
-token_recipe_base ::= token_recipe_plain | token_recipe_no_subtype | token_recipe_statless
+token_recipe_base ::= token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless
 
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
 token_recipe_plain ::= token_stat "/" token_stat token_colors token_subtypes token_types ("token" | "tokens")
@@ -218,7 +218,7 @@ token_ability_tail ::= token_ability_last | token_ability_list
 /* @sem Ability::[$token_ability] */
 token_ability_last ::= "and" token_ability
 
-token_ability ::= keyword_ability | token_quoted | token_toxic
+token_ability ::= token_crew | keyword_ability | token_quoted | token_toxic
 
 /* @sem Ability::Mechanic{mechanic:Toxic, amount:$number} */
 token_toxic ::= "toxic" number
@@ -273,7 +273,7 @@ token_subtype_one ::= subtype
 /* @sem SubType::[@subtype_name($subtype), ...$token_subtypes] */
 token_subtype_more ::= subtype token_subtypes
 
-token_types ::= tt_creature | tt_artifact_creature | tt_enchantment_creature | tt_land_creature | tt_enchantment_artifact_creature
+token_types ::= tt_creature | tt_artifact_creature | tt_enchantment_creature | tt_land_creature | tt_enchantment_artifact_creature | tt_artifact
 
 /* @sem CardType::[Creature] */
 tt_creature ::= "creature"
@@ -505,3 +505,20 @@ token_copy_singular_exceptions ::= token_copy_singular_stats | token_copy_singul
 
 /* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::AddAbilities([Keyword($keyword_value)])] */
 token_copy_plural_exceptions ::= "they're" value "/" value "and" "have" keyword_value
+
+/* The crew ability belongs to the created token, not the creator. */
+/* @sem Ability::@scope($crew_ability) */
+token_crew ::= crew_ability
+
+/* @sem CardType::[Artifact] */
+tt_artifact ::= "artifact"
+
+/* Named and unnamed recipes share the same characteristic and ability phrases. */
+/* @sem TokenRecipe::Defined(_{name:Explicit($vehicle_token_name), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+token_recipe_named ::= token_stat "/" token_stat token_colors token_subtypes token_types "token" "named" vehicle_token_name
+
+/* @sem String::'Zeppelin' */
+vehicle_token_name ::= "Zeppelin"
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit('The Blackjack'), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
+token_legendary_named ::= "The" "Blackjack" "," "a" "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
