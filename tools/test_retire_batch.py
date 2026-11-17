@@ -600,6 +600,7 @@ class BatchTests(unittest.TestCase):
                     patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), \
                     patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
                     patch.object(batch.mined, 'remove', side_effect=remove), \
+                    patch.object(batch, '_mechanical_removal'), \
                     patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=helper):
                 result = batch.stage(root, {'source': str(repo), 'commit': commit}, proposals)
             self.assertEqual(result['status'], 'provisional')
@@ -762,6 +763,7 @@ class BatchTests(unittest.TestCase):
                         patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}) as family_prepare, \
                         patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
                         patch.object(batch.mined, 'remove', side_effect=remove), \
+                        patch.object(batch, '_mechanical_removal'), \
                         patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family), \
                         patch.object(batch.w, 'checks', side_effect=native), \
                         patch.object(batch.library_controls, 'setup', return_value=library if mode == 'library-interaction' else None), \

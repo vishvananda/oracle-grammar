@@ -182,6 +182,13 @@ compositional-prefix check would otherwise pass.
 Every candidate remains provisional until coordinator integration gates pass.
 Workers never merge source or run a corpus per job; the coordinator stages a
 combined candidate and audits it once. Acceptance is not inferred from agent prose.
+Mechanical staging first verifies that the complete evaluated grammar exactly
+matches its frozen grammar after canonical assigned removals. Such removal can
+also delete bare seeded alternatives from ordinary dispatchers. Staging then
+repeats the removals on the current accepted prefix, preserving newer shared
+productions and alternatives instead of merging old dispatcher text. Mechanical
+hooks, extra or missing files, wording changes and unrelated semantic or compiled
+input edits remain forbidden; all existing validation gates still run.
 The results should
 determine which families Luna can handle, which go directly to a larger model,
 and whether to increase authoring concurrency toward twelve.

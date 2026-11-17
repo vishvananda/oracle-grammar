@@ -433,6 +433,30 @@ def _promote_trial(source, trial, fixtures):
         raise
 
 
+def _mechanical_removal(run, directory, rules, scratch):
+    """Require the complete candidate to equal the canonical assigned removals."""
+    if (not isinstance(rules, list) or not rules or len(set(rules)) != len(rules)
+            or any(not isinstance(name, str) or not mined.SEEDED.fullmatch(name) for name in rules)):
+        raise ValueError('mechanical proposal needs distinct assigned seeded rules')
+    base, candidate = run/'inputs/frozen/grammar', directory/'grammar'
+    for grammar in (base, candidate):
+        if grammar.is_symlink() or not grammar.is_dir():
+            raise ValueError('mechanical grammar is unavailable or a symlink')
+        if any(path.is_symlink() or not (path.is_file() or path.is_dir()) for path in grammar.rglob('*')):
+            raise ValueError('mechanical grammar contains a symlink or nonregular entry')
+    before = r.tree(base)
+    with tempfile.TemporaryDirectory(prefix='canonical-removal-', dir=scratch) as temporary:
+        expected = Path(temporary)
+        shutil.copytree(base, expected/'grammar')
+        removed, kept = mined.remove(expected, rules)
+        if set(removed) != set(rules) or kept:
+            raise ValueError('mechanical canonical removal has retained users')
+        if r.tree(candidate) != r.tree(expected/'grammar'):
+            raise ValueError('mechanical proposal differs from complete canonical removal')
+        if r.tree(base) != before:
+            raise _UncertainPromotion('mechanical frozen base changed during verification')
+
+
 def _stage_trial(context, entries, label):
     """Merge and gate one ordered trial; publish nothing until every gate passes."""
     source, folder, manifest = context['source'], context['folder'], context['manifest']
@@ -472,13 +496,14 @@ def _stage_trial(context, entries, label):
                             'descriptor_sha256': report['descriptor_sha256'],
                             'support_sha256': report['support_sha256'], 'fixture_sha256': report.get('fixture_sha256'),
                             'kind': proposal.get('kind', 'author')}
-                changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
-                if mechanical and changes:
-                    raise ValueError('mechanical proposal contains non-removal grammar edits')
-                for name, text in changes.items():
-                    target = trial/name
-                    target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_text(text)
+                if mechanical:
+                    _mechanical_removal(run, directory, task['rules'], folder)
+                else:
+                    changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
+                    for name, text in changes.items():
+                        target = trial/name
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_text(text)
                 removed, kept = mined.remove(trial, task['rules'])
                 if set(removed) != set(task['rules']) or kept:
                     raise ValueError('assigned removals have retained users')
