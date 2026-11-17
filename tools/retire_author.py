@@ -395,8 +395,9 @@ def _check(run, task_id, coordinator=False):
                 else:
                     if data is None:
                         data = w.payload(run/'inputs')
-                    report.update(w.checks(run/'inputs', directory, grammar, task['cohort'], data, 2))
+                    # A bad edited operand can reject this trial before the full cohort score.
                     report['edited'] = edited_checks(run, directory, grammar, task, root, data)
+                    report.update(w.checks(run/'inputs', directory, grammar, task['cohort'], data, 2))
                     report['passed'] = not report['failures']
         except Exception as error:
             report['failures'].append(str(error))

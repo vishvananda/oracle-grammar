@@ -117,8 +117,8 @@ class ScreenTests(unittest.TestCase):
 
 class ScreenWorkflowTests(unittest.TestCase):
     def test_failed_screen_skips_full_and_pass_runs_every_existing_check(self):
-        for screen_status in ('failed', 'passed'):
-            with self.subTest(screen_status=screen_status), tempfile.TemporaryDirectory() as tmp:
+        for screen_status, edit_error in (('failed', None), ('passed', None), ('passed', 'invalid edited operand')):
+            with self.subTest(screen_status=screen_status, edit_error=edit_error), tempfile.TemporaryDirectory() as tmp:
                 run, root = Path(tmp)/'run', Path(tmp)/'worker'
                 for folder in (run/'tasks', root/'grammar/syntax', root/'families', root/'tests/fixtures'):
                     folder.mkdir(parents=True)
@@ -140,11 +140,15 @@ class ScreenWorkflowTests(unittest.TestCase):
                      patch.object(author.w, 'payload', return_value='data'), \
                      patch.object(author, 'early_parse_screen', return_value=screen), \
                      patch.object(author.w, 'checks', return_value={'faces': 3, 'failures': []}) as checks, \
-                     patch.object(author, 'edited_checks', return_value=[{'face': 'Example'}]) as edited, \
+                     patch.object(author, 'edited_checks', return_value=[{'face': 'Example'}],
+                                  side_effect=ValueError(edit_error) if edit_error else None) as edited, \
                      contextlib.redirect_stdout(io.StringIO()):
                     report = author._check(run, 'task')
-                self.assertEqual(report['passed'], screen_status == 'passed')
-                self.assertEqual(checks.call_count, int(screen_status == 'passed'))
+                passed = screen_status == 'passed' and edit_error is None
+                self.assertEqual(report['passed'], passed)
+                self.assertEqual(checks.call_count, int(passed))
+                if edit_error:
+                    self.assertEqual(report['failures'], [edit_error])
                 self.assertEqual(edited.call_count, int(screen_status == 'passed'))
                 if screen_status == 'failed':
                     self.assertEqual(report['failures'], failures)
