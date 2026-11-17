@@ -45,6 +45,7 @@ class TaskTests(unittest.TestCase):
         here = Path(tasker.__file__).parent
         for name in tasker.RUNNERS:
             shutil.copy2(here/name, runner/name)
+        r.write(self.campaign/'runner.json', r.tree(runner))
         self.helpers = self.base/'helpers'
         self.helpers.mkdir()
         for name in tasker.HELPERS:
@@ -83,6 +84,46 @@ class TaskTests(unittest.TestCase):
     def prepare(self, attempt='aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa'):
         return tasker.prepare_task(self.campaign, {'attempt_id': attempt, 'base_commit': self.commit,
                                                    'job': self.job}, self.checkpoint, self.job, self.cohort)
+
+    def test_versioned_runner_copies_selected_author_and_keeps_canonical_unchanged(self):
+        canonical = self.campaign/'runner'
+        old = r.tree(canonical)
+        selected = self.campaign/'runners/v7'
+        selected.parent.mkdir()
+        shutil.copytree(canonical, selected)
+        (selected/'retire_author_pool.py').write_text((selected/'retire_author_pool.py').read_text()+'\n# version seven\n')
+        r.write(selected.with_suffix('.json'), r.tree(selected))
+        claim = {'attempt_id': 'cccccccccccc4ccc8ccccccccccccccc', 'base_commit': self.commit, 'job': self.job}
+        result = tasker.prepare_task(self.campaign, claim, self.checkpoint, self.job, self.cohort, runner=selected)
+        support = Path(result['run'])/'support/runner/retire_author_pool.py'
+        self.assertEqual(support.read_bytes(), (selected/'retire_author_pool.py').read_bytes())
+        self.assertNotEqual(support.read_bytes(), (canonical/'retire_author_pool.py').read_bytes())
+        self.assertEqual(r.tree(canonical), old)
+        self.assertEqual(tasker.validate_runner(self.campaign), canonical)
+
+    def test_runner_rejects_unbound_modified_and_symlinked_versions(self):
+        selected = self.campaign/'runners/v7'
+        selected.parent.mkdir()
+        shutil.copytree(self.campaign/'runner', selected)
+        with self.assertRaisesRegex(ValueError, 'missing'):
+            tasker.validate_runner(self.campaign, selected)
+        r.write(selected.with_suffix('.json'), r.tree(selected))
+        self.assertEqual(tasker.validate_runner(self.campaign, selected), selected)
+        (selected/'retire.py').write_text('changed frozen tooling')
+        r.write(selected.with_suffix('.json'), r.tree(selected))
+        with self.assertRaisesRegex(ValueError, 'frozen runner tooling mismatch'):
+            tasker.prepare_task(self.campaign, {'attempt_id': 'dddddddddddd4ddd8ddddddddddddddd',
+                                'base_commit': self.commit, 'job': self.job},
+                                self.checkpoint, self.job, self.cohort, runner=selected)
+        (selected/'retire_author_pool.py').write_text('tampered')
+        with self.assertRaisesRegex(ValueError, 'runner changed'):
+            tasker.validate_runner(self.campaign, selected)
+        with self.assertRaisesRegex(ValueError, 'direct versioned'):
+            tasker.validate_runner(self.campaign, self.base/'outside')
+        alias = self.campaign/'runners/link'
+        alias.symlink_to(selected, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, 'symlink'):
+            tasker.validate_runner(self.campaign, alias)
 
     def test_private_attempt_and_manifest(self):
         result = self.prepare()

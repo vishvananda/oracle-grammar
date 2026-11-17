@@ -115,6 +115,8 @@ def main():
     for name in ('run','status'):
         p = commands.add_parser(name)
         p.add_argument('run', type=Path)
+        if name == 'run':
+            p.add_argument('--runner', type=Path)
     args = parser.parse_args()
     if args.command == 'prepare':
         prepare(args)
@@ -122,7 +124,7 @@ def main():
         status(args.run.resolve())
     else:
         import retire_dispatch
-        retire_dispatch.run_campaign(args.run.resolve())
+        retire_dispatch.run_campaign(args.run.resolve(), args.runner)
 
 
 if __name__ == '__main__':

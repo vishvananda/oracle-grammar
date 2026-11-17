@@ -30,7 +30,7 @@ import retire_plan as planner
 import retire_metrics
 import retire_retention
 from retire_queue import Queue
-from retire_tasks import prepare_task
+from retire_tasks import prepare_task, validate_runner
 import retire_worker as w
 
 
@@ -136,7 +136,7 @@ def attempt_usage(run, job, working, receipt):
         return {'status': 'unavailable', 'error': str(error), 'estimated_usd': None}
 
 
-def perform(run, claim, contexts):
+def perform(run, claim, contexts, runner=None):
     queue = Queue(run/'queue.sqlite')
     cp = campaign_api.checkpoint(run,claim['base_commit'])
     job = dict(claim['job'], model='gpt-6.1-terra',effort='high',full_pass=True)
@@ -164,12 +164,13 @@ def perform(run, claim, contexts):
                     job['goal']+=' Coordinator review: '+' '.join(prior['review_notes'])
                 if prior.get('base_commit')==cp['commit']:
                     claim=dict(claim,reuse_archive=prior)
-            prepared = prepare_task(run,claim,cp,job,detail)
+            prepared = prepare_task(run,claim,cp,job,detail,runner=runner)
             working = Path(prepared['run'])
             task_id = prepared['task_id']
             if job['kind']=='mechanical':
+                if runner is not None: validate_runner(run,runner)
                 env = dict(os.environ,RETIRE_JOB_FD=str(fd))
-                command=[sys.executable,str(run/'runner/retire_dispatch.py'),'mechanical',str(working),task_id]
+                command=[sys.executable,str(Path(runner or run/'runner')/'retire_dispatch.py'),'mechanical',str(working),task_id]
                 with (working/'mechanical.log').open('w') as log:
                     process=subprocess.Popen(command,env=env,stdout=log,stderr=log,pass_fds=(fd,))
                     queue.mark_started(attempt,process.pid,str(working/'mechanical.log'))
@@ -354,9 +355,20 @@ def publish_main(run, previous, current, manifest):
     r.write(run/'publication.json',record)
 
 
-def run_campaign(run):
+def run_campaign(run, runner=None):
     config=r.read(run/'config.json')
-    r.require(r.tree(run/'runner')==r.read(run/'runner.json'),'campaign runner changed')
+    selected=validate_runner(run,runner)
+    if runner is not None:
+        # The controller and its imported orchestration modules must all match
+        # the selected snapshot, not just the child scripts it later launches.
+        r.require(r.digest(selected/'retire_dispatch.py')==r.digest(Path(__file__)),
+                  'controller must execute from the selected runner version')
+        for name in campaign_api.RUNNERS:
+            module = sys.modules.get(Path(name).stem)
+            source = getattr(module, '__file__', None)
+            if source:
+                r.require((selected/name).is_file() and r.digest(selected/name)==r.digest(Path(source)),
+                          'controller imports differ from the selected runner version: '+name)
     queue=Queue(run/'queue.sqlite')
     contexts=Contexts()
     with lease(run/'controller.lock'):
@@ -397,7 +409,7 @@ def run_campaign(run):
                 for worker in ([] if stop_reason else free):
                     claim=queue.claim(worker,kinds=['mechanical']) or queue.claim(worker,kinds=['author'])
                     if claim:
-                        futures[executor.submit(perform,run,claim,contexts)]=worker
+                        futures[executor.submit(perform,run,claim,contexts,selected)]=worker
                 if futures:
                     finished,_=wait(futures,timeout=2,return_when=FIRST_COMPLETED)
                     for future in finished:
@@ -409,8 +421,9 @@ def run_campaign(run):
                 ready=queue.get_jobs('provisional-pass',limit=limit)
                 if not stop_reason and not batching and ready and (len(ready)>=limit or not pending
                         or time.monotonic()-last_batch>=config['batch_wait_seconds']):
+                    validate_runner(run,selected)
                     log=(run/'batch-controller.log').open('a')
-                    batching=subprocess.Popen([sys.executable,str(run/'runner/retire_dispatch.py'),'batch',str(run)],
+                    batching=subprocess.Popen([sys.executable,str(selected/'retire_dispatch.py'),'batch',str(run)],
                                               stdout=log,stderr=log)
                     log.close()
                 r.write(run/'status.json',{'status':'running','pid':os.getpid(),
@@ -440,11 +453,13 @@ def main():
     parser.add_argument('command',choices=['run','mechanical','batch'])
     parser.add_argument('run',type=Path)
     parser.add_argument('task',nargs='?')
+    parser.add_argument('--runner',type=Path)
     args=parser.parse_args()
     run=args.run.resolve()
+    if args.command!='run' and args.runner is not None: parser.error('--runner is only valid for run')
     if args.command=='mechanical':mechanical(run,args.task)
     elif args.command=='batch':batch(run)
-    else:run_campaign(run)
+    else:run_campaign(run,args.runner)
 
 
 if __name__=='__main__':

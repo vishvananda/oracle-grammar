@@ -24,7 +24,28 @@ def git(root, *args):
     return subprocess.check_output(['git', *args], cwd=root, text=True).strip()
 
 
-def _identity(checkpoint, campaign):
+def validate_runner(campaign, runner=None):
+    """Resolve and verify a fixed canonical or versioned campaign runner."""
+    campaign = Path(campaign).resolve()
+    selected = Path(os.path.abspath(runner)) if runner is not None else campaign/'runner'
+    canonical = campaign/'runner'
+    versions = campaign/'runners'
+    if selected == canonical:
+        manifest = campaign/'runner.json'
+    elif selected.parent == versions and selected.name not in ('', '.', '..'):
+        manifest = selected.with_suffix('.json')
+        if versions.is_symlink():
+            raise ValueError('versioned runner parent must not be a symlink')
+    else:
+        raise ValueError('runner must be a canonical or direct versioned campaign runner')
+    if (selected.is_symlink() or not selected.is_dir() or manifest.is_symlink()
+            or not manifest.is_file() or any(path.is_symlink() for path in selected.rglob('*'))):
+        raise ValueError('runner or manifest is missing or contains a symlink')
+    r.require(r.tree(selected) == r.read(manifest), 'campaign runner changed')
+    return selected
+
+
+def _identity(checkpoint, campaign, runner):
     source, inputs, helpers = (Path(checkpoint[k]).resolve() for k in ('source', 'inputs', 'helpers'))
     manifest = r.read(inputs/'manifest.json')
     r.require(manifest['format'] == 3 and manifest['commit'] == checkpoint['commit'],
@@ -39,7 +60,7 @@ def _identity(checkpoint, campaign):
     for name in HELPERS:
         r.require(r.digest(helpers/name) == build['binaries'][name], 'helper checksum mismatch: '+name)
     for name in r.TOOLING:
-        r.require(r.digest(campaign/'runner'/name) == manifest['tooling'][name],
+        r.require(r.digest(runner/name) == manifest['tooling'][name],
                   'frozen runner tooling mismatch: '+name)
     return source, inputs, helpers, manifest
 
@@ -199,7 +220,7 @@ def _packet(inputs, job, cohort):
             'cohort': cohort, 'notice': 'Records match by complete face-name multiset; original orders and addresses are retained. Text identity is not inferred. Cohort is diagnostic, not acceptance proof.'}
 
 
-def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohort_detail: dict) -> dict:
+def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohort_detail: dict, runner=None) -> dict:
     campaign = Path(campaign).resolve()
     attempt = claim['attempt_id']
     try:
@@ -214,7 +235,8 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
                   'claim and job differ')
     r.require(job['rules'] and len(set(job['rules'])) == len(job['rules']), 'invalid assigned rules')
     r.require(isinstance(job.get('goal'), str) and job['goal'].strip(), 'task goal is required')
-    source, inputs, helpers, manifest = _identity(checkpoint, campaign)
+    selected_runner = validate_runner(campaign, runner)
+    source, inputs, helpers, manifest = _identity(checkpoint, campaign, selected_runner)
     run = campaign/'.cache/attempts'/attempt
     checkout = campaign/'workspaces'/attempt
     r.require(not checkout.exists(), 'attempt checkout already exists')
@@ -241,11 +263,17 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
         native = run/'support/native'
         native.mkdir()
         for name in RUNNERS:
-            shutil.copy2(campaign/'runner'/name, runner/name)
+            shutil.copy2(selected_runner/name, runner/name)
         for name in HELPERS:
             os.link(helpers/name, native/name)
-            shutil.copy2(campaign/'runner/retire_helper.py', binaries/name)
+            shutil.copy2(selected_runner/'retire_helper.py', binaries/name)
             (binaries/name).chmod(0o755)
+        validate_runner(campaign, selected_runner)
+        for name in RUNNERS:
+            r.require(r.digest(runner/name) == r.digest(selected_runner/name), 'runner changed while copying')
+        for name in HELPERS:
+            r.require(r.digest(binaries/name) == r.digest(selected_runner/'retire_helper.py'),
+                      'helper wrapper changed while copying')
         tasks = run/'tasks'
         tasks.mkdir()
         (run/'workers').mkdir()

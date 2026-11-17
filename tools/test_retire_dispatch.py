@@ -154,6 +154,37 @@ class DispatchCanaries(unittest.TestCase):
             self.assertEqual(status['status'], 'needs-operator')
             self.assertEqual(status['reason'], 'planned controller drain')
 
+    def test_controller_accepts_verified_explicit_runner_and_refuses_tampering(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'runner').mkdir()
+            r.write(root/'runner.json', {})
+            version = root/'runners/v7'
+            version.mkdir(parents=True)
+            for name in dispatch.campaign_api.RUNNERS:
+                shutil.copy2(Path(dispatch.__file__).parent/name, version/name)
+            r.write(version.with_suffix('.json'), r.tree(version))
+            r.write(root/'config.json', {'workers': 1, 'main_repo': str(root),
+                                        'max_operational_retries': 1, 'first_batch_size': 12,
+                                        'batch_size': 48, 'batch_wait_seconds': 900,
+                                        'initial_commit': 'base'})
+            r.write(root/'drain.json', {'reason': 'test'})
+            queue = dispatch.Queue(root/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'test'})
+            queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'author'}])
+            with patch.object(dispatch.shutil, 'disk_usage', return_value=SimpleNamespace(free=100 * 1024**3)), \
+                    patch.object(dispatch, 'perform') as perform, patch.object(dispatch.subprocess, 'Popen') as launch:
+                dispatch.run_campaign(root, runner=version)
+            perform.assert_not_called()
+            launch.assert_not_called()
+            self.assertEqual(r.read(root/'status.json')['reason'], 'test')
+            (version/'retire_dispatch.py').write_text('tampered')
+            with self.assertRaisesRegex(ValueError, 'runner changed'):
+                dispatch.run_campaign(root, runner=version)
+            r.write(version.with_suffix('.json'), r.tree(version))
+            with self.assertRaisesRegex(ValueError, 'execute from the selected'):
+                dispatch.run_campaign(root, runner=version)
+
     def test_batch_lock_held_by_another_process_skips_staging(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -230,6 +261,7 @@ with open(sys.argv[3], 'a') as guard:
             tools = Path(__file__).resolve().parent
             for name in retire_tasks.RUNNERS:
                 shutil.copy2(tools/name, campaign/'runner'/name)
+            r.write(campaign/'runner.json', r.tree(campaign/'runner'))
             helpers.mkdir()
             for name in retire_tasks.HELPERS:
                 (helpers/name).write_text('helper '+name)

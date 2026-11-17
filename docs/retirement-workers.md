@@ -112,6 +112,15 @@ For a controlled runner upgrade, write a reason to `CAMPAIGN/drain.json`; the
 controller finishes active attempts without claiming new work. Verify its process
 is terminal before replacing the runner or removing the drain request.
 
+An immutable version can instead live at `CAMPAIGN/runners/VERSION`, with its
+complete file-hash map at `CAMPAIGN/runners/VERSION.json`. Launch that version's
+`retire_campaign.py run CAMPAIGN --runner CAMPAIGN/runners/VERSION` after the
+previous worker controller and its attempts finish. Its controller and imported
+modules must match the selected version, and its frozen tooling must match the
+checkpoint. An audit already using the older runner can finish independently;
+neither snapshot is changed. The shared queue, controller lock and CPU leases
+still enforce campaign ownership and concurrency limits.
+
 This describes the campaign workflow, not evidence that a campaign has started
 or completed. See [the authoring pilot](retirement-authoring-pilot-20261116.md)
 for measured results and their population.
