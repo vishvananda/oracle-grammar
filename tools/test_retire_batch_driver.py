@@ -61,7 +61,8 @@ class RecoveredCohortTests(unittest.TestCase):
         self.event('c', 'batch-b', kind='readmitted-native-exit-one-batch')
         self.event('a', 'batch-b')
         self.event('stale', 'batch-old', attempt='previous-attempt')
-        self.assertEqual(driver.recovered_cohort(self.queue, 'head'), ['b', 'c', 'a'])
+        self.assertEqual(driver.recovered_cohort(self.queue, 'head'),
+                         {'manifest': 'batch-b', 'checkpoint': 'parent', 'jobs': ['b', 'c', 'a']})
         with self.assertRaisesRegex(ValueError, 'checkpoint changed'):
             driver.recovered_cohort(self.queue, 'stale-head')
 
@@ -70,14 +71,16 @@ class RecoveredCohortTests(unittest.TestCase):
         self.event('a', 'same', 'first')
         self.event('b', 'same', 'second')
         self.event('c', 'same', 'first')
-        self.assertEqual(driver.recovered_cohort(self.queue, 'head'), ['a', 'c'])
+        self.assertEqual(driver.recovered_cohort(self.queue, 'head'),
+                         {'manifest': 'same', 'checkpoint': 'first', 'jobs': ['a', 'c']})
 
     def test_large_cohort_is_capped_without_mixing_other_groups(self):
         names = [f'j{i:03d}' for i in range(99)]
         self.prepare(names)
         for name in names:
             self.event(name)
-        self.assertEqual(driver.recovered_cohort(self.queue, 'head'), names[:96])
+        self.assertEqual(driver.recovered_cohort(self.queue, 'head'),
+                         {'manifest': 'batch-a', 'checkpoint': 'parent', 'jobs': names[:96]})
 
     def test_matching_malformed_event_is_not_silently_mixed(self):
         self.prepare(['a'])
@@ -156,11 +159,26 @@ class DriverTests(unittest.TestCase):
             self.assertEqual(ids, ['recovered'])
             self.assertTrue(combine_selected)
             self.outcome(drain=True)(run)
-        with patch.object(driver, 'recovered_cohort', return_value=['recovered']) as cohort, \
+        with patch.object(driver, 'recovered_cohort', return_value={'jobs': ['recovered'], 'manifest': 'batch', 'checkpoint': 'parent'}) as cohort, \
                 patch.object(driver.dispatch, '_batch', side_effect=selected) as batch:
             driver.run_driver(self.run, self.runner)
         batch.assert_called_once()
         cohort.assert_called_once_with(self.queue, 'parent')
+
+    def test_old_checkpoint_cohort_stays_selected_without_combined_trial(self):
+        config = r.read(self.run/'config.json')
+        config['recovered_cohorts_first'] = True
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(pending=1, ready=1, checkpoint='parent')
+        def selected(run, ids, *, combine_selected):
+            self.assertEqual(ids, ['recovered'])
+            self.assertFalse(combine_selected)
+            self.outcome(drain=True)(run)
+        with patch.object(driver, 'recovered_cohort', return_value={'jobs': ['recovered'], 'manifest': 'batch',
+                                                                  'checkpoint': 'old-parent'}), \
+                patch.object(driver.dispatch, '_batch', side_effect=selected) as batch:
+            driver.run_driver(self.run, self.runner)
+        batch.assert_called_once()
 
     def test_enabled_without_recovered_cohort_keeps_fifo_dispatch(self):
         config = r.read(self.run/'config.json')

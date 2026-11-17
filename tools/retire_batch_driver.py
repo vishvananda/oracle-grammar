@@ -115,8 +115,9 @@ def recovered_cohort(queue, checkpoint):
             groups.setdefault((manifest, origin_checkpoint), []).append((seq, job_id))
         if not groups:
             return []
-        ordered = [sorted(group) for group in groups.values()]
-        return [job for _, job in min(ordered, key=lambda group: group[0][0])[:96]]
+        key, group = min(groups.items(), key=lambda item: min(seq for seq, _ in item[1]))
+        return {'manifest': key[0], 'checkpoint': key[1],
+                'jobs': [job for _, job in sorted(group)[:96]]}
 
 
 def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
@@ -168,7 +169,8 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             before = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
                             status('running', progress)
                             if cohort:
-                                dispatch._batch(run, cohort, combine_selected=True)
+                                dispatch._batch(run, cohort['jobs'],
+                                                combine_selected=cohort['checkpoint'] == progress['checkpoint'])
                             else:
                                 dispatch._batch(run)
                             observation = _batch_observation(run, before, queue, progress['checkpoint'])
