@@ -1059,7 +1059,7 @@ class Queue:
         reports = evidence.get('reports')
         if not isinstance(reports, dict) or set(reports) != set(job_ids):
             raise ValueError('individual report evidence must cover every selected job')
-        query = ('SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result '
+        query = ('SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result,a.job_id,a.worker '
                  'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?')
         with ExitStack() as leases:
             for name in sorted(job_ids):
@@ -1074,7 +1074,7 @@ class Queue:
                           for name in job_ids}
             snapshots, rejections, pids = {}, {}, {}
             for name, row in rows.items():
-                if not row or row[0] != 'integration-rejected' or not row[1] or not row[6]:
+                if not row or row[0] != 'integration-rejected' or not row[1] or not row[6] or row[7] != name:
                     raise ValueError('readmission requires current rejected attempts')
                 snapshots[name] = tuple(row)
                 job, rejection, original = map(json.loads, (row[2], row[3], row[6]))

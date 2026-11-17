@@ -187,7 +187,7 @@ class ParseReadmissionTests(BatchReadmissionTests):
             self.invoke(proof)
 
     def test_artifact_recheck_and_current_row_checkpoint_ownership_races_are_atomic(self):
-        for mode in ('artifact','frozen','row','checkpoint','ownership'):
+        for mode in ('artifact','frozen','row','checkpoint','ownership','attempt-job','attempt-worker'):
             with self.subTest(mode=mode):
                 if mode != 'artifact': self.setUp()
                 proof=self.fixture();verify=parsed.verify
@@ -201,6 +201,10 @@ class ParseReadmissionTests(BatchReadmissionTests):
                         with closing(self.queue._connect())as db:
                             if mode=='row':
                                 db.execute("UPDATE attempts SET result=? WHERE id=?", ('{}',self.attempt('mechanical')))
+                            elif mode=='attempt-job':
+                                db.execute("UPDATE attempts SET job_id='culprit' WHERE id=?",(self.attempt('mechanical'),))
+                            elif mode=='attempt-worker':
+                                db.execute("UPDATE attempts SET worker='changed-worker' WHERE id=?",(self.attempt('mechanical'),))
                             elif mode=='checkpoint':
                                 db.execute("INSERT INTO checkpoints(commit_id,parent,evidence)VALUES('later','parent','{}')")
                             else:db.execute("UPDATE rules SET job_id='culprit' WHERE rule='a'")
@@ -209,6 +213,16 @@ class ParseReadmissionTests(BatchReadmissionTests):
                     self.invoke(proof)
                 self.assertTrue(all(j['status']=='integration-rejected'for j in self.queue.get_jobs()))
                 self.assertFalse(any(e['kind']=='readmitted-parse-screen-batch'for e in self.queue.audit()))
+
+    def test_initial_attempt_must_belong_to_selected_job(self):
+        proof=self.fixture()
+        with closing(self.queue._connect())as db:
+            db.execute("UPDATE attempts SET job_id='culprit' WHERE id=?",(self.attempt('mechanical'),))
+        with patch.object(parsed.library,'_replay')as replay,self.assertRaisesRegex(ValueError,'current rejected attempts'):
+            self.invoke(proof)
+        replay.assert_not_called()
+        self.assertEqual(self.queue.coverage()['counts'],{'integration-rejected':3})
+        self.assertFalse(any(e['kind']=='readmitted-parse-screen-batch'for e in self.queue.audit()))
 
     def test_cross_mode_readmission_event_blocks_repeat(self):
         proof=self.fixture()
