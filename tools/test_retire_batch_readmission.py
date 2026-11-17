@@ -1,7 +1,7 @@
 import fcntl
 import hashlib
 import json
-from contextlib import closing
+from contextlib import closing, contextmanager
 from pathlib import Path
 import subprocess
 import tempfile
@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from retire_queue import Queue
+import retire_queue as queue_module
 
 
 def write(path, value):
@@ -18,6 +19,27 @@ def write(path, value):
 
 def spec(path):
     return {'path': str(path), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+
+
+@contextmanager
+def mutation_during_readmission_verification(queue, verifier_name, attempt, field, value):
+    """Run the real verifier, then edit its held transaction and require rollback."""
+    verify, transaction, held = getattr(queue_module, verifier_name), queue._transaction, []
+    query = {'job_id': 'UPDATE attempts SET job_id=? WHERE id=?',
+             'worker': 'UPDATE attempts SET worker=? WHERE id=?'}[field]
+    @contextmanager
+    def capture():
+        with transaction() as db:
+            held.append(db)
+            try: yield db
+            finally: held.pop()
+    def mutate(*args, **kwargs):
+        result = verify(*args, **kwargs)
+        held[-1].execute(query, (value, attempt))
+        return result
+    with patch.object(queue, '_transaction', side_effect=capture), \
+            patch.object(queue_module, verifier_name, side_effect=mutate):
+        yield
 
 
 class BatchReadmissionTests(unittest.TestCase):
@@ -159,6 +181,29 @@ class BatchReadmissionTests(unittest.TestCase):
             self.readmit('author')
         self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
 
+
+    def test_batch_readmission_refuses_initial_foreign_attempt_before_verification(self):
+        attempt = self.attempt('author'); events = self.queue.audit()
+        with closing(self.queue._connect()) as db:
+            db.execute("UPDATE attempts SET job_id='culprit' WHERE id=?", (attempt,))
+        with patch.object(queue_module, '_verify_batch_readmission') as verify, \
+                self.assertRaisesRegex(ValueError, 'current rejected attempt'):
+            self.readmit('author')
+        verify.assert_not_called()
+        self.assertEqual(self.queue.audit(), events)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_batch_verifier_identity_mutations_roll_back_without_readmission(self):
+        attempt = self.attempt('author'); original = self.queue.get_attempt(attempt)
+        events = self.queue.audit()
+        for field, value in (('job_id', 'culprit'), ('worker', 'changed-worker')):
+            with self.subTest(field=field), \
+                    mutation_during_readmission_verification(self.queue, '_verify_batch_readmission', attempt, field, value), \
+                    self.assertRaisesRegex(ValueError, 'attempt changed'):
+                self.readmit('author')
+            self.assertEqual(self.queue.get_attempt(attempt), original)
+            self.assertEqual(self.queue.audit(), events)
+            self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
 
     def native_fixture(self):
         folder = self.root/'.cache/batches/batch'
@@ -438,6 +483,40 @@ class BatchReadmissionTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'ordered replay differs'):
                 library._replay(self.root, 'parent', self.items, [0, 1], {'test.ebnf': 'bad'},
                                 self.root/'.cache', proof['reports'])
+
+    def test_native_readmission_refuses_initial_foreign_attempt_before_verification(self):
+        proof = self.native_fixture(); attempt = self.attempt('author'); events = self.queue.audit()
+        with closing(self.queue._connect()) as db:
+            db.execute("UPDATE attempts SET job_id='culprit' WHERE id=?", (attempt,))
+        with patch.object(queue_module.retire_native_readmission, 'verify') as verify, \
+                self.assertRaisesRegex(ValueError, 'current rejected attempt'):
+            self.queue.readmit_native_batch_proposal('author', attempt, 'parent',
+                                                     {**proof, 'report': spec(self.reports['author'])})
+        verify.assert_not_called(); self.assertEqual(self.queue.audit(), events)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_native_verifier_identity_races_refuse_without_readmission(self):
+        proof = self.native_fixture(); verify = queue_module.retire_native_readmission.verify
+        for job in ('author', 'mechanical'):
+            attempt = self.attempt(job); original = self.queue.get_attempt(attempt)
+            for field, value in (('job_id', 'culprit'), ('worker', 'changed-worker')):
+                query = {'job_id': 'UPDATE attempts SET job_id=? WHERE id=?',
+                         'worker': 'UPDATE attempts SET worker=? WHERE id=?'}[field]
+                events = self.queue.audit(); jobs = self.queue.get_jobs('integration-rejected')
+                def mutate(*args):
+                    result = verify(*args)
+                    with closing(self.queue._connect()) as db: db.execute(query, (value, attempt))
+                    return result
+                with self.subTest(job=job, field=field), \
+                        patch.object(queue_module.retire_native_readmission, 'verify', side_effect=mutate), \
+                        self.assertRaisesRegex(ValueError, 'changed during native proof'):
+                    self.queue.readmit_native_batch_proposal(job, attempt, 'parent',
+                                                             {**proof, 'report': spec(self.reports[job])})
+                self.assertEqual(self.queue.audit(), events)
+                self.assertEqual(self.queue.get_jobs('integration-rejected'), jobs)
+                self.assertEqual(self.queue.get_attempt(attempt)[field], value)
+                with closing(self.queue._connect()) as db: db.execute(query, (original[field], attempt))
+                self.assertEqual(self.queue.get_attempt(attempt), original)
 
     def test_native_readmission_rechecks_checkpoint_after_expensive_proof(self):
         import retire_native_readmission

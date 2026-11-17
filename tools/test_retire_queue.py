@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 from retire_queue import Queue, _git_source_identity
+from test_retire_batch_readmission import mutation_during_readmission_verification
 
 
 class QueueTests(unittest.TestCase):
@@ -420,6 +421,32 @@ class QueueTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
 
+    def test_case_mode_readmission_refuses_initial_foreign_attempt(self):
+        claim, proof, _, _ = self.rejected_with_family_evidence(); attempt = claim['attempt_id']
+        self.queue.add_checkpoint('migrated', {'family_case_modes': True}, expected_parent='base')
+        self.queue.add_jobs([{'id': 'foreign', 'rules': ['foreign-rule']}]); events = self.queue.audit()
+        with closing(self.queue._connect()) as db:
+            db.execute("UPDATE attempts SET job_id='foreign' WHERE id=?", (attempt,))
+        with patch('retire_queue._verify_readmission_artifacts') as verify, \
+                self.assertRaisesRegex(ValueError, 'current rejected attempt'):
+            self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
+        verify.assert_not_called(); self.assertEqual(self.queue.audit(), events)
+        self.assertEqual(self.queue.get_jobs('integration-rejected')[0]['id'], 'job0')
+
+    def test_case_mode_verifier_identity_mutations_roll_back(self):
+        claim, proof, _, _ = self.rejected_with_family_evidence(); attempt = claim['attempt_id']
+        self.queue.add_checkpoint('migrated', {'family_case_modes': True}, expected_parent='base')
+        self.queue.add_jobs([{'id': 'foreign', 'rules': ['foreign-rule']}])
+        original = self.queue.get_attempt(attempt); events = self.queue.audit()
+        for field, value in (('job_id', 'foreign'), ('worker', 'changed-worker')):
+            with self.subTest(field=field), \
+                    mutation_during_readmission_verification(self.queue, '_verify_readmission_artifacts', attempt, field, value), \
+                    self.assertRaisesRegex(ValueError, 'attempt changed'):
+                self.queue.readmit_proposal('job0', attempt, 'migrated', proof)
+            self.assertEqual(self.queue.get_attempt(attempt), original)
+            self.assertEqual(self.queue.audit(), events)
+            self.assertEqual(self.queue.get_jobs('integration-rejected')[0]['attempt_id'], attempt)
+
     def test_readmit_rejects_bad_report_dispositions_or_live_pid(self):
         claim, proof, lease, report = self.rejected_with_family_evidence()
         attempt = claim['attempt_id']
@@ -698,6 +725,31 @@ class DiagnosticRecoveryTests(unittest.TestCase):
         self.assertEqual(event['data']['old_registry_count'], 67)
         self.assertEqual(event['data']['previous_adjudication']['status'], 'integration-rejected')
         self.assertTrue(any(e['kind'] == 'adjudicated' for e in self.queue.audit()))
+
+    def test_family_limit_readmission_refuses_initial_foreign_attempt(self):
+        attempt = self.items[0]['attempt_id']; proof = self.family_limit_proof()
+        self.queue.add_checkpoint('new', {'family_case_modes': True, 'family_registry_limit': 67}, expected_parent=self.parent)
+        events = self.queue.audit()
+        with closing(self.queue._connect()) as db:
+            db.execute("UPDATE attempts SET job_id='job1' WHERE id=?", (attempt,))
+        with patch('retire_queue._verify_family_limit_revalidation') as verify, \
+                self.assertRaisesRegex(ValueError, 'current rejected attempt'):
+            self.queue.readmit_family_limit_proposal('job0', attempt, 'new', proof)
+        verify.assert_not_called(); self.assertEqual(self.queue.audit(), events)
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+
+    def test_family_limit_verifier_identity_mutations_roll_back(self):
+        attempt = self.items[0]['attempt_id']; proof = self.family_limit_proof()
+        self.queue.add_checkpoint('new', {'family_case_modes': True, 'family_registry_limit': 67}, expected_parent=self.parent)
+        original = self.queue.get_attempt(attempt); events = self.queue.audit()
+        for field, value in (('job_id', 'job1'), ('worker', 'changed-worker')):
+            with self.subTest(field=field), \
+                    mutation_during_readmission_verification(self.queue, '_verify_family_limit_revalidation', attempt, field, value), \
+                    self.assertRaisesRegex(ValueError, 'attempt changed'):
+                self.queue.readmit_family_limit_proposal('job0', attempt, 'new', proof)
+            self.assertEqual(self.queue.get_attempt(attempt), original)
+            self.assertEqual(self.queue.audit(), events)
+            self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 2})
 
     def test_family_limit_readmission_rejects_stale_missing_capabilities_and_lease(self):
         item, proof = self.items[0], self.family_limit_proof()

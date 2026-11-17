@@ -797,10 +797,10 @@ class Queue:
                 checkpoint_evidence = json.loads(latest[1])
                 if not isinstance(checkpoint_evidence, dict) or checkpoint_evidence.get('family_case_modes') is not True:
                     raise ValueError('latest checkpoint does not prove family case modes')
-                row = db.execute(
-                    'SELECT j.status,j.attempt_id,j.adjudication,j.payload,a.base_commit,a.started,a.result '
-                    'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?', (job_id,)).fetchone()
-                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6]:
+                query = ('SELECT j.status,j.attempt_id,j.adjudication,j.payload,a.base_commit,a.started,a.result,a.job_id,a.worker '
+                         'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?')
+                row = db.execute(query, (job_id,)).fetchone()
+                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6] or row[7] != job_id:
                     raise ValueError('readmission requires the current rejected attempt')
                 start = json.loads(row[5]) if row[5] else {}
                 pid = start.get('pid')
@@ -833,6 +833,9 @@ class Queue:
                 rejection = json.loads(row[2]) if row[2] else {}
                 _verify_readmission_artifacts(Path(self.path).parent, job_id, attempt_id, row[4],
                                              original, rejection, evidence)
+                current = db.execute(query, (job_id,)).fetchone()
+                if not current or tuple(current) != tuple(row):
+                    raise ValueError('attempt changed during readmission verification')
                 db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (job_id,))
                 self._event(db, 'readmitted', {'job_id': job_id, 'attempt_id': attempt_id,
                             'checkpoint': checkpoint, 'pid': pid, 'process': 'absent',
@@ -854,10 +857,10 @@ class Queue:
                 checkpoint_evidence = json.loads(latest[1])
                 if not isinstance(checkpoint_evidence, dict):
                     raise ValueError('latest checkpoint has no family capability evidence')
-                row = db.execute(
-                    'SELECT j.status,j.attempt_id,j.adjudication,j.payload,a.base_commit,a.started,a.result '
-                    'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?', (job_id,)).fetchone()
-                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6]:
+                query = ('SELECT j.status,j.attempt_id,j.adjudication,j.payload,a.base_commit,a.started,a.result,a.job_id,a.worker '
+                         'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?')
+                row = db.execute(query, (job_id,)).fetchone()
+                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6] or row[7] != job_id:
                     raise ValueError('readmission requires the current rejected attempt')
                 pid = (json.loads(row[5]) if row[5] else {}).get('pid')
                 if type(pid) is not int or pid <= 0:
@@ -892,6 +895,9 @@ class Queue:
                     checkpoint_evidence)
                 if len(item.get('rules', [])) != len(rules) or set(item.get('rules', [])) != rules:
                     raise ValueError('original manifest rule ownership differs')
+                current = db.execute(query, (job_id,)).fetchone()
+                if not current or tuple(current) != tuple(row):
+                    raise ValueError('attempt changed during readmission verification')
                 db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (job_id,))
                 self._event(db, 'readmitted-family-limit', {'job_id': job_id, 'attempt_id': attempt_id,
                             'checkpoint': checkpoint, 'old_registry_count': registry_count,
@@ -998,10 +1004,10 @@ class Queue:
                 latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
                 if not latest or latest[0] != checkpoint:
                     raise ValueError('checkpoint is stale')
-                row = db.execute(
-                    'SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result '
-                    'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?', (job_id,)).fetchone()
-                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6]:
+                query = ('SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result,a.job_id,a.worker '
+                         'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?')
+                row = db.execute(query, (job_id,)).fetchone()
+                if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6] or row[7] != job_id:
                     raise ValueError('readmission requires the current rejected attempt')
                 job, rejection, original = map(json.loads, (row[2], row[3], row[6]))
                 started = json.loads(row[5]) if row[5] else {}
@@ -1028,6 +1034,9 @@ class Queue:
                     previous = json.loads(event[0])
                     if previous.get('job_id') == job_id and previous.get('manifest') == audit['manifest']:
                         raise ValueError('batch readmission already used for this job')
+                current = db.execute(query, (job_id,)).fetchone()
+                if not current or tuple(current) != tuple(row):
+                    raise ValueError('attempt changed during readmission verification')
                 db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (job_id,))
                 self._event(db, 'readmitted-batch', {'job_id': job_id, 'attempt_id': attempt_id,
                             'checkpoint': checkpoint, 'manifest': audit['manifest'], 'proof': audit,
@@ -1134,7 +1143,7 @@ class Queue:
 
     def readmit_native_batch_proposal(self, job_id, attempt_id, checkpoint, evidence):
         """Return one independently passed proposal for a new full batch audit."""
-        query = ('SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result '
+        query = ('SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result,a.job_id,a.worker '
                  'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?')
         with self._retry_lease(job_id):
             with closing(self._connect()) as db:
@@ -1143,7 +1152,7 @@ class Queue:
                 if not latest or latest[0] != checkpoint:
                     raise ValueError('checkpoint is stale')
                 row = db.execute(query, (job_id,)).fetchone()
-            if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6]:
+            if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6] or row[7] != job_id:
                 raise ValueError('readmission requires the current rejected attempt')
             snapshot = tuple(row)
             job, rejection, result = map(json.loads, (row[2], row[3], row[6]))
