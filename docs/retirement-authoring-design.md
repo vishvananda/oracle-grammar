@@ -324,7 +324,10 @@ The optional boolean `recovered_cohorts_first` lets that driver prioritize
 readmitted proposals. It uses the latest readmission event for each currently
 provisional job only when the event names its current attempt. Jobs are grouped
 by original failed manifest and readmission checkpoint; the oldest available
-group is selected separately, up to 96 jobs, and uses the guarded combined trial.
+group is selected separately, up to 96 jobs. It uses the guarded combined trial
+only while its readmission checkpoint is still current. After the checkpoint
+advances, the cohort stays separate but uses the configured groups of at most
+four: a passing union at an older checkpoint does not establish a passing rebase.
 Fresh proposals are not added to that cohort. Stale attempt events are ignored;
 malformed matching identities stop the driver. This is a routing hint, not an
 acceptance certificate, and a changed checkpoint still requires fresh staging
