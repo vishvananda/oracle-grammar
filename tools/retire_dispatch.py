@@ -409,6 +409,8 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     r.require(type(screen) is bool,'full_parse_screen must be boolean')
     cp['full_parse_screen']=screen
     cp['stage_group_size']=config.get('stage_group_size',1)
+    cp['native_control_threads']=config.get('native_control_threads',retire_batch.DEFAULT_NATIVE_CONTROL_THREADS)
+    retire_batch._native_control_threads(cp)
     cp.pop('native_regression_controls',None)
     if config.get('native_regression_controls') is not None:
         cp['native_regression_controls']=config['native_regression_controls']

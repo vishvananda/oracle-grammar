@@ -365,6 +365,15 @@ actually run once and pass; a zero-test result cannot pass. Failed groups fall
 back to individual checks. These controls supplement the normal complete suite
 and full population audit.
 
+The optional integer `native_control_threads` sets concurrency only for native
+regression controls. It defaults to six and must be between one and the smaller
+of 16 and the shared CPU capacity; booleans are rejected. The native helper,
+leased token count and manifest thread identity must agree. Higher settings
+reserve more of the shared pool and can reduce elapsed time at the cost of
+additional peak memory and token contention. Family, library, author and full
+audit concurrency remain unchanged. Each batch reads the runtime setting anew;
+removing it restores six even if an earlier checkpoint recorded another value.
+
 The standalone batch driver can hold the campaign batch lease while model workers
 continue authoring under their separate controller lease. It runs the existing
 batch pipeline sequentially and records its own status. Expected semantic

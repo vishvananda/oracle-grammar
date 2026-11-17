@@ -30,6 +30,7 @@ import retire_worker as w
 REPOSITORY_DRIVER = Path(__file__).with_name('retire_repository_checks.py')
 
 FAMILY_CHECK_THREADS = 6
+DEFAULT_NATIVE_CONTROL_THREADS = 6
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
                   'bin/score', 'bin/validate-readings')
 
@@ -286,14 +287,22 @@ def _control_verify(control):
             raise ValueError('native control frozen input changed: '+name)
 
 
+def _native_control_threads(checkpoint):
+    threads = checkpoint.get('native_control_threads', DEFAULT_NATIVE_CONTROL_THREADS)
+    capacity = checkpoint.get('cpu_capacity', 32)
+    if (type(capacity) is not int or not 1 <= capacity <= 32
+            or type(threads) is not int or not 1 <= threads <= min(16, capacity)):
+        raise ValueError('native_control_threads must be an integer from 1 to min(16, cpu_capacity)')
+    return threads
+
+
 def _control_setup(checkpoint):
     spec = checkpoint.get('native_regression_controls')
     if spec is None:
         return None
-    capacity = checkpoint.get('cpu_capacity', 32)
-    if (not checkpoint.get('cpu_pool') or type(capacity) is not int
-            or not FAMILY_CHECK_THREADS <= capacity <= 32):
-        raise ValueError('native control requires six available CPU lease tokens')
+    threads = _native_control_threads(checkpoint)
+    if not checkpoint.get('cpu_pool'):
+        raise ValueError('native control requires the shared CPU lease pool')
     if not isinstance(spec, dict) or set(spec) != {'path', 'sha256'}:
         raise ValueError('native control requires profile path and SHA-256')
     if not isinstance(spec['path'], str) or not isinstance(spec['sha256'], str):
@@ -318,7 +327,7 @@ def _control_setup(checkpoint):
     if any(not isinstance(files.get(name), str) for name in CONTROL_INPUTS):
         raise ValueError('native control checkpoint lacks frozen input hashes')
     control = {'profile': profile, 'profile_sha256': spec['sha256'], 'run': run,
-               'manifest_sha256': r.digest(run/'manifest.json'),
+               'manifest_sha256': r.digest(run/'manifest.json'), 'threads': threads,
                'input_sha256': {name: files[name] for name in CONTROL_INPUTS}}
     _control_verify(control)
     closure = tasks.close_cohort(run, {'names': names}, max_occurrences=1024)
@@ -334,14 +343,17 @@ def _control_setup(checkpoint):
 
 
 def _control_check(checkpoint, control, grammar, directory):
+    threads = _native_control_threads(checkpoint)
+    if control['threads'] != threads:
+        raise ValueError('native control thread identity changed after setup')
     _control_verify(control)
     directory.mkdir()
-    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), FAMILY_CHECK_THREADS, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
+    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
     with lease as fds:
         r._LEASES.extend(fds)
         try:
             try:
-                report = w.checks(control['run'], directory, grammar, control['names'], control['data'], FAMILY_CHECK_THREADS)
+                report = w.checks(control['run'], directory, grammar, control['names'], control['data'], threads)
             except (ValueError, OSError, subprocess.CalledProcessError, KeyError) as error:
                 r.write(directory/'result.json', {'status': 'error', 'error': str(error)})
                 raise
@@ -682,7 +694,7 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
     if control is not None:
         manifest['native_regression_controls'] = {'profile': str(control['profile']),
             'profile_sha256': control['profile_sha256'], 'checkpoint_manifest_sha256': control['manifest_sha256'],
-            'names': control['names'], 'occurrences': control['occurrences'], 'threads': FAMILY_CHECK_THREADS}
+            'names': control['names'], 'occurrences': control['occurrences'], 'threads': control['threads']}
     if library_control is not None:
         manifest['library_regression_controls'] = {key: str(library_control[key]) if key == 'profile' else library_control[key]
                                                   for key in ('profile', 'profile_sha256', 'binary_sha256', 'source_sha256', 'tests')}
