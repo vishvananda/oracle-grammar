@@ -282,6 +282,31 @@ checks repeated before the transaction. Readmission is allowed once per job and
 failed batch; the excluded proposals stay parked. These jobs still need fresh
 staging and the complete integration audit.
 
+A failed complete parse/native rejection screen has its own readmission mode;
+it does not substitute for a failed full print audit. The additions-only mode
+requires all repository gates to have passed, complete immutable allowed inputs
+and exact original screen artifacts, and no missing meanings, merged readings
+or refusals. Its explicitly closed focused population covers every reported
+failure. Base and remainder controls preserve every native reading and prior
+print gate; the full control must reproduce the original added readings at
+those original occurrence identities. The verifier checks frozen subset bytes,
+recomputes native/report consistency and print losses from saved rows, and
+independently replays all included proposals and the selected remainder in order.
+When checkpoint input rows precede the accepted parse baseline, both immutable
+baselines must match in every field except the parse report's top-level `key`
+array. This bounded string-array derivation metadata is recorded explicitly
+for each changed occurrence. Nested semantic operands, wording, reading counts
+and print flags must remain identical; a supplied bridge must match the
+independently derived changes exactly.
+A separate canonical mechanical replay verifies the complete assigned removal
+without merging old dispatcher text. Existing full-audit proof contracts stay
+unchanged. The queue holds every selected job lease, rechecks checkpoint,
+attempts, ownership, process absence and artifact hashes, then readmits the
+selected set atomically with `readmitted-parse-screen-batch` events. Earlier
+readmission through any batch mode blocks reuse for that job and manifest.
+The recovered cohort remains bound to its attempts and checkpoint and requires
+fresh staging and the complete integration audit; readmission is not acceptance.
+
 An attempt with no usable model response is an operational gap, not a semantic
 finding. A verified original timeout owning four to six rules can be split once
 into two children of at most three rules. Recovery requires the archived attempt,

@@ -1,0 +1,275 @@
+"""Strict isolation of additions-only parse-screen failures; never accepts rules."""
+import hashlib
+from itertools import zip_longest
+import json
+from pathlib import Path
+import re
+import tempfile
+
+import retire as r
+import retire_library_readmission as library
+import retire_parse_screen as screen
+import retire_tasks as tasks
+import retire_worker as worker
+from retire_native_readmission import _allowed, _control, _grammar_tree
+
+ARTIFACTS = ('commands.jsonl', 'gold.jsonl', 'oracle.json', 'slice.json', 'before.jsonl',
+             'rows.jsonl', 'native.json', 'native-failures.jsonl', 'score.log', 'validate-readings.log')
+
+
+class Reads:
+    def __init__(self, reader):
+        self.reader, self.reads, self.files = reader, [], []
+
+    def __call__(self, spec):
+        path, data = self.reader(spec)
+        self.reads.append((dict(spec), path.resolve(), hashlib.sha256(data).hexdigest()))
+        return path, data
+
+    def artifact(self, spec, expected):
+        if (not isinstance(spec, dict) or set(spec) != {'path', 'sha256'}
+                or spec.get('path') != str(expected) or not isinstance(spec.get('sha256'), str)
+                or not re.fullmatch(r'[0-9a-f]{64}', spec['sha256']) or expected.is_symlink()
+                or not expected.is_file() or expected.stat().st_size > 1024*1024*1024
+                or r.digest(expected) != spec['sha256']):
+            raise ValueError('parse isolation artifact path, size or hash differs')
+        self.files.append((expected, spec['sha256']))
+
+    def recheck(self):
+        for spec, path, digest in self.reads:
+            new_path, data = self.reader(spec)
+            if new_path.resolve() != path or hashlib.sha256(data).hexdigest() != digest:
+                raise ValueError('parse isolation proof changed during verification')
+        if any(r.digest(path) != digest for path, digest in self.files):
+            raise ValueError('parse isolation artifact changed during verification')
+
+
+def _frozen(campaign, checkpoint, manifest, validation, reads):
+    cp_path = campaign/'checkpoints'/f'{checkpoint}.json'
+    cp = r.read(cp_path); inputs = Path(cp['inputs']).resolve()
+    run = (campaign/'.cache/batches'/manifest['id']/'validation-inputs').resolve()
+    if (cp.get('commit') != checkpoint or not inputs.is_relative_to(campaign.resolve())
+            or Path(validation.get('inputs', '')).resolve() != run):
+        raise ValueError('parse readmission checkpoint identity differs')
+    parent, frozen = r.read(inputs/'manifest.json'), r.read(run/'manifest.json')
+    trees = [{k.removeprefix('grammar/'):v for k,v in value.get('files', {}).items()
+              if k.startswith('grammar/')} for value in (parent, frozen)]
+    if (parent.get('commit') != checkpoint or frozen.get('commit') != manifest.get('commit')
+            or type(parent.get('population')) is not int or parent['population'] <= 0
+            or frozen.get('population') != parent['population'] or frozen.get('source') != parent.get('source')
+            or r.digest(inputs/'manifest.json') != validation.get('checkpoint_manifest_sha256')
+            or r.digest(run/'manifest.json') != validation.get('validation_manifest_sha256')
+            or not trees[0] or trees[1] != manifest.get('grammar')
+            or _grammar_tree(inputs/'frozen/grammar') != trees[0]
+            or _grammar_tree(run/'frozen/grammar') != trees[1]):
+        raise ValueError('parse frozen source or grammar identity differs')
+    for name in ('allowed.json', 'gold.jsonl', 'oracle.json'):
+        if not parent['files'].get(name) or frozen['files'].get(name) != parent['files'][name]:
+            raise ValueError('parse frozen allowed population differs')
+    for value, root in ((parent, inputs), (frozen, run)):
+        build = r.read(root/'frozen/build.json')
+        if (build.get('source_sha256') != value['source'] or not isinstance(build.get('compiler'), dict)
+                or any(build.get('binaries', {}).get(name) != value['files'].get('bin/'+name) for name in r.HELPERS)):
+            raise ValueError('parse frozen helper identity differs')
+    if r.read(inputs/'frozen/build.json')['compiler'] != r.read(run/'frozen/build.json')['compiler']:
+        raise ValueError('parse frozen compilers differ')
+    r.verify(inputs); r.verify(run)
+    data = worker.payload(run)
+    baseline = Path(cp['baseline']).resolve()
+    if not baseline.is_relative_to(campaign.resolve()) or r.digest(baseline) != validation.get('baseline_sha256'):
+        raise ValueError('parse baseline hash differs')
+    with baseline.open() as original, (run/'frozen/parse.jsonl').open() as saved:
+        for old, parsed, entry in zip_longest(original, saved, data[0].values()):
+            if (old is None or parsed is None or entry is None or json.loads(old) != json.loads(parsed)
+                    or entry.get('parse') != json.loads(old) or entry.get('flags') != r.flags(json.loads(old))):
+                raise ValueError('parse baseline population or print overlay differs')
+    reads.files.extend((p, r.digest(p)) for p in (cp_path, inputs/'manifest.json', run/'manifest.json', baseline))
+    return cp, inputs, run, data, trees
+
+
+def _original(run, folder, validation, data, reads):
+    result = validation.get('parse_screen')
+    if (not isinstance(result, dict) or result.get('status') != 'failed'
+            or result.get('faces') != len(data[0]) or result.get('native_exit') not in (0, 1)
+            or r.digest(folder/'parse-screen/result.json') != validation.get('parse_screen_result_sha256')
+            or r.read(folder/'parse-screen/result.json') != result
+            or not isinstance(result.get('artifacts'), dict) or set(result['artifacts']) != set(ARTIFACTS)):
+        raise ValueError('original complete parse-screen result differs')
+    for name in ARTIFACTS:
+        reads.artifact(result['artifacts'][name], folder/'parse-screen'/name)
+    recomputed = screen.assess(run, folder/'parse-screen', data, result['native_exit'])
+    if recomputed != {k:v for k,v in result.items() if k != 'artifacts'}:
+        raise ValueError('recomputed original parse-screen result differs')
+    native = r.read(folder/'parse-screen/native.json')['reading_preservation']
+    rows = r.rows(folder/'parse-screen/rows.jsonl')
+    if (native['missing'] or native['merged_faces'] != 0 or not native['additions'] or not native['passed']
+            or any(row.get('status') != 'equal' for row in rows)):
+        raise ValueError('parse recovery only supports complete additions-only failures, not refusals or missing meanings')
+    return native['additions']
+
+
+def _baseline_bridge(before_entries, current_entries):
+    if len(before_entries) != len(current_entries):
+        raise ValueError('parse control baseline occurrence identity differs')
+    changed = []
+    for old, (ordinal, current) in zip(before_entries, current_entries, strict=True):
+        for entry in (old, current):
+            if 'key' in entry['parse']:
+                key = entry['parse']['key']
+                if (not isinstance(key, list) or len(key) > 16384
+                        or any(not isinstance(token, str) or not 1 <= len(token) <= 4096 for token in key)
+                        or sum(len(token) for token in key) > 1024*1024):
+                    raise ValueError('baseline derivation key has an invalid metadata shape')
+        if (('key' in old['parse']) != ('key' in current['parse'])
+                or {k:v for k,v in old.items() if k != 'parse'} != {k:v for k,v in current.items() if k != 'parse'}
+                or {k:v for k,v in old['parse'].items() if k != 'key'} != {k:v for k,v in current['parse'].items() if k != 'key'}):
+            raise ValueError('parse control baseline meanings, wording or print flags differ')
+        if old['parse'].get('key') != current['parse'].get('key'):
+            changed.append({'occurrence': ordinal, 'face': current['name'],
+                            'control_key': old['parse']['key'], 'screen_key': current['parse']['key']})
+    return changed
+
+
+def _focus(campaign, controls, profile_spec, context, reads):
+    data, run, expected, included, trees, original, count = (context[k] for k in
+        ('data', 'run', 'expected', 'included', 'trees', 'original', 'count'))
+    path, payload = reads(profile_spec)
+    if not _allowed(campaign, path): raise ValueError('parse focused profile escapes scratch')
+    profile = json.loads(payload)
+    names = profile.get('cards') if isinstance(profile, dict) and set(profile) == {'cards'} else None
+    named = {item['name'] for item in original}
+    if (not isinstance(names, list) or not 1 <= len(names) <= 500 or len(set(names)) != len(names)
+            or any(not isinstance(name, str) or not name for name in names) or not named <= set(names)):
+        raise ValueError('parse focused profile omits a failure or has duplicate/invalid names')
+    closure = tasks.close_cohort(run, {'names': names}, max_occurrences=1024)
+    if closure['closure_occurrence_count'] != count:
+        raise ValueError('parse focused population count differs from complete closure')
+    selected = set(closure['names'])
+    entries = [(ordinal, entry) for ordinal, entry in enumerate(data[0].values()) if entry['name'] in selected]
+    control_data = context['control_data']
+    before_entries = [entry for entry in control_data[0].values() if entry['name'] in selected]
+    key_changes = _baseline_bridge(before_entries, entries)
+    if context['has_declared_key_changes'] and context['declared_key_changes'] != key_changes:
+        raise ValueError('declared derivation-key bridge differs from immutable baselines')
+    context['derivation_key_changes'] = key_changes
+    focused = ({str(i):entry for i, entry in enumerate(before_entries)}, control_data[1], control_data[2])
+    with tempfile.TemporaryDirectory(prefix='.parse-focus-') as temporary:
+        projection = Path(temporary); (projection/'frozen').mkdir()
+        # Only an assessor projection: original immutable input identity is verified separately.
+        r.write(projection/'manifest.json', {'population': count})
+        r.write(projection/'frozen/allowed.json', {'cards': sorted(selected)})
+        worker.subset(projection, selected, control_data)
+        for label in ('base', 'full', 'remaining'):
+            decoded, _ = _control(campaign, controls.get(label), reads)
+            identity, result, population = (decoded[k] for k in ('identity', 'result', 'population'))
+            root = Path(controls[label]['identity']['path']).resolve().parent; checks = root/'checks'
+            if (identity.get('method') != 'ordered-proposal-replay-v1' or identity.get('indices') != expected[label]
+                    or identity.get('proposals') != [{'job_id': included[i]['job_id'], 'attempt_id': included[i]['attempt_id']}
+                                                     for i in expected[label]]
+                    or population != {'cards': sorted(selected)}):
+                raise ValueError('parse focused ordered identity or exact population differs')
+            if label in ('base', 'full') and identity['tree'] != trees[label == 'full']:
+                raise ValueError('parse focused base or full grammar differs')
+            artifacts = controls[label].get('artifacts')
+            if not isinstance(artifacts, dict) or set(artifacts) != set(ARTIFACTS):
+                raise ValueError('parse focused control artifacts are incomplete')
+            for name in ARTIFACTS:
+                reads.artifact(artifacts[name], checks/name)
+            for name in ('gold.jsonl', 'oracle.json', 'slice.json', 'before.jsonl'):
+                if (checks/name).read_bytes() != (projection/name).read_bytes():
+                    raise ValueError('parse focused input or baseline differs from frozen subset')
+            commands = r.rows(checks/'commands.jsonl')
+            if len(commands) != 2 or commands[1].get('returncode') not in (0, 1):
+                raise ValueError('parse focused native command is incomplete')
+            screen.assess(projection, checks, focused, commands[1]['returncode'])
+            native = r.read(checks/'native.json')
+            actual = {'faces': count, 'failures': worker.native_failures(native, count)
+                      + worker.compare(r.rows(checks/'rows.jsonl'), data[0], selected)}
+            if result != actual or (label == 'full') != bool(actual['failures']):
+                raise ValueError('parse focused native or print outcome differs')
+            preservation = native['reading_preservation']
+            additions = [dict(item, occurrence=entries[item['occurrence']][0]) for item in preservation['additions']]
+            if preservation['missing'] or preservation['merged_faces'] or (label == 'full' and additions != original):
+                raise ValueError('parse full focus does not exactly reproduce original added readings')
+    return {label: _control(campaign, controls[label], reads)[0]['identity']['tree'] for label in controls}
+
+
+def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gates):
+    reads = Reads(read_proof); paths, values = {}, {}
+    for name in ('manifest', 'validation', 'repository_log', 'isolation'):
+        path, value = reads(evidence.get(name)); paths[name] = path.resolve()
+        values[name] = value if name == 'repository_log' else json.loads(value)
+    manifest, validation, isolation = (values[k] for k in ('manifest', 'validation', 'isolation'))
+    batch = manifest.get('id'); folder = campaign/'.cache/batches'/str(batch)
+    included = [item for item in manifest.get('jobs', []) if item.get('status') == 'included']
+    ids = [item.get('job_id') for item in included]; excluded = isolation.get('excluded_jobs')
+    if (evidence.get('kind') != 'isolated-parse-screen-revalidation' or not isinstance(batch, str)
+            or not batch or Path(batch).name != batch or not included or len(included) > 96
+            or any(not isinstance(name, str) or not name for name in ids) or len(set(ids)) != len(ids)
+            or not isinstance(excluded, list) or not excluded or len(set(excluded)) != len(excluded)
+            or any(not isinstance(name, str) for name in excluded) or not set(excluded) <= set(ids)
+            or set(selected) != set(ids)-set(excluded)
+            or any(item.get('attempt_id') != selected[item['job_id']] for item in included if item['job_id'] in selected)
+            or paths['manifest'] != (folder/'manifest.json').resolve()
+            or paths['validation'] != (folder/'validation.json').resolve()
+            or paths['repository_log'] != (folder/'repository-check.log').resolve() or not _allowed(campaign, paths['isolation'])):
+        raise ValueError('parse isolation selection or original artifact paths differ')
+    if (manifest.get('base_commit') != checkpoint or validation.get('scope') != 'combined-batch'
+            or validation.get('status') != 'failed' or validation.get('reason') != 'full allowed-population parse screen failed'
+            or validation.get('repository_check_returncode') != 0 or validation.get('candidate') != manifest.get('commit')
+            or validation.get('source_checkpoint') != checkpoint or validation.get('included_jobs') != ids
+            or 'full_checks' in validation or 'rows' in validation
+            or any(x.get('evidence', {}).get('manifest') != batch or x.get('evidence', {}).get('validation') != validation
+                   for x in rejections.values())
+            or any(value not in ('passed', 'reused') for value in gates(values['repository_log']).values())):
+        raise ValueError('original additions-only parse failure or complete repository gates differ')
+    if (isolation.get('kind') != 'isolated-parse-screen-regressions' or isolation.get('manifest') != batch
+            or isolation.get('candidate') != manifest.get('commit') or isolation.get('parent') != checkpoint
+            or not isinstance(isolation.get('reason'), str) or not isolation['reason'].strip()
+            or not isinstance(isolation.get('controls'), dict) or set(isolation['controls']) != {'base', 'full', 'remaining'}):
+        raise ValueError('parse isolation identity differs')
+    cp, inputs, run, data, trees = _frozen(campaign, checkpoint, manifest, validation, reads)
+    original = _original(run, folder, validation, data, reads)
+    expected = {'base': [], 'full': list(range(len(ids))),
+                'remaining': [i for i, job in enumerate(ids) if job not in excluded]}
+    count = isolation.get('population_count')
+    if type(count) is not int or not 1 <= count <= min(1024, len(data[0])):
+        raise ValueError('parse isolation population is invalid')
+    focus = {'data': data, 'control_data': worker.payload(inputs), 'run': run, 'expected': expected, 'included': included,
+             'trees': trees, 'original': original, 'count': count,
+             'has_declared_key_changes': 'derivation_key_changes' in isolation,
+             'declared_key_changes': isolation.get('derivation_key_changes')}
+    control_trees = _focus(campaign, isolation['controls'], isolation.get('profile'), focus, reads)
+    reports_path, reports_data = reads(isolation.get('original_reports'))
+    reports = json.loads(reports_data)
+    if not _allowed(campaign, reports_path) or not isinstance(reports, dict) or set(reports) != set(ids):
+        raise ValueError('parse replay reports do not cover all original included attempts')
+    if any(reports.get(job) != evidence['reports'].get(job) for job in selected):
+        raise ValueError('parse selected original report identities differ')
+    for spec in reports.values(): reads(spec)
+    for label in ('full', 'remaining'):
+        library._replay(campaign, checkpoint, included, expected[label], control_trees[label],
+                        paths['isolation'].parent, reports, canonical_mechanical=True)
+    reads.recheck(); r.verify(inputs); r.verify(run)
+    if (_grammar_tree(inputs/'frozen/grammar') != trees[0] or _grammar_tree(run/'frozen/grammar') != trees[1]
+            or any(_grammar_tree(Path(isolation['controls'][label]['identity']['path']).parent/'grammar') != tree
+                   for label, tree in control_trees.items())):
+        raise ValueError('parse frozen or focused grammar changed during replay')
+    artifacts = {str(path): digest for path, digest in reads.files}
+    artifacts.update({str(path): digest for _, path, digest in reads.reads})
+    grammars = {str(inputs/'frozen/grammar'): trees[0], str(run/'frozen/grammar'): trees[1]}
+    grammars.update({str(Path(isolation['controls'][label]['identity']['path']).parent/'grammar'): tree
+                     for label, tree in control_trees.items()})
+    return {'manifest': batch, 'excluded_jobs': excluded, 'focused_faces': count,
+            'requires_fresh_full_validation': True, 'proof_scope': 'additions-only parse-screen isolation',
+            'verified_artifacts': artifacts, 'verified_grammars': grammars,
+            'verified_frozen_inputs': [str(inputs), str(run)],
+            'derivation_key_changes': focus['derivation_key_changes']}
+
+
+def recheck(proof):
+    for path in proof['verified_frozen_inputs']:
+        r.verify(Path(path))
+    if (any(r.digest(Path(path)) != digest for path, digest in proof['verified_artifacts'].items())
+            or any(_grammar_tree(Path(path)) != tree for path, tree in proof['verified_grammars'].items())):
+        raise ValueError('parse readmission artifacts changed before transaction')

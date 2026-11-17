@@ -86,7 +86,7 @@ def _batch_observation(run, before, queue, checkpoint):
 def recovered_cohort(queue, checkpoint):
     """Select the oldest current-attempt readmission group as a routing hint."""
     kinds = ('readmitted-batch', 'readmitted-native-batch',
-             'readmitted-library-batch', 'readmitted-native-exit-one-batch')
+             'readmitted-library-batch', 'readmitted-native-exit-one-batch', 'readmitted-parse-screen-batch')
     with closing(queue._connect()) as db:
         db.execute('BEGIN')
         latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
@@ -96,7 +96,7 @@ def recovered_cohort(queue, checkpoint):
                 json_extract(e.data,'$.attempt_id'), json_extract(e.data,'$.manifest'),
                 json_extract(e.data,'$.checkpoint'), json_extract(e.data,'$.job_id')
             FROM events e JOIN jobs j ON j.id=json_extract(e.data,'$.job_id')
-            WHERE j.status='provisional-pass' AND e.kind IN (?,?,?,?)
+            WHERE j.status='provisional-pass' AND e.kind IN (?,?,?,?,?)
             ORDER BY e.seq DESC""", kinds)
         seen, groups = set(), {}
         for seq, job_id, current_attempt, attempt, manifest, origin_checkpoint, event_job in rows:

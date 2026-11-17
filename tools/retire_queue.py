@@ -20,6 +20,7 @@ import retire_cohort_proof
 import retire_rehabilitation
 import retire_native_readmission
 import retire_native_exit_readmission
+import retire_parse_readmission
 import retire_library_readmission
 import retire_priority
 import retire_timeout_recovery
@@ -1023,7 +1024,7 @@ class Queue:
                 audit = _verify_batch_readmission(Path(self.path).parent, job_id, attempt_id,
                                                     checkpoint, row[4], job, original['evidence'],
                                                     rejection, evidence)
-                for event in db.execute("SELECT data FROM events WHERE kind='readmitted-batch'"):
+                for event in db.execute("SELECT data FROM events WHERE kind IN ('readmitted-batch','readmitted-native-batch','readmitted-library-batch','readmitted-native-exit-one-batch','readmitted-parse-screen-batch')"):
                     previous = json.loads(event[0])
                     if previous.get('job_id') == job_id and previous.get('manifest') == audit['manifest']:
                         raise ValueError('batch readmission already used for this job')
@@ -1040,6 +1041,10 @@ class Queue:
         """Atomically return native exit-one isolated jobs for fresh validation."""
         return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='native-exit-one')
 
+    def readmit_parse_screen_batch_proposals(self, job_ids, checkpoint, evidence):
+        """Atomically return additions-only parse-isolated proposals for fresh validation."""
+        return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='parse-screen')
+
     def _readmit_shared_batch(self, job_ids, checkpoint, evidence, *, mode):
         """Keep leases and compare-and-swap all protected attempts together."""
         if (not isinstance(job_ids, list) or not 1 <= len(job_ids) <= 96
@@ -1047,7 +1052,8 @@ class Queue:
                 or len(set(job_ids)) != len(job_ids)):
             raise ValueError('readmission requires 1–96 distinct job IDs')
         kind = {'library': 'isolated-batch-library-revalidation',
-                'native-exit-one': 'isolated-native-exit-one-revalidation'}[mode]
+                'native-exit-one': 'isolated-native-exit-one-revalidation',
+                'parse-screen': 'isolated-parse-screen-revalidation'}[mode]
         if not isinstance(evidence, dict) or evidence.get('kind') != kind:
             raise ValueError('matching isolated batch revalidation evidence is required')
         reports = evidence.get('reports')
@@ -1064,6 +1070,8 @@ class Queue:
                 if not latest or latest[0] != checkpoint:
                     raise ValueError('checkpoint is stale')
                 rows = {name: db.execute(query, (name,)).fetchone() for name in job_ids}
+                owners = {name: [x[0] for x in db.execute('SELECT rule FROM rules WHERE job_id=? ORDER BY rule', (name,))]
+                          for name in job_ids}
             snapshots, rejections, pids = {}, {}, {}
             for name, row in rows.items():
                 if not row or row[0] != 'integration-rejected' or not row[1] or not row[6]:
@@ -1076,6 +1084,8 @@ class Queue:
                 self._require_absent_pid(pid)
                 pids[name] = pid
                 rules = job['rules']
+                if not rules or len(set(rules)) != len(rules) or sorted(rules) != owners[name]:
+                    raise ValueError('current readmission rule ownership differs')
                 dispositions, outcomes = original.get('evidence', {}).get('dispositions', {}), original.get('outcomes', {})
                 if (original.get('status') != 'provisional-pass' or set(dispositions) != set(rules)
                         or set(outcomes) != set(rules)
@@ -1089,7 +1099,8 @@ class Queue:
                 rejections[name] = rejection
             campaign = Path(self.path).parent
             selected = {name: row[1] for name, row in rows.items()}
-            verifier = retire_library_readmission if mode == 'library' else retire_native_exit_readmission
+            verifier = {'library': retire_library_readmission, 'native-exit-one': retire_native_exit_readmission,
+                        'parse-screen': retire_parse_readmission}[mode]
             proof = verifier.verify(campaign, selected, checkpoint, rejections, evidence, _proof_file, _gates)
             with self._transaction() as db:
                 latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
@@ -1097,19 +1108,25 @@ class Queue:
                     raise ValueError('checkpoint changed during library proof verification')
                 previous_readmissions = set()
                 for event in db.execute("SELECT data FROM events WHERE kind IN "
-                                        "('readmitted-batch','readmitted-native-batch','readmitted-library-batch','readmitted-native-exit-one-batch')"):
+                                        "('readmitted-batch','readmitted-native-batch','readmitted-library-batch','readmitted-native-exit-one-batch','readmitted-parse-screen-batch')"):
                     previous = json.loads(event[0])
                     previous_readmissions.add((previous.get('job_id'), previous.get('manifest')))
                 for name in job_ids:
                     current = db.execute(query, (name,)).fetchone()
+                    owned = [x[0] for x in db.execute('SELECT rule FROM rules WHERE job_id=? ORDER BY rule', (name,))]
                     if not current or tuple(current) != snapshots[name]:
                         raise ValueError('attempt changed during library proof verification')
+                    if owned != owners[name]:
+                        raise ValueError('ownership changed during batch proof verification')
                     if (name, proof['manifest']) in previous_readmissions:
                         raise ValueError('batch readmission already used for this job')
                     self._require_absent_pid(pids[name])
+                if mode == 'parse-screen':
+                    verifier.recheck(proof)
                 for name in job_ids:
                     db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (name,))
-                    event = 'readmitted-library-batch' if mode == 'library' else 'readmitted-native-exit-one-batch'
+                    event = {'library': 'readmitted-library-batch', 'native-exit-one': 'readmitted-native-exit-one-batch',
+                             'parse-screen': 'readmitted-parse-screen-batch'}[mode]
                     self._event(db, event, {'job_id': name, 'attempt_id': snapshots[name][1],
                                 'checkpoint': checkpoint, 'manifest': proof['manifest'], 'proof': proof,
                                 'previous_adjudication': rejections[name], 'evidence': evidence})
@@ -1170,7 +1187,7 @@ class Queue:
                 current = db.execute(query, (job_id,)).fetchone()
                 if not latest or latest[0] != checkpoint or not current or tuple(current) != snapshot:
                     raise ValueError('checkpoint or attempt changed during native proof verification')
-                for event in db.execute("SELECT data FROM events WHERE kind='readmitted-native-batch'"):
+                for event in db.execute("SELECT data FROM events WHERE kind IN ('readmitted-batch','readmitted-native-batch','readmitted-library-batch','readmitted-native-exit-one-batch','readmitted-parse-screen-batch')"):
                     previous = json.loads(event[0])
                     if previous.get('job_id') == job_id and previous.get('manifest') == proof['manifest']:
                         raise ValueError('native batch readmission already used for this job')

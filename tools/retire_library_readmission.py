@@ -9,7 +9,7 @@ import tempfile
 
 from retire_native_readmission import _allowed, _grammar_tree
 
-def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, reports):
+def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, reports, *, canonical_mechanical=False):
     """Independently replay every retained protected proposal, in original order."""
     import mined
     import retire as r
@@ -77,13 +77,18 @@ def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, rep
                 run, task, directory, hooks = batch._proposal(proposal)
                 if task.get('id') != item['job_id'] or task.get('rules') != rules:
                     raise ValueError('replay descriptor differs from owned rules')
-                changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, rules, hooks)
-                if original['kind'] == 'mechanical' and (hooks or changes):
-                    raise ValueError('replay mechanical proposal contains additional edits')
-                for name, text in changes.items():
-                    path = trial/name
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_text(text)
+                if original['kind'] == 'mechanical' and canonical_mechanical:
+                    if hooks:
+                        raise ValueError('replay mechanical proposal contains hooks')
+                    batch._mechanical_removal(run, directory, rules, scratch)
+                else:
+                    changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, rules, hooks)
+                    if original['kind'] == 'mechanical' and (hooks or changes):
+                        raise ValueError('replay mechanical proposal contains additional edits')
+                    for name, text in changes.items():
+                        path = trial/name
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_text(text)
                 removed, kept = mined.remove(trial, rules)
                 if set(removed) != set(rules) or kept:
                     raise ValueError('replay assigned removals have retained users')
