@@ -12,7 +12,7 @@ import sqlite3
 import statistics
 import tempfile
 
-from retire_usage_refresh import verified_sidecar
+from retire_usage_refresh import verified_sidecar, verified_taint
 
 TOKENS = ('input_tokens', 'cached_input_tokens', 'cache_write_input_tokens',
           'output_tokens', 'reasoning_output_tokens')
@@ -69,6 +69,20 @@ def snapshot(campaign):
     """Take one SQLite read transaction; report aggregates without source text."""
     campaign = Path(campaign).resolve()
     config = json.loads((campaign/'config.json').read_text())
+    taint_path = campaign/'.cache/usage-taints.json'
+    if taint_path.is_symlink():
+        raise ValueError('usage taint manifest must not be a symlink')
+    if taint_path.exists():
+        with taint_path.open('rb') as stream:
+            data = stream.read(8 * 1024 * 1024 + 1)
+        if len(data) > 8 * 1024 * 1024:
+            raise ValueError('usage taint manifest exceeds size limit')
+        document = json.loads(data)
+        if document.get('schema') != 1 or not isinstance(document.get('attempts'), dict):
+            raise ValueError('invalid usage taint manifest')
+        usage_taints = document['attempts']
+    else:
+        usage_taints = {}
     uri = (campaign/'queue.sqlite').as_uri() + '?mode=ro'
     db = sqlite3.connect(uri, uri=True, isolation_level=None)
     try:
@@ -103,7 +117,7 @@ def snapshot(campaign):
                 unstarted.add(attempt)
     groups = defaultdict(lambda: {'attempts': 0, 'usage_status': Counter(), 'tokens': Counter(),
                                   'known_estimated_usd': 0.0, 'unknown_cost': 0,
-                                  'model_seconds': [], 'slot_seconds': []})
+                                  'model_seconds': [], 'slot_seconds': [], 'integrity_status': Counter()})
     failures = Counter()
     for attempt_id, job_id, started_raw, raw in attempts:
         result = json.loads(raw) if raw else None
@@ -113,6 +127,9 @@ def snapshot(campaign):
         if not isinstance(usage, dict) and raw and started_raw and kinds.get(job_id) == 'author':
             usage = verified_sidecar(campaign, attempt_id, job_id, started_raw, raw, config)
         usage = usage if isinstance(usage, dict) else {}
+        integrity = verified_taint(campaign, attempt_id, job_id, started_raw, usage_taints)
+        if integrity:
+            usage = {**usage, 'status': 'partial'}
         cohort = tainted.get(attempt_id, 'ordinary')
         no_model = not usage and (kinds.get(job_id) == 'mechanical' or attempt_id in unstarted)
         if no_model:
@@ -121,6 +138,8 @@ def snapshot(campaign):
         key = (cohort, kinds.get(job_id, 'unknown'), state, model)
         group = groups[key]
         group['attempts'] += 1
+        if integrity:
+            group['integrity_status'][integrity] += 1
         group['usage_status'][usage.get('status') or 'unavailable'] += 1
         cost = _number(usage.get('estimated_usd'))
         if cost is None or usage.get('status') not in ('recorded', 'not-applicable'):
@@ -150,6 +169,7 @@ def snapshot(campaign):
     for (cohort, kind, status, model), group in sorted(groups.items()):
         metrics.append({'cohort': cohort, 'kind': kind, 'status': status, 'model': model,
                         'attempts': group['attempts'], 'usage_status': dict(group['usage_status']),
+                        'usage_integrity': dict(group['integrity_status']),
                         'tokens': {token: group['tokens'][token] for token in TOKENS},
                         'known_estimated_usd': group['known_estimated_usd'],
                         'estimated_usd': group['known_estimated_usd'] if not group['unknown_cost'] else None,

@@ -105,6 +105,50 @@ class UsageRefreshTests(unittest.TestCase):
             {'schema': 1, 'identity': identity, 'usage': {'status': 'recorded', 'model': 'terra', 'estimated_usd': .99}}))
         self.assertEqual(retire_observe.snapshot(self.root)['cost_total']['estimated_usd'], .12)
 
+    def test_disk_full_taint_overrides_recorded_cost_and_preserves_estimate(self):
+        usage = {'status': 'recorded', 'model': 'terra', 'estimated_usd': .12}
+        claim, folder = self.attempt('12345678-1234-1234-1234-123456789abc', {'usage': usage})
+        stderr = folder/'stderr.log'
+        stderr.write_text('2026-11-17T00:04:21.720569Z ERROR codex_rollout::recorder: '
+                          'rollout writer failed for SECRET/PATH: No space left on device (os error 28)\n')
+        self.assertEqual(refresh.scan_taints(self.root)['tainted'], 1)
+        manifest = self.root/'.cache/usage-taints.json'
+        record = json.loads(manifest.read_text())['attempts'][claim['attempt_id']]
+        self.assertEqual(record['first_seen_utc'], '2026-11-17T00:04:21.720569Z')
+        self.assertNotIn('SECRET', manifest.read_text())
+        initial = manifest.read_bytes()
+        refresh.scan_taints(self.root)
+        self.assertEqual(initial, manifest.read_bytes())
+        snapshot = retire_observe.snapshot(self.root)
+        self.assertEqual(snapshot['cost_total']['known_estimated_usd'], .12)
+        self.assertIsNone(snapshot['cost_total']['estimated_usd'])
+        self.assertEqual(snapshot['cost_total']['unknown_attempts'], 1)
+        self.assertEqual(snapshot['attempts'][0]['usage_integrity'], {'verified': 1})
+        self.assertNotIn('SECRET', json.dumps(snapshot))
+        # Appending to a live log invalidates the hash, but does not make cost complete.
+        with stderr.open('a') as stream:
+            stream.write('new output\n')
+        snapshot = retire_observe.snapshot(self.root)
+        self.assertEqual(snapshot['attempts'][0]['usage_integrity'], {'unverified': 1})
+        self.assertIsNone(snapshot['cost_total']['estimated_usd'])
+        refresh.scan_taints(self.root)
+        self.assertEqual(retire_observe.snapshot(self.root)['attempts'][0]['usage_integrity'], {'verified': 1})
+
+    def test_unrelated_disk_error_or_nonassigned_log_does_not_taint(self):
+        claim, folder = self.attempt('12345678-1234-1234-1234-123456789abc',
+                                     {'usage': {'status': 'recorded', 'model': 'terra', 'estimated_usd': .12}})
+        (folder/'stderr.log').write_text('other_component: No space left on device (os error 28)\n')
+        elsewhere = self.root/'unrelated.log'
+        elsewhere.write_text('codex_rollout::recorder: No space left on device (os error 28)\n')
+        self.assertEqual(refresh.scan_taints(self.root)['tainted'], 0)
+        self.assertEqual(retire_observe.snapshot(self.root)['cost_total']['estimated_usd'], .12)
+        (folder/'stderr.log').unlink()
+        (folder/'stderr.log').symlink_to(elsewhere)
+        result = refresh.scan_taints(self.root)
+        self.assertEqual(result['tainted'], 0)
+        self.assertEqual(result['unavailable'], 1)
+        self.assertNotIn(claim['attempt_id'], json.loads((self.root/'.cache/usage-taints.json').read_text())['attempts'])
+
     def test_unassigned_thread_is_unknown_and_estimator_hash_is_pinned(self):
         _, folder = self.attempt('12345678-1234-1234-1234-123456789abc', 'failure')
         (folder/'events.jsonl').write_text('{}\n')

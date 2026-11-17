@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -91,6 +92,108 @@ def verified_sidecar(campaign, attempt, job, started_raw, result_raw, config):
         return None
 
 
+_RECORDER_FULL = re.compile(rb'codex_rollout::recorder[^\n]*No space left on device \(os error 28\)')
+_TIMESTAMP = re.compile(rb'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z')
+
+
+def _assigned_stderr(campaign, attempt, job, started_raw):
+    """Locate only this attempt's assigned stderr without following symlinks."""
+    try:
+        parsed = uuid.UUID(attempt)
+        if parsed.version != 4 or attempt not in (str(parsed), parsed.hex):
+            return None
+        if not retire_metrics.TASK.fullmatch(job) or job in ('.', '..'):
+            return None
+        cache = campaign/'.cache'
+        attempts = cache/'attempts'
+        run = attempts/attempt
+        worker = run/'workers'/job
+        stderr = worker/'stderr.log'
+        started = json.loads(started_raw) if started_raw else {}
+        if (any(path.is_symlink() for path in (cache, attempts, run, run/'workers', worker, stderr))
+                or not stderr.resolve().is_relative_to(cache.resolve())
+                or not cache.resolve().is_relative_to(campaign)
+                or type(started.get('pid')) is not int or started['pid'] <= 0
+                or started.get('receipt') != str(worker/'receipt.json')):
+            return None
+        return _read_bounded(stderr, 64 * 1024 * 1024)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
+def _recorder_error(data):
+    for line in data.splitlines():
+        if _RECORDER_FULL.search(line):
+            timestamp = _TIMESTAMP.search(line)
+            return timestamp.group().decode('ascii') if timestamp else 'unknown'
+    return None
+
+
+def verified_taint(campaign, attempt, job, started_raw, taints):
+    """Verify assigned stderr provenance; an invalid existing taint stays unknown."""
+    if attempt not in taints:
+        return None
+    record = taints[attempt]
+    if (not isinstance(record, dict) or record.get('job_id') != job
+            or record.get('kind') != 'token-recorder-disk-full'):
+        return 'unverified'
+    data = _assigned_stderr(Path(campaign), attempt, job, started_raw)
+    if (data is None or record.get('stderr_sha256') != _hash(data)
+            or record.get('started_sha256') != _hash((started_raw or '').encode())
+            or _recorder_error(data) != record.get('first_seen_utc')):
+        return 'unverified'
+    return 'verified'
+
+
+def scan_taints(campaign):
+    """Atomically record assigned token-recorder disk-full evidence; do not touch queue."""
+    campaign = Path(campaign).resolve()
+    cache = campaign/'.cache'
+    if cache.is_symlink() or not cache.resolve().is_relative_to(campaign):
+        raise ValueError('campaign cache is not a private directory')
+    db = sqlite3.connect((campaign/'queue.sqlite').as_uri()+'?mode=ro', uri=True)
+    try:
+        db.execute('PRAGMA query_only=ON')
+        rows = db.execute('SELECT a.id,a.job_id,a.started,j.payload FROM attempts a '
+                          'JOIN jobs j ON j.id=a.job_id').fetchall()
+    finally:
+        db.close()
+    target = cache/'usage-taints.json'
+    if target.is_symlink():
+        raise ValueError('taint manifest must not be a symlink')
+    previous_bytes = _read_bounded(target, 8 * 1024 * 1024) if target.exists() else None
+    previous = json.loads(previous_bytes) if previous_bytes is not None else {'schema': 1, 'attempts': {}}
+    if not isinstance(previous, dict) or previous.get('schema') != 1 or not isinstance(previous.get('attempts'), dict):
+        raise ValueError('invalid existing taint manifest')
+    taints = dict(previous['attempts'])
+    unavailable = examined = 0
+    for attempt, job, started, payload in rows:
+        if json.loads(payload).get('kind') != 'author' or not started:
+            continue
+        examined += 1
+        data = _assigned_stderr(campaign, attempt, job, started)
+        if data is None:
+            unavailable += 1
+            continue
+        first = _recorder_error(data)
+        if first is not None:
+            taints[attempt] = {'job_id': job, 'started_sha256': _hash(started.encode()),
+                               'stderr_sha256': _hash(data), 'first_seen_utc': first,
+                               'kind': 'token-recorder-disk-full'}
+    encoded = _canonical({'schema': 1, 'attempts': taints}) + b'\n'
+    if len(encoded) > 8 * 1024 * 1024:
+        raise ValueError('usage taint manifest exceeds size limit')
+    if previous_bytes != encoded:
+        fd, name = tempfile.mkstemp(prefix='.taints-', dir=cache)
+        try:
+            with os.fdopen(fd, 'wb') as output:
+                output.write(encoded)
+            os.replace(name, target)
+        finally:
+            Path(name).unlink(missing_ok=True)
+    return {'examined': examined, 'tainted': len(taints), 'unavailable': unavailable}
+
+
 def refresh(campaign):
     """Refresh terminal author attempts, including prior attempts after retry."""
     campaign = Path(campaign).resolve()
@@ -149,8 +252,9 @@ def refresh(campaign):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('campaign', type=Path)
+    parser.add_argument('--scan-taints', action='store_true', help='record assigned token-recorder disk-full errors')
     args = parser.parse_args()
-    print(json.dumps(refresh(args.campaign), sort_keys=True))
+    print(json.dumps(scan_taints(args.campaign) if args.scan_taints else refresh(args.campaign), sort_keys=True))
 
 
 if __name__ == '__main__':
