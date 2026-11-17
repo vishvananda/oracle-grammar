@@ -48,21 +48,29 @@ def changed_files(root):
 
 
 def regenerate_removals(base, root, task):
-    """Rebuild seeded hooks from the immutable base; retain private backups."""
+    """Remove assigned rules in a private copy while preserving authored syntax."""
+    check_root_hooks(base, root)
     directory = root/'.cache'/('assigned-removal-'+uuid.uuid4().hex)
     directory.mkdir(parents=True)
-    shutil.copytree(base/'grammar', directory/'grammar')
+    shutil.copytree(root/'grammar', directory/'grammar')
+    # Seeded files are canonical outputs, even when a worker damaged their hooks.
+    for name in ('syntax/mined.ebnf', 'tail/mined.ebnf'):
+        source = base/'grammar'/name
+        if source.exists():
+            shutil.copy2(source, directory/'grammar'/name)
     removed, kept = mined.remove(directory, task['rules'])
     r.require(set(removed) == set(task['rules']) and not kept, 'assigned rules have retained users')
-    before, after = r.tree(base/'grammar'), r.tree(directory/'grammar')
+    before, after = r.tree(root/'grammar'), r.tree(directory/'grammar')
+    r.require(before.keys() == after.keys(), 'removal unexpectedly changed grammar files')
     changed = [name for name in before if before[name] != after[name]]
     r.require(all('grammar/'+name in task['write_files'] for name in changed),
               'removal would change files outside the task write set')
+    # Canonical removal must never bypass the protected typed-hook contract.
+    check_root_hooks(base, directory)
     for name in changed:
         backup = directory/'backup'/name
         backup.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(root/'grammar'/name, backup)
-        r.require(Path(name).name == 'mined.ebnf', 'coordinator must admit non-mined hook changes')
     for name in changed:
         target = root/'grammar'/name
         temporary = target.with_name(target.name+'.'+uuid.uuid4().hex+'.tmp')
