@@ -186,3 +186,39 @@ combined candidate and audits it once. Acceptance is not inferred from agent pro
 The results should
 determine which families Luna can handle, which go directly to a larger model,
 and whether to increase authoring concurrency toward twelve.
+
+## Rolling batch checks
+
+The rolling dispatcher accepts `stage_group_size` from one to four, with a
+default of one. A larger group merges its proposals in order into a disposable
+grammar and checks the complete union against every baseline, previously admitted
+and newly authored family, plus the configured native regression controls. Only
+a passing union replaces the accepted prefix. A failed group retains its proof,
+discards the trial and retries its members individually against that prefix.
+Separate passing subsets never prove that their union passes. Manifests retain
+the ordered job dispositions, grammar and fixture hashes, group proofs and
+incremental staging progress.
+
+Two retrospective replays exercised this path on identical immutable proposals,
+using quick diagnostic helpers and six shared CPU tokens. Four selected passing
+proposals took 365.37 seconds individually and 164.65 seconds together. Eight
+proposals containing two known family failures took 672.06 seconds individually
+and 693.55 seconds with groups of four and fallback. Both replays produced
+identical final grammar, fixtures and dispositions. These are single selected
+pairs under concurrent load, not general throughput estimates. Monitor actual
+group success and fallback rates before extrapolating the savings.
+
+Full candidate validation still requires the eight repository gates and the
+complete explicitly allowed population, including every native reading and each
+baseline print success. Shared Cargo targets can reuse a test executable with a
+different compiled checkout path. Batch validation therefore clears inherited
+grammar overrides for the normal repository gates and additionally runs the
+locked release library test preset with the candidate grammar selected explicitly.
+The separate log, hash and return code are required evidence. This also keeps old
+checkpoint release tests independent of a parent's grammar override.
+
+An optional `candidate_validation_helpers` setting names a hash-bound optimized
+helper build. It remains separate from the parent checkpoint's helpers while
+staging. Promotion requires a private verified helper snapshot, the full candidate
+audit and all registered families under the optimized helpers. A failed candidate
+cannot replace the checkpoint's helper identity.
