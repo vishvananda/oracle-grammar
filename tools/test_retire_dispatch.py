@@ -18,6 +18,7 @@ import retire as r
 import retire_batch
 import retire_cpu
 import retire_dispatch as dispatch
+import retire_rehabilitation as rehabilitation
 import retire_tasks
 
 
@@ -154,6 +155,63 @@ class DispatchCanaries(unittest.TestCase):
             status = r.read(root/'status.json')
             self.assertEqual(status['status'], 'needs-operator')
             self.assertEqual(status['reason'], 'planned controller drain')
+
+    def test_reclassify_rehabilitates_only_newly_unused_parked_rules(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            queue = dispatch.Queue(root/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'old'})
+            queue.add_jobs([{'id': 'old', 'rules': ['m_unused', 'm_still_used'], 'kind': 'author',
+                             'source_fragments': [{'name': 'm_unused'}, {'name': 'm_still_used'}]},
+                            {'id': 'other', 'rules': ['m_other'], 'kind': 'author', 'source_fragments': []}])
+            child = subprocess.Popen([sys.executable, '-c', 'pass'])
+            child.wait()
+            for worker in ('first', 'second'):
+                claim = queue.claim(worker)
+                queue.mark_started(claim['attempt_id'], pid=child.pid)
+                queue.finish(claim['attempt_id'], 'failed', 'proof',
+                             {rule: {'status': 'needs-review', 'reason': 'review', 'evidence': 'x'}
+                              for rule in claim['job']['rules']})
+                lease = root/'leases'/claim['job']['id']
+                lease.parent.mkdir(exist_ok=True)
+                lease.touch()
+            inputs = root/'inputs'
+            (inputs/'scan').mkdir(parents=True)
+            r.write(inputs/'scan/rules.json', {'unused': ['m_unused'], 'needed': {}})
+            for name in ('scan-complete.json', 'manifest.json', 'scan/commands.jsonl'):
+                (inputs/name).write_text('{}')
+            cp = {'commit': 'base', 'inputs': str(inputs)}
+            with patch.object(rehabilitation, 'verify_scan', return_value=(inputs, {'m_unused'}, 'manifest', 'scan')), \
+                    patch.object(rehabilitation, 'verify_rule_receipts'):
+                dispatch.reclassify(root, cp)
+                self.assertEqual(queue.coverage()['counts'], {'failed': 3})
+                queue.add_checkpoint('next', {'proof': 'new'}, expected_parent='base')
+                dispatch.reclassify(root, dict(cp, commit='next'))
+            coverage = queue.coverage()
+            self.assertEqual(coverage['total_rules'], 3)
+            self.assertEqual(coverage['rules']['m_unused']['disposition'], 'pending')
+            self.assertEqual(coverage['rules']['m_still_used']['disposition'], 'needs-review')
+            self.assertEqual(coverage['rules']['m_other']['disposition'], 'failed')
+            mechanical = next(row for row in queue.get_jobs('pending') if row['job']['kind'] == 'mechanical')
+            self.assertEqual(mechanical['job']['rules'], ['m_unused'])
+
+    def test_reclassify_does_not_hide_invalid_scan_proof(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            inputs = root/'inputs'
+            (inputs/'scan').mkdir(parents=True)
+            r.write(inputs/'scan/rules.json', {'unused': ['m_one'], 'needed': {}})
+            for name in ('scan-complete.json', 'manifest.json', 'scan/commands.jsonl'):
+                (inputs/name).write_text('{}')
+            job = {'id': 'parked', 'rules': ['m_one'], 'kind': 'author'}
+            with patch.object(dispatch, 'Queue') as queue_type:
+                queue = queue_type.return_value
+                queue.get_jobs.side_effect = lambda status: [{'id': 'parked', 'job': job}] if status == 'failed' else []
+                queue.rehabilitate_unused.side_effect = ValueError('scan integrity failed')
+                with self.assertRaisesRegex(ValueError, 'scan integrity failed'):
+                    dispatch.reclassify(root, {'commit': 'next', 'inputs': str(inputs)})
+                queue.rehabilitate_unused.side_effect = dispatch.RehabilitationIneligible('worker still running')
+                dispatch.reclassify(root, {'commit': 'next', 'inputs': str(inputs)})
 
     def test_controller_accepts_verified_explicit_runner_and_refuses_tampering(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -67,6 +67,13 @@ for newly mechanical rules and makes it the base for subsequent claims. The
 stable integration workspace and shared Cargo target retain build caches, while
 checkpoint inputs, candidate commits and audit evidence remain separate.
 
+Later accepted grammar can also make a parked rule unused. Reclassification can
+then create a fresh mechanical job from the verified checkpoint scan. The
+original attempt and receipts stay immutable, and other rules in that bundle
+stay parked with their original review evidence. This creates no model attempt
+or acceptance; the mechanical job still needs fresh checks and full batch
+validation.
+
 Task cohorts close transitively over shared face names in frozen gold records,
 including every duplicate occurrence and companion face. This expansion does not
 change the assigned target faces. Diagnostics refuse closures above 1,024 face

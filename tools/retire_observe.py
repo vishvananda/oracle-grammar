@@ -102,7 +102,8 @@ def snapshot(campaign):
     for job_id, payload, status in jobs:
         kind = json.loads(payload).get('kind') or 'unknown'
         kinds[job_id] = kind
-        job_counts[(status, kind)] += 1
+        if status != 'superseded':
+            job_counts[(status, kind)] += 1
     for status, payload, count in rules:
         rule_counts[(status, json.loads(payload).get('kind') or 'unknown')] += count
     times, tainted, unstarted = defaultdict(dict), {}, set()

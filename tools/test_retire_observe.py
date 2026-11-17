@@ -88,6 +88,24 @@ class ObserveTests(unittest.TestCase):
         self.assertIsNone(result['cost_total']['estimated_usd'])
         self.assertEqual(result['cost_total']['unknown_attempts'], 1)
 
+    def test_superseded_parent_attempt_cost_counted_once(self):
+        claim = self.queue.claim('worker', kinds=['author'])
+        self.queue.finish(claim['attempt_id'], 'needs-review',
+                          {'usage': {'status': 'recorded', 'model': 'terra', 'estimated_usd': .2}},
+                          {'secret card text': {'status': 'needs-review', 'reason': 'x', 'evidence': 'x'}})
+        with closing(sqlite3.connect(self.root/'queue.sqlite', isolation_level=None)) as db:
+            db.execute("UPDATE jobs SET status='superseded' WHERE id='one'")
+            db.execute("INSERT INTO jobs(id,payload,status) VALUES (?,?,?)",
+                       ('child', json.dumps({'id': 'child', 'kind': 'author', 'rules': ['secret card text']}),
+                        'needs-review'))
+            db.execute("UPDATE rules SET job_id='child' WHERE job_id='one'")
+        result = observe.snapshot(self.root)
+        self.assertEqual(sum(row['count'] for row in result['jobs']), 2)
+        self.assertEqual(sum(row['count'] for row in result['rules']), 2)
+        self.assertEqual(result['cost_total']['known_estimated_usd'], .2)
+        self.assertEqual(sum(row['attempts'] for row in result['attempts']), 1)
+        self.assertEqual(result['attempts'][0]['kind'], 'author')
+
     def test_cli_output_constrained_to_cache(self):
         script = Path(observe.__file__)
         target = self.root/'.cache/observed.json'

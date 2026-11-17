@@ -107,12 +107,43 @@ def review(campaign):
                                'LEFT JOIN attempts a ON a.id=j.attempt_id '
                                "WHERE j.status IN ('needs-review','integration-rejected','failed') "
                                'ORDER BY j.id,r.rule'))
+        origin_ids = {origin['attempt_id'] for _, payload, _, attempt, _, _, _, _ in rows
+                      if attempt is None and isinstance((origin := json.loads(payload).get('review_origin')), dict)
+                      and isinstance(origin.get('attempt_id'), str)}
+        origins = {}
+        for identity in origin_ids:
+            row = db.execute('SELECT a.job_id,a.base_commit,a.result,j.adjudication,j.status,j.attempt_id,j.payload '
+                             'FROM attempts a JOIN jobs j ON j.id=a.job_id WHERE a.id=?', (identity,)).fetchone()
+            if row:
+                origins[identity] = row
+        origin_links = {(json.loads(data).get('review_job'), json.loads(data).get('origin_attempt'))
+                        for (data,) in db.execute("SELECT data FROM events WHERE kind='rehabilitated-unused'")}
         db.commit()
     finally:
         db.close()
     jobs = {}
     for job_id, payload, status, attempt, adjudication, base, raw, rule in rows:
         task = json.loads(payload)
+        origin = task.get('review_origin') if attempt is None else None
+        origin_valid = False
+        evidence_attempt, evidence_job = attempt, job_id
+        if isinstance(origin, dict):
+            original = origins.get(origin.get('attempt_id'))
+            if original:
+                (original_job, original_base, original_result, original_adjudication, original_status,
+                 parent_attempt, parent_payload) = original
+                origin_valid = (original_status == 'superseded' and original_job == origin.get('job_id')
+                                and parent_attempt == origin.get('attempt_id')
+                                and origin.get('status') in ('needs-review', 'integration-rejected', 'failed')
+                                and (job_id, origin.get('attempt_id')) in origin_links
+                                and set(task.get('rules', [])) <= set(json.loads(parent_payload).get('rules', []))
+                                and original_result is not None
+                                and hashlib.sha256(original_result.encode()).hexdigest() == origin.get('result_sha256')
+                                and hashlib.sha256((original_adjudication or 'null').encode()).hexdigest()
+                                == origin.get('adjudication_sha256'))
+                if origin_valid:
+                    evidence_attempt, evidence_job = origin['attempt_id'], original_job
+                    base, raw, adjudication = original_base, original_result, original_adjudication
         result = json.loads(raw) if raw else {}
         evidence = result.get('evidence') if isinstance(result.get('evidence'), dict) else {}
         outcomes = result.get('outcomes') if isinstance(result.get('outcomes'), dict) else {}
@@ -125,16 +156,18 @@ def review(campaign):
         if job_id not in jobs:
             decision = json.loads(adjudication) if adjudication else {}
             detail = decision.get('evidence') if isinstance(decision.get('evidence'), dict) else {}
-            manifest, job_reason, validation_reason = _integration(root, detail.get('manifest'), job_id)
+            manifest, job_reason, validation_reason = _integration(root, detail.get('manifest'), evidence_job)
             jobs[job_id] = {'job_id': job_id, 'status': status, 'kind': task.get('kind'), 'attempt_id': attempt,
-                            'base_checkpoint': base, 'primary_modules': task.get('primarymodules') or [],
+                            'base_checkpoint': base, 'review_checkpoint': task.get('review_checkpoint'),
+                            'review_origin': origin, 'review_origin_valid': origin_valid if origin is not None else None,
+                            'primary_modules': task.get('primarymodules') or [],
                             'semantic_roots': roots, 'rules': [],
-                            'report': _artifact(root/'.cache/attempts'/str(attempt)/'evaluations',
+                            'report': _artifact(root/'.cache/attempts'/str(evidence_attempt)/'evaluations',
                                                 evidence.get('report')),
                             'integration_reason': detail.get('reason'),
                             'integration_manifest': manifest, 'integration_job_reason': job_reason,
                             'integration_validation_reason': validation_reason,
-                            'candidate_archive': _archive(root, attempt)}
+                            'candidate_archive': _archive(root, evidence_attempt)}
         model_status = model.get('status')
         source = 'mechanical' if task.get('kind') == 'mechanical' else 'model'
         assessment = (f'{source}-proposed-bundle-not-passed' if model_status == 'proposed'
@@ -144,7 +177,8 @@ def review(campaign):
                       else 'attempt-failed' if status == 'failed' else 'unclassified')
         jobs[job_id]['rules'].append({'rule': rule, 'disposition_source': source, 'model_status': model_status,
                                       'model_reason': model.get('reason'),
-                                      'outcome_status': outcome.get('status'),
+                                      'outcome_status': status if origin_valid else outcome.get('status'),
+                                      'origin_outcome_status': outcome.get('status') if origin_valid else None,
                                       'outcome_reason': outcome.get('reason'),
                                       'assessment': assessment,
                                       'suggested_lanes': _lanes(status, task, outcome, model)})

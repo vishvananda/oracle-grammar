@@ -17,6 +17,7 @@ import uuid
 from contextlib import ExitStack, closing, contextmanager
 
 import retire_cohort_proof
+import retire_rehabilitation
 
 
 def _json(value):
@@ -443,6 +444,10 @@ def _verify_family_limit_revalidation(campaign, job_id, attempt_id, base_commit,
     return item, len(registry)
 
 
+class RehabilitationIneligible(ValueError):
+    """A parked job is safely ineligible or changed while being checked."""
+
+
 class Queue:
     def __init__(self, path, config=None):
         self.path = str(path)
@@ -550,6 +555,89 @@ class Queue:
             db.execute("UPDATE jobs SET status='superseded' WHERE id=?", (jobid,))
             self._event(db, "split", {"job_id": jobid, "groups": groups, "evidence": evidence})
 
+    def rehabilitate_unused(self, job_id, checkpoint, evidence):
+        """Move newly unused parked rules to fresh mechanical jobs atomically."""
+        def current(db):
+            return db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?', (job_id,)).fetchone()
+        with closing(self._connect()) as db:
+            row = current(db)
+            latest = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+            if not row or row[0] not in ('needs-review', 'integration-rejected', 'failed') or not latest or latest[0] != checkpoint:
+                raise RehabilitationIneligible('job is not parked or checkpoint is stale')
+            resolved = retire_rehabilitation.resolve_origin(db, job_id, row)
+            if resolved is None:
+                raise RehabilitationIneligible('original attempt identity is unknown')
+            payload, origin, base, started_raw, result_raw = resolved
+            if base == checkpoint or payload.get('review_checkpoint') == checkpoint:
+                raise RehabilitationIneligible('job was already evaluated or split at this checkpoint')
+            snapshot = tuple(row)
+            checkpoint_snapshot = tuple(latest)
+        pid = (json.loads(started_raw) if started_raw else {}).get('pid')
+        if type(pid) is not int or pid <= 0:
+            raise RehabilitationIneligible('original worker PID is unknown')
+        with self._retry_lease(origin['job_id'], unavailable_exc=RehabilitationIneligible):
+            try:
+                self._require_absent_pid(pid)
+            except ValueError as exc:
+                raise RehabilitationIneligible(str(exc)) from exc
+            inputs, unused, manifest_hash, scan_hash = retire_rehabilitation.verify_scan(
+                Path(self.path).parent, checkpoint, json.loads(checkpoint_snapshot[1]), evidence)
+            rules = payload.get('rules')
+            if not isinstance(rules, list) or not rules or len(set(rules)) != len(rules):
+                raise ValueError('parked job has invalid rules')
+            selected = [rule for rule in rules if rule in unused]
+            if not selected:
+                raise RehabilitationIneligible('no parked rules are unused at this checkpoint')
+            retire_rehabilitation.verify_rule_receipts(inputs, selected, manifest_hash, scan_hash)
+            with self._transaction() as db:
+                new_latest = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                new_row = current(db)
+                if not new_latest or tuple(new_latest) != checkpoint_snapshot or not new_row or tuple(new_row) != snapshot:
+                    raise RehabilitationIneligible('checkpoint or parked job changed')
+                if retire_rehabilitation.resolve_origin(db, job_id, new_row) != resolved:
+                    raise ValueError('original attempt changed during verification')
+                verified = retire_rehabilitation.verify_scan(
+                    Path(self.path).parent, checkpoint, json.loads(checkpoint_snapshot[1]), evidence)
+                if verified != (inputs, unused, manifest_hash, scan_hash):
+                    raise ValueError('checkpoint scan changed during verification')
+                retire_rehabilitation.verify_rule_receipts(inputs, selected, manifest_hash, scan_hash)
+                try:
+                    self._require_absent_pid(pid)
+                except ValueError as exc:
+                    raise RehabilitationIneligible(str(exc)) from exc
+                owned = {r[0] for r in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
+                if owned != set(rules):
+                    raise ValueError('parked rule ownership differs from payload')
+                mechanical, remaining = [], [rule for rule in rules if rule not in unused]
+                for rule in selected:
+                    suffix = hashlib.sha256((job_id+'\0'+checkpoint+'\0'+rule).encode()).hexdigest()[:20]
+                    child_id = 'rehab-mech-'+suffix
+                    child = dict(payload, id=child_id, kind='mechanical', rules=[rule], target_faces=[],
+                                 source_fragments=[x for x in payload.get('source_fragments', []) if x.get('name') == rule],
+                                 rehabilitation_origin={'job_id': job_id, 'attempt_id': origin['attempt_id'],
+                                                        'checkpoint': checkpoint})
+                    child.pop('review_origin', None)
+                    child.pop('review_checkpoint', None)
+                    db.execute("INSERT INTO jobs(id,payload,status) VALUES (?,?,'pending')", (child_id, _json(child)))
+                    db.execute('UPDATE rules SET job_id=? WHERE rule=? AND job_id=?', (child_id, rule, job_id))
+                    mechanical.append(child_id)
+                review_job = None
+                if remaining:
+                    suffix = hashlib.sha256((job_id+'\0'+checkpoint+'\0review').encode()).hexdigest()[:20]
+                    review_job = 'rehab-review-'+suffix
+                    review = dict(payload, id=review_job, rules=remaining, review_origin=origin,
+                                  review_checkpoint=checkpoint,
+                                  source_fragments=[x for x in payload.get('source_fragments', []) if x.get('name') in remaining])
+                    db.execute("INSERT INTO jobs(id,payload,status) VALUES (?,?,'needs-review')", (review_job, _json(review)))
+                    db.executemany('UPDATE rules SET job_id=? WHERE rule=? AND job_id=?',
+                                   [(review_job, rule, job_id) for rule in remaining])
+                db.execute("UPDATE jobs SET status='superseded' WHERE id=?", (job_id,))
+                result = {'parent_job': job_id, 'origin_attempt': origin['attempt_id'], 'checkpoint': checkpoint,
+                          'mechanical_jobs': mechanical, 'review_job': review_job, 'rules': selected,
+                          'manifest_sha256': manifest_hash, 'scan_sha256': scan_hash}
+                self._event(db, 'rehabilitated-unused', {**result, 'evidence': evidence})
+                return result
+
     def add_checkpoint(self, commit, evidence, expected_parent=None):
         if not isinstance(commit, str) or not commit:
             raise ValueError("commit is required")
@@ -648,7 +736,7 @@ class Queue:
             self._event(db, "finished", {"attempt_id": attempt, **result})
 
     @contextmanager
-    def _retry_lease(self, job_id):
+    def _retry_lease(self, job_id, unavailable_exc=ValueError):
         if (not isinstance(job_id, str) or not job_id or job_id in (".", "..")
                 or Path(job_id).name != job_id or "\x00" in job_id):
             raise ValueError("job ID must identify a single lease file")
@@ -656,14 +744,14 @@ class Queue:
         try:
             fd = os.open(lease_path, os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC)
         except OSError as exc:
-            raise ValueError("existing attempt lease is unavailable") from exc
+            raise unavailable_exc("existing attempt lease is unavailable") from exc
         try:
             if not stat.S_ISREG(os.fstat(fd).st_mode):
                 raise ValueError("attempt lease is not a regular file")
             try:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as exc:
-                raise ValueError("attempt lease is still held") from exc
+                raise unavailable_exc("attempt lease is still held") from exc
             yield
         finally:
             os.close(fd)
@@ -1203,15 +1291,25 @@ class Queue:
             rule_counts = {}
             rules = {}
             for row in db.execute("SELECT id,payload,status,attempt_id,adjudication FROM jobs WHERE status != 'superseded' ORDER BY rowid"):
-                job = {"id": row[0], "rules": json.loads(row[1])["rules"], "status": row[2], "attempt_id": row[3], "adjudication": json.loads(row[4]) if row[4] else None}
+                payload = json.loads(row[1])
+                job = {"id": row[0], "rules": payload["rules"], "status": row[2], "attempt_id": row[3], "adjudication": json.loads(row[4]) if row[4] else None}
                 counts[row[2]] = counts.get(row[2], 0) + len(job["rules"])
                 attempt = db.execute("SELECT result FROM attempts WHERE id=?", (row[3],)).fetchone() if row[3] else None
                 result = json.loads(attempt[0]) if attempt and attempt[0] else None
-                job["outcomes"] = result["outcomes"] if result else None
+                inherited = payload.get("review_origin") is not None and row[3] is None
+                if payload.get("review_origin") is not None and not inherited:
+                    job["prior_review_origin"] = payload["review_origin"]
+                if inherited:
+                    resolved = retire_rehabilitation.resolve_origin(db, row[0], (row[2], row[3], row[1], row[4]))
+                    result = json.loads(resolved[4])
+                    job["review_origin"] = resolved[1]
+                job["outcomes"] = {rule: result["outcomes"][rule] for rule in job["rules"]} if result else None
                 for rule in job["rules"]:
                     outcome = result["outcomes"][rule] if result else None
                     disposition = outcome["status"] if outcome else row[2]
-                    if row[2] in ("accepted", "integration-rejected", "failed"):
+                    if inherited:
+                        disposition = "needs-review"
+                    elif row[2] in ("accepted", "integration-rejected", "failed"):
                         disposition = row[2]
                     rule_counts[disposition] = rule_counts.get(disposition, 0) + 1
                     rules[rule] = {"job_id": row[0], "disposition": disposition, "outcome": outcome}

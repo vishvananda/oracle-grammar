@@ -29,7 +29,7 @@ import retire_cpu
 import retire_plan as planner
 import retire_metrics
 import retire_retention
-from retire_queue import Queue
+from retire_queue import Queue, RehabilitationIneligible
 from retire_tasks import prepare_task, validate_runner
 import retire_worker as w
 
@@ -270,6 +270,22 @@ def reclassify(run, cp):
             latest=next(row for row in queue.get_jobs() if row['id']==job['id'])
             if latest['status']=='pending':
                 raise
+    proof=None
+    for status in ('needs-review','integration-rejected','failed'):
+        for row in queue.get_jobs(status):
+            job=row['job']
+            if not set(job['rules']) & unused or job.get('review_checkpoint')==cp['commit']:
+                continue
+            if proof is None:
+                inputs=Path(cp['inputs'])
+                paths={'scan':inputs/'scan/rules.json', 'scan_complete':inputs/'scan-complete.json',
+                       'manifest':inputs/'manifest.json', 'commands':inputs/'scan/commands.jsonl'}
+                proof={'kind':'checkpoint-unused-rehabilitation',
+                       **{name:{'path':str(path.resolve()),'sha256':r.digest(path)} for name,path in paths.items()}}
+            try:
+                queue.rehabilitate_unused(row['id'],cp['commit'],proof)
+            except RehabilitationIneligible:
+                continue
 
 
 def proposals(run, count):

@@ -149,7 +149,7 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
         if not code:
             raise ValueError('invalid family check report') from error
     if code:
-        raise ValueError(f'family check failed: {fixture}')
+        raise ValueError(f'family check failed: {log}')
 
 
 @contextmanager

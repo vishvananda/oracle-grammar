@@ -105,6 +105,51 @@ class ReviewTests(unittest.TestCase):
         row = exporter.review(self.root)['jobs'][0]['rules'][0]
         self.assertEqual(row['assessment'], 'mechanical-needs-review')
 
+    def test_inherited_review_uses_origin_without_inventing_attempt(self):
+        claim = self.queue.claim('worker', kinds=['author'])
+        report = self.root/'.cache/attempts'/claim['attempt_id']/'evaluations/a/report.json'
+        report.parent.mkdir(parents=True)
+        report.write_text('{"passed":false}')
+        archive = self.root/'.cache/archives'/f"{claim['attempt_id']}.tar.gz"
+        archive.parent.mkdir(parents=True)
+        archive.write_bytes(b'original archive')
+        (self.root/'.cache/attempts'/claim['attempt_id']/'archive.json').write_text(json.dumps(
+            {'archive': str(archive), 'sha256': hashlib.sha256(b'original archive').hexdigest()}))
+        self.queue.finish(claim['attempt_id'], 'needs-review', {'report': str(report), 'dispositions': {
+            'r1': {'status': 'needs-review', 'reason': 'native binding required'},
+            'r2': {'status': 'needs-review', 'reason': 'other'}}},
+            {rule: {'status': 'needs-review', 'reason': 'review', 'evidence': 'x'} for rule in ('r1', 'r2')})
+        with closing(sqlite3.connect(self.root/'queue.sqlite', isolation_level=None)) as db:
+            original = db.execute('SELECT result FROM attempts WHERE id=?', (claim['attempt_id'],)).fetchone()[0]
+            origin = {'job_id': 'a', 'attempt_id': claim['attempt_id'], 'status': 'needs-review',
+                      'result_sha256': hashlib.sha256(original.encode()).hexdigest(),
+                      'adjudication_sha256': hashlib.sha256(b'null').hexdigest()}
+            child = {'id': 'child', 'kind': 'author', 'rules': ['r1'], 'review_origin': origin,
+                     'review_checkpoint': 'next'}
+            db.execute("UPDATE jobs SET status='superseded' WHERE id='a'")
+            db.execute("INSERT INTO jobs(id,payload,status) VALUES (?,?,?)", ('child', json.dumps(child), 'needs-review'))
+            db.execute("UPDATE rules SET job_id='child' WHERE rule='r1'")
+            db.execute("INSERT INTO jobs(id,payload,status) VALUES (?,?,?)",
+                       ('mech', json.dumps({'id': 'mech', 'kind': 'mechanical', 'rules': ['r2']}), 'pending'))
+            db.execute("UPDATE rules SET job_id='mech' WHERE rule='r2'")
+            db.execute("INSERT INTO events(kind,data) VALUES ('rehabilitated-unused', ?)",
+                       (json.dumps({'review_job': 'child', 'origin_attempt': claim['attempt_id']}),))
+        value = exporter.review(self.root)
+        self.assertEqual(value['rule_count'], 1)
+        job = value['jobs'][0]
+        self.assertIsNone(job['attempt_id'])
+        self.assertTrue(job['review_origin_valid'])
+        self.assertEqual(job['base_checkpoint'], 'base')
+        self.assertEqual(job['review_checkpoint'], 'next')
+        self.assertEqual(job['rules'][0]['model_reason'], 'native binding required')
+        self.assertEqual(job['report']['sha256'], hashlib.sha256(report.read_bytes()).hexdigest())
+        self.assertEqual(job['candidate_archive']['status'], 'verified')
+        with closing(sqlite3.connect(self.root/'queue.sqlite', isolation_level=None)) as db:
+            db.execute("UPDATE attempts SET result='{}' WHERE id=?", (claim['attempt_id'],))
+        job = exporter.review(self.root)['jobs'][0]
+        self.assertFalse(job['review_origin_valid'])
+        self.assertIsNone(job['rules'][0]['model_reason'])
+
 
 if __name__ == '__main__':
     unittest.main()
