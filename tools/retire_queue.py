@@ -21,6 +21,7 @@ import retire_rehabilitation
 import retire_native_readmission
 import retire_library_readmission
 import retire_priority
+import retire_timeout_recovery
 
 
 def _json(value):
@@ -651,6 +652,10 @@ class Queue:
                 raise ValueError('priority audit input hashes differ')
             self._event(db, 'priority-published', result)
             return result
+
+    def rehabilitate_timeout(self, job_id, attempt, checkpoint, evidence):
+        """Split one proven six-rule model timeout into two pending jobs."""
+        return retire_timeout_recovery.rehabilitate(self, job_id, attempt, checkpoint, evidence)
 
     def add_checkpoint(self, commit, evidence, expected_parent=None):
         if not isinstance(commit, str) or not commit:
