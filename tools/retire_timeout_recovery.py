@@ -55,10 +55,10 @@ def verify(campaign, job_id, attempt, state, evidence):
         json.loads(raw[name]) for name in ('model_receipt', 'descriptor', 'support', 'base_manifest',
                                            'archive_metadata', 'terminal_receipt'))
     if (payload.get('kind') != 'author' or payload.get('timeout_origin') is not None
-            or not isinstance(payload.get('rules'), list) or len(payload['rules']) != 6
-            or len(set(payload['rules'])) != 6 or descriptor.get('id') != job_id
+            or not isinstance(payload.get('rules'), list) or not 4 <= len(payload['rules']) <= 6
+            or len(set(payload['rules'])) != len(payload['rules']) or descriptor.get('id') != job_id
             or descriptor.get('rules') != payload['rules']):
-        raise ValueError('timeout recovery requires original six-rule author job')
+        raise ValueError('timeout recovery requires original four-to-six-rule author job')
     pid = started.get('pid')
     if (type(pid) is not int or pid <= 0 or receipt.get('pid') != pid
             or started.get('receipt') != str(worker/'receipt.json') or receipt.get('task') != job_id
@@ -154,8 +154,9 @@ def rehabilitate(queue, job_id, attempt, checkpoint, evidence):
         if not isinstance(fragments, list) or sorted(x.get('name') for x in fragments if isinstance(x, dict)) != sorted(rules):
             raise ValueError('timeout job source fragments do not cover assigned rules')
         groups = []
-        for offset in (0, 3):
-            selected = rules[offset:offset+3]
+        midpoint = (len(rules)+1)//2
+        for offset in (0, midpoint):
+            selected = rules[offset:offset+midpoint]
             faces = []
             for rule in selected:
                 if rule not in needed and rule not in scan[1]:

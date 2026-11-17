@@ -34,7 +34,7 @@ class TimeoutRecoveryTests(unittest.TestCase):
         old_inputs = self.root/'checkpoints/old/inputs'
         manifest = old_inputs/'manifest.json'; write(manifest, {'format': 3, 'commit': 'old'})
         self.queue.add_checkpoint('old', {'kind': 'accepted-input', 'manifest': spec(manifest)['sha256']})
-        self.rules = [f'm_rule_{n}' for n in range(6)]
+        self.rules = [f'm_rule_{n}' for n in range(getattr(self, 'rule_count', 6))]
         self.job = {'id': 'family', 'kind': 'author', 'rules': self.rules,
                     'goal': 'review', 'source_fragments': [{'name': rule} for rule in self.rules],
                     'target_faces': ['old target']}
@@ -104,6 +104,39 @@ class TimeoutRecoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.split()
         self.assertEqual(self.queue.claim('next')['base_commit'], 'new')
 
+    def test_four_and_five_rule_timeouts_split_balanced(self):
+        for count, sizes in ((4, [2, 2]), (5, [3, 2])):
+            with self.subTest(count=count):
+                fixture = TimeoutRecoveryTests('runTest')
+                fixture.rule_count = count
+                fixture.setUp()
+                try:
+                    original = fixture.queue.get_attempt(fixture.attempt)
+                    result = fixture.split()
+                    children = [entry['job'] for entry in fixture.queue.get_jobs('pending')]
+                    self.assertEqual([len(child['rules']) for child in children], sizes)
+                    self.assertEqual([rule for child in children for rule in child['rules']], fixture.rules)
+                    self.assertTrue(all(child['rule_dispositions_required'] == child['rules'] for child in children))
+                    self.assertEqual(fixture.queue.coverage()['counts'], {'pending': count})
+                    self.assertEqual(fixture.queue.coverage()['accepted_rules'], 0)
+                    self.assertEqual(fixture.queue.get_attempt(fixture.attempt), original)
+                    self.assertEqual(len(result['children']), 2)
+                    with self.assertRaises(ValueError): fixture.split()
+                finally:
+                    fixture.doCleanups()
+
+    def test_out_of_range_rule_counts_are_refused(self):
+        for count in (1, 2, 3, 7):
+            with self.subTest(count=count):
+                fixture = TimeoutRecoveryTests('runTest')
+                fixture.rule_count = count
+                fixture.setUp()
+                try:
+                    with self.assertRaisesRegex(ValueError, 'four-to-six-rule'): fixture.split()
+                    self.assertEqual(fixture.queue.coverage()['counts'], {'needs-review': count})
+                finally:
+                    fixture.doCleanups()
+
     def test_concurrent_split_exactly_one_succeeds(self):
         def go():
             try: return self.split()
@@ -151,7 +184,7 @@ class TimeoutRecoveryTests(unittest.TestCase):
             data = json.loads(db.execute("SELECT payload FROM jobs WHERE id='family'").fetchone()[0])
             data['timeout_origin'] = {'job_id': 'older'}
             db.execute("UPDATE jobs SET payload=? WHERE id='family'", (json.dumps(data),))
-        with self.assertRaisesRegex(ValueError, 'original six-rule author job'): self.split()
+        with self.assertRaisesRegex(ValueError, 'original four-to-six-rule author job'): self.split()
 
     def test_evidence_rechecked_before_transactional_split(self):
         real = recovery.verify

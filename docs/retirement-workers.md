@@ -346,8 +346,9 @@ existing checkpoint directory fails closed, including after a partial commit.
 A model that exhausts its 900-second budget without a final response has an
 operational timeout, not a completed semantic review or an infrastructure-fault
 diagnosis. After verifying its terminal receipt, empty final, archived checkout,
-process and lease, the coordinator may split an original six-rule timeout once
-into two pending three-rule jobs against the latest accepted checkpoint. The
+process and lease, the coordinator may split an original four-to-six-rule timeout
+once into two balanced pending jobs of at most three rules each, against the
+latest accepted checkpoint. The
 original attempt, archive and cost history remain intact. Timeout children cannot
 use this recovery recursively, and neither the split nor a pending child is an
 acceptance; each child must complete the normal review and validation gates.

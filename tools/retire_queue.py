@@ -654,7 +654,7 @@ class Queue:
             return result
 
     def rehabilitate_timeout(self, job_id, attempt, checkpoint, evidence):
-        """Split one proven six-rule model timeout into two pending jobs."""
+        """Split one proven four-to-six-rule model timeout into two pending jobs."""
         return retire_timeout_recovery.rehabilitate(self, job_id, attempt, checkpoint, evidence)
 
     def add_checkpoint(self, commit, evidence, expected_parent=None):
