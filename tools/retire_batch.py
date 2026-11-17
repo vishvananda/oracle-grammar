@@ -711,15 +711,25 @@ def _validate(manifest, checkpoint, slots):
         # dev.py runs families and library tests concurrently. Divide the lease
         # between those two gates, leaving headroom for the fast gates.
         gate_threads = str(max(2, threads//2-2))
-        gate_env = {**os.environ, 'CARGO_BUILD_JOBS': str(max(4, threads-4)),
-                    'RAYON_NUM_THREADS': gate_threads, 'ORACLE_GRAMMAR_THREADS': gate_threads,
-                    'RUST_TEST_THREADS': gate_threads, 'ORACLE_GRAMMAR_DIR': str(source/'grammar')}
+        gate_env = {key: value for key, value in os.environ.items() if not key.startswith('ORACLE_GRAMMAR_')}
+        gate_env.update(CARGO_BUILD_JOBS=str(max(4, threads-4)), RAYON_NUM_THREADS=gate_threads,
+                        ORACLE_GRAMMAR_THREADS=gate_threads, RUST_TEST_THREADS=gate_threads)
         with (folder/'repository-check.log').open('w') as log:
             code = subprocess.run(['python3', 'tools/dev.py', 'check'], cwd=source, env=gate_env,
                                   stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode
         evidence['repository_check_returncode'] = code
         if code:
             raise ValueError('repository gates failed')
+        explicit_log = folder/'repository-explicit-grammar-test.log'
+        explicit_env = {**gate_env, 'ORACLE_GRAMMAR_DIR': str(source/'grammar')}
+        with explicit_log.open('w') as log:
+            code = subprocess.run(['python3', 'tools/dev.py', 'test'], cwd=source, env=explicit_env,
+                                  stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode
+        evidence['explicit_grammar_test_log'] = str(explicit_log)
+        evidence['explicit_grammar_test_log_sha256'] = r.digest(explicit_log)
+        evidence['explicit_grammar_test_returncode'] = code
+        if code:
+            raise ValueError('explicit candidate grammar tests failed')
         if candidate_spec is not None:
             evidence['optimized_family_log'] = str(folder/'optimized-family-check.log')
             family_log = _optimized_families(source, selected_helpers, folder, int(gate_threads))

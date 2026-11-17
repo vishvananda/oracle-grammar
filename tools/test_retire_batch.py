@@ -164,7 +164,10 @@ class BatchTests(unittest.TestCase):
     def test_repository_failure_does_not_start_full_score(self):
         self._validate_threads(16, True, gate_code=1)
 
-    def _validate_threads(self, expected, configured, gate_code=0):
+    def test_explicit_candidate_grammar_failure_does_not_start_full_score(self):
+        self._validate_threads(16, True, explicit_code=1)
+
+    def _validate_threads(self, expected, configured, gate_code=0, explicit_code=0):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -198,17 +201,24 @@ class BatchTests(unittest.TestCase):
                 (directory/'rows.jsonl').write_text('rows')
                 return {'failures': []}
             def gate(*args, **kwargs):
-                order.append('gate')
+                command = args[0]
+                action = command[-1]
+                self.assertIn(action, ('check', 'test'))
+                order.append('gate' if action == 'check' else 'explicit-test')
                 self.assertEqual(len(kwargs['pass_fds']), expected)
                 self.assertEqual(kwargs['env']['CARGO_BUILD_JOBS'], str(expected - 4))
-                self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(source/'grammar'))
+                self.assertNotIn('ORACLE_GRAMMAR_POISON', kwargs['env'])
+                if action == 'check':
+                    self.assertNotIn('ORACLE_GRAMMAR_DIR', kwargs['env'])
+                else:
+                    self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(source/'grammar'))
                 for name in ('RAYON_NUM_THREADS', 'ORACLE_GRAMMAR_THREADS', 'RUST_TEST_THREADS'):
                     self.assertEqual(kwargs['env'][name], str(expected//2-2))
-                return SimpleNamespace(returncode=gate_code)
+                return SimpleNamespace(returncode=gate_code if action == 'check' else explicit_code)
             def freeze_input(args):
                 order.append('freeze')
                 args.run.mkdir()
-            with patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar'}), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate):
+            with patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar', 'ORACLE_GRAMMAR_POISON': 'wrong'}), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate):
                 result = batch.validate(manifest, cp)
             self.assertEqual(freeze.call_args.args[0].threads, expected)
             self.assertEqual(freeze.call_args.args[0].slots, 1)
@@ -225,7 +235,21 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(json.loads((folder/'validation.json').read_text()), result)
                 self.assertEqual(batch.r._LEASES, [])
                 return
-            self.assertEqual(order, ['freeze', 'gate', 'checks'])
+            if explicit_code:
+                self.assertEqual(order, ['freeze', 'gate', 'explicit-test'])
+                full_checks.assert_not_called()
+                self.assertEqual(result['status'], 'failed')
+                self.assertEqual(result['reason'], 'explicit candidate grammar tests failed')
+                self.assertEqual(result['explicit_grammar_test_returncode'], explicit_code)
+                self.assertTrue((folder/'repository-explicit-grammar-test.log').is_file())
+                self.assertFalse((folder/'full-checks').exists())
+                self.assertNotIn('rows', result)
+                self.assertEqual(batch.r._LEASES, [])
+                return
+            self.assertEqual(order, ['freeze', 'gate', 'explicit-test', 'checks'])
+            self.assertEqual(result['explicit_grammar_test_returncode'], 0)
+            self.assertEqual(result['explicit_grammar_test_log_sha256'],
+                             batch.r.digest(folder/'repository-explicit-grammar-test.log'))
             self.assertEqual(result['status'], 'passed')
             self.assertEqual(result['scope'], 'combined-batch')
             self.assertEqual(result['audit_threads'], expected)
