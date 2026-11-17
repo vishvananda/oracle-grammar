@@ -286,6 +286,17 @@ per-rule parse dependencies or inspect saved candidate diagnostics, but must kee
 the unavailable model disposition and any untested gates explicit. An earlier
 passing diagnostic cannot validate subsequent edits to the archived candidate.
 
+The read-only review export accepts paired `--coordinator-manifest ABSOLUTE_JSON`
+and `--coordinator-manifest-sha256 SHA256` options. The explicitly selected
+manifest pins reviewed indices, their evidence and bounded canonical evidence
+roots; the campaign cache is always allowed. The exporter verifies each original
+job, attempt, rule assignment and nested evidence before attaching a separate
+`coordinator_triage` field. It retains unavailable model outcomes and unclassified
+assessments, lists untested gates, and cannot accept a retirement. Current
+ownership and verified inherited review origins come from the same database
+snapshot. Stale or reassigned findings remain unmatched with an explicit reason.
+Without these options, the existing export is unchanged.
+
 `tools/retire_timeout_operator.py --run RUN --plan ABSOLUTE_JSON` inventories
 finished attempts and rehearses eligible splits against a SQLite backup. Repeated
 `--job ID` options restrict the selection. Planning never changes the live queue;
