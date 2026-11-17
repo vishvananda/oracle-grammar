@@ -158,5 +158,140 @@ class BatchReadmissionTests(unittest.TestCase):
         self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
 
 
+    def native_fixture(self):
+        folder = self.root/'.cache/batches/batch'
+        inputs = self.root/'checkpoints/parent/inputs'
+        base_grammar = inputs/'frozen/grammar'
+        base_grammar.mkdir(parents=True)
+        (base_grammar/'test.ebnf').write_text('base grammar')
+        base_hash = spec(base_grammar/'test.ebnf')['sha256']
+        write(inputs/'manifest.json', {'commit': 'parent', 'population': 1,
+                                      'files': {'grammar/test.ebnf': base_hash}})
+        write(self.root/'checkpoints/parent.json', {'commit': 'parent', 'inputs': str(inputs)})
+        manifest = folder/'manifest.json'
+        data = json.loads(manifest.read_text())
+        candidate_bytes = b'candidate grammar'
+        data['grammar'] = {'test.ebnf': hashlib.sha256(candidate_bytes).hexdigest()}
+        write(manifest, data)
+        validation = {'status': 'failed', 'scope': 'combined-batch', 'reason': 'full allowed-population checks failed',
+                      'repository_check_returncode': 0, 'candidate': 'candidate', 'source_checkpoint': 'parent',
+                      'full_checks': {'faces': 1, 'failures': [{'face': 'N', 'lost': ['exact_default']}]},
+                      'included_jobs': [item['job_id'] for item in self.items]}
+        write(self.validation, validation)
+        with closing(self.queue._connect()) as db:
+            for item in self.items:
+                value = {'status': 'integration-rejected', 'checkpoint': None,
+                         'evidence': {'manifest': 'batch', 'validation': validation}}
+                db.execute('UPDATE jobs SET adjudication=? WHERE id=?', (json.dumps(value), item['job_id']))
+        self.log.write_text(''.join(f'{name} passed 1.0 s\n'
+                                    for name in ('fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test')))
+        controls = {}
+        for name, content, indices, failures in (
+                ('base', b'base grammar', [], []),
+                ('full', candidate_bytes, [0, 1, 2], [{'face': 'N', 'lost': ['exact_default']}]),
+                ('remaining', b'remaining grammar', [0, 1], [])):
+            root = self.root/'.cache'/('native-'+name)
+            (root/'grammar').mkdir(parents=True)
+            (root/'grammar/test.ebnf').write_bytes(content)
+            result = root/'result.json'
+            identity = root/'identity.json'
+            population = root/'checks/slice.json'
+            write(result, {'faces': 1, 'failures': failures})
+            write(identity, {'indices': indices, 'tree': {'test.ebnf': spec(root/'grammar/test.ebnf')['sha256']}})
+            write(population, {'cards': ['N']})
+            controls[name] = {'result': spec(result), 'identity': spec(identity), 'population': spec(population)}
+        isolation = self.root/'.cache/native-isolation.json'
+        write(isolation, {'kind': 'isolated-native-regressions', 'manifest': 'batch', 'candidate': 'candidate',
+                          'parent': 'parent', 'excluded_jobs': ['culprit'], 'population_count': 1,
+                          'controls': controls, 'reason': 'focused full failed and remaining passed'})
+        return {'kind': 'isolated-batch-native-revalidation', 'manifest': spec(manifest),
+                'validation': spec(self.validation), 'repository_log': spec(self.log), 'isolation': spec(isolation)}
+
+    def test_native_readmission_author_and_mechanical_require_fresh_audit(self):
+        proof = self.native_fixture()
+        for job in ('author', 'mechanical'):
+            self.queue.readmit_native_batch_proposal(job, self.attempt(job), 'parent',
+                                                     {**proof, 'report': spec(self.reports[job])})
+        self.assertEqual(self.queue.coverage()['counts'], {'provisional-pass': 2, 'integration-rejected': 1})
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+        event = self.queue.audit()[-1]['data']
+        self.assertTrue(event['proof']['requires_fresh_full_validation'])
+        self.assertEqual(event['proof']['excluded_jobs'], ['culprit'])
+        with self.assertRaisesRegex(ValueError, 'exclude'):
+            self.queue.readmit_native_batch_proposal('culprit', self.attempt('culprit'), 'parent',
+                                                     {**proof, 'report': spec(self.reports['culprit'])})
+        validation = json.loads(self.validation.read_text())
+        self.queue.reject_jobs(['author'], {'manifest': 'batch', 'validation': validation})
+        with self.assertRaisesRegex(ValueError, 'already used'):
+            self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent',
+                                                     {**proof, 'report': spec(self.reports['author'])})
+
+    def test_native_readmission_rechecks_checkpoint_after_expensive_proof(self):
+        import retire_native_readmission
+        proof = self.native_fixture()
+        proof['report'] = spec(self.reports['author'])
+        verify = retire_native_readmission.verify
+        def advance(*args):
+            result = verify(*args)
+            self.queue.add_checkpoint('next', 'proof', expected_parent='parent')
+            return result
+        with patch.object(retire_native_readmission, 'verify', side_effect=advance):
+            with self.assertRaisesRegex(ValueError, 'changed during'):
+                self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_native_isolation_requires_all_control_outcomes_and_exact_complement(self):
+        proof = self.native_fixture()
+        proof['report'] = spec(self.reports['author'])
+        path = self.root/'.cache/native-isolation.json'
+        isolation = json.loads(path.read_text())
+        remaining = self.root/'.cache/native-remaining/result.json'
+        write(remaining, {'faces': 1, 'failures': [{'face': 'N'}]})
+        isolation['controls']['remaining']['result'] = spec(remaining)
+        write(path, isolation)
+        proof['isolation'] = spec(path)
+        with self.assertRaisesRegex(ValueError, 'outcome: remaining'):
+            self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent', proof)
+        write(remaining, {'faces': 1, 'failures': []})
+        isolation['controls']['remaining']['result'] = spec(remaining)
+        identity = self.root/'.cache/native-remaining/identity.json'
+        data = json.loads(identity.read_text())
+        data['indices'] = [0]
+        write(identity, data)
+        isolation['controls']['remaining']['identity'] = spec(identity)
+        write(path, isolation)
+        proof['isolation'] = spec(path)
+        with self.assertRaisesRegex(ValueError, 'outcome: remaining'):
+            self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_native_readmission_rejects_failed_repository_gate(self):
+        proof = self.native_fixture()
+        proof['report'] = spec(self.reports['author'])
+        self.log.write_text(self.log.read_text().replace('tools passed', 'tools FAILED'))
+        proof['repository_log'] = spec(self.log)
+        with self.assertRaisesRegex(ValueError, 'repository gates did not all pass'):
+            self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent', proof)
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+
+    def test_native_readmission_requires_pass_controls_intact_hashes_and_dead_owner(self):
+        proof = self.native_fixture()
+        proof['report'] = spec(self.reports['author'])
+        with (self.root/'leases/author').open('w') as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaisesRegex(ValueError, 'still held'):
+                self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent', proof)
+        with patch('retire_queue.os.kill', return_value=None):
+            with self.assertRaisesRegex(ValueError, 'still present'):
+                self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent', proof)
+        with self.assertRaisesRegex(ValueError, 'stale'):
+            self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'old', proof)
+        (self.root/'.cache/native-remaining/grammar/test.ebnf').write_text('tampered')
+        with self.assertRaisesRegex(ValueError, 'grammar hash differs'):
+            self.queue.readmit_native_batch_proposal('author', self.attempt('author'), 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+
+
 if __name__ == '__main__':
     unittest.main()

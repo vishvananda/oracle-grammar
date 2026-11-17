@@ -35,10 +35,10 @@ import retire_worker as w
 
 
 @contextmanager
-def lease(path):
+def lease(path, *, blocking=False):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open('a') as stream:
-        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(stream, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
         yield stream.fileno()
 
 
@@ -288,14 +288,27 @@ def reclassify(run, cp):
                 continue
 
 
-def proposals(run, count):
+def proposals(run, count, selected_job_ids=None):
     queue=Queue(run/'queue.sqlite')
+    if selected_job_ids is None:
+        rows=queue.get_jobs('provisional-pass',limit=count)
+    else:
+        if (not isinstance(selected_job_ids,list) or not 1 <= len(selected_job_ids) <= 96
+                or any(not isinstance(job_id,str) or not job_id for job_id in selected_job_ids)
+                or len(set(selected_job_ids)) != len(selected_job_ids)):
+            raise ValueError('selected jobs must be 1–96 distinct nonempty IDs')
+        available={row['id']:row for row in queue.get_jobs('provisional-pass')}
+        if any(job_id not in available for job_id in selected_job_ids):
+            raise ValueError('every selected job must be provisional')
+        rows=[available[job_id] for job_id in selected_job_ids]
     output=[]
-    for row in queue.get_jobs('provisional-pass',limit=count):
+    for row in rows:
         attempt=queue.get_attempt(row['attempt_id'])
         evidence=attempt['result']['evidence']
         report_path=evidence.get('report')
         if not report_path:
+            if selected_job_ids is not None:
+                raise ValueError('selected provisional job lacks a report')
             continue
         output.append({'job_id':row['id'],'attempt_id':row['attempt_id'],
                        'run':evidence['run'],'report':r.read(Path(report_path)),
@@ -303,25 +316,25 @@ def proposals(run, count):
     return output
 
 
-def batch(run):
+def batch(run, selected_job_ids=None, *, wait=False):
     try:
-        with lease(run/'batch.lock') as fd:
+        with lease(run/'batch.lock', blocking=wait) as fd:
             r._LEASES.append(fd)
             try:
-                return _batch(run)
+                return _batch(run) if selected_job_ids is None else _batch(run, selected_job_ids)
             finally:
                 r._LEASES.remove(fd)
     except BlockingIOError:
         return
 
 
-def _batch(run):
+def _batch(run, selected_job_ids=None):
     queue=Queue(run/'queue.sqlite')
     cp=campaign_api.checkpoint(run,queue.coverage()['checkpoint'])
     config=r.read(run/'config.json')
     cp=dict(cp,audit_threads=config.get('audit_threads',24))
     limit=config['first_batch_size'] if cp['commit']==config['initial_commit'] else config['batch_size']
-    items=proposals(run,limit)
+    items=proposals(run,limit,selected_job_ids)
     if not items:
         return
     manifest=retire_batch.stage(run,cp,items)
@@ -487,11 +500,15 @@ def main():
     parser.add_argument('run',type=Path)
     parser.add_argument('task',nargs='?')
     parser.add_argument('--runner',type=Path)
+    parser.add_argument('--jobs-file',type=Path)
+    parser.add_argument('--wait',action='store_true')
     args=parser.parse_args()
     run=args.run.resolve()
     if args.command!='run' and args.runner is not None: parser.error('--runner is only valid for run')
+    if args.command!='batch' and (args.jobs_file is not None or args.wait):
+        parser.error('--jobs-file and --wait are only valid for batch')
     if args.command=='mechanical':mechanical(run,args.task)
-    elif args.command=='batch':batch(run)
+    elif args.command=='batch':batch(run, r.read(args.jobs_file) if args.jobs_file else None, wait=args.wait)
     else:run_campaign(run,args.runner)
 
 

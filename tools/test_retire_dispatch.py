@@ -1,5 +1,6 @@
 """Small real Git and frozen-artifact canaries for campaign integration."""
 from contextlib import redirect_stdout
+from concurrent.futures import ThreadPoolExecutor
 import fcntl
 import io
 import sys
@@ -9,6 +10,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import threading
 from types import SimpleNamespace
 import unittest
 import uuid
@@ -262,6 +264,52 @@ class DispatchCanaries(unittest.TestCase):
                 child.terminate()
                 child.wait()
                 child.stdout.close()
+
+    def test_selected_proposals_are_exact_ordered_and_provisional(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            queue = dispatch.Queue(root/'queue.sqlite')
+            queue.add_checkpoint('base', 'proof')
+            queue.add_jobs([{'id': name, 'rules': [f'r_{name}'], 'kind': 'author'}
+                            for name in ('one', 'two', 'three', 'review')])
+            for name in ('one', 'two', 'three', 'review'):
+                claim = queue.claim('worker')
+                report = root/f'{name}.json'
+                r.write(report, {'task': name})
+                passing = name != 'review'
+                outcome = {'status': 'pass', 'evidence': 'x'} if passing else {
+                    'status': 'needs-review', 'reason': 'review', 'evidence': 'x'}
+                queue.finish(claim['attempt_id'], 'provisional-pass' if passing else 'needs-review',
+                             {'report': str(report), 'run': str(root), 'kind': 'author'},
+                             {f'r_{name}': outcome})
+            rows = dispatch.proposals(root, 1, ['three', 'one'])
+            self.assertEqual([row['job_id'] for row in rows], ['three', 'one'])
+            r.write(root/'config.json', {'initial_commit': 'base', 'first_batch_size': 1,
+                                        'batch_size': 1, 'audit_threads': 16})
+            with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
+                    patch.object(dispatch.retire_batch, 'stage', return_value={'jobs': [], 'status': 'no-proposals'}) as stage:
+                dispatch._batch(root, ['three', 'one'])
+            self.assertEqual([row['job_id'] for row in stage.call_args.args[2]], ['three', 'one'])
+            for invalid in ([], ['one', 'one'], ['one', 'unknown'], ['review'], ['one']*97, 'one'):
+                with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                    dispatch.proposals(root, 48, invalid)
+            self.assertEqual([row['id'] for row in queue.get_jobs('provisional-pass')], ['one', 'two', 'three'])
+
+    def test_manual_batch_waits_for_authoritative_lock(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            invoked = threading.Event()
+            def work(run, selected):
+                invoked.set()
+                return selected
+            with (root/'batch.lock').open('w') as held:
+                fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                with ThreadPoolExecutor(max_workers=1) as executor, patch.object(dispatch, '_batch', side_effect=work):
+                    future = executor.submit(dispatch.batch, root, ['one', 'two'], wait=True)
+                    self.assertFalse(invoked.wait(.1))
+                    fcntl.flock(held, fcntl.LOCK_UN)
+                    self.assertEqual(future.result(timeout=5), ['one', 'two'])
+                    self.assertTrue(invoked.is_set())
 
     def test_controller_does_not_spawn_while_external_batch_holds_lease(self):
         with tempfile.TemporaryDirectory() as temporary:

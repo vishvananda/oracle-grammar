@@ -128,6 +128,13 @@ checkpoint. An audit already using the older runner can finish independently;
 neither snapshot is changed. The shared queue, controller lock and CPU leases
 still enforce campaign ownership and concurrency limits.
 
+For a curated retry, a frozen dispatch runner accepts
+`batch CAMPAIGN --jobs-file /absolute/selected-jobs.json --wait`. The file is a
+nonempty ordered JSON list of at most 96 unique, currently provisional job IDs.
+Other provisional work stays queued. The optional wait acquires the same batch
+lock as automatic batches; every selected proposal still receives normal
+staging, repository gates and full-population validation.
+
 This describes the campaign workflow, not evidence that a campaign has started
 or completed. See [the authoring pilot](retirement-authoring-pilot-20261116.md)
 for measured results and their population.

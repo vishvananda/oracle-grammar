@@ -18,6 +18,7 @@ from contextlib import ExitStack, closing, contextmanager
 
 import retire_cohort_proof
 import retire_rehabilitation
+import retire_native_readmission
 
 
 def _json(value):
@@ -1008,6 +1009,71 @@ class Queue:
                 db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (job_id,))
                 self._event(db, 'readmitted-batch', {'job_id': job_id, 'attempt_id': attempt_id,
                             'checkpoint': checkpoint, 'manifest': audit['manifest'], 'proof': audit,
+                            'previous_adjudication': rejection, 'evidence': evidence})
+
+    def readmit_native_batch_proposal(self, job_id, attempt_id, checkpoint, evidence):
+        """Return one independently passed proposal for a new full batch audit."""
+        query = ('SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result '
+                 'FROM jobs j JOIN attempts a ON a.id=j.attempt_id WHERE j.id=?')
+        with self._retry_lease(job_id):
+            with closing(self._connect()) as db:
+                db.execute('BEGIN')
+                latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if not latest or latest[0] != checkpoint:
+                    raise ValueError('checkpoint is stale')
+                row = db.execute(query, (job_id,)).fetchone()
+            if not row or row[0] != 'integration-rejected' or row[1] != attempt_id or not row[6]:
+                raise ValueError('readmission requires the current rejected attempt')
+            snapshot = tuple(row)
+            job, rejection, result = map(json.loads, (row[2], row[3], row[6]))
+            pid = (json.loads(row[5]) if row[5] else {}).get('pid')
+            if type(pid) is not int or pid <= 0:
+                raise ValueError('attempt process identity is unknown')
+            self._require_absent_pid(pid)
+            original = result.get('evidence', {})
+            decisions, outcomes, rules = original.get('dispositions', {}), result.get('outcomes', {}), job['rules']
+            if (result.get('status') != 'provisional-pass' or set(decisions) != set(rules)
+                    or set(outcomes) != set(rules)
+                    or any(not isinstance(decisions[rule], dict)
+                           or decisions[rule].get('rule', rule if job.get('kind') == 'mechanical' else None) != rule
+                           or decisions[rule].get('status') != 'proposed' or not decisions[rule].get('reason')
+                           or not decisions[rule].get('evidence') or not isinstance(outcomes[rule], dict)
+                           or outcomes[rule].get('status') != 'pass' or not outcomes[rule].get('evidence')
+                           for rule in rules)):
+                raise ValueError('original per-rule dispositions do not all pass')
+            campaign = Path(self.path).parent
+            item, proof = retire_native_readmission.verify(campaign, job_id, attempt_id, checkpoint,
+                                                             rejection, evidence, _proof_file, _gates)
+            if (item.get('base_commit') != row[4] or item.get('rules') != rules
+                    or item.get('kind') != original.get('kind')):
+                raise ValueError('original proposal identity differs')
+            if original.get('kind') == 'author':
+                report, _ = _verify_original_report(campaign, job_id, attempt_id, row[4], original, evidence.get('report'))
+                if report.get('family_returncode') != 0:
+                    raise ValueError('author family check did not pass')
+            elif original.get('kind') == 'mechanical':
+                report = _verify_mechanical_readmission(campaign, job_id, attempt_id, row[4], original, evidence.get('report'))
+            else:
+                raise ValueError('original proposal kind is unsupported')
+            descriptor = json.loads((campaign/'.cache/attempts'/attempt_id/'tasks'/f'{job_id}.json').read_bytes())
+            if (descriptor.get('id') != job_id or descriptor.get('rules') != rules
+                    or type(report.get('faces')) is not int or report['faces'] <= 0
+                    or item.get('descriptor_sha256') != report.get('descriptor_sha256')
+                    or item.get('support_sha256') != report.get('support_sha256')):
+                raise ValueError('individual report does not match the assigned proposal')
+            with self._transaction() as db:
+                latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                current = db.execute(query, (job_id,)).fetchone()
+                if not latest or latest[0] != checkpoint or not current or tuple(current) != snapshot:
+                    raise ValueError('checkpoint or attempt changed during native proof verification')
+                for event in db.execute("SELECT data FROM events WHERE kind='readmitted-native-batch'"):
+                    previous = json.loads(event[0])
+                    if previous.get('job_id') == job_id and previous.get('manifest') == proof['manifest']:
+                        raise ValueError('native batch readmission already used for this job')
+                self._require_absent_pid(pid)
+                db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (job_id,))
+                self._event(db, 'readmitted-native-batch', {'job_id': job_id, 'attempt_id': attempt_id,
+                            'checkpoint': checkpoint, 'manifest': proof['manifest'], 'proof': proof,
                             'previous_adjudication': rejection, 'evidence': evidence})
 
     def retry_disk_tainted(self, job_id, attempt_id, evidence):
