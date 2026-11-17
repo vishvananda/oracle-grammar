@@ -319,3 +319,14 @@ rejections remain parked and later ready work continues. Configuration, integrit
 or missing-evidence failures stop the driver for review. A drain takes effect
 after the current batch finishes. This permits validation-tool upgrades without
 restarting the authoring pool.
+
+The optional boolean `recovered_cohorts_first` lets that driver prioritize
+readmitted proposals. It uses the latest readmission event for each currently
+provisional job only when the event names its current attempt. Jobs are grouped
+by original failed manifest and readmission checkpoint; the oldest available
+group is selected separately, up to 96 jobs, and uses the guarded combined trial.
+Fresh proposals are not added to that cohort. Stale attempt events are ignored;
+malformed matching identities stop the driver. This is a routing hint, not an
+acceptance certificate, and a changed checkpoint still requires fresh staging
+and full validation. With no eligible cohort, ordinary batch size and timing
+rules apply. The option defaults to false.
