@@ -1,5 +1,5 @@
 """Small real Git and frozen-artifact canaries for campaign integration."""
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from concurrent.futures import ThreadPoolExecutor
 import fcntl
 import io
@@ -405,10 +405,42 @@ class DispatchCanaries(unittest.TestCase):
             self.assertEqual([row['job_id'] for row in stage.call_args.args[2]], ['three', 'one'])
             self.assertEqual(stage.call_args.args[1]['native_regression_controls'], control)
             self.assertEqual(stage.call_args.args[1]['stage_group_size'], 4)
+            self.assertNotIn('combine_selected', stage.call_args.kwargs)
+            with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
+                    patch.object(dispatch.retire_batch, 'stage', return_value={'jobs': [], 'status': 'no-proposals'}) as combined:
+                dispatch._batch(root, ['three', 'one'], combine_selected=True)
+            self.assertTrue(combined.call_args.kwargs['combine_selected'])
+            self.assertEqual([row['job_id'] for row in combined.call_args.args[2]], ['three', 'one'])
             for invalid in ([], ['one', 'one'], ['one', 'unknown'], ['review'], ['one']*97, 'one'):
                 with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                     dispatch.proposals(root, 48, invalid)
             self.assertEqual([row['id'] for row in queue.get_jobs('provisional-pass')], ['one', 'two', 'three'])
+
+    def test_combine_selected_cli_requires_explicit_nonempty_batch_jobs(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            empty = root/'empty.json'
+            r.write(empty, [])
+            for args in (['run', str(root), '--combine-selected'],
+                         ['mechanical', str(root), '--combine-selected'],
+                         ['batch', str(root), '--combine-selected'],
+                         ['batch', str(root), '--combine-selected', '--jobs-file', str(empty)]):
+                with self.subTest(args=args), patch.object(sys, 'argv', ['retire_dispatch.py', *args]), \
+                        redirect_stderr(io.StringIO()), patch.object(dispatch, 'batch') as batch:
+                    with self.assertRaises(SystemExit):
+                        dispatch.main()
+                    batch.assert_not_called()
+            selected = root/'selected.json'
+            r.write(selected, ['one', 'two'])
+            with patch.object(sys, 'argv', ['retire_dispatch.py', 'batch', str(root), '--jobs-file', str(selected),
+                                            '--combine-selected', '--wait']), patch.object(dispatch, 'batch') as batch:
+                dispatch.main()
+            batch.assert_called_once_with(root.resolve(), ['one', 'two'], wait=True, combine_selected=True)
+            for value in (None, 1, 'yes'):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    dispatch.batch(root, ['one'], combine_selected=value)
+            with self.assertRaises(ValueError):
+                dispatch.batch(root, combine_selected=True)
 
     def test_manual_batch_waits_for_authoritative_lock(self):
         with tempfile.TemporaryDirectory() as temporary:

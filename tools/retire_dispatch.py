@@ -336,11 +336,15 @@ def refresh_priorities(run, checkpoint, policy):
     return Queue(run/'queue.sqlite').publish_priorities(checkpoint, plan)
 
 
-def batch(run, selected_job_ids=None, *, wait=False):
+def batch(run, selected_job_ids=None, *, wait=False, combine_selected=False):
+    if type(combine_selected) is not bool or (combine_selected and not selected_job_ids):
+        raise ValueError('combine_selected requires an explicit nonempty selection')
     try:
         with lease(run/'batch.lock', blocking=wait) as fd:
             r._LEASES.append(fd)
             try:
+                if combine_selected:
+                    return _batch(run, selected_job_ids, combine_selected=True)
                 return _batch(run) if selected_job_ids is None else _batch(run, selected_job_ids)
             finally:
                 r._LEASES.remove(fd)
@@ -348,7 +352,9 @@ def batch(run, selected_job_ids=None, *, wait=False):
         return
 
 
-def _batch(run, selected_job_ids=None):
+def _batch(run, selected_job_ids=None, *, combine_selected=False):
+    if type(combine_selected) is not bool or (combine_selected and not selected_job_ids):
+        raise ValueError('combine_selected requires an explicit nonempty selection')
     queue=Queue(run/'queue.sqlite')
     cp=campaign_api.checkpoint(run,queue.coverage()['checkpoint'])
     config=r.read(run/'config.json')
@@ -372,7 +378,8 @@ def _batch(run, selected_job_ids=None):
     items=proposals(run,limit,selected_job_ids)
     if not items:
         return
-    manifest=retire_batch.stage(run,cp,items)
+    manifest=(retire_batch.stage(run,cp,items,combine_selected=True) if combine_selected
+              else retire_batch.stage(run,cp,items))
     included=[row['job_id'] for row in manifest['jobs'] if row['status']=='included']
     rejected=[row['job_id'] for row in manifest['jobs'] if row['status']!='included']
     if rejected:
@@ -552,13 +559,20 @@ def main():
     parser.add_argument('--runner',type=Path)
     parser.add_argument('--jobs-file',type=Path)
     parser.add_argument('--wait',action='store_true')
+    parser.add_argument('--combine-selected',action='store_true')
     args=parser.parse_args()
     run=args.run.resolve()
     if args.command!='run' and args.runner is not None: parser.error('--runner is only valid for run')
+    if args.combine_selected and (args.command != 'batch' or args.jobs_file is None):
+        parser.error('--combine-selected requires batch and --jobs-file')
     if args.command!='batch' and (args.jobs_file is not None or args.wait):
         parser.error('--jobs-file and --wait are only valid for batch')
     if args.command=='mechanical':mechanical(run,args.task)
-    elif args.command=='batch':batch(run, r.read(args.jobs_file) if args.jobs_file else None, wait=args.wait)
+    elif args.command=='batch':
+        selected = r.read(args.jobs_file) if args.jobs_file else None
+        if args.combine_selected and (not isinstance(selected, list) or not selected):
+            parser.error('--combine-selected requires a nonempty jobs file')
+        batch(run, selected, wait=args.wait, combine_selected=args.combine_selected)
     else:run_campaign(run,args.runner)
 
 

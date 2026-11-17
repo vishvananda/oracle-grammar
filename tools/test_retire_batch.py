@@ -692,7 +692,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(batch.r._LEASES, [])
 
     def test_optional_group_trials_gate_union_and_fallback_without_partial_publication(self):
-        for mode in ('pass', 'two-groups', 'family-interaction', 'native-interaction', 'library-interaction', 'structural', 'missing-metadata'):
+        for mode in ('pass', 'selected-pass', 'selected-family-interaction', 'two-groups', 'family-interaction', 'native-interaction', 'library-interaction', 'structural', 'missing-metadata'):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 repo = root/'repo'
@@ -710,7 +710,7 @@ class BatchTests(unittest.TestCase):
                                 'commit', '-qm', 'base'], cwd=repo, check=True)
                 commit = batch._git(repo, 'rev-parse', 'HEAD')
                 cp = dict(control_fixture(root, commit), source=str(repo),
-                          stage_group_size=2 if mode == 'two-groups' else 4)
+                          stage_group_size=2 if mode in ('two-groups', 'selected-pass', 'selected-family-interaction') else 4)
                 report = {'task': 'task', 'source': commit, 'descriptor_sha256': 'd',
                           'support_sha256': 's', 'fixture_sha256': 'f', 'edited': []}
                 names = ('first', 'bad', 'last', 'mech')
@@ -740,7 +740,7 @@ class BatchTests(unittest.TestCase):
                     family_calls.append((text, [p.name for p in fixtures]))
                     progress.append(json.loads((log.parent.parent/'manifest.json').read_text()))
                     log.write_text('family proof')
-                    if mode == 'family-interaction' and 'first\n' in text and 'bad\n' in text:
+                    if mode in ('family-interaction', 'selected-family-interaction') and 'first\n' in text and 'bad\n' in text:
                         raise ValueError('union family conflict')
                 def native(run, directory, grammar, names, data, threads):
                     path = grammar/'syntax/shared.ebnf'
@@ -773,9 +773,10 @@ class BatchTests(unittest.TestCase):
                         family_calls.clear()
                         native_calls.clear()
                         progress.clear()
-                    result = batch.stage(root, cp, proposals)
+                    result = batch.stage(root, cp, proposals, combine_selected=mode.startswith('selected-'))
                 self.assertEqual(result['status'], 'provisional')
                 self.assertEqual(result['stage_group_size'], 2 if mode == 'two-groups' else 4)
+                self.assertIs(result['combine_selected'], mode.startswith('selected-'))
                 candidate = Path(result['source'])
                 if mode == 'two-groups':
                     self.assertEqual([item['status'] for item in result['jobs']], ['included']*4)
@@ -787,7 +788,7 @@ class BatchTests(unittest.TestCase):
                     self.assertEqual(result['jobs'][0]['trial_proof'], result['jobs'][1]['trial_proof'])
                     self.assertEqual(result['jobs'][2]['trial_proof'], result['jobs'][3]['trial_proof'])
                     self.assertNotEqual(result['jobs'][0]['trial_proof'], result['jobs'][2]['trial_proof'])
-                elif mode == 'pass':
+                elif mode in ('pass', 'selected-pass'):
                     self.assertEqual([item['status'] for item in result['jobs']], ['included']*4)
                     self.assertEqual(len(family_calls), 1)
                     self.assertEqual(native_calls, ['', 'first\nbad\nlast\n'])
@@ -838,6 +839,14 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(result['failure_scope'], 'baseline-library-control')
             self.assertEqual(result['jobs'], [])
             proposal.assert_not_called()
+
+    def test_combined_selection_requires_boolean_and_at_most_96(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for value in (None, 1, 'true'):
+                with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'combine_selected'):
+                    batch.stage(temporary, {}, [{'job_id': 'j'}], combine_selected=value)
+            with self.assertRaisesRegex(ValueError, 'ninety-six'):
+                batch.stage(temporary, {}, [{}] * 97, combine_selected=True)
 
     def test_group_size_bounds_and_promotion_rolls_back_all_fixtures(self):
         for invalid in (0, 5, True, '2'):

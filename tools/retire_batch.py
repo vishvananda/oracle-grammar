@@ -531,12 +531,14 @@ def _stage_trial(context, entries, label):
     return items, proof
 
 
-def stage(campaign, checkpoint, proposals):
+def stage(campaign, checkpoint, proposals, *, combine_selected=False):
+    if type(combine_selected) is not bool:
+        raise ValueError('combine_selected must be boolean')
     with _workspace_lock(checkpoint):
-        return _stage(campaign, checkpoint, proposals)
+        return _stage(campaign, checkpoint, proposals, combine_selected=combine_selected)
 
 
-def _stage(campaign, checkpoint, proposals):
+def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
     """Create and commit one private candidate; return a reviewable manifest."""
     proposals = list(proposals)
     if not 1 <= len(proposals) <= 96:
@@ -544,6 +546,10 @@ def _stage(campaign, checkpoint, proposals):
     group_size = checkpoint.get('stage_group_size', 1)
     if type(group_size) is not int or not 1 <= group_size <= 4:
         raise ValueError('stage_group_size must be an integer from 1 to 4')
+    if type(combine_selected) is not bool:
+        raise ValueError('combine_selected must be boolean')
+    if combine_selected:
+        group_size = len(proposals)
     control = _control_setup(checkpoint)
     library_control = library_controls.setup(checkpoint, checkpoint['source'])
     campaign = Path(campaign).resolve()
@@ -560,7 +566,8 @@ def _stage(campaign, checkpoint, proposals):
         _git(origin, 'worktree', 'add', '-b', branch, str(source), checkpoint['commit'])
     manifest = {'id': ident, 'folder': str(folder), 'source': str(source), 'branch': branch, 'base_commit': checkpoint['commit'],
                 'status': 'staging', 'jobs': [], 'fixtures': [], 'rules': [],
-                'family_check_threads': FAMILY_CHECK_THREADS, 'stage_group_size': group_size}
+                'family_check_threads': FAMILY_CHECK_THREADS, 'stage_group_size': group_size,
+                'combine_selected': combine_selected}
     registry_path = source/'tests/families.json'
     registry_hash = r.digest(registry_path)
     baseline_names = r.read(registry_path)
