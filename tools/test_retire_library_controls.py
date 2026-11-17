@@ -41,6 +41,38 @@ class LibraryControlsTests(unittest.TestCase):
     def write_profile(self):
         self.profile.write_text(json.dumps(self.document))
 
+    def test_setup_normalizes_json_source_and_path_before_compiled_source_check(self):
+        observed = []
+        def source_hash(source):
+            self.assertIsInstance(source, Path)
+            observed.append(source)
+            return 'a'*64
+        with patch.object(controls.dev, 'source', side_effect=source_hash):
+            for source in (self.source, str(self.source)):
+                self.assertEqual(controls.setup(self.cp, source)['source_sha256'], 'a'*64)
+        self.assertEqual(observed, [self.source, self.source])
+
+    def test_stage_passes_json_checkpoint_source_through_real_setup(self):
+        import retire_batch as batch
+        subprocess.run(['git', 'init', '-q', str(self.source)], check=True)
+        (self.grammar/'example.ebnf').write_text('example')
+        (self.source/'tests').mkdir()
+        (self.source/'tests/families.json').write_text('[]')
+        subprocess.run(['git', 'add', '.'], cwd=self.source, check=True)
+        subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=t@x',
+                        'commit', '-qm', 'base'], cwd=self.source, check=True)
+        commit = batch._git(self.source, 'rev-parse', 'HEAD')
+        r.write(self.inputs/'manifest.json', {'commit': commit, 'files': {'build.json': r.digest(self.build)}})
+        cp = dict(self.cp, commit=commit, source=str(self.source))
+        def source_hash(source):
+            self.assertIsInstance(source, Path)
+            return 'a'*64
+        with patch.object(controls.dev, 'source', side_effect=source_hash), \
+                patch.object(controls, 'check', side_effect=ValueError('baseline sentinel')):
+            manifest = batch.stage(self.root, cp, [{'job_id': 'j'}])
+        self.assertEqual(manifest['failure_scope'], 'baseline-library-control')
+        self.assertEqual(manifest['reason'], 'baseline sentinel')
+
     def test_source_compiler_and_file_tampering_fail_closed(self):
         control = controls.setup(self.cp, self.source)
         self.profile.write_text('{}')

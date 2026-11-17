@@ -27,6 +27,7 @@ def verify(control):
 
 
 def setup(checkpoint, source):
+    source = Path(source)
     spec = checkpoint.get('library_regression_controls')
     if spec is None:
         return None
