@@ -17,7 +17,7 @@ import retire_reuse
 import retire_screen_packet as screen_packet
 
 RUNNERS = tuple(dict.fromkeys((*r.TOOLING, 'retire_author.py', 'retire_author_pool.py',
-                               'retire_pool.py', 'retire_cpu.py', 'retire_helper.py', 'retire_cohort.py',
+                               'retire_pool.py', 'retire_cpu.py', 'retire_helper.py', 'retire_cohort.py', 'retire_mechanical_cohort.py',
                                'retire_screen_packet.py')))
 HELPERS = ('family-check', 'probe', 'inspect')
 

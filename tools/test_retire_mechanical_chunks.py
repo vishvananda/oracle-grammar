@@ -108,7 +108,7 @@ class WorkerTests(unittest.TestCase):
                 return {'faces': len(actual), 'failures': failures}
             with patch.object(dispatch.author, 'verify', return_value=(task, root, {'commit': 'base'})), \
                     patch.object(dispatch.w, 'payload', return_value=({}, [], [])), \
-                    patch.object(dispatch.w, 'cohort', return_value=names), \
+                    patch.object(dispatch.mechanical_cohort, 'cohort', return_value=names), \
                     patch.object(dispatch, 'mechanical_chunks', return_value=expected) as recompute, \
                     patch.object(dispatch.mined, 'remove', return_value=(['m_rule'], {})), \
                     patch.object(dispatch.w, 'checks', side_effect=checks), \

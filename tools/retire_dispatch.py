@@ -29,6 +29,7 @@ import retire_cpu
 import retire_plan as planner
 import retire_priority
 import retire_metrics
+import retire_mechanical_cohort as mechanical_cohort
 import retire_retention
 from retire_queue import Queue, RehabilitationIneligible
 from retire_tasks import (CohortClosureLimit, close_cohort, mechanical_chunks,
@@ -100,7 +101,7 @@ def mechanical(run, task_id):
                 report.update(chunks_expected=len(chunks) if isinstance(chunks, list) else 0,
                               chunks_started=0, chunks_completed=0, coverage_complete=False, chunk_results=[])
             for rule in task['rules']:
-                cohort = w.cohort(inputs,rule,data[0])
+                cohort = mechanical_cohort.cohort(inputs,rule,data[0])
                 r.require(cohort and (chunks is not None or len(cohort)<=500),
                           'mechanical cohort uncertain or too large')
                 names.update(cohort)
@@ -214,7 +215,7 @@ def perform(run, claim, contexts, runner=None):
         try:
             data,scan,inverted = contexts.get(cp)
             if job['kind']=='mechanical':
-                names = sorted({name for rule in job['rules'] for name in w.cohort(Path(cp['inputs']),rule,data[0])})
+                names = sorted({name for rule in job['rules'] for name in mechanical_cohort.cohort(Path(cp['inputs']),rule,data[0])})
                 detail, job['target_faces'], chunks = mechanical_detail(Path(cp['inputs']), names)
                 if chunks is not None:
                     job['mechanical_chunks'] = chunks

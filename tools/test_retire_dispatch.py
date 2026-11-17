@@ -701,7 +701,7 @@ with open(sys.argv[3], 'a') as guard:
                 run = Path(prepared['run'])
                 def checks(inputs, directory, grammar, selected, data, threads):
                     return {'faces': len(selected), 'failures': []}
-                with patch.object(dispatch.w, 'cohort', return_value=names), \
+                with patch.object(dispatch.mechanical_cohort, 'cohort', return_value=names), \
                         patch.object(dispatch.w, 'checks', side_effect=checks) as checks_mock, \
                         redirect_stdout(io.StringIO()):
                     dispatch.mechanical(run, 'mech')
