@@ -357,6 +357,16 @@ acceptance certificate, and a changed checkpoint still requires fresh staging
 and full validation. With no eligible cohort, ordinary batch size and timing
 rules apply. The option defaults to false.
 
+The optional boolean `mechanical_cohorts_first` prioritizes ready mechanical
+removals. When their count reaches the ordinary batch threshold, the driver
+selects up to 96 mechanical proposals as one guarded combined trial. Smaller
+mechanical queues keep recovered-cohort precedence; otherwise they lead an
+ordinary-sized selection filled with FIFO author proposals. The normal timing,
+readiness and flush conditions still apply, so a small mechanical queue does
+not force a separate early audit. Driver status records the selected lane.
+The option defaults to false and changes only routing: all staging, native,
+library, family and full integration checks remain required.
+
 When an explicitly combined selection fails and exceeds the configured ordinary
 group size, staging tries ordered subgroups of that size before individual
 fallback. Each subgroup runs every existing guard against the accepted prefix;
