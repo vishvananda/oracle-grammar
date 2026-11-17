@@ -116,6 +116,34 @@ def _verify_original_report(campaign, job_id, attempt_id, base_commit, original,
     return report, authored
 
 
+def _verify_reviewed_repair(campaign, checkpoint, job, evidence):
+    path, _ = _proof_file(evidence.get('report'))
+    if path.resolve() != path or len(path.parents) < 7:
+        raise ValueError('repair report must have a canonical evaluation path')
+    job_id = job['id']
+    work = path.parents[3]
+    scratch = work.parents[2]
+    if (not re.fullmatch(r'[0-9a-f-]{36}', work.name)
+            or work.parent != scratch/'.cache/attempts'
+            or path.parent.parent != work/'evaluations'/job_id):
+        raise ValueError('repair report is outside its private attempt')
+    report, _ = _verify_original_report(scratch, job_id, work.name, checkpoint,
+                                       {'report': str(path)}, evidence['report'])
+    task = json.loads((work/'tasks'/f'{job_id}.json').read_bytes())
+    cp = json.loads((campaign/'checkpoints'/f'{checkpoint}.json').read_bytes())
+    inputs = Path(cp['inputs']).resolve()
+    baseline = json.loads((inputs/'manifest.json').read_bytes())
+    closure = task.get('cohort_detail', {}).get('closure_occurrence_count')
+    edits = report.get('edited')
+    if (cp.get('commit') != checkpoint or baseline.get('commit') != checkpoint
+            or (work/'inputs').resolve() != inputs
+            or task.get('id') != job_id or task.get('rules') != job['rules']
+            or task.get('target_faces') != job.get('target_faces')
+            or type(closure) is not int or not 1 <= closure <= 1024 or report.get('faces') != closure
+            or report.get('family_returncode') != 0 or not isinstance(edits, list) or not 2 <= len(edits) <= 8):
+        raise ValueError('repair report differs from the assigned checkpoint, cohort or required checks')
+
+
 _GATE_NAMES = {'fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test'}
 _DIAGNOSTIC_EXCLUSIONS = {'src/bin/family-check.rs', 'src/tests/family_check_modes.rs'}
 
@@ -990,6 +1018,46 @@ class Queue:
                             'checkpoint': checkpoint, 'old_registry_count': registry_count,
                             'pid': pid, 'process': 'absent', 'lease': 'acquired',
                             'previous_adjudication': rejection, 'evidence': evidence})
+
+    def retry_reviewed_repair(self, job_id, attempt_id, checkpoint, evidence):
+        """Give a verified author repair one fresh model attempt with the same ownership."""
+        if not isinstance(evidence, dict) or evidence.get('kind') != 'reviewed-author-repair':
+            raise ValueError('reviewed-author-repair evidence is required')
+        notes = evidence.get('review_notes')
+        if not isinstance(notes, str) or not notes.strip() or len(notes) > 2048:
+            raise ValueError('reviewed author repair requires a concise reproduction note')
+        with self._retry_lease(job_id):
+            with self._transaction() as db:
+                row = db.execute(
+                    'SELECT j.status,j.attempt_id,j.payload,j.adjudication,a.base_commit,a.started,a.result '
+                    'FROM jobs j JOIN attempts a ON a.id=j.attempt_id AND a.job_id=j.id WHERE j.id=?',
+                    (job_id,)).fetchone()
+                latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if (not row or row[0] not in ('needs-review', 'integration-rejected') or row[1] != attempt_id
+                        or not row[6] or not latest or latest[0] != checkpoint):
+                    raise ValueError('reviewed attempt or checkpoint changed')
+                job, start, result = map(json.loads, (row[2], row[5] or '{}', row[6]))
+                rules = {item[0] for item in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
+                expected_status = 'needs-review' if row[0] == 'needs-review' else 'provisional-pass'
+                if (job.get('id') != job_id or job.get('kind') != 'author' or not rules
+                        or len(job['rules']) != len(rules) or set(job['rules']) != rules
+                        or result.get('status') != expected_status or set(result.get('outcomes', {})) != rules):
+                    raise ValueError('completed author assignment or rule coverage differs')
+                if db.execute("SELECT 1 FROM events WHERE kind='retry-reviewed-repair' "
+                              "AND json_extract(data,'$.job_id')=? LIMIT 1", (job_id,)).fetchone():
+                    raise ValueError('reviewed repair retry already used for this job')
+                pid = start.get('pid')
+                if type(pid) is not int or pid <= 0:
+                    raise ValueError('attempt process identity is unknown')
+                self._require_absent_pid(pid)
+                _verify_readmission_origin(db, checkpoint, row[4])
+                _verify_reviewed_repair(Path(self.path).parent, checkpoint, job, evidence)
+                job['goal'] += ' Coordinator replay passed this repair on '+checkpoint+'. '+notes.strip()
+                db.execute("UPDATE jobs SET payload=?,status='pending',attempt_id=NULL,adjudication=NULL WHERE id=?",
+                           (_json(job), job_id))
+                self._event(db, 'retry-reviewed-repair', {'job_id': job_id, 'attempt_id': attempt_id,
+                    'previous_status': row[0], 'previous_adjudication': json.loads(row[3]) if row[3] else None,
+                    'checkpoint': checkpoint, 'pid': pid, 'evidence': evidence})
 
     def retry_failed(self, job_id, attempt_id, evidence, max_retries):
         """Requeue a finished failure only after proving its process and lease are gone.

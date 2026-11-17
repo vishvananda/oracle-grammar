@@ -813,5 +813,100 @@ class DiagnosticRecoveryTests(unittest.TestCase):
         self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 2})
 
 
+class ReviewedRepairRetryTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        root = Path(temp.name)
+        campaign = root/'campaign'
+        campaign.mkdir()
+        self.queue = Queue(campaign/'queue.sqlite')
+        self.queue.add_checkpoint('base', {'source': 'accepted'})
+        self.job = {'id': 'repair', 'kind': 'author', 'rules': ['seeded_test'],
+                    'target_faces': ['Repair target'], 'goal': 'Compose the affected effect.'}
+        self.queue.add_jobs([self.job])
+        self.lease = campaign/'leases'/self.job['id']
+        self.lease.parent.mkdir()
+        self.lease.touch()
+        self.claim = self.queue.claim('original')
+        self.terminal(self.claim)
+
+        inputs = root/'inputs'
+        inputs.mkdir()
+        self.write(inputs/'manifest.json', {'commit': 'base'})
+        (campaign/'checkpoints').mkdir()
+        self.write(campaign/'checkpoints/base.json', {'commit': 'base', 'inputs': str(inputs)})
+        work = root/'scratch/.cache/attempts/65af98c0-8204-4bd5-a5b3-34f05f78bc7e'
+        self.folder = work/'evaluations/repair/diagnostic'
+        (self.folder/'grammar').mkdir(parents=True)
+        (work/'tasks').mkdir()
+        (work/'inputs').symlink_to(inputs, target_is_directory=True)
+        self.task = {**self.job, 'cohort_detail': {'closure_occurrence_count': 4}}
+        self.task_path = work/'tasks/repair.json'
+        self.report_path = self.folder/'report.json'
+        self.family = self.folder/'family.json'
+        self.write(self.family, {'family': 'repair', 'cases': []})
+        grammar = self.folder/'grammar/test.ebnf'
+        grammar.write_text('test ::= "test"\n')
+        self.report = {'task': 'repair', 'source': 'base', 'directory': str(self.folder),
+                       'passed': True, 'failures': [], 'family_returncode': 0,
+                       'faces': 4, 'edited': [{}, {}], 'fixture_sha256': self.digest(self.family),
+                       'grammar': {grammar.name: self.digest(grammar)}}
+        self.evidence = {'kind': 'reviewed-author-repair',
+                         'review_notes': 'Use the typed damage branch for the captured recipient.'}
+        self.record(work/'support.json')
+
+    @staticmethod
+    def write(path, data):
+        path.write_text(json.dumps(data))
+
+    @staticmethod
+    def digest(path):
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def record(self, support):
+        self.write(self.task_path, self.task)
+        self.report['descriptor_sha256'] = self.digest(self.task_path)
+        self.write(support, {'tasks': {'repair': self.report['descriptor_sha256']}})
+        self.report['support_sha256'] = self.digest(support)
+        self.write(self.report_path, self.report)
+        self.evidence['report'] = {'path': str(self.report_path), 'sha256': self.digest(self.report_path)}
+
+    def terminal(self, claim):
+        self.queue.mark_started(claim['attempt_id'], pid=2_000_000_000)
+        self.queue.finish(claim['attempt_id'], 'needs-review', {'report': 'old-failure'},
+                          {'seeded_test': {'status': 'needs-review', 'reason': 'print loss', 'evidence': 'old'}})
+
+    def test_requeues_same_owner_once_and_preserves_original_attempt(self):
+        attempt = self.claim['attempt_id']
+        original = self.queue.get_attempt(attempt)
+        with self.lease.open('r+') as held:
+            fcntl.flock(held, fcntl.LOCK_EX)
+            with self.assertRaisesRegex(ValueError, 'lease is still held'):
+                self.queue.retry_reviewed_repair('repair', attempt, 'base', self.evidence)
+        self.queue.retry_reviewed_repair('repair', attempt, 'base', self.evidence)
+        self.assertEqual(self.queue.coverage()['counts'], {'pending': 1})
+        self.assertEqual(self.queue.get_attempt(attempt), original)
+        claim = self.queue.claim('fresh')
+        self.assertEqual(claim['job']['rules'], self.job['rules'])
+        self.assertIn(self.evidence['review_notes'], claim['job']['goal'])
+        self.terminal(claim)
+        with self.assertRaisesRegex(ValueError, 'already used'):
+            self.queue.retry_reviewed_repair('repair', claim['attempt_id'], 'base', self.evidence)
+
+    def test_rejects_bad_proof_and_stale_checkpoint_without_changing_owner(self):
+        attempt = self.claim['attempt_id']
+        self.task['rules'] = ['wrong_rule']
+        self.record(self.task_path.parent.parent/'support.json')
+        with self.assertRaisesRegex(ValueError, 'assigned checkpoint, cohort or required checks'):
+            self.queue.retry_reviewed_repair('repair', attempt, 'base', self.evidence)
+        self.task['rules'] = self.job['rules']
+        self.record(self.task_path.parent.parent/'support.json')
+        self.queue.add_checkpoint('next', {'source': 'new'}, expected_parent='base')
+        with self.assertRaisesRegex(ValueError, 'checkpoint changed'):
+            self.queue.retry_reviewed_repair('repair', attempt, 'base', self.evidence)
+        self.assertEqual(self.queue.coverage()['counts'], {'needs-review': 1})
+
+
 if __name__ == "__main__":
     unittest.main()
