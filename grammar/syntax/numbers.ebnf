@@ -77,7 +77,7 @@ card_count_equal ::= "cards" "equal" "to" value
 /* @sem Expr::Divide{numerator:$value_atom, denominator:Expr::Constant(2), rounding:$rounding_words} */
 card_count_half ::= "half" value_atom "cards" "," rounding_words
 
-count_each ::= count_each_kind_among_population | count_each_different_power | count_each_devoured | count_each_players_drew | count_each_vote | count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand | count_each_card_graveyard | count_each_destroyed | count_each_tapped | count_each_discarded | count_each_discarded_any | count_each_discarded_event | count_each_exiled_any | count_each_revealed_any | count_each_died | count_each_put_into_your_graveyard | count_each_land_type | count_each_color_among | count_each_color_spent | count_each_time_kicked | count_each_counter_on | count_each_attacked | count_each_you_attacked_with
+count_each ::= count_each_kind_among_population | count_each_different_power | count_each_devoured | count_each_players_drew | count_each_vote | count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand | count_each_card_graveyard | count_each_destroyed | count_each_tapped | count_each_discarded | count_each_discarded_any | count_each_discarded_event | count_each_exiled_any | count_each_revealed_any | count_each_died | count_each_put_into_your_graveyard | count_each_land_type | count_each_color_among | count_each_color_spent | count_each_time_kicked | count_each_counter_on | count_each_attacked | count_each_you_attacked_with | count_each_spell_cast_history
 
 /* @sem Expr::EventHistory{event:$commander_cast_history, window:ThisGame, measure:Occurrences} */
 count_each_commander_cast ::= "time" commander_cast_history
@@ -731,3 +731,32 @@ count_each_attacked ::= filter_phrase "that" "attacked" "this" "turn"
 
 /* @sem Expr::EventHistory{event:Object{event:Attacks, objects:AllOf([$filter_phrase, ControlledBy(One(AbilityController))])}, window:ThisTurn, measure:Occurrences} */
 count_each_you_attacked_with ::= filter_phrase "you" "attacked" "with" "this" "turn"
+
+/* Count cast events using the independently stated spell filter and caster. */
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:$cast_history_players, spells:$cast_history_spell}, window:ThisTurn, measure:Occurrences} */
+count_each_spell_cast_history ::= cast_history_spell cast_history_players "this" "turn"
+
+cast_history_spell ::= cast_history_any_spell | cast_history_other_spell | cast_history_filtered_spell
+
+/* @sem ObjectFilter::Any */
+cast_history_any_spell ::= "spell"
+
+/* @sem ObjectFilter::Not(SameObject(Source)) */
+cast_history_other_spell ::= "other" "spell"
+
+/* @sem $spell_adjectives */
+cast_history_filtered_spell ::= spell_adjectives "spell"
+
+cast_history_players ::= cast_history_all | cast_history_you | cast_history_they | cast_history_opponents
+
+/* @sem PlayerSet::All */
+cast_history_all ::= "cast"
+
+/* @sem PlayerSet::One(AbilityController) */
+cast_history_you ::= "you've" "cast"
+
+/* @sem PlayerSet::One(EventSubject) */
+cast_history_they ::= "they've" "cast"
+
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+cast_history_opponents ::= "your" "opponents" "have" "cast"

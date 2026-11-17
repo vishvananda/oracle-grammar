@@ -1,0 +1,1036 @@
+{
+  "family": "retirement-eddf7a7fbac72e62",
+  "cases": [
+    {
+      "name": "Bronze Horse",
+      "text": "As long as you control another creature, prevent all damage that would be dealt to this creature by spells that target it.",
+      "types": [
+        "Artifact",
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Controls",
+              "args": {
+                "player": {
+                  "kind": "AbilityController"
+                },
+                "filter": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  ]
+                },
+                "minimum": 1
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Spell",
+                      "sources": {
+                        "kind": "TargetsAny",
+                        "args": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "Objects": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Camel",
+      "text": "As long as this creature is attacking, prevent all damage Deserts would deal to this creature and to creatures banded with this creature.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Attacking"
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Permanent",
+                      "sources": {
+                        "kind": "Subtype",
+                        "args": "Desert"
+                      },
+                      "recipients": {
+                        "Objects": {
+                          "kind": "AnyOf",
+                          "args": [
+                            {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Source"
+                              }
+                            },
+                            {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "BandedWith",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Deification",
+      "text": "As long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters on it being removed, instead all but one of those counters are removed.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Controls",
+              "args": {
+                "player": {
+                  "kind": "AbilityController"
+                },
+                "filter": {
+                  "kind": "CardType",
+                  "args": "Creature"
+                },
+                "minimum": 1
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Measured": {
+                      "event": {
+                        "Damage": {
+                          "source_kind": "Any",
+                          "sources": {
+                            "kind": "Any"
+                          },
+                          "recipients": {
+                            "Objects": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Planeswalker"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                {
+                                  "kind": "Chosen",
+                                  "args": "PlaneswalkerType"
+                                }
+                              ]
+                            }
+                          },
+                          "kind": "Any",
+                          "grouping": "SourceRecipient",
+                          "subject": "Recipient"
+                        }
+                      },
+                      "comparison": "GreaterOrEqual",
+                      "amount": {
+                        "kind": "CountCounters",
+                        "args": {
+                          "recipients": {
+                            "kind": "Objects",
+                            "args": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "EventSubject"
+                              }
+                            }
+                          },
+                          "kind": {
+                            "Named": "LoyaltyCounter"
+                          },
+                          "information": "CurrentOrLastKnown"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "LeaveLoyalty": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Multiclass Baldric",
+      "text": "As long as you have a full party, prevent all damage that would be dealt to equipped creature.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "PlayerState",
+              "args": {
+                "player": {
+                  "kind": "AbilityController"
+                },
+                "state": "FullParty"
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "Any"
+                      },
+                      "recipients": {
+                        "Objects": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "AttachedTo",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Personal Sanctuary",
+      "text": "During your turn, prevent all damage that would be dealt to you.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "PlayerIsActive",
+              "args": {
+                "kind": "AbilityController"
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "Any"
+                      },
+                      "recipients": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Sanwell, Avenger Ace",
+      "text": "As long as an artifact creature you control is attacking, prevent all damage that would be dealt to Sanwell.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Matching",
+                    "args": {
+                      "objects": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Shared": "Battlefield"
+                          },
+                          "kind": "Permanent",
+                          "filter": {
+                            "kind": "AllOf",
+                            "args": [
+                              {
+                                "kind": "CardType",
+                                "args": "Artifact"
+                              },
+                              {
+                                "kind": "CardType",
+                                "args": "Creature"
+                              },
+                              {
+                                "kind": "ControlledBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "filter": {
+                        "kind": "Attacking"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "Any"
+                      },
+                      "recipients": {
+                        "Objects": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Spirit of Resistance",
+      "text": "As long as you control a permanent of each color, prevent all damage that would be dealt to you.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountDistinct",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "Any"
+                            },
+                            {
+                              "kind": "ControlledBy",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "property": "Colors"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 5
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "Any"
+                      },
+                      "recipients": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Personal Sanctuary",
+      "text": "During your turn, prevent all damage that would be dealt to you and draw a card.",
+      "reject": true
+    },
+    {
+      "name": "Deification",
+      "text": "As this enchantment enters, choose a planeswalker type.\nPlaneswalkers you control of the chosen type have hexproof.\nAs long as you control a creature, if damage dealt to a planeswalker you control of the chosen type would result in all loyalty counters on it being removed, instead all but two of those counters are removed.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "SourceEntering",
+            "event": {
+              "Enter": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseValue",
+                      "args": {
+                        "choosers": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "ControllerOf",
+                            "args": {
+                              "kind": "EventSubject"
+                            }
+                          }
+                        },
+                        "kind": "PlaneswalkerType",
+                        "terms": {
+                          "options": [],
+                          "except": [],
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "secret": false,
+                          "unchosen": false,
+                          "random": false,
+                          "ordered": false
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Planeswalker"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Chosen",
+                        "args": "PlaneswalkerType"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "GrantKeyword",
+                "args": {
+                  "kind": "Hexproof"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Controls",
+              "args": {
+                "player": {
+                  "kind": "AbilityController"
+                },
+                "filter": {
+                  "kind": "CardType",
+                  "args": "Creature"
+                },
+                "minimum": 1
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Measured": {
+                      "event": {
+                        "Damage": {
+                          "source_kind": "Any",
+                          "sources": {
+                            "kind": "Any"
+                          },
+                          "recipients": {
+                            "Objects": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Planeswalker"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                {
+                                  "kind": "Chosen",
+                                  "args": "PlaneswalkerType"
+                                }
+                              ]
+                            }
+                          },
+                          "kind": "Any",
+                          "grouping": "SourceRecipient",
+                          "subject": "Recipient"
+                        }
+                      },
+                      "comparison": "GreaterOrEqual",
+                      "amount": {
+                        "kind": "CountCounters",
+                        "args": {
+                          "recipients": {
+                            "kind": "Objects",
+                            "args": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "EventSubject"
+                              }
+                            }
+                          },
+                          "kind": {
+                            "Named": "LoyaltyCounter"
+                          },
+                          "information": "CurrentOrLastKnown"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "LeaveLoyalty": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Camel",
+      "text": "Banding\nAs long as this creature is attacking, prevent all damage Forests would deal to this creature and to creatures banded with this creature.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Camel"
+        ],
+        "mana_cost": [
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          0,
+          1
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Mechanic",
+          "args": {
+            "mechanic": "Banding",
+            "cost": null,
+            "amount": null,
+            "filter": null
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Attacking"
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Permanent",
+                      "sources": {
+                        "kind": "Subtype",
+                        "args": "Forest"
+                      },
+                      "recipients": {
+                        "Objects": {
+                          "kind": "AnyOf",
+                          "args": [
+                            {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Source"
+                              }
+                            },
+                            {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "BandedWith",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

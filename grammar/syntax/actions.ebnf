@@ -69,7 +69,7 @@ mc_green ::= "{G}"
 /* @sem ManaColor::Colorless */
 mc_colorless ::= "{C}"
 
-put_counters ::= put_created_counters_for_counters | put_counters_two_direct | put_counters_direct | put_counters_equal | put_counters_equal_first | put_counters_choice | put_counters_many_choices
+put_counters ::= put_counters_capped_source_power | put_created_counters_for_counters | put_counters_two_direct | put_counters_direct | put_counters_equal | put_counters_equal_first | put_counters_choice | put_counters_many_choices
 /* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:$counter_amount}]} */
 put_counters_direct ::= "put" counter_amount counter_kind ("counter" | "counters") "on" affected
 /* A counted placement names its amount after its recipients or before them. */
@@ -1767,7 +1767,7 @@ support_action ::= "support" number
 choose_a_color ::= "choose" "a" "color"
 
 /* Choosing a player, a type, a number or colors. */
-choose_value ::= choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_number_between | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain
+choose_value ::= choose_card_types_five | choose_land_types_pair | choose_color_pair | choose_planeswalker_type | choose_two_basic_land_types | choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_number_between | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain
 /* @sem Operation::ChooseValue{choosers:$players_singular, kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text(Friend), Text(Foe)]}} */
 choose_friend_or_foe ::= "for" players_singular "," "choose" "friend" "or" "foe"
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(All)]}} */
@@ -2261,3 +2261,94 @@ exchange_life_with_player ::= "exchange" "life" "totals" "with" player_ref
 
 /* @sem Operation::TowardPlayer{actor:One(AbilityController), action:ControlNextTurn, player:$player_ref} */
 control_player_next_turn ::= "control" player_ref "during" "that" "player's" "next" "turn"
+
+/* Choice lists retain each current vocabulary operand in its printed position. */
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{count:Exactly(Constant(1)), options:[$choice_card_type, $choice_card_type_2, $choice_card_type_3, $choice_card_type_4, $choice_card_type_5]}} */
+choose_card_types_five ::= "choose" choice_card_type "," choice_card_type "," choice_card_type "," choice_card_type "," "or" choice_card_type
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:LandType, terms:_{count:Exactly(Constant(1)), options:[$choice_land_type, $choice_land_type_2]}} */
+choose_land_types_pair ::= "choose" choice_land_type "or" choice_land_type
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:ColorList, operands:[$choice_color, $choice_color_2]}]}} */
+choose_color_pair ::= "choose" choice_color "or" choice_color
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:PlaneswalkerType, terms:_{count:Exactly(Constant(1)), options:[]}} */
+choose_planeswalker_type ::= "choose" "a" "planeswalker" "type"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(2)), options:[]}} */
+choose_two_basic_land_types ::= "choose" "two" "basic" "land" "types"
+
+choice_card_type ::= choice_card_type_artifact | choice_card_type_creature | choice_card_type_enchantment | choice_card_type_instant | choice_card_type_sorcery | choice_card_type_planeswalker | choice_card_type_land | choice_card_type_battle
+
+/* @sem Operand::Vocabulary{family:CardType, form:Artifact} */
+choice_card_type_artifact ::= "artifact"
+
+/* @sem Operand::Vocabulary{family:CardType, form:Creature} */
+choice_card_type_creature ::= "creature"
+
+/* @sem Operand::Vocabulary{family:CardType, form:Enchantment} */
+choice_card_type_enchantment ::= "enchantment"
+
+/* @sem Operand::Vocabulary{family:CardType, form:Instant} */
+choice_card_type_instant ::= "instant"
+
+/* @sem Operand::Vocabulary{family:CardType, form:Sorcery} */
+choice_card_type_sorcery ::= "sorcery"
+
+/* @sem Operand::Vocabulary{family:CardType, form:Planeswalker} */
+choice_card_type_planeswalker ::= "planeswalker"
+
+/* @sem Operand::Vocabulary{family:CardType, form:Land} */
+choice_card_type_land ::= "land"
+
+/* @sem Operand::Vocabulary{family:CardType, form:Battle} */
+choice_card_type_battle ::= "battle"
+
+choice_land_type ::= choice_land_type_plains | choice_land_type_island | choice_land_type_swamp | choice_land_type_mountain | choice_land_type_forest
+
+/* @sem Operand::Vocabulary{family:LandType, form:Plains} */
+choice_land_type_plains ::= "Plains"
+
+/* @sem Operand::Vocabulary{family:LandType, form:Island} */
+choice_land_type_island ::= "Island"
+
+/* @sem Operand::Vocabulary{family:LandType, form:Swamp} */
+choice_land_type_swamp ::= "Swamp"
+
+/* @sem Operand::Vocabulary{family:LandType, form:Mountain} */
+choice_land_type_mountain ::= "Mountain"
+
+/* @sem Operand::Vocabulary{family:LandType, form:Forest} */
+choice_land_type_forest ::= "Forest"
+
+choice_color ::= choice_color_white | choice_color_blue | choice_color_black | choice_color_red | choice_color_green
+
+/* @sem Operand::Vocabulary{family:Color, form:White} */
+choice_color_white ::= "white"
+
+/* @sem Operand::Vocabulary{family:Color, form:Blue} */
+choice_color_blue ::= "blue"
+
+/* @sem Operand::Vocabulary{family:Color, form:Black} */
+choice_color_black ::= "black"
+
+/* @sem Operand::Vocabulary{family:Color, form:Red} */
+choice_color_red ::= "red"
+
+/* @sem Operand::Vocabulary{family:Color, form:Green} */
+choice_color_green ::= "green"
+
+/* The willing payer excludes the event's player; the quoted spell cost
+   remains attached to the event subject, independently of the payer. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:FirstWilling($willing_payer_pool), cost:$willing_spell_cost, optional:true}}, If{condition:$willing_payment_condition, then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_willing_spell_payment ::= willing_payer_pool "may" willing_spell_cost "." willing_payment_condition "," conjoined
+
+/* @sem PlayerSet::OthersThan(PlayerRef::EventSubject) */
+willing_payer_pool ::= "any" "other" "player"
+
+/* @sem Cost::Cost{parts:[ManaCostOf(EventSubject)]} */
+willing_spell_cost ::= "pay" "that" "spell's" "mana" "cost"
+
+/* The repeated counter kind and recipient refer to the same source placement. */
+/* @sem Operation::PutCountersCapped{amount:$number, kind:PowerToughness([1, 0]), object:Source, at_most:$value} */
+put_counters_capped_source_power ::= "put" "up" "to" number "+" "1" "/" "+" "0" "counters" "on" "this" "creature" "." "this" "ability" "can't" "cause" "the" "total" "number" "of" "+" "1" "/" "+" "0" "counters" "on" "this" "creature" "to" "be" "greater" "than" value

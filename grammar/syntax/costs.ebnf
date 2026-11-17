@@ -2,7 +2,7 @@
 /* @sem Cost::Cost{parts:$cost_parts} */
 cost ::= cost_parts
 
-cost_parts ::= cost_parts_one | cost_parts_more | cost_remove_counters_and_sacrifice
+cost_parts ::= cost_parts_one | cost_parts_more | cost_sacrifice_three | cost_remove_counters_and_sacrifice
 
 /* "Remove three quest counters from this enchantment and sacrifice it": "it" is the
    source the counters come off. */
@@ -15,7 +15,7 @@ cost_parts_one ::= cost_part
 /* @sem CostPart::[$cost_part, ...$cost_parts_later] */
 cost_parts_more ::= cost_part "," cost_parts_later
 
-cost_parts_later ::= cost_parts_one_later | cost_parts_more_later | cost_sacrifice_many_and_self | cost_exile_many_and_self
+cost_parts_later ::= cost_parts_one_later | cost_parts_more_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_exile_many_and_self
 
 /* @sem CostPart::[CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count)}, CostPart::Sacrifice{objects:One(ObjectRef::Source)}] */
 cost_sacrifice_many_and_self ::= "↑" "sacrifice" count filter_plural "and" self_text
@@ -42,14 +42,7 @@ cost_words ::= mined_cost | cost_words_owned
     | cost_return_to_owners_hand
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many
-    | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped
-    | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random
-    | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self
-    | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand
-    | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top
-    | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each
-    | cost_mill | cost_unattach_named_source
+cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -589,3 +582,46 @@ self_return_and_optional_card ::= "return" "this" "card" "and" "up" "to" "one" "
 /* A named object in a granted ability retains the granting source identity. */
 /* @sem CostPart::Unattach($self_ref_named) */
 cost_unattach_named_source ::= "unattach" self_ref_named
+
+/* Selection constraints qualify the complete payment, retaining its operands. */
+/* @sem CostPart::Constrained{part:$cost_constraint_payment, constraints:[$cost_selection_constraint]} */
+cost_constrained_selection ::= cost_constraint_payment cost_selection_constraint
+
+cost_constraint_payment ::= cost_discard_many | cost_discard_filtered_many | cost_reveal_hand_many | cost_tap_population
+
+/* @sem CostPart::Reveal{count:Exactly($card_count), filter:Any} */
+cost_reveal_hand_many ::= "reveal" card_count "from" "your" "hand"
+
+/* @sem CostPart::ChangeTapState{selections:[_{objects:$affected, choose:Exactly($value)}], tapped:true} */
+cost_tap_population ::= "tap" value affected
+
+cost_selection_constraint ::= cost_constraint_different_names | cost_constraint_same_name | cost_constraint_shared_color | cost_constraint_shared_creature_type
+
+/* @sem SelectionConstraint::DifferentNames */
+cost_constraint_different_names ::= "with" "different" "names"
+
+/* @sem SelectionConstraint::CommonProperty(Names) */
+cost_constraint_same_name ::= "with" "the" "same" "name"
+
+/* @sem SelectionConstraint::CommonProperty(Colors) */
+cost_constraint_shared_color ::= "that" "share" "a" "color"
+
+/* @sem SelectionConstraint::CommonProperty(CreatureTypes) */
+cost_constraint_shared_creature_type ::= "that" "share" "a" "creature" "type"
+
+/* The selection phrase supplies both the hand population and the count. */
+/* @sem CostPart::Move{selections:[$hand_cost_selection], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_hand_selection ::= "exile" hand_cost_selection
+
+/* @sem CostPart::PutCounters([_{recipients:Objects($cost_selected_permanent), kind:$counter_kind, amount:Constant(1), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]) */
+cost_put_counter_on_selected ::= "put" "a" counter_kind "counter" "on" cost_selected_permanent
+
+/* A coordinated sacrifice names three independent payments. */
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice_item ::= "a" filter_phrase
+
+/* @sem CostPart::[$cost_sacrifice_item, $cost_sacrifice_item_2, $cost_sacrifice_item_3] */
+cost_sacrifice_three ::= "sacrifice" cost_sacrifice_item "," cost_sacrifice_item "," "and" cost_sacrifice_item
+
+/* @sem $cost_sacrifice_three */
+cost_sacrifice_three_later ::= "↑" cost_sacrifice_three

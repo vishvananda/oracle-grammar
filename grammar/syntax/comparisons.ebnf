@@ -25,13 +25,14 @@ comparison_greater ::= "greater" "than"
 /* @sem Comparison::GreaterOrEqual */
 comparison_greater_equal ::= "greater" "than" "or" "equal" "to"
 
-/* A counterspell announces a spell in the stack zone. Its adjectives and
-   relative modifiers are the same phrases used by spell-trigger filters. */
-/* @sem Operation::Counter{objects:One($target_stack_spell), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None} */
-counter_spell ::= "counter" target_stack_spell
-/* "Whenever an opponent casts a spell, counter that spell": the spell named earlier. */
-/* @sem Operation::Counter{objects:One($named_spell), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None} */
-counter_named_spell ::= "counter" named_spell
+/* The action and destination are shared across announced and event references. */
+/* @sem Operation::Counter{objects:One($counter_object), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None} */
+counter_shared ::= "counter" counter_object
+counter_object ::= target_stack_spell | named_spell | counter_event_stack_object | counter_event_subject
+/* @sem ObjectRef::EventStackObject */
+counter_event_stack_object ::= "that" "spell" "or" "ability"
+/* @sem ObjectRef::EventSubject */
+counter_event_subject ::= "the" "spell"
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Spell, zones:[Stack]}), count:Exactly(Expr::Constant(1)), filter:$stack_spell_filter}), index:0} */
 target_stack_spell ::= "target" stack_spell_filter
