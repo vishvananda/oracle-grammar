@@ -14,9 +14,11 @@ import dev
 import retire as r
 import retire_cohort as cohort
 import retire_reuse
+import retire_screen_packet as screen_packet
 
 RUNNERS = tuple(dict.fromkeys((*r.TOOLING, 'retire_author.py', 'retire_author_pool.py',
-                               'retire_pool.py', 'retire_cpu.py', 'retire_helper.py', 'retire_cohort.py')))
+                               'retire_pool.py', 'retire_cpu.py', 'retire_helper.py', 'retire_cohort.py',
+                               'retire_screen_packet.py')))
 HELPERS = ('family-check', 'probe', 'inspect')
 
 
@@ -118,8 +120,14 @@ _PACKET_LOCK = RLock()
 @lru_cache(maxsize=1)
 def _packet_data(inputs, manifest_hash):
     """Read immutable population once per coordinator process, retaining addresses."""
-    del manifest_hash
-    frozen = Path(inputs)/'frozen'
+    inputs = Path(inputs)
+    frozen = inputs/'frozen'
+    manifest = r.read(inputs/'manifest.json')
+    def verified():
+        return (r.digest(inputs/'manifest.json') == manifest_hash
+                and all(r.digest(frozen/name) == manifest['files'][name]
+                        for name in ('index.json', 'gold.jsonl', 'oracle.json')))
+    r.require(verified(), 'cohort inputs differ from their manifest')
     by_name = {}
     for key, row in r.read(frozen/'index.json').items():
         by_name.setdefault(row['name'], []).append((int(key), row))
@@ -128,6 +136,7 @@ def _packet_data(inputs, manifest_hash):
     for number, value in enumerate(r.read(frozen/'oracle.json')):
         key = tuple(sorted(face['name'] for face in value['cards']))
         oracle.setdefault(key, []).append((number, value))
+    r.require(verified(), 'cohort inputs changed while loading')
     return by_name, gold, oracle
 
 
@@ -200,6 +209,13 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
     fixture, edits, write_files, discovery, hints = _paths(source, job)
     cohort_detail = close_cohort(inputs, cohort_detail)
     packet = _packet(inputs, job, cohort_detail)
+    compact = None
+    if job.get('target_faces') and cohort_detail['closure_occurrence_count'] > screen_packet.MIN_FULL_OCCURRENCES:
+        r.verify(inputs)
+        with _PACKET_LOCK:
+            by_name, records, oracle_index = _packet_data(str(inputs), r.digest(inputs/'manifest.json'))
+            compact = screen_packet.build(by_name, records, oracle_index, job, cohort_detail,
+                                          r.digest(inputs/'manifest.json'))
     run.mkdir(parents=True, exist_ok=False)
     created_checkout = False
     try:
@@ -251,10 +267,15 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
             task['reuse'] = reuse
             task['goal'] = ('Private checkout starts with a prior infrastructure-tainted candidate; '
                             'recheck current files and retain or revise them. ' + task['goal'])
+        if compact is not None:
+            (run/'screen-packet.json').write_bytes(compact)
+            task['screen_packet_sha256'] = hashlib.sha256(compact).hexdigest()
         r.write(tasks/(job['id']+'.json'), task)
         r.write(run/'packet.json', packet)
         support = {'files': r.tree(run/'support'), 'tasks': {job['id']: r.digest(tasks/(job['id']+'.json'))},
                    'packet_sha256': r.digest(run/'packet.json')}
+        if compact is not None:
+            support['screen_packet_sha256'] = task['screen_packet_sha256']
         r.write(run/'support.json', support)
         return {'run': str(run), 'task_id': job['id'], 'checkout': str(checkout)}
     except BaseException:

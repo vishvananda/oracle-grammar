@@ -245,6 +245,13 @@ cannot accept a proposal. Surviving proposals still run the complete original
 cohort, native reading validation, all four print gates and operand-edit checks.
 Initial cohort selection retains its 500-name bound; an already closed cohort
 can exceed that name count while remaining within 1,024 face occurrences.
+For eligible new tasks, preparation also saves a bounded primary-cohort packet
+bound to the task descriptor, support record, and frozen input manifest. It
+retains the original occurrence addresses, gold records, and Oracle companions.
+Diagnostics verify that packet and use it for the early rejection screen without
+loading the entire population. A missing or altered promised packet fails closed;
+older tasks and oversized packets use the existing full-input path. Passing the
+screen still loads the full data and runs every original acceptance check.
 
 Optional hash-bound library regression controls run a small list of exact tests
 against the baseline and each trial grammar before promotion. Their executable

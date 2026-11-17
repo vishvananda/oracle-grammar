@@ -17,6 +17,7 @@ import dev
 import mined
 import retire as r
 import retire_cohort as cohort
+import retire_screen_packet as screen_packet
 import retire_worker as w
 
 
@@ -97,25 +98,36 @@ def check_seeded_files(base, root, rules, directory):
 EARLY_PARSE_FULL_OCCURRENCES = 128
 
 
-def early_parse_screen(run, directory, grammar, task, data):
+def early_parse_screen(run, directory, grammar, task, data=None, compact=None):
     """Reject obvious primary-cohort regressions; a pass is not acceptance."""
     targets = task.get('target_faces', [])
     if not targets:
         return None
-    index, records, _ = data
-    by_name = {}
-    for ordinal, row in index.items():
-        by_name.setdefault(row['name'], []).append((int(ordinal), row))
-    full = cohort.close_cohort(by_name, records, {'names': task['cohort']}, already_closed=True)
-    if full['closure_occurrence_count'] <= EARLY_PARSE_FULL_OCCURRENCES:
-        return None
-    primary = cohort.close_cohort(by_name, records, {'names': targets})
-    r.require(set(primary['names']) <= set(full['names']), 'primary closure escaped full diagnostic cohort')
+    if compact is None:
+        index, records, _ = data
+        by_name = {}
+        for ordinal, row in index.items():
+            by_name.setdefault(row['name'], []).append((int(ordinal), row))
+        full = cohort.close_cohort(by_name, records, {'names': task['cohort']}, already_closed=True)
+        if full['closure_occurrence_count'] <= EARLY_PARSE_FULL_OCCURRENCES:
+            return None
+        primary = cohort.close_cohort(by_name, records, {'names': targets})
+        r.require(set(primary['names']) <= set(full['names']), 'primary closure escaped full diagnostic cohort')
     folder = directory/'parse-screen'
     folder.mkdir()
-    selected = w.subset(folder, primary['names'], data)
-    expected = [(int(ordinal), row) for ordinal, row in index.items() if row['name'] in selected]
-    r.require(len(expected) == primary['closure_occurrence_count'], 'primary occurrence count changed')
+    if compact is None:
+        selected = w.subset(folder, primary['names'], data)
+        expected = [(int(ordinal), row) for ordinal, row in index.items() if row['name'] in selected]
+        r.require(len(expected) == primary['closure_occurrence_count'], 'primary occurrence count changed')
+        full_count = full['closure_occurrence_count']
+    else:
+        r.jsonl(folder/'gold.jsonl', compact['gold'])
+        r.write(folder/'oracle.json', compact['oracle'])
+        r.write(folder/'slice.json', {'cards': compact['names']})
+        expected = [(row['ordinal'], {'record': row['record'], 'face': row['face'], 'name': row['name'],
+                                      'text': row['text'], 'parse': {'readings': row['readings']}})
+                    for row in compact['entries']]
+        full_count = compact['full_occurrences']
     r.execute(run/'inputs', folder, grammar, 'score',
               [folder/'gold.jsonl', folder/'oracle.json', folder/'slice.json', folder/'rows.jsonl'], 2)
     rows = r.rows(folder/'rows.jsonl')
@@ -127,7 +139,7 @@ def early_parse_screen(run, directory, grammar, task, data):
             failures.append({'ordinal': ordinal, 'record': old['record'], 'face_index': old['face'],
                              'face': old['name'], 'gate': 'parse/reading-count/text'})
     return {'status': 'failed' if failures else 'passed', 'primary_occurrences': len(expected),
-            'full_occurrences': full['closure_occurrence_count'], 'failures': failures,
+            'full_occurrences': full_count, 'failures': failures,
             'scope': 'parse-only rejection screen; full native and print checks remain required'}
 
 
@@ -199,6 +211,12 @@ def verify(run, task_id):
     r.require(r.digest(Path(__file__)) == support['files'].get('runner/retire_author.py'),
               'use the campaign frozen authoring runner')
     task = r.read(descriptor)
+    if 'packet' in task:
+        packet = run/'packet.json'
+        r.require(not packet.is_symlink() and Path(task['packet']).resolve() == packet.resolve()
+                  and r.digest(packet) == support.get('packet_sha256'), 'task packet changed')
+    if 'screen_packet_sha256' in task:
+        screen_packet.load(run, task, r.digest(run/'inputs/manifest.json'), support)
     root = Path(task['checkout'])
     r.require(subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
               == manifest['commit'], 'worker changed its base commit')
@@ -344,8 +362,10 @@ def _check(run, task_id, coordinator=False):
                     'checks': ['cohort score', 'cohort native validation', 'edited operand checks'],
                 }
             else:
-                data = w.payload(run/'inputs')
-                screen = early_parse_screen(run, directory, grammar, task, data)
+                compact = screen_packet.load(run, task, r.digest(run/'inputs/manifest.json'),
+                                             r.read(run/'support.json')) if 'screen_packet_sha256' in task else None
+                data = None if compact is not None else w.payload(run/'inputs')
+                screen = early_parse_screen(run, directory, grammar, task, data, compact=compact)
                 if screen is not None:
                     report['early_parse_screen'] = screen
                 if screen is not None and screen['status'] == 'failed':
@@ -356,6 +376,8 @@ def _check(run, task_id, coordinator=False):
                                    'full cohort print gates', 'edited operand checks'],
                     }
                 else:
+                    if data is None:
+                        data = w.payload(run/'inputs')
                     report.update(w.checks(run/'inputs', directory, grammar, task['cohort'], data, 2))
                     report['edited'] = edited_checks(run, directory, grammar, task, root, data)
                     report['passed'] = not report['failures']
