@@ -112,6 +112,83 @@ class ParseReadmissionTests(BatchReadmissionTests):
     def invoke(self, proof):
         return self.queue.readmit_parse_screen_batch_proposals(['author','mechanical'],'parent',proof)
 
+    def full_fixture(self):
+        proof = self.fixture()
+        folder = self.original.parent/'full-checks'
+        self.original.rename(folder)
+        isolation = r.read(self.isolation)
+        full = isolation['controls']['full']
+        focus = Path(full['identity']['path']).parent/'checks'
+        for checks in (folder, focus):
+            rows = r.rows(checks/'rows.jsonl')
+            next(row for row in rows if row['name'] == 'A')['default'] = 'a'
+            r.jsonl(checks/'rows.jsonl', rows)
+        focused_report = r.read(Path(full['result']['path']))
+        focused_report['failures'].append({'face':'A','lost':['exact_default']})
+        write(Path(full['result']['path']), focused_report)
+        full['result'] = spec(Path(full['result']['path']))
+        full['artifacts']['rows.jsonl'] = spec(focus/'rows.jsonl')
+        isolation['kind'] = 'isolated-full-check-regressions'
+        write(self.isolation, isolation)
+        validation = r.read(self.validation)
+        for key in ('parse_screen', 'parse_screen_result_sha256',
+                    'checkpoint_manifest_sha256', 'validation_manifest_sha256'):
+            del validation[key]
+        validation['reason'] = 'full allowed-population checks failed'
+        validation['full_checks'] = {**focused_report, 'faces':3}
+        write(self.validation, validation)
+        with closing(self.queue._connect()) as db:
+            for item in self.items:
+                db.execute('UPDATE jobs SET adjudication=? WHERE id=?',
+                           (json.dumps({'status':'integration-rejected',
+                                       'evidence':{'manifest':'batch','validation':validation}}), item['job_id']))
+        return dict(proof, kind='isolated-full-check-revalidation', source_checkpoint='parent',
+                    validation=spec(self.validation), isolation=spec(self.isolation),
+                    archive_manifests={'checkpoint_manifest_sha256':spec(self.inputs/'manifest.json'),
+                                       'validation_manifest_sha256':spec(self.run/'manifest.json')},
+                    full_artifacts={name:spec(folder/name) for name in parsed.ARTIFACTS})
+
+    def test_archived_full_check_uses_ancestor_and_queues_exact_survivors(self):
+        proof = self.full_fixture()
+        self.queue.add_checkpoint('current', 'evidence', expected_parent='parent')
+        with patch.object(parsed.library, '_replay') as replay:
+            result = self.queue.readmit_full_check_batch_proposals(['author','mechanical'], 'current', proof)
+        self.assertEqual([call.args[1] for call in replay.call_args_list], ['parent','parent'])
+        self.assertEqual(result['proof']['source_checkpoint'], 'parent')
+        self.assertEqual(result['proof']['proof_scope'], 'archived full-check isolation')
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+        self.assertEqual(driver.recovered_cohort(self.queue,'current'),
+                         {'manifest':'batch','checkpoint':'current','jobs':['author','mechanical']})
+
+    def test_archived_full_requires_frozen_original_population(self):
+        proof = self.full_fixture()
+        path = Path(proof['full_artifacts']['oracle.json']['path'])
+        path.write_text('[]')
+        proof['full_artifacts']['oracle.json'] = spec(path)
+        with patch.object(parsed.library, '_replay'), self.assertRaisesRegex(ValueError,'frozen population'):
+            self.queue.readmit_full_check_batch_proposals(['author','mechanical'], 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected':3})
+
+    def test_archived_full_control_must_reproduce_print_loss_as_well_as_addition(self):
+        proof = self.full_fixture()
+        isolation = r.read(self.isolation)
+        control = isolation['controls']['full']
+        rows_path = Path(control['artifacts']['rows.jsonl']['path'])
+        rows = r.rows(rows_path)
+        del rows[0]['default']
+        r.jsonl(rows_path, rows)
+        control['artifacts']['rows.jsonl'] = spec(rows_path)
+        result_path = Path(control['result']['path'])
+        result = r.read(result_path)
+        result['failures'].pop()
+        write(result_path, result)
+        control['result'] = spec(result_path)
+        write(self.isolation, isolation)
+        proof['isolation'] = spec(self.isolation)
+        with patch.object(parsed.library, '_replay'), self.assertRaisesRegex(ValueError,'exact archived failures'):
+            self.queue.readmit_full_check_batch_proposals(['author','mechanical'], 'parent', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected':3})
+
     def test_parse_readmission_is_atomic_nonacceptance_and_replays_both_trees(self):
         proof = self.fixture(); originals = [self.queue.get_attempt(self.attempt(name))for name in ('author','mechanical')]
         with patch.object(parsed.library,'_replay')as replay:

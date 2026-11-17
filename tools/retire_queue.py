@@ -1071,6 +1071,10 @@ class Queue:
         """
         return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='parse-screen')
 
+    def readmit_full_check_batch_proposals(self, job_ids, checkpoint, evidence):
+        """Return an isolated archived full-check cohort to fresh validation."""
+        return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='full-check')
+
     def _readmit_shared_batch(self, job_ids, checkpoint, evidence, *, mode):
         """Keep leases and compare-and-swap all protected attempts together."""
         if (not isinstance(job_ids, list) or not 1 <= len(job_ids) <= 96
@@ -1079,10 +1083,12 @@ class Queue:
             raise ValueError('readmission requires 1–96 distinct job IDs')
         kind = {'library': 'isolated-batch-library-revalidation',
                 'native-exit-one': 'isolated-native-exit-one-revalidation',
-                'parse-screen': 'isolated-parse-screen-revalidation'}[mode]
+                'parse-screen': 'isolated-parse-screen-revalidation',
+                'full-check': 'isolated-full-check-revalidation'}[mode]
         if not isinstance(evidence, dict) or evidence.get('kind') != kind:
             raise ValueError('matching isolated batch revalidation evidence is required')
-        origin = evidence.get('source_checkpoint', checkpoint) if mode == 'parse-screen' else checkpoint
+        verify_archived_replay = mode in ('parse-screen', 'full-check')
+        origin = evidence.get('source_checkpoint', checkpoint) if verify_archived_replay else checkpoint
         if not isinstance(origin, str) or not origin or Path(origin).name != origin:
             raise ValueError('invalid parse readmission origin')
         reports = evidence.get('reports')
@@ -1130,14 +1136,14 @@ class Queue:
             campaign = Path(self.path).parent
             selected = {name: row[1] for name, row in rows.items()}
             verifier = {'library': retire_library_readmission, 'native-exit-one': retire_native_exit_readmission,
-                        'parse-screen': retire_parse_readmission}[mode]
+                        'parse-screen': retire_parse_readmission, 'full-check': retire_parse_readmission}[mode]
             proof = verifier.verify(campaign, selected, origin, rejections, evidence, _proof_file, _gates)
             if origin != checkpoint:
                 proof['source_checkpoint'] = origin
             with self._transaction() as db:
                 latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
                 if not latest or latest[0] != checkpoint:
-                    raise ValueError('checkpoint changed during library proof verification')
+                    raise ValueError('checkpoint changed during batch proof verification')
                 _verify_readmission_origin(db, checkpoint, origin)
                 previous_readmissions = set()
                 for event in db.execute("SELECT data FROM events WHERE kind IN "
@@ -1148,18 +1154,19 @@ class Queue:
                     current = db.execute(query, (name,)).fetchone()
                     owned = [x[0] for x in db.execute('SELECT rule FROM rules WHERE job_id=? ORDER BY rule', (name,))]
                     if not current or tuple(current) != snapshots[name]:
-                        raise ValueError('attempt changed during library proof verification')
+                        raise ValueError('attempt changed during batch proof verification')
                     if owned != owners[name]:
                         raise ValueError('ownership changed during batch proof verification')
                     if (name, proof['manifest']) in previous_readmissions:
                         raise ValueError('batch readmission already used for this job')
                     self._require_absent_pid(pids[name])
-                if mode == 'parse-screen':
+                if verify_archived_replay:
                     verifier.recheck(proof)
                 for name in job_ids:
                     db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (name,))
                     event = {'library': 'readmitted-library-batch', 'native-exit-one': 'readmitted-native-exit-one-batch',
-                             'parse-screen': 'readmitted-parse-screen-batch'}[mode]
+                             'parse-screen': 'readmitted-parse-screen-batch',
+                             'full-check': 'readmitted-native-batch'}[mode]
                     self._event(db, event, {'job_id': name, 'attempt_id': snapshots[name][1],
                                 'checkpoint': checkpoint, 'manifest': proof['manifest'], 'proof': proof,
                                 'previous_adjudication': rejections[name], 'evidence': evidence})

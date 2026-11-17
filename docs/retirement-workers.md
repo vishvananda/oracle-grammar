@@ -64,7 +64,9 @@ An additions-only parse-screen isolation can cite the accepted ancestor where
 the batch originally failed. The queue verifies that proof at the original
 checkpoint, then restores only the still-current rejected attempts at the
 latest checkpoint. Staging replays them against that checkpoint and runs its
-full validation before publication.
+full validation before publication. An archived full-check failure can use
+the same recovery path if all prior readings remain and focused controls
+reproduce every added reading and print failure.
 
 One full audit runs at a time, reserving 16 tokens by default from a shared
 32-token CPU pool; a 24-thread option is also supported. Worker helpers reserve two

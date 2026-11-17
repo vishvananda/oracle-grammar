@@ -1,4 +1,4 @@
-"""Strict isolation of additions-only parse-screen failures; never accepts rules."""
+"""Verify complete archived parse or print failures and replay focused survivors."""
 import hashlib
 from itertools import zip_longest
 import json
@@ -44,21 +44,31 @@ class Reads:
             raise ValueError('parse isolation artifact changed during verification')
 
 
-def _frozen(campaign, checkpoint, manifest, validation, reads):
+def _frozen(campaign, checkpoint, manifest, validation, reads, archived=None):
     cp_path = campaign/'checkpoints'/f'{checkpoint}.json'
     cp = r.read(cp_path); inputs = Path(cp['inputs']).resolve()
     run = (campaign/'.cache/batches'/manifest['id']/'validation-inputs').resolve()
     if (cp.get('commit') != checkpoint or not inputs.is_relative_to(campaign.resolve())
             or Path(validation.get('inputs', '')).resolve() != run):
         raise ValueError('parse readmission checkpoint identity differs')
+    hashes = {key: validation.get(key) for key in ('checkpoint_manifest_sha256', 'validation_manifest_sha256')}
+    if archived is not None:
+        if not isinstance(archived, dict) or set(hashes) != set(archived):
+            raise ValueError('archived checkpoint and candidate manifest pins are required')
+        for key, root in zip(hashes, (inputs, run), strict=True):
+            spec = archived[key]
+            reads.artifact(spec, root/'manifest.json')
+            if hashes[key] not in (None, spec['sha256']):
+                raise ValueError('archive pin differs from the recorded validation manifest')
+            hashes[key] = spec['sha256']
     parent, frozen = r.read(inputs/'manifest.json'), r.read(run/'manifest.json')
     trees = [{k.removeprefix('grammar/'):v for k,v in value.get('files', {}).items()
               if k.startswith('grammar/')} for value in (parent, frozen)]
     if (parent.get('commit') != checkpoint or frozen.get('commit') != manifest.get('commit')
             or type(parent.get('population')) is not int or parent['population'] <= 0
             or frozen.get('population') != parent['population'] or frozen.get('source') != parent.get('source')
-            or r.digest(inputs/'manifest.json') != validation.get('checkpoint_manifest_sha256')
-            or r.digest(run/'manifest.json') != validation.get('validation_manifest_sha256')
+            or r.digest(inputs/'manifest.json') != hashes['checkpoint_manifest_sha256']
+            or r.digest(run/'manifest.json') != hashes['validation_manifest_sha256']
             or not trees[0] or trees[1] != manifest.get('grammar')
             or _grammar_tree(inputs/'frozen/grammar') != trees[0]
             or _grammar_tree(run/'frozen/grammar') != trees[1]):
@@ -108,6 +118,30 @@ def _original(run, folder, validation, data, reads):
     return native['additions']
 
 
+def _original_full_checks(run, folder, validation, data, reads, artifacts):
+    checks = folder/'full-checks'
+    if not isinstance(artifacts, dict) or set(artifacts) != set(ARTIFACTS):
+        raise ValueError('archived full check artifacts are incomplete')
+    for name in ARTIFACTS:
+        reads.artifact(artifacts[name], checks/name)
+    frozen = r.read(run/'manifest.json')['files']
+    if any(artifacts[name]['sha256'] != frozen[name] for name in ('gold.jsonl', 'oracle.json')):
+        raise ValueError('archived full check inputs differ from the frozen population')
+    screen.assess(run, checks, data, 0)
+    native = r.read(checks/'native.json')
+    preserved = native['reading_preservation']
+    rows = r.rows(checks/'rows.jsonl')
+    count = len(data[0])
+    selected = {entry['name'] for entry in data[0].values()}
+    actual = {'faces': count, 'failures': worker.native_failures(native, count) + worker.compare(rows, data[0], selected)}
+    named = {item['face'] for item in actual['failures'] if isinstance(item, dict)}
+    if (actual != validation.get('full_checks') or not named or preserved['missing']
+            or preserved['merged_faces'] != 0 or not preserved['passed']
+            or any(row.get('status') != 'equal' for row in rows)):
+        raise ValueError('archived full checks are not a complete addition or print failure')
+    return preserved['additions'], actual['failures'], named
+
+
 def _baseline_bridge(before_entries, current_entries):
     if len(before_entries) != len(current_entries):
         raise ValueError('parse control baseline occurrence identity differs')
@@ -137,10 +171,13 @@ def _focus(campaign, controls, profile_spec, context, reads):
     if not _allowed(campaign, path): raise ValueError('parse focused profile escapes scratch')
     profile = json.loads(payload)
     names = profile.get('cards') if isinstance(profile, dict) and set(profile) == {'cards'} else None
-    named = {item['name'] for item in original}
+    full_failures = context.get('full_failures')
+    named = context['named_failures']
     if (not isinstance(names, list) or not 1 <= len(names) <= 500 or len(set(names)) != len(names)
             or any(not isinstance(name, str) or not name for name in names) or not named <= set(names)):
         raise ValueError('parse focused profile omits a failure or has duplicate/invalid names')
+    if full_failures is not None and set(names) != named:
+        raise ValueError('archived full checks require the exact named failure profile')
     closure = tasks.close_cohort(run, {'names': names}, max_occurrences=1024)
     if closure['closure_occurrence_count'] != count:
         raise ValueError('parse focused population count differs from complete closure')
@@ -187,6 +224,8 @@ def _focus(campaign, controls, profile_spec, context, reads):
                       + worker.compare(r.rows(checks/'rows.jsonl'), data[0], selected)}
             if result != actual or (label == 'full') != bool(actual['failures']):
                 raise ValueError('parse focused native or print outcome differs')
+            if label == 'full' and full_failures is not None and actual['failures'] != full_failures:
+                raise ValueError('focused full checks did not reproduce the exact archived failures')
             preservation = native['reading_preservation']
             additions = [dict(item, occurrence=entries[item['occurrence']][0]) for item in preservation['additions']]
             if preservation['missing'] or preservation['merged_faces'] or (label == 'full' and additions != original):
@@ -200,10 +239,13 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
         path, value = reads(evidence.get(name)); paths[name] = path.resolve()
         values[name] = value if name == 'repository_log' else json.loads(value)
     manifest, validation, isolation = (values[k] for k in ('manifest', 'validation', 'isolation'))
+    kind = evidence.get('kind')
+    full_checks = kind == 'isolated-full-check-revalidation'
     batch = manifest.get('id'); folder = campaign/'.cache/batches'/str(batch)
     included = [item for item in manifest.get('jobs', []) if item.get('status') == 'included']
     ids = [item.get('job_id') for item in included]; excluded = isolation.get('excluded_jobs')
-    if (evidence.get('kind') != 'isolated-parse-screen-revalidation' or not isinstance(batch, str)
+    if (kind not in ('isolated-parse-screen-revalidation', 'isolated-full-check-revalidation')
+            or not isinstance(batch, str)
             or not batch or Path(batch).name != batch or not included or len(included) > 96
             or any(not isinstance(name, str) or not name for name in ids) or len(set(ids)) != len(ids)
             or not isinstance(excluded, list) or not excluded or len(set(excluded)) != len(excluded)
@@ -214,29 +256,40 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
             or paths['validation'] != (folder/'validation.json').resolve()
             or paths['repository_log'] != (folder/'repository-check.log').resolve() or not _allowed(campaign, paths['isolation'])):
         raise ValueError('parse isolation selection or original artifact paths differ')
+    reason = 'full allowed-population checks failed' if full_checks else 'full allowed-population parse screen failed'
     if (manifest.get('base_commit') != checkpoint or validation.get('scope') != 'combined-batch'
-            or validation.get('status') != 'failed' or validation.get('reason') != 'full allowed-population parse screen failed'
+            or validation.get('status') != 'failed' or validation.get('reason') != reason
             or validation.get('repository_check_returncode') != 0 or validation.get('candidate') != manifest.get('commit')
             or validation.get('source_checkpoint') != checkpoint or validation.get('included_jobs') != ids
-            or 'full_checks' in validation or 'rows' in validation
+            or ('full_checks' in validation) != full_checks or 'rows' in validation
             or any(x.get('evidence', {}).get('manifest') != batch or x.get('evidence', {}).get('validation') != validation
                    for x in rejections.values())
             or any(value not in ('passed', 'reused') for value in gates(values['repository_log']).values())):
-        raise ValueError('original additions-only parse failure or complete repository gates differ')
-    if (isolation.get('kind') != 'isolated-parse-screen-regressions' or isolation.get('manifest') != batch
+        outcome = 'archived full-check' if full_checks else 'original additions-only parse'
+        raise ValueError(outcome+' failure or complete repository gates differ')
+    isolation_kind = 'isolated-full-check-regressions' if full_checks else 'isolated-parse-screen-regressions'
+    if (isolation.get('kind') != isolation_kind or isolation.get('manifest') != batch
             or isolation.get('candidate') != manifest.get('commit') or isolation.get('parent') != checkpoint
             or not isinstance(isolation.get('reason'), str) or not isolation['reason'].strip()
             or not isinstance(isolation.get('controls'), dict) or set(isolation['controls']) != {'base', 'full', 'remaining'}):
         raise ValueError('parse isolation identity differs')
-    cp, inputs, run, data, trees = _frozen(campaign, checkpoint, manifest, validation, reads)
-    original = _original(run, folder, validation, data, reads)
+    archive = evidence.get('archive_manifests', {}) if full_checks else None
+    cp, inputs, run, data, trees = _frozen(campaign, checkpoint, manifest, validation, reads, archive)
+    if full_checks:
+        original, full_failures, named = _original_full_checks(
+            run, folder, validation, data, reads, evidence.get('full_artifacts'))
+    else:
+        original = _original(run, folder, validation, data, reads)
+        named = {item['name'] for item in original}
+        full_failures = None
     expected = {'base': [], 'full': list(range(len(ids))),
                 'remaining': [i for i, job in enumerate(ids) if job not in excluded]}
     count = isolation.get('population_count')
     if type(count) is not int or not 1 <= count <= min(1024, len(data[0])):
         raise ValueError('parse isolation population is invalid')
     focus = {'data': data, 'control_data': worker.payload(inputs), 'run': run, 'expected': expected, 'included': included,
-             'trees': trees, 'original': original, 'count': count,
+             'trees': trees, 'original': original, 'count': count, 'named_failures': named,
+             'full_failures': full_failures,
              'has_declared_key_changes': 'derivation_key_changes' in isolation,
              'declared_key_changes': isolation.get('derivation_key_changes')}
     control_trees = _focus(campaign, isolation['controls'], isolation.get('profile'), focus, reads)
@@ -261,7 +314,8 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     grammars.update({str(Path(isolation['controls'][label]['identity']['path']).parent/'grammar'): tree
                      for label, tree in control_trees.items()})
     return {'manifest': batch, 'excluded_jobs': excluded, 'focused_faces': count,
-            'requires_fresh_full_validation': True, 'proof_scope': 'additions-only parse-screen isolation',
+            'requires_fresh_full_validation': True,
+            'proof_scope': 'archived full-check isolation' if full_checks else 'additions-only parse-screen isolation',
             'verified_artifacts': artifacts, 'verified_grammars': grammars,
             'verified_frozen_inputs': [str(inputs), str(run)],
             'derivation_key_changes': focus['derivation_key_changes']}
