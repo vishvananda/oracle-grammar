@@ -287,7 +287,10 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     count = isolation.get('population_count')
     if type(count) is not int or not 1 <= count <= min(1024, len(data[0])):
         raise ValueError('parse isolation population is invalid')
-    focus = {'data': data, 'control_data': worker.payload(inputs), 'run': run, 'expected': expected, 'included': included,
+    # Full-check controls use the accepted audit rows frozen in validation inputs.
+    # The accepted checkpoint's input index can retain older print flags.
+    control_data = data if full_checks else worker.payload(inputs)
+    focus = {'data': data, 'control_data': control_data, 'run': run, 'expected': expected, 'included': included,
              'trees': trees, 'original': original, 'count': count, 'named_failures': named,
              'full_failures': full_failures,
              'has_declared_key_changes': 'derivation_key_changes' in isolation,

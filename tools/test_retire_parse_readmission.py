@@ -160,6 +160,26 @@ class ParseReadmissionTests(BatchReadmissionTests):
         self.assertEqual(driver.recovered_cohort(self.queue,'current'),
                          {'manifest':'batch','checkpoint':'current','jobs':['author','mechanical']})
 
+    def test_archived_full_controls_use_accepted_print_rows(self):
+        proof = self.full_fixture()
+        frozen = self.inputs/'frozen'
+        index = r.read(frozen/'index.json')
+        earlier = next(entry for entry in index.values() if entry['name'] == 'A')
+        earlier['parse']['default'] = 'a'
+        earlier['flags'] = r.flags(earlier['parse'])
+        self.assertFalse(earlier['flags'][3])
+        r.write(frozen/'index.json', index)
+        r.jsonl(frozen/'parse.jsonl', [entry['parse'] for entry in index.values()])
+        manifest_path = self.inputs/'manifest.json'
+        manifest = r.read(manifest_path)
+        manifest['files'] = r.tree(frozen)
+        r.write(manifest_path, manifest)
+        proof['archive_manifests']['checkpoint_manifest_sha256'] = spec(manifest_path)
+        with patch.object(parsed.library, '_replay'):
+            result = self.queue.readmit_full_check_batch_proposals(['author','mechanical'], 'parent', proof)
+        self.assertEqual(result['proof']['proof_scope'], 'archived full-check isolation')
+        self.assertEqual(result['proof']['derivation_key_changes'], [])
+
     def test_archived_full_requires_frozen_original_population(self):
         proof = self.full_fixture()
         path = Path(proof['full_artifacts']['oracle.json']['path'])
