@@ -24,6 +24,13 @@ def waiting_bundle(root, threads, capacity, ready, acquired, release, priority_w
         release.wait(10)
 
 
+def background_bundle(root, ready, acquired, release):
+    ready.set()
+    with retire_cpu.reserve(root, 4, 8, background=True):
+        acquired.set()
+        release.wait(10)
+
+
 class LeaseTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -103,6 +110,30 @@ class LeaseTests(unittest.TestCase):
         # Priority is released once the large bundle is acquired; headroom is usable.
         with retire_cpu.reserve(self.root, 2, 8, wait=False) as tokens:
             self.assertEqual(len(tokens), 2)
+        finish.set()
+
+    def test_waiting_background_bundle_leaves_capacity_for_foreground_workers(self):
+        ready, release = multiprocessing.Event(), multiprocessing.Event()
+        self.start(holder, self.root, 5, 8, ready, release)
+        self.assertTrue(ready.wait(5))
+        waiting, acquired, finish = (multiprocessing.Event() for _ in range(3))
+        child = self.start(background_bundle, self.root, waiting, acquired, finish)
+        self.assertTrue(waiting.wait(5))
+        self.assertFalse(acquired.wait(2*retire_cpu.POLL_SECONDS))
+        self.assertTrue(child.is_alive())
+        deadline = time.monotonic()+2
+        while True:
+            try:
+                with retire_cpu.reserve(self.root, 2, 8, wait=False) as tokens:
+                    self.assertEqual(len(tokens), 2)
+                    self.assertFalse(acquired.is_set())
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    self.fail('waiting background trial blocked free foreground tokens')
+                time.sleep(0.02)
+        release.set()
+        self.assertTrue(acquired.wait(5))
         finish.set()
 
     def test_waiting_priority_replay_claims_one_slot_and_releases_gate(self):

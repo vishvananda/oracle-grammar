@@ -177,7 +177,9 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
     if (grammar/'tail/mined.ebnf').is_file():
         current['tail'] = grammar/'tail/mined.ebnf'
     overrides = [f'--module={name}={current.get(name, os.devnull)}' for name in sorted(declared | current.keys())]
-    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), FAMILY_CHECK_THREADS, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
+    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), FAMILY_CHECK_THREADS,
+                                checkpoint.get('cpu_capacity', 32), background=checkpoint.get('background_cpu', False))
+             if checkpoint.get('cpu_pool') else nullcontext(()))
     with lease as fds:
         r._LEASES.extend(fds)
         try:
@@ -364,7 +366,9 @@ def _control_check(checkpoint, control, grammar, directory):
         raise ValueError('native control thread identity changed after setup')
     _control_verify(control)
     directory.mkdir()
-    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
+    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, checkpoint.get('cpu_capacity', 32),
+                                background=checkpoint.get('background_cpu', False))
+             if checkpoint.get('cpu_pool') else nullcontext(()))
     with lease as fds:
         r._LEASES.extend(fds)
         try:
@@ -956,7 +960,9 @@ def _validate(manifest, checkpoint, slots):
                 'checkpoint_manifest_sha256': r.digest(input_run/'manifest.json'), 'inputs': str(output),
                 'source_checkpoint': checkpoint['commit'], 'audit_threads': threads,
                 'cpu_capacity': capacity}
-    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, capacity) if checkpoint.get('cpu_pool') else nullcontext(())
+    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, capacity,
+                                background=checkpoint.get('background_cpu', False))
+             if checkpoint.get('cpu_pool') else nullcontext(()))
     try:
       with lease as fds:
         r._LEASES.extend(fds)

@@ -75,6 +75,8 @@ new small allocations; after it acquires its tokens, workers may use the remaini
 capacity. Checkpoint rule scans use the same reservation mechanism. Ordered
 readmission replay uses one CPU slot with waiting priority so a busy worker pool
 cannot starve recovery. Active audits and worker checks retain their leases.
+Private batch trials can set `background_cpu` in their checkpoint copy to wait
+for an idle bundle while leaving available tokens open to foreground checks.
 For the current explicitly allowed population, that means all 32,755
 occurrences: preserve every native reading and every baseline-successful
 verified, exact keyed, default and exact-default print gate. The population and
@@ -369,8 +371,10 @@ process and lease, the coordinator may split an original four-to-six-rule timeou
 once into two balanced pending jobs of at most three rules each, against the
 latest accepted checkpoint. An operator may instead retry an original
 one-to-three-rule timeout once on the latest checkpoint with the same rule
-owner and a fresh attempt. The
-original attempt, archive and cost history remain intact.
+owner and a fresh attempt. Pass `--include-small` to
+`tools/retire_timeout_operator.py` when preparing the plan to include these
+retries. Apply the rehearsed plan by its SHA-256. The original attempt, archive
+and cost history remain intact.
 A verified singleton mechanical removal with named native or print regressions
 can move to an author job scoped to those faces. The original evidence stays
 with the terminal mechanical attempt and the author runs fresh gates. Timeout children cannot

@@ -75,7 +75,8 @@ def check(checkpoint, control, grammar, directory):
     verify(control)
     directory.mkdir()
     results = []
-    with retire_cpu.reserve(Path(checkpoint['cpu_pool']), 2, checkpoint.get('cpu_capacity', 32)) as fds:
+    with retire_cpu.reserve(Path(checkpoint['cpu_pool']), 2, checkpoint.get('cpu_capacity', 32),
+                            background=checkpoint.get('background_cpu', False)) as fds:
         r._LEASES.extend(fds)
         try:
             env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}

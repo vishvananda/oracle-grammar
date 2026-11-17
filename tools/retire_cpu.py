@@ -11,7 +11,7 @@ POLL_SECONDS = 0.2
 
 @contextmanager
 def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool = True,
-            *, priority_wait: bool = False):
+            *, priority_wait: bool = False, background: bool = False):
     """Reserve all requested tokens together and yield their open file descriptors.
 
     Every process using the same root participates in the same pool. A smaller
@@ -22,12 +22,16 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
     waiting bundle above two tokens, at least half the pool, or explicitly
     marked priority gates new allocations until it acquires all tokens. Existing
     reservations continue and unused capacity is available afterward.
+    Background requests sample for a complete bundle without keeping that gate
+    while they wait. Foreground requests keep their existing priority.
     """
     if (isinstance(capacity, bool) or not isinstance(capacity, int)
             or not 1 <= capacity <= MAX_CAPACITY):
         raise ValueError(f'capacity must be an integer from 1 to {MAX_CAPACITY}')
     if isinstance(threads, bool) or not isinstance(threads, int) or not 1 <= threads <= capacity:
         raise ValueError('threads must be an integer between 1 and capacity')
+    if type(background) is not bool or (background and priority_wait):
+        raise ValueError('background reservations cannot request waiting priority')
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     allocator = os.open(root / 'allocator.lock', os.O_CREAT | os.O_RDWR, 0o600)
@@ -37,14 +41,20 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
         os.close(allocator)
         raise
     held = []
-    exclusive_wait = priority_wait or threads > 2 or threads >= capacity // 2
+    exclusive_wait = not background and (priority_wait or threads > 2 or threads >= capacity // 2)
     priority_held = False
     try:
         while True:
             # A priority waiter holds this gate until the full bundle is free.
             # Other reservations take it for each allocation scan.
             if not priority_held:
-                fcntl.flock(priority, fcntl.LOCK_EX | (0 if wait else fcntl.LOCK_NB))
+                try:
+                    fcntl.flock(priority, fcntl.LOCK_EX | (0 if wait and not background else fcntl.LOCK_NB))
+                except BlockingIOError:
+                    if not wait:
+                        raise
+                    time.sleep(POLL_SECONDS)
+                    continue
                 priority_held = True
             # Serialize scans so no waiter can hold part of a competing bundle.
             fcntl.flock(allocator, fcntl.LOCK_EX)
