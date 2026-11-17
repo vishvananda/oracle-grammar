@@ -120,6 +120,27 @@ def recovered_cohort(queue, checkpoint):
                 'jobs': [job for _, job in sorted(group)[:96]]}
 
 
+def mechanical_lane(queue, limit):
+    """Return FIFO mechanical and author selections without altering queue state."""
+    mechanical, authors = [], []
+    for row in queue.get_jobs('provisional-pass'):
+        job_id, payload = row.get('id'), row.get('job')
+        if not isinstance(job_id, str) or not job_id or not isinstance(payload, dict):
+            raise ValueError('provisional job identity is malformed')
+        kind = payload.get('kind')
+        if kind == 'mechanical':
+            mechanical.append(job_id)
+        elif kind == 'author':
+            authors.append(job_id)
+        else:
+            raise ValueError('provisional job kind is unsupported')
+    if len(mechanical) >= limit:
+        return {'lane': 'mechanical', 'jobs': mechanical[:96], 'combine': True}
+    if mechanical:
+        return {'lane': 'mechanical-first', 'jobs': (mechanical+authors)[:limit], 'combine': False}
+    return None
+
+
 def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
     run = Path(run).resolve()
     runner = _runner(run, runner)
@@ -159,16 +180,25 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         routing = config.get('recovered_cohorts_first', False)
                         if type(routing) is not bool:
                             raise ValueError('recovered_cohorts_first must be boolean')
+                        mechanical_priority = config.get('mechanical_cohorts_first', False)
+                        if type(mechanical_priority) is not bool:
+                            raise ValueError('mechanical_cohorts_first must be boolean')
                         ready = jobs.get('provisional-pass', 0)
-                        cohort = recovered_cohort(queue, progress['checkpoint']) if routing and ready else []
+                        lane = mechanical_lane(queue, limit) if mechanical_priority and ready else None
+                        large_mechanical = lane is not None and lane['combine']
+                        cohort = recovered_cohort(queue, progress['checkpoint']) if routing and ready and not large_mechanical else []
                         pending = jobs.get('pending', 0)
                         running = jobs.get('running', 0)
                         if ready and (cohort or flush or ready >= limit or not pending or time.monotonic()-last_batch >= wait):
                             _runner(run, runner)
                             folders = run/'.cache/batches'
                             before = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
-                            status('running', progress)
-                            if cohort:
+                            chosen_lane = lane if large_mechanical or (lane and not cohort) else None
+                            status('running', progress, lane=chosen_lane['lane'] if chosen_lane else
+                                   'recovered' if cohort else 'fifo')
+                            if chosen_lane:
+                                dispatch._batch(run, chosen_lane['jobs'], combine_selected=chosen_lane['combine'])
+                            elif cohort:
                                 dispatch._batch(run, cohort['jobs'],
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'])
                             else:

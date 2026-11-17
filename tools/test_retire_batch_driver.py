@@ -18,8 +18,9 @@ class QueueStub:
     def __init__(self, progress):
         self.value = progress
         self.rejected = []
+        self.ready = []
     def get_jobs(self, status):
-        return self.rejected if status == 'integration-rejected' else []
+        return self.rejected if status == 'integration-rejected' else self.ready if status == 'provisional-pass' else []
     def progress(self):
         return self.value
 
@@ -88,6 +89,17 @@ class RecoveredCohortTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cohort identity'):
             driver.recovered_cohort(self.queue, 'head')
 
+    def test_mechanical_lane_uses_real_queue_fifo_and_exact_threshold(self):
+        names = ['a0', 'm0', 'a1', 'm1', 'm2', 'm3', 'a2']
+        self.queue.add_jobs([{'id': name, 'rules': ['rule_'+name],
+                              'kind': 'mechanical' if name.startswith('m') else 'author'} for name in names])
+        with closing(self.queue._connect()) as db:
+            db.execute("UPDATE jobs SET status='provisional-pass'")
+        self.assertEqual(driver.mechanical_lane(self.queue, 4),
+                         {'lane': 'mechanical', 'jobs': ['m0', 'm1', 'm2', 'm3'], 'combine': True})
+        self.assertEqual(driver.mechanical_lane(self.queue, 5),
+                         {'lane': 'mechanical-first', 'jobs': ['m0', 'm1', 'm2', 'm3', 'a0'], 'combine': False})
+
     def test_numeric_job_identity_is_not_coerced_to_a_string(self):
         self.prepare(['123'])
         with closing(self.queue._connect()) as db:
@@ -149,6 +161,86 @@ class DriverTests(unittest.TestCase):
         result = driver._batch_observation(self.run, set(), self.queue, 'parent')
         self.assertEqual(result['outcome'], 'rejected')
         self.assertEqual(result['reason'], validation['reason'])
+
+    def test_mechanical_threshold_takes_only_mechanics_and_caps_at_96(self):
+        config = r.read(self.run/'config.json')
+        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True)
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(pending=5, ready=110)
+        self.queue.ready = ([{'id': 'author-old', 'job': {'kind': 'author'}}]
+                            + [{'id': f'mech-{i:03d}', 'job': {'kind': 'mechanical'}} for i in range(105)]
+                            + [{'id': 'author-new', 'job': {'kind': 'author'}}])
+        def selected(run, ids, *, combine_selected):
+            self.assertEqual(ids, [f'mech-{i:03d}' for i in range(96)])
+            self.assertTrue(combine_selected)
+            self.outcome(drain=True)(run)
+        with patch.object(driver, 'recovered_cohort') as cohort, \
+                patch.object(driver.dispatch, '_batch', side_effect=selected) as batch:
+            driver.run_driver(self.run, self.runner)
+        cohort.assert_not_called()
+        batch.assert_called_once()
+        self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'mechanical')
+
+    def test_small_mechanical_lane_fills_fifo_authors(self):
+        config = r.read(self.run/'config.json')
+        config['mechanical_cohorts_first'] = True
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(pending=5, ready=5)
+        self.queue.ready = [{'id': name, 'job': {'kind': kind}} for name, kind in
+                            [('a1', 'author'), ('m1', 'mechanical'), ('a2', 'author'),
+                             ('m2', 'mechanical'), ('a3', 'author')]]
+        def selected(run, ids, *, combine_selected):
+            self.assertEqual(ids, ['m1', 'm2', 'a1', 'a2'])
+            self.assertFalse(combine_selected)
+            self.outcome(drain=True)(run)
+        with patch.object(driver.dispatch, '_batch', side_effect=selected):
+            driver.run_driver(self.run, self.runner)
+        self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'mechanical-first')
+
+    def test_small_mechanical_lane_preserves_recovered_cohort(self):
+        config = r.read(self.run/'config.json')
+        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True)
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(pending=5, ready=2)
+        self.queue.ready = [{'id': 'm1', 'job': {'kind': 'mechanical'}},
+                            {'id': 'a1', 'job': {'kind': 'author'}}]
+        def selected(run, ids, *, combine_selected):
+            self.assertEqual(ids, ['recovered'])
+            self.assertFalse(combine_selected)
+            self.outcome(drain=True)(run)
+        cohort = {'jobs': ['recovered'], 'manifest': 'batch', 'checkpoint': 'old'}
+        with patch.object(driver, 'recovered_cohort', return_value=cohort), \
+                patch.object(driver.dispatch, '_batch', side_effect=selected):
+            driver.run_driver(self.run, self.runner)
+        self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'recovered')
+
+    def test_small_mechanical_lane_waits_for_existing_trigger(self):
+        config = r.read(self.run/'config.json')
+        config['mechanical_cohorts_first'] = True
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(pending=5, ready=1)
+        self.queue.ready = [{'id': 'm1', 'job': {'kind': 'mechanical'}}]
+        def sleep(_):
+            self.assertEqual(r.read(self.run/'batch-driver.json')['phase'], 'idle')
+            r.write(self.run/'batch-driver-drain.json', {'reason': 'stop'})
+        with patch.object(driver.time, 'sleep', side_effect=sleep), \
+                patch.object(driver.dispatch, '_batch') as batch:
+            driver.run_driver(self.run, self.runner)
+        batch.assert_not_called()
+
+    def test_mechanical_priority_default_off_and_invalid_flag(self):
+        self.queue.value = progress(ready=4)
+        with patch.object(driver, 'mechanical_lane') as lane, \
+                patch.object(driver.dispatch, '_batch', side_effect=self.outcome(drain=True)):
+            driver.run_driver(self.run, self.runner)
+        lane.assert_not_called()
+        (self.run/'batch-driver-drain.json').unlink()
+        config = r.read(self.run/'config.json')
+        config['mechanical_cohorts_first'] = 'yes'
+        r.write(self.run/'config.json', config)
+        with patch.object(driver.dispatch, '_batch') as batch, self.assertRaisesRegex(ValueError, 'must be boolean'):
+            driver.run_driver(self.run, self.runner)
+        batch.assert_not_called()
 
     def test_recovered_cohort_is_immediate_and_dispatched_as_one_selection(self):
         config = r.read(self.run/'config.json')
