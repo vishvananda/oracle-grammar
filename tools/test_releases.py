@@ -1,6 +1,7 @@
 """Release hashes, input scope, outcome accounting and deterministic assets."""
 import gzip
 import json
+import os
 from pathlib import Path
 import tempfile
 import tarfile
@@ -13,6 +14,10 @@ import releases
 
 class ReleaseTests(unittest.TestCase):
     def setUp(self):
+        clean = {key: value for key, value in os.environ.items() if not key.startswith('ORACLE_GRAMMAR_')}
+        environment = patch.dict(os.environ, clean, clear=True)
+        environment.start()
+        self.addCleanup(environment.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
