@@ -263,12 +263,21 @@ def edited_record_pair(gold_records, oracle_records, name):
     return copy.deepcopy(gold[0]), copy.deepcopy(oracle[0])
 
 
+def edited_family_case(face, row, flags, *, allow_seeded):
+    """Use the same contextual print and reparse contract in both lanes."""
+    case = {'name': face['name'], 'text': row['text'], 'context': face['characteristics'],
+            'expected': face['abilities'], 'readings': None, 'exact': bool(flags[1]), 'default': True}
+    if allow_seeded:
+        case['compositional'] = False
+    return case
+
+
 def edited_checks(run, directory, grammar, task, root, data):
     path = root/task['edits']
     r.require(path.exists(), 'missing operand edits fixture')
     edits = r.read(path)
     r.require(2 <= len(edits) <= 8, 'provide two to eight operand edit tests')
-    results = []
+    results, cases = [], []
     for number, edit in enumerate(edits):
         name = edit['face']
         r.require(name in task['target_faces'], 'operand edit is outside the assigned face population')
@@ -290,8 +299,9 @@ def edited_checks(run, directory, grammar, task, root, data):
                    folder/'rows.jsonl', '--render', '--round-trip'], 2)
         rows = r.rows(folder/'rows.jsonl')
         row = next(row for row in rows if row['name'] == name)
+        flags = r.flags(row)
         r.require(len(rows) == len(names) and row['status'] == 'equal'
-                  and r.flags(row)[0] and r.flags(row)[2], 'edited operand lacks equal verified print')
+                  and flags[0] and flags[2], 'edited operand lacks equal verified print')
         r.execute(run/'inputs', folder, grammar, 'validate-readings',
                   [folder/'gold.jsonl', folder/'rows.jsonl', folder/'native.json',
                    folder/'native-failures.jsonl'], 2)
@@ -300,7 +310,14 @@ def edited_checks(run, directory, grammar, task, root, data):
                   == native['readings']['canonical']
                   and native['source_gold']['valid'] == len(names),
                   'edited operands or synthesized readings failed native validation')
-        results.append({'face': name, 'mutations': edit['set'], 'flags': r.flags(row)})
+        results.append({'face': name, 'mutations': edit['set'], 'flags': flags})
+        cases.append(edited_family_case(face, row, flags, allow_seeded=task.get('family_case_modes') is True))
+    folder = directory/'edited-family'
+    folder.mkdir()
+    fixture = folder/'family.json'
+    r.write(fixture, {'family': 'edited-operands', 'cases': cases})
+    r.require(helper(run, folder, grammar, 'family-check', [fixture, '--compositional']) == 0,
+              'edited operand family checks failed: '+str(folder/'family-check.log'))
     return results
 
 

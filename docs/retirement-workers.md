@@ -110,8 +110,9 @@ allowed-population audit still decide acceptance.
 
 Author diagnostics stop when the compositional family fails, explicitly marking
 cohort and edited-operand checks as skipped. Once the family passes, every normal
-cohort, native and edited-operand check runs. A skipped check cannot establish
-success.
+cohort, native and edited-operand check runs. Edited-operand diagnostics also
+check the generated contextual family cases before reporting a pass. A skipped
+check cannot establish success.
 
 Configured usage collection records attempt-scoped token counts and estimates
 Standard API-equivalent cost using a pinned estimator and explicit pricing.

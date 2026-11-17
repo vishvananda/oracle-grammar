@@ -155,6 +155,7 @@ class TaskTests(unittest.TestCase):
             tasker.validate_runner(self.campaign, alias)
 
     def test_private_attempt_and_manifest(self):
+        self.checkpoint['family_case_modes'] = True
         result = self.prepare()
         run, checkout = Path(result['run']), Path(result['checkout'])
         self.assertEqual(r.verify(run/'inputs')['commit'], self.commit)
@@ -175,6 +176,7 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(descriptor['allowedwritepaths'], descriptor['write_files'])
         self.assertIn('root dispatch hooks', descriptor['goal'])
         self.assertEqual(descriptor['max_diagnostic_attempts'], 3)
+        self.assertIs(descriptor['family_case_modes'], True)
         self.assertEqual(descriptor['model'], 'gpt-6.1-terra')
         self.assertEqual(descriptor['effort'], 'high')
         self.assertEqual(descriptor['cohort'], ['A', 'B'])

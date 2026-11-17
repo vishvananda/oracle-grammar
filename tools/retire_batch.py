@@ -138,12 +138,7 @@ def _family(directory, report, run, modes=False, *, gold_cache=None):
             a.edit_leaf(expected_face['abilities'], mutation['path'], mutation['value'])
         if gold != [expected]:
             raise ValueError('edited gold differs from the declared operand mutations')
-        case = {'name': face['name'], 'text': row['text'],
-                'context': face['characteristics'], 'expected': face['abilities'],
-                'readings': None, 'exact': bool(edit['flags'][1]), 'default': True}
-        if modes is True:
-            case['compositional'] = False
-        family['cases'].append(case)
+        family['cases'].append(a.edited_family_case(face, row, edit['flags'], allow_seeded=modes is True))
     return family
 
 

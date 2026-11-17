@@ -42,6 +42,51 @@ class AuthoringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             a.validate_author_family({'cases': [{'expected': []}, {'reject': True}]})
 
+    def test_edited_operands_require_the_contextual_family_after_score_and_native(self):
+        for allow_seeded, family_exit in ((True, 1), (False, 0)):
+            with self.subTest(allow_seeded=allow_seeded), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                directory = root/'evaluation'
+                directory.mkdir()
+                task = {'edits': 'edits.json', 'target_faces': ['Example'], 'family_case_modes': allow_seeded}
+                face = {'name': 'Example', 'abilities': [{'amount': 1}], 'characteristics': {'types': ['Creature']}}
+                gold = [{'faces': [face]}]
+                oracle = [{'cards': [{'name': 'Example', 'text': 'Original'}]}]
+                r.write(root/task['edits'], [
+                    {'face': 'Example', 'set': [{'path': [0, 'amount'], 'value': value}], 'text': f'Value {value}'}
+                    for value in (2, 3)])
+                calls = []
+
+                def execute(run, folder, grammar, program, arguments, threads):
+                    calls.append(program)
+                    if program == 'score':
+                        text = r.read(folder/'oracle.json')[0]['cards'][0]['text']
+                        r.jsonl(folder/'rows.jsonl', [{'name': 'Example', 'text': text,
+                                                       'status': 'equal', 'exact': True}])
+                    else:
+                        r.write(folder/'native.json', {'readings': {'total': 1, 'valid': 1, 'canonical': 1},
+                                                       'source_gold': {'valid': 1}})
+
+                def check_family(run, folder, grammar, program, arguments):
+                    calls.append(program)
+                    self.assertEqual(arguments, [folder/'family.json', '--compositional'])
+                    cases = r.read(arguments[0])['cases']
+                    self.assertEqual([case['expected'] for case in cases], [[{'amount': 2}], [{'amount': 3}]])
+                    self.assertEqual([case['context'] for case in cases], [face['characteristics']]*2)
+                    self.assertTrue(all(case['exact'] and case['default'] for case in cases))
+                    self.assertEqual(['compositional' in case for case in cases], [allow_seeded]*2)
+                    self.assertEqual([case.get('compositional') for case in cases], [False if allow_seeded else None]*2)
+                    return family_exit
+
+                with patch.object(r, 'execute', side_effect=execute), patch.object(a, 'helper', side_effect=check_family):
+                    args = (root, directory, root/'grammar', task, root, ({}, gold, oracle))
+                    if family_exit:
+                        with self.assertRaisesRegex(ValueError, 'edited operand family checks failed'):
+                            a.edited_checks(*args)
+                    else:
+                        self.assertEqual(len(a.edited_checks(*args)), 2)
+                self.assertEqual(calls, ['score', 'validate-readings']*2+['family-check'])
+
     def test_family_failure_skips_cohort_and_edited_but_success_runs_all(self):
         for family_code in (1, 0):
             with self.subTest(family_code=family_code), tempfile.TemporaryDirectory() as tmp:

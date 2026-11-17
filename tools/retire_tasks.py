@@ -267,6 +267,8 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
                     rule_dispositions_required=job['rules'], max_diagnostic_attempts=3,
                     wall_budget_seconds=900, helper_threads=2,
                     cpu_pool=str(campaign/'cpu'), cpu_capacity=32)
+        if job.get('kind') != 'mechanical' and checkpoint.get('family_case_modes') is True:
+            task['family_case_modes'] = True
         task['goal'] = (task['goal'] + ' Start with module_hints; related runtime syntax modules may be edited. '
                         'Request root dispatch hooks through .cache/author-hooks.json.')
         if reuse:
