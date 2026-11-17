@@ -19,6 +19,8 @@ import retire_cpu
 import retire_merge as merger
 import retire_worker as w
 
+FAMILY_CHECK_THREADS = 6
+
 
 def _git(source, *args):
     return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', *args], cwd=source, text=True).strip()
@@ -111,13 +113,13 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
         raise ValueError('family helper does not match compiled source')
     env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}
     grammar = grammar_dir or source/'grammar'
-    env.update(ORACLE_GRAMMAR_DIR=str(grammar), ORACLE_GRAMMAR_THREADS='2')
+    env.update(ORACLE_GRAMMAR_DIR=str(grammar), ORACLE_GRAMMAR_THREADS=str(FAMILY_CHECK_THREADS))
     declared = {entry.removeprefix('--module=').split('=', 1)[0] for entry in dev.modules(source)}
     current = {path.stem: path for path in (grammar/'syntax').glob('*.ebnf')}
     if (grammar/'tail/mined.ebnf').is_file():
         current['tail'] = grammar/'tail/mined.ebnf'
     overrides = [f'--module={name}={current.get(name, os.devnull)}' for name in sorted(declared | current.keys())]
-    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), 2, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
+    lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), FAMILY_CHECK_THREADS, checkpoint.get('cpu_capacity', 32)) if checkpoint.get('cpu_pool') else nullcontext(())
     with lease as fds:
         r._LEASES.extend(fds)
         try:
@@ -220,7 +222,8 @@ def _stage(campaign, checkpoint, proposals):
     if state is None:
         _git(origin, 'worktree', 'add', '-b', branch, str(source), checkpoint['commit'])
     manifest = {'id': ident, 'folder': str(folder), 'source': str(source), 'branch': branch, 'base_commit': checkpoint['commit'],
-                'status': 'staging', 'jobs': [], 'fixtures': [], 'rules': []}
+                'status': 'staging', 'jobs': [], 'fixtures': [], 'rules': [],
+                'family_check_threads': FAMILY_CHECK_THREADS}
     registry_path = source/'tests/families.json'
     registry_hash = r.digest(registry_path)
     baseline_names = r.read(registry_path)

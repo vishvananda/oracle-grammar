@@ -291,13 +291,15 @@ def _check(run, task_id, coordinator=False):
                                                   [directory/'family.json', '--compositional'])
             if report['family_returncode']:
                 report['failures'].append('family regression tests failed')
-            data = w.payload(run/'inputs')
-            report.update(w.checks(run/'inputs', directory, grammar, task['cohort'], data, 2))
-            # Preserve an independently found family failure when checks returned its own list.
-            if report['family_returncode'] and 'family regression tests failed' not in report['failures']:
-                report['failures'].append('family regression tests failed')
-            report['edited'] = edited_checks(run, directory, grammar, task, root, data)
-            report['passed'] = not report['failures']
+                report['checks_skipped'] = {
+                    'reason': 'authored compositional family regression failed',
+                    'checks': ['cohort score', 'cohort native validation', 'edited operand checks'],
+                }
+            else:
+                data = w.payload(run/'inputs')
+                report.update(w.checks(run/'inputs', directory, grammar, task['cohort'], data, 2))
+                report['edited'] = edited_checks(run, directory, grammar, task, root, data)
+                report['passed'] = not report['failures']
         except Exception as error:
             report['failures'].append(str(error))
         verify(run, task_id)

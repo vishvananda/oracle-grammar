@@ -1,5 +1,7 @@
 """Authoring trials constrain operands, source identities and model isolation."""
 import copy
+from contextlib import redirect_stdout
+import io
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -39,6 +41,55 @@ class AuthoringTests(unittest.TestCase):
                 a.validate_author_family(family)
         with self.assertRaises(ValueError):
             a.validate_author_family({'cases': [{'expected': []}, {'reject': True}]})
+
+    def test_family_failure_skips_cohort_and_edited_but_success_runs_all(self):
+        for family_code in (1, 0):
+            with self.subTest(family_code=family_code), tempfile.TemporaryDirectory() as tmp:
+                run, root = Path(tmp)/'run', Path(tmp)/'worker'
+                for folder in (run/'tasks', root/'grammar/syntax', root/'families', root/'tests/fixtures'):
+                    folder.mkdir(parents=True)
+                (root/'grammar/syntax/example.ebnf').write_text('example ::= "example"\n')
+                r.write(run/'tasks/task.json', {'task': 'test'})
+                r.write(run/'support.json', {'files': {}})
+                fixture = root/'families/case.json'
+                r.write(fixture, {'cases': [{'expected': []}, {'reject': True}, {}, {}]})
+                r.write(root/'tests/fixtures/edits.json', [])
+                task = {'rules': ['m_seed'], 'fixture': 'families/case.json',
+                        'edits': 'tests/fixtures/edits.json', 'cohort': ['Example']}
+                verification = (task, root, {'commit': 'base'})
+                with patch.object(a, 'verify', return_value=verification) as verify, \
+                     patch.object(a, 'seeded', side_effect=[{'m_seed'}, set()]), \
+                     patch.object(a, 'check_seeded_files'), \
+                     patch.object(a, 'apply_hooks', return_value=[]), \
+                     patch.object(a, 'helper', return_value=family_code) as helper, \
+                     patch.object(a.w, 'payload', return_value='data') as payload, \
+                     patch.object(a.w, 'checks', return_value={'faces': 3, 'failures': []}) as checks, \
+                     patch.object(a, 'edited_checks', return_value=[{'face': 'Example'}]) as edited, \
+                     redirect_stdout(io.StringIO()):
+                    report = a._check(run, 'task')
+                self.assertEqual(verify.call_count, 2)
+                helper.assert_called_once()
+                self.assertEqual(r.read(Path(report['directory'])/'report.json'), report)
+                if family_code:
+                    self.assertFalse(report['passed'])
+                    self.assertEqual(report['failures'], ['family regression tests failed'])
+                    self.assertEqual(report['checks_skipped']['reason'],
+                                     'authored compositional family regression failed')
+                    self.assertEqual(set(report['checks_skipped']['checks']),
+                                     {'cohort score', 'cohort native validation', 'edited operand checks'})
+                    self.assertNotIn('faces', report)
+                    self.assertNotIn('edited', report)
+                    payload.assert_not_called()
+                    checks.assert_not_called()
+                    edited.assert_not_called()
+                else:
+                    self.assertTrue(report['passed'])
+                    self.assertEqual(report['faces'], 3)
+                    self.assertEqual(report['edited'], [{'face': 'Example'}])
+                    self.assertNotIn('checks_skipped', report)
+                    payload.assert_called_once()
+                    checks.assert_called_once()
+                    edited.assert_called_once()
 
     def test_operand_edits_change_a_leaf_without_replacing_programs(self):
         source = [{'args': {'amount': 1}}]

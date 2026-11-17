@@ -53,8 +53,8 @@ The original failure remains in the audit trail. Readmission of other parked
 proposals only restores provisional status; their combined grammar is rechecked.
 
 One full audit runs at a time, reserving 16 tokens by default from a shared
-32-token CPU pool; a 24-thread option is also supported. Helpers reserve two
-tokens through verified wrappers. A pending large allocation temporarily stops
+32-token CPU pool; a 24-thread option is also supported. Worker helpers reserve two
+tokens through verified wrappers; batch trial family checks reserve six. A pending large allocation temporarily stops
 new small allocations; after it acquires its tokens, workers may use the remaining
 capacity. Checkpoint rule scans use the same reservation mechanism.
 For the current explicitly allowed population, that means all 32,755
@@ -80,6 +80,11 @@ grammar in one helper invocation. A failing proposal stays out of the union;
 later proposals can continue. Baseline fixture hashes and explicit trial module
 overrides keep this check tied to the checkpoint. Repository gates and the full
 allowed-population audit still decide acceptance.
+
+Author diagnostics stop when the compositional family fails, explicitly marking
+cohort and edited-operand checks as skipped. Once the family passes, every normal
+cohort, native and edited-operand check runs. A skipped check cannot establish
+success.
 
 Configured usage collection records attempt-scoped token counts and estimates
 Standard API-equivalent cost using a pinned estimator and explicit pricing.

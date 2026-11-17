@@ -61,6 +61,7 @@ class BatchTests(unittest.TestCase):
         self._validate_threads(24, False)
 
     def test_trial_helper_uses_verified_binary_and_trial_grammar(self):
+        import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -76,8 +77,10 @@ class BatchTests(unittest.TestCase):
             checkpoint = {'helpers': str(helpers), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
             def execute(*args, **kwargs):
                 self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(trial))
-                self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_THREADS'], '2')
-                self.assertEqual(len(kwargs['pass_fds']), 2)
+                self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_THREADS'], '6')
+                self.assertEqual(len(kwargs['pass_fds']), 6)
+                for fd in kwargs['pass_fds']:
+                    os.fstat(fd)
                 self.assertIn(f'--module=events={trial/"syntax/events.ebnf"}', args[0])
                 kwargs['stdout'].write(json.dumps({'family': 'one', 'cases': 1, 'passed': 1, 'failures': []}))
                 kwargs['stdout'].flush()
@@ -272,6 +275,7 @@ class BatchTests(unittest.TestCase):
             self.assertTrue(family_mock.call_args_list)
             self.assertTrue(all(call.kwargs['modes'] is True for call in family_mock.call_args_list))
             self.assertEqual(result['status'], 'provisional')
+            self.assertEqual(result['family_check_threads'], 6)
             self.assertEqual([j['status'] for j in result['jobs']], ['integration-rejected', 'integration-rejected', 'included'])
             candidate = Path(result['source'])
             self.assertIn('m_old', (candidate/'grammar/syntax/mined.ebnf').read_text())
