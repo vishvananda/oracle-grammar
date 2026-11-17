@@ -1,0 +1,717 @@
+{
+  "family": "retirement-c9a6990480d18b96",
+  "cases": [
+    {
+      "name": "Angelic Arbiter phrase",
+      "text": "Each opponent who cast a spell this turn can't attack with creatures.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "Intersection",
+                "args": [
+                  {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  {
+                    "kind": "Matching",
+                    "args": {
+                      "binding": 0,
+                      "condition": {
+                        "kind": "Compare",
+                        "args": {
+                          "left": {
+                            "kind": "EventHistory",
+                            "args": {
+                              "event": {
+                                "Spell": {
+                                  "event": "Cast",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Bound",
+                                      "args": 0
+                                    }
+                                  },
+                                  "spells": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "window": "ThisTurn",
+                              "measure": "Occurrences"
+                            }
+                          },
+                          "test": {
+                            "kind": "Compare",
+                            "args": {
+                              "comparison": "GreaterOrEqual",
+                              "value": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "Prohibit": {
+                    "AttackWith": {
+                      "kind": "Any"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Damping Sphere phrase",
+      "text": "Each spell a player casts costs {1} more to cast for each other spell that player has cast this turn.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "Any"
+                    },
+                    "modifier": {
+                      "Scaled": {
+                        "change": {
+                          "Increase": {
+                            "kind": "Cost",
+                            "args": {
+                              "parts": [
+                                {
+                                  "Mana": [
+                                    {
+                                      "Generic": 1
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "per": {
+                          "Times": {
+                            "kind": "EventHistory",
+                            "args": {
+                              "event": {
+                                "Spell": {
+                                  "event": "Cast",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Affected"
+                                    }
+                                  },
+                                  "spells": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "window": "ThisTurn",
+                              "measure": "Occurrences"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Ethersworn Canonist phrase",
+      "text": "Each player who has cast a nonartifact spell this turn can't cast additional nonartifact spells.",
+      "types": [
+        "Artifact",
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "Matching",
+                "args": {
+                  "binding": 0,
+                  "condition": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Spell": {
+                              "event": "Cast",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                }
+                              },
+                              "spells": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Artifact"
+                                }
+                              }
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "Prohibit": {
+                    "CastSpell": {
+                      "from": null,
+                      "filter": {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "CardType",
+                          "args": "Artifact"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Weftwalking phrase",
+      "text": "The first spell each player casts during each of their turns may be cast without paying its mana cost.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "Intersection",
+                "args": [
+                  {
+                    "kind": "One",
+                    "args": {
+                      "kind": "Active"
+                    }
+                  },
+                  {
+                    "kind": "Matching",
+                    "args": {
+                      "binding": 0,
+                      "condition": {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "Compare",
+                          "args": {
+                            "left": {
+                              "kind": "EventHistory",
+                              "args": {
+                                "event": {
+                                  "Spell": {
+                                    "event": "Cast",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "Bound",
+                                        "args": 0
+                                      }
+                                    },
+                                    "spells": {
+                                      "kind": "Any"
+                                    }
+                                  }
+                                },
+                                "window": "ThisTurn",
+                                "measure": "Occurrences"
+                              }
+                            },
+                            "test": {
+                              "kind": "Compare",
+                              "args": {
+                                "comparison": "GreaterOrEqual",
+                                "value": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "Any"
+                    },
+                    "modifier": {
+                      "Alternate": {
+                        "cost": "Free",
+                        "limit": null
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "reject unqualified history",
+      "text": "Each player who has cast a nonartifact spell can't cast additional nonartifact spells.",
+      "types": [
+        "Artifact"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Damping Sphere",
+      "text": "If a land is tapped for two or more mana, it produces {C} instead of any other type and amount.\nEach spell a player casts costs {2} more to cast for each other spell that player has cast this turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Measured": {
+                "event": {
+                  "ProduceMana": {
+                    "sources": {
+                      "kind": "CardType",
+                      "args": "Land"
+                    },
+                    "by": null
+                  }
+                },
+                "comparison": "GreaterOrEqual",
+                "amount": {
+                  "kind": "Constant",
+                  "args": 2
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "AddMana": {
+                            "Amount": {
+                              "color": "Colorless",
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "Any"
+                    },
+                    "modifier": {
+                      "Scaled": {
+                        "change": {
+                          "Increase": {
+                            "kind": "Cost",
+                            "args": {
+                              "parts": [
+                                {
+                                  "Mana": [
+                                    {
+                                      "Generic": 2
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "per": {
+                          "Times": {
+                            "kind": "EventHistory",
+                            "args": {
+                              "event": {
+                                "Spell": {
+                                  "event": "Cast",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Affected"
+                                    }
+                                  },
+                                  "spells": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "window": "ThisTurn",
+                              "measure": "Occurrences"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Ethersworn Canonist",
+      "text": "Each player who has cast a nonartifact spell this turn can't cast additional noncreature spells.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact",
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Cleric"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "Matching",
+                "args": {
+                  "binding": 0,
+                  "condition": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Spell": {
+                              "event": "Cast",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                }
+                              },
+                              "spells": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Artifact"
+                                }
+                              }
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "Prohibit": {
+                    "CastSpell": {
+                      "from": null,
+                      "filter": {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Ethersworn Canonist",
+      "text": "Each player who has cast a noncreature spell this turn can't cast additional nonartifact spells.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact",
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Cleric"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "Matching",
+                "args": {
+                  "binding": 0,
+                  "condition": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Spell": {
+                              "event": "Cast",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                }
+                              },
+                              "spells": {
+                                "kind": "Not",
+                                "args": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                }
+                              }
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "Prohibit": {
+                    "CastSpell": {
+                      "from": null,
+                      "filter": {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "CardType",
+                          "args": "Artifact"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

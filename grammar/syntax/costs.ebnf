@@ -586,7 +586,7 @@ cost_unattach_named_source ::= "unattach" self_ref_named
 /* @sem CostPart::Constrained{part:$cost_constraint_payment, constraints:[$cost_selection_constraint]} */
 cost_constrained_selection ::= cost_constraint_payment cost_selection_constraint
 
-cost_constraint_payment ::= cost_discard_many | cost_discard_filtered_many | cost_reveal_hand_many | cost_tap_population
+cost_constraint_payment ::= cost_discard_many | cost_discard_filtered_many | cost_reveal_hand_many | cost_tap_population | cost_sacrifice_many | cost_sacrifice_any_population | cost_tap_any_other_controlled
 
 /* @sem CostPart::Reveal{count:Exactly($card_count), filter:Any} */
 cost_reveal_hand_many ::= "reveal" card_count "from" "your" "hand"
@@ -594,7 +594,7 @@ cost_reveal_hand_many ::= "reveal" card_count "from" "your" "hand"
 /* @sem CostPart::ChangeTapState{selections:[_{objects:$affected, choose:Exactly($value)}], tapped:true} */
 cost_tap_population ::= "tap" value affected
 
-cost_selection_constraint ::= cost_constraint_different_names | cost_constraint_same_name | cost_constraint_shared_color | cost_constraint_shared_creature_type
+cost_selection_constraint ::= cost_constraint_different_names | cost_constraint_same_name | cost_constraint_shared_color | cost_constraint_shared_creature_type | cost_constraint_total_power
 
 /* @sem SelectionConstraint::DifferentNames */
 cost_constraint_different_names ::= "with" "different" "names"
@@ -687,3 +687,17 @@ activated_single_graveyard_exile_play_limited ::= cost_exile_graveyard ":" play_
 
 /* @sem Instruction::Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:Either, cards:One(Query{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:After}, index:0}), count:Exactly(Constant(1)), cost:Normal}}]}} */
 play_exile_payment_optional ::= "you" "may" "play" "it"
+
+/* The explicit origin establishes the activation zone. */
+/* @sem Ability::Scoped{zones:[Exile], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$exiled_holder_put_tapped}]}})} */
+activated_exile_holder_limited ::= cost ":" exiled_holder_put_tapped "." activation_limits "."
+
+/* Any-number payments retain the chosen population for a following constraint. */
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:AnyNumber} */
+cost_sacrifice_any_population ::= "sacrifice" "any" "number" "of" filter_plural
+
+/* @sem CostPart::ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Tapped), $filter_plural, ControlledBy(One(AbilityController)), Not(SameObject($object_ref))])}, choose:AnyNumber}], tapped:true} */
+cost_tap_any_other_controlled ::= "tap" "any" "number" "of" "untapped" filter_plural "you" "control" "other" "than" object_ref
+
+/* @sem SelectionConstraint::TotalProperty{property:Power, comparison:GreaterOrEqual, amount:$value} */
+cost_constraint_total_power ::= "with" "total" "power" value "or" "greater"

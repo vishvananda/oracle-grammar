@@ -175,7 +175,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type
+change ::= change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -608,7 +608,7 @@ static_negative_x ::= "-" "X"
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($object_ref), changes:$static_changes}}] */
 clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 
-static_changes ::= static_changes_plain | defined_changes | change_independent_stats_where
+static_changes ::= static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature
 static_changes_plain ::= static_change | static_changes_and
 
 /* @sem Instruction::[Effect{result:@next, operation:$copy_effect_duration}] */
@@ -1296,7 +1296,7 @@ static_quoted_grant ::= affected static_changes_closed
 
 /* A change list whose last change grants a quoted ability: "gets +2/+2 and has flying
    and "{R}: …"". Its quote closes the sentence. */
-static_changes_closed ::= static_changes_closed_has | static_changes_closed_have | static_changes_closed_more
+static_changes_closed ::= static_changes_closed_has | static_changes_closed_have | static_changes_closed_more | static_base_closed_grants | static_base_closed_grants_oxford
 /* @sem $closed_grants */
 static_changes_closed_has ::= "has" closed_grants
 /* @sem $closed_grants */
@@ -3317,3 +3317,101 @@ shared_type_receipt_grant_static ::= affected shared_pump_type_receipt_trigger_c
 /* The subject and the two independently chosen keyword operands compose here. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Ability, terms:_{count:Exactly(Constant(1)), options:[Ability(Keyword($keyword_value)), Ability(Keyword($keyword_value_2))]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($object_set), changes:[ChosenAbility], duration:$duration, evaluation:Snapshot}}] */
 instructions_gains_keyword_choice ::= object_set "gains" "your" "choice" "of" keyword_value "or" keyword_value duration
+
+/* Cast-history subjects and player rules compose without changing the player
+   bound by the history predicate or the player affected by the rule. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($history_rule_players), changes:[$history_player_rule]}) */
+static_cast_history_player_rule ::= history_rule_players history_player_rule "."
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($history_first_active_player), changes:[$history_free_spell]}) */
+static_first_spell_player_rule ::= history_first_active_player history_free_spell "."
+
+history_rule_players ::= history_each_player | history_selected_players
+
+/* @sem PlayerSet::Matching{binding:0, condition:$bound_cast_history} */
+history_each_player ::= "each" "player" "who" "has" bound_cast_history
+
+/* @sem PlayerSet::Intersection([$players_singular, Matching{binding:0, condition:$bound_cast_history}]) */
+history_selected_players ::= players_singular "who" bound_cast_history
+
+/* @sem PlayerSet::Intersection([One(Active), Matching{binding:0, condition:Not(Compare{left:EventHistory{event:Spell{event:Cast, players:One(Bound(0)), spells:Any}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})}]) */
+history_first_active_player ::= "the" "first" "spell" "each" "player" "casts" "during" "each" "of" "their" "turns"
+
+bound_cast_history ::= bound_cast_any | bound_cast_filtered
+
+/* @sem Condition::Compare{left:EventHistory{event:Spell{event:Cast, players:One(Bound(0)), spells:Any}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_a}} */
+bound_cast_any ::= "cast" counter_a "spell" "this" "turn"
+
+/* @sem Condition::Compare{left:EventHistory{event:Spell{event:Cast, players:One(Bound(0)), spells:$spell_adjectives}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_a}} */
+bound_cast_filtered ::= "cast" counter_a spell_adjectives "spell" "this" "turn"
+
+history_player_rule ::= history_prohibit_attack | history_prohibit_cast
+
+/* @sem Change::PlayerRule(Prohibit(AttackWith(Any))) */
+history_prohibit_attack ::= "can't" "attack" "with" "creatures"
+
+/* @sem Change::PlayerRule(Prohibit(CastSpell{filter:$cast_spells_filter})) */
+history_prohibit_cast ::= "can't" "cast" "additional" cast_spells_filter
+
+/* @sem Change::PlayerRule(SpellCost{spells:Any, modifier:Alternate{cost:Free}}) */
+history_free_spell ::= "may" "be" "cast" "without" "paying" "its" "mana" "cost"
+
+/* A cost change scaled by the affected player's cast history. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(SpellCost{spells:$scaled_spell_subject, modifier:$scaled_cast_modifier})]}) */
+static_scaled_spell_cost ::= scaled_spell_subject "a" "player" "casts" "costs" scaled_cast_modifier "."
+
+/* @sem ObjectFilter::Any */
+scaled_spell_subject ::= "each" "spell"
+
+/* @sem SpellCostModifier::Scaled{change:Increase(Cost($cost)), per:Times(EventHistory{event:Spell{event:Cast, players:One(Affected), spells:Any}, window:ThisTurn, measure:Occurrences})} */
+scaled_cast_modifier ::= cost "more" "to" "cast" "for" "each" "other" "spell" "that" "player" "has" "cast" "this" "turn"
+
+/* Independently counted populations contribute to both pump operands. */
+/* @sem Change::[Pump{power:@times($signed, Expr::Add([$count_each, $count_each_2])), toughness:@times($signed_2, Expr::Add([$count_each, $count_each_2]))}] */
+change_pump_for_each_sum ::= "gets" signed "/" signed "for" "each" count_each "and" "each" count_each
+
+/* Conditional self descriptions reuse the same static change phrases. */
+/* @sem $base_subtypes */
+static_creature_base ::= "is" base_subtypes
+
+/* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature)] */
+retained_creature_description ::= "a" becomes_types "creature" "in" "addition" "to" "its" "other" "types"
+
+/* @sem $retained_creature_description */
+static_retained_creature ::= "is" retained_creature_description
+
+/* @sem Change::[...$base_subtypes, ...$rule_cant_be_blocked] */
+self_base_unblockable ::= base_subtypes "and" rule_cant_be_blocked
+
+/* @sem Ability::Conditional{condition:$condition, then:[Static{kind:Ordinary, affected:Objects(One(Source)), changes:$self_base_unblockable}], otherwise:[]} */
+conditional_its_base_rules ::= "as" "long" "as" condition "," "it's" self_base_unblockable "."
+
+/* @sem Ability::Conditional{condition:$condition, then:[Static{kind:Ordinary, affected:Objects(One(Source)), changes:$retained_creature_description}], otherwise:[]} */
+conditional_its_retained_creature ::= "as" "long" "as" condition "," "it's" retained_creature_description "."
+
+/* @sem Change::[...$base_subtypes, ...$closed_grants] */
+static_base_closed_grants ::= "is" base_subtypes "," closed_grants
+
+/* @sem Change::[...$base_subtypes, ...$closed_grants_oxford] */
+static_base_closed_grants_oxford ::= "is" base_subtypes "," closed_grants_oxford
+
+/* @sem Change::[$grant_keyword, ...$closed_grants] */
+closed_grants_oxford ::= grant_keyword "," "and" closed_grants
+
+/* Attack requirements keep the attacker population separate from the dragged
+   population. The opponent form ties the latter to the attacker's controller. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::ControlledBy(OpponentsOf(AbilityController)))}), changes:[$drag_opponent_requirement]}) */
+static_opponent_attack_drag ::= "if" "a" filter_phrase "an" "opponent" "controls" "attacks" "," drag_opponent_requirement "."
+
+/* @sem Change::Rule(AttackDrags($filter_plural)) */
+drag_opponent_requirement ::= "all" filter_plural "that" "opponent" "controls" "attack" "if" "able"
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counter_attack_filter}), changes:[$drag_counter_requirement]}) */
+static_counter_attack_drag ::= "if" "a" counter_attack_filter "attacks" "," drag_counter_requirement "."
+
+/* @sem Change::Rule(AttackDrags($counter_drag_filter)) */
+drag_counter_requirement ::= "all" counter_drag_filter "attack" "if" "able"
+
+/* The ability being reduced and its target filter are independent operands. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:[Rule(OwnActivationCost{abilities:AllOf([OnStack(Keyword(Equip)), TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}))]), change:Reduce($generic_reduction_symbols)})]}) */
+static_equip_target_reduction ::= "this" "Equipment's" "equip" "ability" "costs" generic_reduction_symbols "less" "to" "activate" "if" "it" "targets" "a" filter_phrase "."

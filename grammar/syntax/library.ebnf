@@ -539,8 +539,10 @@ until_battlefield ::= "onto" "the" "battlefield"
    of the top card that only a matching card can make. A later sentence about putting
    the card into your hand tests that move as a payment. The payment and its action
    start on the same word, so the test names the payment by its mark. */
-/* @sem Operation::MoveTopCard{actor:One(AbilityController), cards:$card_filter, reveal:true, destination:OwnersHand(CardArrival{counters:[], states:[]})} */
-top_card_revealed_to_hand ::= "if" "it's" ("a" | "an") card_filter "card" "," "you" "may" "reveal" "it" "and" "put" "it" "into" "your" "hand"
+/* The head carries the eligibility filter; the common action retains the
+   controller, reveal, destination, and result of the optional move. */
+/* @sem Operation::MoveTopCard{actor:One(AbilityController), cards:$top_card_reveal_head, reveal:true, destination:OwnersHand(CardArrival{counters:[], states:[]})} */
+top_card_revealed_to_hand ::= top_card_reveal_head "and" "put" "it" "into" "your" "hand"
 /* @sem Instruction::[Effect{result:@next, operation:$top_card_revealed_to_hand}] */
 top_card_reveal_action ::= top_card_revealed_to_hand
 /* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:$top_card_reveal_action}}]} */
@@ -1313,3 +1315,47 @@ face_pile_remainder_bottom ::= "put" "the" "cards" "in" "that" "pile" "into" "yo
 
 /* @sem Operation::Move{objects:InZone{objects:Observed(@marked), zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 face_pile_remainder_graveyard ::= "put" "that" "pile" "into" "your" "hand" "and" "the" "other" "into" "your" "graveyard"
+
+/* Hand cast offers share the hand population while keeping their count and
+   eligibility operands independent of the surrounding instruction. */
+/* @sem ObjectFilter::SharesNameWithAny(FromHistory{event:Spell{event:Cast, players:All, spells:Any}, window:ThisTurn}) */
+hand_spell_history_name ::= "if" "it" "has" "the" "same" "name" "as" "a" "spell" "that" "was" "cast" "this" "turn"
+
+/* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:@and($hand_spell_choice, $hand_spell_history_name)}, count:Exactly(Constant(1)), cost:Free} */
+cast_free_hand_qualified ::= "cast" hand_spell_choice "from" "your" "hand" "without" "paying" "its" "mana" "cost" hand_spell_history_name
+
+/* @sem Count::UpTo($value) */
+hand_cast_plural_count_up_to ::= "up" "to" value
+
+/* @sem Count::AnyNumber */
+hand_cast_plural_count_any ::= "any" "number" "of"
+
+hand_cast_plural_count ::= hand_cast_plural_count_up_to | hand_cast_plural_count_any
+
+/* @sem ObjectFilter::Any */
+hand_cast_plural_any ::= "spells"
+
+/* @sem $spell_adjectives */
+hand_cast_plural_filtered ::= spell_adjectives "spells"
+
+hand_cast_plural_filter ::= hand_cast_plural_any | hand_cast_plural_filtered
+
+/* @sem Operation::PlayCards{actor:One(AbilityController), action:CastSpell, cards:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$hand_cast_plural_filter}, count:$hand_cast_plural_count, cost:Free} */
+cast_free_hand_plural ::= "you" "may" "cast" hand_cast_plural_count hand_cast_plural_filter "from" "your" "hand" "without" "paying" "their" "mana" "costs"
+
+top_card_reveal_head ::= top_card_reveal_typed | top_card_reveal_chosen | top_card_reveal_shared | top_card_reveal_snow | top_card_reveal_legendary
+
+/* @sem ObjectFilter::$card_filter */
+top_card_reveal_typed ::= "if" "it's" ("a" | "an") card_filter "card" "," "you" "may" "reveal" "it"
+
+/* @sem ObjectFilter::AllOf([$filter_phrase, Chosen(CreatureType)]) */
+top_card_reveal_chosen ::= "if" "it's" ("a" | "an") filter_phrase "card" "of" "the" "chosen" "type" "," "you" "may" "reveal" "it"
+
+/* @sem ObjectFilter::Shares{property:CardTypes, with:$object_ref} */
+top_card_reveal_shared ::= "if" "it" "shares" "a" "card" "type" "with" object_ref "," "you" "may" "reveal" "that" "card"
+
+/* @sem ObjectFilter::Supertype(Snow) */
+top_card_reveal_snow ::= "if" "that" "card" "is" "snow" "," "you" "may" "reveal" "it"
+
+/* @sem ObjectFilter::Supertype(Legendary) */
+top_card_reveal_legendary ::= "if" "that" "card" "is" "legendary" "," "you" "may" "reveal" "it"

@@ -1,0 +1,912 @@
+{
+  "family": "replacement-activation-composition",
+  "cases": [
+    {
+      "name": "Aegis of Honor",
+      "text": "{1}: The next time an instant or sorcery spell would deal damage to you this turn, that spell deals that damage to its controller instead.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 1
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Damage": {
+                            "source_kind": "Spell",
+                            "sources": {
+                              "kind": "AnyOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Instant"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Sorcery"
+                                }
+                              ]
+                            },
+                            "recipients": {
+                              "Players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            },
+                            "kind": "Any",
+                            "grouping": "SourceRecipient",
+                            "subject": "Recipient"
+                          }
+                        },
+                        "limit": "NextOccurrence",
+                        "duration": "EndOfTurn",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": {
+                                      "RedirectDamage": {
+                                        "kind": "Players",
+                                        "args": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "ControllerOf",
+                                            "args": {
+                                              "kind": "Damage",
+                                              "args": "Source"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Personal Incarnation",
+      "text": "{0}: The next 1 damage that would be dealt to this creature this turn is dealt to its owner instead. Only this creature's owner may activate this ability.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": [
+                {
+                  "kind": "ActivationRule",
+                  "args": {
+                    "OnlyBy": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "OwnerOf",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Damage": {
+                            "source_kind": "Any",
+                            "sources": {
+                              "kind": "Any"
+                            },
+                            "recipients": {
+                              "Objects": {
+                                "kind": "SameObject",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": "Any",
+                            "grouping": "SourceRecipient",
+                            "subject": "Recipient"
+                          }
+                        },
+                        "limit": {
+                          "TotalDamage": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        },
+                        "duration": "EndOfTurn",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": {
+                                      "RedirectDamage": {
+                                        "kind": "Players",
+                                        "args": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "OwnerOf",
+                                            "args": {
+                                              "kind": "Source"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Jeska, Thrice Reborn",
+      "text": "[0]: Choose target creature. Until your next turn, if that creature would deal combat damage to one of your opponents, it deals triple that damage to that player instead.",
+      "types": [
+        "Planeswalker"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Loyalty": {
+                    "kind": "Constant",
+                    "args": 0
+                  }
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": true,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Damage": {
+                            "source_kind": "Permanent",
+                            "sources": {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Target",
+                                "args": {
+                                  "slot": 0,
+                                  "index": 0
+                                }
+                              }
+                            },
+                            "recipients": {
+                              "Players": {
+                                "kind": "OpponentsOf",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            },
+                            "kind": "Combat",
+                            "grouping": "SourceRecipient",
+                            "subject": "Recipient"
+                          }
+                        },
+                        "limit": "UntilExpired",
+                        "duration": {
+                          "UntilNextTurn": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": {
+                                      "SetAmount": {
+                                        "kind": "Multiply",
+                                        "args": [
+                                          {
+                                            "kind": "Constant",
+                                            "args": 3
+                                          },
+                                          {
+                                            "kind": "EventAmount"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Arlinn, the Pack's Hope",
+      "text": "[+1]: Until your next turn, you may cast creature spells as though they had flash, and each creature you control enters with an additional +1/+1 counter on it.",
+      "types": [
+        "Planeswalker"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Loyalty": {
+                    "kind": "Constant",
+                    "args": 1
+                  }
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": true,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "SpellTiming": {
+                                "spells": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                "timing": "Flash"
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "UntilNextTurn": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Enter": {
+                            "objects": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "limit": "UntilExpired",
+                        "duration": {
+                          "UntilNextTurn": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 1,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": {
+                                      "AddCounters": {
+                                        "kind": {
+                                          "PowerToughness": [
+                                            1,
+                                            1
+                                          ]
+                                        },
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Refuse wrong recipient",
+      "text": "{1}: The next time an instant or sorcery spell would deal damage to you this turn, that spell deals that damage to its owner instead.",
+      "types": [
+        "Enchantment"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Aegis of Honor",
+      "text": "{2}: The next time an instant or sorcery spell would deal damage to you this turn, that spell deals that damage to its controller instead.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 2
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Damage": {
+                            "source_kind": "Spell",
+                            "sources": {
+                              "kind": "AnyOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Instant"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Sorcery"
+                                }
+                              ]
+                            },
+                            "recipients": {
+                              "Players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            },
+                            "kind": "Any",
+                            "grouping": "SourceRecipient",
+                            "subject": "Recipient"
+                          }
+                        },
+                        "limit": "NextOccurrence",
+                        "duration": "EndOfTurn",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": {
+                                      "RedirectDamage": {
+                                        "kind": "Players",
+                                        "args": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "ControllerOf",
+                                            "args": {
+                                              "kind": "Damage",
+                                              "args": "Source"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Personal Incarnation",
+      "text": "{0}: The next 2 damage that would be dealt to this creature this turn is dealt to its owner instead. Only this creature's owner may activate this ability.\nWhen this creature dies, its owner loses half their life, rounded up.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Avatar",
+          "Incarnation"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          6,
+          6
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 0
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": [
+                {
+                  "kind": "ActivationRule",
+                  "args": {
+                    "OnlyBy": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "OwnerOf",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Damage": {
+                            "source_kind": "Any",
+                            "sources": {
+                              "kind": "Any"
+                            },
+                            "recipients": {
+                              "Objects": {
+                                "kind": "SameObject",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": "Any",
+                            "grouping": "SourceRecipient",
+                            "subject": "Recipient"
+                          }
+                        },
+                        "limit": {
+                          "TotalDamage": {
+                            "kind": "Constant",
+                            "args": 2
+                          }
+                        },
+                        "duration": "EndOfTurn",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": {
+                                      "RedirectDamage": {
+                                        "kind": "Players",
+                                        "args": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "OwnerOf",
+                                            "args": {
+                                              "kind": "Source"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": "Battlefield",
+                "to": "Graveyard"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "LoseLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "OwnerOf",
+                            "args": {
+                              "kind": "EventSubject"
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "Divide",
+                          "args": {
+                            "numerator": {
+                              "kind": "PlayerNumber",
+                              "args": {
+                                "player": {
+                                  "kind": "OwnerOf",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "number": "Life"
+                              }
+                            },
+                            "denominator": {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            "rounding": "Up"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
