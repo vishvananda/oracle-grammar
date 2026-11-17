@@ -100,6 +100,32 @@ class RecoveredCohortTests(unittest.TestCase):
         self.assertEqual(driver.mechanical_lane(self.queue, 5),
                          {'lane': 'mechanical-first', 'jobs': ['m0', 'm1', 'm2', 'm3', 'a0'], 'combine': False})
 
+    def test_union_opt_in_dispatches_only_the_current_attempt_recovery_group(self):
+        self.prepare(['fresh', 'a', 'b', 'stale', 'other'])
+        self.event('a', 'isolated'); self.event('b', 'isolated')
+        self.event('stale', 'isolated', attempt='previous-attempt'); self.event('other', 'later')
+        run = Path(self.temp.name); runner = run/'runners/test'; runner.mkdir(parents=True)
+        r.write(run/'config.json', {'first_batch_size': 4, 'batch_size': 4, 'initial_commit': 'head',
+                                   'batch_wait_seconds': 900, 'recovered_cohorts_first': True,
+                                   'recovered_union_trial': True})
+        with closing(self.queue._connect()) as db:
+            for name in ('fresh', 'a', 'b', 'stale', 'other'):
+                report = run/(name+'.json'); r.write(report, {'identity': name})
+                result = {'status': 'provisional-pass', 'evidence': {'kind': 'author', 'run': str(run/name),
+                                                                   'report': str(report)}}
+                db.execute('UPDATE attempts SET result=? WHERE id=?', (json.dumps(result), 'attempt_'+name))
+        def guarded_batch(selected_run, ids, *, combine_selected):
+            self.assertEqual(ids, ['a', 'b']); self.assertTrue(combine_selected)
+            proposals = driver.dispatch.proposals(selected_run, 4, ids)
+            self.assertEqual([(p['job_id'], p['attempt_id'], p['report']['identity']) for p in proposals],
+                             [('a', 'attempt_a', 'a'), ('b', 'attempt_b', 'b')])
+            raise RuntimeError('guarded staging reached')
+        with patch.object(driver, '_runner', return_value=runner), \
+                patch.object(driver.dispatch, '_batch', side_effect=guarded_batch) as batch, \
+                self.assertRaisesRegex(RuntimeError, 'guarded staging reached'):
+            driver.run_driver(run, runner)
+        batch.assert_called_once_with(run, ['a', 'b'], combine_selected=True)
+
     def test_numeric_job_identity_is_not_coerced_to_a_string(self):
         self.prepare(['123'])
         with closing(self.queue._connect()) as db:
@@ -164,7 +190,7 @@ class DriverTests(unittest.TestCase):
 
     def test_mechanical_threshold_takes_only_mechanics_and_caps_at_96(self):
         config = r.read(self.run/'config.json')
-        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True)
+        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True, recovered_union_trial=True)
         r.write(self.run/'config.json', config)
         self.queue.value = progress(pending=5, ready=110)
         self.queue.ready = ([{'id': 'author-old', 'job': {'kind': 'author'}}]
@@ -183,7 +209,7 @@ class DriverTests(unittest.TestCase):
 
     def test_small_mechanical_lane_fills_fifo_authors(self):
         config = r.read(self.run/'config.json')
-        config['mechanical_cohorts_first'] = True
+        config.update(mechanical_cohorts_first=True, recovered_union_trial=True)
         r.write(self.run/'config.json', config)
         self.queue.value = progress(pending=5, ready=5)
         self.queue.ready = [{'id': name, 'job': {'kind': kind}} for name, kind in
@@ -274,7 +300,7 @@ class DriverTests(unittest.TestCase):
 
     def test_enabled_without_recovered_cohort_keeps_fifo_dispatch(self):
         config = r.read(self.run/'config.json')
-        config['recovered_cohorts_first'] = True
+        config.update(recovered_cohorts_first=True, recovered_union_trial=True)
         r.write(self.run/'config.json', config)
         self.queue.value = progress(ready=4)
         with patch.object(driver, 'recovered_cohort', return_value=[]), \
@@ -295,6 +321,25 @@ class DriverTests(unittest.TestCase):
         with patch.object(driver.dispatch, '_batch') as batch, self.assertRaisesRegex(ValueError, 'must be boolean'):
             driver.run_driver(self.run, self.runner)
         batch.assert_not_called()
+
+    def test_union_opt_in_alone_keeps_ordinary_fifo_routing(self):
+        config = r.read(self.run/'config.json'); config['recovered_union_trial'] = True
+        r.write(self.run/'config.json', config); self.queue.value = progress(ready=4)
+        with patch.object(driver, 'recovered_cohort') as cohort, \
+                patch.object(driver.dispatch, '_batch', side_effect=self.outcome(drain=True)) as batch:
+            driver.run_driver(self.run, self.runner)
+        cohort.assert_not_called(); batch.assert_called_once_with(self.run)
+
+    def test_union_trial_rejects_every_nonboolean_before_dispatch(self):
+        self.queue.value = progress(ready=4)
+        for value in (0, 1, None, 'true', [], {}):
+            with self.subTest(value=value):
+                config = r.read(self.run/'config.json'); config['recovered_union_trial'] = value
+                r.write(self.run/'config.json', config)
+                with patch.object(driver.dispatch, '_batch') as batch, \
+                        self.assertRaisesRegex(ValueError, 'recovered_union_trial must be boolean'):
+                    driver.run_driver(self.run, self.runner)
+                batch.assert_not_called()
 
     def test_ready_threshold_runs_once_with_owned_lease_and_observes_result(self):
         self.queue.value = progress(ready=4)

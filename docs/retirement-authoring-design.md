@@ -417,15 +417,27 @@ The optional boolean `recovered_cohorts_first` lets that driver prioritize
 readmitted proposals. It uses the latest readmission event for each currently
 provisional job only when the event names its current attempt. Jobs are grouped
 by original failed manifest and readmission checkpoint; the oldest available
-group is selected separately, up to 96 jobs. It uses the guarded combined trial
-only while its readmission checkpoint is still current. After the checkpoint
-advances, the cohort stays separate but uses the configured groups of at most
-four: a passing union at an older checkpoint does not establish a passing rebase.
+group is selected separately, up to 96 jobs. By default it uses the guarded
+combined trial only while its readmission checkpoint is still current. After
+the checkpoint advances, the cohort stays separate but uses the configured
+groups of at most four: a passing union at an older checkpoint does not establish a passing rebase.
 Fresh proposals are not added to that cohort. Stale attempt events are ignored;
 malformed matching identities stop the driver. This is a routing hint, not an
 acceptance certificate, and a changed checkpoint still requires fresh staging
 and full validation. With no eligible cohort, ordinary batch size and timing
 rules apply. The option defaults to false.
+
+The optional boolean `recovered_union_trial` lets an eligible recovered cohort
+try one complete union even after its readmission checkpoint has advanced. It
+defaults to false and rejects nonboolean values. It requires recovered-cohort
+routing to select the same current attempts; fresh FIFO proposals are not added,
+and mechanical routing is unchanged. Every proposal is replayed against the
+current accepted prefix, with all existing native, library and family guards.
+A failing union follows the configured subgroup and individual fallback below.
+This can reduce repeated prefix checks for a compatible cohort, but a conflict
+adds one failed union trial before fallback. It offers no timing guarantee or
+reuse of semantic acceptance: repository gates, full parse/print validation and
+publication still run normally against the fresh candidate.
 
 The optional boolean `mechanical_cohorts_first` prioritizes ready mechanical
 removals. When their count reaches the ordinary batch threshold, the driver

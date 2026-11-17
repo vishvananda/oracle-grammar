@@ -180,6 +180,9 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         routing = config.get('recovered_cohorts_first', False)
                         if type(routing) is not bool:
                             raise ValueError('recovered_cohorts_first must be boolean')
+                        union_trial = config.get('recovered_union_trial', False)
+                        if type(union_trial) is not bool:
+                            raise ValueError('recovered_union_trial must be boolean')
                         mechanical_priority = config.get('mechanical_cohorts_first', False)
                         if type(mechanical_priority) is not bool:
                             raise ValueError('mechanical_cohorts_first must be boolean')
@@ -200,7 +203,7 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                                 dispatch._batch(run, chosen_lane['jobs'], combine_selected=chosen_lane['combine'])
                             elif cohort:
                                 dispatch._batch(run, cohort['jobs'],
-                                                combine_selected=cohort['checkpoint'] == progress['checkpoint'])
+                                                combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)
                             else:
                                 dispatch._batch(run)
                             observation = _batch_observation(run, before, queue, progress['checkpoint'])
