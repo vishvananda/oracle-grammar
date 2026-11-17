@@ -137,6 +137,41 @@ class TimeoutRecoveryTests(unittest.TestCase):
                 finally:
                     fixture.doCleanups()
 
+    def test_small_retry_keeps_rules_owner_and_preserves_finished_attempt(self):
+        fixture = TimeoutRecoveryTests('runTest')
+        fixture.rule_count = 1
+        fixture.setUp()
+        try:
+            original = fixture.queue.get_attempt(fixture.attempt)
+            proof = dict(fixture.proof, kind='timeout-small-retry')
+            result = fixture.queue.rehabilitate_timeout('family', fixture.attempt, 'new', proof)
+            self.assertEqual(result['job_id'], 'family')
+            self.assertEqual(fixture.queue.get_attempt(fixture.attempt), original)
+            self.assertEqual(fixture.queue.coverage()['counts'], {'pending': 1})
+            self.assertEqual(fixture.queue.get_jobs('pending')[0]['job'], fixture.job)
+            self.assertEqual(fixture.queue.audit()[-1]['kind'], 'retried-small-timeout')
+            claim = fixture.queue.claim('next')
+            self.assertEqual(claim['base_commit'], 'new')
+            self.assertNotEqual(claim['attempt_id'], fixture.attempt)
+        finally:
+            fixture.doCleanups()
+
+    def test_small_retry_cannot_act_on_a_wide_or_previously_retried_job(self):
+        with self.assertRaisesRegex(ValueError, 'one-to-three-rule'):
+            self.queue.rehabilitate_timeout('family', self.attempt, 'new', dict(self.proof, kind='timeout-small-retry'))
+        fixture = TimeoutRecoveryTests('runTest')
+        fixture.rule_count = 2
+        fixture.setUp()
+        try:
+            proof = dict(fixture.proof, kind='timeout-small-retry')
+            with fixture.queue._transaction() as db:
+                fixture.queue._event(db, 'retried-small-timeout', {'job_id': 'family'})
+            with self.assertRaisesRegex(ValueError, 'already used'):
+                fixture.queue.rehabilitate_timeout('family', fixture.attempt, 'new', proof)
+            self.assertEqual(fixture.queue.coverage()['counts'], {'needs-review': 2})
+        finally:
+            fixture.doCleanups()
+
     def test_concurrent_split_exactly_one_succeeds(self):
         def go():
             try: return self.split()

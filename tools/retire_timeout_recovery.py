@@ -1,4 +1,4 @@
-"""Bounded evidence for splitting a finished model-timeout bundle."""
+"""Bounded evidence for recovering finished author timeouts."""
 import hashlib
 import json
 from contextlib import closing
@@ -35,8 +35,12 @@ def artifact(evidence, name, expected):
 
 def verify(campaign, job_id, attempt, state, evidence):
     """Check only the assigned timeout artifacts; never infer semantic success."""
-    if not isinstance(evidence, dict) or evidence.get('kind') != 'timeout-split-recovery':
-        raise ValueError('timeout-split-recovery evidence required')
+    kind = evidence.get('kind') if isinstance(evidence, dict) else None
+    if kind not in ('timeout-split-recovery', 'timeout-small-retry'):
+        raise ValueError('recognized timeout recovery evidence required')
+    small = kind == 'timeout-small-retry'
+    bound = range(1, 4) if small else range(4, 7)
+    scope = 'one-to-three-rule' if small else 'four-to-six-rule'
     base, payload, started_raw, result_raw = state.base, state.payload, state.started_raw, state.result_raw
     run = campaign/'.cache/attempts'/attempt
     worker = run/'workers'/job_id
@@ -55,10 +59,10 @@ def verify(campaign, job_id, attempt, state, evidence):
         json.loads(raw[name]) for name in ('model_receipt', 'descriptor', 'support', 'base_manifest',
                                            'archive_metadata', 'terminal_receipt'))
     if (payload.get('kind') != 'author' or payload.get('timeout_origin') is not None
-            or not isinstance(payload.get('rules'), list) or not 4 <= len(payload['rules']) <= 6
+            or not isinstance(payload.get('rules'), list) or len(payload['rules']) not in bound
             or len(set(payload['rules'])) != len(payload['rules']) or descriptor.get('id') != job_id
             or descriptor.get('rules') != payload['rules']):
-        raise ValueError('timeout recovery requires original four-to-six-rule author job')
+        raise ValueError('timeout recovery requires original '+scope+' author job')
     pid = started.get('pid')
     if (type(pid) is not int or pid <= 0 or receipt.get('pid') != pid
             or started.get('receipt') != str(worker/'receipt.json') or receipt.get('task') != job_id
@@ -110,7 +114,7 @@ def verify(campaign, job_id, attempt, state, evidence):
 
 
 def rehabilitate(queue, job_id, attempt, checkpoint, evidence):
-    """Split one proved timeout, preserving its immutable attempt and archive."""
+    """Recover one proved timeout, preserving its immutable attempt and archive."""
     if not isinstance(attempt, str) or not attempt or Path(attempt).name != attempt:
         raise ValueError('invalid timeout attempt identity')
     campaign = Path(queue.path).parent
@@ -121,9 +125,9 @@ def rehabilitate(queue, job_id, attempt, checkpoint, evidence):
             row = db.execute(query, (job_id,)).fetchone()
             latest = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
             if not row or row[0] != 'needs-review' or row[1] != attempt or not row[6]:
-                raise ValueError('timeout split requires the current finished needs-review attempt')
+                raise ValueError('timeout recovery requires the current finished needs-review attempt')
             if not latest or latest[0] != checkpoint:
-                raise ValueError('timeout split checkpoint is stale')
+                raise ValueError('timeout recovery checkpoint is stale')
             snapshot, cp_snapshot = tuple(row), tuple(latest)
             base_row = db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (row[4],)).fetchone()
             if not base_row:
@@ -150,12 +154,16 @@ def rehabilitate(queue, job_id, attempt, checkpoint, evidence):
         if not isinstance(needed, dict):
             raise ValueError('checkpoint scan lacks needed-face mapping')
         rules = payload['rules']
+        retry = evidence['kind'] == 'timeout-small-retry'
+        midpoint = (len(rules)+1)//2
+        offsets = () if retry else (0, midpoint)
+        if retry and any(rule not in needed and rule not in scan[1] for rule in rules):
+            raise ValueError('current scan omits the assigned rule')
         fragments = payload.get('source_fragments')
         if not isinstance(fragments, list) or sorted(x.get('name') for x in fragments if isinstance(x, dict)) != sorted(rules):
             raise ValueError('timeout job source fragments do not cover assigned rules')
         groups = []
-        midpoint = (len(rules)+1)//2
-        for offset in (0, midpoint):
+        for offset in offsets:
             selected = rules[offset:offset+midpoint]
             faces = []
             for rule in selected:
@@ -184,7 +192,8 @@ def rehabilitate(queue, job_id, attempt, checkpoint, evidence):
             base_row = db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (snapshot[4],)).fetchone()
             if not base_row or base_row[0] != base_evidence_raw:
                 raise ValueError('timeout base checkpoint changed during verification')
-            if db.execute("SELECT 1 FROM events WHERE kind='rehabilitated-timeout' AND json_extract(data,'$.job_id')=?", (job_id,)).fetchone():
+            if db.execute("SELECT 1 FROM events WHERE kind IN ('rehabilitated-timeout','retried-small-timeout') "
+                          "AND json_extract(data,'$.job_id')=?", (job_id,)).fetchone():
                 raise ValueError('timeout rehabilitation already used')
             if verify(campaign, job_id, attempt, state, evidence) != proof:
                 raise ValueError('timeout evidence changed during verification')
@@ -194,6 +203,12 @@ def rehabilitate(queue, job_id, attempt, checkpoint, evidence):
             owned = {r[0] for r in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
             if owned != set(rules):
                 raise ValueError('timeout job does not own its original rules')
+            if retry:
+                db.execute("UPDATE jobs SET status='pending',attempt_id=NULL,adjudication=NULL WHERE id=?", (job_id,))
+                result = {'job_id': job_id, 'attempt_id': attempt, 'checkpoint': checkpoint,
+                          'proof': proof, 'evidence': evidence}
+                queue._event(db, 'retried-small-timeout', result)
+                return result
             for child in groups:
                 if (campaign/'reuse'/f"{child['id']}.json").exists():
                     raise ValueError('timeout child already has a reuse instruction')

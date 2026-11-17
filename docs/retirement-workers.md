@@ -367,7 +367,9 @@ operational timeout, not a completed semantic review or an infrastructure-fault
 diagnosis. After verifying its terminal receipt, empty final, archived checkout,
 process and lease, the coordinator may split an original four-to-six-rule timeout
 once into two balanced pending jobs of at most three rules each, against the
-latest accepted checkpoint. The
+latest accepted checkpoint. An operator may instead retry an original
+one-to-three-rule timeout once on the latest checkpoint with the same rule
+owner and a fresh attempt. The
 original attempt, archive and cost history remain intact. Timeout children cannot
 use this recovery recursively, and neither the split nor a pending child is an
 acceptance; each child must complete the normal review and validation gates.
