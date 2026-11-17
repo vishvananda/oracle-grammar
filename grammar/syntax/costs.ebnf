@@ -566,7 +566,7 @@ static_once_alternative_exile_cost ::= "once" "each" "turn" "," "you" "may" "pay
 generic_alternative ::= "{" NUMBER "}"
 
 /* Participial costs following a permission to cast. */
-cast_additional_cost_part ::= cast_discard_cost_part | cast_remove_among_cost_part
+cast_additional_cost_part ::= cast_discard_cost_part | cast_remove_among_cost_part | cast_sacrifice_permanent_cost | cast_remove_counter_permanent_cost
 
 /* @sem CostPart::Discard{count:$card_count, filter:Any} */
 cast_discard_cost_part ::= "discarding" card_count
@@ -672,3 +672,10 @@ cost_permanent_selections_pair ::= cost_one_permanent_selection "and" cost_one_p
 cost_permanent_selections_self_and_other ::= self_text "and" value "other" filter_plural "and" "/" "or" filter_plural "you" "control"
 
 cost_permanent_selections ::= cost_permanent_selections_one | cost_permanent_selections_pair | cost_permanent_selections_self_and_other
+
+/* Participial payments retain the independent counter and permanent selections. */
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))} */
+cast_sacrifice_permanent_cost ::= "sacrificing" ("a" | "an") filter_phrase
+
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]} */
+cast_remove_counter_permanent_cost ::= "removing" "a" "counter" "from" ("a" | "an") filter_phrase

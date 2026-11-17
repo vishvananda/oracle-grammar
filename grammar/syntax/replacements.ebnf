@@ -1,6 +1,6 @@
 /* Replacement effects, prevention and delayed triggers. */
 
-replacement_clause ::= replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you
+replacement_clause ::= replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -1361,3 +1361,46 @@ replacement_you_gain_twice ::= "you" "gain" "twice" "that" "much" "life"
 
 /* @sem Ability::Conditional{condition:$condition, then:[Replacement{active:Battlefield, event:$replacement_you_gain_event, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$replacement_you_gain_twice}]}}]} */
 replacement_gain_while ::= "if" replacement_you_gain_event "while" condition "," replacement_you_gain_twice "instead" "."
+
+/* The next combat end this turn bounds the delayed trigger's lifetime. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, expires:EndOfTurn, body:Program{instructions:$may_body}}}] */
+clause_delayed_this_combat ::= "at" "this" "turn's" "next" "end" "of" "combat" "," may_body
+
+/* The referenced player's upkeep and the return controller are the same player. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:One(@that_player)}, start:Immediately, body:Program{instructions:$return_under_that_player}}}] */
+clause_target_upkeep_return ::= return_under_that_player "at" "the" "beginning" "of" "their" "next" "upkeep"
+
+/* The event subject performs the replacement; the chosen opponent remains the
+   library owner. These bodies are scoped to a single draw replacement. */
+/* @sem ReplacementEvent::Player{event:Draw, players:$replacement_event_player} */
+replacement_player_draw_event ::= replacement_event_player "would" "draw" "a" "card"
+
+/* @sem ExileVisibility::FaceUp */
+replacement_exile_face_up ::= "face" "up"
+
+/* @sem ExileVisibility::FaceDown */
+replacement_exile_face_down ::= "face" "down"
+
+replacement_exile_visibility ::= replacement_exile_face_up | replacement_exile_face_down
+
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
+replacement_drawn_card ::= "that" "card"
+
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(Chosen)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
+replacement_opponent_top_card ::= "the" "top" "card" "of" "one" "of" "their" "opponents'" "libraries"
+
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(Chosen)}, kind:Card, filter:Any}, count:$count_plural, from:Top} */
+replacement_opponent_top_cards ::= "the" "top" count_plural "cards" "of" "one" "of" "their" "opponents'" "libraries"
+
+replacement_opponent_top_slice ::= replacement_opponent_top_card | replacement_opponent_top_cards
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$replacement_drawn_card, destination:Exile{visibility:$replacement_exile_visibility, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+replacement_draw_exile_card ::= "that" "player" "exiles" replacement_drawn_card replacement_exile_visibility
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(EventSubject), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(OpponentsOf(EventSubject))]}}}, Effect{result:@next, operation:Move{objects:$replacement_opponent_top_slice, destination:Exile{visibility:$replacement_exile_visibility, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+replacement_draw_exile_opponent_top ::= "that" "player" "exiles" replacement_opponent_top_slice replacement_exile_visibility
+
+replacement_draw_exile_body ::= replacement_draw_exile_card | replacement_draw_exile_opponent_top
+
+/* @sem Ability::Replacement{active:Battlefield, event:$replacement_player_draw_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, ...$replacement_draw_exile_body]}} */
+replacement_player_draw_exile ::= "if" replacement_player_draw_event "," replacement_draw_exile_body "instead" "."

@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named
+token_group ::= token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count
 
 token_copy ::= token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural
 
@@ -522,3 +522,10 @@ vehicle_token_name ::= "Zeppelin"
 
 /* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit('The Blackjack'), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
 token_legendary_named ::= "The" "Blackjack" "," "a" "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
+
+/* The count is defined after the recipe; it counts opponents independently by hand size. */
+/* @sem TokenSpec::TokenSpec{amount:$opponents_hand_threshold_count, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_opponent_hand_count ::= "X" token_recipe "," "where" "X" "is" opponents_hand_threshold_count
+
+/* @sem Expr::CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any})), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}}}])) */
+opponents_hand_threshold_count ::= "the" "number" "of" "your" "opponents" "with" count "or" "more" "cards" "in" "hand"

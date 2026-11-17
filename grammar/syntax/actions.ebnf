@@ -2678,3 +2678,74 @@ conjured_oracle_creature ::= "creature"
 /* The prohibition refers to the actual objects affected by this phase-out. */
 /* @sem Instruction::[Effect{result:@next, operation:KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$objects_each}}, Effect{result:@next, operation:GameEffect{until:$duration, effect:Term{family:GameEffect, form:PermanentsCantPhaseIn, operands:[Objects(Affected(@prior))]}}}] */
 phase_out_each_cant_return ::= objects_each "phases" "out" "." duration "," "they" "can't" "phase" "in"
+
+/* The mentioned player's control remains an operand of the move. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$affected, destination:Battlefield{controller:Player(@that_player), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+return_under_that_player ::= "return" affected "to" "the" "battlefield" "under" "that" "player's" "control"
+
+/* Play actions retain the linked population, quantity and payment independently. */
+/* @sem ObjectSet::Matching{objects:$linked_exile_cards, filter:AnyOf([$filter_phrase, Any])} */
+free_linked_land_or_spell ::= filter_phrase "or" "cast" "a" "spell" "from" "among" "the" linked_exile_cards
+
+/* @sem Operation::PlayWith{actor:One(AbilityController), action:Either, cards:$free_linked_land_or_spell, count:Exactly($counter_amount), terms:_{cost:Free}} */
+play_free_linked_land_or_spell ::= "play" counter_amount free_linked_land_or_spell "without" "paying" "its" "mana" "cost"
+
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)}), ExiledBy{player:OneOf(One(AbilityController))}])}) */
+controlled_exile_counter_card ::= "from" "exile" "with" "a" counter_kind "counter" "on" "it" "if" "it" "was" "exiled" "by" "an" "ability" "you" "controlled"
+
+/* @sem Operation::PlayWith{actor:One(AbilityController), action:Either, cards:$controlled_exile_counter_card, count:Exactly($card_count_one), terms:_{cost:Normal, spend_as:AnyColor}} */
+play_controlled_exile_counter_card ::= "play" card_count_one controlled_exile_counter_card "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "it"
+
+once_turn_play_operation ::= play_free_linked_land_or_spell | play_controlled_exile_counter_card
+
+/* An opponent's unchosen graveyard selection can be repeated after a payment. */
+/* @sem Instruction::Repeatable{instructions:[$graveyard_repeat_choice, $graveyard_repeat_payment, $graveyard_repeat_again]} */
+graveyard_repeat_process ::= graveyard_repeat_choice "." graveyard_repeat_payment "." graveyard_repeat_again
+
+/* @sem Instruction::Effect{result:@next, operation:ChooseValue{choosers:$players_singular, kind:Object, terms:_{options:[Objects(Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}))], unchosen:true, count:Exactly(Constant(1))}}} */
+graveyard_repeat_choice ::= players_singular "chooses" "a" "card" "in" "your" "graveyard"
+
+/* @sem Instruction::Effect{result:@next, operation:PayCost{player:AbilityController, cost:$cost, optional:true}} */
+graveyard_repeat_payment ::= "you" "may" "pay" cost
+
+/* @sem Instruction::If{condition:PaymentChosen(@last_result), then:_{instructions:[Effect{result:@next, operation:RepeatProcess}]}, otherwise:_{}} */
+graveyard_repeat_again ::= "if" "you" "do" "," "repeat" "this" "process" "except" "that" "opponent" "can't" "choose" "a" "card" "already" "chosen" "for" SELF_NAME
+
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:One(Earlier{what:Selected}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}} */
+graveyard_last_choice_to_hand ::= "then" "put" "the" "last" "chosen" "card" "into" "your" "hand"
+
+/* @sem Instruction::[$graveyard_repeat_process, $graveyard_last_choice_to_hand] */
+instructions_graveyard_repeat ::= graveyard_repeat_process "." graveyard_last_choice_to_hand
+
+/* Each chooser uses the same filtered graveyard, with turn order explicit. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, starting_with:Seat{of:AbilityController, side:Next}, body:_{instructions:[$ordered_graveyard_choice]}}] */
+ordered_opponent_graveyard_choice ::= "then" "starting" "with" "the" "next" "opponent" "in" "turn" "order" "," players_singular ordered_graveyard_choice
+
+/* @sem Instruction::Effect{result:@next, operation:ChooseValue{choosers:One(Bound(0)), kind:Object, terms:_{options:[Filter(AllOf([$filter_phrase, InZone(Players{zone:Graveyard, players:One(AbilityController)})]))], unchosen:true, count:Exactly(Constant(1))}}} */
+ordered_graveyard_choice ::= "chooses" "a" filter_phrase "card" "in" "your" "graveyard" "that" "hasn't" "been" "chosen"
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:InSet(Earlier{what:Selected})}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+return_each_chosen_graveyard ::= "return" "each" "card" "chosen" "this" "way" "to" "the" "battlefield" "under" "your" "control"
+
+/* A singular owned object can be selected from these two public zones. */
+/* @sem ObjectSet::Union([Zone{scope:Shared(Battlefield), kind:Card, filter:AllOf([$noun, OwnedBy(One(AbilityController))])}, Zone{scope:Shared(Command), kind:Card, filter:AllOf([$noun, OwnedBy(One(AbilityController))])}]) */
+owned_battlefield_command_object ::= noun "you" "own" "on" "the" "battlefield" "or" "in" "the" "command" "zone"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:$owned_battlefield_command_object, count:Exactly($owned_choice_article)}}, Effect{result:@mark, operation:BindValue{value:ObjectProperty{object:Result{result:@prior, phase:After, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:BoundValue(@marked)}}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:BoundValue(@marked)}}] */
+instructions_draw_loss_defined ::= "you" "draw" "X" "cards" "and" "you" "lose" "X" "life" "," "where" "X" "is" "the" "mana" "value" "of" owned_choice_article owned_battlefield_command_object
+
+owned_choice_article ::= owned_choice_a | owned_choice_an
+
+/* @sem Expr::Constant(1) */
+owned_choice_a ::= "a"
+
+/* @sem Expr::Constant(1) */
+owned_choice_an ::= "an"
+
+/* The reveal and its immediate consumer share the same target hand; no intervening action can change the population. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{count:Exactly(Constant(1)), options:[]}}}, Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($callback_hand_player)}, kind:Card, filter:Any}}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:@times($token_amount, Expr::CountObjects(Matching{objects:Zone{scope:Players{zone:Hand, players:One($callback_hand_player)}, kind:Card, filter:Any}, filter:Chosen(CardType)})), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+clause_choose_type_reveal_hand_tokens ::= "choose" "a" "card" "type" "." callback_hand_player "reveals" "their" "hand" "." "create" token_amount token_recipe "for" "each" "card" "of" "the" "chosen" "type" "revealed" "this" "way"
+
+/* Bind the counted receipt to the immediately preceding draw, including its player and amount. */
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:$players_singular, amount:$card_count}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Performed(@prior)}}] */
+instructions_draw_receipt_draw ::= players_singular "draws" card_count "." "you" "draw" "a" "card" "for" "each" "card" "drawn" "this" "way"

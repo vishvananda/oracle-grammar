@@ -1294,3 +1294,22 @@ instructions_optional_reveal_same_value_cast ::= "you" "may" "reveal" single_lib
 /* Search compares against the last-known mana value of the event subject. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:Less, value:ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown}}}]), count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]} */
 death_lesser_search_program ::= "search" "your" "library" "for" "a" card_filter "card" "with" "lesser" "mana" "value" "," "put" "it" "onto" "the" "battlefield" "tapped" "," "then" "shuffle"
+
+/* The look supplies the exact library observation for both the separation and
+   the cards left after the chosen pile moves to its owners' hands. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$face_pile_separation, ...$face_pile_choice, Effect{result:@next, operation:$face_pile_remainder}] */
+instructions_look_face_piles ::= look_top "and" face_pile_separation "." face_pile_choice "." face_pile_remainder
+
+/* @sem Instruction::[Effect{result:@next, operation:Piles{actor:One(AbilityController), objects:InZone{objects:Observed(@marked), zone:Library}, count:Constant(2), names:['face up', 'face down']}}] */
+face_pile_separation ::= "separate" "them" "into" "a" "face-down" "pile" "and" "a" "face-up" "pile"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChoosePile{actor:OpponentsOf(AbilityController), then:OwnersHand}}] */
+face_pile_choice ::= "an" "opponent" "chooses" "one" "of" "those" "piles"
+
+face_pile_remainder ::= face_pile_remainder_bottom | face_pile_remainder_graveyard
+
+/* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Bottom, order:Chosen} */
+face_pile_remainder_bottom ::= "put" "the" "cards" "in" "that" "pile" "into" "your" "hand" "and" "the" "rest" "on" "the" "bottom" "of" "your" "library" "in" "any" "order"
+
+/* @sem Operation::Move{objects:InZone{objects:Observed(@marked), zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+face_pile_remainder_graveyard ::= "put" "that" "pile" "into" "your" "hand" "and" "the" "other" "into" "your" "graveyard"

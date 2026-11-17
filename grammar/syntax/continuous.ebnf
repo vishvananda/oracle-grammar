@@ -3243,3 +3243,33 @@ spell_mana_symbol_count ::= devotion_color "mana" "symbol" "in" "their" "mana" "
 /* A trailing defending-player condition composes with ordinary static changes. */
 /* @sem Ability::Conditional{condition:$condition_defending_control, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
 static_defending_control_conditional ::= affected static_changes "as" "long" "as" condition_defending_control "."
+
+/* The turn window and the action's operands are independently composed. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpecialAction{body:Program{instructions:[Effect{result:@next, operation:$once_turn_play_operation}]}, limit:EachTurn(1)})]}) */
+static_once_each_turn_play ::= "once" "each" "turn" "," "you" "may" once_turn_play_operation "."
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpecialAction{body:Program{instructions:[Effect{result:@next, operation:$once_turn_play_operation}]}, limit:EachTurn(1), during:One(AbilityController)})]}) */
+static_once_during_your_turn_play ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" once_turn_play_operation "."
+
+/* The affected hand belongs to the grantor; cycling's Source is the receiving card. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($each_hand_card), changes:[GrantAbility($hand_card_granted_ability)]} */
+static_each_hand_card_grant ::= each_hand_card "has" hand_card_granted_ability "."
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter} */
+each_hand_card ::= "each" card_filter "card" "in" "your" "hand"
+
+hand_card_granted_ability ::= keyword_cycling
+
+/* Spells cast by the emblem controller are affected on the stack. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($emblem_cast_spell_subject), changes:[GrantAbility(@holder($bare_storm))]} */
+emblem_cast_spell_grant ::= emblem_cast_spell_subject "have" bare_storm "."
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($emblem_cast_spell_subject), changes:[SpellCost($spell_cost_less)]} */
+emblem_cast_spell_cost ::= emblem_cast_spell_subject "cost" spell_cost_less "to" "cast" "."
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:@and($cast_spells_filter, ObjectFilter::Cast{by:One(AbilityController)})} */
+emblem_cast_spell_subject ::= cast_spells_filter "you" "cast"
+
+/* A top-card casting permission with a separately composed additional cost. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Additional(Cost{parts:[$cast_additional_cost_part]})}})]}) */
+static_top_cast_additional ::= "you" "may" "cast" cast_spells_filter "from" "the" "top" "of" "your" "library" "by" cast_additional_cost_part "in" "addition" "to" "paying" "their" "other" "costs" "."

@@ -351,7 +351,7 @@ continuous_beyond_first ::= affected ("gets" | "get") signed "/" signed duration
 
 /* Only explicit action families own this two-sentence contrast. Neither slot
    uses program, clause, operation, or a CDE with an arbitrary change list. */
-clause_atomic_instead ::= instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed
+clause_atomic_instead ::= instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life
 
 /* The replacing action may come first and its condition trail: "That creature gets
    -13/-13 until end of turn instead if a creature died this turn". Both slots are
@@ -823,3 +823,14 @@ island_perpetual_grant ::= "becomes" "a" "basic" "Island" "in" "addition" "to" "
 
 /* @sem Change::[GrantAbility(Casting(AlternativeCost($cost)))] */
 quoted_perpetual_cost ::= "gains" '"' "you" "may" "pay" cost "rather" "than" "pay" "this" "spell's" "mana" "cost" "." '"'
+
+/* A chosen population is acted on before the alternative applies. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_moves_action}, otherwise:Program{instructions:$chosen_untap_instruction}}] */
+instead_chosen_or_action ::= chosen_untap_instruction "." NEWLINE? "if" condition "," instead_moves_action "instead"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, count:AsManyAsCan($counter_amount)}}, Effect{result:@next, operation:SetTapped{objects:Selected(@prior)}}] */
+chosen_untap_instruction ::= "untap" counter_amount filter_phrase
+
+/* A conditional replacement keeps the announced player in both branches. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One($target_player), $gain_life_third_2)}]}, otherwise:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One($target_player), $gain_life_third)}]}}] */
+instead_target_player_life ::= target_player gain_life_third "." NEWLINE? "if" condition "," "that" "player" gain_life_third "instead"
