@@ -392,9 +392,7 @@ rule_changes ::= rule_change | rule_changes_and
 /* @sem Change::[...$rule_change, ...$rule_changes] */
 rule_changes_and ::= rule_change "and" rule_changes
 
-rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack
-    | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power
-    | rule_cant_be_targeted | rule_prohibit_action
+rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule
 
 /* A spell is a stack object of kind Spell; "abilities" are every other stack
    object, and an ability "from" a source is an ability of that source. "Spells or
@@ -493,7 +491,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if
+static_ability ::= static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -653,10 +651,7 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change
-    | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap
-    | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded
-    | change_cant_block_or_be_blocked_by | change_cant_attack_alone
+static_change ::= change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty
 /* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
    the protection names the object it keeps attached. */
 /* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
@@ -2374,3 +2369,262 @@ granted_poisonous ::= "poisonous" value
 
 /* @sem Ability::Mechanic{mechanic:Outlast, cost:Cost{parts:[Mana($mana_symbols)]}} */
 granted_outlast ::= "outlast" mana_symbols
+
+/* A combat prohibition composes with the independently stated third action. */
+/* @sem Change::[Rule(Prohibit(Attack(Any))), Rule(Prohibit(Block(Any))), ...$combat_prohibited_extra] */
+change_cant_attack_block_extra ::= "can't" "attack" "," "block" "," "or" combat_prohibited_extra
+
+combat_prohibited_extra ::= combat_prohibited_crew | combat_prohibited_transform
+
+/* @sem Change::[Rule(Prohibit(Crew))] */
+combat_prohibited_crew ::= "crew" "Vehicles"
+
+/* @sem Change::[Rule(Prohibit(Transform))] */
+combat_prohibited_transform ::= "transform"
+
+/* This count constrains the attacking group, not the affected population. */
+/* @sem Change::[Rule(CombatGroup{role:Attacker, participants:Any, comparison:Equal, amount:Constant(1)})] */
+change_only_attack_alone ::= "can" "only" "attack" "alone"
+
+/* Possessive agreement is kept separate while sharing the ability restriction. */
+/* @sem Change::[...$combat_prohibition, ...$activation_restriction] */
+change_combat_activation_its ::= combat_prohibition "," "and" "its" activation_restriction
+
+/* @sem Change::[...$combat_prohibition, ...$activation_restriction] */
+change_combat_activation_their ::= combat_prohibition "," "and" "their" activation_restriction
+
+combat_prohibition ::= change_cant_attack_block_extra | rule_cant_attack_or_block
+
+activation_restriction ::= activation_restriction_tap | activation_restriction_nonmana
+
+/* @sem Change::[Rule(Prohibit(Activate(Is(TapSymbolInCost))))] */
+activation_restriction_tap ::= "activated" "abilities" "with" "{" "T" "}" "in" "their" "costs" "can't" "be" "activated"
+
+/* @sem Change::[Rule(Prohibit(Activate(Not(Mana))))] */
+activation_restriction_nonmana ::= "activated" "abilities" "can't" "be" "activated" "unless" "they're" "mana" "abilities"
+
+/* Shared attack restrictions compose the action scope with its payment. */
+/* @sem Change::[Rule(CombatGroup{role:Attacker, participants:$filter_plural, others_only:true, comparison:GreaterOrEqual, amount:$value})] */
+attack_group_clause ::= "at" "least" value "other" filter_plural "attack"
+
+/* @sem $attack_group_clause */
+attack_group_requirement ::= "can't" "attack" "unless" attack_group_clause
+
+/* @sem Change::[Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:$attack_you_cost_clause})] */
+attack_you_pay_cost_rule ::= "can't" "attack" attack_you_cost_clause
+
+/* @sem $cost */
+attack_you_cost_clause ::= "unless" "you" cost
+
+/* @sem Change::[Rule(CombatCost{action:Attack(Players(One(AbilityController))), payer:DeclaringPlayer, cost:$attack_player_payment})] */
+attack_you_cost_rule ::= "can't" "attack" "you" "unless" "their" "controller" "pays" attack_player_payment
+
+/* @sem Change::[Rule(CombatCost{action:Attack(PlayersAndPlaneswalkers(One(AbilityController))), payer:DeclaringPlayer, cost:$attack_planeswalker_payment})] */
+attack_you_or_planeswalkers_cost_rule ::= "can't" "attack" "you" "or" "planeswalkers" "you" "control" "unless" "their" "controller" "pays" attack_planeswalker_payment
+
+attack_player_payment ::= attack_player_payment_fixed | attack_player_payment_x
+
+/* @sem $cost */
+attack_player_payment_fixed ::= cost "for" "each" "creature" "they" "control" "that's" "attacking" "you"
+
+/* @sem Cost::Cost{parts:[ManaWithX{mana:[X], x:$value}]} */
+attack_player_payment_x ::= "{" "X" "}" "for" "each" "creature" "they" "control" "that's" "attacking" "you" "," "where" "X" "is" value
+
+attack_planeswalker_payment ::= attack_planeswalker_payment_fixed | attack_planeswalker_payment_x
+
+/* @sem $cost */
+attack_planeswalker_payment_fixed ::= cost "for" "each" "of" "those" "creatures"
+
+/* @sem Cost::Cost{parts:[ManaWithX{mana:[X], x:$value}]} */
+attack_planeswalker_payment_x ::= "{" "X" "}" "for" "each" "of" "those" "creatures" "," "where" "X" "is" value
+
+/* Player-facing continuous permissions and restrictions share the same
+   controller and retain the operands of each rule for inverse printing. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule($controller_player_rule)]} */
+controller_player_static ::= "you" controller_player_rule "."
+
+controller_player_rule ::= player_retain_colored_mana | player_cast_limit_one | player_cast_limit_many | player_haste_activation | player_face_down_visibility | player_unlimited_lands
+
+/* @sem PlayerRule::RetainMana{colors:[$mana_color_word]} */
+player_retain_colored_mana ::= "don't" "lose" "unspent" mana_color_word "mana" "as" "steps" "and" "phases" "end"
+
+/* @sem PlayerRule::LimitPerTurn{action:CastSpell{filter:Any}, amount:Expr::Constant(1)} */
+player_cast_limit_one ::= "can't" "cast" "more" "than" "one" "spell" "each" "turn"
+
+/* @sem PlayerRule::LimitPerTurn{action:CastSpell{filter:Any}, amount:$count_plural} */
+player_cast_limit_many ::= "can't" "cast" "more" "than" count_plural "spells" "each" "turn"
+
+/* @sem PlayerRule::ActivationGrant{abilities:AbilityOf($filter_plural), grant:AsThoughHaste} */
+player_haste_activation ::= "may" "activate" "abilities" "of" filter_plural "as" "though" "those" "creatures" "had" "haste"
+
+/* @sem PlayerRule::Visibility{objects:$affected, audience:AffectedPlayer} */
+player_face_down_visibility ::= "may" "look" "at" "face-down" affected "any" "time"
+
+/* @sem PlayerRule::AdditionalLandPlays(AnyNumber) */
+player_unlimited_lands ::= "may" "play" "any" "number" "of" "lands" "on" "each" "of" "your" "turns"
+
+/* Player rules share their affected player and keep each change composable. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players($player_rule_you), changes:$controller_rule_changes} */
+static_controller_rules ::= player_rule_you controller_rule_changes "."
+
+controller_rule_changes ::= controller_rule_one | controller_rule_join
+
+/* @sem Change::[$controller_rule_change] */
+controller_rule_one ::= controller_rule_change
+
+/* @sem Change::[$controller_rule_change, ...$controller_rule_changes] */
+controller_rule_join ::= controller_rule_change "and" controller_rule_changes
+
+controller_rule_change ::= controller_untap_limit | controller_search_decision | controller_bottom_draw | controller_radiation_life | controller_hand_unlimited | controller_nonpositive_survival
+
+/* @sem Change::PlayerRule(UntapLimit{permanents:$filter_phrase, amount:$value}) */
+controller_untap_limit ::= "can't" "untap" "more" "than" value filter_phrase "during" "your" "untap" "step"
+
+/* @sem Change::PlayerRule(Decides(SearchesOf(OpponentsOf(AbilityController)))) */
+controller_search_decision ::= "control" "your" "opponents" "while" "they're" "searching" "their" "libraries"
+
+/* @sem Change::PlayerRule(Unique(DrawsFromBottomOfLibrary)) */
+controller_bottom_draw ::= "draw" "cards" "from" "the" "bottom" "of" "your" "library" "rather" "than" "the" "top"
+
+/* @sem Change::PlayerRule(Unique(RadiationGainsLife)) */
+controller_radiation_life ::= "gain" "life" "rather" "than" "lose" "life" "from" "radiation"
+
+/* @sem Change::PlayerRule(HandSize(Unlimited)) */
+controller_hand_unlimited ::= "have" "no" "maximum" "hand" "size"
+
+/* @sem Change::PlayerRule(Prohibit(LoseGame{reason:NonpositiveLife})) */
+controller_nonpositive_survival ::= "don't" "lose" "the" "game" "for" "having" "0" "or" "less" "life"
+
+/* Combat payment wording composes the blocked population with the payment. */
+block_payment_rule ::= block_payment_filtered | block_payment_any
+
+/* @sem Change::[Rule(CombatCost{action:Block($filter_plural), payer:DeclaringPlayer, cost:$block_payment_filtered_suffix})] */
+block_payment_filtered ::= "can't" "block" filter_plural block_payment_filtered_suffix
+
+block_payment_filtered_suffix ::= block_payment_you | block_payment_life
+
+/* @sem $alternative_mana */
+block_payment_you ::= "unless" "you" alternative_mana
+
+/* @sem Cost::Cost{parts:[Life($value)]} */
+block_payment_life ::= "unless" "their" "controller" "pays" value "life" "for" "each" "blocking" "creature" "they" "control"
+
+/* @sem Change::[Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:$block_payment_mana})] */
+block_payment_any ::= "can't" "block" block_payment_mana
+
+/* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
+block_payment_mana ::= "unless" "their" "controller" "pays" mana_symbols "for" "each" "of" "those" "creatures"
+
+/* A blocker must be joined by other members of the stated population. */
+/* @sem $block_group_requirement */
+block_group_rule ::= "can't" "block" block_group_requirement
+
+block_group_requirement ::= block_group_greater | block_group_minimum
+
+/* @sem Change::[Rule(CombatGroup{role:Blocker, participants:$block_group_population, others_only:true, comparison:Greater, amount:Constant(0)})] */
+block_group_greater ::= "unless" "a" block_group_population "also" "blocks"
+
+/* @sem @and($filter_phrase, ObjectFilter::Property{property:Power, test:NumberTest::Compare{comparison:Greater, value:ObjectProperty{object:Affected, property:Power, information:CurrentOrLastKnown}}}) */
+block_group_population ::= filter_phrase "with" "greater" "power"
+
+/* @sem Change::[Rule(CombatGroup{role:Blocker, participants:$filter_plural, others_only:true, comparison:GreaterOrEqual, amount:$value})] */
+block_group_minimum ::= "unless" "at" "least" value "other" filter_plural "block"
+
+/* A comparison against the enchanted creature's current toughness. */
+/* @sem Change::[Rule(Prohibit(Block($block_compared_population)))] */
+block_comparison_rule ::= "can't" "block" block_compared_population
+
+/* @sem @and($filter_plural, ObjectFilter::Property{property:Power, test:NumberTest::Compare{comparison:GreaterOrEqual, value:ObjectProperty{object:AttachedTo(Source), property:Toughness, information:CurrentOrLastKnown}}}) */
+block_compared_population ::= filter_plural "with" "power" "equal" "to" "or" "greater" "than" "the" "enchanted" "creature's" "toughness"
+
+/* A source population and the ability kinds are independent operands of the
+   continuous change. The singular and combined kind phrases share this lens. */
+/* @sem Change::[GainAbilitiesOf{objects:$ability_origin_set, kinds:$copied_ability_kinds}] */
+change_gained_abilities ::= "has" "all" copied_ability_kinds "abilities" "of" ability_origin_set
+
+copied_ability_kinds ::= copied_activated_kinds | copied_activated_triggered_kinds
+
+/* @sem Operand::List([Term{family:CheckHasable, form:ActivatedAbility}]) */
+copied_activated_kinds ::= "activated"
+
+/* @sem Operand::List([Term{family:CheckHasable, form:ActivatedAbility}, Term{family:CheckHasable, form:TriggeredAbility}]) */
+copied_activated_triggered_kinds ::= "activated" "and" "triggered"
+
+ability_origin_set ::= affected | ability_origin_battlefield | ability_origin_last_choice
+
+/* @sem $affected */
+ability_origin_battlefield ::= affected "on" "the" "battlefield"
+
+/* @sem ObjectSet::One(Earlier{what:Selected}) */
+ability_origin_last_choice ::= "the" "last" "chosen" "card"
+
+/* @sem Change::[GainAbilitiesOf{objects:$ability_origin_set, kinds:List([Term{family:CheckHasable, form:And, operands:[$copied_activated_heading, $copied_nonmana_exclusion]}])}] */
+change_gained_nonmana ::= "has" "all" copied_activated_heading "of" ability_origin_set copied_nonmana_exclusion
+
+/* @sem Change::[GainAbilitiesOf{objects:$ability_origin_set, kinds:$copied_activated_heading, spend_as:$copied_abilities_any_color}] */
+change_gained_spending ::= "has" "all" copied_activated_heading "of" ability_origin_set "." copied_abilities_any_color
+
+/* @sem Change::[GainAbilitiesOf{objects:One($copied_chosen_permanent), kinds:Term{family:ActivatedAbilities, form:And, operands:[Term{family:ActivatedAbilities, form:AbilityOfPermanent, operands:[Object($copied_chosen_permanent)]}, Term{family:ActivatedAbilities, form:NonLoyaltyAbility}]}, spend_as:$copied_abilities_any_color}] */
+change_gained_chosen_nonloyalty ::= "has" "all" "activated" "abilities" "of" copied_chosen_permanent "except" "for" "loyalty" "abilities" "." copied_abilities_any_color
+
+/* @sem SpendAs::AnyColor */
+copied_abilities_any_color ::= "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "activate" "those" "abilities"
+
+/* @sem ObjectRef::Chosen */
+copied_chosen_permanent ::= "the" "chosen" "permanent"
+
+/* @sem Operand::Term{family:CheckHasable, form:ActivatedAbility} */
+copied_activated_heading ::= "activated" "abilities"
+
+/* @sem Operand::Term{family:CheckHasable, form:NonManaAbility} */
+copied_nonmana_exclusion ::= "except" "mana" "abilities"
+
+/* Defender conditions keep the attacked player's identity separate from the holder. */
+/* @sem Condition::Controls{player:DefendingPlayerOf(Source), filter:$defender_untapped_filter, minimum:1} */
+defender_controls_untapped ::= "defending" "player" "controls" "an" "untapped" defender_untapped_filter
+
+defender_untapped_filter ::= defender_untapped_plain | defender_untapped_power
+
+/* @sem ObjectFilter::AllOf([Not(Tapped), $noun]) */
+defender_untapped_plain ::= noun
+
+/* @sem ObjectFilter::AllOf([Not(Tapped), $noun, Property{property:Power, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}]) */
+defender_untapped_power ::= noun "with" "power" number "or" "greater"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One($self_explicit_ref)), changes:[Rule(CantAttackDefenderIf($defender_controls_untapped))]} */
+static_defender_control_restriction ::= self_explicit_ref "can't" "attack" "if" defender_controls_untapped "."
+
+/* The exert permission is independent of any linked effect. */
+/* @sem Change::[Rule(MayExert(None))] */
+exert_permission ::= "you" "may" "exert"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$exert_permission} */
+static_exert_without_followup ::= exert_permission affected "as" "it" "attacks" "."
+
+/* Reusable activation restrictions share the current subject. */
+/* @sem Change::[Rule(Prohibit(Activate(Any)))] */
+activation_prohibition ::= "can't" "be" "activated"
+
+/* @sem $activation_prohibition */
+activation_ban ::= "activated" "abilities" activation_prohibition
+
+/* @sem Change::[Rule(Prohibit(Activate(Not(Mana))))] */
+activation_ban_nonmana ::= "activated" "abilities" "can't" "be" "activated" "unless" "they're" "mana" "abilities"
+
+/* @sem ObjectSet::One(@enchanted_creature_operand(ObjectRef::AttachedTo(Source))) */
+possessive_enchanted_holder ::= "enchanted" "creature's"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($possessive_enchanted_holder), changes:$activation_ban} */
+static_possessive_activation_ban ::= possessive_enchanted_holder activation_ban "."
+
+/* @sem ObjectSet::One(Chosen) */
+chosen_permanent_holder ::= "the" "chosen" "permanent"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($chosen_permanent_holder), changes:$activation_prohibition} */
+static_chosen_activation_ban ::= "activated" "abilities" "of" chosen_permanent_holder activation_prohibition "."
+
+/* @sem Change::[Rule(Prohibit(Attack(Any))), Rule(Prohibit(Block(Any))), Rule(Prohibit(Crew))] */
+combat_and_crew_ban ::= "can't" "attack" "," "block" "," "or" "crew" "Vehicles"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[...$combat_and_crew_ban, ...$activation_ban_nonmana]} */
+static_combat_activation_restrictions ::= affected combat_and_crew_ban "." "its" activation_ban_nonmana "."

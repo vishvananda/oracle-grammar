@@ -79,7 +79,7 @@ player_rule_one ::= player_rule_ability
 /* @sem Ability::[$player_rule_ability, ...$player_rule_list] */
 player_rule_more ::= player_rule_ability "and" player_rule_list
 
-player_prohibitions ::= player_prohibition | player_prohibitions_more | zone_cast_prohibitions
+player_prohibitions ::= player_prohibition | player_prohibitions_more | zone_cast_prohibitions | player_prohibit_shared_cast_land | player_prohibit_pay_life_pair
 /* @sem Change::[Change::PlayerRule(Prohibit($player_prohibited_action))] */
 player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
@@ -107,7 +107,7 @@ all_player_rule_more_turn ::= all_player_rule_turn "and" all_player_rule_list_tu
 /* @sem PlayerAction::PlayLand{filter:Any} */
 player_prohibit_land ::= "play" "lands"
 
-player_prohibited_action ::= player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard
+player_prohibited_action ::= player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells
 /* @sem PlayerAction::Draw */
 player_prohibit_draw ::= "draw" "cards"
 /* @sem PlayerAction::GainLife */
@@ -221,3 +221,53 @@ uniform_cards ::= uniform_number "cards"
 
 /* @sem EventSpec::Player{event:GivesGift, players:One(AbilityController)} */
 event_you_give_gift ::= "you" "give" "a" "gift"
+
+/* @sem PlayerAction::ReceiveCounters($counter_kind) */
+player_prohibit_receive_counters ::= "get" counter_kind "counters"
+
+/* Action operands compose with every ordinary player-rule subject and duration. */
+/* @sem PlayerAction::Activate(Cycling) */
+player_prohibit_cycle ::= "cycle" "cards"
+
+/* @sem PlayerAction::ReceiveCounters(None) */
+player_prohibit_counters ::= "get" "counters"
+
+/* @sem PlayerAction::CastSpell{filter:$prohibited_spell_qualifier} */
+player_prohibit_cast_qualified ::= "cast" "spells" prohibited_spell_qualifier
+
+prohibited_spell_qualifier ::= prohibited_chosen_type | prohibited_shared_color | prohibited_printed_name
+
+/* @sem ObjectFilter::Chosen(CardType) */
+prohibited_chosen_type ::= "of" "the" "chosen" "type"
+
+/* @sem ObjectFilter::Shares{property:Colors, with:Earlier{what:LastCast}} */
+prohibited_shared_color ::= "that" "share" "a" "color" "with" "the" "spell" "most" "recently" "cast" "this" "turn"
+
+/* @sem ObjectFilter::NameFirstPrintedIn($prohibited_expansion) */
+prohibited_printed_name ::= "with" "a" "name" "originally" "printed" "in" "the" prohibited_expansion "expansion"
+
+prohibited_expansion ::= prohibited_arabian | prohibited_antiquities | prohibited_homelands
+
+/* @sem FirstPrinting::ArabianNights */
+prohibited_arabian ::= "Arabian" "Nights"
+
+/* @sem FirstPrinting::Antiquities */
+prohibited_antiquities ::= "Antiquities"
+
+/* @sem FirstPrinting::Homelands */
+prohibited_homelands ::= "Homelands"
+
+/* @sem Change::[PlayerRule(Prohibit(CastSpell{filter:$prohibited_printed_name})), PlayerRule(Prohibit(PlayLand{filter:$prohibited_printed_name}))] */
+player_prohibit_shared_cast_land ::= "cast" "spells" "or" "play" "lands" prohibited_printed_name
+
+/* @sem PlayerAction::PayLife(Spells($pay_life_spell_filter)) */
+player_prohibit_pay_life_spells ::= "pay" "life" "to" "cast" pay_life_spell_filter
+
+/* @sem ObjectFilter::Any */
+pay_life_spell_filter ::= "spells"
+
+/* @sem Change::[PlayerRule(Prohibit(PayLife(Spells($pay_life_spell_filter)))), PlayerRule(Prohibit(PayLife(Abilities($pay_life_ability_filter))))] */
+player_prohibit_pay_life_pair ::= "pay" "life" "to" "cast" pay_life_spell_filter "or" "to" "activate" pay_life_ability_filter
+
+/* @sem ObjectFilter::Not(OnStack(Mana)) */
+pay_life_ability_filter ::= "abilities" "that" "aren't" "mana" "abilities"

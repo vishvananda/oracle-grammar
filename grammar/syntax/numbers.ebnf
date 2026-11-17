@@ -51,7 +51,7 @@ n15 ::= "fifteen"
 /* @sem Expr::Constant(20) */
 n20 ::= "twenty"
 
-card_count ::= card_count_one | card_count_many | card_count_additional | card_count_that_many | card_count_each | card_count_each_many | card_count_equal | card_count_half
+card_count ::= card_count_prior_plus | card_count_additional_each | card_count_one | card_count_many | card_count_additional | card_count_that_many | card_count_each | card_count_each_many | card_count_equal | card_count_half
 
 /* @sem Expr::Constant(1) */
 card_count_one ::= ("a" | "one" | "an" "additional") "card"
@@ -77,7 +77,7 @@ card_count_equal ::= "cards" "equal" "to" value
 /* @sem Expr::Divide{numerator:$value_atom, denominator:Expr::Constant(2), rounding:$rounding_words} */
 card_count_half ::= "half" value_atom "cards" "," rounding_words
 
-count_each ::= count_each_vote | count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand
+count_each ::= count_each_different_power | count_each_devoured | count_each_players_drew | count_each_vote | count_each_self_attack_game | count_each_you_sacrificed_types | count_each_object_counter | count_each_player_counter | mined_each | count_each_commander_cast | count_each_discarded_turn | count_each_type_cast | count_each_opponent_fewer | count_each_party | count_each_permanent | count_each_other | count_each_hand | count_each_graveyard | count_each_card_hand
     | count_each_card_graveyard | count_each_destroyed | count_each_tapped | count_each_discarded | count_each_discarded_any | count_each_discarded_event | count_each_exiled_any | count_each_revealed_any | count_each_died | count_each_put_into_your_graveyard | count_each_land_type
     | count_each_color_among | count_each_color_spent | count_each_time_kicked | count_each_counter_on
 
@@ -238,7 +238,7 @@ possessive_target_opponent ::= "target" "opponent's"
 /* @sem PlayerRef::@defending */
 possessive_defending ::= "defending" "player's"
 
-life_phrase ::= life_amount | life_half
+life_phrase ::= life_amount | life_half | life_per_chosen_color
 
 /* Every life amount except half the player's own life. */
 life_amount ::= life_number | life_that_much | life_each | life_equal | life_half_your | life_twice
@@ -282,7 +282,7 @@ value_difference ::= value_atom "minus" value
 
 value_constant ::= number_digits | number_words | number_x
 
-value_atom ::= value_die_result | value_cast_since_last_turn | value_chosen_creature_population | value_shared_countered | value_shared_other_four_subtypes | value_shared_saga_mana | value_times_mutated | value_your_life | mined_value | value_constant | value_number_of | value_power | value_toughness | value_mana_value | value_that_card_stat | value_revealed_card_stat | value_discarded_card_stat | value_powers_among | value_your_speed | value_that_much | value_twice
+value_atom ::= value_discarded_by_player | value_die_result | value_cast_since_last_turn | value_chosen_creature_population | value_shared_countered | value_shared_other_four_subtypes | value_shared_saga_mana | value_times_mutated | value_your_life | mined_value | value_constant | value_number_of | value_power | value_toughness | value_mana_value | value_that_card_stat | value_revealed_card_stat | value_discarded_card_stat | value_powers_among | value_your_speed | value_that_much | value_twice
     | value_number_cards
     | value_life_lost | value_life_gained_turn | value_mana_spent | value_sacrificed | value_sacrificed_result | value_stat_of | value_number_on_battlefield | value_number_other
     | value_greatest | value_greatest_pair | value_colors_among | value_land_types_among | value_card_types | value_devotion
@@ -684,3 +684,34 @@ count_each_counter_on ::= "counter" "on" object_ref
 /* "Equal to the result": the die rolled just before. */
 /* @sem Expr::DieResult(@die_roll) */
 value_die_result ::= "the" "result"
+
+/* The amount counts the chosen colors of the referenced object. */
+/* @sem Expr::ChosenColorsOf(@it) */
+life_per_chosen_color ::= "1" "life" "for" "each" "of" "the" "chosen" "colors" "it" "is"
+
+/* Quantity phrases retain their own populations and event history. */
+/* @sem Expr::Add([CountObjects(Transition{result:@prior, phase:Before}), $value]) */
+card_count_prior_plus ::= "that" "many" "cards" "plus" value
+
+/* @sem $count_each */
+card_count_additional_each ::= "an" "additional" "card" "for" "each" count_each
+
+/* @sem Expr::CountDistinct{objects:$affected, property:Powers} */
+count_each_different_power ::= "different" "power" "among" affected
+
+/* @sem Expr::Earlier{what:Devoured, measure:Count, filter:$filter_phrase} */
+count_each_devoured ::= filter_phrase "it" "devoured"
+
+/* @sem Expr::CountPlayers(Intersection([$count_each_player_population, Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:Draws, players:One(Bound(0))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}}])) */
+count_each_players_drew ::= count_each_player_population "who" "drew" value "or" "more" "cards" "this" "turn"
+
+/* @sem Expr::EventHistory{event:Discard{players:$players_singular, cards:Any, kind:Any, grouping:Card}, window:ThisTurn, measure:Occurrences} */
+value_discarded_by_player ::= "the" "number" "of" "cards" players_singular "discarded" "this" "turn"
+
+count_each_player_population ::= count_each_opponent_population | count_each_any_player_population
+
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+count_each_opponent_population ::= "opponent"
+
+/* @sem PlayerSet::All */
+count_each_any_player_population ::= "player"
