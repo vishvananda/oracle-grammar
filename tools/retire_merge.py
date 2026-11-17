@@ -4,6 +4,7 @@ Seeded removals are checked against mined.remove and deliberately excluded from
 returned changes. The coordinator applies those removals and registered hooks.
 """
 from pathlib import Path
+import re
 import shutil
 import tempfile
 
@@ -14,20 +15,34 @@ class MergeConflict(ValueError):
     """A proposal cannot safely be combined with the current grammar."""
 
 
-def _blocks(text):
+def _blocks(text, *, repeated_from=None):
     lines = text.splitlines(keepends=True)
     starts = []
     for index, line, owner, comments in mined.code([line.rstrip('\n') for line in lines]):
         if mined.DEFINITION.match(line):
             starts.append((owner, comments[0] if comments else index, index))
-    blocks = {}
+    blocks, repeated = {}, []
     for i, (name, start, definition) in enumerate(starts):
         end = starts[i + 1][1] if i + 1 < len(starts) else len(lines)
         while end > definition + 1 and not lines[end - 1].strip():
             end -= 1
+        declaration = ''.join(lines[start:end])
         if name in blocks:
-            raise MergeConflict(f'duplicate production {name}')
-        blocks[name] = (start, end, ''.join(lines[start:end]))
+            original = (repeated_from or {}).get(name)
+            if original is None or blocks[name][2] != original[2] or not declaration.endswith(original[2]):
+                raise MergeConflict(f'duplicate production {name}')
+            lead = declaration.removesuffix(original[2])
+            if lead and (not lead.endswith('\n') or '@sem' in lead
+                         or re.sub(r'/\*.*?\*/', '', lead, flags=re.S).strip()):
+                raise MergeConflict(f'duplicate production {name}')
+            # Keep separate prose before the copied declaration.
+            repeated.append((start + lead.count('\n'), end))
+            continue
+        blocks[name] = (start, end, declaration)
+    if repeated:
+        for start, end in reversed(repeated):
+            del lines[start:end]
+        return _blocks(''.join(lines))
     return lines, blocks
 
 
@@ -70,13 +85,13 @@ def merge_text(base, current, proposed):
     """Return a production-level three-way merge, or raise MergeConflict."""
     if proposed == base or proposed == current:
         return current
-    if current == base:
-        # Still validate unique production names in an otherwise trivial merge.
-        _blocks(proposed)
-        return proposed
     blines, b = _blocks(base)
+    # A proposal may have copied an existing production verbatim. Remove only
+    # repeated copies of the exact base block, including its semantic comment.
+    plines, p = _blocks(proposed, repeated_from=b)
+    if current == base:
+        return ''.join(plines)
     clines, c = _blocks(current)
-    plines, p = _blocks(proposed)
     # File preambles have no production owner and cannot be combined safely.
     def preamble(lines, blocks):
         start = min((v[0] for v in blocks.values()), default=len(lines))

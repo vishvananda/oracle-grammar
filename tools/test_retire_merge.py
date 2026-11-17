@@ -23,6 +23,31 @@ class MergeTests(unittest.TestCase):
         with self.assertRaises(MergeConflict):
             merge_text('', '/* @sem A */\nx ::= "a"\n', '/* @sem B */\nx ::= "b"\n')
 
+    def test_repeated_verbatim_base_definition_is_collapsed(self):
+        base_block = '/* @sem X */\nx ::= "x"\n'
+        extra = '/* @sem Y */\ny ::= "y"\n'
+        proposed = base_block + base_block + extra
+        self.assertEqual(merge_text(base_block, base_block, proposed), base_block + extra)
+        current = base_block.replace('@sem X', '@sem Rebound')
+        self.assertEqual(merge_text(base_block, current, proposed), current + '\n' + extra)
+
+    def test_duplicate_removal_preserves_separate_leading_comments(self):
+        base = '/* @sem X */\nx ::= "x"\n'
+        extra = '/* A note about the family. */\n'
+        next_production = '/* @sem Y */\ny ::= "y"\n'
+        proposed = base + extra + base + next_production
+        self.assertEqual(merge_text(base, base, proposed), base + extra + next_production)
+        with self.assertRaisesRegex(MergeConflict, 'duplicate production x'):
+            merge_text(base, base, base + '/* @sem SeparateMeaning */\n' + base)
+
+    def test_duplicate_names_with_new_or_changed_declarations_still_fail(self):
+        base_block = '/* @sem X */\nx ::= "x"\n'
+        for base, proposed in (('', base_block * 2),
+                               (base_block, base_block + base_block.replace('@sem X', '@sem Other')),
+                               (base_block, base_block.replace('@sem X', '@sem Other') * 2)):
+            with self.subTest(base=base, proposed=proposed), self.assertRaisesRegex(MergeConflict, 'duplicate production x'):
+                merge_text(base, base, proposed)
+
     def test_removal_does_not_erase_concurrent_additions(self):
         base = 'root ::= one | two\n'
         self.assertEqual(merge_text(base, 'root ::= one | two | three\n', 'root ::= one\n'),
