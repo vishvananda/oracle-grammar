@@ -21,6 +21,7 @@ import retire_author as a
 import retire_cpu
 import retire_library_controls as library_controls
 import retire_native_outcome
+import retire_parse_screen
 import retire_merge as merger
 import retire_tasks as tasks
 import retire_worker as w
@@ -690,6 +691,18 @@ def _stage(campaign, checkpoint, proposals):
     return manifest
 
 
+def _screen_identity(source, manifest, baseline, input_run, output, evidence):
+    if (r.digest(baseline) != evidence['baseline_sha256']
+            or r.digest(input_run/'manifest.json') != evidence['checkpoint_manifest_sha256']
+            or r.read(input_run/'manifest.json')['files'] != r.tree(input_run/'frozen')
+            or r.digest(output/'manifest.json') != evidence['validation_manifest_sha256']
+            or r.read(output/'manifest.json')['files'] != r.tree(output/'frozen')
+            or _git(source, 'rev-parse', 'HEAD') != manifest['commit']
+            or _git(source, 'status', '--porcelain')
+            or r.tree(source/'grammar') != manifest['grammar']):
+        raise ValueError('candidate or frozen inputs changed during parse screen')
+
+
 def validate(manifest, checkpoint, slots=12):
     with _workspace_lock(checkpoint):
         return _validate(manifest, checkpoint, slots)
@@ -699,6 +712,9 @@ def _validate(manifest, checkpoint, slots):
     """Freeze and run full allowed-population and repository gates for a candidate."""
     if manifest.get('status') != 'provisional':
         raise ValueError('only a provisional candidate can be validated')
+    enabled = checkpoint.get('full_parse_screen', False)
+    if type(enabled) is not bool:
+        raise ValueError('full_parse_screen must be boolean')
     threads = checkpoint.get('audit_threads', 24)
     capacity = checkpoint.get('cpu_capacity', 32)
     if (type(threads) is not int or not 16 <= threads <= 24
@@ -719,7 +735,8 @@ def _validate(manifest, checkpoint, slots):
     evidence = {'status': 'running', 'candidate': manifest['commit'],
                 'scope': 'combined-batch',
                 'included_jobs': [job['job_id'] for job in manifest['jobs'] if job['status'] == 'included'],
-                'baseline_sha256': r.digest(baseline), 'inputs': str(output),
+                'baseline_sha256': r.digest(baseline),
+                'checkpoint_manifest_sha256': r.digest(input_run/'manifest.json'), 'inputs': str(output),
                 'source_checkpoint': checkpoint['commit'], 'audit_threads': threads,
                 'cpu_capacity': capacity}
     lease = retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, capacity) if checkpoint.get('cpu_pool') else nullcontext(())
@@ -757,6 +774,18 @@ def _validate(manifest, checkpoint, slots):
             family_log = _optimized_families(source, selected_helpers, folder, int(gate_threads))
             evidence['optimized_family_log_sha256'] = r.digest(family_log)
         data = w.payload(output)
+        if enabled:
+            evidence['validation_manifest_sha256'] = r.digest(output/'manifest.json')
+            _screen_identity(source, manifest, baseline, input_run, output, evidence)
+            try:
+                screen = retire_parse_screen.run(output, folder/'parse-screen', source/'grammar', data,
+                                                  min(6, threads))
+            finally:
+                _screen_identity(source, manifest, baseline, input_run, output, evidence)
+            evidence['parse_screen'] = screen
+            evidence['parse_screen_result_sha256'] = r.digest(folder/'parse-screen/result.json')
+            if screen['failures']:
+                raise ValueError('full allowed-population parse screen failed')
         checks = folder/'full-checks'
         checks.mkdir()
         try:

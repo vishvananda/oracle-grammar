@@ -64,7 +64,8 @@ def _batch_observation(run, before, queue, checkpoint):
             return result
         if validation.get('status') != 'failed' or validation.get('reason') not in (
                 'repository gates failed', 'explicit candidate grammar tests failed',
-                'full allowed-population checks failed', 'optimized family report contains failures'):
+                'full allowed-population checks failed', 'full allowed-population parse screen failed',
+                'optimized family report contains failures'):
             raise ValueError('batch validation failed operationally: '+str(validation_path))
         result.update(outcome='rejected', reason=validation['reason'])
     else:

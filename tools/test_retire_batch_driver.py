@@ -62,6 +62,21 @@ class DriverTests(unittest.TestCase):
                 r.write(self.run/'batch-driver-drain.json', {'reason': 'test'})
         return call
 
+    def test_parse_screen_semantic_failure_is_a_rejected_batch(self):
+        folder = self.run/'.cache/batches/id'
+        folder.mkdir(parents=True)
+        job = {'job_id': 'job', 'attempt_id': 'attempt', 'status': 'included'}
+        r.write(folder/'manifest.json', {'id': 'id', 'base_commit': 'parent', 'status': 'provisional',
+                                        'commit': 'candidate', 'jobs': [job]})
+        validation = {'status': 'failed', 'candidate': 'candidate', 'source_checkpoint': 'parent',
+                      'reason': 'full allowed-population parse screen failed'}
+        r.write(folder/'validation.json', validation)
+        self.queue.rejected = [{'id': 'job', 'attempt_id': 'attempt',
+                                'adjudication': {'evidence': {'manifest': 'id', 'validation': validation}}}]
+        result = driver._batch_observation(self.run, set(), self.queue, 'parent')
+        self.assertEqual(result['outcome'], 'rejected')
+        self.assertEqual(result['reason'], validation['reason'])
+
     def test_ready_threshold_runs_once_with_owned_lease_and_observes_result(self):
         self.queue.value = progress(ready=4)
         with patch.object(driver.dispatch, '_batch', side_effect=self.outcome()) as batch:
