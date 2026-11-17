@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rehearse or explicitly apply proved four-to-six-rule timeout splits."""
+"""Rehearse and apply proved author-timeout splits and bounded retries."""
 import argparse
 from contextlib import closing
 import hashlib
@@ -15,6 +15,10 @@ import time
 sys.dont_write_bytecode = True
 import retire as r
 from retire_queue import Queue
+
+
+SPLIT = 'timeout-split-recovery'
+RETRY = 'timeout-small-retry'
 
 
 def verifier_hashes():
@@ -95,7 +99,7 @@ def evidence(run, checkpoint, job, attempt):
     scan = {'kind': 'checkpoint-unused-rehabilitation', **{key: spec(inputs/name) for key, name in {
         'manifest': 'manifest.json', 'scan': 'scan/rules.json', 'scan_complete': 'scan-complete.json',
         'commands': 'scan/commands.jsonl'}.items()}}
-    return {'kind': 'timeout-split-recovery', 'scan_proof': scan, **{key: spec(path) for key, path in {
+    return {'kind': SPLIT, 'scan_proof': scan, **{key: spec(path) for key, path in {
         'final': worker/'final.txt', 'model_receipt': worker/'receipt.json', 'events': worker/'events.jsonl',
         'descriptor': source/'tasks'/f'{job}.json', 'support': source/'support.json',
         'base_manifest': source/'inputs/manifest.json', 'archive_metadata': source/'archive.json',
@@ -122,16 +126,17 @@ def _current(db, job):
                       'ON a.id=j.attempt_id WHERE j.id=?', (job,)).fetchone()
 
 
-def _candidate(run, db, checkpoint, job):
+def _candidate(run, db, checkpoint, job, *, include_small):
     if not identity(job): raise ValueError('invalid job identity')
     row = _current(db, job)
     if not row or row[0] != 'needs-review' or not row[1] or not row[3]:
         raise ValueError('not a current finished needs-review attempt')
     if not identity(row[1]): raise ValueError('invalid attempt identity')
     payload = json.loads(row[2]); rules = payload.get('rules')
+    minimum = 1 if include_small else 4
     if (payload.get('kind') != 'author' or payload.get('timeout_origin') is not None
-            or not isinstance(rules, list) or not 4 <= len(rules) <= 6 or len(set(rules)) != len(rules)):
-        raise ValueError('not an original four-to-six-rule author job')
+            or not isinstance(rules, list) or not minimum <= len(rules) <= 6 or len(set(rules)) != len(rules)):
+        raise ValueError('original author job is outside the selected timeout scope')
     worker = run/'.cache/attempts'/row[1]/'workers'/job
     if (worker/'receipt.json').stat().st_size > 1024*1024:
         raise ValueError('model receipt exceeds bound')
@@ -139,9 +144,33 @@ def _candidate(run, db, checkpoint, job):
     if ((worker/'final.txt').stat().st_size != 0 or receipt.get('timed_out') is not True
             or type(receipt.get('returncode')) is not int or receipt['returncode'] == 0):
         raise ValueError('not a proved empty-final timed-out model receipt')
-    return {'job_id': job, 'attempt_id': row[1], 'checkpoint': checkpoint, 'rules': rules,
-            'result_sha256': hashlib.sha256(row[3].encode()).hexdigest(),
-            'evidence': evidence(run, checkpoint, job, row[1])}
+    proof = evidence(run, checkpoint, job, row[1])
+    item = {'job_id': job, 'attempt_id': row[1], 'checkpoint': checkpoint, 'rules': rules,
+            'result_sha256': hashlib.sha256(row[3].encode()).hexdigest(), 'evidence': proof}
+    if len(rules) <= 3:
+        proof['kind'] = RETRY
+        item['payload_sha256'] = hashlib.sha256(row[2].encode()).hexdigest()
+    return item
+
+
+def _verify_event(db, item, result, kind):
+    events = [json.loads(row[0]) for row in db.execute(
+        "SELECT data FROM events WHERE kind=? AND json_extract(data,'$.job_id')=?",
+        (kind, item['job_id']))]
+    if (len(events) != 1 or events[0] != result or result.get('attempt_id') != item['attempt_id']
+            or result.get('checkpoint') != item['checkpoint'] or result.get('evidence') != item['evidence']):
+        raise ValueError('immutable timeout creation event differs')
+
+
+def verify_retry(db, item, result):
+    job, attempt = item['job_id'], item['attempt_id']
+    row = db.execute('SELECT attempt_id,payload FROM jobs WHERE id=?', (job,)).fetchone()
+    original = db.execute('SELECT result FROM attempts WHERE id=? AND job_id=?', (attempt, job)).fetchone()
+    if (not row or row[0] == attempt or hashlib.sha256(row[1].encode()).hexdigest() != item['payload_sha256']
+            or not original or not original[0]
+            or hashlib.sha256(original[0].encode()).hexdigest() != item['result_sha256']):
+        raise ValueError('retry changed the original attempt or job payload')
+    _verify_event(db, item, result, 'retried-small-timeout')
 
 
 def verify_split(db, item, result):
@@ -152,12 +181,7 @@ def verify_split(db, item, result):
     children = result['children']
     if not isinstance(children, list) or len(children) != 2 or len(set(children)) != 2:
         raise ValueError('timeout split child identities differ')
-    events = [json.loads(row[0]) for row in db.execute(
-        "SELECT data FROM events WHERE kind='rehabilitated-timeout' AND json_extract(data,'$.job_id')=?",
-        (item['job_id'],))]
-    if (len(events) != 1 or events[0] != result or result.get('attempt_id') != item['attempt_id']
-            or result.get('checkpoint') != item['checkpoint'] or result.get('evidence') != item['evidence']):
-        raise ValueError('immutable timeout creation event differs')
+    _verify_event(db, item, result, 'rehabilitated-timeout')
     midpoint = (len(item['rules'])+1)//2
     hashes = {}
     for child_id, expected in zip(children, (item['rules'][:midpoint], item['rules'][midpoint:]), strict=True):
@@ -173,7 +197,7 @@ def verify_split(db, item, result):
     return hashes
 
 
-def dryplan(run, output, selected=None):
+def dryplan(run, output, selected=None, *, include_small=False):
     run, output = Path(run).resolve(), new_output(output)
     if selected is not None and not isinstance(selected, list):
         raise ValueError('job selection must be a list')
@@ -194,14 +218,17 @@ def dryplan(run, output, selected=None):
             rows = []
             for job in jobs:
                 try:
-                    item = _candidate(run, db, checkpoint, job)
+                    item = _candidate(run, db, checkpoint, job, include_small=include_small)
                     result = queue.rehabilitate_timeout(job, item['attempt_id'], checkpoint, item['evidence'])
                 except (ValueError, OSError, KeyError, TypeError) as error:
                     rows.append({'job_id': job, 'status': 'parked', 'reason': str(error)})
                     continue
                 # A failed post-commit proof invalidates the whole rehearsal.
-                item['child_payload_sha256'] = verify_split(db, item, result)
-                item['children'] = result['children']
+                if item['evidence']['kind'] == RETRY:
+                    verify_retry(db, item, result)
+                else:
+                    item['child_payload_sha256'] = verify_split(db, item, result)
+                    item['children'] = result['children']
                 if inventory(db, run) != before: raise RuntimeError('rule inventory changed in rehearsal')
                 rows.append({'status': 'rehearsed', **item})
         document = {'format': 1, 'run': str(run), 'checkpoint': checkpoint, 'inventory': before,
@@ -236,9 +263,16 @@ def apply(plan_path, digest, receipt_path, expected_run=None):
                 or not identity(item.get('job_id'))):
             raise ValueError('plan contains an invalid job')
         ids.append(item['job_id'])
-        if item['status'] == 'rehearsed' and (item.get('checkpoint') != plan.get('checkpoint')
-                or not identity(item.get('attempt_id')) or not isinstance(item.get('child_payload_sha256'), dict)):
-            raise ValueError('plan contains invalid rehearsal identity')
+        if item['status'] == 'rehearsed':
+            proof = item.get('evidence')
+            kind = proof.get('kind') if isinstance(proof, dict) else None
+            payload_hash = item.get('payload_sha256')
+            if (item.get('checkpoint') != plan.get('checkpoint') or not identity(item.get('attempt_id'))
+                    or kind not in (SPLIT, RETRY)
+                    or (kind == SPLIT and not isinstance(item.get('child_payload_sha256'), dict))
+                    or (kind == RETRY and (not isinstance(payload_hash, str)
+                                           or not re.fullmatch('[0-9a-f]{64}', payload_hash)))):
+                raise ValueError('plan contains invalid rehearsal identity')
     if len(ids) != len(set(ids)):
         raise ValueError('plan contains duplicate jobs')
     queue = Queue(run/'queue.sqlite')
@@ -253,6 +287,7 @@ def apply(plan_path, digest, receipt_path, expected_run=None):
     try:
         for item in plan['jobs']:
             if item['status'] != 'rehearsed': continue
+            retry = item['evidence']['kind'] == RETRY
             if (plan['script_sha256'] != r.digest(Path(__file__))
                     or plan['verifier_sha256'] != verifier_hashes()):
                 raise ValueError('script or verifier changed during apply')
@@ -260,6 +295,7 @@ def apply(plan_path, digest, receipt_path, expected_run=None):
                 row = _current(db, item['job_id'])
                 if (not row or row[0] != 'needs-review' or row[1] != item['attempt_id'] or not row[3]
                         or hashlib.sha256(row[3].encode()).hexdigest() != item['result_sha256']
+                        or (retry and hashlib.sha256(row[2].encode()).hexdigest() != item['payload_sha256'])
                         or inventory(db, run) != plan['inventory']):
                     raise ValueError('planned attempt or inventory changed')
             receipt['inflight'] = item['job_id']
@@ -268,9 +304,13 @@ def apply(plan_path, digest, receipt_path, expected_run=None):
             receipt['completed'].append(result)
             receipt['inflight'] = None
             update_receipt(receipt_path, receipt)
-            if result['children'] != item['children']: raise ValueError('child identities differ from rehearsal')
             with closing(queue._connect()) as db:
-                verify_split(db, item, result)
+                if retry:
+                    verify_retry(db, item, result)
+                else:
+                    if result['children'] != item['children']:
+                        raise ValueError('child identities differ from rehearsal')
+                    verify_split(db, item, result)
         with closing(queue._connect()) as db:
             if inventory(db, run) != plan['inventory']: raise ValueError('rule inventory changed')
         receipt['status'] = 'passed'
@@ -287,15 +327,17 @@ def main():
     parser.add_argument('--run', type=Path, required=True)
     parser.add_argument('--plan', type=Path, required=True)
     parser.add_argument('--job', action='append')
+    parser.add_argument('--include-small', action='store_true', help='also rehearse one retry for an original one-to-three-rule job')
     parser.add_argument('--apply-plan-sha256')
     parser.add_argument('--receipt', type=Path)
     args = parser.parse_args()
     if args.apply_plan_sha256:
-        if args.job or not args.receipt: parser.error('apply requires a receipt and no job filter')
+        if args.job or args.include_small or not args.receipt:
+            parser.error('apply requires a receipt and uses the sealed plan scope')
         result = apply(args.plan, args.apply_plan_sha256, args.receipt, expected_run=args.run)
     else:
         if args.receipt: parser.error('--receipt is only valid with --apply-plan-sha256')
-        result = dryplan(args.run, args.plan, args.job)
+        result = dryplan(args.run, args.plan, args.job, include_small=args.include_small)
     print(json.dumps({'plan': str(args.plan), 'sha256': r.digest(args.plan),
                       'status': result.get('status', 'planned'),
                       'rehearsed': sum(x['status'] == 'rehearsed' for x in result.get('jobs', []))}))

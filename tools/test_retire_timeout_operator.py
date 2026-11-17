@@ -1,4 +1,4 @@
-"""The operator only applies rehearsed, checkpoint-bound timeout splits."""
+"""The operator applies rehearsed, checkpoint-bound timeout recovery."""
 from pathlib import Path
 import tempfile
 import unittest
@@ -49,6 +49,37 @@ class TimeoutOperatorTests(unittest.TestCase):
             result = operator.apply(self.plan, r.digest(self.plan), self.receipt, self.root)
         self.assertEqual(result['status'], 'passed')
         self.assertEqual(self.fixture.queue.coverage()['counts']['running'], 3)
+
+    def test_small_retry_is_opt_in_and_preserves_an_immediately_claimed_job(self):
+        fixture = fixtures.TimeoutRecoveryTests('runTest')
+        fixture.rule_count = 3
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        root, queue = fixture.root, fixture.queue
+        r.write(root/'config.json', {'expected_rules': fixture.rules})
+        original = queue.get_attempt(fixture.attempt)
+        skipped = operator.dryplan(root, root/'split-only.json', ['family'])
+        self.assertEqual(skipped['jobs'][0]['status'], 'parked')
+        plan = root/'retry.json'
+        decision, = operator.dryplan(root, plan, ['family'], include_small=True)['jobs']
+        self.assertEqual(decision['status'], 'rehearsed')
+        self.assertEqual(decision['evidence']['kind'], 'timeout-small-retry')
+        self.assertEqual(queue.coverage()['counts'], {'needs-review': 3})
+        retry = Queue.rehabilitate_timeout
+
+        def retry_then_claim(current, *args):
+            result = retry(current, *args)
+            claim = current.claim('immediate-worker')
+            self.assertEqual(claim['job'], fixture.job)
+            self.assertNotEqual(claim['attempt_id'], fixture.attempt)
+            return result
+
+        with patch.object(Queue, 'rehabilitate_timeout', retry_then_claim):
+            result = operator.apply(plan, r.digest(plan), root/'receipt.json', root)
+        self.assertEqual(result['status'], 'passed')
+        self.assertEqual(result['completed'][0]['attempt_id'], fixture.attempt)
+        self.assertEqual(queue.get_attempt(fixture.attempt), original)
+        self.assertEqual(queue.coverage()['counts'], {'running': 3})
 
     def test_child_can_be_reclassified_before_post_commit_verification(self):
         self.make_plan()
