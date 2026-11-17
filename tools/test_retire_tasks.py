@@ -93,6 +93,20 @@ class TaskTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'frozen helper checksum mismatch'):
             tasker._identity(self.checkpoint, self.campaign, self.campaign/'runner')
 
+    def test_rejects_native_helper_corrupted_during_copy(self):
+        copy2 = shutil.copy2
+        def corrupt(source, destination, *args, **kwargs):
+            result = copy2(source, destination, *args, **kwargs)
+            destination = Path(destination)
+            if destination.parent.name == 'native' and destination.name == 'probe':
+                destination.write_text('corrupt copy')
+            return result
+        with patch.object(tasker.shutil, 'copy2', side_effect=corrupt):
+            with self.assertRaisesRegex(ValueError, 'native helper changed while copying'):
+                self.prepare()
+        self.assertEqual((self.helpers/'probe').read_text(), 'probe')
+        self.assertFalse((self.campaign/'.cache/attempts/aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa').exists())
+
     def git(self, *args):
         return subprocess.check_output(['git', *args], cwd=self.source, text=True).strip()
 
@@ -174,10 +188,21 @@ class TaskTests(unittest.TestCase):
         self.assertNotEqual(os.stat(checkout/file).st_ino, os.stat(self.source/file).st_ino)
         (checkout/file).write_text('changed')
         self.assertEqual((self.source/file).read_text(), 'original\n')
-        for name in tasker.HELPERS:
-            self.assertEqual(os.stat(run/'support/native'/name).st_ino, os.stat(self.helpers/name).st_ino)
         other = self.prepare('bbbbbbbbbbbb4bbb8bbbbbbbbbbbbbbb')
         self.assertNotEqual(result['run'], other['run'])
+        other_native = Path(other['run'])/'support/native'
+        for name in tasker.HELPERS:
+            source, first, second = self.helpers/name, run/'support/native'/name, other_native/name
+            self.assertEqual(len({p.stat().st_ino for p in (source, first, second)}), 3)
+            expected = r.digest(source)
+            self.assertEqual((r.digest(first), r.digest(second)), (expected, expected))
+            original_mode = source.stat().st_mode
+            first.chmod(0o600)
+            first.write_text('worker changed its private helper')
+            self.assertEqual(r.digest(source), expected)
+            self.assertEqual(r.digest(second), expected)
+            self.assertEqual(source.stat().st_mode, original_mode)
+            self.assertEqual(second.stat().st_mode, original_mode)
         self.assertEqual(support, r.read(run/'support.json'))
 
     def test_reversed_companions_and_duplicate_record_addresses_are_retained(self):

@@ -241,6 +241,9 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
     r.require(isinstance(job.get('goal'), str) and job['goal'].strip(), 'task goal is required')
     selected_runner = validate_runner(campaign, runner)
     source, inputs, helpers, manifest = _identity(checkpoint, campaign, selected_runner)
+    build_file = inputs/'frozen/build.json'
+    r.require(r.digest(build_file) == manifest['files']['build.json'], 'frozen build manifest changed')
+    helper_hashes = r.read(build_file)['binaries']
     run = campaign/'.cache/attempts'/attempt
     checkout = campaign/'workspaces'/attempt
     r.require(not checkout.exists(), 'attempt checkout already exists')
@@ -269,13 +272,15 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
         for name in RUNNERS:
             shutil.copy2(selected_runner/name, runner/name)
         for name in HELPERS:
-            os.link(helpers/name, native/name)
+            shutil.copy2(helpers/name, native/name)
             shutil.copy2(selected_runner/'retire_helper.py', binaries/name)
             (binaries/name).chmod(0o755)
         validate_runner(campaign, selected_runner)
         for name in RUNNERS:
             r.require(r.digest(runner/name) == r.digest(selected_runner/name), 'runner changed while copying')
         for name in HELPERS:
+            r.require(r.digest(helpers/name) == r.digest(native/name) == helper_hashes[name],
+                      'native helper changed while copying')
             r.require(r.digest(binaries/name) == r.digest(selected_runner/'retire_helper.py'),
                       'helper wrapper changed while copying')
         tasks = run/'tasks'
