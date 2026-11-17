@@ -1,3 +1,4 @@
+from contextlib import closing
 import fcntl
 import json
 from pathlib import Path
@@ -6,6 +7,8 @@ import threading
 import time
 import unittest
 from unittest.mock import patch
+
+from retire_queue import Queue
 
 import retire as r
 import retire_batch_driver as driver
@@ -24,6 +27,73 @@ class QueueStub:
 def progress(pending=1, running=0, ready=0, failed=0, checkpoint='parent'):
     counts = {'pending': pending, 'running': running, 'provisional-pass': ready, 'failed': failed}
     return {'checkpoint': checkpoint, 'counts': counts, 'job_counts': dict(counts)}
+
+
+class RecoveredCohortTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.queue = Queue(Path(self.temp.name)/'queue.sqlite')
+        self.queue.add_checkpoint('head', 'proof')
+
+    def prepare(self, names):
+        self.queue.add_jobs([{'id': name, 'rules': ['rule_'+name], 'kind': 'author'} for name in names])
+        with closing(self.queue._connect()) as db:
+            db.execute('BEGIN IMMEDIATE')
+            for name in names:
+                db.execute('INSERT INTO attempts(id,job_id,worker,base_commit) VALUES(?,?,?,?)',
+                           ('attempt_'+name, name, 'worker', 'head'))
+                db.execute("UPDATE jobs SET status='provisional-pass',attempt_id=? WHERE id=?",
+                           ('attempt_'+name, name))
+            db.commit()
+
+    def event(self, name, manifest='batch-a', checkpoint='parent', attempt=None, kind='readmitted-native-batch'):
+        with closing(self.queue._connect()) as db:
+            db.execute('BEGIN IMMEDIATE')
+            self.queue._event(db, kind, {'job_id': name, 'attempt_id': attempt or 'attempt_'+name,
+                                        'manifest': manifest, 'checkpoint': checkpoint})
+            db.commit()
+
+    def test_groups_by_current_attempt_and_latest_readmission_not_fresh_work(self):
+        self.prepare(['a', 'b', 'c', 'fresh', 'stale'])
+        self.event('a', 'batch-old', kind='readmitted-batch')
+        self.event('b', 'batch-b', kind='readmitted-library-batch')
+        self.event('c', 'batch-b', kind='readmitted-native-exit-one-batch')
+        self.event('a', 'batch-b')
+        self.event('stale', 'batch-old', attempt='previous-attempt')
+        self.assertEqual(driver.recovered_cohort(self.queue, 'head'), ['b', 'c', 'a'])
+        with self.assertRaisesRegex(ValueError, 'checkpoint changed'):
+            driver.recovered_cohort(self.queue, 'stale-head')
+
+    def test_same_manifest_different_checkpoint_is_a_separate_group(self):
+        self.prepare(['a', 'b', 'c'])
+        self.event('a', 'same', 'first')
+        self.event('b', 'same', 'second')
+        self.event('c', 'same', 'first')
+        self.assertEqual(driver.recovered_cohort(self.queue, 'head'), ['a', 'c'])
+
+    def test_large_cohort_is_capped_without_mixing_other_groups(self):
+        names = [f'j{i:03d}' for i in range(99)]
+        self.prepare(names)
+        for name in names:
+            self.event(name)
+        self.assertEqual(driver.recovered_cohort(self.queue, 'head'), names[:96])
+
+    def test_matching_malformed_event_is_not_silently_mixed(self):
+        self.prepare(['a'])
+        self.event('a', manifest='')
+        with self.assertRaisesRegex(ValueError, 'cohort identity'):
+            driver.recovered_cohort(self.queue, 'head')
+
+    def test_numeric_job_identity_is_not_coerced_to_a_string(self):
+        self.prepare(['123'])
+        with closing(self.queue._connect()) as db:
+            db.execute('BEGIN IMMEDIATE')
+            self.queue._event(db, 'readmitted-batch', {'job_id': 123, 'attempt_id': 'attempt_123',
+                                                        'manifest': 'batch', 'checkpoint': 'parent'})
+            db.commit()
+        with self.assertRaisesRegex(ValueError, 'job identity'):
+            driver.recovered_cohort(self.queue, 'head')
 
 
 class DriverTests(unittest.TestCase):
@@ -76,6 +146,45 @@ class DriverTests(unittest.TestCase):
         result = driver._batch_observation(self.run, set(), self.queue, 'parent')
         self.assertEqual(result['outcome'], 'rejected')
         self.assertEqual(result['reason'], validation['reason'])
+
+    def test_recovered_cohort_is_immediate_and_dispatched_as_one_selection(self):
+        config = r.read(self.run/'config.json')
+        config['recovered_cohorts_first'] = True
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(pending=1, ready=1)
+        def selected(run, ids, *, combine_selected):
+            self.assertEqual(ids, ['recovered'])
+            self.assertTrue(combine_selected)
+            self.outcome(drain=True)(run)
+        with patch.object(driver, 'recovered_cohort', return_value=['recovered']) as cohort, \
+                patch.object(driver.dispatch, '_batch', side_effect=selected) as batch:
+            driver.run_driver(self.run, self.runner)
+        batch.assert_called_once()
+        cohort.assert_called_once_with(self.queue, 'parent')
+
+    def test_enabled_without_recovered_cohort_keeps_fifo_dispatch(self):
+        config = r.read(self.run/'config.json')
+        config['recovered_cohorts_first'] = True
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(ready=4)
+        with patch.object(driver, 'recovered_cohort', return_value=[]), \
+                patch.object(driver.dispatch, '_batch', side_effect=self.outcome(drain=True)) as batch:
+            driver.run_driver(self.run, self.runner)
+        batch.assert_called_once_with(self.run)
+
+    def test_recovered_routing_defaults_off_and_rejects_nonboolean(self):
+        self.queue.value = progress(ready=4)
+        with patch.object(driver, 'recovered_cohort') as cohort, \
+                patch.object(driver.dispatch, '_batch', side_effect=self.outcome(drain=True)):
+            driver.run_driver(self.run, self.runner)
+        cohort.assert_not_called()
+        (self.run/'batch-driver-drain.json').unlink()
+        config = r.read(self.run/'config.json')
+        config['recovered_cohorts_first'] = 'true'
+        r.write(self.run/'config.json', config)
+        with patch.object(driver.dispatch, '_batch') as batch, self.assertRaisesRegex(ValueError, 'must be boolean'):
+            driver.run_driver(self.run, self.runner)
+        batch.assert_not_called()
 
     def test_ready_threshold_runs_once_with_owned_lease_and_observes_result(self):
         self.queue.value = progress(ready=4)

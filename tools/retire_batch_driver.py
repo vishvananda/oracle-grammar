@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run the existing batch pipeline behind one durable campaign batch lease."""
 import argparse
+from contextlib import closing
 import os
 from pathlib import Path
 import sys
@@ -82,6 +83,42 @@ def _batch_observation(run, before, queue, checkpoint):
     return result
 
 
+def recovered_cohort(queue, checkpoint):
+    """Select the oldest current-attempt readmission group as a routing hint."""
+    kinds = ('readmitted-batch', 'readmitted-native-batch',
+             'readmitted-library-batch', 'readmitted-native-exit-one-batch')
+    with closing(queue._connect()) as db:
+        db.execute('BEGIN')
+        latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+        if not latest or latest[0] != checkpoint:
+            raise ValueError('checkpoint changed during recovered cohort selection')
+        rows = db.execute("""SELECT e.seq, j.id, j.attempt_id,
+                json_extract(e.data,'$.attempt_id'), json_extract(e.data,'$.manifest'),
+                json_extract(e.data,'$.checkpoint'), json_extract(e.data,'$.job_id')
+            FROM events e JOIN jobs j ON j.id=json_extract(e.data,'$.job_id')
+            WHERE j.status='provisional-pass' AND e.kind IN (?,?,?,?)
+            ORDER BY e.seq DESC""", kinds)
+        seen, groups = set(), {}
+        for seq, job_id, current_attempt, attempt, manifest, origin_checkpoint, event_job in rows:
+            if job_id in seen:
+                continue
+            seen.add(job_id)
+            if not isinstance(event_job, str) or event_job != job_id:
+                raise ValueError('recovered event job identity is malformed')
+            if not isinstance(attempt, str) or not attempt:
+                raise ValueError('recovered event attempt identity is malformed')
+            if attempt != current_attempt:
+                continue
+            if any(not isinstance(value, str) or not value for value in
+                   (job_id, current_attempt, manifest, origin_checkpoint)):
+                raise ValueError('recovered event cohort identity is malformed')
+            groups.setdefault((manifest, origin_checkpoint), []).append((seq, job_id))
+        if not groups:
+            return []
+        ordered = [sorted(group) for group in groups.values()]
+        return [job for _, job in min(ordered, key=lambda group: group[0][0])[:96]]
+
+
 def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
     run = Path(run).resolve()
     runner = _runner(run, runner)
@@ -118,15 +155,22 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         wait = config['batch_wait_seconds']
                         if type(wait) not in (int, float) or wait < 0:
                             raise ValueError('invalid batch wait')
+                        routing = config.get('recovered_cohorts_first', False)
+                        if type(routing) is not bool:
+                            raise ValueError('recovered_cohorts_first must be boolean')
                         ready = jobs.get('provisional-pass', 0)
+                        cohort = recovered_cohort(queue, progress['checkpoint']) if routing and ready else []
                         pending = jobs.get('pending', 0)
                         running = jobs.get('running', 0)
-                        if ready and (flush or ready >= limit or not pending or time.monotonic()-last_batch >= wait):
+                        if ready and (cohort or flush or ready >= limit or not pending or time.monotonic()-last_batch >= wait):
                             _runner(run, runner)
                             folders = run/'.cache/batches'
                             before = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
                             status('running', progress)
-                            dispatch._batch(run)
+                            if cohort:
+                                dispatch._batch(run, cohort, combine_selected=True)
+                            else:
+                                dispatch._batch(run)
                             observation = _batch_observation(run, before, queue, progress['checkpoint'])
                             new_progress = queue.progress()
                             if observation['outcome'] == 'passed':
