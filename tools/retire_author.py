@@ -16,6 +16,7 @@ sys.dont_write_bytecode = True
 import dev
 import mined
 import retire as r
+import retire_cohort as cohort
 import retire_worker as w
 
 
@@ -91,6 +92,43 @@ def check_seeded_files(base, root, rules, directory):
             clean = lambda text: [line.strip() for line in text.splitlines() if line.strip()]
             r.require(clean(reference.read_text()) == clean((root/'grammar'/name).read_text()),
                       'seeded file has non-removal edits; use --remove-assigned and ordinary hook requests')
+
+
+EARLY_PARSE_FULL_OCCURRENCES = 128
+
+
+def early_parse_screen(run, directory, grammar, task, data):
+    """Reject obvious primary-cohort regressions; a pass is not acceptance."""
+    targets = task.get('target_faces', [])
+    if not targets:
+        return None
+    index, records, _ = data
+    by_name = {}
+    for ordinal, row in index.items():
+        by_name.setdefault(row['name'], []).append((int(ordinal), row))
+    full = cohort.close_cohort(by_name, records, {'names': task['cohort']}, already_closed=True)
+    if full['closure_occurrence_count'] <= EARLY_PARSE_FULL_OCCURRENCES:
+        return None
+    primary = cohort.close_cohort(by_name, records, {'names': targets})
+    r.require(set(primary['names']) <= set(full['names']), 'primary closure escaped full diagnostic cohort')
+    folder = directory/'parse-screen'
+    folder.mkdir()
+    selected = w.subset(folder, primary['names'], data)
+    expected = [(int(ordinal), row) for ordinal, row in index.items() if row['name'] in selected]
+    r.require(len(expected) == primary['closure_occurrence_count'], 'primary occurrence count changed')
+    r.execute(run/'inputs', folder, grammar, 'score',
+              [folder/'gold.jsonl', folder/'oracle.json', folder/'slice.json', folder/'rows.jsonl'], 2)
+    rows = r.rows(folder/'rows.jsonl')
+    r.require(len(rows) == len(expected), 'primary score omitted occurrences')
+    failures = []
+    for row, (ordinal, old) in zip(rows, expected, strict=True):
+        if (row.get('name') != old['name'] or row.get('text') != old['text']
+                or row.get('status') != 'equal' or row.get('readings') != old['parse']['readings']):
+            failures.append({'ordinal': ordinal, 'record': old['record'], 'face_index': old['face'],
+                             'face': old['name'], 'gate': 'parse/reading-count/text'})
+    return {'status': 'failed' if failures else 'passed', 'primary_occurrences': len(expected),
+            'full_occurrences': full['closure_occurrence_count'], 'failures': failures,
+            'scope': 'parse-only rejection screen; full native and print checks remain required'}
 
 
 def apply_hooks(grammar, requests):
@@ -307,9 +345,20 @@ def _check(run, task_id, coordinator=False):
                 }
             else:
                 data = w.payload(run/'inputs')
-                report.update(w.checks(run/'inputs', directory, grammar, task['cohort'], data, 2))
-                report['edited'] = edited_checks(run, directory, grammar, task, root, data)
-                report['passed'] = not report['failures']
+                screen = early_parse_screen(run, directory, grammar, task, data)
+                if screen is not None:
+                    report['early_parse_screen'] = screen
+                if screen is not None and screen['status'] == 'failed':
+                    report['failures'].extend(screen['failures'])
+                    report['checks_skipped'] = {
+                        'reason': 'primary parse-only screen detected a regression',
+                        'checks': ['full cohort score', 'full cohort native validation',
+                                   'full cohort print gates', 'edited operand checks'],
+                    }
+                else:
+                    report.update(w.checks(run/'inputs', directory, grammar, task['cohort'], data, 2))
+                    report['edited'] = edited_checks(run, directory, grammar, task, root, data)
+                    report['passed'] = not report['failures']
         except Exception as error:
             report['failures'].append(str(error))
         verify(run, task_id)

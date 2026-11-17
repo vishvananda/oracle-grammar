@@ -238,6 +238,14 @@ Per-worker native helpers use verified independent copies. Copy-on-write support
 can share their storage without sharing a writable inode; a private helper edit
 must not change either the checkpoint helper or another worker's helper.
 
+After a passing family gate, author diagnostics with more than 128 closed face
+occurrences first score the transitive target-face closure without rendering.
+This screen can reject name, text, recognition or reading-count regressions; it
+cannot accept a proposal. Surviving proposals still run the complete original
+cohort, native reading validation, all four print gates and operand-edit checks.
+Initial cohort selection retains its 500-name bound; an already closed cohort
+can exceed that name count while remaining within 1,024 face occurrences.
+
 Optional hash-bound library regression controls run a small list of exact tests
 against the baseline and each trial grammar before promotion. Their executable
 must match the checkpoint's compiled source and compiler identity. Each test must
