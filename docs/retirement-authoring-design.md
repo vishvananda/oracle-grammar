@@ -320,6 +320,15 @@ cannot accept a proposal. Surviving proposals still run the complete original
 cohort, native reading validation, all four print gates and operand-edit checks.
 Initial cohort selection retains its 500-name bound; an already closed cohort
 can exceed that name count while remaining within 1,024 face occurrences.
+Audited-unused mechanical tasks that exceed either bound use at most eight
+complete chunks. Each chunk preserves transitive shared-record components,
+starts from at most 500 names and contains at most 1,024 occurrences. No target
+or companion is sampled away; an oversized component or excess chunk count
+fails closed. The descriptor binds the complete plan, and the worker recomputes
+it from the full frozen inputs before running the unchanged native and four
+print checks on every chunk. Reports distinguish completed, unrun and incomplete
+chunks and require complete passing coverage. Ordinary tasks keep their existing
+descriptor and diagnostic path.
 For eligible new tasks, preparation also saves a bounded primary-cohort packet
 bound to the task descriptor, support record, and frozen input manifest. It
 retains the original occurrence addresses, gold records, and Oracle companions.
@@ -342,6 +351,12 @@ rejections remain parked and later ready work continues. Configuration, integrit
 or missing-evidence failures stop the driver for review. A drain takes effect
 after the current batch finishes. This permits validation-tool upgrades without
 restarting the authoring pool.
+
+With the optional boolean `external_batch_driver` enabled, the author controller
+does not launch its legacy batch subprocess. The separate driver owns staging;
+author claims, draining and completion checks stay unchanged. This prevents the
+author controller from competing with a replacement driver during handoffs.
+The option defaults to false and rejects nonboolean values.
 
 The optional boolean `recovered_cohorts_first` lets that driver prioritize
 readmitted proposals. It uses the latest readmission event for each currently
