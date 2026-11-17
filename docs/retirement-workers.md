@@ -42,8 +42,11 @@ is parked without discarding those earlier proposals.
 When the external batch driver has `fresh_union_trial` enabled, a fresh
 selection first tries its combined grammar in one guarded stage. If that trial
 fails, staging tries the configured subgroups and checks unsuccessful subgroups
-individually. Mechanical priority and recovery routing still govern selection.
-The same repository and full allowed-population checks gate acceptance.
+individually. When the failed families belong only to new proposals and those
+proposals fit into one subgroup, staging first gives the remaining proposals a
+guarded trial. If it passes, each withheld proposal gets a separate trial.
+Mechanical priority and recovery routing still govern selection. The same
+repository and full allowed-population checks gate acceptance.
 
 Worker-authored cases always run compositionally. Coordinator-generated
 whole-card operand cases may explicitly retain unrelated seeded clauses; these

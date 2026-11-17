@@ -147,6 +147,25 @@ def _family(directory, report, run, modes=False, *, gold_cache=None):
     return family
 
 
+class _FamilyCheckFailure(ValueError):
+    def __init__(self, log, failed_fixtures=()):
+        super().__init__(f'family check failed: {log}')
+        self.failed_fixtures = failed_fixtures
+
+
+def _failed_fixtures(fixtures, reports, returncode):
+    """Locate failing families only when the helper accounted for every fixture."""
+    if returncode != 1 or len(fixtures) != len(reports):
+        return ()
+    for path, report in zip(fixtures, reports, strict=True):
+        family = r.read(path)
+        if (report['family'] != family['family'] or report['cases'] != len(family['cases'])
+                or not 0 <= report['passed'] <= report['cases']
+                or report['cases'] - report['passed'] != len(report['failures'])):
+            return ()
+    return tuple(index for index, report in enumerate(reports) if report['failures'])
+
+
 def _helper(checkpoint, source, fixture, log, grammar_dir=None):
     fixtures = [fixture] if isinstance(fixture, (str, Path)) else list(fixture)
     if not fixtures:
@@ -175,18 +194,20 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
         finally:
             for fd in fds:
                 r._LEASES.remove(fd)
+    failed_fixtures = ()
     try:
         reports = _family_reports(log, len(fixtures))
         for index, report in enumerate(reports):
             (log.parent/f'family-{index:03d}.log').write_text(json.dumps(report, sort_keys=True)+'\n')
+        failed_fixtures = _failed_fixtures(fixtures, reports, code)
         if any(report.get('failures') != [] or report.get('passed') != report.get('cases')
                for report in reports):
             code = code or 1
-    except (IndexError, ValueError, KeyError, TypeError, AttributeError) as error:
+    except (IndexError, ValueError, KeyError, TypeError, AttributeError, OSError) as error:
         if not code:
             raise ValueError('invalid family check report') from error
     if code:
-        raise ValueError(f'family check failed: {log}')
+        raise _FamilyCheckFailure(log, failed_fixtures)
 
 
 def _family_reports(log, count):
@@ -584,6 +605,14 @@ def _stage_trial(context, entries, label):
         except OSError as mismatch:
             raise _UncertainPromotion('accepted prefix unavailable after failed trial') from mismatch
         proof.update(status='failed', reason=str(error))
+        if isinstance(error, _FamilyCheckFailure) and error.failed_fixtures:
+            checks = proof.get('family_checks', [])
+            if all(0 <= index < len(checks) and checks[index]['kind'] == 'new-proposal'
+                   for index in error.failed_fixtures):
+                failed = {checks[index]['fixture'] for index in error.failed_fixtures}
+                proof['new_families_failed_at'] = [
+                    index for (index, _), (_, fixture, _, _) in zip(entries, prepared, strict=True)
+                    if fixture and str(fixture) in failed]
         for item in items:
             item.update(status='integration-rejected', reason=str(error))
     try:
@@ -599,6 +628,35 @@ def _stage_trial(context, entries, label):
     for item in items:
         item['trial_proof'] = {'path': str(logs/'trial.json'), 'sha256': proof_hash}
     return items, proof
+
+
+def _retry_without_failed_families(context, entries, whole_proof, failed_indices, size):
+    """Use a bounded set of failed families only to route fresh guarded trials."""
+    if not 1 <= len(failed_indices) <= size:
+        return False
+    withheld = [entry for entry in entries if entry[0] in failed_indices]
+    survivors = [entry for entry in entries if entry[0] not in failed_indices]
+    if len(withheld) != len(failed_indices) or not survivors:
+        return False
+    manifest, folder = context['manifest'], context['folder']
+    items, proof = _stage_trial(context, survivors, 'without-failed-families')
+    survivor_proof = items[0]['trial_proof']
+    manifest['family_retry'] = {'without_proposal_indices': failed_indices, 'jobs': proof['jobs'],
+                                'status': proof['status'], 'proof': survivor_proof,
+                                'group_attempt': whole_proof}
+    if proof['status'] != 'passed':
+        r.write(folder/'manifest.json', manifest)
+        return False
+    for item in items:
+        item.update(group_attempt=whole_proof, family_retry=survivor_proof)
+    manifest['jobs'].extend(items)
+    r.write(folder/'manifest.json', manifest)
+    for index, proposal in withheld:
+        single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')
+        single[0].update(group_attempt=whole_proof, family_retry=survivor_proof)
+        manifest['jobs'].extend(single)
+        r.write(folder/'manifest.json', manifest)
+    return True
 
 
 def _subgroup_fallback(context, entries, whole_proof, size):
@@ -738,7 +796,9 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
                 continue
             group_proof = items[0]['trial_proof']
             if combine_selected and len(entries) > fallback_size:
-                _subgroup_fallback(context, entries, group_proof, fallback_size)
+                if not _retry_without_failed_families(context, entries, group_proof,
+                                                      proof.get('new_families_failed_at', ()), fallback_size):
+                    _subgroup_fallback(context, entries, group_proof, fallback_size)
                 continue
             for index, proposal in entries:
                 single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')

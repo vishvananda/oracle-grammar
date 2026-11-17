@@ -823,7 +823,9 @@ class BatchTests(unittest.TestCase):
 
     def test_oversized_selected_failure_uses_guarded_subgroups(self):
         for mode in ('clean-subgroups', 'bad-member', 'cross-interaction', 'fatal-integrity',
-                     'trailing-single', 'equal-size', 'configured-singletons'):
+                     'trailing-single', 'equal-size', 'configured-singletons',
+                     'isolated-family', 'multiple-families', 'family-reordered-pass',
+                     'family-survivors-still-fail'):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 repo = root/'repo'
@@ -860,7 +862,15 @@ class BatchTests(unittest.TestCase):
                     calls.append((log.parent.name, text))
                     log.write_text('family proof')
                     if log.parent.name == 'group-000':
+                        if mode == 'multiple-families':
+                            raise batch._FamilyCheckFailure(log, (2, 6))
+                        if mode in ('isolated-family', 'family-reordered-pass', 'family-survivors-still-fail'):
+                            raise batch._FamilyCheckFailure(log, (2,))
                         raise ValueError('initial union conflict')
+                    if log.parent.name == 'proposal-002' and mode in ('isolated-family', 'multiple-families'):
+                        raise ValueError('exact print failure reproduced')
+                    if mode == 'family-survivors-still-fail' and log.parent.name == 'without-failed-families':
+                        raise ValueError('remaining grammar does not pass')
                     if mode == 'fatal-integrity' and log.parent.name == 'subgroup-004':
                         raise batch._UncertainPromotion('accepted prefix was modified')
                     if mode == 'bad-member' and 'j2' in text:
@@ -882,6 +892,22 @@ class BatchTests(unittest.TestCase):
                                                                   'proposal-002', 'proposal-003'])
                     self.assertEqual([x['status'] for x in result['jobs']], ['included']*4)
                     continue
+                if mode in ('isolated-family', 'multiple-families', 'family-reordered-pass'):
+                    withheld = [2, 6] if mode == 'multiple-families' else [2]
+                    retained = [name for index, name in enumerate(names) if index not in withheld]
+                    self.assertNotIn('fallback_trials', result)
+                    self.assertEqual([name for name, _ in calls],
+                                     ['group-000', 'without-failed-families'] +
+                                     [f'proposal-{index:03d}' for index in withheld])
+                    self.assertEqual(result['family_retry']['status'], 'passed')
+                    self.assertEqual(result['family_retry']['without_proposal_indices'], withheld)
+                    self.assertEqual([x['job_id'] for x in result['jobs']], retained+[names[i] for i in withheld])
+                    bad = set() if mode == 'family-reordered-pass' else {'j2'}
+                    self.assertEqual({x['job_id'] for x in result['jobs'] if x['status'] != 'included'}, bad)
+                    self.assertTrue(all(x['family_retry'] == result['family_retry']['proof'] for x in result['jobs']))
+                    text = (Path(result['source'])/'grammar/syntax/shared.ebnf').read_text().splitlines()
+                    self.assertEqual(text, retained+[names[i] for i in withheld if names[i] not in bad])
+                    continue
                 self.assertEqual(result['fallback_group_size'], 1 if mode == 'configured-singletons' else 4)
                 self.assertEqual(result['group_trials'][0]['status'], 'failed')
                 if mode == 'fatal-integrity':
@@ -902,9 +928,12 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(len(result['fallback_trials']), 2)
                 full = result['group_trials'][0]['proof']
                 self.assertTrue(all(item['group_attempt'] == full for item in result['jobs']))
-                if mode in ('clean-subgroups', 'trailing-single'):
+                if mode in ('clean-subgroups', 'trailing-single', 'family-survivors-still-fail'):
                     expected_calls = ['group-000', 'subgroup-000', 'subgroup-004']
                     if mode == 'trailing-single': expected_calls.append('proposal-008')
+                    if mode == 'family-survivors-still-fail':
+                        self.assertEqual(result['family_retry']['status'], 'failed')
+                        expected_calls.insert(1, 'without-failed-families')
                     self.assertEqual([name for name, _ in calls], expected_calls)
                     self.assertEqual([x['status'] for x in result['jobs']], ['included']*count)
                     self.assertEqual([x['status'] for x in result['fallback_trials']], ['passed', 'passed'])
@@ -919,6 +948,23 @@ class BatchTests(unittest.TestCase):
                     text = (Path(result['source'])/'grammar/syntax/shared.ebnf').read_text().splitlines()
                     self.assertEqual(text, [name for name in names if name != rejected])
                     self.assertFalse((Path(result['source'])/f'families/{rejected}.json').exists())
+
+    def test_family_failure_hint_requires_a_complete_matching_report(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixtures = [root/'baseline.json', root/'candidate.json']
+            for path in fixtures:
+                batch.r.write(path, {'family': path.stem, 'cases': [{}]})
+            before = {'family': 'baseline', 'cases': 1, 'passed': 1, 'failures': []}
+            failed = {'family': 'candidate', 'cases': 1, 'passed': 0, 'failures': [{}]}
+            self.assertEqual(batch._failed_fixtures(fixtures, [before, failed], 1), (1,))
+            self.assertEqual(batch._failed_fixtures(fixtures, [dict(before, passed=0, failures=[{}]), failed], 1),
+                             (0, 1))
+            self.assertEqual(batch._failed_fixtures(fixtures, [before], 1), ())
+            self.assertEqual(batch._failed_fixtures(fixtures, [before, failed], 2), ())
+            self.assertEqual(batch._failed_fixtures(fixtures, [before, dict(failed, family='other')], 1), ())
+            self.assertEqual(batch._failed_fixtures(fixtures, [before, dict(failed, passed=1)], 1), ())
+            self.assertEqual(batch._failed_fixtures(fixtures, [dict(before, failures=[{}]), failed], 1), ())
 
     def test_library_control_bad_baseline_fails_without_staging(self):
         with tempfile.TemporaryDirectory() as temporary:
