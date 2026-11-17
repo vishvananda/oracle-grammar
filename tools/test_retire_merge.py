@@ -53,6 +53,23 @@ class MergeTests(unittest.TestCase):
         self.assertEqual(merge_text(base, 'root ::= one | two | three\n', 'root ::= one\n'),
                          'root ::= one | three\n')
 
+    def test_bare_dispatcher_merges_an_independent_prose_edit(self):
+        base = '/* Conditions on triggers and activations. */\ncondition ::= one | two\n'
+        current = base.replace('one | two', 'one | two | three')
+        proposed = 'condition ::= one | two\n'
+        expected = 'condition ::= one | two | three\n'
+        self.assertEqual(merge_text(base, current, proposed), expected)
+        self.assertEqual(merge_text(base, proposed, current), expected)
+
+    def test_bare_dispatcher_rejects_divergent_prose_or_preference_changes(self):
+        base = '/* Original. */\nroot ::= one\n'
+        current = '/* Current. */\nroot ::= one | two\n'
+        proposed = '/* Proposed. */\nroot ::= one | three\n'
+        with self.assertRaisesRegex(MergeConflict, 'conflicting comments on root'):
+            merge_text(base, current, proposed)
+        with self.assertRaisesRegex(MergeConflict, 'conflicting comments on root'):
+            merge_text(base, base.replace('Original.', '@prefer 1'), base.replace('one', 'one | two'))
+
     def test_preview_and_canonical_seeded(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -66,17 +66,25 @@ def _merge_block(name, base, current, proposed):
         raise MergeConflict(f'conflicting addition or deletion of {name}')
     old, now, new = _bare(base), _bare(current), _bare(proposed)
     if old is not None and now is not None and new is not None:
-        # Only reconcile bare dispatcher alternatives; comments are not dispatch data.
+        # Merge ordinary prose independently of the dispatcher alternatives.
         def comments(block):
             lines = block.splitlines(keepends=True)
             return ''.join(lines[:next(i for i, line in enumerate(lines) if mined.DEFINITION.match(line))])
-        if comments(base) != comments(current) or comments(base) != comments(proposed):
+        original, present, edited = map(comments, (base, current, proposed))
+        if original == present == edited:
+            prefix = original
+        elif any('@prefer' in block for block in (base, current, proposed)):
+            raise MergeConflict(f'conflicting comments on {name}')
+        elif present == original:
+            prefix = edited
+        elif edited in (original, present):
+            prefix = present
+        else:
             raise MergeConflict(f'conflicting comments on {name}')
         remaining = [item for item in now if item not in set(old) - set(new)]
         remaining.extend(item for item in new if item not in old and item not in remaining)
         if not remaining:
             raise MergeConflict(f'dispatcher {name} would be empty')
-        prefix = comments(current)
         return prefix + name + ' ::= ' + ' | '.join(remaining) + '\n'
     raise MergeConflict(f'concurrent semantic edits to {name}')
 
