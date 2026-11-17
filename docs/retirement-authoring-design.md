@@ -356,3 +356,12 @@ malformed matching identities stop the driver. This is a routing hint, not an
 acceptance certificate, and a changed checkpoint still requires fresh staging
 and full validation. With no eligible cohort, ordinary batch size and timing
 rules apply. The option defaults to false.
+
+When an explicitly combined selection fails and exceeds the configured ordinary
+group size, staging tries ordered subgroups of that size before individual
+fallback. Each subgroup runs every existing guard against the accepted prefix;
+only a failing subgroup is retried individually. The manifest retains the whole
+union and subgroup proofs and records the fallback size. Equal-sized trials are
+not repeated, and uncertain promotion still fails the entire batch. This reduces
+repeated validation when one proposal conflicts with an otherwise usable cohort;
+it does not change the final integration checks.
