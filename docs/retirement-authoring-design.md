@@ -309,6 +309,18 @@ jobs. Child claims or reclassification after a split do not invalidate its immut
 creation evidence. This operator does not retry smaller timeouts, infer semantic
 success or accept a retirement.
 
+`tools/retire_auth_recovery.py` plans and rehearses retries for explicitly selected
+terminal HTTP 401 attempts. It requires an empty final response, no completed
+model disposition, a non-timeout failure receipt, matching descriptor and archive
+evidence, an absent recorded PID and the current job lease. Apply pins the plan
+and verifier hashes, rechecks the current attempt inside the queue transaction,
+and records a `retry-auth` event before a fresh claim. Original attempts, results
+and archives remain available; the tool does not accept rules. A live controller
+may continue other jobs because the retry holds the affected job's kernel lease.
+Each job commits separately, with durable progress receipts; a failure stops the
+operation and must be inspected before any further recovery. Verified archived
+candidate changes require separate restoration review before reuse.
+
 Per-worker native helpers use verified independent copies. Copy-on-write support
 can share their storage without sharing a writable inode; a private helper edit
 must not change either the checkpoint helper or another worker's helper.
