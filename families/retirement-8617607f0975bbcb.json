@@ -1,0 +1,641 @@
+{
+  "family": "linked-exile-cast-rules",
+  "cases": [
+    {
+      "name": "Ashiok's Erasure",
+      "text": "Your opponents can't cast spells with the same name as the exiled card.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "OpponentsOf",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "Prohibit": {
+                    "CastSpell": {
+                      "from": null,
+                      "filter": {
+                        "kind": "SharesNameWith",
+                        "args": {
+                          "kind": "Query",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Shared": "Exile"
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "ExiledWith",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                }
+                              }
+                            },
+                            "index": 0
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Warped Space",
+      "text": "Once each turn, you may pay {0} rather than pay the mana cost for a spell you cast from exile.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Any"
+                        },
+                        {
+                          "kind": "Cast",
+                          "args": {
+                            "by": null,
+                            "from": {
+                              "Shared": "Exile"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "modifier": {
+                      "Alternate": {
+                        "cost": {
+                          "Alternate": {
+                            "kind": "List",
+                            "args": [
+                              {
+                                "kind": "Term",
+                                "args": {
+                                  "family": "ManaSymbol",
+                                  "form": "ManaCostGeneric",
+                                  "operands": [
+                                    {
+                                      "kind": "Integer",
+                                      "args": 0
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "limit": {
+                          "EachTurn": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Circu, Dimir Lobotomist",
+      "text": "Your opponents can't cast spells with the same name as a card exiled with Circu.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "OpponentsOf",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "Prohibit": {
+                    "CastSpell": {
+                      "from": null,
+                      "filter": {
+                        "kind": "SharesNameWithAny",
+                        "args": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Exile"
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "ExiledWith",
+                              "args": {
+                                "kind": "Source"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Ian Malcolm, Chaotician",
+      "text": "During each player's turn, that player may cast a spell from among the cards they don't own exiled with Ian Malcolm, and mana of any type can be spent to cast it.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "PlayPermissionWith": {
+                    "permission": {
+                      "PlayPermission": {
+                        "cards": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Exile"
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "OwnedBy",
+                                  "args": {
+                                    "kind": "OthersThan",
+                                    "args": {
+                                      "kind": "Affected"
+                                    }
+                                  }
+                                },
+                                {
+                                  "kind": "ExiledWith",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "from": "Exile",
+                        "action": "CastSpell",
+                        "filter": {
+                          "kind": "Any"
+                        }
+                      }
+                    },
+                    "terms": {
+                      "limit": {
+                        "EachTurn": 1
+                      },
+                      "during": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "Affected"
+                        }
+                      },
+                      "cost": "Normal",
+                      "spend_as": "AnyType",
+                      "into_exile": false,
+                      "condition": null,
+                      "effects": [],
+                      "flash": false,
+                      "may_look": false,
+                      "then": null,
+                      "face_down": null
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Rassilon, the War President",
+      "text": "Each noncreature spell you cast from exile has conspire.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellsHaveAbilities": {
+                    "spells": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    },
+                    "from": "Exile",
+                    "nth_each_turn": null,
+                    "abilities": {
+                      "kind": "List",
+                      "args": [
+                        {
+                          "kind": "Term",
+                          "args": {
+                            "family": "SpellEffect",
+                            "form": "Conspire",
+                            "operands": []
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Tlincalli Hunter",
+      "text": "Once each turn, you may pay {0} rather than pay the mana cost for a creature spell you cast from exile.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        {
+                          "kind": "Cast",
+                          "args": {
+                            "by": null,
+                            "from": {
+                              "Shared": "Exile"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "modifier": {
+                      "Alternate": {
+                        "cost": {
+                          "Alternate": {
+                            "kind": "List",
+                            "args": [
+                              {
+                                "kind": "Term",
+                                "args": {
+                                  "family": "ManaSymbol",
+                                  "form": "ManaCostGeneric",
+                                  "operands": [
+                                    {
+                                      "kind": "Integer",
+                                      "args": 0
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "limit": {
+                          "EachTurn": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Incomplete linked name",
+      "text": "Your opponents can't cast spells with the same name as.",
+      "reject": true
+    },
+    {
+      "name": "Warped Space",
+      "text": "Once each turn, you may pay {2} rather than pay the mana cost for a spell you cast from exile.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [
+          "Room"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 4
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Any"
+                        },
+                        {
+                          "kind": "Cast",
+                          "args": {
+                            "by": null,
+                            "from": {
+                              "Shared": "Exile"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "modifier": {
+                      "Alternate": {
+                        "cost": {
+                          "Alternate": {
+                            "kind": "List",
+                            "args": [
+                              {
+                                "kind": "Term",
+                                "args": {
+                                  "family": "ManaSymbol",
+                                  "form": "ManaCostGeneric",
+                                  "operands": [
+                                    {
+                                      "kind": "Integer",
+                                      "args": 2
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "limit": {
+                          "EachTurn": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Tlincalli Hunter",
+      "text": "Trample\nOnce each turn, you may pay {3} rather than pay the mana cost for a creature spell you cast from exile.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Scorpion",
+          "Scout"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 5
+          },
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          7,
+          7
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "SpellCost": {
+                    "spells": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        {
+                          "kind": "Cast",
+                          "args": {
+                            "by": null,
+                            "from": {
+                              "Shared": "Exile"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "modifier": {
+                      "Alternate": {
+                        "cost": {
+                          "Alternate": {
+                            "kind": "List",
+                            "args": [
+                              {
+                                "kind": "Term",
+                                "args": {
+                                  "family": "ManaSymbol",
+                                  "form": "ManaCostGeneric",
+                                  "operands": [
+                                    {
+                                      "kind": "Integer",
+                                      "args": 3
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        "limit": {
+                          "EachTurn": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

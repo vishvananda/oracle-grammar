@@ -49,7 +49,7 @@ cost_words_owned ::= cost_opponent_token_creation | cost_energy | cost_life | co
     | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand
     | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top
     | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each
-    | cost_mill
+    | cost_mill | cost_unattach_named_source
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -355,7 +355,7 @@ activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card
 activated_self_graveyard_return ::= cost ":" self_graveyard_return "."
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
 activated_self_graveyard_return_limited ::= cost ":" self_graveyard_return "." activation_limits "."
-self_graveyard_return ::= self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter
+self_graveyard_return ::= self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter
 /* @sem Operation::Move{objects:One($self_ref), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 self_return_hand ::= "return" self_ref "from" "your" "graveyard" "to" "your" "hand"
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
@@ -566,3 +566,26 @@ cost_pay_for_each ::= "pay" mana_symbols "for" "each" count_each
 
 /* @sem CostPart::Mill{count:$card_count} */
 cost_mill ::= "mill" card_count
+
+/* A limited alternative generic payment for a spell selected by origin and type. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$exile_cast_spell, modifier:Alternate{cost:Alternate($generic_alternative), limit:EachTurn(1)}})]}) */
+static_once_alternative_exile_cost ::= "once" "each" "turn" "," "you" "may" "pay" generic_alternative "rather" "than" "pay" "the" "mana" "cost" "for" exile_cast_spell "."
+/* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]}]) */
+generic_alternative ::= "{" NUMBER "}"
+
+/* Participial costs following a permission to cast. */
+cast_additional_cost_part ::= cast_discard_cost_part | cast_remove_among_cost_part
+
+/* @sem CostPart::Discard{count:$card_count, filter:Any} */
+cast_discard_cost_part ::= "discarding" card_count
+
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), amount:AmongThem(Exactly($value))}]} */
+cast_remove_among_cost_part ::= "removing" value "counters" "from" "among" affected
+
+/* A self card and an independently announced optional card move together. */
+/* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject(Source), SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AllOf([Not(SameObject(Source)), $noun, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0})])}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+self_return_and_optional_card ::= "return" "this" "card" "and" "up" "to" "one" "other" "target" noun "card" "from" "your" "graveyard" "to" "the" "battlefield"
+
+/* A named object in a granted ability retains the granting source identity. */
+/* @sem CostPart::Unattach($self_ref_named) */
+cost_unattach_named_source ::= "unattach" self_ref_named

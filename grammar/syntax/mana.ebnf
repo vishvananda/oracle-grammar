@@ -6,7 +6,13 @@ mana_clause ::= mana_clause_plain | mana_clause_plain_you | mana_clause_optional
 mana_clause_plain ::= mana_clause_operation
 /* @sem Instruction::[Effect{result:@next, operation:$add_mana}] */
 mana_clause_plain_you ::= "you" add_mana
-mana_clause_operation ::= add_mana | add_mana_player | add_mana_any_combination
+mana_clause_operation ::= add_mana | add_mana_player | add_mana_any_combination | mana_add_counted | mana_add_counted_chosen
+
+/* Counted units retain their production and choice independently. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$value, production:$mana_production, choice:Once}} */
+mana_add_counted ::= "add" value mana_production
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$value, production:Amount{color:Chosen, amount:Constant(1)}, choice:Once}} */
+mana_add_counted_chosen ::= "add" value "mana" "of" "the" "chosen" "color"
 
 mana_clause_optional ::= mana_clause_you_may | mana_clause_player_may
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$add_mana}]}}] */
@@ -24,7 +30,7 @@ mana_clause_restricted ::= mana_clause "." mana_spending
 /* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($program)}}}] */
 instructions_mana_spent_trigger ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" spell_filter "," program
 
-mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists
+mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat
 /* @sem $mana_use */
 mana_spend_only ::= "spend" "this" "mana" "only" "to" mana_use
 /* @sem $mana_use */
@@ -34,6 +40,8 @@ mana_cannot_spend ::= "this" "mana" ("can't" | "cannot") "be" "spent" "to" mana_
 /* Mana kept through step and phase ends until the effect expires (CR 106.4). */
 /* @sem ManaUse::Persists($until_end_of_turn) */
 mana_persists ::= until_end_of_turn "," "you" "don't" "lose" "this" "mana" "as" "steps" "and" "phases" "end"
+/* @sem ManaUse::Persists($until_end_of_combat) */
+mana_persists_combat ::= until_end_of_combat "," "you" "don't" "lose" "this" "mana" "as" "steps" "end"
 
 mana_use ::= mana_use_atom | mana_use_either
 /* @sem ManaUse::Either([$mana_use_atom, ...$mana_use_tail]) */
@@ -54,7 +62,11 @@ mana_use_atom ::= mana_use_cast
    share one cast verb, as in "an instant or sorcery spell or a kicked spell". */
 /* @sem ManaUse::CastSpell($mana_cast_filter) */
 mana_use_cast ::= "cast" mana_cast_filter
-mana_cast_filter ::= cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells
+mana_cast_filter ::= cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells | mana_spells_outside_starting_deck | mana_spells_monocolored_chosen
+/* @sem ObjectFilter::Not(InStartingDeck(One(AbilityController))) */
+mana_spells_outside_starting_deck ::= "spells" "that" "aren't" "from" "your" "starting" "deck"
+/* @sem ObjectFilter::AllOf([Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:Constant(1)}}, Chosen(Color)]) */
+mana_spells_monocolored_chosen ::= "monocolored" "spells" "of" "that" "color"
 mana_spell_one ::= mana_spell_one_kind | mana_spell_one_any | mana_spell_one_chosen
 /* @sem $mana_spell_filter */
 mana_spell_one_kind ::= ("a" | "an") mana_spell_filter "spell"

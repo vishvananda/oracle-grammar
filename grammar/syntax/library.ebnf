@@ -780,7 +780,7 @@ named_search_upto ::= "up" "to" number
 named_search_any ::= "any" "number" "of"
 
 /* Card targets keep their graveyard domain, quantity and owner restrictions. */
-graveyard_target_cards ::= graveyard_typed_modified_many | graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many
+graveyard_target_cards ::= graveyard_distinct_values_many | graveyard_typed_modified_many | graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many
     | graveyard_common_any_one | graveyard_common_any_many | graveyard_common_typed_one | graveyard_common_typed_many
     | graveyard_target_owner_one | graveyard_target_owner_typed_one
 
@@ -1225,3 +1225,26 @@ observed_top_reveal_branch ::= observed_top_reveal_put | observed_top_reveal_may
 observed_top_reveal_put ::= "put" top_reveal_it top_reveal_destination
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$observed_top_reveal_put}}] */
 observed_top_reveal_may_put ::= "you" "may" observed_top_reveal_put
+
+/* Distinctness constrains the announced group, independently of the count. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:$graveyard_plural_count, filter:$graveyard_scope, constraints:[DifferentProperty(ManaValue)]})) */
+graveyard_distinct_values_many ::= graveyard_plural_count "target" "cards" "with" "different" "mana" "values" graveyard_scope
+
+/* One bounded observation and its immediately moved top card. */
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+reveal_top_hand_that ::= "reveal" "the" "top" "card" "of" "your" "library" "and" "put" "that" "card" "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+reveal_top_hand_it ::= "reveal" "the" "top" "card" "of" "your" "library" "and" "put" "it" "into" "your" "hand"
+
+/* @sem Instruction::[...$reveal_top_hand_that, ...$observed_mana_gain] */
+reveal_top_hand_value_gain ::= reveal_top_hand_that "." observed_mana_gain
+
+/* @sem Instruction::[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:ObjectProperty{object:Query{objects:Observed(0), index:0}, property:ManaValue, information:CurrentOrLastKnown}}}] */
+observed_mana_gain ::= "you" "gain" "life" "equal" "to" "its" "mana" "value"
+
+/* @sem Instruction::[...$reveal_top_hand_it, ...$observed_mana_saddled] */
+reveal_top_hand_value_saddled ::= reveal_top_hand_it "." observed_mana_saddled
+
+/* @sem Instruction::[If{condition:ObjectMatches{object:$object_ref, filter:Not(State(Saddled))}, then:_{instructions:[Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:ObjectProperty{object:Query{objects:Observed(0), index:0}, property:ManaValue, information:CurrentOrLastKnown}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:LoseLife{players:$players_singular, amount:ObjectProperty{object:Query{objects:Observed(0), index:0}, property:ManaValue, information:CurrentOrLastKnown}}}]}}] */
+observed_mana_saddled ::= "you" "lose" "life" "equal" "to" "that" "card's" "mana" "value" "if" object_ref "isn't" "saddled" "." "otherwise" "," players_singular "loses" "that" "much" "life"

@@ -24,7 +24,7 @@ copy_each_referent ::= "it" | "that" "creature" | "that" "permanent"
 create_each_named_leading ::= "for" "each" leading_count_each "," "create" ("a" | "an") token_named_recipe "token"
 /* A leading count names present permanents. "This way" counts name a producing
    instruction, which a sentence boundary can separate from @prior. */
-leading_count_each ::= count_each_permanent | count_each_other
+leading_count_each ::= count_attached_to_him | count_controlled_either | count_each_permanent | count_each_other
 
 /* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}) */
 create_tapped_third ::= "creates" token_groups_tapped
@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy
+token_group ::= token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy
 
 token_copy ::= token_copy_plain | token_copy_modified
 
@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= token_recipe_base | token_recipe_with
+token_recipe ::= token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors
 
 token_recipe_base ::= token_recipe_plain | token_recipe_no_subtype | token_recipe_statless
 
@@ -273,7 +273,7 @@ token_subtype_one ::= subtype
 /* @sem SubType::[@subtype_name($subtype), ...$token_subtypes] */
 token_subtype_more ::= subtype token_subtypes
 
-token_types ::= tt_creature | tt_artifact_creature | tt_enchantment_creature | tt_land_creature
+token_types ::= tt_creature | tt_artifact_creature | tt_enchantment_creature | tt_land_creature | tt_enchantment_artifact_creature
 
 /* @sem CardType::[Creature] */
 tt_creature ::= "creature"
@@ -422,3 +422,59 @@ create_copy_tapped_attacking ::= "create" "a" "tapped" "and" "attacking" "token"
    of the created batch that receives the new counters. */
 /* @sem Operation::PutCounters{placements:[_{recipients:Objects($created_reference), kind:$counter_kind, amount:CountCounters{recipients:Objects(One($object_ref)), kind:$counter_kind_2, information:CurrentOrLastKnown}}]} */
 put_created_counters_for_counters ::= "put" ("a" | "one") counter_kind "counter" "on" created_reference "for" "each" counter_kind "counter" "on" object_ref
+
+/* Explicit names and the token characteristics are independent operands. */
+token_explicit_legendary ::= token_explicit_legendary_plain | token_explicit_legendary_with
+/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2]}} */
+token_explicit_legendary_plain ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token"
+/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
+token_explicit_legendary_with ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
+explicit_legendary_name ::= explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned
+/* @sem TokenName::Explicit(Tiny) */
+explicit_token_tiny ::= "Tiny"
+/* @sem TokenName::Explicit('Stangg Twin') */
+explicit_token_stangg_twin ::= SELF_NAME "Twin"
+/* @sem TokenName::Explicit('Tuktuk the Returned') */
+explicit_token_tuktuk_returned ::= SELF_NAME "the" "Returned"
+
+/* Explicit names are independent of the token's characteristics and abilities. */
+/* @sem TokenRecipe::Defined(_{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+token_recipe_explicit_name ::= token_stat "/" token_stat token_colors token_subtypes token_types "token" "named" created_token_name
+
+/* @sem TokenRecipe::Defined(_{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2], abilities:$token_abilities}) */
+token_recipe_explicit_name_with ::= token_stat "/" token_stat token_colors token_subtypes token_types "token" "with" token_abilities "named" created_token_name
+
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:[White, Blue, Black, Red, Green], card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types "token" "that's" "all" "colors"
+
+/* @sem CardType::[Enchantment, Artifact, Creature] */
+tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
+
+created_token_name ::= created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver
+
+/* @sem String::'Wood' */
+created_name_wood ::= "Wood"
+
+/* @sem String::'Wasp' */
+created_name_wasp ::= "Wasp"
+
+/* @sem String::'Butterfly' */
+created_name_butterfly ::= "Butterfly"
+
+/* @sem String::'Metallic Sliver' */
+created_name_metallic_sliver ::= "Metallic" "Sliver"
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, AttachedTo(SameObject(Source))])}) */
+count_attached_to_him ::= filter_phrase "attached" "to" "him"
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(AbilityController)), AnyOf([$filter_phrase_2, $filter_phrase_3])])}) */
+count_controlled_either ::= filter_phrase "you" "control" "that's" "a" filter_phrase "or" "a" filter_phrase
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Attacking, Modified, $filter_phrase, ControlledBy(One(AbilityController))])} */
+attacking_modified_controlled ::= "attacking" "modified" filter_phrase "you" "control"
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:CopyEach{objects:$attacking_modified_controlled, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_attacking_copies_each ::= "for" "each" attacking_modified_controlled "," "create" counter_amount "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" "that" "creature"
+
+/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$each_opponent_targets, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+clause_copy_each_opponent_target ::= "for" "each" "opponent" "," "you" "create" "a" "token" "that's" "a" "copy" "of" each_opponent_targets

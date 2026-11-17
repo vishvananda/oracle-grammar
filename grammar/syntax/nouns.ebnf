@@ -106,18 +106,16 @@ current_card_ref ::= "that" "card"
 /* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
 linked_exiled_card ::= "the" "exiled" "card"
 
-target_card ::= target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard
-    | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard
-    | target_card_a_graveyard_up_to_one
+target_card ::= target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::Not(ObjectFilter::SameObject(@current_named_object)), ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
 target_card_other_your_graveyard ::= "another" "target" card_filter "card" ("from" | "in") "your" "graveyard"
 
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, $modifiers, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
-target_card_your_graveyard_with ::= "target" card_filter "card" modifiers ("from" | "in") "your" "graveyard"
-    | "target" card_filter "card" ("from" | "in") "your" "graveyard" modifiers
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, $graveyard_card_modifiers, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+target_card_your_graveyard_with ::= "target" card_filter "card" graveyard_card_modifiers ("from" | "in") "your" "graveyard"
+    | "target" card_filter "card" ("from" | "in") "your" "graveyard" graveyard_card_modifiers
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(PlayerRef::AbilityController)}))}), index:0} */
 target_card_opponent_graveyard ::= "target" card_filter "card" ("from" | "in") "an" "opponent's" "graveyard"
@@ -295,7 +293,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
+target_object ::= target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -362,8 +360,7 @@ target_exactly ::= count
 /* @sem Count::UpTo($count) */
 target_up_to ::= "up" "to" count
 
-filter_phrase ::= creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter
-    | filter_instant_or_sorcery
+filter_phrase ::= filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list
 
 /* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
 filter_quality_list ::= quality noun "," noun "," "and" noun modifier
@@ -720,7 +717,7 @@ modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_t
 
 modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
 
-modifier_nonnumeric ::= modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls
+modifier_nonnumeric ::= modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls
     | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control
     | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage
     | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker
@@ -1421,3 +1418,183 @@ filter_instant_or_sorcery ::= "instant" "or" "sorcery"
 
 /* @sem ObjectFilter::$filter_phrase */
 attachment_eligible ::= "a" filter_phrase
+
+/* Announced stack targets for retargeting, preserving the object domain and filter. */
+retarget_stack_object ::= retarget_spell_or_ability
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:Any}), index:0} */
+retarget_spell_or_ability ::= "target" "spell" "or" "ability"
+retarget_many_stack_object ::= retarget_instant_sorcery | retarget_subtype_spell
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AnyOf([CardType(Instant), CardType(Sorcery)])}), index:0} */
+retarget_instant_sorcery ::= "target" "instant" "or" "sorcery" "spell"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:$subtype}), index:0} */
+retarget_subtype_spell ::= "target" subtype "spell"
+retarget_single_stack_object ::= retarget_single_spell | retarget_single_any_stack | retarget_single_instant_sorcery | retarget_single_activated | retarget_spell_only_source
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(SingleTarget)}), index:0} */
+retarget_single_spell ::= "target" "spell" "with" "a" "single" "target"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(SingleTarget)}), index:0} */
+retarget_single_any_stack ::= "target" "spell" "or" "ability" "with" "a" "single" "target"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([CardType(Instant), CardType(Sorcery)]), OnStack(SingleTarget)])}), index:0} */
+retarget_single_instant_sorcery ::= "target" "instant" "or" "sorcery" "spell" "with" "a" "single" "target"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([OnStack(Activated), OnStack(SingleTarget)])}), index:0} */
+retarget_single_activated ::= "target" "activated" "ability" "with" "a" "single" "target"
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([OnStack(SingleTarget), TargetsAny(Objects(One(Source)))])}), index:0} */
+retarget_spell_only_source ::= "target" "spell" "that" "targets" "only" "this" "creature"
+
+/* The singular linked card and the group of cards linked to an object differ. */
+linked_name_filter ::= linked_name_single | linked_name_any
+
+/* @sem ObjectFilter::SharesNameWith(Query{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}), index:0}) */
+linked_name_single ::= "with" "the" "same" "name" "as" "the" "exiled" "card"
+
+/* @sem ObjectFilter::SharesNameWithAny(Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)})) */
+linked_name_any ::= "with" "the" "same" "name" "as" "a" "card" "exiled" "with" object_ref
+
+/* A singular spell's type and casting origin are independent operands. */
+exile_cast_spell ::= exile_cast_spell_any | exile_cast_spell_kind
+
+/* @sem ObjectFilter::Cast{from:Shared(Exile)} */
+exile_cast_spell_any ::= "a" "spell" "you" "cast" "from" "exile"
+
+/* @sem ObjectFilter::AllOf([$filter_phrase, Cast{from:Shared(Exile)}]) */
+exile_cast_spell_kind ::= "a" filter_phrase "spell" "you" "cast" "from" "exile"
+
+/* Compound battlefield filters shared by all object-targeting actions. */
+/* @sem ObjectFilter::AnyOf([$subtype, @and($adjective_color, $noun), @and($adjective_color_2, $noun_2)]) */
+filter_qualified_three_heads ::= subtype "," adjective_color noun "," "or" adjective_color noun
+
+/* @sem @and($adjective_legendary, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3])) */
+filter_legendary_three_kinds ::= adjective_legendary "permanent" "that's" "an" noun "," noun "," "or" noun
+
+/* @sem @and($subtype_negated, $noun, ObjectFilter::Not(ObjectFilter::State(PowerEqualsToughness))) */
+filter_unequal_stats ::= subtype_negated noun "whose" "power" "and" "toughness" "aren't" "equal"
+
+/* @sem ObjectFilter::Extreme{among:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$adjective_nontype}, property:ManaValue} */
+filter_lowest_mana_value ::= adjective_nontype "permanent" "with" "the" "lowest" "mana" "value"
+
+/* @sem ObjectFilter::AnyOf([@and($noun, ObjectFilter::History{event:AbilityActivated, window:ThisTurn}), @and(ObjectFilter::Tapped, $noun_2)]) */
+filter_activated_or_tapped ::= noun "that" "was" "activated" "this" "turn" "or" "tapped" noun
+
+/* The chooser is the trigger event subject, separate from the controller. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:@and($adjective_nontype, ObjectFilter::ControlledBy(OpponentsOf(AbilityController))), chooser:EventSubject}), index:0} */
+target_event_subject_choice ::= "target" adjective_nontype "permanent" "of" "that" "player's" "choice" "that" "one" "of" "your" "opponents" "controls"
+
+/* Stack selections are shared operands for counter effects. */
+counter_stack_objects ::= counter_one_sourced_ability | counter_one_mixed_stack | counter_many_stack | counter_many_spells
+
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([$counter_ability_kind, AbilityOf($counter_source_filter)])}), index:0}) */
+counter_one_sourced_ability ::= "target" counter_ability_kind "ability" "from" counter_source_filter "source"
+
+/* @sem ObjectFilter::OnStack(Activated) */
+counter_ability_activated ::= "activated"
+
+/* @sem ObjectFilter::AnyOf([OnStack(Activated), OnStack(Triggered)]) */
+counter_ability_either ::= "activated" "or" "triggered"
+
+counter_ability_kind ::= counter_ability_activated | counter_ability_either
+
+counter_source_filter ::= counter_source_noun_an | counter_source_noun_a | counter_source_noun_pair | counter_source_adjective
+
+/* @sem ObjectFilter::$noun */
+counter_source_noun_an ::= "an" noun
+
+/* @sem ObjectFilter::$noun */
+counter_source_noun_a ::= "a" noun
+
+/* @sem ObjectFilter::AnyOf([$noun, $noun_2]) */
+counter_source_noun_pair ::= "an" noun "or" noun
+
+/* @sem ObjectFilter::$adjective_nontype */
+counter_source_adjective ::= "a" adjective_nontype
+
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:AnyOf([OnStack(Activated), OnStack(Triggered), AllOf([OnStack(Spell), $adjective_nontype])])}), index:0}) */
+counter_one_mixed_stack ::= "target" "activated" "ability" "," "triggered" "ability" "," "or" adjective_nontype "spell"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:UpTo($number), filter:Any})) */
+counter_many_stack ::= "up" "to" number "target" "spells" "and" "/" "or" "abilities"
+
+/* @sem ObjectSet::Zone(_{scope:Shared(Stack), kind:Spell, filter:InSet(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:UpTo($number), filter:Any})))}) */
+counter_many_spells ::= "up" "to" number "target" "spells"
+
+/* Card characteristics remain independent of the graveyard's owner. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($card_ability_qualifier, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
+target_card_ability_graveyard ::= "target" "card" card_ability_qualifier "from" "your" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($card_filter, $card_ability_qualifier, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
+target_typed_ability_graveyard ::= "target" card_filter "card" card_ability_qualifier "from" "your" "graveyard"
+
+card_ability_qualifier ::= card_has_adventure | card_has_awaken | card_has_kicker | card_has_cycling
+
+/* @sem ObjectFilter::State(HasAdventure) */
+card_has_adventure ::= "that" "has" "an" "Adventure"
+
+/* @sem ObjectFilter::HasKeywordFamily(Awaken) */
+card_has_awaken ::= "with" "awaken"
+
+/* @sem ObjectFilter::HasKeywordFamily(Kicker) */
+card_has_kicker ::= "with" "a" "kicker" "ability"
+
+/* @sem ObjectFilter::HasActivatedAbility(Cycling) */
+card_has_cycling ::= "with" "a" "cycling" "ability"
+
+graveyard_card_modifiers ::= modifiers | modifier_card_mutate | modifier_no_abilities | modifier_isnt_subtype
+
+/* Card qualifiers describe the card independently of the action using it. */
+/* @sem ObjectFilter::HasKeywordFamily(Mutate) */
+modifier_card_mutate ::= "with" "mutate"
+
+/* @sem ObjectFilter::State(NoAbilities) */
+modifier_no_abilities ::= "with" "no" "abilities"
+
+/* @sem ObjectFilter::Not($subtype) */
+modifier_isnt_subtype ::= "that" "isn't" "a" subtype
+
+/* The opponent chooses the announced target; its zone remains yours. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)})), chooser:OneOf(OpponentsOf(AbilityController))}), index:0} */
+target_card_your_graveyard_opponent_choice ::= "target" card_filter "card" "of" "an" "opponent's" "choice" "from" "your" "graveyard"
+
+/* Each side of the union is a complete card description. */
+/* @sem @and($subtype, $noun) */
+subtyped_card_description ::= subtype noun "card"
+
+/* @sem ObjectFilter::AnyOf([$subtyped_card_description, $subtyped_card_description_2]) */
+card_description_union ::= subtyped_card_description "or" subtyped_card_description
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_description_union, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+target_card_union_your_graveyard ::= "target" card_description_union "from" "your" "graveyard"
+
+/* A current graveyard population constrained by its arrival this turn. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:@and($filter_phrase, ObjectFilter::ArrivedThisTurn{})} */
+graveyard_cards_arrived_this_turn ::= "all" filter_phrase "cards" "in" "your" "graveyard" "that" "were" "put" "there" "from" "anywhere" "this" "turn"
+
+/* Exile populations preserve the linked source and the owner independently. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)} */
+permission_linked_exile_cards ::= "cards" "exiled" "with" object_ref
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([OwnedBy(One(AbilityController)), ExiledWith($object_ref)])} */
+permission_owned_linked_exile_cards ::= "cards" "you" "own" "exiled" "with" object_ref
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([OwnedBy(OthersThan(AbilityController)), Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})])} */
+permission_others_counter_exile_cards ::= "cards" "you" "don't" "own" "with" counter_kind "counters" "on" "them" "from" "exile"
+
+/* Mixed alternatives retain the qualifier on its own list member. */
+/* @sem ObjectFilter::AnyOf([$noun, $subtype, @and(ObjectFilter::Not(ObjectFilter::Supertype(Basic)), $noun_2)]) */
+filter_mixed_nonbasic_list ::= noun "," subtype "," "or" "nonbasic" noun
+
+/* @sem ObjectFilter::AnyOf([$noun, @and(ObjectFilter::Tapped, $noun_2), @and(ObjectFilter::Tapped, $noun_3)]) */
+filter_mixed_tapped_list ::= noun "," "tapped" noun "," "or" "tapped" noun
+
+/* @sem ObjectFilter::Counters{kind:$counter_kind, comparison:Greater, value:Expr::Constant(0)} */
+modifier_has_named_counter ::= "that" "has" "a" counter_kind "counter" "on" "it"
+
+/* @sem ObjectFilter::AttackingDefender(PlayersAndPlaneswalkers(One(AbilityController))) */
+modifier_attacking_you_walkers ::= "that's" "attacking" "you" "or" "a" "planeswalker" "you" "control"
+
+/* @sem ObjectFilter::Property{property:ColorCount, test:NumberTest::Compare{comparison:NotEqual, value:$number}} */
+modifier_not_exactly_colors ::= "that" "isn't" "exactly" number "colors"
+
+/* @sem ObjectFilter::AnyOf([Condition(Compare{left:EventHistory{event:Pair{event:Blocks, objects:SameObject(Candidate), others:$subtype}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}), Condition(Compare{left:EventHistory{event:Pair{event:BecomesBlockedBy, objects:SameObject(Candidate), others:$subtype}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})]) */
+modifier_blocked_or_blocked_by_subtype_turn ::= "that" "blocked" "or" "was" "blocked" "by" "a" subtype "this" "turn"
+
+/* Battlefield population whose counters are counted. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
+counter_battlefield_population ::= filter_plural
