@@ -819,6 +819,105 @@ class BatchTests(unittest.TestCase):
                     self.assertEqual(fallback_progress['group_trials'][0]['status'], 'failed')
                 self.assertEqual(batch.r._LEASES, [])
 
+    def test_oversized_selected_failure_uses_guarded_subgroups(self):
+        for mode in ('clean-subgroups', 'bad-member', 'cross-interaction', 'fatal-integrity',
+                     'trailing-single', 'equal-size', 'configured-singletons'):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                repo = root/'repo'
+                (repo/'grammar/syntax').mkdir(parents=True)
+                (repo/'tests').mkdir()
+                (repo/'tests/families.json').write_text('[]')
+                count = 9 if mode == 'trailing-single' else 4 if mode in ('equal-size', 'configured-singletons') else 8
+                names = [f'j{index}' for index in range(count)]
+                (repo/'grammar/syntax/mined.ebnf').write_text(
+                    ''.join(f'm_{name} ::= "{name}"\n' for name in names))
+                subprocess.run(['git', 'init', '-q', str(repo)], check=True)
+                subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+                subprocess.run(['git', '-c', 'user.name=Test', '-c', 'user.email=t@x',
+                                'commit', '-qm', 'base'], cwd=repo, check=True)
+                commit = batch._git(repo, 'rev-parse', 'HEAD')
+                report = {'task': 'task', 'source': commit, 'descriptor_sha256': 'd',
+                          'support_sha256': 's', 'fixture_sha256': 'f', 'edited': []}
+                proposals = [{'job_id': name, 'attempt_id': name, 'report': dict(report)} for name in names]
+                def proposal(item):
+                    name = item['job_id']
+                    return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
+                def merge(base, trial, proposed, rules, hooks):
+                    name = rules[0][2:]
+                    path = trial/'grammar/syntax/shared.ebnf'
+                    return {'grammar/syntax/shared.ebnf': (path.read_text() if path.exists() else '')+name+'\n'}
+                def remove(trial, rules):
+                    path = trial/'grammar/syntax/mined.ebnf'
+                    name = rules[0][2:]
+                    path.write_text(path.read_text().replace(f'm_{name} ::= "{name}"\n', ''))
+                    return rules, {}
+                calls = []
+                def family(checkpoint, source, fixtures, log, grammar_dir=None):
+                    text = (grammar_dir/'syntax/shared.ebnf').read_text().splitlines()
+                    calls.append((log.parent.name, text))
+                    log.write_text('family proof')
+                    if log.parent.name == 'group-000':
+                        raise ValueError('initial union conflict')
+                    if mode == 'fatal-integrity' and log.parent.name == 'subgroup-004':
+                        raise batch._UncertainPromotion('accepted prefix was modified')
+                    if mode == 'bad-member' and 'j2' in text:
+                        raise ValueError('bad member')
+                    if mode == 'cross-interaction' and 'j0' in text and 'j4' in text:
+                        raise ValueError('cross-group interaction')
+                cp = {'source': str(repo), 'commit': commit,
+                      'stage_group_size': 1 if mode == 'configured-singletons' else 4}
+                with patch.object(batch, '_proposal', side_effect=proposal), \
+                        patch.object(batch, '_family', return_value={'family': 'test', 'cases': []}), \
+                        patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
+                        patch.object(batch.mined, 'remove', side_effect=remove), \
+                        patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family):
+                    result = batch.stage(root, cp, proposals, combine_selected=True)
+                if mode == 'equal-size':
+                    self.assertNotIn('fallback_group_size', result)
+                    self.assertNotIn('fallback_trials', result)
+                    self.assertEqual([name for name, _ in calls], ['group-000', 'proposal-000', 'proposal-001',
+                                                                  'proposal-002', 'proposal-003'])
+                    self.assertEqual([x['status'] for x in result['jobs']], ['included']*4)
+                    continue
+                self.assertEqual(result['fallback_group_size'], 1 if mode == 'configured-singletons' else 4)
+                self.assertEqual(result['group_trials'][0]['status'], 'failed')
+                if mode == 'fatal-integrity':
+                    self.assertEqual(result['status'], 'failed')
+                    self.assertEqual(result['failure_scope'], 'combined-batch')
+                    self.assertEqual([name for name, _ in calls], ['group-000', 'subgroup-000', 'subgroup-004'])
+                    self.assertEqual([item['job_id'] for item in result['jobs']], names[:4])
+                    self.assertTrue(result.get('failed_candidate_commit'))
+                    continue
+                self.assertEqual(result['status'], 'provisional')
+                self.assertEqual([x['job_id'] for x in result['jobs']], names)
+                if mode == 'configured-singletons':
+                    self.assertNotIn('fallback_trials', result)
+                    self.assertEqual([name for name, _ in calls], ['group-000', 'proposal-000', 'proposal-001',
+                                                                  'proposal-002', 'proposal-003'])
+                    self.assertEqual([x['status'] for x in result['jobs']], ['included']*4)
+                    continue
+                self.assertEqual(len(result['fallback_trials']), 2)
+                full = result['group_trials'][0]['proof']
+                self.assertTrue(all(item['group_attempt'] == full for item in result['jobs']))
+                if mode in ('clean-subgroups', 'trailing-single'):
+                    expected_calls = ['group-000', 'subgroup-000', 'subgroup-004']
+                    if mode == 'trailing-single': expected_calls.append('proposal-008')
+                    self.assertEqual([name for name, _ in calls], expected_calls)
+                    self.assertEqual([x['status'] for x in result['jobs']], ['included']*count)
+                    self.assertEqual([x['status'] for x in result['fallback_trials']], ['passed', 'passed'])
+                else:
+                    rejected = 'j2' if mode == 'bad-member' else 'j4'
+                    statuses = {x['job_id']: x['status'] for x in result['jobs']}
+                    self.assertEqual(statuses[rejected], 'integration-rejected')
+                    self.assertEqual(sum(value == 'included' for value in statuses.values()), 7)
+                    affected = result['jobs'][0:4] if mode == 'bad-member' else result['jobs'][4:8]
+                    failed = next(x['proof'] for x in result['fallback_trials'] if x['status'] == 'failed')
+                    self.assertTrue(all(item['subgroup_attempt'] == failed for item in affected))
+                    text = (Path(result['source'])/'grammar/syntax/shared.ebnf').read_text().splitlines()
+                    self.assertEqual(text, [name for name in names if name != rejected])
+                    self.assertFalse((Path(result['source'])/f'families/{rejected}.json').exists())
+
     def test_library_control_bad_baseline_fails_without_staging(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

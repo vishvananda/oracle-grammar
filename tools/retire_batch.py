@@ -564,6 +564,36 @@ def _stage_trial(context, entries, label):
     return items, proof
 
 
+def _subgroup_fallback(context, entries, whole_proof, size):
+    """Try ordered bounded subgroups, with individual fallback only on failure."""
+    manifest, folder = context['manifest'], context['folder']
+    manifest['fallback_group_size'] = size
+    r.write(folder/'manifest.json', manifest)
+    for offset in range(0, len(entries), size):
+        group = entries[offset:offset+size]
+        subgroup_proof = None
+        if len(group) > 1:
+            items, proof = _stage_trial(context, group, f'subgroup-{group[0][0]:03d}')
+            subgroup_proof = items[0]['trial_proof']
+            manifest.setdefault('fallback_trials', []).append(
+                {'jobs': proof['jobs'], 'status': proof['status'], 'proof': subgroup_proof,
+                 'group_attempt': whole_proof})
+            if proof['status'] == 'passed':
+                for item in items:
+                    item['group_attempt'] = whole_proof
+                manifest['jobs'].extend(items)
+                r.write(folder/'manifest.json', manifest)
+                continue
+            r.write(folder/'manifest.json', manifest)
+        for index, proposal in group:
+            single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')
+            single[0]['group_attempt'] = whole_proof
+            if subgroup_proof is not None:
+                single[0]['subgroup_attempt'] = subgroup_proof
+            manifest['jobs'].extend(single)
+            r.write(folder/'manifest.json', manifest)
+
+
 def stage(campaign, checkpoint, proposals, *, combine_selected=False):
     if type(combine_selected) is not bool:
         raise ValueError('combine_selected must be boolean')
@@ -581,6 +611,7 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
         raise ValueError('stage_group_size must be an integer from 1 to 4')
     if type(combine_selected) is not bool:
         raise ValueError('combine_selected must be boolean')
+    fallback_size = group_size
     if combine_selected:
         group_size = len(proposals)
     control = _control_setup(checkpoint)
@@ -669,6 +700,9 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
                 r.write(folder/'manifest.json', manifest)
                 continue
             group_proof = items[0]['trial_proof']
+            if combine_selected and len(entries) > fallback_size:
+                _subgroup_fallback(context, entries, group_proof, fallback_size)
+                continue
             for index, proposal in entries:
                 single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')
                 single[0]['group_attempt'] = group_proof
