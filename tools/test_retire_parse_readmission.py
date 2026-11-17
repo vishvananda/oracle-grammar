@@ -128,6 +128,45 @@ class ParseReadmissionTests(BatchReadmissionTests):
         with patch.object(parsed.library,'_replay'),self.assertRaisesRegex(ValueError,'already used'):
             self.invoke(proof)
 
+    def test_historical_origin_replays_original_proof_and_queues_against_current_checkpoint(self):
+        proof = dict(self.fixture(), source_checkpoint='parent')
+        self.queue.add_checkpoint('middle', 'evidence', expected_parent='parent')
+        self.queue.add_checkpoint('current', 'evidence', expected_parent='middle')
+        with patch.object(parsed.library, '_replay') as replay:
+            result = self.queue.readmit_parse_screen_batch_proposals(['author', 'mechanical'], 'current', proof)
+        self.assertEqual([call.args[1] for call in replay.call_args_list], ['parent', 'parent'])
+        self.assertEqual(result['checkpoint'], 'current')
+        self.assertEqual(result['proof']['source_checkpoint'], 'parent')
+        self.assertTrue(result['proof']['requires_fresh_full_validation'])
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+        cohort = driver.recovered_cohort(self.queue, 'current')
+        self.assertEqual(cohort, {'manifest': 'batch', 'checkpoint': 'current', 'jobs': ['author', 'mechanical']})
+
+    def test_historical_source_requires_accepted_ancestor_and_matching_rejection(self):
+        proof = self.fixture()
+        self.queue.add_checkpoint('middle', 'evidence', expected_parent='parent')
+        self.queue.add_checkpoint('current', 'evidence', expected_parent='middle')
+        for source, error in (('unknown', 'accepted checkpoint chain'), ('middle', 'original additions-only'),
+                              ('../parent', 'invalid parse readmission origin')):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, error):
+                self.queue.readmit_parse_screen_batch_proposals(
+                    ['author', 'mechanical'], 'current', dict(proof, source_checkpoint=source))
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
+    def test_historical_readmission_refuses_if_checkpoint_chain_changes_during_replay(self):
+        proof = dict(self.fixture(), source_checkpoint='parent')
+        self.queue.add_checkpoint('middle', 'evidence', expected_parent='parent')
+        self.queue.add_checkpoint('current', 'evidence', expected_parent='middle')
+
+        def break_chain(*args, **kwargs):
+            with closing(self.queue._connect()) as db:
+                db.execute("UPDATE checkpoints SET parent=NULL WHERE commit_id='middle'")
+
+        with patch.object(parsed.library, '_replay', side_effect=break_chain):
+            with self.assertRaisesRegex(ValueError, 'accepted checkpoint chain'):
+                self.queue.readmit_parse_screen_batch_proposals(['author', 'mechanical'], 'current', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
+
     def test_missing_extra_duplicate_or_stale_selection_refuses_without_changes(self):
         proof = self.fixture()
         for jobs, cp in ((['author'],'parent'),(['author','mechanical','culprit'],'parent'),

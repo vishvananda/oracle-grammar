@@ -450,6 +450,19 @@ def _verify_family_limit_revalidation(campaign, job_id, attempt_id, base_commit,
     return item, len(registry)
 
 
+def _verify_readmission_origin(db, checkpoint, origin):
+    if origin == checkpoint:
+        return
+    expected = checkpoint
+    for commit, parent in db.execute('SELECT commit_id,parent FROM checkpoints ORDER BY seq DESC'):
+        if commit != expected:
+            break
+        if commit == origin:
+            return
+        expected = parent
+    raise ValueError('parse readmission origin is outside the accepted checkpoint chain')
+
+
 class RehabilitationIneligible(ValueError):
     """A parked job is safely ineligible or changed while being checked."""
 
@@ -1051,7 +1064,11 @@ class Queue:
         return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='native-exit-one')
 
     def readmit_parse_screen_batch_proposals(self, job_ids, checkpoint, evidence):
-        """Atomically return additions-only parse-isolated proposals for fresh validation."""
+        """Return parse-isolated proposals for a fresh trial on the current checkpoint.
+
+        An optional source_checkpoint identifies the accepted ancestor for the
+        original rejection and its isolation proof.
+        """
         return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='parse-screen')
 
     def _readmit_shared_batch(self, job_ids, checkpoint, evidence, *, mode):
@@ -1065,6 +1082,9 @@ class Queue:
                 'parse-screen': 'isolated-parse-screen-revalidation'}[mode]
         if not isinstance(evidence, dict) or evidence.get('kind') != kind:
             raise ValueError('matching isolated batch revalidation evidence is required')
+        origin = evidence.get('source_checkpoint', checkpoint) if mode == 'parse-screen' else checkpoint
+        if not isinstance(origin, str) or not origin or Path(origin).name != origin:
+            raise ValueError('invalid parse readmission origin')
         reports = evidence.get('reports')
         if not isinstance(reports, dict) or set(reports) != set(job_ids):
             raise ValueError('individual report evidence must cover every selected job')
@@ -1078,6 +1098,7 @@ class Queue:
                 latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
                 if not latest or latest[0] != checkpoint:
                     raise ValueError('checkpoint is stale')
+                _verify_readmission_origin(db, checkpoint, origin)
                 rows = {name: db.execute(query, (name,)).fetchone() for name in job_ids}
                 owners = {name: [x[0] for x in db.execute('SELECT rule FROM rules WHERE job_id=? ORDER BY rule', (name,))]
                           for name in job_ids}
@@ -1110,11 +1131,14 @@ class Queue:
             selected = {name: row[1] for name, row in rows.items()}
             verifier = {'library': retire_library_readmission, 'native-exit-one': retire_native_exit_readmission,
                         'parse-screen': retire_parse_readmission}[mode]
-            proof = verifier.verify(campaign, selected, checkpoint, rejections, evidence, _proof_file, _gates)
+            proof = verifier.verify(campaign, selected, origin, rejections, evidence, _proof_file, _gates)
+            if origin != checkpoint:
+                proof['source_checkpoint'] = origin
             with self._transaction() as db:
                 latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
                 if not latest or latest[0] != checkpoint:
                     raise ValueError('checkpoint changed during library proof verification')
+                _verify_readmission_origin(db, checkpoint, origin)
                 previous_readmissions = set()
                 for event in db.execute("SELECT data FROM events WHERE kind IN "
                                         "('readmitted-batch','readmitted-native-batch','readmitted-library-batch','readmitted-native-exit-one-batch','readmitted-parse-screen-batch')"):
