@@ -286,6 +286,18 @@ per-rule parse dependencies or inspect saved candidate diagnostics, but must kee
 the unavailable model disposition and any untested gates explicit. An earlier
 passing diagnostic cannot validate subsequent edits to the archived candidate.
 
+`tools/retire_timeout_operator.py --run RUN --plan ABSOLUTE_JSON` inventories
+finished attempts and rehearses eligible splits against a SQLite backup. Repeated
+`--job ID` options restrict the selection. Planning never changes the live queue;
+the plan records parked reasons, exact artifact hashes, verifier code identities,
+the accepted checkpoint and the complete expected rule inventory. Apply requires
+the same arguments plus `--apply-plan-sha256 SHA256 --receipt ABSOLUTE_JSON` and
+reruns the existing recovery API checks. Each successful split commits separately;
+a later error stops the operation and its atomic, durable receipt retains completed
+jobs. Child claims or reclassification after a split do not invalidate its immutable
+creation evidence. This operator does not retry smaller timeouts, infer semantic
+success or accept a retirement.
+
 Per-worker native helpers use verified independent copies. Copy-on-write support
 can share their storage without sharing a writable inode; a private helper edit
 must not change either the checkpoint helper or another worker's helper.
