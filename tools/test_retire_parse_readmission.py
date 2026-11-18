@@ -29,10 +29,12 @@ def native_report(rows, old_count, additions):
 
 
 class ParseReadmissionTests(BatchReadmissionTests):
-    def fixture(self, *, refusal=False):
+    def fixture(self, *, refusal=False, mixed=False):
         folder = self.root/'.cache/batches/batch'
         self.old = [{'name': n, 'text': n.lower(), 'status': 'equal', 'readings': 1, 'exact': True}
                     for n in ('C', 'A', 'B')]
+        if mixed:
+            self.old[2]['readings'] = 2
         self.data = ({str(i): dict(name=row['name'], text=row['text'], parse=row,
                                   flags=r.flags(row), record=0 if i == 0 else 1, face=0 if i < 2 else 1)
                       for i, row in enumerate(self.old)},
@@ -60,8 +62,9 @@ class ParseReadmissionTests(BatchReadmissionTests):
         addition = {'name': 'A', 'occurrence': 1, 'previous_status': 'equal',
                     'added_current_indices': [1], 'retained_current_indices': [0]}
         self.original = folder/'parse-screen'; self.original.mkdir()
-        self.make_checks(self.original, {'A', 'B', 'C'}, None if refusal else addition, refusal=1 if refusal else None)
-        original_screen = screen.assess(self.run, self.original, self.data, int(refusal))
+        self.make_checks(self.original, {'A', 'B', 'C'}, None if refusal else addition,
+                         refusal=1 if refusal else None, loss=2 if mixed else None)
+        original_screen = screen.assess(self.run, self.original, self.data, int(refusal or mixed))
         original_screen['artifacts'] = {name: spec(self.original/name) for name in parsed.ARTIFACTS}
         write(self.original/'result.json', original_screen)
         validation = {'status': 'failed', 'scope': 'combined-batch', 'candidate': 'candidate', 'source_checkpoint': 'parent',
@@ -85,11 +88,12 @@ class ParseReadmissionTests(BatchReadmissionTests):
             write(root/'identity.json', identity); checks = root/'checks'; checks.mkdir()
             focused_addition = dict(addition, occurrence=0) if label == 'full' and not refusal else None
             result = self.make_checks(checks, {'A', 'B'}, focused_addition,
-                                      refusal=0 if label == 'full' and refusal else None)
+                                      refusal=0 if label == 'full' and refusal else None,
+                                      loss=1 if label == 'full' and mixed else None)
             write(root/'result.json', result)
             controls[label] = {'identity':spec(root/'identity.json'),'result':spec(root/'result.json'),
                 'population':spec(checks/'slice.json'),'artifacts':{name:spec(checks/name)for name in parsed.ARTIFACTS}}
-        profile = self.root/'.cache/profile.json'; write(profile, {'cards':['A']})
+        profile = self.root/'.cache/profile.json'; write(profile, {'cards':['A','B'] if mixed else ['A']})
         originals = self.root/'.cache/original-reports.json'; write(originals, {name:spec(path)for name,path in self.reports.items()})
         write(self.isolation, {'kind':'isolated-parse-screen-regressions','manifest':'batch','candidate':'candidate',
             'parent':'parent','excluded_jobs':['culprit'],'reason':'explicit isolated addition','profile':spec(profile),
@@ -98,22 +102,27 @@ class ParseReadmissionTests(BatchReadmissionTests):
                 'repository_log':spec(self.log),'isolation':spec(self.isolation),
                 'reports':{name:spec(self.reports[name])for name in ('author','mechanical')}}
 
-    def make_checks(self, directory, names, addition, *, refusal=None):
+    def make_checks(self, directory, names, addition, *, refusal=None, loss=None):
         worker.subset(directory, names, self.data)
         rows = [dict(entry['parse'])for entry in self.data[0].values()if entry['name'] in names]
+        old_count = sum(row['readings'] for row in rows)
         if addition: rows[addition['occurrence']]['readings'] = 2
         if refusal is not None:
             rows[refusal].update(status='refused', readings=0)
+        if loss is not None:
+            rows[loss]['readings'] -= 1
         r.jsonl(directory/'rows.jsonl', rows)
-        native = native_report(rows,len(rows),[addition]if addition else [])
+        native = native_report(rows,old_count,[addition]if addition else [])
         if refusal is not None:
             for count in ('recognized_faces', 'faces_with_any_valid_reading', 'faces_with_all_readings_valid'):
                 native[count] -= 1
             native['reading_preservation'].update(passed=False, missing=[{'name':rows[refusal]['name'],'reading':0}])
+        if loss is not None:
+            native['reading_preservation'].update(passed=False, missing=[{'name':rows[loss]['name'],'reading':0}])
         r.write(directory/'native.json', native)
         (directory/'native-failures.jsonl').write_text('')
         r.jsonl(directory/'commands.jsonl',[{'program':'score','returncode':0},
-                                          {'program':'validate-readings','returncode':int(refusal is not None)}])
+                                          {'program':'validate-readings','returncode':int(refusal is not None or loss is not None)}])
         for name in ('score.log','validate-readings.log'): (directory/name).write_text('complete\n')
         return {'faces':len(rows),'failures':worker.native_failures(r.read(directory/'native.json'),len(rows))
                 +worker.compare(rows,self.data[0],set(names))}
@@ -135,6 +144,29 @@ class ParseReadmissionTests(BatchReadmissionTests):
         rows[1].update(status='equal', readings=1)
         with self.assertRaisesRegex(ValueError, 'match the missing native readings'):
             parsed._refusals(enumerate(self.data[0].values()), rows, [{'name':'A','reading':0}])
+
+    def test_readmits_survivors_after_reproducing_the_exact_mixed_delta(self):
+        proof = self.fixture(mixed=True)
+        with patch.object(parsed.library, '_replay'):
+            result = self.invoke(proof)
+        self.assertEqual(result['proof']['proof_scope'], 'mixed reading losses and additions in parse-screen isolation')
+        self.assertTrue(result['proof']['requires_fresh_full_validation'])
+        self.assertEqual(self.queue.coverage()['counts'], {'provisional-pass': 2, 'integration-rejected': 1})
+
+    def test_mixed_delta_rejects_a_different_missing_reading_of_the_same_face(self):
+        proof = self.fixture(mixed=True)
+        isolation = r.read(self.isolation)
+        control = isolation['controls']['full']
+        native_path = Path(control['artifacts']['native.json']['path'])
+        native = r.read(native_path)
+        native['reading_preservation']['missing'][0]['reading'] = 1
+        write(native_path, native)
+        control['artifacts']['native.json'] = spec(native_path)
+        write(self.isolation, isolation)
+        proof['isolation'] = spec(self.isolation)
+        with self.assertRaisesRegex(ValueError, 'same reading losses and additions'):
+            self.invoke(proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
 
     def full_fixture(self):
         proof = self.fixture()

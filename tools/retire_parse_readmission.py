@@ -1,4 +1,5 @@
 """Verify complete archived parse or print failures and replay focused survivors."""
+from collections import Counter
 import hashlib
 from itertools import zip_longest
 import json
@@ -113,6 +114,43 @@ def _refusals(entries, rows, missing):
     return refused
 
 
+def _mixed_delta(entries, rows, preservation):
+    """Identify lost and added readings by their original population ordinal."""
+    missing, additions = preservation['missing'], preservation['additions']
+    if not missing or not additions or preservation['merged_faces'] or preservation['passed']:
+        raise ValueError('mixed parse isolation requires recorded reading losses and additions')
+    names = Counter(entry['name'] for _, entry in entries)
+    lost_names = {item['name'] for item in missing}
+    by_name = {entry['name']: (ordinal, entry['parse']['readings']) for ordinal, entry in entries
+               if entry['name'] in lost_names and names[entry['name']] == 1}
+    losses = set()
+    for item in missing:
+        ordinal, old_count = by_name.get(item['name'], (None, 0))
+        identity = (ordinal, item['reading'])
+        if not 0 <= item['reading'] < old_count or identity in losses:
+            raise ValueError('mixed parse isolation cannot identify the lost reading uniquely')
+        losses.add(identity)
+    loss_count = Counter(ordinal for ordinal, _ in losses)
+    added, gain_count = [], {}
+    for item in additions:
+        local = item['occurrence']
+        ordinal, _ = entries[local]
+        gained = set(item['added_current_indices'])
+        retained = set(item['retained_current_indices'])
+        if (ordinal in gain_count or gained & retained
+                or len(gained) + len(retained) != rows[local]['readings']):
+            raise ValueError('mixed parse isolation has inconsistent added or retained indices')
+        gain_count[ordinal] = len(gained)
+        added.append(dict(item, occurrence=ordinal))
+    for (ordinal, entry), row in zip(entries, rows, strict=True):
+        current_count = entry['parse']['readings'] - loss_count[ordinal] + gain_count.get(ordinal, 0)
+        status = 'equal' if current_count else 'refused'
+        if (row['name'] != entry['name'] or row['text'] != entry['text']
+                or row['status'] != status or row.get('readings', 0) != current_count):
+            raise ValueError('mixed parse isolation has an unexplained row change')
+    return added, sorted(losses)
+
+
 def _original(run, folder, validation, data, reads):
     result = validation.get('parse_screen')
     if (not isinstance(result, dict) or result.get('status') != 'failed'
@@ -128,12 +166,15 @@ def _original(run, folder, validation, data, reads):
         raise ValueError('recomputed original parse-screen result differs')
     native = r.read(folder/'parse-screen/native.json')['reading_preservation']
     rows = r.rows(folder/'parse-screen/rows.jsonl')
+    if native['missing'] and native['additions']:
+        additions, losses = _mixed_delta(list(enumerate(data[0].values())), rows, native)
+        return additions, [], losses
     if native['missing'] and native['merged_faces'] == 0 and not native['additions'] and not native['passed']:
-        return [], _refusals(enumerate(data[0].values()), rows, native['missing'])
+        return [], _refusals(enumerate(data[0].values()), rows, native['missing']), []
     if (native['missing'] or native['merged_faces'] != 0 or not native['additions'] or not native['passed']
             or any(row.get('status') != 'equal' for row in rows)):
         raise ValueError('parse recovery requires a complete additions-only or refusal-only failure')
-    return native['additions'], []
+    return native['additions'], [], []
 
 
 def _original_full_checks(run, folder, validation, data, reads, artifacts):
@@ -251,6 +292,10 @@ def _focus(campaign, controls, profile_spec, context, reads):
                         or _refusals(entries, rows, preservation['missing']) != context['refusals']):
                     raise ValueError('focused full checks did not reproduce the same refused occurrences')
                 continue
+            if label == 'full' and context['losses']:
+                if _mixed_delta(entries, rows, preservation) != (original, context['losses']):
+                    raise ValueError('focused full checks did not reproduce the same reading losses and additions')
+                continue
             additions = [dict(item, occurrence=entries[item['occurrence']][0]) for item in preservation['additions']]
             if preservation['missing'] or preservation['merged_faces'] or (label == 'full' and additions != original):
                 raise ValueError('parse full focus does not exactly reproduce original added readings')
@@ -299,16 +344,19 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
         raise ValueError('parse isolation identity differs')
     archive = evidence.get('archive_manifests', {}) if full_checks else None
     cp, inputs, run, data, trees = _frozen(campaign, checkpoint, manifest, validation, reads, archive)
-    refused = []
+    refused, losses = [], []
     if full_checks:
         original, full_failures, named = _original_full_checks(
             run, folder, validation, data, reads, evidence.get('full_artifacts'))
     else:
-        original, refused = _original(run, folder, validation, data, reads)
+        original, refused, losses = _original(run, folder, validation, data, reads)
         named = {item['name'] for item in original}
         if refused:
             entries = list(data[0].values())
             named = {entries[ordinal]['name'] for ordinal in refused}
+        if losses:
+            entries = list(data[0].values())
+            named.update(entries[ordinal]['name'] for ordinal, _ in losses)
         full_failures = None
     expected = {'base': [], 'full': list(range(len(ids))),
                 'remaining': [i for i, job in enumerate(ids) if job not in excluded]}
@@ -320,7 +368,7 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     control_data = data if full_checks else worker.payload(inputs)
     focus = {'data': data, 'control_data': control_data, 'run': run, 'expected': expected, 'included': included,
              'trees': trees, 'original': original, 'count': count, 'named_failures': named,
-             'full_failures': full_failures, 'refusals': refused,
+             'full_failures': full_failures, 'refusals': refused, 'losses': losses,
              'has_declared_key_changes': 'derivation_key_changes' in isolation,
              'declared_key_changes': isolation.get('derivation_key_changes')}
     control_trees = _focus(campaign, isolation['controls'], isolation.get('profile'), focus, reads)
@@ -347,6 +395,8 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     proof_scope = 'archived full-check isolation' if full_checks else 'additions-only parse-screen isolation'
     if refused:
         proof_scope = 'refusal-only parse-screen isolation'
+    if losses:
+        proof_scope = 'mixed reading losses and additions in parse-screen isolation'
     return {'manifest': batch, 'excluded_jobs': excluded, 'focused_faces': count,
             'requires_fresh_full_validation': True,
             'proof_scope': proof_scope,
