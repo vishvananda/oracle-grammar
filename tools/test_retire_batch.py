@@ -493,6 +493,17 @@ class BatchTests(unittest.TestCase):
             with self.subTest(faces=faces, failures=failures):
                 self.assertIsNone(batch._retained_native_failure(control, {'faces': faces, 'failures': failures}))
 
+    def test_native_focus_accepts_a_bounded_group_with_the_same_print_loss(self):
+        names = [f'Card {index:02d}' for index in range(17)]
+        control = {'occurrences': len(names), 'names': names}
+        failures = [{'face': name, 'lost': ['exact_default']} for name in reversed(names)]
+        report = {'faces': len(names), 'failures': failures[:16]}
+        self.assertEqual(batch._retained_native_failure(control, report),
+                         {'faces': names[1:], 'failures': failures[:16]})
+        mixed = [failures[0], {'face': failures[1]['face'], 'lost': ['default']}]
+        self.assertIsNone(batch._retained_native_failure(control, {**report, 'failures': mixed}))
+        self.assertIsNone(batch._retained_native_failure(control, {**report, 'failures': failures}))
+
     def test_native_control_profile_closure_and_tampering_fail_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

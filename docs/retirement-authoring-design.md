@@ -487,4 +487,7 @@ Trials within a batch share the verified hashes of frozen proposal inputs. Each
 trial rechecks its own input paths and file identities before promotion.
 `family_check_threads` sets the shared CPU reservation for a full staging family
 check. The default is six. Focused diagnostic probes keep their smaller reservation.
+Several faces with the same print-gate losses can be probed together if their
+complete closure fits within 16 face occurrences. The isolated draft must
+reproduce every recorded loss and the survivor union must pass all guards.
 Uncertain promotion still fails the entire batch.

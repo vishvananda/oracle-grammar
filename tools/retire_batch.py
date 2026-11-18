@@ -34,6 +34,7 @@ FAMILY_CHECK_THREADS = 6
 DEFAULT_NATIVE_CONTROL_THREADS = 6
 DEFAULT_PARSE_SCREEN_THREADS = 6
 MAX_ROUTED_EXCLUSIONS = 8
+RETAINED_NATIVE_PROBE_LIMIT = 16
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
                   'bin/score', 'bin/validate-readings')
 BASE_CONTROL_ARTIFACTS = {'before.jsonl', 'commands.jsonl', 'gold.jsonl', 'native-failures.jsonl',
@@ -989,7 +990,7 @@ def _retained_native_failure(control, report):
     """Only route a complete, localized native rejection."""
     failures = report.get('failures')
     if (type(report.get('faces')) is not int or report['faces'] != control['occurrences']
-            or not isinstance(failures, list) or not 1 <= len(failures) <= 3):
+            or not isinstance(failures, list) or not 1 <= len(failures) <= RETAINED_NATIVE_PROBE_LIMIT):
         return None
     faces = set()
     for item in failures:
@@ -1004,8 +1005,12 @@ def _retained_native_failure(control, report):
             faces.add(item['face'])
         else:
             return None
-    if len(faces) == 1:
+    if len(faces) == 1 and len(failures) <= 3:
         return {'face': next(iter(faces)), 'failures': failures}
+    if len(faces) > 1 and len(faces) == len(failures):
+        gates = failures[0].get('lost')
+        if gates and all(item.get('lost') == gates for item in failures):
+            return {'faces': sorted(faces), 'failures': failures}
     return None
 
 
@@ -1042,8 +1047,9 @@ def _probe_retained_native(context, entries, control, failures, logs, input_cach
 def _isolate_retained_native(context, entries, failure, folder):
     control = context['control']
     _control_verify(control)
+    names = failure['faces'] if 'faces' in failure else [failure['face']]
     try:
-        closure = tasks.close_cohort(control['run'], {'names': [failure['face']]}, max_occurrences=16)
+        closure = tasks.close_cohort(control['run'], {'names': names}, max_occurrences=RETAINED_NATIVE_PROBE_LIMIT)
     except tasks.CohortClosureLimit:
         return None
     if not set(closure['names']) <= set(control['names']):
