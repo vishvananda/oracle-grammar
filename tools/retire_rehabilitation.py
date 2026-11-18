@@ -125,8 +125,8 @@ def resolve_origin(db, job_id, row):
                 or not set(payload['rules']) <= set(json.loads(previous[2])['rules'])):
             raise ValueError('inherited review origin no longer matches original job')
         linked = db.execute(
-            "SELECT 1 FROM events WHERE json_extract(data,'$.origin_attempt')=? AND "
-            "((kind IN ('rehabilitated-unused','split-reviewed-author') AND json_extract(data,'$.review_job')=?) "
+            "SELECT 1 FROM events WHERE kind IN ('rehabilitated-unused','split-reviewed-author') "
+            "AND json_extract(data,'$.origin_attempt')=? AND (json_extract(data,'$.review_job')=? "
             "OR (kind='split-reviewed-author' AND json_extract(data,'$.job_id')=?))",
             (origin_attempt, job_id, job_id)).fetchone()
         if not linked:
