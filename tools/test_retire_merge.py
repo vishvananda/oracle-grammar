@@ -23,6 +23,19 @@ class MergeTests(unittest.TestCase):
         with self.assertRaises(MergeConflict):
             merge_text('', '/* @sem A */\nx ::= "a"\n', '/* @sem B */\nx ::= "b"\n')
 
+    def test_identical_additions_keep_published_prose_and_reject_directive_changes(self):
+        base = 'root ::= one\n'
+        declaration = '/* @sem Two */\ntwo ::= "two"\n'
+        current = base + '\n/* Current prose. */\n' + declaration
+        proposed = base + '\n/* Different prose. */\n' + declaration
+        self.assertEqual(merge_text(base, current, proposed), current)
+        self.assertEqual(merge_text(base, current, base+'\n'+declaration), current)
+        for patch in (proposed.replace('@sem Two', '@sem Other'),
+                      proposed.replace('Different prose.', '@prefer 2'),
+                      proposed.replace('"two"', '"another"')):
+            with self.subTest(patch=patch), self.assertRaisesRegex(MergeConflict, 'conflicting addition'):
+                merge_text(base, current, patch)
+
     def test_repeated_verbatim_base_definition_is_collapsed(self):
         base_block = '/* @sem X */\nx ::= "x"\n'
         extra = '/* @sem Y */\ny ::= "y"\n'

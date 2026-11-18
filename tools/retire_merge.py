@@ -15,6 +15,9 @@ class MergeConflict(ValueError):
     """A proposal cannot safely be combined with the current grammar."""
 
 
+_LEADING_PROSE = re.compile(r'\A(?:[ \t]*/\*[^*@\r\n]*\*/[ \t]*\r?\n)+')
+
+
 def _blocks(text, *, repeated_from=None):
     lines = text.splitlines(keepends=True)
     starts = []
@@ -62,6 +65,11 @@ def _merge_block(name, base, current, proposed):
         return current
     if current == base:
         return proposed
+    if (base is None and current is not None and proposed is not None
+            and _LEADING_PROSE.sub('', current) == _LEADING_PROSE.sub('', proposed)):
+        # Keep the published wording when two workers added the same production.
+        # Any directive or other difference still goes through conflict review.
+        return current
     if base is None or current is None or proposed is None:
         raise MergeConflict(f'conflicting addition or deletion of {name}')
     old, now, new = _bare(base), _bare(current), _bare(proposed)
