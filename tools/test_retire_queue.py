@@ -1069,14 +1069,22 @@ class ReviewedRepairRetryTests(unittest.TestCase):
 
 
     def test_parse_repair_binds_an_excluded_proposal_to_the_verified_readmission(self):
+        self.check_isolated_repair(full_check=False)
+
+    def test_print_repair_can_follow_an_earlier_reviewed_retry(self):
+        self.check_isolated_repair(full_check=True)
+
+    def check_isolated_repair(self, *, full_check):
+        reason = 'full allowed-population checks failed' if full_check else 'full allowed-population parse screen failed'
+        route = 'full_check_failure' if full_check else 'staging_failure'
+        kind = 'readmitted-native-batch' if full_check else 'readmitted-parse-screen-batch'
         self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
         candidate = self.queue.claim('retried')
         attempt = candidate['attempt_id']
         self.queue.mark_started(attempt, pid=2_000_000_000)
         self.queue.finish(attempt, 'provisional-pass', {'report': 'independent-pass'},
                           {'seeded_test': {'status': 'pass', 'reason': 'matching print', 'evidence': 'old'}})
-        rejection = {'manifest': 'batch', 'validation': {'source_checkpoint': 'base',
-                     'reason': 'full allowed-population parse screen failed'}}
+        rejection = {'manifest': 'batch', 'validation': {'source_checkpoint': 'base', 'reason': reason}}
         self.queue.reject_jobs(['repair'], rejection)
         manifest = self.campaign/'.cache/batches/batch/manifest.json'
         manifest.parent.mkdir(parents=True)
@@ -1091,24 +1099,40 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         verified = {'manifest': 'batch', 'excluded_jobs': ['repair', 'other'],
                     'verified_artifacts': {str(isolation): isolation_spec['sha256']},
                     'requires_fresh_full_validation': True}
+        if full_check:
+            evidence['kind'] = 'isolated-full-check-revalidation'
+            verified['proof_scope'] = 'archived full-check isolation'
         with self.queue._transaction() as db:
             for excluded in (['other'], ['repair', 'other']):
-                self.queue._event(db, 'readmitted-parse-screen-batch', {
+                self.queue._event(db, kind, {
                     'manifest': 'batch', 'previous_adjudication': old, 'evidence': evidence,
                     'proof': {**verified, 'excluded_jobs': excluded}})
+            if full_check:
+                self.queue._event(db, kind, {'manifest': 'batch', 'previous_adjudication': old,
+                                            'evidence': evidence, 'proof': {**verified, 'proof_scope': 'other'}})
             seqs = [row[0] for row in db.execute(
-                "SELECT seq FROM events WHERE kind='readmitted-parse-screen-batch' ORDER BY seq")]
-        for seq in (-1, seqs[0]):
-            proof = {**self.evidence, 'source_checkpoint': 'base', 'staging_failure': {
+                'SELECT seq FROM events WHERE kind=? ORDER BY seq', (kind,))]
+        invalid = [-1, seqs[0], *seqs[2:]]
+        for seq in invalid:
+            proof = {**self.evidence, 'source_checkpoint': 'base', route: {
                 'readmission_event_seq': seq, 'isolation': isolation_spec}}
-            with self.assertRaisesRegex(ValueError, 'completed survivor readmission|verified excluded proposals'):
+            with self.assertRaisesRegex(ValueError, 'completed survivor readmission|verified excluded proposals|full-check isolation'):
                 self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
         self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 1})
-        proof = {**self.evidence, 'source_checkpoint': 'base', 'staging_failure': {
+        proof = {**self.evidence, 'source_checkpoint': 'base', route: {
             'readmission_event_seq': seqs[1], 'isolation': isolation_spec}}
         self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
         self.assertEqual(self.queue.coverage()['counts'], {'pending': 1})
         self.assertEqual(self.queue.reviewed_draft('repair')['report'], proof['report'])
+        if full_check:
+            fresh = self.queue.claim('print-retry')
+            fresh_attempt = fresh['attempt_id']
+            self.queue.mark_started(fresh_attempt, pid=2_000_000_000)
+            self.queue.finish(fresh_attempt, 'provisional-pass', {'report': 'retry-pass'},
+                              {'seeded_test': {'status': 'pass', 'reason': 'print checked', 'evidence': 'retry'}})
+            self.queue.reject_jobs(['repair'], rejection)
+            with self.assertRaisesRegex(ValueError, 'already used'):
+                self.queue.retry_reviewed_repair('repair', fresh_attempt, 'base', proof)
 
 
 if __name__ == "__main__":

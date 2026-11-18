@@ -30,7 +30,9 @@ REVIEWED_RETRY_EVENTS = {
     'interrupted_diagnostic': 'retry-interrupted-reviewed-repair',
     'legacy_diagnostic_prompt': 'retry-preview-reviewed-repair',
     'staging_failure': 'retry-staging-reviewed-repair',
+    'full_check_failure': 'retry-full-check-reviewed-repair',
 }
+_REVIEWED_RETRY_SLOTS = ','.join('?' for _ in REVIEWED_RETRY_EVENTS)
 
 
 def _json(value):
@@ -193,13 +195,14 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
 
 
 
-def _verify_parse_repair(db, campaign, checkpoint, job, attempt, rejection, evidence):
-    """Bind a staged repair to an excluded proposal in a verified survivor readmission."""
+def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evidence, *, full_check=False):
+    """Bind a repair to an excluded proposal in a verified survivor readmission."""
+    job, attempt = assignment
     seq = evidence.get('readmission_event_seq')
     if set(evidence) != {'readmission_event_seq', 'isolation'} or type(seq) is not int or seq <= 0:
         raise ValueError('parse repair must identify a completed survivor readmission')
-    row = db.execute("SELECT data FROM events WHERE seq=? AND kind='readmitted-parse-screen-batch'",
-                     (seq,)).fetchone()
+    kind = 'readmitted-native-batch' if full_check else 'readmitted-parse-screen-batch'
+    row = db.execute('SELECT data FROM events WHERE seq=? AND kind=?', (seq, kind)).fetchone()
     if row is None:
         raise ValueError('parse repair survivor readmission is missing')
     readmitted = json.loads(row[0])
@@ -212,6 +215,10 @@ def _verify_parse_repair(db, campaign, checkpoint, job, attempt, rejection, evid
     validation = rejection.get('evidence', {}).get('validation', {})
     batch, origin = manifest.get('id'), manifest.get('base_commit')
     excluded = isolation.get('excluded_jobs')
+    reason = 'full allowed-population checks failed' if full_check else 'full allowed-population parse screen failed'
+    if full_check and (original.get('kind') != 'isolated-full-check-revalidation'
+                       or proof.get('proof_scope') != 'archived full-check isolation'):
+        raise ValueError('print repair requires a verified full-check isolation')
     if (not isinstance(batch, str) or not batch or Path(batch).name != batch
             or manifest_path != campaign/'.cache/batches'/batch/'manifest.json'
             or manifest_path.resolve() != manifest_path
@@ -226,7 +233,7 @@ def _verify_parse_repair(db, campaign, checkpoint, job, attempt, rejection, evid
             or proof.get('requires_fresh_full_validation') is not True
             or isolation.get('parent') != origin
             or validation.get('source_checkpoint') != origin
-            or validation.get('reason') != 'full allowed-population parse screen failed'):
+            or validation.get('reason') != reason):
         raise ValueError('parse repair does not match the verified excluded proposals')
     matches = [item for item in manifest.get('jobs', []) if item.get('job_id') == job]
     if (len(matches) != 1 or matches[0].get('attempt_id') != attempt
@@ -1124,12 +1131,13 @@ class Queue:
         interrupted = route == 'interrupted_diagnostic'
         legacy = route == 'legacy_diagnostic_prompt'
         staging = route == 'staging_failure'
+        full_check = route == 'full_check_failure'
         if interrupted and 'timeout' in evidence:
             raise ValueError('interrupted diagnostic recovery requires a fresh independent report')
         if legacy and 'timeout' not in evidence:
             raise ValueError('legacy full diagnostic recovery requires a protected passing timeout')
-        if staging and 'timeout' in evidence:
-            raise ValueError('a staged rejection requires a fresh independent repair')
+        if (staging or full_check) and 'timeout' in evidence:
+            raise ValueError('an integration rejection requires a fresh independent repair')
         event = REVIEWED_RETRY_EVENTS[route]
         with self._retry_lease(job_id):
             with self._transaction() as db:
@@ -1149,7 +1157,7 @@ class Queue:
                         or result.get('status') != expected_status or set(result.get('outcomes', {})) != rules):
                     raise ValueError('completed author assignment or rule coverage differs')
                 history = {item[0] for item in db.execute(
-                    "SELECT kind FROM events WHERE kind IN (?,?,?,?) AND json_extract(data,'$.job_id')=?",
+                    f"SELECT kind FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) AND json_extract(data,'$.job_id')=?",
                     (*REVIEWED_RETRY_EVENTS.values(), job_id))}
                 if event in history:
                     raise ValueError('reviewed repair retry already used for this job')
@@ -1157,6 +1165,8 @@ class Queue:
                     raise ValueError('diagnostic recovery requires a previously retried author repair')
                 if staging and (REVIEWED_RETRY_EVENTS[None] not in history or row[0] != 'integration-rejected'):
                     raise ValueError('staging recovery requires a previously retried integration rejection')
+                if full_check and row[0] != 'integration-rejected':
+                    raise ValueError('full-check recovery requires an integration rejection')
                 pid = start.get('pid')
                 if type(pid) is not int or pid <= 0:
                     raise ValueError('attempt process identity is unknown')
@@ -1169,9 +1179,12 @@ class Queue:
                     rejection = json.loads(row[3])
                     failure = evidence['staging_failure']
                     if isinstance(failure, dict) and 'readmission_event_seq' in failure:
-                        _verify_parse_repair(db, campaign, source, job_id, attempt_id, rejection, failure)
+                        _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), rejection, failure)
                     else:
                         _verify_staging_repair(campaign, job_id, attempt_id, source, rejection, failure)
+                if full_check:
+                    _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), json.loads(row[3]),
+                                            evidence['full_check_failure'], full_check=True)
                 timed_out_attempt = None
                 if interrupted:
                     state = retire_timeout_recovery.TimeoutState(row[4], job, row[5], row[6])
@@ -1859,7 +1872,7 @@ class Queue:
         """Return the most recent independent replay recorded for this exact assignment."""
         with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT data FROM events WHERE kind IN (?,?,?,?) "
+                f"SELECT data FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) "
                 "AND json_extract(data,'$.job_id')=? ORDER BY seq DESC LIMIT 1",
                 (*REVIEWED_RETRY_EVENTS.values(), job_id)).fetchone()
         if row:
