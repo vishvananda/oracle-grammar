@@ -87,8 +87,9 @@ class BatchTests(unittest.TestCase):
 
             def family(checkpoint, source, fixtures, log, *, grammar_dir, threads):
                 self.assertEqual(fixtures,[source/name for name in paths])
-                failed = tuple(index for index, culprit in enumerate((0,3))
-                               if culprit in batch.r.read(grammar_dir/'indices.json'))
+                present = set(batch.r.read(grammar_dir/'indices.json'))
+                failed = tuple(index for index, culprits in enumerate(({0,2},{3}))
+                               if present & culprits)
                 for index in failed:
                     batch.r.write(log.parent/f'family-{index:03d}.log', {'failures':failures[index]})
                 if failed:
@@ -98,11 +99,12 @@ class BatchTests(unittest.TestCase):
                 patch.object(batch,'_replay_focused_grammar',side_effect=replay),
                 patch.object(batch,'_helper',side_effect=family),
             ):
-                result = batch._isolate_retained_family(context,entries,witnesses,root/'probes')
-            self.assertEqual(result,0)
+                result = batch._isolate_retained_family(context,entries,witnesses,root/'probes',limit=3)
+            self.assertEqual(result,[0,2,3])
             self.assertEqual([batch.r.read(path)['outcome']
                               for path in sorted((root/'probes').glob('*/probe.json'))],
-                             ['passed','reproduced','reproduced','reproduced'])
+                             ['passed','reproduced','reproduced','reproduced',
+                              'reproduced','passed','reproduced','reproduced','reproduced','reproduced'])
             checks[1]['kind'] = 'new-proposal'
             self.assertIsNone(batch._retained_family_failure((0,1),{'family_checks':checks},source,report_dir))
 
@@ -1392,10 +1394,10 @@ class BatchTests(unittest.TestCase):
             context = {'folder': folder, 'manifest': {'jobs': []}}
             calls, probes = [], []
 
-            def family(_, selection, failure, output):
+            def family(_, selection, failure, output, *, limit):
                 output.mkdir()
                 probes.append(output.name)
-                return failure['culprit']
+                return [failure['culprit']]
 
             def trial(_, proposals, label):
                 (folder/label).mkdir()

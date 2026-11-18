@@ -33,7 +33,7 @@ REPOSITORY_DRIVER = Path(__file__).with_name('retire_repository_checks.py')
 FAMILY_CHECK_THREADS = 6
 DEFAULT_NATIVE_CONTROL_THREADS = 6
 DEFAULT_PARSE_SCREEN_THREADS = 6
-MAX_ROUTED_EXCLUSIONS = 8
+MAX_ROUTED_EXCLUSIONS = 12
 RETAINED_NATIVE_PROBE_LIMIT = 16
 RETAINED_FAMILY_PROBE_LIMIT = 4
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
@@ -984,18 +984,7 @@ def _probe_retained_family(context, entries, witnesses, logs, input_cache, *, pa
     return outcome
 
 
-def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False):
-    """Find one independently reproducible regression for a fully gated retry."""
-    folder.mkdir()
-    counter = 0
-    def probe(group):
-        nonlocal counter
-        logs = folder/f'probe-{counter:02d}'
-        counter += 1
-        return test(group, logs, input_cache)
-
-    if probe([]) != 'passed' or (verify_full and probe(entries) != 'reproduced'):
-        return None
+def _locate_retained_culprit(entries, probe):
     while len(entries) > 1:
         middle = len(entries)//2
         left, right = entries[:middle], entries[middle:]
@@ -1009,7 +998,35 @@ def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False):
     return entries[0][0]
 
 
-def _isolate_retained_family(context, entries, failure, folder):
+def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, limit=1):
+    """Find independent regressions before the fully gated retry."""
+    folder.mkdir()
+    results = {}
+
+    def probe(group):
+        indices = tuple(index for index, _ in group)
+        if indices not in results:
+            logs = folder/f'probe-{len(results):02d}'
+            results[indices] = test(group, logs, input_cache)
+        return results[indices]
+
+    if probe([]) != 'passed' or (verify_full and probe(entries) != 'reproduced'):
+        return []
+    culprits = []
+    while entries:
+        culprit = _locate_retained_culprit(entries, probe)
+        if culprit is None:
+            break
+        culprits.append(culprit)
+        if len(culprits) >= limit:
+            break
+        entries = [entry for entry in entries if entry[0] != culprit]
+        if not entries or probe(entries) != 'reproduced':
+            break
+    return culprits
+
+
+def _isolate_retained_family(context, entries, failure, folder, *, limit):
     witnesses = failure.get('fixtures', [failure])
     multiple = len(witnesses) > 1
 
@@ -1018,7 +1035,8 @@ def _isolate_retained_family(context, entries, failure, folder):
                                       partial=multiple and len(group) < len(entries))
 
     inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
-    return _isolate_retained(entries, test, folder, inputs, verify_full=multiple)
+    return _isolate_retained(entries, test, folder, inputs, verify_full=multiple,
+                             limit=limit if multiple else 1)
 
 
 def _retained_native_failure(control, report):
@@ -1111,7 +1129,8 @@ def _isolate_retained_native(context, entries, failure, folder):
                                       partial=len(names) > 1 and len(group) < len(entries))
 
     inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
-    return _isolate_retained(entries, test, folder, inputs, verify_full=True)
+    culprits = _isolate_retained(entries, test, folder, inputs, verify_full=True)
+    return culprits[0] if culprits else None
 
 
 def _retry_retained_control(context, entries, proof, whole_proof, size, withheld=()):
@@ -1122,18 +1141,19 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
     selection = [entry for entry in entries if entry[0] not in withheld]
     if len(selection) < 2:
         return False
-    if family is not None:
-        route, isolate, failure = 'retained_family', _isolate_retained_family, family
-    else:
-        route, isolate, failure = 'retained_native', _isolate_retained_native, native
+    route = 'retained_family' if family is not None else 'retained_native'
     stem = f"{route.replace('_', '-')}-{entries[0][0]:03d}"
     folder = context['folder']/stem
     if folder.exists():
         folder = folder.with_name(f'{stem}-{len(withheld):03d}')
-    culprit = isolate(context, selection, failure, folder)
-    if culprit not in {index for index, _ in selection}:
+    if family is not None:
+        culprits = _isolate_retained_family(context, selection, family, folder, limit=size-len(withheld))
+    else:
+        culprit = _isolate_retained_native(context, selection, native, folder)
+        culprits = [culprit] if culprit is not None else []
+    if not culprits or not set(culprits) <= {index for index, _ in selection}:
         return False
-    return _retry_without(context, entries, whole_proof, sorted([*withheld, culprit]), size,
+    return _retry_without(context, entries, whole_proof, sorted([*withheld, *culprits]), size,
                           route=route)
 
 
@@ -1349,7 +1369,7 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
             entries = indexed[first:first+group_size]
             label = f'proposal-{first:03d}' if len(entries) == 1 else f'group-{first:03d}'
             route_union = combine_selected and len(entries) > fallback_size
-            retry_limit = max(fallback_size, min(MAX_ROUTED_EXCLUSIONS, len(entries)//8)) if route_union else 1
+            retry_limit = max(fallback_size, min(MAX_ROUTED_EXCLUSIONS, len(entries)//6)) if route_union else 1
             items, proof = _stage_trial(context, entries, label, merge_conflict_limit=retry_limit)
             if len(entries) > 1:
                 manifest.setdefault('group_trials', []).append({'jobs': proof['jobs'], 'status': proof['status'],
