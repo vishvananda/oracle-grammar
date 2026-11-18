@@ -189,6 +189,28 @@ class DriverTests(unittest.TestCase):
         self.assertEqual(result['outcome'], 'rejected')
         self.assertEqual(result['reason'], validation['reason'])
 
+    def test_verified_retry_preserves_a_staging_rejection_during_validation(self):
+        folder = self.run/'.cache/batches/id'
+        folder.mkdir(parents=True)
+        jobs = [{'job_id':'included','attempt_id':'first','status':'included'},
+                {'job_id':'retry','attempt_id':'second','status':'integration-rejected'}]
+        r.write(folder/'manifest.json', {'id':'id','base_commit':'parent','status':'provisional',
+                                         'commit':'candidate','jobs':jobs})
+        validation = {'status':'failed','candidate':'candidate','source_checkpoint':'parent',
+                      'reason':'full allowed-population parse screen failed'}
+        r.write(folder/'validation.json', validation)
+        self.queue.rejected = [{'id':'included','attempt_id':'first',
+                                'adjudication':{'evidence':{'manifest':'id','validation':validation}}}]
+        event = {'job_id':'retry','attempt_id':'second','checkpoint':'parent',
+                 'previous_status':'integration-rejected',
+                 'previous_adjudication':{'status':'integration-rejected','checkpoint':None,
+                                          'evidence':{'manifest':'id','reason':'merge or staging rejected'}}}
+        self.queue.audit = lambda: [{'kind':'retry-staging-reviewed-repair','data':event}]
+        self.assertEqual(driver._batch_observation(self.run,set(),self.queue,'parent')['outcome'],'rejected')
+        event['previous_adjudication']['evidence']['manifest'] = 'another-batch'
+        with self.assertRaisesRegex(ValueError,'disposition is missing or differs'):
+            driver._batch_observation(self.run,set(),self.queue,'parent')
+
     def test_mechanical_threshold_takes_only_mechanics_and_caps_at_96(self):
         config = r.read(self.run/'config.json')
         config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True, recovered_union_trial=True)

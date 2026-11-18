@@ -29,6 +29,16 @@ def _runner(run, runner):
     return selected
 
 
+def _recorded_stage_retry(queue, job, checkpoint, expected):
+    original = {'status': 'integration-rejected', 'checkpoint': None, 'evidence': expected}
+    matches = [event['data'] for event in queue.audit() if event['kind'] == 'retry-staging-reviewed-repair'
+               and event['data'].get('job_id') == job['job_id']
+               and event['data'].get('attempt_id') == job['attempt_id']]
+    return (len(matches) == 1 and matches[0].get('checkpoint') == checkpoint
+            and matches[0].get('previous_status') == 'integration-rejected'
+            and matches[0].get('previous_adjudication') == original)
+
+
 def _batch_observation(run, before, queue, checkpoint):
     folders = run/'.cache/batches'
     after = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
@@ -79,7 +89,9 @@ def _batch_observation(run, before, queue, checkpoint):
                     if job.get('status') == 'included' and stage == 'provisional'
                     else {'manifest': folder.name, 'reason': 'merge or staging rejected'})
         if not row or row['attempt_id'] != job['attempt_id'] or evidence != expected:
-            raise ValueError('rejected batch job disposition is missing or differs')
+            # An isolated staging failure is recorded before the combined audit.
+            if job.get('status') != 'integration-rejected' or not _recorded_stage_retry(queue, job, checkpoint, expected):
+                raise ValueError('rejected batch job disposition is missing or differs')
     return result
 
 
