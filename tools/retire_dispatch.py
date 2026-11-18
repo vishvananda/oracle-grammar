@@ -174,10 +174,12 @@ class Contexts:
             return self.values[commit]
 
 
-def attempt_usage(run, job, working, receipt):
+def attempt_usage(run, job, working, receipt, *, reviewed_replay=False):
     """Collect this attempt's paid usage, or preserve why its cost is unknown."""
     if job['kind'] != 'author':
         return None
+    if reviewed_replay:
+        return {'status': 'no-model', 'estimated_usd': 0.0}
     if working is None or not isinstance(receipt, dict) or not receipt.get('finished_unix'):
         return {'status': 'unavailable', 'error': 'terminal model receipt unavailable', 'estimated_usd': None}
     try:
@@ -209,6 +211,16 @@ def mechanical_detail(inputs, names):
              'full_batch_audit_required': True}, names, None)
 
 
+def exact_reviewed_replay(working, task_id, checkpoint, reviewed):
+    """Use a restored, independently checked draft on its original checkpoint."""
+    if not reviewed or reviewed['source_checkpoint'] != checkpoint:
+        return None
+    task = r.read(working/'tasks'/f'{task_id}.json')
+    expected = {'kind': 'independently-reviewed-draft', 'report_sha256': reviewed['report']['sha256'],
+                'rebased_from': checkpoint, 'rebased_onto': checkpoint}
+    return expected if task.get('reuse') == expected else None
+
+
 def perform(run, claim, contexts, runner=None):
     queue = Queue(run/'queue.sqlite')
     cp = campaign_api.checkpoint(run,claim['base_commit'])
@@ -220,6 +232,7 @@ def perform(run, claim, contexts, runner=None):
     receipt=None
     usage=None
     usage_collected=False
+    replay=None
     with lease(run/'leases'/job['id']) as fd:
         try:
             data,scan,inverted = contexts.get(cp)
@@ -244,21 +257,33 @@ def perform(run, claim, contexts, runner=None):
             prepared = prepare_task(run,claim,cp,job,detail,runner=runner)
             working = Path(prepared['run'])
             task_id = prepared['task_id']
-            if job['kind']=='mechanical':
+            mechanical = job['kind']=='mechanical'
+            if not mechanical:
+                replay = exact_reviewed_replay(working, task_id, cp['commit'], claim.get('reviewed_repair'))
+            if mechanical or replay:
                 if runner is not None: validate_runner(run,runner)
                 env = dict(os.environ,RETIRE_JOB_FD=str(fd))
-                command=[sys.executable,str(Path(runner or run/'runner')/'retire_dispatch.py'),'mechanical',str(working),task_id]
-                with (working/'mechanical.log').open('w') as log:
+                if mechanical:
+                    command = [sys.executable, str(Path(runner or run/'runner')/'retire_dispatch.py'),
+                               'mechanical', str(working), task_id]
+                    name, success = 'mechanical', 'Audited unused removal checked against native readings and print gates'
+                else:
+                    command = [sys.executable, str(working/'support/runner/retire_author.py'),
+                               str(working), task_id, '--coordinator']
+                    name, success = 'reviewed-replay', 'Independently reviewed draft passed a fresh coordinator check'
+                with (working/f'{name}.log').open('w') as log:
                     process=subprocess.Popen(command,env=env,stdout=log,stderr=log,pass_fds=(fd,))
-                    queue.mark_started(attempt,process.pid,str(working/'mechanical.log'))
+                    queue.mark_started(attempt,process.pid,str(working/f'{name}.log'))
                     code=process.wait()
                 paths=list((working/'evaluations'/task_id).glob('*/report.json'))
-                r.require(code==0 and len(paths)==1,'mechanical execution did not publish a report')
+                r.require(code==0 and len(paths)==1,f'{name} execution did not publish a report')
                 report=r.read(paths[0])
                 reviewed={rule:{'status':'proposed' if report['passed'] else 'needs-review',
-                    'reason':'Audited unused removal checked against native readings and print gates'
-                        if report['passed'] else str(report['failures']),
+                    'reason':success if report['passed'] else str(report['failures']),
                     'evidence':str(paths[0])} for rule in job['rules']}
+                if replay:
+                    for rule, disposition in reviewed.items():
+                        disposition['rule'] = rule
             else:
                 receipt=models.launch(working,task_id,
                     on_started=lambda pid,path: queue.mark_started(attempt,pid,path),extra_fds=(fd,),
@@ -276,7 +301,9 @@ def perform(run, claim, contexts, runner=None):
                     'evidence':{'model':row['evidence'],'report':str(paths[0]) if paths else None}}
             result={'run':str(working),'task':task_id,'report':str(paths[0]) if paths else None,
                     'kind':job['kind'],'dispositions':reviewed,'base_commit':claim['base_commit']}
-            usage=attempt_usage(run,job,working,receipt)
+            if replay:
+                result['reviewed_replay'] = replay
+            usage = attempt_usage(run,job,working,receipt,reviewed_replay=bool(replay))
             usage_collected=True
             if usage is not None:
                 result['usage']=usage
@@ -288,7 +315,7 @@ def perform(run, claim, contexts, runner=None):
                     'status':'operational-failure','error':str(error),
                     'run':str(working) if working else None,'task':job['id'],'base_commit':claim['base_commit']}
             if not usage_collected:
-                usage=attempt_usage(run,job,working,receipt)
+                usage = attempt_usage(run,job,working,receipt,reviewed_replay=bool(replay))
             if usage is not None:
                 result['usage']=usage
             r.write(evidence,result)

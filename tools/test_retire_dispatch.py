@@ -48,6 +48,46 @@ def repository(path):
 
 
 class DispatchCanaries(unittest.TestCase):
+    def test_exact_reviewed_draft_uses_coordinator_without_launching_a_model(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            (run/'leases').mkdir()
+            queue = dispatch.Queue(run/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'test'})
+            queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'author'}])
+            claim = queue.claim('worker')
+            working = run/'attempt'
+            (working/'tasks').mkdir(parents=True)
+            report = working/'evaluations/one/evaluation/report.json'
+            report.parent.mkdir(parents=True)
+            r.write(report, {'passed': True, 'failures': []})
+            proof = {'source_checkpoint': 'base', 'report': {'sha256': 'reviewed-hash'}}
+            identity = {'kind': 'independently-reviewed-draft', 'report_sha256': 'reviewed-hash',
+                        'rebased_from': 'base', 'rebased_onto': 'base'}
+            r.write(working/'tasks/one.json', {'reuse': identity})
+            contexts = SimpleNamespace(get=lambda cp: (('index', 'gold', 'oracle'), {}, 'inverted'))
+            process = Mock(pid=123)
+            process.wait.return_value = 0
+            with patch.object(dispatch.Queue, 'reviewed_draft', return_value=proof), \
+                 patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
+                 patch.object(dispatch.planner, 'select_cohort_detail', return_value={'names': []}), \
+                 patch.object(dispatch, 'prepare_task', return_value={'run': str(working), 'task_id': 'one'}), \
+                 patch.object(dispatch.models, 'launch') as launch, \
+                 patch.object(dispatch.subprocess, 'Popen', return_value=process) as popen, \
+                 patch.object(dispatch.retire_retention, 'archive_checkout', return_value={}):
+                dispatch.perform(run, claim, contexts)
+            launch.assert_not_called()
+            self.assertEqual(popen.call_args.args[0][-3:], [str(working), 'one', '--coordinator'])
+            result = queue.get_attempt(claim['attempt_id'])['result']
+            self.assertEqual(result['status'], 'provisional-pass')
+            evidence = result['evidence']
+            self.assertEqual(evidence['reviewed_replay'], identity)
+            self.assertEqual(evidence['usage'], {'status': 'no-model', 'estimated_usd': 0.0})
+            self.assertEqual(evidence['dispositions']['r_one']['rule'], 'r_one')
+            self.assertIsNone(dispatch.exact_reviewed_replay(working, 'one', 'other', proof))
+            r.write(working/'tasks/one.json', {'reuse': {**identity, 'report_sha256': 'other'}})
+            self.assertIsNone(dispatch.exact_reviewed_replay(working, 'one', 'base', proof))
+
     def test_invalid_paid_model_response_keeps_usage_in_queue_evidence(self):
         with tempfile.TemporaryDirectory() as temporary:
             run = Path(temporary)

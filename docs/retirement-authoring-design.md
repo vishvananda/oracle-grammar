@@ -358,6 +358,12 @@ Each job commits separately, with durable progress receipts; a failure stops the
 operation and must be inspected before any further recovery. Verified archived
 candidate changes require separate restoration review before reuse.
 
+When a reviewed draft is restored on the exact checkpoint where its independent
+report passed, the coordinator evaluates that draft directly. The attempt records
+its source report hash and zero model cost. The usual author route handles a
+restoration conflict or a draft rebased onto a different checkpoint. Every
+passing replay still needs staging and the full integration audit.
+
 Per-worker native helpers use verified independent copies. Copy-on-write support
 can share their storage without sharing a writable inode; a private helper edit
 must not change either the checkpoint helper or another worker's helper.
