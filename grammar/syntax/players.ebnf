@@ -107,7 +107,7 @@ all_player_rule_more_turn ::= all_player_rule_turn "and" all_player_rule_list_tu
 /* @sem PlayerAction::PlayLand{filter:Any} */
 player_prohibit_land ::= "play" "lands"
 
-player_prohibited_action ::= player_prohibit_attack_creatures | player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells
+player_prohibited_action ::= player_named_land_prohibition | player_prohibit_attack_creatures | player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells
 /* @sem PlayerAction::Draw */
 player_prohibit_draw ::= "draw" "cards"
 /* @sem PlayerAction::GainLife */
@@ -235,7 +235,7 @@ player_prohibit_counters ::= "get" "counters"
 /* @sem PlayerAction::CastSpell{filter:$prohibited_spell_qualifier} */
 player_prohibit_cast_qualified ::= "cast" "spells" prohibited_spell_qualifier
 
-prohibited_spell_qualifier ::= prohibited_chosen_type | prohibited_shared_color | prohibited_printed_name
+prohibited_spell_qualifier ::= prohibited_battlefield_shared_name | prohibited_chosen_type | prohibited_shared_color | prohibited_printed_name
 
 /* @sem ObjectFilter::Chosen(CardType) */
 prohibited_chosen_type ::= "of" "the" "chosen" "type"
@@ -381,3 +381,10 @@ life_difference_starting ::= life_difference_starting_player "starting" "life" "
 /* The history condition is evaluated separately for each bound player. */
 /* @sem PlayerSet::Matching{binding:0, condition:$bound_player_attack_history} */
 attack_history_players ::= "players" "who" bound_player_attack_history
+
+/* The name comparison is against the live battlefield population. */
+/* @sem ObjectFilter::SharesNameWithAny(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}) */
+prohibited_battlefield_shared_name ::= "with" "the" "same" "name" "as" "a" filter_phrase
+
+/* @sem PlayerAction::PlayLand{filter:AllOf([Not(Supertype(Basic)), $filter_plural, $prohibited_battlefield_shared_name])} */
+player_named_land_prohibition ::= "play" "nonbasic" filter_plural prohibited_battlefield_shared_name

@@ -1,0 +1,745 @@
+{
+  "family": "player-rule-composition",
+  "cases": [
+    {
+      "name": "Deafening Silence",
+      "text": "Each player can't cast more than one noncreature spell each turn.",
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "LimitPerTurn": {
+                    "action": {
+                      "CastSpell": {
+                        "from": null,
+                        "filter": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        }
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Keen-Eared Sentry",
+      "text": "You have hexproof.\nEach opponent can't venture into the dungeon more than once each turn.",
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "GrantKeyword": "Hexproof"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "OpponentsOf",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "LimitPerTurn": {
+                    "action": "VentureIntoDungeon",
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Mystic Barrier",
+      "text": "When this enchantment enters and at the beginning of your upkeep, choose left or right.\nEach player may attack only the nearest opponent in the last chosen direction and planeswalkers controlled by that opponent.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "AnyOf": [
+                {
+                  "ZoneChange": {
+                    "objects": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "from": null,
+                    "to": "Battlefield"
+                  }
+                },
+                {
+                  "Turn": {
+                    "point": "UpkeepBegins",
+                    "players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseValue",
+                      "args": {
+                        "choosers": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "kind": "Direction",
+                        "terms": {
+                          "options": [],
+                          "except": [],
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "secret": false,
+                          "unchosen": false,
+                          "random": false,
+                          "ordered": false
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "AttackOnly": {
+                    "PlayersAndPlaneswalkers": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "InChosenDirection",
+                        "args": {
+                          "from": null,
+                          "among": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Phyrexian Censor",
+      "text": "Each player can't cast more than one non-Phyrexian spell each turn.\nNon-Phyrexian creatures enter tapped.",
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "LimitPerTurn": {
+                    "action": {
+                      "CastSpell": {
+                        "from": null,
+                        "filter": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "Subtype",
+                            "args": "Phyrexian"
+                          }
+                        }
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Enter": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "Subtype",
+                        "args": "Phyrexian"
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  ]
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "SetTapped": true
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Sea of Sand",
+      "text": "Players reveal each card they draw.\nWhenever a player draws a land card, that player gains 3 life.\nWhenever a player draws a nonland card, that player loses 3 life.\nWhenever chaos ensues, put target permanent on top of its owner's library.",
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "RevealDraws": {
+                    "first_during": null,
+                    "optional": false
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "DrawsRevealedCard",
+                "players": {
+                  "kind": "All"
+                },
+                "objects": {
+                  "kind": "CardType",
+                  "args": "Land"
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 3
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "DrawsRevealedCard",
+                "players": {
+                  "kind": "All"
+                },
+                "objects": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "CardType",
+                    "args": "Land"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "LoseLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 3
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "ChaosEnsues",
+                "players": {
+                  "kind": "All"
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "destination": {
+                          "Library": {
+                            "position": "Top",
+                            "order": "DestinationDefault",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Upwelling",
+      "text": "Players don't lose unspent mana as steps and phases end.",
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "RetainMana": {
+                    "colors": null
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Refuse wrong venture period",
+      "text": "Each opponent can't venture into the dungeon more than once each game.",
+      "reject": true
+    },
+    {
+      "name": "Deafening Silence",
+      "text": "Each player can't cast more than one nonartifact spell each turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "LimitPerTurn": {
+                    "action": {
+                      "CastSpell": {
+                        "from": null,
+                        "filter": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "CardType",
+                            "args": "Artifact"
+                          }
+                        }
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Phyrexian Censor",
+      "text": "Each player can't cast more than one non-Human spell each turn.\nNon-Phyrexian creatures enter tapped.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Phyrexian",
+          "Wizard"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          3,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "LimitPerTurn": {
+                    "action": {
+                      "CastSpell": {
+                        "from": null,
+                        "filter": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "Subtype",
+                            "args": "Human"
+                          }
+                        }
+                      }
+                    },
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Enter": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "Subtype",
+                        "args": "Phyrexian"
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    }
+                  ]
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "SetTapped": true
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
