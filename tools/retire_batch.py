@@ -1019,14 +1019,28 @@ def _retained_native_failure(control, report):
             return None
     if len(faces) == 1 and len(failures) <= 3:
         return {'face': next(iter(faces)), 'failures': failures}
-    if len(faces) > 1 and len(faces) == len(failures):
-        gates = failures[0].get('lost')
-        if gates and all(item.get('lost') == gates for item in failures):
-            return {'faces': sorted(faces), 'failures': failures}
+    if len(faces) > 1:
+        return {'faces': sorted(faces), 'failures': failures}
     return None
 
 
-def _probe_retained_native(context, entries, control, failures, logs, input_cache):
+def _reproduces_native_failure(report, occurrences, expected, *, partial):
+    if report.get('faces') != occurrences or set(report) != {'faces', 'failures'}:
+        return False
+    observed = report['failures']
+    if not isinstance(observed, list):
+        return False
+    if observed == expected:
+        return True
+    if not partial or not any(isinstance(item, dict) for item in observed):
+        return False
+    # Smaller proposal groups can reproduce just one of the named failures.
+    # The ordered comparison also rejects repeats absent from the original.
+    remaining = iter(expected)
+    return all(item in remaining for item in observed)
+
+
+def _probe_retained_native(context, entries, control, failures, logs, input_cache, *, partial=False):
     logs.mkdir()
     source = context['source']
     prefix = r.tree(source/'grammar')
@@ -1041,8 +1055,8 @@ def _probe_retained_native(context, entries, control, failures, logs, input_cach
                 _control_check(checkpoint, control, grammar, logs/'native-control')
                 outcome = 'passed'
             except _NativeControlFailure as error:
-                expected = {'faces': control['occurrences'], 'failures': failures}
-                outcome = 'reproduced' if error.report == expected else 'inconclusive'
+                matched = _reproduces_native_failure(error.report, control['occurrences'], failures, partial=partial)
+                outcome = 'reproduced' if matched else 'inconclusive'
             if not input_cache.unchanged() or r.tree(grammar) != tree:
                 raise _UncertainPromotion('native control inputs changed during focused replay')
             proof['result_sha256'] = r.digest(logs/'native-control/result.json')
@@ -1070,7 +1084,8 @@ def _isolate_retained_native(context, entries, failure, folder):
                'threads': min(2, control['threads'])}
 
     def test(group, logs, input_cache):
-        return _probe_retained_native(context, group, focused, failure['failures'], logs, input_cache)
+        return _probe_retained_native(context, group, focused, failure['failures'], logs, input_cache,
+                                      partial=len(names) > 1 and len(group) < len(entries))
 
     inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
     return _isolate_retained(entries, test, folder, inputs, verify_full=True)

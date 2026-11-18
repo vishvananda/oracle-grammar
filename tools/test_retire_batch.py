@@ -502,7 +502,7 @@ class BatchTests(unittest.TestCase):
         control = {'occurrences': 2, 'names': ['A', 'B']}
         print_loss = {'face': 'A', 'lost': ['exact_default']}
         failure = {'face': 'B', 'gate': 'parse/reading-count/text'}
-        cases = [(1, [print_loss]), (2, [print_loss, failure]),
+        cases = [(1, [print_loss]), (2, [failure, {'face': 'A', 'gate': 'other'}]),
                  (2, ['native readings changed or failed validation']),
                  (2, [{'face': 'elsewhere', 'lost': ['exact_default']}])]
         self.assertEqual(batch._retained_native_failure(control, {'faces': 2, 'failures': [print_loss]}),
@@ -518,9 +518,30 @@ class BatchTests(unittest.TestCase):
         report = {'faces': len(names), 'failures': failures[:16]}
         self.assertEqual(batch._retained_native_failure(control, report),
                          {'faces': names[1:], 'failures': failures[:16]})
-        mixed = [failures[0], {'face': failures[1]['face'], 'lost': ['default']}]
-        self.assertIsNone(batch._retained_native_failure(control, {**report, 'failures': mixed}))
         self.assertIsNone(batch._retained_native_failure(control, {**report, 'failures': failures}))
+
+    def test_native_focus_reproduces_mixed_failures_without_accepting_unknown_deltas(self):
+        control = {'occurrences': 3, 'names': ['A', 'B', 'C']}
+        native = 'native readings changed or failed validation'
+        lost = {'face': 'A', 'lost': ['exact_default']}
+        parse = {'face': 'B', 'gate': 'parse/reading-count/text'}
+        expected = [native, lost, parse]
+        report = {'faces': 3, 'failures': expected}
+        self.assertEqual(batch._retained_native_failure(control, report),
+                         {'faces': ['A', 'B'], 'failures': expected})
+        for observed in ([lost], [native, parse], expected):
+            with self.subTest(observed=observed):
+                self.assertTrue(batch._reproduces_native_failure({'faces': 3, 'failures': observed},
+                                                                 3, expected, partial=True))
+        for observed in ([], [native], [lost, lost], [parse, lost],
+                         [{'face': 'C', 'lost': ['default']}], [lost, 'gold validation is incomplete']):
+            with self.subTest(observed=observed):
+                self.assertFalse(batch._reproduces_native_failure({'faces': 3, 'failures': observed},
+                                                                  3, expected, partial=True))
+        self.assertFalse(batch._reproduces_native_failure({'faces': 3, 'failures': [lost]},
+                                                          3, expected, partial=False))
+        self.assertFalse(batch._reproduces_native_failure({'faces': 2, 'failures': expected},
+                                                          3, expected, partial=True))
 
     def test_native_control_profile_closure_and_tampering_fail_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
