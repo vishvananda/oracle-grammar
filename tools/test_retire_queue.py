@@ -820,6 +820,7 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         root = Path(temp.name)
         campaign = root/'campaign'
         campaign.mkdir()
+        self.campaign = campaign
         self.queue = Queue(campaign/'queue.sqlite')
         self.queue.add_checkpoint('base', {'source': 'accepted'})
         self.job = {'id': 'repair', 'kind': 'author', 'rules': ['seeded_test'],
@@ -918,6 +919,33 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         claim = self.queue.claim('fresh')
         self.assertEqual(claim['base_commit'], 'next')
         self.assertIn('repair on base.', claim['job']['goal'])
+
+    def test_reuses_only_the_protected_pass_bound_to_a_timeout_receipt(self):
+        attempt = self.claim['attempt_id']
+        work = self.campaign/'.cache/attempts'/attempt
+        work.parent.mkdir(parents=True)
+        self.task_path.parent.parent.rename(work)
+        self.task_path = work/'tasks/repair.json'
+        self.folder = work/'evaluations/repair/diagnostic'
+        self.report_path = self.folder/'report.json'
+        self.report['directory'] = str(self.folder)
+        self.record(work/'support.json')
+        with self.assertRaisesRegex(ValueError, 'outside its private attempt'):
+            self.queue.retry_reviewed_repair('repair', attempt, 'base', self.evidence)
+        receipt = work/'workers/repair/receipt.json'
+        receipt.parent.mkdir(parents=True)
+        proof = dict(self.evidence)
+        with patch('retire_timeout_recovery.verify') as verify:
+            for directory in (self.folder.parent, self.folder):
+                self.write(receipt, {'evaluation': {'passed': True, 'directory': str(directory)}})
+                proof['timeout'] = {'model_receipt': {'path': str(receipt), 'sha256': self.digest(receipt)}}
+                if directory != self.folder:
+                    with self.assertRaisesRegex(ValueError, 'protected timeout receipt'):
+                        self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
+                else:
+                    self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
+            self.assertEqual(verify.call_count, 2)
+        self.assertEqual(self.queue.coverage()['counts'], {'pending': 1})
 
 
 if __name__ == "__main__":

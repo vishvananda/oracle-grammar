@@ -124,7 +124,9 @@ the Terra queue once. The retry verifies the report against its accepted
 checkpoint, the assigned rules, the allowed cohort, the family check and the
 edited operands. The worker receives the coordinator's reproduction note and
 authors a fresh proposal on the latest checkpoint. The previous attempt remains
-in the audit history.
+in the audit history. When a model times out before submitting its dispositions,
+a passing coordinator report can supply this evidence if it belongs to the
+protected terminal receipt for that attempt.
 
 Author diagnostics stop when the compositional family fails, explicitly marking
 cohort and edited-operand checks as skipped. Once the family passes, every normal

@@ -116,14 +116,16 @@ def _verify_original_report(campaign, job_id, attempt_id, base_commit, original,
     return report, authored
 
 
-def _verify_reviewed_repair(campaign, checkpoint, job, evidence):
+def _verify_reviewed_repair(campaign, checkpoint, job, evidence, *, timed_out_attempt=None):
     path, _ = _proof_file(evidence.get('report'))
     if path.resolve() != path or len(path.parents) < 7:
         raise ValueError('repair report must have a canonical evaluation path')
     job_id = job['id']
     work = path.parents[3]
     scratch = work.parents[2]
-    if (scratch == campaign.resolve() or not re.fullmatch(r'[0-9a-f-]{36}', work.name)
+    if ((scratch == campaign.resolve() and work.name != timed_out_attempt)
+            or (timed_out_attempt is not None and scratch != campaign.resolve())
+            or not re.fullmatch(r'[0-9a-f-]{36}', work.name)
             or work.parent != scratch/'.cache/attempts'
             or path.parent.parent != work/'evaluations'/job_id):
         raise ValueError('repair report is outside its private attempt')
@@ -1054,7 +1056,21 @@ class Queue:
                 _verify_readmission_origin(db, checkpoint, row[4])
                 source = evidence.get('source_checkpoint', checkpoint)
                 _verify_readmission_origin(db, checkpoint, source)
-                _verify_reviewed_repair(Path(self.path).parent, source, job, evidence)
+                campaign = Path(self.path).parent
+                timed_out_attempt = None
+                if 'timeout' in evidence:
+                    if row[0] != 'needs-review' or source != row[4]:
+                        raise ValueError('timeout evaluation must match the current rejected author attempt and its base')
+                    timeout = evidence['timeout']
+                    state = retire_timeout_recovery.TimeoutState(source, job, row[5], row[6])
+                    retire_timeout_recovery.verify(campaign, job_id, attempt_id, state, timeout)
+                    receipt = campaign/'.cache/attempts'/attempt_id/'workers'/job_id/'receipt.json'
+                    model = json.loads(retire_timeout_recovery.artifact(timeout, 'model_receipt', receipt))
+                    report_path, _ = _proof_file(evidence.get('report'))
+                    if model.get('evaluation') != {'passed': True, 'directory': str(report_path.parent)}:
+                        raise ValueError('passed evaluation differs from the protected timeout receipt')
+                    timed_out_attempt = attempt_id
+                _verify_reviewed_repair(campaign, source, job, evidence, timed_out_attempt=timed_out_attempt)
                 job['goal'] += ' Coordinator replay passed this repair on '+source+'. '+notes.strip()
                 db.execute("UPDATE jobs SET payload=?,status='pending',attempt_id=NULL,adjudication=NULL WHERE id=?",
                            (_json(job), job_id))
