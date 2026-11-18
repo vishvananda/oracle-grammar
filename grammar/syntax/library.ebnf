@@ -1359,3 +1359,20 @@ top_card_reveal_snow ::= "if" "that" "card" "is" "snow" "," "you" "may" "reveal"
 
 /* @sem ObjectFilter::Supertype(Legendary) */
 top_card_reveal_legendary ::= "if" "that" "card" "is" "legendary" "," "you" "may" "reveal" "it"
+
+/* Scope the observation and both destinations together, so the remainder refers
+   to the very same reveal and excludes the immediately preceding hand move. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$chosen_type_reveal_split] */
+chosen_type_reveal_partition ::= reveal_top "." chosen_type_reveal_split
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:Chosen(CardType)}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:$rest_graveyard}] */
+chosen_type_reveal_split ::= "put" "all" "cards" "of" "the" "chosen" "type" "revealed" "this" "way" "into" "your" "hand" "and" rest_graveyard
+
+/* The stopping condition and the transferred card share the chosen filter. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:ChosenFilter, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:ChosenFilter}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:$rest_bottom}] */
+chosen_kind_reveal_partition ::= "reveal" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "reveal" "a" "card" "of" "the" "chosen" "kind" "." "put" "that" "card" "into" "your" "hand" "and" rest_bottom
+
+/* The choice and following observation are consecutive sentences in one ability. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:$choose_card_types_pair}, ...$chosen_type_reveal_partition] */
+chosen_type_choice_partition ::= choose_card_types_pair "." chosen_type_reveal_partition

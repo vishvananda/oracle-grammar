@@ -227,7 +227,7 @@ token_toxic ::= "toxic" number
 /* @sem Ability::@holder($token_ability_body) */
 token_quoted ::= '"' token_ability_body '"'
 
-token_ability_body ::= max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword
+token_ability_body ::= static_ability | max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword
 
 /* A characteristic-defining ability here describes the token itself. */
 /* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(ObjectRef::Source)), changes:[Change::SetBasePowerToughness{power:$value, toughness:$value}]} */
@@ -529,3 +529,27 @@ token_defined_opponent_hand_count ::= "X" token_recipe "," "where" "X" "is" oppo
 
 /* @sem Expr::CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any})), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count}}}])) */
 opponents_hand_threshold_count ::= "the" "number" "of" "your" "opponents" "with" count "or" "more" "cards" "in" "hand"
+
+/* The target group and each copy quantity are independent operands. */
+/* @sem Instruction::[ForEachObject{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly($number), filter:Any})), binding:0, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_2, words:CreatingEffect, recipe:Copy{object:Bound(0), exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
+instructions_each_target_copies ::= "for" "each" "of" number "target" "permanents" "," "create" number "tokens" "that" "are" "copies" "of" "that" "permanent"
+
+/* The counted permanents and recipient share the loop's player binding. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(Bound(0)), tokens:[_{amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Tapped), $filter_phrase, ControlledBy(One(Bound(0)))])}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
+clause_players_create_per_untapped ::= players_singular "creates" "a" token_recipe "for" "each" "untapped" filter_phrase "they" "control"
+
+/* The selected opponents remain the controllers of the counted population. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:OpponentsOf(AbilityController)})))])}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+instructions_chosen_opponents_tokens ::= "choose" "any" "number" "of" "target" "opponents" "." "create" "X" token_recipe "," "where" "X" "is" "the" "number" "of" filter_plural "those" "opponents" "control"
+
+/* Each alternative is a separate action and carries its own token recipe. */
+/* @sem Operation::ChooseAtRandom(_{kind:Action, options:[$random_green_option, $random_green_option_2, $random_green_option_3, $random_green_option_4]}) */
+random_green_token_choice ::= "create" "a" "green" "creature" "token" "that's" random_green_option "," random_green_option "," random_green_option "," "or" random_green_option "," "chosen" "at" "random"
+
+random_green_option ::= random_green_plain | random_green_keyword
+
+/* @sem Operand::List([Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:[Green], card_types:[Creature], subtypes:[@subtype_name($subtype)], power_toughness:[$value, $value_2]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}]) */
+random_green_plain ::= counter_amount value "/" value subtype
+
+/* @sem Operand::List([Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:[Green], card_types:[Creature], subtypes:[@subtype_name($subtype)], power_toughness:[$value, $value_2], abilities:[Keyword($keyword_value)]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}]) */
+random_green_keyword ::= counter_amount value "/" value subtype "with" keyword_value

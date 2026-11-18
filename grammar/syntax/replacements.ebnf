@@ -166,7 +166,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range
+prevent_clause ::= shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -1411,3 +1411,18 @@ entry_counter_for_each ::= "with" "a" counter_kind "counter" "on" "it" "for" "ea
 
 /* @sem Expr::EventHistory{event:ZoneChange{objects:AllOf([$filter_phrase, ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences} */
 entry_death_count ::= filter_phrase "that" "died" "under" "your" "control" "this" "turn"
+
+/* Both word orders name the same announced spell and preserve its filter. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Spell, sources:SameObject($spell_damage_source), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_spell_damage ::= "prevent" "all" "damage" spell_damage_source this_duration
+
+spell_damage_source ::= spell_damage_source_deals | spell_damage_source_dealt
+
+/* @sem $target_stack_spell */
+spell_damage_source_deals ::= target_stack_spell "would" "deal"
+
+/* @sem $target_stack_spell */
+spell_damage_source_dealt ::= "that" "would" "be" "dealt" "by" target_stack_spell
+
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Spell, sources:SameObject($target_stack_spell), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Players(One(ControllerOf(Damage(Source)))))}}]}} */
+redirect_spell_damage_controller ::= "all" "damage" "that" "would" "be" "dealt" this_duration "by" target_stack_spell "is" "dealt" "to" "that" "spell's" "controller" "instead"
