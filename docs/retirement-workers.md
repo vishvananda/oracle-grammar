@@ -338,8 +338,10 @@ fixes; a broader audit exposed three default regressions. It belongs outside
 the mechanical lane until those dependencies are resolved.
 
 Workers reuse frozen binaries and shared corpus inputs, spend no time compiling,
-and run small cohorts instead of repeating whole-corpus gates. The coordinator
-amortizes full validation over a batch. Full printing remains necessary: the
+and usually run small cohorts instead of repeating whole-corpus gates. For a
+single audited-unused rule with no usable literal cohort, the mechanical worker
+runs a parse and native-reading check over the frozen allowed population. The
+coordinator amortizes full validation over a batch. Full printing remains necessary: the
 current engine does not emit a sound dependency certificate for all default
 search decisions. Key lists alone are insufficient, and filtering by original
 Oracle words can miss print dependencies. Add trace-based invalidation only

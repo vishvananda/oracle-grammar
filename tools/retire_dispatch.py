@@ -27,6 +27,7 @@ import retire_batch
 import retire_campaign as campaign_api
 import retire_cpu
 import retire_plan as planner
+import retire_parse_screen
 import retire_priority
 import retire_metrics
 import retire_mechanical_cohort as mechanical_cohort
@@ -97,15 +98,23 @@ def mechanical(run, task_id):
             names = set()
             data = w.payload(inputs)
             chunks = task.get('mechanical_chunks')
+            population_screen = not task['cohort'] and len(task['rules']) == 1 and chunks is None
             if chunks is not None:
                 report.update(chunks_expected=len(chunks) if isinstance(chunks, list) else 0,
                               chunks_started=0, chunks_completed=0, coverage_complete=False, chunk_results=[])
             for rule in task['rules']:
                 cohort = mechanical_cohort.cohort(inputs,rule,data[0])
-                r.require(cohort and (chunks is not None or len(cohort)<=500),
+                r.require(population_screen or (cohort and (chunks is not None or len(cohort)<=500)),
                           'mechanical cohort uncertain or too large')
                 names.update(cohort)
-            if chunks is None:
+            if population_screen:
+                r.require(not names, 'empty mechanical cohort omits known literal matches')
+                path = directory/'parse-screen'
+                screen = retire_parse_screen.run(inputs, path, directory/'grammar', data, 2)
+                report.update(faces=screen['faces'], failures=screen['failures'], passed=screen['status'] == 'passed',
+                              population_parse_screen={'path':str(path/'result.json'),
+                                                       'sha256':r.digest(path/'result.json')})
+            elif chunks is None:
                 r.require(len(names)<=500,'combined mechanical cohort too large')
                 r.require(names <= set(task['cohort']), 'mechanical targets outside prepared cohort')
                 report.update(w.checks(inputs,directory,directory/'grammar',set(task['cohort']),data,2))

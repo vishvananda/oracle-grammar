@@ -677,6 +677,50 @@ with open(sys.argv[3], 'a') as guard:
             self.assertNotIn('m_one ::=', (Path(candidate['source'])/'grammar/syntax/mined.ebnf').read_text())
             self.assertIn('m_one ::=', (source/'grammar/syntax/mined.ebnf').read_text())
 
+    def test_mechanical_without_a_literal_cohort_uses_verified_population_screen(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            inputs = run/'inputs'
+            grammar = inputs/'frozen/grammar/syntax'
+            grammar.mkdir(parents=True)
+            (inputs/'scan').mkdir()
+            r.write(inputs/'scan/rules.json', {'unused': ['m_one']})
+            (run/'tasks').mkdir()
+            task = {'rules': ['m_one'], 'cohort': [], 'cpu_pool': str(run/'cpu'), 'cpu_capacity': 2}
+            r.write(run/'tasks/job.json', task)
+            r.write(run/'support.json', {})
+            manifest = {'commit': 'base'}
+            payload = ({'0': {'name': 'Example', 'text': 'one'}}, [], [])
+
+            def screen(frozen, path, candidate, data, threads):
+                self.assertEqual((frozen, data, threads), (inputs, payload, 2))
+                self.assertNotIn('m_one ::=', (candidate/'syntax/mined.ebnf').read_text())
+                result = {'status': 'passed', 'faces': 1, 'failures': []}
+                path.mkdir()
+                r.write(path/'result.json', result)
+                return result
+
+            for body, passed in (('number', True), ('"one"', False)):
+                with self.subTest(body=body):
+                    (grammar/'mined.ebnf').write_text(
+                        'mined_action ::= m_one | never_action\n'
+                        f'm_one ::= {body}\nnever_action ::= "never"\n')
+                    with patch.object(dispatch.author, 'verify', return_value=(task, run, manifest)), \
+                            patch.object(dispatch.r, 'verify', return_value=manifest), \
+                            patch.object(dispatch.w, 'payload', return_value=payload), \
+                            patch.object(dispatch.retire_parse_screen, 'run', side_effect=screen) as audit, \
+                            redirect_stdout(io.StringIO()) as output:
+                        dispatch.mechanical(run, 'job')
+                    report = json.loads(output.getvalue())
+                    self.assertEqual(report['passed'], passed)
+                    self.assertEqual(audit.call_count, int(passed))
+                    if passed:
+                        proof = report['population_parse_screen']
+                        self.assertEqual(r.digest(proof['path']), proof['sha256'])
+                        self.assertEqual(report['faces'], 1)
+                    else:
+                        self.assertIn('empty mechanical cohort omits known literal matches', report['failures'])
+
     def test_chunked_mechanical_report_binds_descriptor_and_stages(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
