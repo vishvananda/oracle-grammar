@@ -123,7 +123,7 @@ def _verify_reviewed_repair(campaign, checkpoint, job, evidence):
     job_id = job['id']
     work = path.parents[3]
     scratch = work.parents[2]
-    if (not re.fullmatch(r'[0-9a-f-]{36}', work.name)
+    if (scratch == campaign.resolve() or not re.fullmatch(r'[0-9a-f-]{36}', work.name)
             or work.parent != scratch/'.cache/attempts'
             or path.parent.parent != work/'evaluations'/job_id):
         raise ValueError('repair report is outside its private attempt')
@@ -140,6 +140,7 @@ def _verify_reviewed_repair(campaign, checkpoint, job, evidence):
             or task.get('id') != job_id or task.get('rules') != job['rules']
             or task.get('target_faces') != job.get('target_faces')
             or type(closure) is not int or not 1 <= closure <= 1024 or report.get('faces') != closure
+            or report.get('scope') == 'author-target-preview'
             or report.get('family_returncode') != 0 or not isinstance(edits, list) or not 2 <= len(edits) <= 8):
         raise ValueError('repair report differs from the assigned checkpoint, cohort or required checks')
 
@@ -1051,8 +1052,10 @@ class Queue:
                     raise ValueError('attempt process identity is unknown')
                 self._require_absent_pid(pid)
                 _verify_readmission_origin(db, checkpoint, row[4])
-                _verify_reviewed_repair(Path(self.path).parent, checkpoint, job, evidence)
-                job['goal'] += ' Coordinator replay passed this repair on '+checkpoint+'. '+notes.strip()
+                source = evidence.get('source_checkpoint', checkpoint)
+                _verify_readmission_origin(db, checkpoint, source)
+                _verify_reviewed_repair(Path(self.path).parent, source, job, evidence)
+                job['goal'] += ' Coordinator replay passed this repair on '+source+'. '+notes.strip()
                 db.execute("UPDATE jobs SET payload=?,status='pending',attempt_id=NULL,adjudication=NULL WHERE id=?",
                            (_json(job), job_id))
                 self._event(db, 'retry-reviewed-repair', {'job_id': job_id, 'attempt_id': attempt_id,

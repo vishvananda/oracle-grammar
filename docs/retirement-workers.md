@@ -120,10 +120,11 @@ overrides keep this check tied to the checkpoint. Repository gates and the full
 allowed-population audit still decide acceptance.
 
 An independently checked author repair can return its original assignment to
-the Terra queue once. The retry verifies the report against the current
+the Terra queue once. The retry verifies the report against its accepted
 checkpoint, the assigned rules, the allowed cohort, the family check and the
 edited operands. The worker receives the coordinator's reproduction note and
-authors a fresh proposal. The previous attempt remains in the audit history.
+authors a fresh proposal on the latest checkpoint. The previous attempt remains
+in the audit history.
 
 Author diagnostics stop when the compositional family fails, explicitly marking
 cohort and edited-operand checks as skipped. Once the family passes, every normal

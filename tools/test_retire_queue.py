@@ -907,6 +907,18 @@ class ReviewedRepairRetryTests(unittest.TestCase):
             self.queue.retry_reviewed_repair('repair', attempt, 'base', self.evidence)
         self.assertEqual(self.queue.coverage()['counts'], {'needs-review': 1})
 
+    def test_replays_an_accepted_ancestor_hint_on_an_advancing_checkpoint(self):
+        attempt = self.claim['attempt_id']
+        self.queue.add_checkpoint('next', {'source': 'new'}, expected_parent='base')
+        with self.assertRaisesRegex(ValueError, 'outside the accepted checkpoint chain'):
+            self.queue.retry_reviewed_repair('repair', attempt, 'next',
+                                             {**self.evidence, 'source_checkpoint': 'unaccepted'})
+        self.queue.retry_reviewed_repair('repair', attempt, 'next',
+                                         {**self.evidence, 'source_checkpoint': 'base'})
+        claim = self.queue.claim('fresh')
+        self.assertEqual(claim['base_commit'], 'next')
+        self.assertIn('repair on base.', claim['job']['goal'])
+
 
 if __name__ == "__main__":
     unittest.main()
