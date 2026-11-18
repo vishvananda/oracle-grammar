@@ -864,13 +864,20 @@ class BatchTests(unittest.TestCase):
         for mode in ('clean-subgroups', 'bad-member', 'cross-interaction', 'fatal-integrity',
                      'trailing-single', 'equal-size', 'configured-singletons',
                      'isolated-family', 'multiple-families', 'family-reordered-pass',
-                     'family-survivors-still-fail', 'removed-rule', 'merge-conflicts'):
+                     'family-survivors-still-fail', 'removed-rule', 'merge-conflicts',
+                     'retained-family', 'retained-family-interaction', 'retained-family-after-deletion',
+                     'retained-family-mutated-prefix'):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 repo = root/'repo'
                 (repo/'grammar/syntax').mkdir(parents=True)
                 (repo/'tests').mkdir()
-                (repo/'tests/families.json').write_text('[]')
+                focused = mode.startswith('retained-family')
+                fixture = 'families/retained.json'
+                if focused:
+                    (repo/'families').mkdir()
+                    batch.r.write(repo/fixture, {'family': 'retained', 'cases': []})
+                batch.r.write(repo/'tests/families.json', [fixture] if focused else [])
                 count = 9 if mode == 'trailing-single' else 4 if mode in ('equal-size', 'configured-singletons') else 8
                 names = [f'j{index}' for index in range(count)]
                 (repo/'grammar/syntax/mined.ebnf').write_text(
@@ -900,10 +907,26 @@ class BatchTests(unittest.TestCase):
                     path.write_text(path.read_text().replace(f'm_{name} ::= "{name}"\n', ''))
                     return rules, {}
                 calls = []
-                def family(checkpoint, source, fixtures, log, grammar_dir=None):
-                    text = (grammar_dir/'syntax/shared.ebnf').read_text().splitlines()
+                def family(checkpoint, source, fixtures, log, grammar_dir=None, *, threads=None):
+                    shared = grammar_dir/'syntax/shared.ebnf'
+                    text = shared.read_text().splitlines() if shared.exists() else []
                     calls.append((log.parent.name, text))
                     log.write_text('family proof')
+                    if focused:
+                        if log.parent.name.startswith('probe-'):
+                            self.assertEqual(threads, 2)
+                            if mode == 'retained-family-mutated-prefix':
+                                (source/'grammar/syntax/mined.ebnf').write_text('unexpected grammar write')
+                                raise ValueError('helper aborted')
+                        if mode == 'retained-family-after-deletion' and log.parent.name == 'group-000':
+                            raise batch._FamilyCheckFailure(log)
+                        failed = ('j1' in text and 'j6' in text if mode == 'retained-family-interaction'
+                                  else 'j6' in text)
+                        if failed:
+                            batch.r.write(log.parent/'family-000.log',
+                                          {'failures': [{'name': 'retained example', 'why': 'unexpected reading'}]})
+                            raise batch._FamilyCheckFailure(log, (0,))
+                        return
                     if log.parent.name == 'group-000':
                         if mode == 'removed-rule':
                             raise batch._FamilyCheckFailure(log)
@@ -929,9 +952,40 @@ class BatchTests(unittest.TestCase):
                         patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
                         patch.object(batch.mined, 'remove', side_effect=remove), \
                         patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family), \
-                        patch.object(batch, '_removed_rule_conflict', return_value=(
-                            {'without_proposal_indices': [2]} if mode == 'removed-rule' else None)):
+                        patch.object(batch, '_rule_reference_conflict', return_value=(
+                            {'without_proposal_indices': [2]}
+                            if mode in ('removed-rule', 'retained-family-after-deletion') else None)):
                     result = batch.stage(root, cp, proposals, combine_selected=True)
+                if mode == 'retained-family-mutated-prefix':
+                    self.assertEqual(result['status'], 'failed')
+                    self.assertIn('prefix changed', result['reason'])
+                    self.assertEqual(result['jobs'], [])
+                    self.assertNotIn('retained_family_retry', result)
+                    continue
+                if focused:
+                    observed = result['group_trials'][0]['proof']
+                    if mode == 'retained-family-after-deletion':
+                        observed = result['dependency_retry']['proof']
+                    diagnosis = batch.r.read(Path(observed['path']))['retained_family_failure']
+                    self.assertEqual(diagnosis['fixture'], fixture)
+                    self.assertEqual(diagnosis['failures'][0]['name'], 'retained example')
+                    self.assertEqual([row['job_id'] for row in result['jobs'] if row['status'] != 'included'], ['j6'])
+                    probes = list((Path(result['folder'])/'retained-family-000').glob('probe-*/probe.json'))
+                    self.assertTrue(probes)
+                    self.assertLessEqual(len(probes), 7)
+                    if mode == 'retained-family-interaction':
+                        self.assertNotIn('retained_family_retry', result)
+                        self.assertIn('fallback_trials', result)
+                    else:
+                        self.assertNotIn('fallback_trials', result)
+                        retry = result['retained_family_retry']
+                        self.assertEqual(retry['status'], 'passed')
+                        self.assertEqual(retry['without_proposal_indices'],
+                                         [2, 6] if mode == 'retained-family-after-deletion' else [6])
+                        self.assertNotIn('j6', retry['jobs'])
+                        self.assertIn('without-retained-family-regression', [name for name, _ in calls])
+                        self.assertIn('proposal-006', [name for name, _ in calls])
+                    continue
                 if mode == 'merge-conflicts':
                     self.assertNotIn('fallback_trials', result)
                     self.assertEqual([name for name, _ in calls], ['without-merge-conflict-002'])
@@ -1057,13 +1111,37 @@ class BatchTests(unittest.TestCase):
                 entries.append((index, {'run': str(run), 'report': {'directory': str(response)}}))
             log = root/'family.log'
             log.write_text('Error: "choice_and_name_first: unknown rule choose_land_type"\n')
-            observed = batch._removed_rule_conflict(root/'source', entries, log)
+            observed = batch._rule_reference_conflict(root/'source', entries, log)
             self.assertEqual(observed, {'reference':'choice_and_name_first', 'missing_rule':'choose_land_type',
                                         'without_proposal_indices':[1]})
             grammar(root/'report-0', 'choose_new ::= "choose"\n')
-            self.assertIsNone(batch._removed_rule_conflict(root/'source', entries, log))
+            self.assertIsNone(batch._rule_reference_conflict(root/'source', entries, log))
             log.write_text('Error: "some other compiler message"\n')
-            self.assertIsNone(batch._removed_rule_conflict(root/'source', entries, log))
+            self.assertIsNone(batch._rule_reference_conflict(root/'source', entries, log))
+
+    def test_stale_rule_reference_routes_only_a_unique_new_symbolic_use(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            def grammar(folder, text):
+                path = folder/'grammar/syntax/actions.ebnf'
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+            old = 'counter_named_spell ::= "counter" named_spell\n'
+            use = 'instead_counter_named ::= counter_named_spell\n'
+            grammar(root/'source', 'counter_shared ::= "counter" named_spell\n')
+            entries = []
+            for index in range(2):
+                run, response = root/f'run-{index}', root/f'report-{index}'
+                grammar(run/'inputs/frozen', old)
+                grammar(response, old+(use if index else 'instead_counter_named ::= "counter_named_spell"\n'))
+                entries.append((index, {'run':str(run), 'report':{'directory':str(response)}}))
+            log = root/'family.log'
+            log.write_text('Error: "instead_counter_named: unknown rule counter_named_spell"\n')
+            self.assertEqual(batch._rule_reference_conflict(root/'source', entries, log),
+                             {'reference':'instead_counter_named','missing_rule':'counter_named_spell',
+                              'without_proposal_indices':[1],'stale_reference':True})
+            grammar(root/'report-0', old+use)
+            self.assertIsNone(batch._rule_reference_conflict(root/'source', entries, log))
 
     def test_proposals_share_frozen_hashes_and_detect_mutation(self):
         with tempfile.TemporaryDirectory() as temporary:

@@ -210,7 +210,7 @@ def _failed_fixtures(fixtures, reports, returncode):
     return tuple(index for index, report in enumerate(reports) if report['failures'])
 
 
-def _helper(checkpoint, source, fixture, log, grammar_dir=None):
+def _helper(checkpoint, source, fixture, log, grammar_dir=None, *, threads=FAMILY_CHECK_THREADS):
     fixtures = [fixture] if isinstance(fixture, (str, Path)) else list(fixture)
     if not fixtures:
         raise ValueError('family check requires at least one fixture')
@@ -220,13 +220,13 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None):
         raise ValueError('family helper does not match compiled source')
     env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}
     grammar = grammar_dir or source/'grammar'
-    env.update(ORACLE_GRAMMAR_DIR=str(grammar), ORACLE_GRAMMAR_THREADS=str(FAMILY_CHECK_THREADS))
+    env.update(ORACLE_GRAMMAR_DIR=str(grammar), ORACLE_GRAMMAR_THREADS=str(threads))
     declared = {entry.removeprefix('--module=').split('=', 1)[0] for entry in dev.modules(source)}
     current = {path.stem: path for path in (grammar/'syntax').glob('*.ebnf')}
     if (grammar/'tail/mined.ebnf').is_file():
         current['tail'] = grammar/'tail/mined.ebnf'
     overrides = [f'--module={name}={current.get(name, os.devnull)}' for name in sorted(declared | current.keys())]
-    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), FAMILY_CHECK_THREADS,
+    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads,
                                 checkpoint.get('cpu_capacity', 32), background=checkpoint.get('background_cpu', False))
              if checkpoint.get('cpu_pool') else nullcontext(()))
     with lease as fds:
@@ -601,23 +601,87 @@ def _declares(root, rule):
                for _, line, _, _ in mined.code(path.read_text().splitlines()))
 
 
-def _removed_rule_conflict(source, entries, log):
-    """Find a uniquely deleted declaration cited by the grammar loader."""
+def _uses_rule(root, owner, rule):
+    """Recognize a grammar reference outside quoted terminals and comments."""
+    literals = re.compile(r"""\x22(?:[^\x22\\]|\\.)*\x22|'(?:[^'\\]|\\.)*'|/\*.*?\*/""")
+    for path in mined.grammar_files(root):
+        for _, line, production, _ in mined.code(path.read_text().splitlines()):
+            if production == owner:
+                body = line.partition('::=')[2] if mined.DEFINITION.match(line) else line
+                if rule in mined.BARE.findall(literals.sub(' ', body)):
+                    return True
+    return False
+
+
+def _rule_reference_conflict(source, entries, log):
+    """Route a unique removal or a newly introduced reference to an obsolete name."""
     try:
         with log.open() as stream:
             error = stream.read(4097)
         message = re.fullmatch(r'Error: "([A-Za-z_]\w*): unknown rule ([A-Za-z_]\w*)"\s*', error)
-        if not message or not _declares(source, message[2]):
+        if not message:
             return None
-        missing = message[2]
-        owners = [index for index, proposal in entries if proposal.get('kind') != 'mechanical'
-                  and _declares(Path(proposal['run'])/'inputs/frozen', missing)
-                  and not _declares(Path(proposal['report']['directory']), missing)]
+        reference, missing = message.groups()
+        previous = _declares(source, missing)
+        if not previous and _declares(source, reference):
+            return None
+        owners = []
+        for index, proposal in entries:
+            if proposal.get('kind') == 'mechanical':
+                continue
+            base = Path(proposal['run'])/'inputs/frozen'
+            current = Path(proposal['report']['directory'])
+            if previous:
+                responsible = not _declares(current, missing) and _declares(base, missing)
+            else:
+                responsible = (_uses_rule(current, reference, missing) and not _declares(base, reference)
+                               and _declares(base, missing) and _declares(current, missing))
+            if responsible:
+                owners.append(index)
     except (OSError, UnicodeError):
         return None
     if len(owners) != 1:
         return None
-    return {'reference': message[1], 'missing_rule': missing, 'without_proposal_indices': owners}
+    result = {'reference': reference, 'missing_rule': missing, 'without_proposal_indices': owners}
+    if not previous:
+        result['stale_reference'] = True
+    return result
+
+
+def _merge_trial_proposal(trial, scratch, proposal, mechanical):
+    run, task, directory, hooks = proposal
+    if mechanical:
+        if hooks:
+            raise ValueError('mechanical proposal cannot request hooks')
+        _mechanical_removal(run, directory, task['rules'], scratch)
+    else:
+        changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
+        for name, text in changes.items():
+            target = trial/name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(text)
+    removed, kept = mined.remove(trial, task['rules'])
+    if set(removed) != set(task['rules']) or kept:
+        raise ValueError('assigned removals have retained users')
+    a.apply_hooks(trial/'grammar', hooks)
+
+
+def _retained_family_failure(failures, proof, source, logs):
+    checks = proof.get('family_checks', [])
+    if len(failures) != 1 or not 0 <= failures[0] < len(checks):
+        return None
+    check = checks[failures[0]]
+    if check['kind'] not in ('baseline', 'prior-proposal'):
+        return None
+    fixture = check['fixture']
+    try:
+        failures = r.read(logs/check['log'])['failures']
+        digest = r.digest(source/fixture)
+    except (ValueError, OSError, KeyError, TypeError):
+        return None
+    if not isinstance(failures, list) or not failures:
+        return None
+    return {'fixture': fixture, 'sha256': digest, 'failures': failures}
 
 
 def _stage_trial(context, entries, label):
@@ -642,8 +706,6 @@ def _stage_trial(context, entries, label):
             for offset, ((index, proposal), item) in enumerate(zip(entries, items, strict=True)):
                 run, task, directory, hooks = _proposal(proposal, input_cache=input_cache)
                 mechanical = proposal.get('kind', 'author') == 'mechanical'
-                if mechanical and hooks:
-                    raise ValueError('mechanical proposal cannot request hooks')
                 fixture = None if mechanical else _fixture_path(task['fixture'])
                 if fixture and ((source/fixture).exists() or str(fixture) in manifest['fixtures']
                                 or fixture in [destination for _, destination in additions]):
@@ -660,22 +722,11 @@ def _stage_trial(context, entries, label):
                             'descriptor_sha256': report['descriptor_sha256'],
                             'support_sha256': report['support_sha256'], 'fixture_sha256': report.get('fixture_sha256'),
                             'kind': proposal.get('kind', 'author')}
-                if mechanical:
-                    _mechanical_removal(run, directory, task['rules'], folder)
-                else:
-                    try:
-                        changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
-                    except merger.MergeConflict:
-                        proof['merge_conflict_at'] = index
-                        raise
-                    for name, text in changes.items():
-                        target = trial/name
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        target.write_text(text)
-                removed, kept = mined.remove(trial, task['rules'])
-                if set(removed) != set(task['rules']) or kept:
-                    raise ValueError('assigned removals have retained users')
-                a.apply_hooks(trial/'grammar', hooks)
+                try:
+                    _merge_trial_proposal(trial, folder, (run, task, directory, hooks), mechanical)
+                except merger.MergeConflict:
+                    proof['merge_conflict_at'] = index
+                    raise
                 if fixture:
                     filename = 'family.json' if len(entries) == 1 else f'family-{offset:03d}.json'
                     temporary_family = trial/filename
@@ -749,10 +800,15 @@ def _stage_trial(context, entries, label):
                 proof['new_families_failed_at'] = [
                     index for (index, _), (_, fixture, _, _) in zip(entries, prepared, strict=True)
                     if fixture and str(fixture) in failed]
+            else:
+                evidence = _retained_family_failure(error.failed_fixtures, proof, source, logs)
+                if evidence is not None:
+                    proof['retained_family_failure'] = evidence
         elif isinstance(error, _FamilyCheckFailure) and len(entries) > 1:
-            conflict = _removed_rule_conflict(source, entries, logs/'family.log')
+            conflict = _rule_reference_conflict(source, entries, logs/'family.log')
             if conflict is not None:
-                proof['removed_rule_conflict'] = conflict
+                key = 'stale_rule_conflict' if conflict.get('stale_reference') else 'removed_rule_conflict'
+                proof[key] = conflict
         for item in items:
             item.update(status='integration-rejected', reason=str(error))
     try:
@@ -770,11 +826,98 @@ def _stage_trial(context, entries, label):
     return items, proof
 
 
+def _probe_retained_family(context, entries, failure, logs, input_cache):
+    """Check one witnessed family on a private ordered subset."""
+    logs.mkdir()
+    source, folder = context['source'], context['folder']
+    known = dict(context['baseline']) | {
+        name: r.digest(source/name) for name in context['manifest']['fixtures']}
+    fixture = source/failure['fixture']
+    if known.get(failure['fixture']) != failure['sha256'] or r.digest(fixture) != failure['sha256']:
+        raise _UncertainPromotion('retained family changed before focused replay')
+    proof = {'proposal_indices': [index for index, _ in entries], 'fixture': failure['fixture'],
+             'fixture_sha256': failure['sha256']}
+    prefix = r.tree(source/'grammar')
+    try:
+        with tempfile.TemporaryDirectory(dir=folder) as temporary:
+            trial = Path(temporary)
+            shutil.copytree(source/'grammar', trial/'grammar')
+            for _, item in entries:
+                _merge_trial_proposal(trial, folder, _proposal(item, input_cache=input_cache),
+                                      item.get('kind') == 'mechanical')
+            tree = r.tree(trial/'grammar')
+            proof['trial_grammar'] = tree
+            try:
+                _helper(context['checkpoint'], source, fixture, logs/'family.log', grammar_dir=trial/'grammar', threads=2)
+                outcome = 'passed'
+            except _FamilyCheckFailure as error:
+                observed = r.read(logs/'family-000.log')['failures'] if error.failed_fixtures == (0,) else None
+                outcome = 'reproduced' if observed == failure['failures'] else 'inconclusive'
+            if not input_cache.unchanged() or r.tree(trial/'grammar') != tree:
+                raise _UncertainPromotion('retained family inputs changed during focused replay')
+    except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
+        outcome = 'inconclusive'
+        proof['reason'] = str(error)
+    try:
+        current = (r.tree(source/'grammar'), r.digest(fixture),
+                   r.digest(context['registry_path']))
+        if current != (prefix, failure['sha256'], context['registry_hash']):
+            raise _UncertainPromotion('retained family prefix changed during focused replay')
+    except OSError as error:
+        raise _UncertainPromotion('retained family prefix unavailable after focused replay') from error
+    proof['outcome'] = outcome
+    r.write(logs/'probe.json', proof)
+    return outcome
+
+
+def _isolate_retained_family(context, entries, failure, folder):
+    """Find one independently reproducible regression for a fully gated retry."""
+    folder.mkdir()
+    counter = 0
+    input_cache = _ProposalInputCache()
+
+    def probe(group):
+        nonlocal counter
+        logs = folder/f'probe-{counter:02d}'
+        counter += 1
+        return _probe_retained_family(context, group, failure, logs, input_cache)
+
+    if probe([]) != 'passed':
+        return None
+    while len(entries) > 1:
+        middle = len(entries)//2
+        left, right = entries[:middle], entries[middle:]
+        outcome = probe(left)
+        if outcome == 'reproduced':
+            entries = left
+        elif outcome == 'passed' and probe(right) == 'reproduced':
+            entries = right
+        else:
+            return None
+    return entries[0][0]
+
+
+def _retry_retained_family(context, entries, proof, whole_proof, size, withheld=()):
+    failure = proof.get('retained_family_failure')
+    if failure is None or len(withheld) >= size:
+        return False
+    selection = [entry for entry in entries if entry[0] not in withheld]
+    if len(selection) < 2:
+        return False
+    folder = context['folder']/f'retained-family-{entries[0][0]:03d}'
+    culprit = _isolate_retained_family(context, selection, failure, folder)
+    if culprit is None:
+        return False
+    return _retry_without(context, entries, whole_proof, sorted([*withheld, culprit]), size,
+                          route='retained_family')
+
+
 def _retry_without(context, entries, whole_proof, failed_indices, size, *, route):
     """Use a bounded diagnosis to route fresh guarded trials."""
     manifest, folder = context['manifest'], context['folder']
     label = {'dependency': 'without-conflicting-removal', 'family': 'without-failed-families',
-             'merge': 'without-merge-conflict'}[route]
+             'merge': 'without-merge-conflict', 'stale': 'without-stale-rule-reference',
+             'retained_family': 'without-retained-family-regression'}[route]
     receipt = route+'_retry'
     while 1 <= len(failed_indices) <= size:
         withheld = [entry for entry in entries if entry[0] in failed_indices]
@@ -793,9 +936,12 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
             break
         r.write(folder/'manifest.json', manifest)
         next_conflict = proof.get('merge_conflict_at')
-        if route != 'merge' or next_conflict not in {index for index, _ in survivors}:
+        if route == 'merge' and next_conflict in {index for index, _ in survivors}:
+            failed_indices = sorted([*failed_indices, next_conflict])
+            continue
+        if route == 'retained_family':
             return False
-        failed_indices = sorted([*failed_indices, next_conflict])
+        return _retry_retained_family(context, entries, proof, whole_proof, size, failed_indices)
     else:
         return False
     for item in items:
@@ -961,13 +1107,20 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
             group_proof = items[0]['trial_proof']
             if combine_selected and len(entries) > fallback_size:
                 conflict = proof.get('removed_rule_conflict')
+                stale = proof.get('stale_rule_conflict')
                 if 'merge_conflict_at' in proof:
                     route, failed = 'merge', [proof['merge_conflict_at']]
+                elif stale:
+                    route, failed = 'stale', stale['without_proposal_indices']
                 elif conflict:
                     route, failed = 'dependency', conflict['without_proposal_indices']
                 else:
                     route, failed = 'family', proof.get('new_families_failed_at', ())
-                if not _retry_without(context, entries, group_proof, failed, fallback_size, route=route):
+                if failed:
+                    passed = _retry_without(context, entries, group_proof, failed, fallback_size, route=route)
+                else:
+                    passed = _retry_retained_family(context, entries, proof, group_proof, fallback_size)
+                if not passed:
                     _subgroup_fallback(context, entries, group_proof, fallback_size)
                 continue
             for index, proposal in entries:
