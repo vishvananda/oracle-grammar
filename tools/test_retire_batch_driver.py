@@ -19,8 +19,10 @@ class QueueStub:
         self.value = progress
         self.rejected = []
         self.ready = []
+        self.superseded = []
     def get_jobs(self, status, limit=None):
-        rows = self.rejected if status == 'integration-rejected' else self.ready if status == 'provisional-pass' else []
+        rows = {'integration-rejected': self.rejected, 'provisional-pass': self.ready,
+                'superseded': self.superseded}.get(status, [])
         return rows[:limit]
     def progress(self):
         return self.value
@@ -238,6 +240,26 @@ class DriverTests(unittest.TestCase):
                 self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'], 'rejected')
                 with patch.dict(event, attempt_id='stale'), self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
                     driver._batch_observation(self.run, set(), self.queue, 'parent')
+
+    def test_mechanical_rehabilitation_preserves_original_staging_rejection(self):
+        folder = self.run/'.cache/batches/id'
+        folder.mkdir(parents=True)
+        job = {'job_id': 'job', 'attempt_id': 'attempt', 'status': 'integration-rejected'}
+        r.write(folder/'manifest.json', {'id': 'id', 'base_commit': 'parent', 'status': 'no-proposals',
+                                        'jobs': [job]})
+        verdict = {'status': 'integration-rejected', 'checkpoint': None,
+                   'evidence': {'manifest': 'id', 'reason': 'merge or staging rejected'}}
+        self.queue.superseded = [{'id': 'job', 'attempt_id': 'attempt', 'adjudication': verdict}]
+        event = {'parent_job': 'job', 'origin_attempt': 'attempt', 'checkpoint': 'parent'}
+        self.queue.audit = lambda: [{'kind': 'rehabilitated-unused', 'data': event}]
+        self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'], 'rejected')
+        for field in ('parent_job', 'origin_attempt', 'checkpoint'):
+            with self.subTest(field=field), patch.dict(event, {field: 'different'}), \
+                    self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
+                driver._batch_observation(self.run, set(), self.queue, 'parent')
+        with patch.dict(verdict['evidence'], manifest='different'), \
+                self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
+            driver._batch_observation(self.run, set(), self.queue, 'parent')
 
     def test_mechanical_threshold_takes_only_mechanics_and_caps_at_96(self):
         config = r.read(self.run/'config.json')

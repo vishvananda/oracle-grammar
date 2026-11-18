@@ -61,6 +61,17 @@ def _recorded_recovery(events, job, checkpoint, expected):
     return event.get('previous_status') == 'integration-rejected'
 
 
+def _recorded_rehabilitation(events, parent, job, checkpoint, expected):
+    if (not parent or parent['attempt_id'] != job['attempt_id']
+            or parent.get('adjudication') != {'status': 'integration-rejected',
+                                              'checkpoint': None, 'evidence': expected}):
+        return False
+    identities = [(event['data'].get('parent_job'), event['data'].get('origin_attempt'),
+                   event['data'].get('checkpoint')) for event in events
+                  if event['kind'] == 'rehabilitated-unused']
+    return identities.count((job['job_id'], job['attempt_id'], checkpoint)) == 1
+
+
 def _batch_observation(run, before, queue, checkpoint):
     folders = run/'.cache/batches'
     after = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
@@ -105,6 +116,7 @@ def _batch_observation(run, before, queue, checkpoint):
         raise ValueError('batch staging failed operationally: '+str(manifest_path))
     rejected = {row['id']: row for row in queue.get_jobs('integration-rejected')}
     events = None
+    superseded = None
     for job in jobs:
         row = rejected.get(job['job_id'])
         evidence = (row.get('adjudication') or {}).get('evidence', {}) if row else {}
@@ -115,7 +127,11 @@ def _batch_observation(run, before, queue, checkpoint):
             # A verified recovery may finish between batch adjudication and observation.
             if events is None:
                 events = queue.audit()
-            if not _recorded_recovery(events, job, checkpoint, expected):
+            if _recorded_recovery(events, job, checkpoint, expected):
+                continue
+            if superseded is None:
+                superseded = {row['id']: row for row in queue.get_jobs('superseded')}
+            if not _recorded_rehabilitation(events, superseded.get(job['job_id']), job, checkpoint, expected):
                 raise ValueError('rejected batch job disposition is missing or differs')
     return result
 
