@@ -1233,6 +1233,40 @@ class BatchTests(unittest.TestCase):
             self.assertEqual([name for name, _ in calls[2:]], [f'proposal-{i:03d}' for i in range(6)])
             self.assertEqual(context['manifest']['merge_retry']['without_proposal_indices'], list(range(6)))
 
+    def test_retained_family_retry_can_route_a_second_family_then_a_native_veto(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            entries = [(i, {'job_id': f'job-{i}'}) for i in range(8)]
+            context = {'folder': folder, 'manifest': {'jobs': []}}
+            calls, probes = [], []
+
+            def family(_, selection, failure, output):
+                output.mkdir()
+                probes.append(output.name)
+                return failure['culprit']
+
+            def trial(_, proposals, label):
+                (folder/label).mkdir()
+                jobs = [item['job_id'] for _, item in proposals]
+                calls.append((label, jobs))
+                proof = {'jobs': jobs, 'status': 'passed'}
+                if label == 'without-retained-family-regression':
+                    proof.update(status='failed', retained_family_failure={'culprit': 2})
+                if label == 'without-retained-family-regression-004':
+                    proof.update(status='failed', retained_native_failure={'face': 'B'})
+                return [{'job_id': job, 'trial_proof': {'path': label}} for job in jobs], proof
+
+            with patch.object(batch, '_stage_trial', side_effect=trial), \
+                 patch.object(batch, '_isolate_retained_family', side_effect=family), \
+                 patch.object(batch, '_isolate_retained_native', return_value=4) as native:
+                self.assertTrue(batch._retry_retained_control(context, entries,
+                    {'retained_family_failure': {'culprit': 1}}, {'path': 'whole'}, 5, [0, 3]))
+            self.assertEqual(probes, ['retained-family-000', 'retained-family-000-003'])
+            self.assertEqual([index for index, _ in native.call_args.args[1]], [4, 5, 6, 7])
+            self.assertEqual(calls[2], ('without-retained-native-regression', ['job-5', 'job-6', 'job-7']))
+            self.assertEqual([label for label, _ in calls[3:]], [f'proposal-{i:03d}' for i in range(5)])
+            self.assertEqual(len(context['manifest']['jobs']), 8)
+
     def test_stale_rule_reference_routes_only_a_unique_new_symbolic_use(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

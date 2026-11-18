@@ -1037,14 +1037,15 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
     if len(selection) < 2:
         return False
     if family is not None:
-        route = 'retained_family'
-        folder = context['folder']/f'retained-family-{entries[0][0]:03d}'
-        culprit = _isolate_retained_family(context, selection, family, folder)
+        route, isolate, failure = 'retained_family', _isolate_retained_family, family
     else:
-        route = 'retained_native'
-        folder = context['folder']/f'retained-native-{entries[0][0]:03d}'
-        culprit = _isolate_retained_native(context, selection, native, folder)
-    if culprit is None:
+        route, isolate, failure = 'retained_native', _isolate_retained_native, native
+    stem = f"{route.replace('_', '-')}-{entries[0][0]:03d}"
+    folder = context['folder']/stem
+    if folder.exists():
+        folder = folder.with_name(f'{stem}-{len(withheld):03d}')
+    culprit = isolate(context, selection, failure, folder)
+    if culprit not in {index for index, _ in selection}:
         return False
     return _retry_without(context, entries, whole_proof, sorted([*withheld, culprit]), size,
                           route=route)
@@ -1073,7 +1074,8 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
         survivors = [entry for entry in entries if entry[0] not in failed_indices]
         if len(withheld) != len(failed_indices) or not survivors:
             return False
-        suffix = not first_attempt or (route == 'merge' and len(failed_indices) > 1)
+        suffix = (not first_attempt or (route == 'merge' and len(failed_indices) > 1)
+                  or (folder/label).exists())
         attempt_label = f'{label}-{len(failed_indices):03d}' if suffix else label
         first_attempt = False
         items, proof = _stage_trial(context, survivors, attempt_label)
@@ -1089,8 +1091,6 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
         if next_failed and set(next_failed) <= {index for index, _ in survivors}:
             failed_indices = sorted({*failed_indices, *next_failed})
             continue
-        if route in ('retained_family', 'retained_native'):
-            return False
         return _retry_retained_control(context, entries, proof, whole_proof, size, failed_indices)
     else:
         return False
