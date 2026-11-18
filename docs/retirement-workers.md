@@ -61,6 +61,10 @@ fails, staging tries the configured subgroups and checks unsuccessful subgroups
 individually. When the failed families belong only to new proposals and those
 proposals fit into one subgroup, staging first gives the remaining proposals a
 guarded trial. If it passes, each withheld proposal gets a separate trial.
+When a combined trial fails the native check on one named face, staging can
+replay that face and its companions to identify an independently failing
+proposal. The remaining proposals and the withheld proposal each go through
+normal staging checks.
 Mechanical priority and recovery routing still govern selection. The same
 repository and full allowed-population checks gate acceptance.
 

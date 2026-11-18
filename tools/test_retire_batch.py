@@ -464,6 +464,19 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(run.call_count, 2)
                 self.assertFalse((refreshed/'reuse.json').exists())
 
+    def test_native_focus_requires_a_named_and_complete_rejection(self):
+        control = {'occurrences': 2, 'names': ['A', 'B']}
+        print_loss = {'face': 'A', 'lost': ['exact_default']}
+        failure = {'face': 'B', 'gate': 'parse/reading-count/text'}
+        cases = [(1, [print_loss]), (2, [print_loss, failure]),
+                 (2, ['native readings changed or failed validation']),
+                 (2, [{'face': 'elsewhere', 'lost': ['exact_default']}])]
+        self.assertEqual(batch._retained_native_failure(control, {'faces': 2, 'failures': [print_loss]}),
+                         {'face': 'A', 'failures': [print_loss]})
+        for faces, failures in cases:
+            with self.subTest(faces=faces, failures=failures):
+                self.assertIsNone(batch._retained_native_failure(control, {'faces': faces, 'failures': failures}))
+
     def test_native_control_profile_closure_and_tampering_fail_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -866,13 +879,15 @@ class BatchTests(unittest.TestCase):
                      'isolated-family', 'multiple-families', 'family-reordered-pass',
                      'family-survivors-still-fail', 'removed-rule', 'merge-conflicts',
                      'retained-family', 'retained-family-interaction', 'retained-family-after-deletion',
-                     'retained-family-mutated-prefix'):
+                     'retained-family-mutated-prefix', 'retained-native-after-merge',
+                     'retained-native-not-reproduced'):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 repo = root/'repo'
                 (repo/'grammar/syntax').mkdir(parents=True)
                 (repo/'tests').mkdir()
                 focused = mode.startswith('retained-family')
+                native = mode.startswith('retained-native')
                 fixture = 'families/retained.json'
                 if focused:
                     (repo/'families').mkdir()
@@ -898,7 +913,8 @@ class BatchTests(unittest.TestCase):
                     path = trial/'grammar/syntax/shared.ebnf'
                     prior = path.read_text() if path.exists() else ''
                     competing = {'j2': 'j0', 'j6': 'j4'}
-                    if mode == 'merge-conflicts' and name in competing and competing[name] in prior.splitlines():
+                    if ((mode == 'merge-conflicts' or native and name == 'j2')
+                            and name in competing and competing[name] in prior.splitlines()):
                         raise batch.merger.MergeConflict('conflicting addition or deletion')
                     return {'grammar/syntax/shared.ebnf': prior+name+'\n'}
                 def remove(trial, rules):
@@ -912,6 +928,8 @@ class BatchTests(unittest.TestCase):
                     text = shared.read_text().splitlines() if shared.exists() else []
                     calls.append((log.parent.name, text))
                     log.write_text('family proof')
+                    if native:
+                        return
                     if focused:
                         if log.parent.name.startswith('probe-'):
                             self.assertEqual(threads, 2)
@@ -947,15 +965,56 @@ class BatchTests(unittest.TestCase):
                         raise ValueError('cross-group interaction')
                 cp = {'source': str(repo), 'commit': commit,
                       'stage_group_size': 1 if mode == 'configured-singletons' else 4}
+                if native:
+                    cp.update(control_fixture(root, commit))
+                native_calls = []
+
+                def closure(inputs, detail, *, max_occurrences):
+                    names = ['A'] if max_occurrences == 16 else ['A', 'B']
+                    return {'names': names, 'closure_occurrence_count': len(names)}
+
+                def native_check(run, directory, grammar, cohort, data, threads):
+                    shared = grammar/'syntax/shared.ebnf'
+                    contents = shared.read_text().splitlines() if shared.exists() else []
+                    native_calls.append((directory.parent.name, list(cohort), contents, threads))
+                    failed = 'j6' in contents and (len(cohort) > 1 or mode != 'retained-native-not-reproduced')
+                    veto = ['native readings changed or failed validation',
+                            {'face': 'A', 'gate': 'parse/reading-count/text'}]
+                    return {'faces': len(cohort), 'failures': veto if failed else []}
+
                 with patch.object(batch, '_proposal', side_effect=proposal), \
                         patch.object(batch, '_family', return_value={'family': 'test', 'cases': []}), \
                         patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
                         patch.object(batch.mined, 'remove', side_effect=remove), \
                         patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family), \
+                        patch.object(batch, '_control_baseline'), \
+                        patch.object(batch.tasks, 'close_cohort', side_effect=closure), \
+                        patch.object(batch.w, 'checks', side_effect=native_check), \
                         patch.object(batch, '_rule_reference_conflict', return_value=(
                             {'without_proposal_indices': [2]}
                             if mode in ('removed-rule', 'retained-family-after-deletion') else None)):
                     result = batch.stage(root, cp, proposals, combine_selected=True)
+                if native:
+                    merge_retry = batch.r.read(result['merge_retry']['proof']['path'])
+                    self.assertEqual(merge_retry['retained_native_failure']['face'], 'A')
+                    probes = sorted((Path(result['folder'])/'retained-native-000').glob('probe-*/probe.json'))
+                    outcomes = [batch.r.read(path)['outcome'] for path in probes]
+                    self.assertEqual(outcomes[0], 'passed')
+                    if mode == 'retained-native-not-reproduced':
+                        self.assertEqual(outcomes, ['passed', 'passed'])
+                        self.assertNotIn('retained_native_retry', result)
+                        self.assertIn('fallback_trials', result)
+                    else:
+                        self.assertEqual(outcomes[1], 'reproduced')
+                        self.assertNotIn('fallback_trials', result)
+                        receipt = result['retained_native_retry']
+                        self.assertEqual(receipt['without_proposal_indices'], [2, 6])
+                        self.assertEqual(receipt['status'], 'passed')
+                        self.assertTrue(any(label == 'without-retained-native-regression' and cohort == ['A', 'B']
+                                            for label, cohort, _, _ in native_calls))
+                        self.assertTrue(all(cohort == ['A'] and threads == 2 for label, cohort, _, threads in native_calls
+                                            if label.startswith('probe-')))
+                    continue
                 if mode == 'retained-family-mutated-prefix':
                     self.assertEqual(result['status'], 'failed')
                     self.assertIn('prefix changed', result['reason'])

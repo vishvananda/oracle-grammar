@@ -409,6 +409,12 @@ def _control_setup(checkpoint):
     return control
 
 
+class _NativeControlFailure(ValueError):
+    def __init__(self, path, report):
+        super().__init__('native regression control failed: '+str(path))
+        self.report = report
+
+
 def _control_check(checkpoint, control, grammar, directory):
     threads = _native_control_threads(checkpoint)
     if control['threads'] != threads:
@@ -430,9 +436,9 @@ def _control_check(checkpoint, control, grammar, directory):
             for fd in fds:
                 r._LEASES.remove(fd)
     r.write(directory/'result.json', report)
-    if report.get('faces') != control['occurrences'] or report.get('failures') != []:
-        raise ValueError('native regression control failed: '+str(directory/'result.json'))
     _control_verify(control)
+    if report.get('faces') != control['occurrences'] or report.get('failures') != []:
+        raise _NativeControlFailure(directory/'result.json', report)
     return report
 
 
@@ -809,6 +815,10 @@ def _stage_trial(context, entries, label):
             if conflict is not None:
                 key = 'stale_rule_conflict' if conflict.get('stale_reference') else 'removed_rule_conflict'
                 proof[key] = conflict
+        elif isinstance(error, _NativeControlFailure) and len(entries) > 1:
+            failure = _retained_native_failure(control, error.report)
+            if failure is not None:
+                proof['retained_native_failure'] = failure
         for item in items:
             item.update(status='integration-rejected', reason=str(error))
     try:
@@ -826,6 +836,15 @@ def _stage_trial(context, entries, label):
     return items, proof
 
 
+def _replay_focused_grammar(context, entries, trial, input_cache):
+    grammar = trial/'grammar'
+    shutil.copytree(context['source']/'grammar', grammar)
+    for _, item in entries:
+        _merge_trial_proposal(trial, context['folder'], _proposal(item, input_cache=input_cache),
+                              item.get('kind') == 'mechanical')
+    return grammar
+
+
 def _probe_retained_family(context, entries, failure, logs, input_cache):
     """Check one witnessed family on a private ordered subset."""
     logs.mkdir()
@@ -840,20 +859,16 @@ def _probe_retained_family(context, entries, failure, logs, input_cache):
     prefix = r.tree(source/'grammar')
     try:
         with tempfile.TemporaryDirectory(dir=folder) as temporary:
-            trial = Path(temporary)
-            shutil.copytree(source/'grammar', trial/'grammar')
-            for _, item in entries:
-                _merge_trial_proposal(trial, folder, _proposal(item, input_cache=input_cache),
-                                      item.get('kind') == 'mechanical')
-            tree = r.tree(trial/'grammar')
+            grammar = _replay_focused_grammar(context, entries, Path(temporary), input_cache)
+            tree = r.tree(grammar)
             proof['trial_grammar'] = tree
             try:
-                _helper(context['checkpoint'], source, fixture, logs/'family.log', grammar_dir=trial/'grammar', threads=2)
+                _helper(context['checkpoint'], source, fixture, logs/'family.log', grammar_dir=grammar, threads=2)
                 outcome = 'passed'
             except _FamilyCheckFailure as error:
                 observed = r.read(logs/'family-000.log')['failures'] if error.failed_fixtures == (0,) else None
                 outcome = 'reproduced' if observed == failure['failures'] else 'inconclusive'
-            if not input_cache.unchanged() or r.tree(trial/'grammar') != tree:
+            if not input_cache.unchanged() or r.tree(grammar) != tree:
                 raise _UncertainPromotion('retained family inputs changed during focused replay')
     except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         outcome = 'inconclusive'
@@ -870,7 +885,7 @@ def _probe_retained_family(context, entries, failure, logs, input_cache):
     return outcome
 
 
-def _isolate_retained_family(context, entries, failure, folder):
+def _isolate_retained(entries, test, folder, *, verify_full=False):
     """Find one independently reproducible regression for a fully gated retry."""
     folder.mkdir()
     counter = 0
@@ -880,9 +895,9 @@ def _isolate_retained_family(context, entries, failure, folder):
         nonlocal counter
         logs = folder/f'probe-{counter:02d}'
         counter += 1
-        return _probe_retained_family(context, group, failure, logs, input_cache)
+        return test(group, logs, input_cache)
 
-    if probe([]) != 'passed':
+    if probe([]) != 'passed' or (verify_full and probe(entries) != 'reproduced'):
         return None
     while len(entries) > 1:
         middle = len(entries)//2
@@ -897,19 +912,105 @@ def _isolate_retained_family(context, entries, failure, folder):
     return entries[0][0]
 
 
-def _retry_retained_family(context, entries, proof, whole_proof, size, withheld=()):
-    failure = proof.get('retained_family_failure')
-    if failure is None or len(withheld) >= size:
+def _isolate_retained_family(context, entries, failure, folder):
+    def test(group, logs, input_cache):
+        return _probe_retained_family(context, group, failure, logs, input_cache)
+
+    return _isolate_retained(entries, test, folder)
+
+
+def _retained_native_failure(control, report):
+    """Only route a complete, localized native rejection."""
+    failures = report.get('failures')
+    if (type(report.get('faces')) is not int or report['faces'] != control['occurrences']
+            or not isinstance(failures, list) or not 1 <= len(failures) <= 3):
+        return None
+    faces = set()
+    for item in failures:
+        if item == 'native readings changed or failed validation':
+            continue
+        if not isinstance(item, dict) or item.get('face') not in control['names']:
+            return None
+        if set(item) == {'face', 'gate'} and item['gate'] == 'parse/reading-count/text':
+            faces.add(item['face'])
+        elif (set(item) == {'face', 'lost'} and isinstance(item['lost'], list)
+              and 1 <= len(item['lost']) <= len(r.PRINT_GATES) and all(gate in r.PRINT_GATES for gate in item['lost'])):
+            faces.add(item['face'])
+        else:
+            return None
+    if len(faces) == 1:
+        return {'face': next(iter(faces)), 'failures': failures}
+    return None
+
+
+def _probe_retained_native(context, entries, control, failures, logs, input_cache):
+    logs.mkdir()
+    source = context['source']
+    prefix = r.tree(source/'grammar')
+    proof = {'proposal_indices': [index for index, _ in entries], 'names': control['names']}
+    checkpoint = {**context['checkpoint'], 'native_control_threads': control['threads']}
+    try:
+        with tempfile.TemporaryDirectory(dir=context['folder']) as temporary:
+            grammar = _replay_focused_grammar(context, entries, Path(temporary), input_cache)
+            tree = r.tree(grammar)
+            proof['trial_grammar'] = tree
+            try:
+                _control_check(checkpoint, control, grammar, logs/'native-control')
+                outcome = 'passed'
+            except _NativeControlFailure as error:
+                expected = {'faces': control['occurrences'], 'failures': failures}
+                outcome = 'reproduced' if error.report == expected else 'inconclusive'
+            if not input_cache.unchanged() or r.tree(grammar) != tree:
+                raise _UncertainPromotion('native control inputs changed during focused replay')
+            proof['result_sha256'] = r.digest(logs/'native-control/result.json')
+    except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
+        outcome = 'inconclusive'
+        proof['reason'] = str(error)
+    if r.tree(source/'grammar') != prefix or r.digest(context['registry_path']) != context['registry_hash']:
+        raise _UncertainPromotion('native control prefix changed during focused replay')
+    proof['outcome'] = outcome
+    r.write(logs/'probe.json', proof)
+    return outcome
+
+
+def _isolate_retained_native(context, entries, failure, folder):
+    control = context['control']
+    _control_verify(control)
+    try:
+        closure = tasks.close_cohort(control['run'], {'names': [failure['face']]}, max_occurrences=16)
+    except tasks.CohortClosureLimit:
+        return None
+    if not set(closure['names']) <= set(control['names']):
+        return None
+    focused = {**control, 'names': closure['names'], 'occurrences': closure['closure_occurrence_count'],
+               'threads': min(2, control['threads'])}
+
+    def test(group, logs, input_cache):
+        return _probe_retained_native(context, group, focused, failure['failures'], logs, input_cache)
+
+    return _isolate_retained(entries, test, folder, verify_full=True)
+
+
+def _retry_retained_control(context, entries, proof, whole_proof, size, withheld=()):
+    family = proof.get('retained_family_failure')
+    native = proof.get('retained_native_failure')
+    if (family is None and native is None) or len(withheld) >= size:
         return False
     selection = [entry for entry in entries if entry[0] not in withheld]
     if len(selection) < 2:
         return False
-    folder = context['folder']/f'retained-family-{entries[0][0]:03d}'
-    culprit = _isolate_retained_family(context, selection, failure, folder)
+    if family is not None:
+        route = 'retained_family'
+        folder = context['folder']/f'retained-family-{entries[0][0]:03d}'
+        culprit = _isolate_retained_family(context, selection, family, folder)
+    else:
+        route = 'retained_native'
+        folder = context['folder']/f'retained-native-{entries[0][0]:03d}'
+        culprit = _isolate_retained_native(context, selection, native, folder)
     if culprit is None:
         return False
     return _retry_without(context, entries, whole_proof, sorted([*withheld, culprit]), size,
-                          route='retained_family')
+                          route=route)
 
 
 def _retry_without(context, entries, whole_proof, failed_indices, size, *, route):
@@ -917,7 +1018,8 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
     manifest, folder = context['manifest'], context['folder']
     label = {'dependency': 'without-conflicting-removal', 'family': 'without-failed-families',
              'merge': 'without-merge-conflict', 'stale': 'without-stale-rule-reference',
-             'retained_family': 'without-retained-family-regression'}[route]
+             'retained_family': 'without-retained-family-regression',
+             'retained_native': 'without-retained-native-regression'}[route]
     receipt = route+'_retry'
     while 1 <= len(failed_indices) <= size:
         withheld = [entry for entry in entries if entry[0] in failed_indices]
@@ -939,9 +1041,9 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
         if route == 'merge' and next_conflict in {index for index, _ in survivors}:
             failed_indices = sorted([*failed_indices, next_conflict])
             continue
-        if route == 'retained_family':
+        if route in ('retained_family', 'retained_native'):
             return False
-        return _retry_retained_family(context, entries, proof, whole_proof, size, failed_indices)
+        return _retry_retained_control(context, entries, proof, whole_proof, size, failed_indices)
     else:
         return False
     for item in items:
@@ -1119,7 +1221,7 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
                 if failed:
                     passed = _retry_without(context, entries, group_proof, failed, fallback_size, route=route)
                 else:
-                    passed = _retry_retained_family(context, entries, proof, group_proof, fallback_size)
+                    passed = _retry_retained_control(context, entries, proof, group_proof, fallback_size)
                 if not passed:
                     _subgroup_fallback(context, entries, group_proof, fallback_size)
                 continue
