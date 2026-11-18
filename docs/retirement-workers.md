@@ -73,6 +73,12 @@ normal staging checks.
 Mechanical priority and recovery routing still govern selection. The same
 repository and full allowed-population checks gate acceptance.
 
+With `mechanical_cohorts_first` enabled, `mechanical_batch_minimum` sets how many
+provisional mechanical jobs trigger a mechanical-only batch. It defaults to the
+current general batch size. An operator can lower it to audit a smaller group
+separately from author proposals. The mechanical selection keeps the 96-job cap
+and goes through the same acceptance checks.
+
 Worker-authored cases always run compositionally. Coordinator-generated
 whole-card operand cases may explicitly retain unrelated seeded clauses; these
 cases still require their independently mutated expected IR and verified prints.

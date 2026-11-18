@@ -296,6 +296,32 @@ class DriverTests(unittest.TestCase):
             driver.run_driver(self.run, self.runner)
         self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'mechanical-first')
 
+    def test_configured_mechanical_minimum_dispatches_before_general_batch_is_ready(self):
+        config = r.read(self.run/'config.json')
+        config.update(first_batch_size=64, batch_size=64, mechanical_cohorts_first=True,
+                      mechanical_batch_minimum=2, recovered_cohorts_first=True)
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(pending=5, ready=3)
+        self.queue.ready = [{'id': name, 'job': {'kind': kind}} for name, kind in
+                            [('a1', 'author'), ('m1', 'mechanical'), ('m2', 'mechanical')]]
+        with patch.object(driver, 'recovered_cohort') as cohort, \
+                patch.object(driver.dispatch, '_batch', side_effect=RuntimeError('batch selected')) as batch, \
+                self.assertRaisesRegex(RuntimeError, 'batch selected'):
+            driver.run_driver(self.run, self.runner)
+        cohort.assert_not_called()
+        batch.assert_called_once_with(self.run, ['m1', 'm2'], combine_selected=True)
+
+    def test_mechanical_minimum_validates_bounds_and_type(self):
+        config = r.read(self.run/'config.json')
+        for value in (0, 97, True):
+            with self.subTest(value=value):
+                config['mechanical_batch_minimum'] = value
+                r.write(self.run/'config.json', config)
+                with patch.object(driver.dispatch, '_batch') as batch, \
+                        self.assertRaisesRegex(ValueError, 'mechanical_batch_minimum must be between 1 and 96'):
+                    driver.run_driver(self.run, self.runner)
+                batch.assert_not_called()
+
     def test_small_mechanical_lane_preserves_recovered_cohort(self):
         config = r.read(self.run/'config.json')
         config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True, fresh_union_trial=True)

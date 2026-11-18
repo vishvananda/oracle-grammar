@@ -173,8 +173,10 @@ def recovered_cohort(queue, checkpoint):
                 'jobs': [job for _, job in sorted(group)[:96]]}
 
 
-def mechanical_lane(queue, limit):
+def mechanical_lane(queue, limit, minimum=None):
     """Return FIFO mechanical and author selections without altering queue state."""
+    if minimum is None:
+        minimum = limit
     mechanical, authors = [], []
     for row in queue.get_jobs('provisional-pass'):
         job_id, payload = row.get('id'), row.get('job')
@@ -187,7 +189,7 @@ def mechanical_lane(queue, limit):
             authors.append(job_id)
         else:
             raise ValueError('provisional job kind is unsupported')
-    if len(mechanical) >= limit:
+    if len(mechanical) >= minimum:
         return {'lane': 'mechanical', 'jobs': mechanical[:96], 'combine': True}
     if mechanical:
         return {'lane': 'mechanical-first', 'jobs': (mechanical+authors)[:limit], 'combine': False}
@@ -241,13 +243,17 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         mechanical_priority = config.get('mechanical_cohorts_first', False)
                         if type(mechanical_priority) is not bool:
                             raise ValueError('mechanical_cohorts_first must be boolean')
+                        mechanical_minimum = config.get('mechanical_batch_minimum', limit)
+                        if type(mechanical_minimum) is not int or not 1 <= mechanical_minimum <= 96:
+                            raise ValueError('mechanical_batch_minimum must be between 1 and 96')
                         ready = jobs.get('provisional-pass', 0)
-                        lane = mechanical_lane(queue, limit) if mechanical_priority and ready else None
+                        lane = mechanical_lane(queue, limit, mechanical_minimum) if mechanical_priority and ready else None
                         large_mechanical = lane is not None and lane['combine']
                         cohort = recovered_cohort(queue, progress['checkpoint']) if routing and ready and not large_mechanical else []
                         pending = jobs.get('pending', 0)
                         running = jobs.get('running', 0)
-                        if ready and (cohort or flush or ready >= limit or not pending or time.monotonic()-last_batch >= wait):
+                        if ready and (large_mechanical or cohort or flush or ready >= limit or not pending
+                                      or time.monotonic()-last_batch >= wait):
                             _runner(run, runner)
                             folders = run/'.cache/batches'
                             before = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
