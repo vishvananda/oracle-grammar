@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run a paired, three-slot authoring pilot from fixed private task descriptors."""
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from contextlib import nullcontext
 import fcntl
 import json
 import os
@@ -12,6 +13,7 @@ import time
 
 sys.dont_write_bytecode = True
 import retire as r
+import retire_cpu
 import retire_pool as pool
 
 
@@ -74,6 +76,9 @@ in ignored .cache/author-hooks.json, for example
 ability, line and event_clause. Do not place handwritten roots into mined hooks
 or edit the root module outside your write set. The coordinator applies typed
 ordinary hook requests to its private diagnostic snapshot and records them.
+The registered production itself needs a declared @sem Ability:: result for
+ability or line, or @sem EventSpec:: for event_clause. For a bare alternative
+list, register a typed wrapper which captures the list's result.
 This is syntax-only. If Rust, lexical, IR, binding or out-of-scope module changes
 are necessary, record the exact reason and escalate. Do not edit those files.
 No Cargo, git commits/staging, whole-corpus scans, additional agents or network.
@@ -120,6 +125,17 @@ def response_schema(rules):
                         'reason': {'type': 'string'}, 'evidence': {'type': 'string'}}}}}}
 
 
+def model_slot(startup_lock):
+    if startup_lock is None:
+        return nullcontext(())
+    campaign = Path(startup_lock).parent
+    config = campaign/'config.json'
+    if not config.is_file():
+        return nullcontext(())
+    capacity = r.read(config)['workers']
+    return retire_cpu.reserve(campaign/'model-slots', 1, capacity)
+
+
 def launch(run, task_id, on_started=None, extra_fds=(), startup_lock=None, *, previous_evaluation=None):
     descriptor = r.read(run/'tasks'/f'{task_id}.json')
     folder = run/'workers'/task_id
@@ -149,15 +165,16 @@ because the coordinator's full batch audit has not run yet.\n'''
         schema = run/'response-schema.json'
         r.write(schema, response_schema(descriptor['rules']))
         cmd[-1:-1] = ['--output-schema', str(schema)]
-    receipt = {'task': task_id, 'model': descriptor['model'], 'effort': descriptor['effort'],
-               'started_unix': time.time(), 'status': 'starting'}
-    r.write(folder/'receipt.json', receipt)
     startup = Path(startup_lock) if startup_lock else run/'startup.lock'
-    with (folder/'events.jsonl').open('w') as output, (folder/'stderr.log').open('w') as error, \
+    with model_slot(startup_lock) as model_fds, \
+            (folder/'events.jsonl').open('w') as output, (folder/'stderr.log').open('w') as error, \
             (folder/'prompt.txt').open() as input_stream, startup.open('a') as lock:
+        receipt = {'task': task_id, 'model': descriptor['model'], 'effort': descriptor['effort'],
+                   'started_unix': time.time(), 'status': 'starting'}
+        r.write(folder/'receipt.json', receipt)
         fcntl.flock(lock, fcntl.LOCK_EX)
         process = subprocess.Popen(cmd, stdin=input_stream, stdout=output, stderr=error,
-                                   text=True, start_new_session=True, pass_fds=tuple(extra_fds))
+                                   text=True, start_new_session=True, pass_fds=(*extra_fds, *model_fds))
         try:
             receipt.update(pid=process.pid, status='running')
             r.write(folder/'receipt.json', receipt)

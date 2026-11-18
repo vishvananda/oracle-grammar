@@ -67,6 +67,30 @@ class AuthorLaunchTests(unittest.TestCase):
         self.assertIn(json.dumps(command), text)
         self.assertNotIn('--preview', text)
 
+    def test_campaign_slot_covers_model_but_ends_before_coordinator(self):
+        campaign = self.cpu.parent
+        campaign.mkdir()
+        startup = campaign/'startup.lock'
+        r.write(campaign/'config.json', {'workers': 1})
+        self.process = Mock(pid=123, returncode=0)
+        self.process.poll.return_value = None
+
+        def start(cmd, **kwargs):
+            self.assertEqual(len(kwargs['pass_fds']), 1)
+            with self.assertRaises(BlockingIOError):
+                with author.retire_cpu.reserve(campaign/'model-slots', 1, 1, wait=False):
+                    self.fail('another author acquired the campaign slot during the model run')
+            return self.spawn(cmd, **kwargs)
+
+        def evaluate(*args, **kwargs):
+            self.assertEqual(kwargs['pass_fds'], ())
+            with author.retire_cpu.reserve(campaign/'model-slots', 1, 1, wait=False):
+                return Mock(returncode=0, stdout=json.dumps({'passed': True, 'directory': 'proof'}), stderr='')
+
+        with patch.object(author.subprocess, 'Popen', side_effect=start), \
+                patch.object(author.subprocess, 'run', side_effect=evaluate):
+            self.assertEqual(author.launch(self.run, 'task', startup_lock=startup)['status'], 'completed')
+
     def test_start_callback_failure_stops_spawned_process(self):
         self.process = Mock(pid=123, returncode=None)
         self.process.poll.return_value = None
