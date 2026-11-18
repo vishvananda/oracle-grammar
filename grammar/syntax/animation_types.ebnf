@@ -21,7 +21,7 @@ retention_type ::= "land" | "artifact" | "creature" | "enchantment" | "planeswal
 /* @sem () */
 retention_plural_type ::= "lands" | "artifacts" | "creatures" | "enchantments" | "planeswalkers"
 
-retained_animation ::= retained_animation_after | retained_animation_before | retained_animation_indefinite | retained_animation_existing | retained_animation_quoted
+retained_animation ::= retained_animation_each | retained_animation_after | retained_animation_before | retained_animation_indefinite | retained_animation_existing | retained_animation_quoted
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
 retained_animation_after ::= affected changes ("↓")? duration "." retention_note
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
@@ -85,3 +85,9 @@ legendary_creature_kind ::= legendary_named_creature | legendary_colored_creatur
 legendary_named_creature ::= becomes_types "creature"
 /* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Creature])] */
 legendary_colored_creature ::= mana_color_word becomes_types "creature"
+
+/* The plural subject is selected once; the note retains its prior card types. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($plural_named_animation), duration:$duration, evaluation:Snapshot} */
+retained_animation_each ::= affected "each" plural_named_animation duration "." retention_plural
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Creature)] */
+plural_named_animation ::= "become" value "/" value becomes_types "creatures"

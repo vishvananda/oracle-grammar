@@ -1,0 +1,1030 @@
+{
+  "family": "counter-doubling-populations",
+  "cases": [
+    {
+      "name": "Kinetic Ooze",
+      "text": "When this creature enters, destroy up to one target artifact or enchantment with mana value X or less. If X is 5 or more, you draw a card. If X is 10 or more, double the number of +1/+1 counters on any number of other target creatures.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "UpTo": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "AnyOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Artifact"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Enchantment"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "Property",
+                        "args": {
+                          "property": "ManaValue",
+                          "test": {
+                            "kind": "Compare",
+                            "args": {
+                              "comparison": "LessOrEqual",
+                              "value": {
+                                "kind": "CastX",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                },
+                {
+                  "slot": 1,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": "AnyNumber",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        }
+                      },
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Destroy",
+                      "args": {
+                        "objects": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "regeneration": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CastX",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CastX",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 10
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "DoubleCounters",
+                              "args": {
+                                "objects": {
+                                  "kind": "Targets",
+                                  "args": 1
+                                },
+                                "kind": {
+                                  "PowerToughness": [
+                                    1,
+                                    1
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Ultimate Spider-Man",
+      "text": "Whenever you attack, double the number of each kind of counter on each Spider and legendary creature you control.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "Attacks",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DoubleCounters",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "AnyOf",
+                                  "args": [
+                                    {
+                                      "kind": "Subtype",
+                                      "args": "Spider"
+                                    },
+                                    {
+                                      "kind": "AllOf",
+                                      "args": [
+                                        {
+                                          "kind": "Supertype",
+                                          "args": "Legendary"
+                                        },
+                                        {
+                                          "kind": "CardType",
+                                          "args": "Creature"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "kind": null
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Ultimate Spider-Man",
+      "text": "Whenever you attack, double the number of each kind of counter on each Elf and legendary creature you control.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "Attacks",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DoubleCounters",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "AnyOf",
+                                  "args": [
+                                    {
+                                      "kind": "Subtype",
+                                      "args": "Elf"
+                                    },
+                                    {
+                                      "kind": "AllOf",
+                                      "args": [
+                                        {
+                                          "kind": "Supertype",
+                                          "args": "Legendary"
+                                        },
+                                        {
+                                          "kind": "CardType",
+                                          "args": "Creature"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "kind": null
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "refuse incomplete counter doubling",
+      "text": "Whenever you attack, double the number of each kind of counter on each Spider and you control.",
+      "reject": true
+    },
+    {
+      "name": "Kinetic Ooze",
+      "text": "This creature enters with X +1/+1 counters on it.\nWhen this creature enters, destroy up to one target artifact or enchantment with mana value X or less. If X is 5 or more, you draw a card. If X is 10 or more, double the number of -1/-1 counters on any number of other target creatures.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Ooze"
+        ],
+        "mana_cost": [
+          "X",
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          0,
+          0
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "SourceEntering",
+            "event": {
+              "Enter": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "AddCounters": {
+                            "kind": {
+                              "PowerToughness": [
+                                1,
+                                1
+                              ]
+                            },
+                            "amount": {
+                              "kind": "CastX",
+                              "args": {
+                                "kind": "EventSubject"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "UpTo": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "AnyOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Artifact"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Enchantment"
+                          }
+                        ]
+                      },
+                      {
+                        "kind": "Property",
+                        "args": {
+                          "property": "ManaValue",
+                          "test": {
+                            "kind": "Compare",
+                            "args": {
+                              "comparison": "LessOrEqual",
+                              "value": {
+                                "kind": "CastX",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                },
+                {
+                  "slot": 1,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": "AnyNumber",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "SameObject",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        }
+                      },
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Destroy",
+                      "args": {
+                        "objects": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "regeneration": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CastX",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 5
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CastX",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 10
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "DoubleCounters",
+                              "args": {
+                                "objects": {
+                                  "kind": "Targets",
+                                  "args": 1
+                                },
+                                "kind": {
+                                  "PowerToughness": [
+                                    -1,
+                                    -1
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Ultimate Spider-Man",
+      "text": "First strike, haste\n{2}: Put a +1/+1 counter on Ultimate Spider-Man. He gains hexproof and becomes colorless until end of turn.\nWhenever you attack, double the number of each kind of counter on each Elf and legendary creature you control.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Spider",
+          "Human",
+          "Hero"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          4,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "FirstStrike"
+          }
+        },
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Haste"
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 2
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "PowerToughness": [
+                                1,
+                                1
+                              ]
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "GrantKeyword",
+                            "args": {
+                              "kind": "Hexproof"
+                            }
+                          },
+                          {
+                            "kind": "Colors",
+                            "args": {
+                              "mode": "Set",
+                              "colors": []
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "Snapshot"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "Attacks",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DoubleCounters",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "AnyOf",
+                                  "args": [
+                                    {
+                                      "kind": "Subtype",
+                                      "args": "Elf"
+                                    },
+                                    {
+                                      "kind": "AllOf",
+                                      "args": [
+                                        {
+                                          "kind": "Supertype",
+                                          "args": "Legendary"
+                                        },
+                                        {
+                                          "kind": "CardType",
+                                          "args": "Creature"
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "kind": null
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

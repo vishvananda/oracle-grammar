@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats
+continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats
     | continuous_lose_all_become
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
@@ -357,7 +357,7 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types
+grant ::= grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger
 
 /* "Gains all creature types", "a 2/2 creature with all creature types": every creature
    type replaces the old ones (CR 205.3m), like a changeling's characteristic. */
@@ -608,7 +608,7 @@ static_negative_x ::= "-" "X"
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($object_ref), changes:$static_changes}}] */
 clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 
-static_changes ::= static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature
+static_changes ::= static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation
 static_changes_plain ::= static_change | static_changes_and
 
 /* @sem Instruction::[Effect{result:@next, operation:$copy_effect_duration}] */
@@ -650,7 +650,7 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color
+static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base
 /* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
    the protection names the object it keeps attached. */
 /* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
@@ -2344,7 +2344,7 @@ change_attachment_permission ::= "can" "be" "attached" "only" "to" attachment_el
 /* @sem Ability::Mechanic{mechanic:$granted_valued_name, amount:$value} */
 granted_valued_mechanic ::= granted_valued_name value
 
-granted_valued_name ::= mechanic_fabricate_name | granted_frenzy_name
+granted_valued_name ::= mechanic_afterlife_name | mechanic_fabricate_name | granted_frenzy_name
 
 /* @sem Mechanic::Frenzy */
 granted_frenzy_name ::= "frenzy"
@@ -3473,3 +3473,253 @@ conditional_controlled_named_population ::= "if" "you" "control" "exactly" value
 /* Alternate graveyard casting payments compose mana with a separate exile cost. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost{parts:[Mana($mana_symbols), $cast_exile_graveyard_other]})}})]})} */
 static_graveyard_cast_mana_and_exile ::= graveyard_cast_phrase "by" "paying" mana_symbols "and" cast_exile_graveyard_other "rather" "than" "paying" "its" "mana" "cost" "."
+
+/* Player-level rules retain the affected player separately from spell filters. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(All), changes:[PlayerRule(SpellsHaveAbilities{spells:$shared_granted_spell_filter, abilities:List([$shared_spell_effect])})]} */
+static_shared_spell_grant ::= shared_granted_spell_filter "have" shared_spell_effect "."
+
+shared_granted_spell_filter ::= shared_non_type_spells | shared_cast_type_spells
+
+/* @sem ObjectFilter::$adjective_nontype */
+shared_non_type_spells ::= adjective_nontype "spells"
+
+/* @sem ObjectFilter::$shared_spell_type_pair */
+shared_cast_type_spells ::= shared_spell_type_pair "spells" "players" "cast"
+
+/* @sem ObjectFilter::AnyOf([$card_word, $card_word_2]) */
+shared_spell_type_pair ::= card_word "and" card_word
+
+shared_spell_effect ::= shared_spell_convoke | shared_spell_demonstrate
+
+/* @sem Operand::Term{family:SpellEffect, form:Convoke} */
+shared_spell_convoke ::= "convoke"
+
+/* @sem Operand::Term{family:SpellEffect, form:Demonstrate} */
+shared_spell_demonstrate ::= "demonstrate"
+
+/* The kind and owner of an ability are independent of its cost change. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AllOf([OnStack($shared_activation_kind), AbilityOf($activation_owner)]), change:$shared_activation_change})]} */
+static_shared_activation_cost ::= shared_activation_kind "abilities" "of" activation_owner "cost" shared_activation_change "to" "activate" "."
+
+shared_activation_kind ::= shared_loyalty_kind | shared_mana_kind
+
+/* @sem StackTrait::Loyalty */
+shared_loyalty_kind ::= "loyalty"
+
+/* @sem StackTrait::Mana */
+shared_mana_kind ::= "mana"
+
+shared_activation_change ::= shared_activation_increase | shared_activation_life
+
+/* @sem ActivationCostChange::Increase(Cost($cost)) */
+shared_activation_increase ::= cost "more"
+
+/* @sem ActivationCostChange::Additional{parts:[Life($value)]} */
+shared_activation_life ::= "an" "additional" value "life"
+
+/* Unspent mana changes to the stated color for its affected player. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(UnspentManaBecomes($mana_color_word))]} */
+static_unspent_mana_color ::= "if" "you" "would" "lose" "unspent" "mana" "," "that" "mana" "becomes" mana_color_word "instead" "."
+
+/* A nonmana-ability spending permission retains its source object. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(All), changes:[PlayerRule(SpendManaAs{spend_as:AnyType, on:Abilities($shared_nonmana_abilities)})]} */
+static_any_type_ability_spending ::= "mana" "of" "any" "type" "can" "be" "spent" "to" "activate" shared_nonmana_abilities "."
+
+/* @sem ObjectFilter::AllOf([AbilityOf(SameObject($object_ref)), Not(OnStack(Mana))]) */
+shared_nonmana_abilities ::= object_ref "'s" "abilities"
+
+/* Each distributes one snapshot over the already selected population. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
+continuous_each_snapshot ::= affected "each" static_changes duration
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature)] */
+retained_plural_animation ::= "become" value "/" value becomes_types "creatures" "in" "addition" "to" "their" "other" "types"
+
+/* @sem Change::LandTypes{scope:Basic, mode:Add} */
+grant_basic_land_types ::= "all" "basic" "land" "types"
+
+/* @sem Change::GrantKeyword(Protection(Objects(_{kind:Any, filter:SharesColorWith(Recorded{result:@prior})}))) */
+grant_recorded_colors ::= "protection" "from" "each" "of" "that" "creature's" "colors"
+
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program})) */
+grant_unpunctuated_trigger ::= '"' event_clause "," program '"'
+
+/* Spell-cost subjects and modifiers compose independently for all casters. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(SpellCost{spells:$global_cost_spells, modifier:$spell_cost_change})]}) */
+static_global_spell_cost ::= global_cost_spells "cost" spell_cost_change "to" "cast" "."
+
+global_cost_spells ::= cast_any_spells | global_chosen_card_spells | global_targeted_spells
+
+/* @sem ObjectFilter::Chosen(CardType) */
+global_chosen_card_spells ::= "spells" "of" "the" "chosen" "type"
+
+/* @sem ObjectFilter::TargetsAny(Objects($affected)) */
+global_targeted_spells ::= "spells" "that" "target" affected
+
+/* The filter is shared by both consequences of a player's spell rule. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$keyword_cost_spells, modifier:$spell_cost_change}), PlayerRule(SpellsHaveAbilities{spells:$keyword_cost_spells, abilities:List([Term{family:SpellEffect, form:CantBeCountered}])})]}) */
+static_keyword_spell_cost_protection ::= keyword_cost_spells "you" "cast" "cost" spell_cost_change "to" "cast" "and" "can't" "be" "countered" "."
+
+/* @sem ObjectFilter::HasKeyword($keyword_value) */
+keyword_cost_spells ::= "spells" "with" keyword_value
+
+/* Colored reductions do not spill into generic mana. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$chosen_creature_cost_spells, modifier:Reduce{reductions:$colored_cost_reductions}})]}) */
+static_chosen_colored_spell_cost ::= chosen_creature_cost_spells "you" "cast" "cost" colored_cost_reductions "less" "to" "cast" "." "this" "effect" "reduces" "only" "the" "amount" "of" "colored" "mana" "you" "pay" "."
+
+/* @sem ObjectFilter::Chosen(CreatureType) */
+chosen_creature_cost_spells ::= "spells" "of" "the" "chosen" "type"
+
+colored_cost_reductions ::= colored_cost_one | colored_cost_many
+
+/* @sem ManaReduction::[$colored_cost_unit] */
+colored_cost_one ::= colored_cost_unit
+
+/* @sem ManaReduction::[$colored_cost_unit, ...$colored_cost_reductions] */
+colored_cost_many ::= colored_cost_unit colored_cost_reductions
+
+/* @sem ManaReduction::_{color:$colored_cost_color, amount:Constant(1)} */
+colored_cost_unit ::= colored_cost_color
+
+colored_cost_color ::= mc_white | mc_blue | mc_black | mc_red | mc_green
+
+/* Player spell costs compose the printed spell population and its qualifier. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:@and($cast_spells_filter, $spell_cost_threshold), modifier:$spell_cost_change})]}) */
+static_qualified_cast_cost ::= cast_spells_filter "you" "cast" spell_cost_threshold "cost" spell_cost_change "to" "cast" "."
+
+spell_cost_threshold ::= spell_cost_mana_threshold | spell_cost_power_threshold
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+spell_cost_mana_threshold ::= "with" "mana" "value" value "or" "greater"
+
+/* @sem ObjectFilter::Property{property:Power, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+spell_cost_power_threshold ::= "with" "power" value "or" "greater"
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(OpponentsOf(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:$spell_cost_change})]}) */
+static_opponents_cast_cost ::= cast_spells_filter "your" "opponents" "cast" "cost" spell_cost_change "to" "cast" "."
+
+/* Keyword payment adjustments retain the payer and current symbol operand. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($target_tax_casters), changes:[PlayerRule(KeywordCost{keyword:$payment_keyword, cards:Any, change:$keyword_payment_change})]}) */
+static_keyword_payment_change ::= payment_keyword "costs" target_tax_casters "pay" "cost" keyword_payment_change "."
+
+/* @sem Mechanic::Flashback */
+payment_keyword ::= "flashback"
+
+keyword_payment_change ::= keyword_payment_less | keyword_payment_more
+
+/* @sem KeywordCostChange::Reduce($kicker_operand_generic) */
+keyword_payment_less ::= kicker_operand_generic "less"
+
+/* @sem KeywordCostChange::Increase($kicker_operand_generic) */
+keyword_payment_more ::= kicker_operand_generic "more"
+
+/* A life substitution keeps the symbol independent of the life amount. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(LifeForMana{life:$value, symbol:$kicker_operand})]}) */
+static_life_for_mana ::= "for" "each" kicker_operand "in" "a" "cost" "," "you" "may" "pay" value "life" "rather" "than" "pay" "that" "mana" "."
+
+/* Indefinite singular animations compose their current statistics, type changes,
+   and granted keywords, preserving the distinct card-type contracts. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$indefinite_animation_changes, duration:Indefinite, evaluation:Snapshot} */
+indefinite_named_animation ::= affected "becomes" indefinite_animation_changes
+
+indefinite_animation_changes ::= indefinite_creature_animation | indefinite_artifact_animation | indefinite_subtype_animation
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Creature]), ...$animation_grants] */
+indefinite_creature_animation ::= "a" value "/" value becomes_types "creature" "with" animation_grants
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, AddCardType(Artifact), AddCardType(Creature), CreatureTypes{mode:Set, types:Listed($becomes_types)}, ...$animation_grants] */
+indefinite_artifact_animation ::= "a" value "/" value becomes_types "artifact" "creature" "with" animation_grants
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, ...$animation_grants] */
+indefinite_subtype_animation ::= "a" value "/" value becomes_types "and" "gains" animation_grants
+
+animation_grants ::= grants | animation_spell_color_protection
+
+/* @sem Change::[GrantKeyword(Protection(Objects(_{kind:Any, filter:SharesColorWith(EventSubject)})))] */
+animation_spell_color_protection ::= "protection" "from" "each" "of" "that" "spell's" "colors"
+
+/* A graveyard casting permission composes with its payment and entry terms. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, from:Graveyard, action:CastSpell, filter:Any}, terms:$graveyard_cast_terms})]})} */
+static_graveyard_cast_terms ::= "you" "may" "cast" affected "from" "your" "graveyard" graveyard_cast_terms "."
+
+graveyard_cast_terms ::= graveyard_cast_alternate_sacrifice | graveyard_cast_alternate | graveyard_cast_alternate_counters | graveyard_cast_warp | graveyard_cast_extra_each
+
+/* @sem PlayTerms::PlayTerms{cost:Alternate(Cost($cost))} */
+graveyard_cast_alternate ::= "by" "paying" cost "rather" "than" "paying" "its" "mana" "cost"
+
+/* @sem PlayTerms::PlayTerms{cost:Alternate(Cost($graveyard_cast_sacrifice_cost))} */
+graveyard_cast_alternate_sacrifice ::= "by" "paying" graveyard_cast_sacrifice_cost "rather" "than" "paying" "its" "mana" "cost"
+
+/* @sem Cost::Cost{parts:[Mana($mana_symbols), Sacrifice{objects:$affected, choose:Exactly($value)}]} */
+graveyard_cast_sacrifice_cost ::= mana_symbols "and" "sacrificing" value affected
+
+/* @sem PlayTerms::PlayTerms{cost:Alternate(Cost($cost)), effects:[List([Term{family:EnterFlag, form:EntersWithNumberCounters, operands:[Number($value), Term{family:CounterType, form:PTCounter, operands:[Integer(1), Integer(1)]}]}])]} */
+graveyard_cast_alternate_counters ::= "by" "paying" cost "rather" "than" "paying" "its" "mana" "cost" "." "if" "you" "do" "," "it" "enters" "with" value "+" "1" "/" "+" "1" "counters" "on" "it"
+
+/* @sem PlayTerms::PlayTerms{cost:Using(Warp)} */
+graveyard_cast_warp ::= "using" "its" "warp" "ability"
+
+/* @sem PlayTerms::PlayTerms{cost:Additional(Cost{parts:[Repeated{part:Mana($mana_symbols), times:CountObjects(Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(SameObject($object_ref)), $filter_phrase])}))}]})} */
+graveyard_cast_extra_each ::= "if" "you" "pay" mana_symbols "more" "to" "cast" object_ref "for" "each" "other" filter_phrase "card" "in" "your" "graveyard"
+
+/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Normal, effects:[$graveyard_entry_counter]}})]})} */
+static_graveyard_cast_if_entry ::= "you" "may" "cast" affected "from" "your" "graveyard" "if" condition "." "if" "you" "do" "," graveyard_entry_counter "."
+
+/* @sem Operand::List([Term{family:EnterFlag, form:EntersWithACounter, operands:[Term{family:CounterType, form:PTCounter, operands:[Integer(1), Integer(1)]}]}]) */
+graveyard_entry_counter ::= "this" "creature" "enters" "with" "a" "+" "1" "/" "+" "1" "counter" "on" "it"
+
+/* The subtype remains an independent operand when prior land types are retained. */
+/* @sem Change::[AddLandType($retained_land_singular)] */
+change_add_land_type_singular ::= "is" "a" retained_land_singular "in" "addition" "to" "its" "other" "land" "types"
+
+/* @sem Change::[AddLandType($retained_land_singular), AddCardType(Land)] */
+change_add_land_card_type_plural ::= "are" retained_land_singular "lands" "in" "addition" "to" "their" "other" "types"
+
+retained_land_singular ::= retained_forest | retained_swamp | retained_mountain
+
+/* @sem LandType::Forest */
+retained_forest ::= "Forest"
+
+/* @sem LandType::Swamp */
+retained_swamp ::= "Swamp"
+
+/* @sem LandType::Mountain */
+retained_mountain ::= "Mountain"
+
+/* Retained subtype and card types compose with independently selected base stats. */
+/* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$value, toughness:$value_2}] */
+change_retained_typed_artifact_base ::= "is" "a" becomes_types "artifact" "creature" "with" "base" "power" "and" "toughness" value "/" value "in" "addition" "to" "its" "other" "types"
+
+/* Replacement colors, creature types, stats and literal name are independent. */
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word, $mana_color_word_2]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Creature]), SetBasePowerToughness{power:$value, toughness:$value_2}, SetName($referenced_card_name)] */
+change_named_two_color_creature_base ::= "is" "a" mana_color_word "and" mana_color_word becomes_types "creature" "with" "base" "power" "and" "toughness" value "/" value "named" referenced_card_name
+
+/* A player's casting permission carries the same zone in its source and card set. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(Affected)}, kind:Card, filter:Any}), from:$own_cast_zone, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Free}})]}) */
+static_free_cast_from_own_zone ::= "you" "may" "cast" cast_spells_filter "from" own_cast_zone "without" "paying" "their" "mana" "costs" "."
+
+/* @sem Zone::Hand */
+own_cast_hand ::= "your" "hand"
+
+/* @sem Zone::Graveyard */
+own_cast_graveyard ::= "your" "graveyard"
+
+/* @sem Zone::Library */
+own_cast_library ::= "your" "library"
+
+own_cast_zone ::= own_cast_hand | own_cast_graveyard | own_cast_library
+
+/* Plural player subjects use their own zones, not the ability holder's zone. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($player_keyword_many), changes:[PlayerRule(Prohibit(CastOutside($their_cast_zone)))]}) */
+static_cast_only_from_their_zone ::= player_keyword_many "can't" "cast" "spells" "from" "anywhere" "other" "than" their_cast_zone "."
+
+/* @sem Zone::Hand */
+their_cast_hands ::= "their" "hands"
+
+/* @sem Zone::Graveyard */
+their_cast_graveyards ::= "their" "graveyards"
+
+/* @sem Zone::Library */
+their_cast_libraries ::= "their" "libraries"
+
+their_cast_zone ::= their_cast_hands | their_cast_graveyards | their_cast_libraries
