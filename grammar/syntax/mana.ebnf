@@ -63,7 +63,7 @@ mana_use_atom ::= mana_use_cast
    share one cast verb, as in "an instant or sorcery spell or a kicked spell". */
 /* @sem ManaUse::CastSpell($mana_cast_filter) */
 mana_use_cast ::= "cast" mana_cast_filter
-mana_cast_filter ::= cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells | mana_spells_outside_starting_deck | mana_spells_monocolored_chosen | mana_spell_color_count_without_x | mana_spells_value_or_x
+mana_cast_filter ::= cast_spells_filter | mana_spell_one | mana_spell_alternatives | mana_kicked_spells | mana_spells_outside_starting_deck | mana_spells_monocolored_chosen | mana_spell_color_count_without_x | mana_spells_value_or_x | mana_spell_outside_zone
 /* @sem ObjectFilter::Not(InStartingDeck(One(AbilityController))) */
 mana_spells_outside_starting_deck ::= "spells" "that" "aren't" "from" "your" "starting" "deck"
 /* @sem ObjectFilter::AllOf([Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:Constant(1)}}, Chosen(Color)]) */
@@ -202,3 +202,14 @@ mana_use_pay_colorless_cost ::= "pay" mana_purpose_colorless_cost
 
 /* @sem ManaUse::Either([CastSpell($mana_spell_chosen_type), $mana_use_chosen_source]) */
 mana_use_cast_chosen_or_activate ::= "cast" mana_spell_chosen_type "or" mana_use_chosen_source
+
+/* A defined X keeps its complete value as the ward payment's operand. */
+/* @sem Cost::Cost{parts:[ManaWithX{mana:[X], x:$value}]} */
+ward_defined_x_cost ::= "{" "X" "}" "," "where" "X" "is" value
+
+/* The named holder's intrinsic keyword uses the current payment definition. */
+/* @sem Ability::Keyword(Ward($ward_defined_x_cost)) */
+self_ward_defined_x ::= SELF_NAME "has" "ward" ward_defined_x_cost "."
+
+/* @sem ObjectFilter::Not(Cast{from:$card_zone_one}) */
+mana_spell_outside_zone ::= "a" "spell" "from" "anywhere" "other" "than" card_zone_one

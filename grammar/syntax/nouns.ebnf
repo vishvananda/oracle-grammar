@@ -519,7 +519,7 @@ noun_outlaw ::= "outlaw"
 /* @sem ObjectFilter::CardType(Battle) */
 noun_battle ::= "battle"
 
-filter_plural ::= plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity
+filter_plural ::= plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among
 
 /* @sem @and($filter_outer_adjectives, $filter_plural) */
 filter_plural_adjectives ::= filter_outer_adjectives filter_plural
@@ -706,7 +706,7 @@ modifiers ::= modifier | modifiers_more
 /* @sem @and($modifier_nonattachment, $modifiers) */
 modifiers_more ::= modifier_nonattachment modifiers
 
-modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_to_a | modifier_except
+modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_to_a | modifier_enchanted_by_aura | modifier_except
 
 modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
 
@@ -1017,7 +1017,7 @@ players_each_opponent ::= "each" "opponent" | "each" "of" "your" "opponents"
 players_each ::= "each" "player"
 
 /* Damage recipients. */
-recipients ::= recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls
+recipients ::= recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled
 
 /* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_phrase, $filter_phrase_2])}) */
 recipients_each_and_each ::= "each" filter_phrase "and" "each" filter_phrase
@@ -1191,7 +1191,7 @@ mixed_permanent_noun ::= noun_creature | noun_artifact | noun_enchantment | noun
 /* @sem ObjectFilter::$relative_state_quality */
 modifier_relative_state ::= ("that's" | "that" "is" | "that" "are") relative_state_quality
 
-relative_state_quality ::= adjective_tapped | adjective_untapped | adjective_attacking
+relative_state_quality ::= adjective_attacking_or_blocking | adjective_tapped | adjective_untapped | adjective_attacking
     | adjective_nonattacking | adjective_blocking | adjective_blocked
     | adjective_enchanted | adjective_equipped | attacking_defender
 /* @sem ObjectFilter::AttackingDefender(Players(One($player_ref))) */
@@ -2024,3 +2024,34 @@ each_counter_controlled ::= "each" "creature" "you" "control"
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)} */
 each_counter_any ::= "each" "creature"
+
+/* A filtered card population in the named player's graveyard. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One($zone_owner)}, kind:Card, filter:$filter_phrase} */
+sticker_card_population ::= ("a" | "an") filter_phrase "card" "in" zone_owner "graveyard"
+
+/* A single damage target may be an opponent or either of two opposing populations. */
+/* @sem ObjectFilter::@and($filter_phrase, ObjectFilter::ControlledBy(OpponentsOf(AbilityController))) */
+opponent_controlled_recipient ::= filter_phrase "an" "opponent" "controls"
+
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:AnyOf([$opponent_controlled_recipient, $opponent_controlled_recipient_2]), players:OpponentsOf(AbilityController)})) */
+recipients_opponent_or_two_controlled ::= "target" "opponent" "," opponent_controlled_recipient "," "or" opponent_controlled_recipient
+
+/* The extreme compares the named population across the whole battlefield. */
+/* @sem ObjectFilter::Extreme{among:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plain}, property:ManaValue, highest:true} */
+battlefield_greatest_mana_tied ::= filter_plain "with" "the" "greatest" "mana" "value" "or" "tied" "for" "the" "greatest" "mana" "value"
+
+/* An Aura's controller qualifies the attachment, not the enchanted object. */
+/* @sem ObjectFilter::HasAttached($aura_attachment_filter) */
+modifier_enchanted_by_aura ::= "that's" "enchanted" "by" "an" aura_attachment_filter
+
+aura_attachment_filter ::= aura_attachment_controlled | aura_attachment_unqualified
+
+/* @sem ObjectFilter::@and(ObjectFilter::Subtype(Aura), $modifier_you_control) */
+aura_attachment_controlled ::= "Aura" modifier_you_control
+
+/* @sem ObjectFilter::Subtype(Aura) */
+aura_attachment_unqualified ::= "Aura"
+
+/* Match any value of a property among a battlefield population. */
+/* @sem ObjectFilter::Property{property:$stat, test:NumberTest::AnyProperty{comparison:Equal, objects:$counter_battlefield_population, property:$stat}} */
+filter_each_property_among ::= "each" stat "among" counter_battlefield_population

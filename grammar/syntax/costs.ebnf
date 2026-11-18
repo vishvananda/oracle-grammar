@@ -40,7 +40,7 @@ cost_symbols ::= cost_mana | cost_tap
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number
+cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -901,3 +901,68 @@ casting_reduction_life_difference ::= life_difference_below "," "this" "spell" "
 /* The ability controller determines the opponent population allowed to activate. */
 /* @sem ActivationLimits::ActivationLimits{modifiers:[Change::ActivationRule(OnlyBy(OpponentsOf(AbilityController)))]} */
 limit_opponents_only ::= "only" "your" "opponents" "may" "activate" "this" "ability"
+
+/* @sem Ability::Casting(AdditionalCost{cost:_{parts:[$cost_sacrifice_any_population]}, repetition:Once}) */
+casting_additional_sacrifice_population ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_sacrifice_any_population "."
+
+/* @sem Ability::Casting(AdditionalCost{cost:_{parts:[$cost_sacrifice_any_population]}, optional:true, repetition:Once}) */
+casting_optional_additional_sacrifice_population ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "you" "may" cost_sacrifice_any_population "."
+
+/* @sem Ability::Casting(AdditionalCost{cost:_{parts:[$casting_reveal_selected_hand_card]}, optional:true, repetition:Once}) */
+casting_optional_reveal_selected_hand_card ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "you" "may" casting_reveal_selected_hand_card "."
+
+casting_reveal_selected_hand_card ::= casting_reveal_selected_hand_card_a | casting_reveal_selected_hand_card_an
+
+/* Reveal a selected filtered card from the payer’s hand. */
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$card_filter} */
+casting_reveal_selected_hand_card_a ::= "reveal" "a" card_filter "card" "from" "your" "hand"
+
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$card_filter} */
+casting_reveal_selected_hand_card_an ::= "reveal" "an" card_filter "card" "from" "your" "hand"
+
+/* @sem Ability::Casting(If{condition:TargetsMatch(_{object:ObjectRef::Source, kind:Permanent, filter:$filter_phrase}), rule:ReduceCost([_{amount:$braced_amount}])}) */
+casting_reduction_if_source_targets_an ::= "this" "spell" "costs" braced_amount "less" "to" "cast" "if" "it" "targets" "an" filter_phrase "."
+
+/* @sem Ability::Casting(If{condition:TargetsMatch(_{object:ObjectRef::Source, kind:Permanent, filter:$casting_flash_target_filter}), rule:Flash{}}) */
+casting_flash_if_targets ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" "flash" "if" "it" "targets" casting_flash_target_filter "."
+
+casting_flash_target_filter ::= casting_flash_target_a | casting_flash_target_an
+
+/* @sem $filter_phrase */
+casting_flash_target_a ::= "a" filter_phrase
+
+/* @sem $filter_phrase */
+casting_flash_target_an ::= "an" filter_phrase
+
+/* @sem Ability::Casting(AdditionalCost{cost:_{parts:[Choice([_{parts:[$casting_reveal_an_card_hand]}, $cost])]}, repetition:Once}) */
+casting_additional_reveal_or_pay ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," casting_reveal_an_card_hand "or" "pay" cost "."
+
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$filter_phrase} */
+casting_reveal_an_card_hand ::= "reveal" "an" filter_phrase "card" "from" "your" "hand"
+
+/* The alternative payment applies independently to each mana in this activation. */
+/* @sem Change::[ActivationRule(ManaInstead(Cost::Cost{parts:[$cost_words_owned]}))] */
+activation_mana_instead ::= "for" "each" "mana" "in" "this" "ability's" "activation" "cost" "," "you" "may" cost_words_owned "rather" "than" "pay" "that" "mana"
+
+/* Both alternatives share the controller named by the casting condition. */
+/* @sem Condition::AnyOf([Controls{player:$condition_control_subject, filter:$filter_phrase, minimum:1}, Controls{player:$condition_control_subject, filter:$filter_phrase_2, minimum:1}]) */
+casting_either_controlled_condition ::= condition_control_subject "a" filter_phrase "or" "a" filter_phrase
+
+/* @sem Ability::Casting(If{condition:$casting_either_controlled_condition, rule:ReduceCost([_{amount:$braced_amount}])}) */
+casting_reduction_if_either_controlled ::= "this" "spell" "costs" braced_amount "less" "to" "cast" "if" casting_either_controlled_condition "."
+
+/* An exhaust activation retains its own use limit and a separately stated
+   timing window, independently of its cost and action program. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{once:true, condition:$cast_window, keyword:Exhaust}, announcement:@announcement, body:$program_sentence} */
+activated_exhaust_during ::= "exhaust" "—" cost ":" program_sentence "activate" "only" "during" cast_window "."
+
+/* A conditional increase composes a turn window with a mana payment. */
+/* @sem Ability::Casting(If{condition:$casting_cost_turn, rule:AdditionalCost{cost:$casting_more_mana, repetition:Once}}) */
+casting_turn_additional_mana ::= "during" casting_cost_turn "," "this" "spell" "costs" casting_more_mana "more" "to" "cast" "."
+
+/* @sem Cost::Cost{parts:[$cost_mana]} */
+casting_more_mana ::= cost_mana
+
+/* Mana produced by the player paying this cost remains theirs. */
+/* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$add_mana}]}} */
+cost_add_mana ::= add_mana
