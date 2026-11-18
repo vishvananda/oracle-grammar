@@ -864,7 +864,15 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
             for item in items:
                 item.update(family_logs=str(logs), family_checks=family_checks)
             if fixtures:
-                _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
+                try:
+                    _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
+                except _FamilyCheckFailure:
+                    if (not input_cache.unchanged() or r.tree(trial/'grammar') != proof['trial_grammar']
+                            or any(r.digest(path) != record['sha256']
+                                   for (path, _), record in zip(additions, proof['new_fixtures'], strict=True))):
+                        raise _UncertainPromotion('failed family trial inputs changed during verification')
+                    proof['verified_family_snapshot'] = True
+                    raise
             if control is not None:
                 for item in items:
                     item['native_control'] = str(logs/'native-control')
@@ -1042,7 +1050,16 @@ def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, 
     return culprits
 
 
-def _isolate_retained_family(context, entries, failure, folder, *, limit):
+def _matches_verified_family_trial(context, entries, failure, trial):
+    return (trial is not None and trial.get('verified_family_snapshot') is True
+            and trial.get('status') == 'failed' and trial.get('retained_family_failure') == failure
+            and trial.get('proposal_indices') == [index for index, _ in entries]
+            and trial.get('jobs') == [item['job_id'] for _, item in entries]
+            and trial.get('attempts') == [item['attempt_id'] for _, item in entries]
+            and trial.get('prefix_grammar') == r.tree(context['source']/'grammar'))
+
+
+def _isolate_retained_family(context, entries, failure, folder, *, limit, initial_trial=None):
     witnesses = failure.get('fixtures', [failure])
     multiple = len(witnesses) > 1
 
@@ -1051,7 +1068,11 @@ def _isolate_retained_family(context, entries, failure, folder, *, limit):
                                       partial=multiple and len(group) < len(entries))
 
     inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
-    return _isolate_retained(entries, test, folder, inputs, verify_full=multiple,
+    # A hash-checked staging failure already ran this exact union and these
+    # retained fixtures. Still require the accepted base, singleton witnesses,
+    # and a fresh full staging trial for the remaining union.
+    verify_full = multiple and not _matches_verified_family_trial(context, entries, failure, initial_trial)
+    return _isolate_retained(entries, test, folder, inputs, verify_full=verify_full,
                              limit=limit if multiple else 1)
 
 
@@ -1163,7 +1184,8 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
     if folder.exists():
         folder = folder.with_name(f'{stem}-{len(withheld):03d}')
     if family is not None:
-        culprits = _isolate_retained_family(context, selection, family, folder, limit=size-len(withheld))
+        culprits = _isolate_retained_family(context, selection, family, folder, limit=size-len(withheld),
+                                            initial_trial=proof)
     else:
         culprit = _isolate_retained_native(context, selection, native, folder)
         culprits = [culprit] if culprit is not None else []

@@ -77,7 +77,7 @@ class BatchTests(unittest.TestCase):
                 'baseline':[(name,batch.r.digest(source/name)) for name in paths],
                 'registry_path':registry,'registry_hash':batch.r.digest(registry),
             }
-            entries = [(index,{'job_id':str(index)}) for index in range(4)]
+            entries = [(index,{'job_id':str(index), 'attempt_id':f'attempt-{index}'}) for index in range(4)]
 
             def replay(context, entries, temporary, inputs):
                 grammar = temporary/'grammar'
@@ -105,6 +105,26 @@ class BatchTests(unittest.TestCase):
                               for path in sorted((root/'probes').glob('*/probe.json'))],
                              ['passed','reproduced','reproduced','reproduced',
                               'reproduced','passed','reproduced','reproduced','reproduced','reproduced'])
+            initial = {'status':'failed','retained_family_failure':witnesses,'verified_family_snapshot':True,
+                       'proposal_indices':list(range(4)), 'jobs':list(map(str,range(4))),
+                       'attempts':[f'attempt-{index}' for index in range(4)],
+                       'prefix_grammar':batch.r.tree(source/'grammar')}
+            with (
+                patch.object(batch,'_replay_focused_grammar',side_effect=replay),
+                patch.object(batch,'_helper',side_effect=family),
+            ):
+                self.assertEqual(batch._isolate_retained_family(
+                    context,entries,witnesses,root/'reused',limit=3,initial_trial=initial),result)
+                recorded = [batch.r.read(path)['proposal_indices']
+                            for path in sorted((root/'reused').glob('*/probe.json'))]
+                self.assertNotIn(list(range(4)),recorded)
+                self.assertEqual(len(recorded),9)
+                self.assertTrue(all([index] in recorded for index in result))
+                initial['attempts'][0] = 'different-attempt'
+                self.assertEqual(batch._isolate_retained_family(
+                    context,entries,witnesses,root/'fresh',limit=3,initial_trial=initial),result)
+                self.assertIn(list(range(4)),[batch.r.read(path)['proposal_indices']
+                                            for path in (root/'fresh').glob('*/probe.json')])
             checks[1]['kind'] = 'new-proposal'
             self.assertIsNone(batch._retained_family_failure((0,1),{'family_checks':checks},source,report_dir))
 
@@ -1394,7 +1414,7 @@ class BatchTests(unittest.TestCase):
             context = {'folder': folder, 'manifest': {'jobs': []}}
             calls, probes = [], []
 
-            def family(_, selection, failure, output, *, limit):
+            def family(_, selection, failure, output, *, limit, initial_trial):
                 output.mkdir()
                 probes.append(output.name)
                 return [failure['culprit']]
