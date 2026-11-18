@@ -1178,6 +1178,61 @@ class BatchTests(unittest.TestCase):
             log.write_text('Error: "some other compiler message"\n')
             self.assertIsNone(batch._rule_reference_conflict(root/'source', entries, log))
 
+    def test_multiple_unknown_rules_require_a_unique_owner_for_each_diagnostic(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            declarations = ('choose_land_type ::= "choose" "a" "land" "type"\n',
+                            'event_object_mutates ::= object_ref "mutates"\n')
+
+            def grammar(folder, text):
+                path = folder/'grammar/syntax/actions.ebnf'
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+
+            grammar(root/'source', ''.join(declarations))
+            entries = []
+            for index in range(2):
+                run, response = root/f'run-{index}', root/f'report-{index}'
+                grammar(run/'inputs/frozen', ''.join(declarations))
+                grammar(response, declarations[1-index])
+                entries.append((index, {'run': str(run), 'report': {'directory': str(response)}}))
+            log = root/'family.log'
+            diagnostic = ('choice_and_name_first: unknown rule choose_land_type\\n'
+                          'event_first_subject: unknown rule event_object_mutates')
+            log.write_text(f'Error: "{diagnostic}"\n')
+            observed = batch._rule_reference_conflict(root/'source', entries, log)
+            self.assertEqual(observed['without_proposal_indices'], [0, 1])
+            self.assertEqual([item['missing_rule'] for item in observed['conflicts']],
+                             ['choose_land_type', 'event_object_mutates'])
+            log.write_text(f'Error: "{diagnostic}\\nan unrelated compiler failure"\n')
+            self.assertIsNone(batch._rule_reference_conflict(root/'source', entries, log))
+            grammar(root/'report-0', '')
+            log.write_text(f'Error: "{diagnostic}"\n')
+            self.assertIsNone(batch._rule_reference_conflict(root/'source', entries, log))
+
+    def test_merge_retry_can_follow_multiple_missing_rules_with_fresh_guards(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            entries = [(i, {'job_id': f'job-{i}'}) for i in range(8)]
+            context = {'folder': folder, 'manifest': {'jobs': []}}
+            calls = []
+
+            def trial(ctx, proposals, label):
+                jobs = [item['job_id'] for _, item in proposals]
+                calls.append((label, jobs))
+                proof = {'jobs': jobs, 'status': 'passed'}
+                if label == 'without-merge-conflict-004':
+                    proof.update(status='failed', removed_rule_conflict={'without_proposal_indices': [4, 5]})
+                return [{'job_id': job, 'trial_proof': {'path': label}} for job in jobs], proof
+
+            with patch.object(batch, '_stage_trial', side_effect=trial):
+                self.assertTrue(batch._retry_without(context, entries, {'path': 'whole'},
+                                                     [0, 1, 2, 3], 8, route='merge'))
+            self.assertEqual(calls[:2], [('without-merge-conflict-004', ['job-4', 'job-5', 'job-6', 'job-7']),
+                                         ('without-merge-conflict-006', ['job-6', 'job-7'])])
+            self.assertEqual([name for name, _ in calls[2:]], [f'proposal-{i:03d}' for i in range(6)])
+            self.assertEqual(context['manifest']['merge_retry']['without_proposal_indices'], list(range(6)))
+
     def test_stale_rule_reference_routes_only_a_unique_new_symbolic_use(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

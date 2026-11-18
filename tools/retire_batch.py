@@ -32,6 +32,7 @@ REPOSITORY_DRIVER = Path(__file__).with_name('retire_repository_checks.py')
 
 FAMILY_CHECK_THREADS = 6
 DEFAULT_NATIVE_CONTROL_THREADS = 6
+MAX_ROUTED_EXCLUSIONS = 8
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
                   'bin/score', 'bin/validate-readings')
 BASE_CONTROL_ARTIFACTS = {'before.jsonl', 'commands.jsonl', 'gold.jsonl', 'native-failures.jsonl',
@@ -619,37 +620,73 @@ def _uses_rule(root, owner, rule):
     return False
 
 
-def _rule_reference_conflict(source, entries, log):
-    """Route a unique removal or a newly introduced reference to an obsolete name."""
+def _unknown_rule_diagnostics(log):
+    """Accept only a bounded compiler report entirely about unresolved names."""
     try:
         with log.open() as stream:
             error = stream.read(4097)
-        message = re.fullmatch(r'Error: "([A-Za-z_]\w*): unknown rule ([A-Za-z_]\w*)"\s*', error)
-        if not message:
-            return None
-        reference, missing = message.groups()
-        previous = _declares(source, missing)
-        if not previous and _declares(source, reference):
-            return None
-        owners = []
-        for index, proposal in entries:
-            if proposal.get('kind') == 'mechanical':
-                continue
-            base = Path(proposal['run'])/'inputs/frozen'
-            current = Path(proposal['report']['directory'])
-            if previous:
-                responsible = not _declares(current, missing) and _declares(base, missing)
-            else:
-                responsible = (_uses_rule(current, reference, missing) and not _declares(base, reference)
-                               and _declares(base, missing) and _declares(current, missing))
-            if responsible:
-                owners.append(index)
     except (OSError, UnicodeError):
+        return []
+    message = re.fullmatch(r'Error: "([^"\r\n]+)"\s*', error) if len(error) <= 4096 else None
+    diagnostics = message[1].split(r'\n') if message else []
+    if not 1 <= len(diagnostics) <= MAX_ROUTED_EXCLUSIONS:
+        return []
+    clauses = [re.fullmatch(r'([A-Za-z_]\w*): unknown rule ([A-Za-z_]\w*)', line) for line in diagnostics]
+    return [clause.groups() for clause in clauses] if all(clauses) else []
+
+
+def _reference_owner(source, entries, reference, missing, declares):
+    previous = declares(source, missing)
+    if not previous and declares(source, reference):
         return None
+    owners = []
+    for index, proposal in entries:
+        if proposal.get('kind') == 'mechanical':
+            continue
+        base = Path(proposal['run'])/'inputs/frozen'
+        current = Path(proposal['report']['directory'])
+        if previous:
+            responsible = not declares(current, missing) and declares(base, missing)
+        else:
+            responsible = (declares(base, missing) and declares(current, missing)
+                           and not declares(base, reference) and _uses_rule(current, reference, missing))
+        if responsible:
+            owners.append(index)
     if len(owners) != 1:
         return None
     result = {'reference': reference, 'missing_rule': missing, 'without_proposal_indices': owners}
     if not previous:
+        result['stale_reference'] = True
+    return result
+
+
+def _rule_reference_conflict(source, entries, log):
+    """Resolve each compiler-reported missing rule to a unique proposal."""
+    diagnostics = _unknown_rule_diagnostics(log)
+    declared = {}
+
+    def declares(root, rule):
+        key = (root.resolve(), rule)
+        if key not in declared:
+            declared[key] = _declares(root, rule)
+        return declared[key]
+
+    conflicts = []
+    try:
+        for reference, missing in dict.fromkeys(diagnostics):
+            conflict = _reference_owner(source, entries, reference, missing, declares)
+            if conflict is None:
+                return None
+            conflicts.append(conflict)
+    except (OSError, UnicodeError):
+        return None
+    if not conflicts:
+        return None
+    if len(conflicts) == 1:
+        return conflicts[0]
+    result = {'conflicts': conflicts, 'without_proposal_indices': sorted({
+        index for item in conflicts for index in item['without_proposal_indices']})}
+    if all(item.get('stale_reference') for item in conflicts):
         result['stale_reference'] = True
     return result
 
@@ -1013,6 +1050,15 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
                           route=route)
 
 
+def _diagnosed_proposals(proof):
+    if 'merge_conflict_at' in proof:
+        return 'merge', [proof['merge_conflict_at']]
+    for route, key in (('stale', 'stale_rule_conflict'), ('dependency', 'removed_rule_conflict')):
+        if proof.get(key):
+            return route, proof[key]['without_proposal_indices']
+    return 'family', proof.get('new_families_failed_at', ())
+
+
 def _retry_without(context, entries, whole_proof, failed_indices, size, *, route):
     """Use a bounded diagnosis to route fresh guarded trials."""
     manifest, folder = context['manifest'], context['folder']
@@ -1021,25 +1067,27 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
              'retained_family': 'without-retained-family-regression',
              'retained_native': 'without-retained-native-regression'}[route]
     receipt = route+'_retry'
+    first_attempt = True
     while 1 <= len(failed_indices) <= size:
         withheld = [entry for entry in entries if entry[0] in failed_indices]
         survivors = [entry for entry in entries if entry[0] not in failed_indices]
         if len(withheld) != len(failed_indices) or not survivors:
             return False
-        attempt_label = label if len(failed_indices) == 1 or route != 'merge' else f'{label}-{len(failed_indices):03d}'
+        suffix = not first_attempt or (route == 'merge' and len(failed_indices) > 1)
+        attempt_label = f'{label}-{len(failed_indices):03d}' if suffix else label
+        first_attempt = False
         items, proof = _stage_trial(context, survivors, attempt_label)
         survivor_proof = items[0]['trial_proof']
         record = {'without_proposal_indices': failed_indices, 'jobs': proof['jobs'],
                   'status': proof['status'], 'proof': survivor_proof, 'group_attempt': whole_proof}
         manifest[receipt] = record
-        if route == 'merge':
-            manifest.setdefault('merge_retry_attempts', []).append(record)
+        manifest.setdefault(receipt+'_attempts', []).append(record)
         if proof['status'] == 'passed':
             break
         r.write(folder/'manifest.json', manifest)
-        next_conflict = proof.get('merge_conflict_at')
-        if route == 'merge' and next_conflict in {index for index, _ in survivors}:
-            failed_indices = sorted([*failed_indices, next_conflict])
+        _, next_failed = _diagnosed_proposals(proof)
+        if next_failed and set(next_failed) <= {index for index, _ in survivors}:
+            failed_indices = sorted({*failed_indices, *next_failed})
             continue
         if route in ('retained_family', 'retained_native'):
             return False
@@ -1208,20 +1256,12 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
                 continue
             group_proof = items[0]['trial_proof']
             if combine_selected and len(entries) > fallback_size:
-                conflict = proof.get('removed_rule_conflict')
-                stale = proof.get('stale_rule_conflict')
-                if 'merge_conflict_at' in proof:
-                    route, failed = 'merge', [proof['merge_conflict_at']]
-                elif stale:
-                    route, failed = 'stale', stale['without_proposal_indices']
-                elif conflict:
-                    route, failed = 'dependency', conflict['without_proposal_indices']
-                else:
-                    route, failed = 'family', proof.get('new_families_failed_at', ())
+                route, failed = _diagnosed_proposals(proof)
+                retry_limit = max(fallback_size, min(MAX_ROUTED_EXCLUSIONS, len(entries)//8))
                 if failed:
-                    passed = _retry_without(context, entries, group_proof, failed, fallback_size, route=route)
+                    passed = _retry_without(context, entries, group_proof, failed, retry_limit, route=route)
                 else:
-                    passed = _retry_retained_control(context, entries, proof, group_proof, fallback_size)
+                    passed = _retry_retained_control(context, entries, proof, group_proof, retry_limit)
                 if not passed:
                     _subgroup_fallback(context, entries, group_proof, fallback_size)
                 continue

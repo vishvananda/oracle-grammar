@@ -453,10 +453,11 @@ The option defaults to false and changes only routing: all staging, native,
 library, family and full integration checks remain required.
 
 When an explicitly combined selection fails and exceeds the configured ordinary
-group size, staging tries ordered subgroups of that size before individual
-fallback. Each subgroup runs every existing guard against the accepted prefix;
-only a failing subgroup is retried individually. The manifest retains the whole
-union and subgroup proofs and records the fallback size. Equal-sized trials are
-not repeated, and uncertain promotion still fails the entire batch. This reduces
-repeated validation when one proposal conflicts with an otherwise usable cohort;
-it does not change the final integration checks.
+group size, staging first retries the union without proposals identified by
+merge conflicts, compiler diagnostics or focused checks. Each unresolved-rule
+diagnostic must identify a unique proposal before it can guide a retry. The
+retry can follow successive diagnoses, up to eight exclusions in a large
+batch. Staging runs all guards on the remainder and on each excluded proposal
+before promotion. If this route fails, staging uses ordered subgroups and retries
+each failing subgroup individually. The manifest retains each trial's evidence.
+Uncertain promotion still fails the entire batch.
