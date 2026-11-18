@@ -1031,15 +1031,18 @@ class ReviewedRepairRetryTests(unittest.TestCase):
 
     def test_staging_repair_binds_the_new_failure_and_remains_a_retry(self):
         self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
+        self.check_staging_repair()
+
+    def check_staging_repair(self):
         candidate = self.queue.claim('retried')
         attempt = candidate['attempt_id']
         self.queue.mark_started(attempt, pid=2_000_000_000)
         self.queue.finish(attempt, 'provisional-pass', {'report': 'independent-pass'},
                           {'seeded_test': {'status': 'pass', 'reason': 'matching print', 'evidence': 'old'}})
-        rejection = {'manifest': 'batch', 'reason': 'merge or staging rejected'}
+        rejection = {'manifest': 'stage-batch', 'reason': 'merge or staging rejected'}
         self.queue.reject_jobs(['repair'], rejection)
         original = self.queue.get_attempt(attempt)
-        trial = self.campaign/'.cache/batches/batch/proposal-000/trial.json'
+        trial = self.campaign/'.cache/batches/stage-batch/proposal-000/trial.json'
         failure = trial.parent/'native-control/result.json'
         failure.parent.mkdir(parents=True)
         self.write(failure, {'faces': 4, 'failures': [{'face': 'Other card', 'lost': ['exact_default']}]})
@@ -1049,7 +1052,7 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.write(trial, {'jobs':['repair'], 'attempts':[attempt], 'status':'failed',
                            'reason':reason,'native_result_sha256':self.digest(failure)})
         manifest = trial.parent.parent/'manifest.json'
-        self.write(manifest, {'id':'batch', 'base_commit':'base', 'jobs':[
+        self.write(manifest, {'id':'stage-batch', 'base_commit':'base', 'jobs':[
             {'job_id':'repair','attempt_id':attempt,'status':'integration-rejected',
              'reason':reason,'trial_proof':spec(trial)}]})
         identified = {'manifest':spec(manifest),'trial':spec(trial),'failure':spec(failure)}
@@ -1062,14 +1065,24 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.assertEqual(self.queue.coverage()['counts'],{'pending':1})
         self.assertEqual(self.queue.get_attempt(attempt),original)
         self.assertEqual(self.queue.reviewed_draft('repair')['report'],proof['report'])
-        event, = [x['data'] for x in self.queue.audit() if x['kind']=='retry-staging-reviewed-repair']
+        event, = [x['data'] for x in self.queue.audit() if x['kind']=='retry-staging-reviewed-repair'
+                  and x['data']['attempt_id']==attempt]
         self.assertEqual(event['previous_adjudication']['evidence'],rejection)
         with self.assertRaisesRegex(ValueError, 'attempt or checkpoint changed'):
             self.queue.retry_reviewed_repair('repair',attempt,'base',proof)
+        fresh = self.queue.claim('staging-retry')
+        fresh_attempt = fresh['attempt_id']
+        self.queue.mark_started(fresh_attempt, pid=2_000_000_000)
+        self.queue.finish(fresh_attempt, 'provisional-pass', {'report': 'retry-pass'},
+                          {'seeded_test': {'status': 'pass', 'reason': 'staging checked', 'evidence': 'retry'}})
+        self.queue.reject_jobs(['repair'], rejection)
+        with self.assertRaisesRegex(ValueError, 'already used'):
+            self.queue.retry_reviewed_repair('repair',fresh_attempt,'base',proof)
 
 
     def test_parse_repair_binds_an_excluded_proposal_to_the_verified_readmission(self):
         self.check_isolated_repair(full_check=False)
+        self.check_staging_repair()
 
     def test_print_repair_can_follow_an_earlier_reviewed_retry(self):
         self.check_isolated_repair(full_check=True)

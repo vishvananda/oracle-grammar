@@ -1131,6 +1131,8 @@ class Queue:
         interrupted = route == 'interrupted_diagnostic'
         legacy = route == 'legacy_diagnostic_prompt'
         staging = route == 'staging_failure'
+        staging_proof = evidence.get('staging_failure')
+        isolated_parse = staging and isinstance(staging_proof, dict) and 'readmission_event_seq' in staging_proof
         full_check = route == 'full_check_failure'
         if interrupted and 'timeout' in evidence:
             raise ValueError('interrupted diagnostic recovery requires a fresh independent report')
@@ -1156,14 +1158,17 @@ class Queue:
                         or len(job['rules']) != len(rules) or set(job['rules']) != rules
                         or result.get('status') != expected_status or set(result.get('outcomes', {})) != rules):
                     raise ValueError('completed author assignment or rule coverage differs')
-                history = {item[0] for item in db.execute(
-                    f"SELECT kind FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) AND json_extract(data,'$.job_id')=?",
+                # A solo staging veto and a full parse audit have separate retry budgets.
+                retries = {(kind, isolated) for kind, isolated in db.execute(
+                    f"SELECT kind, json_type(data,'$.evidence.staging_failure.readmission_event_seq') IS NOT NULL "
+                    f"FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) AND json_extract(data,'$.job_id')=?",
                     (*REVIEWED_RETRY_EVENTS.values(), job_id))}
-                if event in history:
+                if (event, isolated_parse) in retries:
                     raise ValueError('reviewed repair retry already used for this job')
-                if (interrupted or legacy) and (REVIEWED_RETRY_EVENTS[None] not in history or row[0] != 'needs-review'):
+                reviewed = (REVIEWED_RETRY_EVENTS[None], False) in retries
+                if (interrupted or legacy) and (not reviewed or row[0] != 'needs-review'):
                     raise ValueError('diagnostic recovery requires a previously retried author repair')
-                if staging and (REVIEWED_RETRY_EVENTS[None] not in history or row[0] != 'integration-rejected'):
+                if staging and (not reviewed or row[0] != 'integration-rejected'):
                     raise ValueError('staging recovery requires a previously retried integration rejection')
                 if full_check and row[0] != 'integration-rejected':
                     raise ValueError('full-check recovery requires an integration rejection')
@@ -1177,11 +1182,10 @@ class Queue:
                 campaign = Path(self.path).parent
                 if staging:
                     rejection = json.loads(row[3])
-                    failure = evidence['staging_failure']
-                    if isinstance(failure, dict) and 'readmission_event_seq' in failure:
-                        _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), rejection, failure)
+                    if isolated_parse:
+                        _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), rejection, staging_proof)
                     else:
-                        _verify_staging_repair(campaign, job_id, attempt_id, source, rejection, failure)
+                        _verify_staging_repair(campaign, job_id, attempt_id, source, rejection, staging_proof)
                 if full_check:
                     _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), json.loads(row[3]),
                                             evidence['full_check_failure'], full_check=True)
