@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import retire_queue
 from retire_queue import Queue, _git_source_identity
 from test_retire_batch_readmission import mutation_during_readmission_verification
 
@@ -1083,6 +1084,46 @@ class ReviewedRepairRetryTests(unittest.TestCase):
     def test_parse_repair_binds_an_excluded_proposal_to_the_verified_readmission(self):
         self.check_isolated_repair(full_check=False)
         self.check_staging_repair()
+
+    def test_rewritten_review_uses_the_same_hash_and_requires_a_model_rewrite(self):
+        self.report['hooks'] = []
+        self.record(self.task_path.parent.parent/'support.json')
+        approved = {**self.evidence, 'source_checkpoint': 'base'}
+        self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', approved)
+        # This case can follow an ordinary staging retry for a different attempt.
+        self.check_staging_repair()
+        prior = self.queue.get_attempt(self.queue.coverage()['jobs'][0]['attempt_id'])
+        attempt = prior['attempt_id']
+        work = self.campaign/'.cache/attempts'/attempt
+        task = work/'tasks/repair.json'
+        task.parent.mkdir(parents=True)
+        identity = {'kind': 'independently-reviewed-draft', 'report_sha256': approved['report']['sha256'],
+                    'rebased_from': 'base', 'rebased_onto': 'base'}
+        self.write(task, {'reuse': identity})
+        receipt = work/'workers/repair/receipt.json'
+        receipt.parent.mkdir(parents=True)
+        evaluated = work/'evaluations/repair/draft'
+        reported = {'directory': str(evaluated), 'grammar': self.report['grammar']}
+        self.write(receipt, {'status': 'completed', 'pid': 2_000_000_000,
+                             'evaluation': {'passed': True, 'directory': str(evaluated)}})
+        with self.queue._transaction() as db:
+            db.execute('UPDATE attempts SET started=? WHERE id=?',
+                       (json.dumps({'pid': 2_000_000_000, 'receipt': str(receipt)}), attempt))
+        proof = {**approved, 'staging_failure': {'rewritten_draft': {
+            'report': {'path': str(evaluated/'report.json'), 'sha256': 'changed'},
+            'model_receipt': {'path': str(receipt), 'sha256': self.digest(receipt)}}}}
+        verify_report = retire_queue._verify_original_report
+        def verify(*args):
+            return (reported, {}) if args[-1]['sha256'] == 'changed' else verify_report(*args)
+        with patch.object(retire_queue, '_verify_staging_repair') as stage, \
+             patch.object(retire_queue, '_verify_original_report', side_effect=verify):
+            with self.assertRaisesRegex(ValueError, 'did not replace'):
+                self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
+            reported['grammar'] = {'test.ebnf': 'new-hash'}
+            self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
+        self.assertEqual(stage.call_count, 2)
+        self.assertEqual(self.queue.coverage()['counts'], {'pending': 1})
+        self.assertEqual(self.queue.reviewed_draft('repair')['report'], proof['report'])
 
     def test_print_repair_can_follow_an_earlier_reviewed_retry(self):
         self.check_isolated_repair(full_check=True)

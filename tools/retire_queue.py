@@ -194,6 +194,36 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
     raise ValueError('staging repair does not bind a recorded diagnostic failure')
 
 
+def _verify_rewritten_review(db, campaign, assignment, start, result, evidence, reviewed):
+    """Recover the same checked draft after an author rewrote it and staging vetoed it."""
+    job, attempt, source = assignment
+    prior = db.execute(
+        f"SELECT data FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) "
+        "AND json_extract(data,'$.job_id')=? ORDER BY seq DESC LIMIT 1",
+        (*REVIEWED_RETRY_EVENTS.values(), job)).fetchone()
+    prior = json.loads(prior[0]) if prior else {}
+    original = prior.get('evidence', {})
+    if (prior.get('checkpoint') != source or original.get('source_checkpoint') != source
+            or original.get('report') != evidence['report'] or 'timeout' in original
+            or reviewed.get('hooks') != []):
+        raise ValueError('rewritten draft differs from the exact recorded review')
+    replacement = evidence['staging_failure']['rewritten_draft']
+    if not isinstance(replacement, dict) or set(replacement) != {'report', 'model_receipt'}:
+        raise ValueError('rewritten draft requires the evaluated report and model receipt')
+    reported, _ = _verify_original_report(campaign, job, attempt, source, result['evidence'], replacement['report'])
+    work = campaign/'.cache/attempts'/attempt
+    task = json.loads((work/'tasks'/f'{job}.json').read_bytes())
+    expected = {'kind': 'independently-reviewed-draft', 'report_sha256': evidence['report']['sha256'],
+                'rebased_from': source, 'rebased_onto': source}
+    path, body = _proof_file(replacement['model_receipt'])
+    model = json.loads(body)
+    if (path != work/'workers'/job/'receipt.json' or str(path) != start.get('receipt')
+            or model.get('pid') != start['pid'] or model.get('status') != 'completed'
+            or model.get('evaluation') != {'passed': True, 'directory': reported['directory']}
+            or task.get('reuse') != expected or reported['grammar'] == reviewed['grammar']):
+        raise ValueError('model did not replace the recorded reviewed grammar')
+
+
 
 def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evidence, *, full_check=False):
     """Bind a repair to an excluded proposal in a verified survivor readmission."""
@@ -1133,6 +1163,10 @@ class Queue:
         staging = route == 'staging_failure'
         staging_proof = evidence.get('staging_failure')
         isolated_parse = staging and isinstance(staging_proof, dict) and 'readmission_event_seq' in staging_proof
+        rewritten = staging and isinstance(staging_proof, dict) and 'rewritten_draft' in staging_proof
+        if isolated_parse and rewritten:
+            raise ValueError('staging repair proof mixes distinct retry cases')
+        recovery = 'rewritten' if rewritten else 'parse' if isolated_parse else 'ordinary'
         full_check = route == 'full_check_failure'
         if interrupted and 'timeout' in evidence:
             raise ValueError('interrupted diagnostic recovery requires a fresh independent report')
@@ -1159,13 +1193,15 @@ class Queue:
                         or result.get('status') != expected_status or set(result.get('outcomes', {})) != rules):
                     raise ValueError('completed author assignment or rule coverage differs')
                 # A solo staging veto and a full parse audit have separate retry budgets.
-                retries = {(kind, isolated) for kind, isolated in db.execute(
-                    f"SELECT kind, json_type(data,'$.evidence.staging_failure.readmission_event_seq') IS NOT NULL "
+                retries = {(kind, slot) for kind, slot in db.execute(
+                    "SELECT kind, CASE WHEN json_type(data,'$.evidence.staging_failure.rewritten_draft') IS NOT NULL "
+                    "THEN 'rewritten' WHEN json_type(data,'$.evidence.staging_failure.readmission_event_seq') "
+                    "IS NOT NULL THEN 'parse' ELSE 'ordinary' END "
                     f"FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) AND json_extract(data,'$.job_id')=?",
                     (*REVIEWED_RETRY_EVENTS.values(), job_id))}
-                if (event, isolated_parse) in retries:
+                if (event, recovery) in retries:
                     raise ValueError('reviewed repair retry already used for this job')
-                reviewed = (REVIEWED_RETRY_EVENTS[None], False) in retries
+                reviewed = (REVIEWED_RETRY_EVENTS[None], 'ordinary') in retries
                 if (interrupted or legacy) and (not reviewed or row[0] != 'needs-review'):
                     raise ValueError('diagnostic recovery requires a previously retried author repair')
                 if staging and (not reviewed or row[0] != 'integration-rejected'):
@@ -1179,6 +1215,8 @@ class Queue:
                 _verify_readmission_origin(db, checkpoint, row[4])
                 source = evidence.get('source_checkpoint', checkpoint)
                 _verify_readmission_origin(db, checkpoint, source)
+                if rewritten and (source != checkpoint or row[4] != source or 'source_checkpoint' not in evidence):
+                    raise ValueError('rewritten draft recovery requires its exact reviewed checkpoint')
                 campaign = Path(self.path).parent
                 if staging:
                     rejection = json.loads(row[3])
@@ -1209,7 +1247,10 @@ class Queue:
                         retire_timeout_recovery.verify_legacy_full_diagnostic(
                             campaign, job_id, attempt_id, timeout, evidence['legacy_diagnostic_prompt'])
                     timed_out_attempt = attempt_id
-                _verify_reviewed_repair(campaign, source, job, evidence, timed_out_attempt=timed_out_attempt)
+                approved, _ = _verify_reviewed_repair(campaign, source, job, evidence, timed_out_attempt=timed_out_attempt)
+                if rewritten:
+                    _verify_rewritten_review(db, campaign, (job_id, attempt_id, source),
+                                             start, result, evidence, approved)
                 job['goal'] += ' Coordinator replay passed this repair on '+source+'. '+notes.strip()
                 db.execute("UPDATE jobs SET payload=?,status='pending',attempt_id=NULL,adjudication=NULL WHERE id=?",
                            (_json(job), job_id))
