@@ -1,10 +1,13 @@
 """Verify complete archived parse or print failures and replay focused survivors."""
-from collections import Counter
+from collections import Counter, defaultdict
+from contextlib import closing
+import fcntl
 import hashlib
 from itertools import zip_longest
 import json
 from pathlib import Path
 import re
+import sqlite3
 import tempfile
 
 import retire as r
@@ -16,6 +19,74 @@ from retire_native_readmission import _allowed, _control, _grammar_tree
 
 ARTIFACTS = ('commands.jsonl', 'gold.jsonl', 'oracle.json', 'slice.json', 'before.jsonl',
              'rows.jsonl', 'native.json', 'native-failures.jsonl', 'score.log', 'validate-readings.log')
+PRINT_ONLY_REJECTION = 'full allowed-population checks failed'
+
+
+def _lease_held(path):
+    try:
+        with path.open('rb') as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return True
+    except FileNotFoundError:
+        pass
+    return False
+
+
+def _focused_print_losses(failures):
+    return (isinstance(failures, list) and 1 <= len(failures) <= 16
+            and all(isinstance(row, dict) and set(row) == {'face', 'lost'}
+                    and isinstance(row['face'], str) and row['face']
+                    and row['lost'] == ['exact_default'] for row in failures))
+
+
+def pending_print_batches(campaign, output, *, include_active=False):
+    """Find intact current-attempt groups eligible for automatic recovery."""
+    groups = defaultdict(set)
+    uri = (campaign/'queue.sqlite').as_uri()+'?mode=ro'
+    with closing(sqlite3.connect(uri, uri=True)) as db:
+        for job, attempt, batch in db.execute("""
+                SELECT id, attempt_id, json_extract(adjudication,'$.evidence.manifest')
+                FROM jobs WHERE status='integration-rejected'
+                AND json_extract(adjudication,'$.evidence.validation.reason')=?
+                """, (PRINT_ONLY_REJECTION,)):
+            if isinstance(batch, str) and re.fullmatch(r'[0-9a-f]{32}', batch):
+                groups[batch].add((job, attempt))
+    ready = []
+    for batch, current in groups.items():
+        if not 2 <= len(current) <= 96:
+            continue
+        if (output/batch).exists() and not (include_active and _lease_held(output/f'{batch}.lock')):
+            continue
+        folder = campaign/'.cache/batches'/batch
+        try:
+            manifest = r.read(folder/'manifest.json')
+            validation = r.read(folder/'validation.json')
+            included = [job for job in manifest['jobs'] if job['status'] == 'included']
+            original = {(job['job_id'], job['attempt_id']) for job in included}
+            if (manifest['id'] == batch and current == original and len(included) == len(original)
+                    and validation['reason'] == PRINT_ONLY_REJECTION and validation['status'] == 'failed'
+                    and validation['scope'] == 'combined-batch'
+                    and _focused_print_losses(validation['full_checks']['failures'])):
+                ready.append((folder.stat().st_mtime_ns, batch))
+        except (OSError, KeyError, ValueError, TypeError):
+            # Legacy or incomplete receipts remain available for review.
+            continue
+    return [batch for _, batch in sorted(ready)]
+
+
+def awaiting_print_recovery(campaign):
+    """Keep workers available while a live watcher can readmit a final cohort."""
+    if not _lease_held(campaign/'full-print-recovery.lock'):
+        return False
+    marker = campaign/'full-print-recovery.json'
+    try:
+        output = Path(r.read(marker)['output'])
+    except (OSError, KeyError, ValueError, TypeError):
+        return False
+    return bool(output.is_absolute() and _allowed(campaign, output)
+                and pending_print_batches(campaign, output, include_active=True))
 
 
 class Reads:

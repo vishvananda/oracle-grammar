@@ -28,6 +28,7 @@ import retire_campaign as campaign_api
 import retire_cpu
 import retire_plan as planner
 import retire_parse_screen
+from retire_parse_readmission import awaiting_print_recovery
 import retire_priority
 import retire_metrics
 import retire_mechanical_cohort as mechanical_cohort
@@ -665,13 +666,17 @@ def run_campaign(run, runner=None):
                         'checkpoint':coverage['checkpoint'],'updated_unix':time.time()})
                     return
                 if not pending and not futures and not batching and not ready:
-                    complete=not coverage['counts'].get('failed',0)
-                    publication=run/'publication.json'
-                    complete=complete and (not publication.exists() or r.read(publication)['status']=='integrated')
-                    r.write(run/'status.json',{'status':'first-pass-complete' if complete else 'needs-operator',
-                            'rules':coverage['total_rules'],'counts':coverage['counts'],
-                            'checkpoint':coverage['checkpoint'],'updated_unix':time.time()})
-                    return
+                    if not awaiting_print_recovery(run):
+                        final=queue.progress()
+                        if any(final['counts'].get(name) for name in ('pending','running','provisional-pass')):
+                            continue
+                        complete=not final['counts'].get('failed',0)
+                        publication=run/'publication.json'
+                        complete=complete and (not publication.exists() or r.read(publication)['status']=='integrated')
+                        r.write(run/'status.json',{'status':'first-pass-complete' if complete else 'needs-operator',
+                                'rules':final['total_rules'],'counts':final['counts'],
+                                'checkpoint':final['checkpoint'],'updated_unix':time.time()})
+                        return
                 if not futures:
                     time.sleep(2)
 

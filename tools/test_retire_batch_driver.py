@@ -24,6 +24,8 @@ class QueueStub:
         return rows[:limit]
     def progress(self):
         return self.value
+    def audit(self):
+        return []
 
 
 def progress(pending=1, running=0, ready=0, failed=0, checkpoint='parent'):
@@ -213,6 +215,24 @@ class DriverTests(unittest.TestCase):
                 with patch.dict(event['previous_adjudication']['evidence'], manifest='another-batch'):
                     with self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
                         driver._batch_observation(self.run, set(), self.queue, 'parent')
+
+    def test_recorded_full_print_readmission_preserves_batch_observation(self):
+        folder = self.run/'.cache/batches/id'
+        folder.mkdir(parents=True)
+        r.write(folder/'manifest.json', {'id': 'id', 'base_commit': 'parent', 'status': 'provisional',
+                                         'commit': 'candidate', 'jobs': [{'job_id': 'one', 'status': 'included',
+                                                                           'attempt_id': 'attempt'}]})
+        validation = {'status': 'failed', 'candidate': 'candidate', 'source_checkpoint': 'parent',
+                      'reason': driver.PRINT_ONLY_REJECTION}
+        r.write(folder/'validation.json', validation)
+        event = {'job_id': 'one', 'attempt_id': 'attempt', 'checkpoint': 'parent', 'manifest': 'id',
+                 'evidence': {'kind': 'isolated-full-check-revalidation'},
+                 'previous_adjudication': {'status': 'integration-rejected', 'checkpoint': None,
+                                           'evidence': {'manifest': 'id', 'validation': validation}}}
+        self.queue.audit = lambda: [{'kind': 'readmitted-native-batch', 'data': event}]
+        self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'], 'rejected')
+        with patch.dict(event, attempt_id='stale'), self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
+            driver._batch_observation(self.run, set(), self.queue, 'parent')
 
     def test_mechanical_threshold_takes_only_mechanics_and_caps_at_96(self):
         config = r.read(self.run/'config.json')
@@ -405,6 +425,35 @@ class DriverTests(unittest.TestCase):
         self.assertEqual(state['phase'], 'first-pass-complete')
         self.assertEqual(state['last_batch']['validation_status'], 'passed')
         self.assertEqual(r._LEASES, [])
+
+    def test_final_recovery_keeps_batch_owner_until_survivors_are_ready(self):
+        self.queue.value = progress(pending=0)
+
+        def recovery_finishes(_):
+            state = r.read(self.run/'batch-driver.json')
+            self.assertEqual(state['phase'], 'idle')
+            self.assertEqual(state['reason'], 'automatic print recovery is active')
+            self.queue.value = progress(pending=0, ready=2)
+
+        with patch.object(driver, 'awaiting_print_recovery', side_effect=[True, False]), \
+             patch.object(driver.time, 'sleep', side_effect=recovery_finishes), \
+             patch.object(driver.dispatch, '_batch', side_effect=self.outcome()) as batch:
+            driver.run_driver(self.run, self.runner)
+        batch.assert_called_once_with(self.run)
+        self.assertEqual(r.read(self.run/'batch-driver.json')['phase'], 'first-pass-complete')
+
+    def test_readmission_during_final_check_is_observed_before_exit(self):
+        self.queue.value = progress(pending=0)
+
+        def completed_during_poll(_):
+            if self.queue.value['checkpoint'] == 'parent':
+                self.queue.value = progress(pending=0, ready=2)
+            return False
+
+        with patch.object(driver, 'awaiting_print_recovery', side_effect=completed_during_poll), \
+             patch.object(driver.dispatch, '_batch', side_effect=self.outcome()) as batch:
+            driver.run_driver(self.run, self.runner)
+        batch.assert_called_once_with(self.run)
 
     def test_controller_drain_leaves_external_batch_driver_running(self):
         self.queue.value = progress(ready=4)

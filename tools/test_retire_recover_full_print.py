@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 import retire as r
+from retire_parse_readmission import PRINT_ONLY_REJECTION, awaiting_print_recovery
 import retire_recover_full_print as recover
 
 
@@ -15,8 +16,8 @@ class PendingFullPrintTests(unittest.TestCase):
         self.temporary = TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.campaign = Path(self.temporary.name)
-        self.output = self.campaign/'output'
-        self.output.mkdir()
+        self.output = self.campaign/'.cache/output'
+        self.output.mkdir(parents=True)
         self.batch = '0123456789abcdef'*2
         self.folder = self.campaign/'.cache/batches'/self.batch
         self.folder.mkdir(parents=True)
@@ -25,7 +26,7 @@ class PendingFullPrintTests(unittest.TestCase):
             {'job_id': 'b', 'attempt_id': 'old-b', 'status': 'included'},
             {'job_id': 'c', 'attempt_id': 'old-c', 'status': 'excluded'},
         ]}
-        self.validation = {'reason': recover.REJECTION, 'scope': 'combined-batch', 'status': 'failed',
+        self.validation = {'reason': PRINT_ONLY_REJECTION, 'scope': 'combined-batch', 'status': 'failed',
                            'full_checks': {'failures': [{'face': 'One', 'lost': ['exact_default']}]}}
         r.write(self.folder/'manifest.json', self.manifest)
         r.write(self.folder/'validation.json', self.validation)
@@ -39,7 +40,7 @@ class PendingFullPrintTests(unittest.TestCase):
         self.db.commit()
 
     def pending(self):
-        return recover.pending_batches(self.campaign, self.output)
+        return recover.pending_print_batches(self.campaign, self.output)
 
     def test_complete_current_group_can_be_recovered_once(self):
         self.assertEqual(self.pending(), [self.batch])
@@ -53,6 +54,17 @@ class PendingFullPrintTests(unittest.TestCase):
         self.db.execute("UPDATE jobs SET attempt_id='old-b', status='provisional-pass' WHERE id='b'")
         self.db.commit()
         self.assertEqual(self.pending(), [])
+
+    def test_managed_watcher_holds_completion_until_terminal_recovery(self):
+        r.write(self.campaign/'full-print-recovery.json', {'output': str(self.output)})
+        self.assertFalse(awaiting_print_recovery(self.campaign))
+        with r.locked(self.campaign/'full-print-recovery.lock'):
+            self.assertTrue(awaiting_print_recovery(self.campaign))
+            with r.locked(self.output/f'{self.batch}.lock'):
+                (self.output/self.batch).mkdir()
+                self.assertTrue(awaiting_print_recovery(self.campaign))
+            self.assertFalse(awaiting_print_recovery(self.campaign))
+        self.assertFalse(awaiting_print_recovery(self.campaign))
 
     def test_mixed_and_large_failures_are_left_for_review(self):
         for failures in ([{'face': 'One', 'lost': ['exact_default', 'exact']}],

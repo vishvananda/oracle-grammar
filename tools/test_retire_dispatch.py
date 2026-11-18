@@ -658,6 +658,26 @@ class DispatchCanaries(unittest.TestCase):
                 dispatch.run_campaign(root)
             validate.assert_not_called()
 
+    def test_worker_controller_waits_for_active_final_print_recovery(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'runner').mkdir()
+            r.write(root/'runner.json', {})
+            r.write(root/'config.json', {'workers': 1, 'main_repo': str(root), 'max_operational_retries': 1,
+                                        'first_batch_size': 1, 'batch_size': 1, 'batch_wait_seconds': 0,
+                                        'initial_commit': 'base', 'external_batch_driver': True})
+            dispatch.Queue(root/'queue.sqlite').add_checkpoint('base', {'proof': 'test'})
+
+            def wait(_):
+                self.assertEqual(r.read(root/'status.json')['status'], 'running')
+
+            with patch.object(dispatch.shutil, 'disk_usage', return_value=SimpleNamespace(free=100*1024**3)), \
+                    patch.object(dispatch, 'awaiting_print_recovery', side_effect=[True, False]), \
+                    patch.object(dispatch.time, 'sleep', side_effect=wait) as sleep:
+                dispatch.run_campaign(root)
+            sleep.assert_called_once()
+            self.assertEqual(r.read(root/'status.json')['status'], 'first-pass-complete')
+
     def test_controller_does_not_spawn_while_external_batch_holds_lease(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

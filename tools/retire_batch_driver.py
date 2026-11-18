@@ -12,6 +12,7 @@ sys.dont_write_bytecode = True
 import retire as r
 import retire_campaign as campaign
 import retire_dispatch as dispatch
+from retire_parse_readmission import PRINT_ONLY_REJECTION, awaiting_print_recovery
 from retire_queue import Queue
 from retire_tasks import validate_runner
 
@@ -29,15 +30,26 @@ def _runner(run, runner):
     return selected
 
 
-def _recorded_stage_retry(queue, job, checkpoint, expected):
+def _recorded_recovery(events, job, checkpoint, expected):
+    if job.get('status') == 'integration-rejected':
+        kinds = ('retry-reviewed-repair', 'retry-staging-reviewed-repair')
+    elif job.get('status') == 'included' and expected.get('validation', {}).get('reason') == PRINT_ONLY_REJECTION:
+        kinds = ('readmitted-native-batch',)
+    else:
+        return False
     original = {'status': 'integration-rejected', 'checkpoint': None, 'evidence': expected}
-    matches = [event['data'] for event in queue.audit()
-               if event['kind'] in ('retry-reviewed-repair', 'retry-staging-reviewed-repair')
+    matches = [event['data'] for event in events
+               if event['kind'] in kinds
                and event['data'].get('job_id') == job['job_id']
-               and event['data'].get('attempt_id') == job['attempt_id']]
-    return (len(matches) == 1 and matches[0].get('checkpoint') == checkpoint
-            and matches[0].get('previous_status') == 'integration-rejected'
-            and matches[0].get('previous_adjudication') == original)
+               and event['data'].get('attempt_id') == job['attempt_id']
+               and event['data'].get('previous_adjudication') == original]
+    if len(matches) != 1 or matches[0].get('checkpoint') != checkpoint:
+        return False
+    event = matches[0]
+    if kinds == ('readmitted-native-batch',):
+        return (event.get('manifest') == expected['manifest']
+                and event.get('evidence', {}).get('kind') == 'isolated-full-check-revalidation')
+    return event.get('previous_status') == 'integration-rejected'
 
 
 def _batch_observation(run, before, queue, checkpoint):
@@ -83,6 +95,7 @@ def _batch_observation(run, before, queue, checkpoint):
     else:
         raise ValueError('batch staging failed operationally: '+str(manifest_path))
     rejected = {row['id']: row for row in queue.get_jobs('integration-rejected')}
+    events = None
     for job in jobs:
         row = rejected.get(job['job_id'])
         evidence = (row.get('adjudication') or {}).get('evidence', {}) if row else {}
@@ -90,8 +103,10 @@ def _batch_observation(run, before, queue, checkpoint):
                     if job.get('status') == 'included' and stage == 'provisional'
                     else {'manifest': folder.name, 'reason': 'merge or staging rejected'})
         if not row or row['attempt_id'] != job['attempt_id'] or evidence != expected:
-            # An isolated staging failure is recorded before the combined audit.
-            if job.get('status') != 'integration-rejected' or not _recorded_stage_retry(queue, job, checkpoint, expected):
+            # A verified recovery may finish between batch adjudication and observation.
+            if events is None:
+                events = queue.audit()
+            if not _recorded_recovery(events, job, checkpoint, expected):
                 raise ValueError('rejected batch job disposition is missing or differs')
     return result
 
@@ -178,7 +193,6 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                     flush = flush_once
                     while True:
                         progress = queue.progress()
-                        counts = progress['counts']
                         jobs = progress['job_counts']
                         if (run/'drain.json').exists() or (run/'batch-driver-drain.json').exists():
                             status('drained', progress, reason='explicit drain requested')
@@ -241,10 +255,17 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             status('idle', new_progress, last_batch=observation)
                             continue
                         if not pending and not running and not ready:
+                            if awaiting_print_recovery(run):
+                                status('idle', progress, reason='automatic print recovery is active')
+                                time.sleep(poll_seconds)
+                                continue
+                            final = queue.progress()
+                            if any(final['job_counts'].get(name) for name in ('pending', 'running', 'provisional-pass')):
+                                continue
                             publication = run/'publication.json'
-                            complete = (not counts.get('failed', 0) and publication.exists()
+                            complete = (not final['counts'].get('failed', 0) and publication.exists()
                                         and r.read(publication).get('status') == 'integrated')
-                            status('first-pass-complete' if complete else 'needs-operator', progress)
+                            status('first-pass-complete' if complete else 'needs-operator', final)
                             return
                         status('idle', progress)
                         time.sleep(poll_seconds)

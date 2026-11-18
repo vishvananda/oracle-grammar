@@ -316,6 +316,9 @@ integration. It picks intact rejected groups whose current attempts match the
 archived manifest and whose full audit reports only exact-default losses on up
 to sixteen faces. It uses the same isolation command and queue verifier, records
 one outcome per started batch, and lets integration continue with other work.
+The coordinator and worker controller stay available while the watcher owns
+an eligible final cohort. A completed readmission is checked against the live
+queue before either controller exits.
 Omit `--watch` for one scan or `--apply` to produce evidence without readmission.
 When checkpoint input rows precede the accepted parse baseline, both immutable
 baselines must match in every field except the parse report's top-level `key`
