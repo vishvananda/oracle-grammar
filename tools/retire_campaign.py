@@ -17,7 +17,8 @@ from retire_queue import Queue
 RUNNERS = (*r.TOOLING, 'retire_author.py', 'retire_author_pool.py', 'retire_pool.py',
            'retire_cpu.py', 'retire_cohort.py', 'retire_mechanical_cohort.py', 'retire_screen_packet.py', 'retire_plan.py', 'retire_queue.py', 'retire_cohort_proof.py', 'retire_rehabilitation.py', 'retire_timeout_recovery.py', 'retire_native_readmission.py', 'retire_native_exit_readmission.py', 'retire_native_outcome.py', 'retire_parse_screen.py', 'retire_parse_readmission.py', 'retire_library_readmission.py', 'retire_library_controls.py', 'retire_repository_checks.py', 'retire_priority.py', 'retire_tasks.py',
            'retire_merge.py', 'retire_batch.py', 'retire_dispatch.py', 'retire_batch_driver.py', 'retire_campaign.py',
-           'retire_metrics.py', 'retire_retention.py', 'retire_helper.py', 'retire_reuse.py')
+           'retire_metrics.py', 'retire_retention.py', 'retire_helper.py', 'retire_reuse.py',
+           'retire_recover_full_print.py', 'retire_parse_isolate.py', 'retire_library_isolate.py')
 
 
 def save_checkpoint(run, checkpoint):

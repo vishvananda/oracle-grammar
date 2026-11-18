@@ -1,7 +1,10 @@
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 import unittest
 from argparse import Namespace
@@ -102,6 +105,14 @@ class CampaignTests(unittest.TestCase):
         self.assertEqual(coverage['counts'], {'pending': 2})
         self.assertEqual(coverage['checkpoint'], 'base')
         self.assertEqual(r.read(run/'config.json')['expected_rules'], ['m_one', 't_two'])
+        runner = run/'runner'
+        startup = subprocess.run(
+            [sys.executable, '-B', str(runner/'retire_recover_full_print.py'), '--help'],
+            cwd=runner, env={key: value for key, value in os.environ.items() if key != 'PYTHONPATH'},
+            capture_output=True, text=True, check=True,
+        )
+        self.assertIn('--include-parse', startup.stdout)
+        self.assertEqual(r.tree(runner), r.read(run/'runner.json'))
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             campaign.status(run)
