@@ -31,6 +31,7 @@ import retire_parse_screen
 import retire_priority
 import retire_metrics
 import retire_mechanical_cohort as mechanical_cohort
+import retire_rehabilitation
 import retire_retention
 from retire_queue import Queue, RehabilitationIneligible
 from retire_tasks import (CohortClosureLimit, close_cohort, mechanical_chunks,
@@ -221,6 +222,32 @@ def exact_reviewed_replay(working, task_id, checkpoint, reviewed):
     return expected if task.get('reuse') == expected else None
 
 
+def _repairable_mechanical_print(job, report):
+    failures = report.get('failures')
+    return (job['kind'] == 'mechanical' and len(job['rules']) == 1
+            and 'mechanical_chunks' not in job and report.get('passed') is False
+            and isinstance(failures, list) and 1 <= len(failures) <= 16
+            and all(isinstance(row, dict) and set(row) == {'face', 'lost'}
+                    and isinstance(row['face'], str) and row['face']
+                    and row['lost'] in (['exact'], ['exact_default']) for row in failures))
+
+
+def _escalate_mechanical_print(queue, checkpoint, job, attempt, report):
+    """Schedule authoring once the mechanical worker has released its lease."""
+    try:
+        evidence = retire_rehabilitation.mechanical_print_escalation(Path(checkpoint['inputs']), report)
+        for retry in range(4):
+            head = queue.progress()['checkpoint']
+            try:
+                decision = queue.escalate_mechanical_failure(job, attempt, head, evidence)
+                return {'status': 'scheduled', **decision}
+            except ValueError:
+                if queue.progress()['checkpoint'] == head or retry == 3:
+                    raise
+    except (ValueError, OSError, KeyError) as error:
+        return {'status': 'needs-review', 'reason': str(error)}
+
+
 def perform(run, claim, contexts, runner=None):
     queue = Queue(run/'queue.sqlite')
     cp = campaign_api.checkpoint(run,claim['base_commit'])
@@ -233,6 +260,7 @@ def perform(run, claim, contexts, runner=None):
     usage=None
     usage_collected=False
     replay=None
+    mechanical_print_failure=None
     with lease(run/'leases'/job['id']) as fd:
         try:
             data,scan,inverted = contexts.get(cp)
@@ -310,6 +338,8 @@ def perform(run, claim, contexts, runner=None):
             r.write(evidence,result)
             queue.finish(attempt,'provisional-pass' if passed else 'needs-review',
                          {'receipt':str(evidence),**result},outcome)
+            if _repairable_mechanical_print(job, report):
+                mechanical_print_failure = paths[0]
         except Exception as error:
             result={'attempt':attempt,'job':job['id'],'kind':job['kind'],
                     'status':'operational-failure','error':str(error),
@@ -329,6 +359,9 @@ def perform(run, claim, contexts, runner=None):
                 r.write(working/'archive.json',archive)
             except Exception as error:
                 r.write(working/'archive.json',{'status':'retained','reason':str(error)})
+    if mechanical_print_failure is not None:
+        decision = _escalate_mechanical_print(queue, cp, job['id'], attempt, mechanical_print_failure)
+        r.write(working/'mechanical-escalation.json', decision)
     return job['id']
 
 
@@ -365,11 +398,7 @@ def reclassify(run, cp):
                     or job.get('mechanical_failure_origin')):
                 continue
             if proof is None:
-                inputs=Path(cp['inputs'])
-                paths={'scan':inputs/'scan/rules.json', 'scan_complete':inputs/'scan-complete.json',
-                       'manifest':inputs/'manifest.json', 'commands':inputs/'scan/commands.jsonl'}
-                proof={'kind':'checkpoint-unused-rehabilitation',
-                       **{name:{'path':str(path.resolve()),'sha256':r.digest(path)} for name,path in paths.items()}}
+                proof=retire_rehabilitation.scan_evidence(Path(cp['inputs']))
             try:
                 queue.rehabilitate_unused(row['id'],cp['commit'],proof)
             except RehabilitationIneligible:

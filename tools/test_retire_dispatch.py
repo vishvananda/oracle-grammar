@@ -50,6 +50,52 @@ def repository(path):
 
 
 class DispatchCanaries(unittest.TestCase):
+    def test_completed_mechanical_print_loss_routes_through_verified_author_escalation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            queue = dispatch.Queue(run/'queue.sqlite')
+            queue.add_checkpoint('base', {'proof': 'test'})
+            queue.add_jobs([{'id': 'one', 'rules': ['m_one'], 'kind': 'mechanical'}])
+            claim = queue.claim('worker')
+            working = run/'attempt'
+            report = working/'evaluations/one/evaluation/report.json'
+            report.parent.mkdir(parents=True)
+            r.write(report, {'passed': False, 'failures': [{'face': 'Affected', 'lost': ['exact']}]})
+            process = Mock(pid=123)
+            process.wait.return_value = 0
+            contexts = SimpleNamespace(get=lambda cp: (('index', 'gold', 'oracle'), {}, 'inverted'))
+            proof = {'kind': 'mechanical-author-escalation'}
+
+            def escalate(job, attempt, checkpoint, evidence):
+                self.assertEqual((job, attempt, checkpoint, evidence), ('one', claim['attempt_id'], 'base', proof))
+                with dispatch.lease(run/'leases/one'):
+                    self.assertEqual(queue.get_attempt(attempt)['result']['status'], 'needs-review')
+                return {'child_job': 'targeted-author'}
+
+            with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'inputs': str(run)}), \
+                 patch.object(dispatch.mechanical_cohort, 'cohort', return_value=['Affected']), \
+                 patch.object(dispatch, 'mechanical_detail', return_value=({'names': ['Affected']}, ['Affected'], None)), \
+                 patch.object(dispatch, 'prepare_task', return_value={'run': str(working), 'task_id': 'one'}), \
+                 patch.object(dispatch.subprocess, 'Popen', return_value=process), \
+                 patch.object(dispatch.retire_retention, 'archive_checkout', return_value={}), \
+                 patch.object(rehabilitation, 'mechanical_print_escalation', return_value=proof) as artifacts, \
+                 patch.object(dispatch.Queue, 'escalate_mechanical_failure', side_effect=escalate) as admitted:
+                dispatch.perform(run, claim, contexts)
+            artifacts.assert_called_once_with(run, report)
+            admitted.assert_called_once()
+            self.assertEqual(r.read(working/'mechanical-escalation.json'),
+                             {'status': 'scheduled', 'child_job': 'targeted-author'})
+
+    def test_other_mechanical_failure_shapes_keep_their_disposition(self):
+        job = {'kind': 'mechanical', 'rules': ['m_one']}
+        exact = {'face': 'Affected', 'lost': ['exact_default']}
+        self.assertTrue(dispatch._repairable_mechanical_print(job, {'passed': False, 'failures': [exact]}))
+        for failures in ([{'face': 'Affected', 'gate': 'parse/reading-count/text'}],
+                         [exact, {'face': 'Another', 'lost': ['default']}], [exact]*17):
+            self.assertFalse(dispatch._repairable_mechanical_print(job, {'passed': False, 'failures': failures}))
+        self.assertFalse(dispatch._repairable_mechanical_print({**job, 'mechanical_chunks': [0]},
+                                                               {'passed': False, 'failures': [exact]}))
+
     def test_reviewed_hooks_preserve_the_raw_root_and_reproduce_the_evaluated_tree(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

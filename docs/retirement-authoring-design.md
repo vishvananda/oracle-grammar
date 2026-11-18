@@ -115,6 +115,11 @@ Publish the accepted commit, grammar/helper/input hashes and complete evidence
 only after every gate passes. Rescan once per accepted batch for newly unused
 rules; feed those into the mechanical lane. This makes shared phrase work
 available to later workers and can retire additional rules without new authors.
+When a singleton mechanical check finds only an exact spelling loss, the
+controller verifies the archived deletion and schedules one targeted author
+job after the mechanical process releases its lease. The original report and
+rule ownership stay linked to the new job. Mixed or incomplete failures remain
+available for review.
 No authoring worker applies changes to the main checkout or publishes a release.
 
 Escalate to a larger model for identity/scope proofs, ambiguous meanings, changed

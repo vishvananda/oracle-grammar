@@ -7,6 +7,23 @@ import re
 MAX_BYTES = 64 * 1024 * 1024
 
 
+def _address(path):
+    return {'path': str(path.resolve()), 'sha256': _digest_large(path)}
+
+
+def scan_evidence(inputs):
+    return {'kind': 'checkpoint-unused-rehabilitation',
+            'manifest': _address(inputs/'manifest.json'), 'scan': _address(inputs/'scan/rules.json'),
+            'scan_complete': _address(inputs/'scan-complete.json'), 'commands': _address(inputs/'scan/commands.jsonl')}
+
+
+def mechanical_print_escalation(inputs, report):
+    """Collect artifacts for an independently verified mechanical escalation."""
+    return {'kind': 'mechanical-author-escalation', 'scan': scan_evidence(inputs),
+            'index': _address(inputs/'frozen/index.json'), 'report': _address(report),
+            'artifacts': {name: _address(report.parent/name) for name in MECHANICAL_OUTCOME_FILES}}
+
+
 def _read(path, digest=None):
     if path.is_symlink():
         raise ValueError('rehabilitation input must not be a symlink')
