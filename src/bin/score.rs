@@ -5,6 +5,7 @@ use oracle_ir_grammar::engine::{
 };
 use oracle_ir_grammar::parse::RuleSet;
 use serde_json::{Value, json};
+use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 
@@ -446,6 +447,29 @@ impl Score {
     }
 }
 
+fn judge_faces(
+    engine: &Engine,
+    faces: &[Value],
+    oracle: &source::Sources,
+    options: &Options,
+) -> Result<Vec<Result<Judged, String>>, String> {
+    let work = |face: &Value| judge(engine, face, oracle, options);
+    if options.raw || !options.render || !options.round_trip {
+        return corpus::parallel(faces, work);
+    }
+    // Starting longer faces first gives their expensive print searches time to
+    // finish while other threads still have work. Emit results in input order.
+    let mut schedule: Vec<_> = faces.iter().enumerate().collect();
+    schedule.sort_by_cached_key(|(index, face)| {
+        let size = source::original(oracle, face)
+            .map_or(0, |original| engine.presentation_free(&original.text).len());
+        (Reverse(size), *index)
+    });
+    let mut judged = corpus::parallel(&schedule, |(index, face)| (*index, work(face)))?;
+    judged.sort_unstable_by_key(|(index, _)| *index);
+    Ok(judged.into_iter().map(|(_, card)| card).collect())
+}
+
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut options = options()?;
     let engine = Engine::load_from_args()?;
@@ -460,7 +484,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let oracle = source::load(&options.oracle)?;
     let faces = source::faces(&options.unified, &wanted)?;
-    let judged = corpus::parallel(&faces, |face| judge(&engine, face, &oracle, &options))?;
+    let judged = judge_faces(&engine, &faces, &oracle, &options)?;
     let mut out = std::io::BufWriter::new(std::fs::File::create(&options.out)?);
     let mut score = Score::default();
     let mut stuck: BTreeMap<String, u64> = BTreeMap::new();
