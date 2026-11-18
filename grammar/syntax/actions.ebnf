@@ -3946,3 +3946,34 @@ discard_fewer_followup ::= "then" "if" "fewer" "than" card_count "were" "discard
    that population in one scoped template, including during inverse printing. */
 /* @sem Ability::Triggered{event:$turn_event, intervening_if:Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, filter:Not($subtype_plural)}), test:Compare{comparison:Equal, value:Constant(0)}}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), kind:$counter_kind, amount:All}]}}]}} */
 triggered_all_population_remove_counters ::= "at" turn_event "," "if" "all" filter_plural "on" "the" "battlefield" "are" subtype_plural "," "remove" "all" counter_kind "counters" "from" "them" "."
+
+/* The selected population and the removal receipt remain independent of the
+   later recipient and counter placed.  The receipt names lore counters. */
+/* @sem Operation::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), kind:Named(LoreCounter), amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:AnyNumber}}]} */
+remove_lore_from_selected_population ::= "you" "may" "remove" "a" "lore" "counter" "from" "each" "of" "any" "number" "of" affected
+
+/* @sem Instruction::[Effect{result:@mark, operation:$remove_lore_from_selected_population}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:CountersRemoved(@marked)}]}}] */
+instructions_remove_lore_place_per_removed ::= remove_lore_from_selected_population "." "put" "a" counter_kind "counter" "on" affected "for" "each" "lore" "counter" "removed" "this" "way"
+
+/* X belongs to the referenced object; the other recipients share a battlefield population. */
+/* @sem Operation::DistributeCounters(_{amount:CastX($object_ref), kind:$counter_kind, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($object_ref), $filter_plural])}, any_number:true}) */
+distribute_cast_x_among_ref_and_population ::= "distribute" "X" counter_kind "counters" "among" object_ref "and" "any" "number" "of" filter_plural
+
+/* The opponent's choice is established by the subsequent pile instruction. */
+/* @sem Instruction::[Effect{result:@next, operation:SeparatePiles{separator:AbilityController, chooser:OneOf(OpponentsOf(AbilityController)), objects:$personal_graveyard_filtered_cards}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Unselected(@back(3)), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+instructions_separate_opponent_piles ::= "separate" personal_graveyard_filtered_cards "into" "two" "piles" "." "exile" "the" "pile" "of" "an" "opponent's" "choice" "and" "return" "the" "other" "to" "the" "battlefield"
+
+/* A required control change and its success branch share the acting player. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:$player_ref, cost:Cost{parts:[PlayerAction{player:$player_ref, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($object_set), changes:[SetController($player_ref)], duration:Indefinite, evaluation:Snapshot}}]}}]}, optional:false}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+clause_control_if_they_do ::= player_ref "gains" "control" "of" object_set "." "if" "they" "do" "," conjoined
+
+/* The returned-land condition is only exposed within this complete activation:
+   the single returned land is the sole return producer before the condition. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$returned_land_activation_cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[...$clause_loot, If{condition:Not($returned_land_nonbasic_condition), then:$program, otherwise:Program{}}]}} */
+activated_returned_land_draw_unless ::= returned_land_activation_cost ":" clause_loot "." "then" program "unless" returned_land_nonbasic_condition "."
+
+/* @sem Cost::Cost{parts:[TapSymbol, Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}, choose:Exactly(Constant(1))}], destination:OwnersHand(CardArrival{})}]} */
+returned_land_activation_cost ::= "{T}" "," "↑" "return" "a" "land" "you" "control" "to" "its" "owner's" "hand"
+
+/* @sem Condition::Compare{left:Earlier{what:Returned, measure:Count, filter:State(NonBasicLandType)}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
+returned_land_nonbasic_condition ::= "that" "land" "had" "a" "nonbasic" "land" "type"

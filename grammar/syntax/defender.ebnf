@@ -29,21 +29,21 @@ defender_other_rules_sg ::= defender_other_rule_sg | defender_other_rules_more_s
 /* @sem Change::[...$defender_other_rule_sg, ...$defender_other_rules_sg] */
 defender_other_rules_more_sg ::= defender_other_rule_sg defender_join defender_other_rules_sg
 
-defender_changes_sg ::= rule_attack_defender_sg | defender_changes_before_sg | defender_changes_after_sg
+defender_changes_sg ::= defender_attack_exception_sg | defender_changes_before_sg | defender_changes_after_sg
 
 /* @sem Change::[...$defender_common_change_sg, ...$defender_changes_sg] */
 defender_changes_before_sg ::= defender_common_change_sg defender_join defender_changes_sg
 
-/* @sem Change::[...$rule_attack_defender_sg, ...$defender_common_changes_sg] */
-defender_changes_after_sg ::= rule_attack_defender_sg defender_join defender_common_changes_sg
+/* @sem Change::[...$defender_attack_exception_sg, ...$defender_common_changes_sg] */
+defender_changes_after_sg ::= defender_attack_exception_sg defender_join defender_common_changes_sg
 
-defender_rule_changes_sg ::= rule_attack_defender_sg | defender_rule_changes_before_sg | defender_rule_changes_after_sg
+defender_rule_changes_sg ::= defender_attack_exception_sg | defender_rule_changes_before_sg | defender_rule_changes_after_sg
 
 /* @sem Change::[...$defender_other_rule_sg, ...$defender_rule_changes_sg] */
 defender_rule_changes_before_sg ::= defender_other_rule_sg defender_join defender_rule_changes_sg
 
-/* @sem Change::[...$rule_attack_defender_sg, ...$defender_other_rules_sg] */
-defender_rule_changes_after_sg ::= rule_attack_defender_sg defender_join defender_other_rules_sg
+/* @sem Change::[...$defender_attack_exception_sg, ...$defender_other_rules_sg] */
+defender_rule_changes_after_sg ::= defender_attack_exception_sg defender_join defender_other_rules_sg
 
 defender_characteristic_changes_sg ::= change | defender_characteristic_before_sg | defender_characteristic_after_sg
 
@@ -61,8 +61,8 @@ defender_mixed_char_first_sg ::= change defender_join defender_changes_sg
 /* @sem Change::[...$defender_other_rule_sg, ...$defender_mixed_changes_sg] */
 defender_mixed_rule_first_sg ::= defender_other_rule_sg defender_join defender_mixed_changes_sg
 
-/* @sem Change::[...$rule_attack_defender_sg, ...$defender_characteristic_changes_sg] */
-defender_mixed_first_sg ::= rule_attack_defender_sg defender_join defender_characteristic_changes_sg
+/* @sem Change::[...$defender_attack_exception_sg, ...$defender_characteristic_changes_sg] */
+defender_mixed_first_sg ::= defender_attack_exception_sg defender_join defender_characteristic_changes_sg
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($defender_subject_sg), changes:$defender_changes_sg} */
 defender_clause_sg ::= defender_subject_sg defender_changes_sg
@@ -93,21 +93,21 @@ defender_other_rules_pl ::= defender_other_rule_pl | defender_other_rules_more_p
 /* @sem Change::[...$defender_other_rule_pl, ...$defender_other_rules_pl] */
 defender_other_rules_more_pl ::= defender_other_rule_pl defender_join defender_other_rules_pl
 
-defender_changes_pl ::= rule_attack_defender_pl | defender_changes_before_pl | defender_changes_after_pl
+defender_changes_pl ::= defender_attack_exception_pl | defender_changes_before_pl | defender_changes_after_pl
 
 /* @sem Change::[...$defender_common_change_pl, ...$defender_changes_pl] */
 defender_changes_before_pl ::= defender_common_change_pl defender_join defender_changes_pl
 
-/* @sem Change::[...$rule_attack_defender_pl, ...$defender_common_changes_pl] */
-defender_changes_after_pl ::= rule_attack_defender_pl defender_join defender_common_changes_pl
+/* @sem Change::[...$defender_attack_exception_pl, ...$defender_common_changes_pl] */
+defender_changes_after_pl ::= defender_attack_exception_pl defender_join defender_common_changes_pl
 
-defender_rule_changes_pl ::= rule_attack_defender_pl | defender_rule_changes_before_pl | defender_rule_changes_after_pl
+defender_rule_changes_pl ::= defender_attack_exception_pl | defender_rule_changes_before_pl | defender_rule_changes_after_pl
 
 /* @sem Change::[...$defender_other_rule_pl, ...$defender_rule_changes_pl] */
 defender_rule_changes_before_pl ::= defender_other_rule_pl defender_join defender_rule_changes_pl
 
-/* @sem Change::[...$rule_attack_defender_pl, ...$defender_other_rules_pl] */
-defender_rule_changes_after_pl ::= rule_attack_defender_pl defender_join defender_other_rules_pl
+/* @sem Change::[...$defender_attack_exception_pl, ...$defender_other_rules_pl] */
+defender_rule_changes_after_pl ::= defender_attack_exception_pl defender_join defender_other_rules_pl
 
 defender_characteristic_changes_pl ::= change | defender_characteristic_before_pl | defender_characteristic_after_pl
 
@@ -125,8 +125,8 @@ defender_mixed_char_first_pl ::= change defender_join defender_changes_pl
 /* @sem Change::[...$defender_other_rule_pl, ...$defender_mixed_changes_pl] */
 defender_mixed_rule_first_pl ::= defender_other_rule_pl defender_join defender_mixed_changes_pl
 
-/* @sem Change::[...$rule_attack_defender_pl, ...$defender_characteristic_changes_pl] */
-defender_mixed_first_pl ::= rule_attack_defender_pl defender_join defender_characteristic_changes_pl
+/* @sem Change::[...$defender_attack_exception_pl, ...$defender_characteristic_changes_pl] */
+defender_mixed_first_pl ::= defender_attack_exception_pl defender_join defender_characteristic_changes_pl
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($defender_subject_pl), changes:$defender_changes_pl} */
 defender_clause_pl ::= defender_subject_pl defender_changes_pl
@@ -163,3 +163,11 @@ required_defender_pl ::= defender_subject_pl "attack" required_defender_player t
 /* The defender has an independent announced player slot. It is never inferred
    from the creature's owner/controller or chosen by a first-opponent fallback. */
 required_defender_player ::= target_opponent | target_player
+
+/* The qualifying players are shared by singular and plural attack exceptions. */
+defender_attack_exception_sg ::= rule_attack_defender_sg | attack_history_exception_sg
+defender_attack_exception_pl ::= rule_attack_defender_pl | attack_history_exception_pl
+/* @sem Change::[Rule(AttackException{ignore:Defender, defenders:Players($attack_history_players)})] */
+attack_history_exception_sg ::= "can" "attack" attack_history_players "as" "though" "it" "didn't" "have" "defender"
+/* @sem Change::[Rule(AttackException{ignore:Defender, defenders:Players($attack_history_players)})] */
+attack_history_exception_pl ::= "can" "attack" attack_history_players "as" "though" "they" "didn't" "have" "defender"

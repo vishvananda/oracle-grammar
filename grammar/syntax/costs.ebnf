@@ -40,7 +40,7 @@ cost_symbols ::= cost_mana | cost_tap
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana
+cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -440,7 +440,7 @@ casting_reduction_if_targets ::= object_ref target_cast_cost_adjustment "if" "it
 casting_reduction_x ::= "this" "spell" "costs" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" value "."
 
 /* An alternative cost, perhaps only while a condition holds, before or after it. */
-casting_alternative_cost ::= casting_alternative_plain | casting_alternative_if | casting_alternative_if_after
+casting_alternative_cost ::= casting_alternative_plain | casting_alternative_if | casting_alternative_if_after | casting_alternative_if_preposed
 
 /* @sem Ability::Casting(AlternativeCost($alternative_payment)) */
 casting_alternative_plain ::= "you" "may" alternative_payment rather_than_mana_cost "."
@@ -464,7 +464,7 @@ your_cast_spells_any ::= "spells" "you" "cast"
 your_cast_spells_kind ::= spell_adjectives "spells" "you" "cast"
 
 /* One payment, two joined by `and`, or mana the player pays: `you may pay {1}{U}`. */
-alternative_payment ::= alternative_discard_filtered_and_another | alternative_discard_filtered_and_others | alternative_words | alternative_words_two | alternative_mana | alternative_mana_and_words
+alternative_payment ::= alternative_discard_filtered_and_another | alternative_discard_filtered_and_others | alternative_words | alternative_words_two | alternative_mana | alternative_mana_and_words | alternative_other_players_gain_life
 
 /* @sem Cost::Cost{parts:[$cost_words]} */
 alternative_words ::= cost_words
@@ -480,8 +480,8 @@ alternative_mana ::= "pay" cost_mana
 alternative_mana_and_words ::= "pay" cost_mana "and" cost_words
 
 /* Cast only while being attacked during declare attackers. */
-/* @sem Ability::Casting(Require(AllOf([Window(DeclareAttackers), PlayerState{player:AbilityController, state:BeingAttacked}]))) */
-casting_only_when_attacked ::= "cast" "this" "spell" "only" "during" "the" "declare" "attackers" "step" "and" "only" "if" "you've" "been" "attacked" "this" "step" "."
+/* @sem Ability::Casting(Require($window_attacked_declare_attackers)) */
+casting_only_when_attacked ::= "cast" "this" "spell" "only" window_attacked_declare_attackers "."
 
 /* A casting timing restriction names its window. Conjoined parts keep their
    written order. */
@@ -966,3 +966,22 @@ casting_more_mana ::= cost_mana
 /* Mana produced by the player paying this cost remains theirs. */
 /* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$add_mana}]}} */
 cost_add_mana ::= add_mana
+
+/* The population chosen for sacrifice is also the population counted. */
+/* @sem CostPart::Sacrifice{objects:$affected, choose:Exactly(Expr::Divide{numerator:CountObjects($affected), denominator:Constant(2), rounding:$rounding_words})} */
+cost_sacrifice_half ::= "sacrifice" "half" "the" affected "," rounding_words
+
+/* The source is paid first, so the later population contains only other creatures. */
+/* @sem CostPart::[Sacrifice{objects:One(Source)}, Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($subtype_negated, ObjectFilter::CardType(Creature))}, choose:AnyNumber}] */
+cost_self_and_other_noncreatures ::= "sacrifice" "this" "creature" "and" "any" "number" "of" "other" subtype_negated "creatures"
+
+/* Both counted receipts are fixed by this enclosing activation, including their
+   order; this phrase is not valid for an unrelated sacrifice or cost. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, ...$cost_self_and_other_noncreatures]}, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Union([CostObjects{payment:Activation, component:[1], view:Performed, phase:Before}, CostObjects{payment:Activation, component:[2], view:Performed, phase:Before}])), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
+activated_sacrifice_pair_token_receipt ::= "{" "T" "}" "," "↑" cost_self_and_other_noncreatures ":" "create" "a" token_recipe "for" "each" "creature" "sacrificed" "this" "way" "."
+
+/* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($alternative_payment)}) */
+casting_alternative_if_preposed ::= "if" condition "," rather_than_mana_cost "," "you" "may" alternative_payment "."
+
+/* @sem Cost::Cost{parts:[EachPlayerAction{players:OthersThan(AbilityController), action:Term{family:CostPlayerAction, form:GainLife, operands:[Number($value)]}}]} */
+alternative_other_players_gain_life ::= "have" "each" "other" "player" "gain" value "life"
