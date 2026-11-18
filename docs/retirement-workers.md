@@ -142,12 +142,12 @@ cohort, native and edited-operand check runs. Edited-operand diagnostics also
 check the generated contextual family cases before reporting a pass. A skipped
 check cannot establish success.
 
-An author can add `--preview` to the diagnostic command for early feedback.
-It checks the compositional family, the edited operands and native readings
-and printing for the assigned target faces, including their companion faces.
-The report identifies this scope as `author-target-preview`. The regular
-author command and the independent coordinator evaluation still check the
-complete assigned cohort.
+Campaign workers use `--preview` before returning their per-rule dispositions.
+It checks the compositional family, edited operands, native readings and
+printing for the assigned target faces and their companions. The report
+identifies this scope as `author-target-preview`. The independent coordinator
+then checks the complete assigned cohort. The full diagnostic is also available
+directly and remains the default for paired pilot workers.
 
 If a native diagnostic outlives its model process, the coordinator waits for
 that task's diagnostic lease before reserving CPU for independent evaluation.

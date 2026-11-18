@@ -27,6 +27,16 @@ def prompt(run, task_id):
                    if packet else '')
     limit = task.get('max_diagnostic_attempts', 8)
     minutes = task.get('wall_budget_seconds', 1500) // 60
+    diagnostic = [sys.executable, str(run/'support/runner/retire_author.py'), str(run), task_id]
+    diagnostic_note = 'After grouped changes, run the bounded diagnostic and read its report.'
+    if task.get('full_pass'):
+        diagnostic.append('--preview')
+        diagnostic_note = (
+            'After grouped changes, run the target preview and read its report. '
+            'It checks target faces, the authored family, and edited operands.\n'
+            'Return your per-rule dispositions after the preview. '
+            'The coordinator runs the full assigned cohort independently after your response.'
+        )
     return f'''Author shared Oracle grammar for this bounded pilot task.
 Read AGENTS.md, SPEC.md, docs/print-shapes.md and {run/'tasks'/f'{task_id}.json'}.
 {packet_note}
@@ -84,8 +94,8 @@ Paths index into that face's immutable gold abilities. The runner edits the IR
 itself and then prints/reparses it against the edited text. Use semantic operand
 changes (filter, amount, recipient etc.), not identifier renaming or unchanged
 values. Include independent operands when the family supports them.
-After grouped changes run this exact bounded diagnostic command and read its report:
-{json.dumps([sys.executable, str(run/'support/runner/retire_author.py'), str(run), task_id])}
+{diagnostic_note}
+{json.dumps(diagnostic)}
 Keep/wait on the same exec handle; do not restart a running helper. There are at
 most {limit} diagnostic attempts and {minutes} minutes for this task. Allow one repair round,
 then park failures with evidence rather than extending the task. Fix useful bounded
@@ -117,7 +127,7 @@ def launch(run, task_id, on_started=None, extra_fds=(), startup_lock=None):
     text = prompt(run, task_id)
     if descriptor.get('full_pass'):
         text += '''\nReturn the required structured JSON response with exactly one disposition for
-EVERY assigned rule. Use proposed only when the candidate diagnostic passes;
+EVERY assigned rule. Use proposed only when the target preview passes;
 otherwise needs-review with that rule's concrete missing capability, unsupported
 contract, dependency or failed gate. Cite a source fragment, reproduction or
 diagnostic artifact in evidence. A generic refusal covering the entire bundle

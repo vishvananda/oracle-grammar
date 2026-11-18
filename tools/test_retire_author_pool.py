@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import signal
+import sys
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -34,7 +35,7 @@ class AuthorLaunchTests(unittest.TestCase):
         self.process.poll.return_value = None
         evaluation = Mock(returncode=0, stdout=json.dumps({'passed': True, 'directory': 'proof'}), stderr='')
         with patch.object(author.subprocess, 'Popen', side_effect=self.spawn) as start, \
-                patch.object(author.subprocess, 'run', return_value=evaluation):
+                patch.object(author.subprocess, 'run', return_value=evaluation) as evaluate:
             receipt = author.launch(self.run, 'task')
         cmd = start.call_args.args[0]
         self.assertEqual([cmd[i+1] for i, arg in enumerate(cmd) if arg == '--add-dir'], [str(self.cpu)])
@@ -53,6 +54,17 @@ class AuthorLaunchTests(unittest.TestCase):
         self.assertIn('reference-review or equivalence-needed with evidence', text)
         self.assertIn('Do not\nsuppress readings by first match', text)
         self.assertIn('Exact keyed preservation does not waive default-print', text)
+        command = [sys.executable, str(self.run/'support/runner/retire_author.py'), str(self.run), 'task']
+        self.assertIn(json.dumps([*command, '--preview']), text)
+        self.assertIn('Use proposed only when the target preview passes', text)
+        self.assertEqual(evaluate.call_args.args[0], [*command, '--coordinator'])
+
+    def test_pilot_prompt_requests_full_diagnostic(self):
+        r.write(self.run/'tasks/task.json', {**self.task, 'full_pass': False})
+        text = author.prompt(self.run, 'task')
+        command = [sys.executable, str(self.run/'support/runner/retire_author.py'), str(self.run), 'task']
+        self.assertIn(json.dumps(command), text)
+        self.assertNotIn('--preview', text)
 
     def test_start_callback_failure_stops_spawned_process(self):
         self.process = Mock(pid=123, returncode=None)
