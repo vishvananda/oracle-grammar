@@ -179,7 +179,11 @@ class BatchTests(unittest.TestCase):
     def test_parse_screen_reject_skips_full_checks(self):
         self._validate_threads(16, True, screen='failed')
 
-    def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False, native_rejection=False, screen=None):
+    def test_configured_parse_screen_budget_leaves_full_audit_budget_intact(self):
+        self._validate_threads(24, True, screen='passed', screen_threads=12)
+
+    def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False,
+                          native_rejection=False, screen=None, screen_threads=None):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -206,6 +210,8 @@ class BatchTests(unittest.TestCase):
                 cp['audit_threads'] = expected
             if screen is not None:
                 cp['full_parse_screen'] = True
+            if screen_threads is not None:
+                cp['parse_screen_threads'] = screen_threads
             order = []
             def git(_source, *args):
                 return 'candidate' if args[0] == 'rev-parse' else ''
@@ -240,12 +246,12 @@ class BatchTests(unittest.TestCase):
                 batch.r.write(args.run/'manifest.json', {'files': batch.r.tree(args.run/'frozen')})
             def screen_run(run, directory, grammar, data, threads):
                 order.append('screen')
-                self.assertEqual(threads, 6)
+                self.assertEqual(threads, screen_threads or 6)
                 self.assertEqual(len(batch.r._LEASES), threads)
                 for fd in batch.r._LEASES:
                     os.fstat(fd)
-                with batch.retire_cpu.reserve(Path(cp['cpu_pool']), 26, 32, wait=False) as available:
-                    self.assertEqual(len(available), 26)
+                with batch.retire_cpu.reserve(Path(cp['cpu_pool']), 32-threads, 32, wait=False) as available:
+                    self.assertEqual(len(available), 32-threads)
                 directory.mkdir()
                 result = {'status': screen, 'failures': ['bad'] if screen == 'failed' else []}
                 batch.r.write(directory/'result.json', result)
@@ -254,6 +260,8 @@ class BatchTests(unittest.TestCase):
                 result = batch.validate(manifest, cp)
             self.assertEqual(freeze.call_args.args[0].threads, expected)
             self.assertEqual(freeze.call_args.args[0].slots, 1)
+            if screen is not None:
+                self.assertEqual(result['parse_screen_threads'], screen_threads or 6)
             if gate_code:
                 self.assertEqual(order, ['freeze', 'gate'])
                 full_checks.assert_not_called()
@@ -309,6 +317,11 @@ class BatchTests(unittest.TestCase):
         for threads, capacity in ((15, 32), (25, 32), (16, 15), (True, 32), (16, 33)):
             with self.subTest(threads=threads, capacity=capacity), self.assertRaises(ValueError):
                 batch._validate(manifest, {'audit_threads': threads, 'cpu_capacity': capacity}, 12)
+
+    def test_validate_rejects_invalid_parse_screen_budgets(self):
+        for threads in (False, 0, 17, '12'):
+            with self.subTest(threads=threads), self.assertRaisesRegex(ValueError, 'parse_screen_threads'):
+                batch._validate({'status': 'provisional'}, {'parse_screen_threads': threads}, 12)
 
     def test_candidate_snapshot_copies_seven_pinned_helpers(self):
         with tempfile.TemporaryDirectory() as temporary:

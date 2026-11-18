@@ -456,6 +456,7 @@ class DispatchCanaries(unittest.TestCase):
             control = {'path': '/future/profile.json', 'sha256': 'abc'}
             r.write(root/'config.json', {'initial_commit': 'base', 'first_batch_size': 1,
                                         'batch_size': 1, 'audit_threads': 16,
+                                        'full_parse_screen': True, 'parse_screen_threads': 12,
                                         'native_regression_controls': control, 'stage_group_size': 4})
             with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
                     patch.object(dispatch.retire_batch, 'stage', return_value={'jobs': [], 'status': 'no-proposals'}) as stage:
@@ -463,6 +464,7 @@ class DispatchCanaries(unittest.TestCase):
             self.assertEqual([row['job_id'] for row in stage.call_args.args[2]], ['three', 'one'])
             self.assertEqual(stage.call_args.args[1]['native_regression_controls'], control)
             self.assertEqual(stage.call_args.args[1]['stage_group_size'], 4)
+            self.assertEqual(stage.call_args.args[1]['parse_screen_threads'], 12)
             self.assertNotIn('combine_selected', stage.call_args.kwargs)
             with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
                     patch.object(dispatch.retire_batch, 'stage', return_value={'jobs': [], 'status': 'no-proposals'}) as combined:

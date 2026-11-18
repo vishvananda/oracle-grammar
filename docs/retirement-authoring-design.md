@@ -252,6 +252,11 @@ the screen. A semantic rejection is recorded separately as `parse_screen`;
 passing still requires every existing full print and native check. The screen
 does not supply a full-validation result.
 
+The optional integer `parse_screen_threads` controls the CPU reservation and
+helper concurrency for this screen. Each batch reads the live configuration.
+It defaults to six and accepts one through the smaller of 16 and the shared CPU
+capacity. The validation record captures the thread count used by the screen.
+
 An optional `candidate_validation_helpers` setting names a hash-bound optimized
 helper build. It remains separate from the parent checkpoint's helpers while
 staging. Promotion requires a private verified helper snapshot, the full candidate

@@ -32,6 +32,7 @@ REPOSITORY_DRIVER = Path(__file__).with_name('retire_repository_checks.py')
 
 FAMILY_CHECK_THREADS = 6
 DEFAULT_NATIVE_CONTROL_THREADS = 6
+DEFAULT_PARSE_SCREEN_THREADS = 6
 MAX_ROUTED_EXCLUSIONS = 8
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
                   'bin/score', 'bin/validate-readings')
@@ -1375,6 +1376,15 @@ def validate(manifest, checkpoint, slots=12):
         return _validate(manifest, checkpoint, slots)
 
 
+def _parse_screen_threads(checkpoint):
+    threads = checkpoint.get('parse_screen_threads', DEFAULT_PARSE_SCREEN_THREADS)
+    capacity = checkpoint.get('cpu_capacity', 32)
+    if (type(capacity) is not int or not 1 <= capacity <= 32
+            or type(threads) is not int or not 1 <= threads <= min(16, capacity)):
+        raise ValueError('parse_screen_threads must be an integer from 1 to min(16, cpu_capacity)')
+    return threads
+
+
 @contextmanager
 def _audit_cpu(checkpoint, threads, capacity):
     lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, capacity,
@@ -1396,6 +1406,7 @@ def _validate(manifest, checkpoint, slots):
     enabled = checkpoint.get('full_parse_screen', False)
     if type(enabled) is not bool:
         raise ValueError('full_parse_screen must be boolean')
+    screen_threads = _parse_screen_threads(checkpoint)
     threads = checkpoint.get('audit_threads', 24)
     capacity = checkpoint.get('cpu_capacity', 32)
     if (type(threads) is not int or not 16 <= threads <= 24
@@ -1454,9 +1465,9 @@ def _validate(manifest, checkpoint, slots):
                 evidence['optimized_family_log_sha256'] = r.digest(family_log)
         data = w.payload(output)
         if enabled:
-            evidence['validation_manifest_sha256'] = r.digest(output/'manifest.json')
+            evidence.update(parse_screen_threads=screen_threads,
+                            validation_manifest_sha256=r.digest(output/'manifest.json'))
             _screen_identity(source, manifest, baseline, input_run, output, evidence)
-            screen_threads = min(6, threads)
             try:
                 with _audit_cpu(checkpoint, screen_threads, capacity):
                     screen = retire_parse_screen.run(output, folder/'parse-screen', source/'grammar',

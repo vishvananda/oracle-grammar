@@ -450,6 +450,8 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     screen=config.get('full_parse_screen',False)
     r.require(type(screen) is bool,'full_parse_screen must be boolean')
     cp['full_parse_screen']=screen
+    cp['parse_screen_threads']=config.get('parse_screen_threads',retire_batch.DEFAULT_PARSE_SCREEN_THREADS)
+    retire_batch._parse_screen_threads(cp)
     cp['stage_group_size']=config.get('stage_group_size',1)
     cp['family_check_threads']=config.get('family_check_threads',retire_batch.FAMILY_CHECK_THREADS)
     cp['native_control_threads']=config.get('native_control_threads',retire_batch.DEFAULT_NATIVE_CONTROL_THREADS)
