@@ -11,6 +11,7 @@ import unittest
 import uuid
 from unittest.mock import patch
 
+import mined
 import retire as r
 import retire_tasks as tasker
 import retire_queue
@@ -299,17 +300,8 @@ class TaskTests(unittest.TestCase):
         result = tasker.prepare_task(self.campaign, claim, self.checkpoint, self.job, self.cohort)
         self.assertEqual(Path(result['run']).name, claim['attempt_id'])
 
-    def test_verified_reuse_restores_patch_fixture_and_hook(self):
-        first = self.prepare()
-        prior_run, prior_checkout = Path(first['run']), Path(first['checkout'])
-        task = r.read(prior_run/'tasks/job-123.json')
-        (prior_checkout/'grammar/syntax/actions.ebnf').write_text('candidate\n')
-        fixture = prior_checkout/task['fixture']
-        fixture.parent.mkdir(parents=True, exist_ok=True)
-        fixture.write_text('{"cases": []}')
-        (prior_checkout/'.cache/author-hooks.json').write_text('[]')
+    def archive_draft(self, prior_run, prior_checkout, names):
         patch_bytes = subprocess.check_output(['git', 'diff', '--binary', '--full-index'], cwd=prior_checkout)
-        names = ['grammar/syntax/actions.ebnf', task['fixture'], '.cache/author-hooks.json']
         contents = {name: (prior_checkout/name).read_bytes() for name in names}
         files = {name: {'sha256': hashlib.sha256(data).hexdigest(),
                         'mode': (prior_checkout/name).stat().st_mode & 0o777}
@@ -328,7 +320,20 @@ class TaskTests(unittest.TestCase):
                 entry.size = len(data)
                 entry.mode = files[name[6:]]['mode'] if name.startswith('files/') else 0o600
                 archive.addfile(entry, io.BytesIO(data))
-        reuse = {'path': str(archive_path), 'sha256': r.digest(archive_path), 'attempt': attempt}
+        return {'path': str(archive_path), 'sha256': r.digest(archive_path), 'attempt': attempt}
+
+    def test_verified_reuse_restores_patch_fixture_and_hook(self):
+        first = self.prepare()
+        prior_run, prior_checkout = Path(first['run']), Path(first['checkout'])
+        task = r.read(prior_run/'tasks/job-123.json')
+        (prior_checkout/'grammar/syntax/actions.ebnf').write_text('candidate\n')
+        fixture = prior_checkout/task['fixture']
+        fixture.parent.mkdir(parents=True, exist_ok=True)
+        fixture.write_text('{"cases": []}')
+        (prior_checkout/'.cache/author-hooks.json').write_text('[]')
+        names = ['grammar/syntax/actions.ebnf', task['fixture'], '.cache/author-hooks.json']
+        reuse = self.archive_draft(prior_run, prior_checkout, names)
+        attempt = reuse['attempt']
         with self.assertRaises(ValueError):
             retire_reuse.restore_candidate(self.campaign, prior_checkout, 'job-123', 'wrong-base', task['write_files'], reuse)
         with self.assertRaises(ValueError):
@@ -348,6 +353,61 @@ class TaskTests(unittest.TestCase):
                          reuse_archive=dict(reuse, sha256='bad'))
         with self.assertRaises(ValueError):
             tasker.prepare_task(self.campaign, bad_claim, self.checkpoint, self.job, self.cohort)
+
+    def test_archived_draft_rebases_or_starts_clean_when_declarations_conflict(self):
+        actions = 'grammar/syntax/actions.ebnf'
+        seeded = 'grammar/syntax/mined.ebnf'
+        (self.source/actions).write_text('shared ::= "base"\n')
+        initial_seeded = 'mined_operation ::= m_one | never_mined_operation\nm_one ::= "old"\n'
+        (self.source/seeded).write_text(initial_seeded)
+        self.git('commit', '-qam', 'old checkpoint')
+        self.commit = self.git('rev-parse', 'HEAD')
+        self.checkpoint['commit'] = self.commit
+        frozen = self.inputs/'frozen'
+        shutil.copytree(self.source/'grammar', frozen/'grammar')
+        manifest = r.read(self.inputs/'manifest.json')
+        r.write(self.inputs/'manifest.json', {**manifest, 'commit': self.commit, 'files': r.tree(frozen)})
+        (self.campaign/'checkpoints').mkdir()
+        r.write(self.campaign/'checkpoints'/f'{self.commit}.json',
+                {'commit': self.commit, 'inputs': str(self.inputs)})
+        original = self.prepare()
+        prior_run, prior_checkout = Path(original['run']), Path(original['checkout'])
+        (prior_checkout/actions).write_text('shared ::= "replacement"\n')
+        self.assertEqual(mined.remove(prior_checkout, self.job['rules']), (['m_one'], {}))
+        task = r.read(prior_run/'tasks/job-123.json')
+        fixture = prior_checkout/task['fixture']
+        fixture.parent.mkdir(parents=True, exist_ok=True)
+        fixture.write_text('{"cases": []}')
+        archive = self.archive_draft(prior_run, prior_checkout, [actions, seeded, task['fixture']])
+        archive['base_commit'] = self.commit
+        for label, line, want in (('independent','shared ::= "base"\nfresh ::= "new"\n',True),
+                                  ('conflict','shared ::= "conflict"\nfresh ::= "new"\n',False)):
+            with self.subTest(label=label):
+                (self.source/actions).write_text(line)
+                self.git('commit', '-qam', label)
+                commit = self.git('rev-parse', 'HEAD')
+                inputs = self.base/label
+                shutil.copytree(frozen, inputs/'frozen')
+                shutil.copy2(self.source/actions, inputs/'frozen'/actions)
+                r.write(inputs/'manifest.json', {**manifest,'commit':commit,
+                                                'files':r.tree(inputs/'frozen')})
+                checkpoint = {**self.checkpoint,'commit':commit,'inputs':inputs}
+                claim = {'attempt_id':str(uuid.uuid4()),'base_commit':commit,
+                         'job':self.job,'reuse_archive':archive}
+                prepared = tasker.prepare_task(self.campaign, claim, checkpoint, self.job, self.cohort)
+                checkout = Path(prepared['checkout'])
+                packet = r.read(Path(prepared['run'])/'packet.json')
+                self.assertEqual('reuse' in packet, want)
+                self.assertEqual('reuse_conflict' in packet, not want)
+                if want:
+                    self.assertEqual(packet['reuse']['rebased_from'], self.commit)
+                    self.assertEqual((checkout/actions).read_text(), line.replace('"base"', '"replacement"'))
+                    self.assertNotIn('m_one ::=', (checkout/seeded).read_text())
+                    self.assertEqual((checkout/task['fixture']).read_text(), '{"cases": []}')
+                else:
+                    self.assertEqual((checkout/actions).read_text(), line)
+                    self.assertEqual((checkout/seeded).read_text(), initial_seeded)
+                    self.assertFalse((checkout/task['fixture']).exists())
 
     def test_missing_modules_marked_for_discovery(self):
         self.job['allowedwritepaths'] = ['grammar/syntax/nonexistent.ebnf']

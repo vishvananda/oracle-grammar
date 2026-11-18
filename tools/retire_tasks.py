@@ -15,6 +15,7 @@ import retire as r
 import retire_cohort as cohort
 import retire_reuse
 import retire_screen_packet as screen_packet
+from retire_merge import MergeConflict
 
 RUNNERS = tuple(dict.fromkeys((*r.TOOLING, 'retire_author.py', 'retire_author_pool.py',
                                'retire_pool.py', 'retire_cpu.py', 'retire_helper.py', 'retire_cohort.py', 'retire_mechanical_cohort.py',
@@ -230,11 +231,20 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
         r.require(dev.source(checkout) == manifest['source'], 'private checkout compiled source differs')
         (checkout/'.cache').mkdir(exist_ok=True)
         reuse = None
-        if claim.get('reuse_archive'):
-            reuse = retire_reuse.restore_candidate(campaign, checkout, job['id'], claim['base_commit'],
-                                                     write_files, claim['reuse_archive'], rules=job['rules'])
+        prior = claim.get('reuse_archive')
+        if prior:
+            if prior.get('base_commit', claim['base_commit']) == claim['base_commit']:
+                reuse = retire_reuse.restore_candidate(campaign, checkout, job['id'], claim['base_commit'],
+                                                        write_files, prior, rules=job['rules'])
+            else:
+                try:
+                    reuse = retire_reuse.rebase_candidate(campaign, checkout, job['id'], claim['base_commit'],
+                                                         write_files, prior, rules=job['rules'])
+                except MergeConflict as error:
+                    packet['reuse_conflict'] = str(error)
             r.require(dev.source(checkout) == manifest['source'], 'restored candidate changed compiled inputs')
-            packet['reuse'] = reuse
+            if reuse:
+                packet['reuse'] = reuse
         (run/'inputs').symlink_to(inputs, target_is_directory=True)
         runner, binaries = run/'support/runner', run/'support/bin'
         runner.mkdir(parents=True)

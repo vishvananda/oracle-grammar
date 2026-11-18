@@ -226,7 +226,8 @@ def perform(run, claim, contexts, runner=None):
                 prior=r.read(reused)
                 if prior.get('review_notes'):
                     job['goal']+=' Coordinator review: '+' '.join(prior['review_notes'])
-                if prior.get('base_commit')==cp['commit']:
+                if (prior.get('base_commit')==cp['commit']
+                        or (job['kind']=='author' and prior.get('review_notes') and prior.get('base_commit'))):
                     claim=dict(claim,reuse_archive=prior)
             prepared = prepare_task(run,claim,cp,job,detail,runner=runner)
             working = Path(prepared['run'])

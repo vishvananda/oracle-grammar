@@ -3,11 +3,16 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
+import shutil
 import subprocess
 import tarfile
+import tempfile
 import uuid
 
+import mined
 import retire as r
+import retire_merge as merge
 
 MAX_ARCHIVE_BYTES = 64 * 1024 * 1024
 MAX_MEMBERS = 4096
@@ -109,3 +114,71 @@ def restore_candidate(campaign, checkout, task_id, commit, allowed_files, reuse,
     r.require(changed <= allowed, 'restored candidate exceeded current write scope')
     return {'archive': str(archive_path), 'sha256': digest, 'prior_attempt': attempt,
             'notice': 'Infrastructure-tainted candidate requires fresh independent diagnostics and adjudication.'}
+
+
+def _rebased_files(frozen, checkout, archived, prepared, task, allowed_files):
+    allowed = set(allowed_files)
+    hooks = r.read(archived/HOOKS) if (archived/HOOKS).exists() else []
+    changes = merge.merge_grammar(frozen, checkout, archived, task['rules'], hooks)
+    shutil.copytree(checkout/'grammar', prepared/'grammar')
+    for name, text in changes.items():
+        target = prepared/_relative(name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text)
+    removed, retained = mined.remove(prepared, task['rules'])
+    r.require(set(removed) == set(task['rules']) and not retained,
+              'rebased seeded removals have retained users')
+    current = r.tree(checkout/'grammar')
+    files = {'grammar/'+name: prepared/'grammar'/name
+             for name, digest in r.tree(prepared/'grammar').items()
+             if current.get(name) != digest}
+    r.require(files.keys() <= allowed, 'rebased grammar exceeds current write scope')
+    for name in (task['fixture'], task['edits'], HOOKS):
+        path = archived/_relative(name)
+        if path.is_file():
+            r.require(name in allowed or name == HOOKS, 'rebased artifact exceeds current write scope')
+            target = checkout/name
+            r.require(not target.exists() or r.digest(target) == r.digest(path),
+                      'rebased artifact would overwrite current source')
+            files[name] = path
+    for name in files:
+        target = checkout/name
+        r.require(not target.is_symlink() and target.resolve().is_relative_to(checkout),
+                  'rebased candidate path escapes checkout')
+    return files
+
+
+def rebase_candidate(campaign, checkout, task_id, commit, allowed_files, reuse, *, rules):
+    """Prepare a reviewed archived draft from an accepted ancestor on the current checkout."""
+    campaign, checkout = Path(campaign).resolve(), Path(checkout).resolve()
+    origin = reuse.get('base_commit')
+    r.require(isinstance(origin, str) and re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', origin),
+              'candidate archive has no immutable origin checkpoint')
+    previous = r.read(campaign/'checkpoints'/f'{origin}.json')
+    inputs = Path(previous['inputs'])
+    manifest = r.read(inputs/'manifest.json')
+    frozen = inputs/'frozen'
+    expected = {name.removeprefix('grammar/'): digest for name, digest in manifest['files'].items()
+                if name.startswith('grammar/')}
+    r.require(previous['commit'] == manifest['commit'] == origin and expected
+              and r.tree(frozen/'grammar') == expected, 'candidate frozen origin differs')
+    _git(checkout, 'merge-base', '--is-ancestor', origin, commit)
+    with tempfile.TemporaryDirectory(prefix='.archive-rebase-', dir=checkout.parent) as scratch:
+        scratch = Path(scratch)
+        archived = scratch/'archived'
+        _git(checkout, 'worktree', 'add', '--detach', str(archived), origin)
+        try:
+            try:
+                result = restore_candidate(campaign, archived, task_id, origin, allowed_files, reuse, rules=rules)
+                task = r.read(campaign/'.cache/attempts'/reuse['attempt']/'tasks'/f'{task_id}.json')
+                files = _rebased_files(frozen, checkout, archived, scratch/'prepared', task, allowed_files)
+            except (ValueError, FileNotFoundError, subprocess.CalledProcessError, tarfile.TarError) as error:
+                raise merge.MergeConflict(str(error)) from error
+            # Complete all scope and conflict checks before changing the task checkout.
+            for name, path in files.items():
+                target = checkout/name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(path, target)
+        finally:
+            _git(checkout, 'worktree', 'remove', '--force', str(archived))
+    return {**result, 'rebased_from': origin, 'rebased_onto': commit}

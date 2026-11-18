@@ -27,6 +27,11 @@ verified evidence. Each attempt retains its original checkpoint even as later
 claims use a newer one. After a terminal receipt, the private checkout can be
 verified and archived before its worktree is removed; retain the evaluation,
 report, patch and provenance needed for review.
+When a reviewed archive comes from an accepted ancestor, the controller can
+reuse the existing production merge to place the draft on the worker's current
+checkpoint. It reapplies only the assigned seeded removals. A merge conflict
+leaves the worker with a clean checkout and the previous review notes. Every
+restored draft still goes through fresh author, coordinator and integration checks.
 
 The coordinator stages disjoint proposals in a private integration workspace.
 It merges ordinary productions conservatively, replays the union of assigned
