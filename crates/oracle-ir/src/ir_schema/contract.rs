@@ -14,11 +14,11 @@ fn signature() -> String {
 
 #[test]
 fn schema_shape_is_frozen() {
-    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join(format!("schema/{}.txt", crate::ir::SCHEMA_VERSION));
+    let fixture = super::frozen_signature(crate::ir::SCHEMA_VERSION)
+        .expect("current IR schema signature must be frozen");
     assert_eq!(
         signature(),
-        std::fs::read_to_string(fixture).unwrap(),
+        fixture,
         "IR shape changed: bump the schema, review grammar patterns, and freeze a new contract"
     );
 }
@@ -39,10 +39,9 @@ fn dump_schema_descriptors() {
 
 #[test]
 fn frozen_descriptors_match_the_compiled_contract() {
-    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join(format!("schema/{}.json", crate::ir::SCHEMA_VERSION));
-    let value: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(fixture).unwrap()).unwrap();
+    let fixture = super::frozen_json(crate::ir::SCHEMA_VERSION)
+        .expect("current IR schema descriptors must be frozen");
+    let value: serde_json::Value = serde_json::from_str(fixture).unwrap();
     assert_eq!(
         value,
         serde_json::json!({"schema_version":crate::ir::SCHEMA_VERSION,"schema":Schema::of_ir().unwrap()})
