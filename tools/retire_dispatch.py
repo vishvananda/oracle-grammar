@@ -510,7 +510,7 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
         if included:
             queue.reject_jobs(included,{'manifest':manifest['id'],'reason':manifest.get('reason','staging failed')})
         return
-    result=retire_batch.validate(manifest,cp,slots=12)
+    result=retire_batch.validate(manifest,cp,slots=12,scan=True)
     if result['status']!='passed':
         queue.reject_jobs(included,{'manifest':manifest['id'],'validation':result})
         return
@@ -531,7 +531,6 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     source.parent.mkdir(parents=True)
     subprocess.run(['git','worktree','add','--detach',str(source),commit],cwd=cp['source'],check=True)
     inputs=Path(result['inputs'])
-    scan_checkpoint(inputs,cp)
     next_cp=dict(cp,commit=commit,source=str(source),inputs=str(inputs),baseline=result['rows'],helpers=next_helpers)
     next_cp.pop('candidate_validation_helpers',None)
     campaign_api.save_checkpoint(run,next_cp)
@@ -540,16 +539,6 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     refresh_priorities(run,commit,policy)
     r.write(run/'latest-checkpoint.json',next_cp)
     publish_main(run, cp, next_cp, manifest)
-
-
-def scan_checkpoint(inputs, cp):
-    with retire_cpu.reserve(Path(cp['cpu_pool']),cp.get('audit_threads',24),cp.get('cpu_capacity',32)) as fds:
-        r._LEASES.extend(fds)
-        try:
-            r.scan(argparse.Namespace(run=inputs,rules=None))
-        finally:
-            for fd in fds:
-                r._LEASES.remove(fd)
 
 
 def publish_main(run, previous, current, manifest):

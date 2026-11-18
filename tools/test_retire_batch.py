@@ -182,8 +182,12 @@ class BatchTests(unittest.TestCase):
     def test_configured_parse_screen_budget_leaves_full_audit_budget_intact(self):
         self._validate_threads(24, True, screen='passed', screen_threads=12)
 
+    def test_checkpoint_scan_keeps_the_full_audit_reservation(self):
+        self._validate_threads(16, True, screen='passed', scan=True)
+        self._validate_threads(16, True, native_rejection=True, scan=True)
+
     def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False,
-                          native_rejection=False, screen=None, screen_threads=None):
+                          native_rejection=False, screen=None, screen_threads=None, scan=False):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -213,12 +217,14 @@ class BatchTests(unittest.TestCase):
             if screen_threads is not None:
                 cp['parse_screen_threads'] = screen_threads
             order = []
+            audit_fds = []
             def git(_source, *args):
                 return 'candidate' if args[0] == 'rev-parse' else ''
             def checks(run, directory, grammar, names, data, threads):
                 order.append('checks')
                 self.assertEqual(threads, expected)
                 self.assertEqual(len(batch.r._LEASES), expected)
+                audit_fds.extend(batch.r._LEASES)
                 for fd in batch.r._LEASES:
                     os.fstat(fd)
                 (directory/'rows.jsonl').write_text('rows')
@@ -256,8 +262,19 @@ class BatchTests(unittest.TestCase):
                 result = {'status': screen, 'failures': ['bad'] if screen == 'failed' else []}
                 batch.r.write(directory/'result.json', result)
                 return result
-            with patch.object(batch.retire_parse_screen, 'run', side_effect=screen_run), patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar', 'ORACLE_GRAMMAR_POISON': 'wrong'}), patch.object(batch, 'REPOSITORY_DRIVER', driver), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate), patch.object(batch.retire_native_outcome, 'preservation_failure', return_value={'faces': 1, 'failures': ['native readings changed or failed validation']}) as recovered:
-                result = batch.validate(manifest, cp)
+            def scan_input(args):
+                order.append('scan')
+                self.assertEqual(args.run, folder/'validation-inputs')
+                self.assertIsNone(args.rules)
+                self.assertEqual(batch.r._LEASES, audit_fds)
+                for fd in audit_fds:
+                    os.fstat(fd)
+                self.assertEqual(batch.r.read(folder/'validation.json')['status'], 'passed')
+                with self.assertRaises(BlockingIOError):
+                    with batch.retire_cpu.reserve(Path(cp['cpu_pool']), 33-expected, 32, wait=False):
+                        self.fail('the full audit lease was released before the scan')
+            with patch.object(batch.retire_parse_screen, 'run', side_effect=screen_run), patch.dict(os.environ, {'ORACLE_GRAMMAR_DIR': '/wrong/checkout/grammar', 'ORACLE_GRAMMAR_POISON': 'wrong'}), patch.object(batch, 'REPOSITORY_DRIVER', driver), patch.object(batch, '_git', side_effect=git), patch.object(batch.r, 'freeze', side_effect=freeze_input) as freeze, patch.object(batch.w, 'payload', return_value=({'0': {'name': 'Example'}}, [], [])), patch.object(batch.w, 'checks', side_effect=checks) as full_checks, patch.object(batch.subprocess, 'run', side_effect=gate), patch.object(batch.retire_native_outcome, 'preservation_failure', return_value={'faces': 1, 'failures': ['native readings changed or failed validation']}) as recovered, patch.object(batch.r, 'scan', side_effect=scan_input):
+                result = batch.validate(manifest, cp, scan=scan)
             self.assertEqual(freeze.call_args.args[0].threads, expected)
             self.assertEqual(freeze.call_args.args[0].slots, 1)
             if screen is not None:
@@ -292,7 +309,8 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(result['parse_screen']['status'], 'failed')
                 self.assertEqual(batch.r._LEASES, [])
                 return
-            self.assertEqual(order, ['freeze', 'gate'] + (['screen'] if screen else []) + ['checks'])
+            self.assertEqual(order, ['freeze', 'gate'] + (['screen'] if screen else []) + ['checks']
+                             + (['scan'] if scan and not native_rejection else []))
             if native_rejection:
                 recovered.assert_called_once()
                 self.assertEqual(result['status'], 'failed')

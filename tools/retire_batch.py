@@ -1407,9 +1407,9 @@ def _screen_identity(source, manifest, baseline, input_run, output, evidence):
         raise ValueError('candidate or frozen inputs changed during parse screen')
 
 
-def validate(manifest, checkpoint, slots=12):
+def validate(manifest, checkpoint, slots=12, *, scan=False):
     with _workspace_lock(checkpoint):
-        return _validate(manifest, checkpoint, slots)
+        return _validate(manifest, checkpoint, slots, scan=scan)
 
 
 def _parse_screen_threads(checkpoint):
@@ -1435,7 +1435,7 @@ def _audit_cpu(checkpoint, threads, capacity):
                 r._LEASES.remove(fd)
 
 
-def _validate(manifest, checkpoint, slots):
+def _validate(manifest, checkpoint, slots, *, scan=False):
     """Freeze and run full allowed-population and repository gates for a candidate."""
     if manifest.get('status') != 'provisional':
         raise ValueError('only a provisional candidate can be validated')
@@ -1516,32 +1516,40 @@ def _validate(manifest, checkpoint, slots):
                 raise ValueError('full allowed-population parse screen failed')
         checks = folder/'full-checks'
         checks.mkdir()
-        try:
-            with _audit_cpu(checkpoint, threads, capacity):
+        with _audit_cpu(checkpoint, threads, capacity):
+            try:
                 report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()],
                                   data, threads)
-        except subprocess.CalledProcessError as error:
-            report = retire_native_outcome.preservation_failure(error, output, checks, data)
-        evidence['full_checks'] = report
-        if report['failures']:
-            raise ValueError('full allowed-population checks failed')
-        if (r.digest(baseline) != evidence['baseline_sha256']
-                or r.read(input_run/'manifest.json')['files'] != r.tree(inputs)):
-            raise ValueError('checkpoint inputs changed during validation')
-        if _git(source, 'rev-parse', 'HEAD') != manifest['commit'] or _git(source, 'status', '--porcelain'):
-            raise ValueError('candidate changed during validation')
-        if candidate_spec is not None:
-            build = _verified_helper_build(selected_helpers, candidate_spec['build_sha256'])
-            if (dev.source(source) != build['source_sha256']
-                    or r.digest(output/'frozen/build.json') != candidate_spec['build_sha256']
-                    or any(r.digest(output/'frozen/bin'/name) != build['binaries'][name] for name in r.HELPERS)
-                    or r.read(output/'manifest.json')['files'] != r.tree(output/'frozen')):
-                raise ValueError('candidate frozen helper identity changed')
-            evidence['helpers'] = str(selected_helpers)
-        evidence['rows'] = str(checks/'rows.jsonl')
-        evidence['rows_sha256'] = r.digest(checks/'rows.jsonl')
-        evidence['status'] = 'passed'
+            except subprocess.CalledProcessError as error:
+                report = retire_native_outcome.preservation_failure(error, output, checks, data)
+            evidence['full_checks'] = report
+            if report['failures']:
+                raise ValueError('full allowed-population checks failed')
+            if (r.digest(baseline) != evidence['baseline_sha256']
+                    or r.read(input_run/'manifest.json')['files'] != r.tree(inputs)):
+                raise ValueError('checkpoint inputs changed during validation')
+            if _git(source, 'rev-parse', 'HEAD') != manifest['commit'] or _git(source, 'status', '--porcelain'):
+                raise ValueError('candidate changed during validation')
+            if candidate_spec is not None:
+                build = _verified_helper_build(selected_helpers, candidate_spec['build_sha256'])
+                if (dev.source(source) != build['source_sha256']
+                        or r.digest(output/'frozen/build.json') != candidate_spec['build_sha256']
+                        or any(r.digest(output/'frozen/bin'/name) != build['binaries'][name] for name in r.HELPERS)
+                        or r.read(output/'manifest.json')['files'] != r.tree(output/'frozen')):
+                    raise ValueError('candidate frozen helper identity changed')
+                evidence['helpers'] = str(selected_helpers)
+            evidence['rows'] = str(checks/'rows.jsonl')
+            evidence['rows_sha256'] = r.digest(checks/'rows.jsonl')
+            evidence['status'] = 'passed'
+            if scan:
+                # The scan uses the frozen audit thread count. Keep its CPU
+                # reservation across the handoff to checkpoint publication.
+                r.write(folder/'validation.json', evidence)
+                r.scan(Namespace(run=output, rules=None))
+                return evidence
     except (ValueError, OSError, subprocess.CalledProcessError, KeyError) as error:
+        if evidence['status'] == 'passed':
+            raise
         evidence.update(status='failed', reason=str(error))
     r.write(folder/'validation.json', evidence)
     return evidence

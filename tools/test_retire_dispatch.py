@@ -385,13 +385,14 @@ class DispatchCanaries(unittest.TestCase):
                                                                                    'helpers': str(root/'helpers')}), \
                     patch.object(dispatch, 'proposals', return_value=[{'job_id': 'one'}]), \
                     patch.object(dispatch.retire_batch, 'stage', return_value=manifest), \
-                    patch.object(dispatch.retire_batch, 'validate', return_value=result), \
-                    patch.object(dispatch.subprocess, 'run'), patch.object(dispatch, 'scan_checkpoint'), \
+                    patch.object(dispatch.retire_batch, 'validate', return_value=result) as validate, \
+                    patch.object(dispatch.subprocess, 'run'), \
                     patch.object(dispatch.campaign_api, 'save_checkpoint'), \
                     patch.object(dispatch, 'reclassify', side_effect=lambda *args: order.append('reclassify')), \
                     patch.object(dispatch, 'refresh_priorities', side_effect=lambda *args: order.append('priority')) as refresh, \
                     patch.object(dispatch, 'publish_main'):
                 dispatch._batch(root)
+            self.assertTrue(validate.call_args.kwargs['scan'])
             self.assertEqual(order, ['accept', 'reclassify', 'priority'])
             refresh.assert_called_once_with(root, 'next', dispatch.retire_priority.VERSION)
 
@@ -428,7 +429,6 @@ class DispatchCanaries(unittest.TestCase):
                         patch.object(dispatch.retire_batch, 'validate', return_value=result), \
                         patch.object(dispatch.retire_batch, '_verified_helper_build', return_value={'binaries': binaries}), \
                         patch.object(dispatch.subprocess, 'run'), \
-                        patch.object(dispatch, 'scan_checkpoint') as scan, \
                         patch.object(dispatch.campaign_api, 'save_checkpoint') as save, \
                         patch.object(dispatch, 'reclassify'), patch.object(dispatch, 'publish_main'):
                     dispatch._batch(root)
@@ -438,11 +438,9 @@ class DispatchCanaries(unittest.TestCase):
                     self.assertEqual(next_cp['helpers'], str(snapshot))
                     self.assertEqual(next_cp['inputs'], str(inputs))
                     self.assertNotIn('candidate_validation_helpers', next_cp)
-                    self.assertEqual(scan.call_args.args[0], inputs)
                     queue.advance_and_accept.assert_called_once()
                 else:
                     save.assert_not_called()
-                    scan.assert_not_called()
                     queue.advance_and_accept.assert_not_called()
 
     def test_invalid_candidate_helper_configuration_does_not_stage_or_reject(self):
@@ -705,53 +703,6 @@ class DispatchCanaries(unittest.TestCase):
                 self.assertEqual(queue.coverage()['counts'], {'provisional-pass': 1})
                 self.assertEqual(r.read(root/'status.json')['reason'], 'test drain')
             self.assertTrue(dispatch.batch_available(root))
-
-    def test_checkpoint_scan_reserves_cpu_and_inherits_batch_guard(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            cp = {'cpu_pool': str(root/'cpu'), 'cpu_capacity': 16, 'audit_threads': 16}
-            child_code = """
-import fcntl, os, pathlib, sys
-sys.path.insert(0, sys.argv[1])
-import retire_cpu
-for fd in map(int, sys.argv[4:]):
-    os.fstat(fd)
-try:
-    with retire_cpu.reserve(pathlib.Path(sys.argv[2]), 1, 16, wait=False):
-        raise AssertionError('CPU pool was not held')
-except BlockingIOError:
-    pass
-with open(sys.argv[3], 'a') as guard:
-    try:
-        fcntl.flock(guard, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        raise AssertionError('batch guard was not held')
-    except BlockingIOError:
-        pass
-"""
-            for fail in (False, True):
-                def scan(args):
-                    self.assertEqual(args.run, root/'inputs')
-                    self.assertIsNone(args.rules)
-                    fds = tuple(r._LEASES)
-                    self.assertEqual(len(fds), 17)
-                    paths = [os.readlink(f'/proc/self/fd/{fd}') for fd in fds]
-                    self.assertEqual(sum('/token-' in path for path in paths), 16)
-                    self.assertIn(str(root/'batch.lock'), paths)
-                    subprocess.run([sys.executable, '-c', child_code, str(Path(retire_cpu.__file__).parent),
-                                    cp['cpu_pool'], str(root/'batch.lock'), *map(str, fds)],
-                                   pass_fds=fds, check=True)
-                    if fail:
-                        raise RuntimeError('scan failed')
-                with patch.object(dispatch.r, 'scan', side_effect=scan), \
-                        patch.object(dispatch, '_batch', side_effect=lambda _: dispatch.scan_checkpoint(root/'inputs', cp)):
-                    if fail:
-                        with self.assertRaisesRegex(RuntimeError, 'scan failed'):
-                            dispatch.batch(root)
-                    else:
-                        dispatch.batch(root)
-                self.assertEqual(r._LEASES, [])
-                with retire_cpu.reserve(root/'cpu', 16, 16, wait=False) as fds:
-                    self.assertEqual(len(fds), 16)
 
     def test_real_mechanical_task_report_and_batch_stage(self):
         with tempfile.TemporaryDirectory() as temporary:
