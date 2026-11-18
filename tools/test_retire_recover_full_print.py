@@ -82,23 +82,19 @@ class PendingFullPrintTests(unittest.TestCase):
                 patch.object(recover.isolation, 'readmit_result', side_effect=ValueError('stale evidence')) as verify:
             receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True)
         proof = self.output/self.batch/'proof'
-        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=True)
+        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=True, witness_retry=32)
         verify.assert_called_once_with(self.campaign, proof, result, full_check=True)
         self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'stale evidence'})
         self.assertEqual(self.pending(), [])
 
-    def test_exhausted_diagnosis_rechecks_witnesses_before_readmission(self):
-        result = {'rules': 1, 'jobs': ['a']}
-        attempts = [recover.isolation.FocusedTrialLimit(['b']), result]
-        with patch.object(recover.isolation, 'isolate', side_effect=attempts) as isolate, \
+    def test_recovery_reserves_retry_budget_in_the_same_proof(self):
+        with patch.object(recover.isolation, 'isolate', side_effect=recover.isolation.FocusedTrialLimit(['b'])) as isolate, \
                 patch.object(recover.isolation, 'readmit_result') as readmit:
             receipt = recover.recover(self.campaign, self.output, self.batch, 52, apply=True, mode='parse')
-        folder = self.output/self.batch
-        self.assertEqual(isolate.call_args_list[0].args, (self.campaign, self.batch, folder/'proof', 52))
-        self.assertEqual(isolate.call_args.args, (self.campaign, self.batch, folder/'proof-with-witnesses', 44))
-        self.assertEqual(isolate.call_args.kwargs, {'suspects': ('b',), 'full_check': False})
-        readmit.assert_called_once_with(self.campaign, folder/'proof-with-witnesses', result, full_check=False)
-        self.assertEqual(receipt['proof'], str(folder/'proof-with-witnesses/result.json'))
+        proof = self.output/self.batch/'proof'
+        isolate.assert_called_once_with(self.campaign, self.batch, proof, 52, full_check=False, witness_retry=44)
+        readmit.assert_not_called()
+        self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'focused trial limit reached'})
 
     def test_recovery_extends_only_after_verifying_the_added_baseline_faces(self):
         folder = self.output/self.batch
@@ -181,7 +177,7 @@ class PendingFullPrintTests(unittest.TestCase):
                 patch.object(recover.isolation, 'readmit_result') as readmit:
             receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True, mode='parse')
         proof = self.output/self.batch/'proof'
-        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=False)
+        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=False, witness_retry=32)
         readmit.assert_called_once_with(self.campaign, proof, result, full_check=False)
         self.assertEqual(receipt['status'], 'readmitted')
 

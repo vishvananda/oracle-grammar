@@ -87,15 +87,9 @@ def recover(campaign, output, batch, max_trials, *, apply, mode='print'):
         else:
             r.require(mode in ('print', 'parse'), 'unsupported batch recovery mode')
             full_check = mode == 'print'
-            try:
-                result = isolation.isolate(campaign, batch, path, max_trials, full_check=full_check)
-            except isolation.FocusedTrialLimit as exhausted:
-                retry_trials = min(max_trials, 96-max_trials)
-                if not exhausted.suspects or retry_trials < 3:
-                    raise
-                path = folder/'proof-with-witnesses'
-                result = isolation.isolate(campaign, batch, path, retry_trials,
-                                           suspects=exhausted.suspects, full_check=full_check)
+            retry_trials = min(max_trials, 96-max_trials)
+            result = isolation.isolate(campaign, batch, path, max_trials, full_check=full_check,
+                                       witness_retry=retry_trials if retry_trials >= 3 else 0)
             if apply:
                 try:
                     retained = _retain_recovery_faces(campaign, folder, result)

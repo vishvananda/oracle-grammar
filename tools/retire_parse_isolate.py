@@ -192,7 +192,10 @@ def _controls(roots):
             for label, root in roots.items()}
 
 
-def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(), full_check=False):
+def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(), full_check=False,
+            witness_retry=0):
+    r.require(3 <= max_trials <= 96 and 0 <= witness_retry <= 96-max_trials,
+              'invalid focused trial budget')
     folder, manifest, jobs, checkpoint, inputs, run, names, archived = _archived(campaign, batch_id, full_check=full_check)
     by_job = {job['job_id']: i for i, job in enumerate(jobs)}
     hints = [suspect] if suspect is not None else list(suspects)
@@ -215,6 +218,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     prefix = mechanics if mechanics == indices[:len(mechanics)] else []
     seen, roots = {}, {}
     pinned = []
+    limit = max_trials
 
     def trial(selection, label=None):
         key = tuple(selection)
@@ -226,7 +230,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
             if label:
                 roots[label] = saved
             return seen[key]['result']
-        if len(seen) >= max_trials:
+        if len(seen) >= limit:
             raise FocusedTrialLimit(_witnessed_suspects(seen, pinned, jobs))
         root = scratch/(label or f'trial-{len(seen):03d}')
         frozen = inputs/'frozen/grammar'
@@ -260,8 +264,16 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         r.require(failed == r.read(folder/'validation.json')['full_checks']['failures'],
                   'focused full audit did not reproduce the exact failures')
     routed = [by_job[job] for job in hints]
-    remaining = (_survivors(indices, trial, pinned, routed[0]) if len(routed) == 1
-                 else _survivors(indices, trial, pinned, suspects=routed))
+    try:
+        remaining = (_survivors(indices, trial, pinned, routed[0]) if len(routed) == 1
+                     else _survivors(indices, trial, pinned, suspects=routed))
+    except FocusedTrialLimit as exhausted:
+        if not exhausted.suspects or not witness_retry:
+            raise
+        # The witnesses and both baseline trials already ran against these
+        # immutable inputs. Keep their exact results and prove the survivor union.
+        limit += witness_retry
+        remaining = _survivors(indices, trial, pinned, suspects=[by_job[job] for job in exhausted.suspects])
     excluded = [i for i in indices if i not in remaining]
     r.require(excluded and remaining and not trial(remaining, 'remaining')['failures'],
               'there is no nonempty survivor union with passing focused checks')
