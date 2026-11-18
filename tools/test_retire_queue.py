@@ -947,6 +947,43 @@ class ReviewedRepairRetryTests(unittest.TestCase):
             self.assertEqual(verify.call_count, 2)
         self.assertEqual(self.queue.coverage()['counts'], {'pending': 1})
 
+    def test_recovers_an_interrupted_check_once_after_a_reviewed_retry(self):
+        attempt = self.claim['attempt_id']
+        with self.assertRaisesRegex(ValueError, 'previously retried author repair'):
+            self.queue.retry_reviewed_repair('repair', attempt, 'base',
+                                             {**self.evidence, 'interrupted_diagnostic': {}})
+        self.queue.retry_reviewed_repair('repair', attempt, 'base', self.evidence)
+        second = self.queue.claim('second')
+        self.terminal(second)
+        retry = second['attempt_id']
+        folder = self.campaign/'.cache/attempts'/retry/'workers/repair'
+        folder.mkdir(parents=True)
+        receipt = folder/'receipt.json'
+        self.write(receipt, {'evaluation': {'passed': False,
+                                            'error': 'independent evaluation failed; inspect evaluation.log'}})
+        log = folder/'evaluation.log'
+        timeout = {'kind': 'timeout-small-retry',
+                   'model_receipt': {'path': str(receipt), 'sha256': self.digest(receipt)}}
+        proof = {**self.evidence, 'interrupted_diagnostic': {'timeout': timeout}}
+        with patch('retire_timeout_recovery.verify') as verify:
+            for line in ('ValueError: family checks failed',
+                         'ValueError: a diagnostic helper is still running; retain and wait on its handle'):
+                log.write_text(line+'\n')
+                proof['interrupted_diagnostic']['log'] = {'path': str(log), 'sha256': self.digest(log)}
+                if 'family' in line:
+                    with self.assertRaisesRegex(ValueError, 'do not record'):
+                        self.queue.retry_reviewed_repair('repair', retry, 'base', proof)
+                else:
+                    self.queue.retry_reviewed_repair('repair', retry, 'base', proof)
+            self.assertEqual(verify.call_count, 2)
+        event, = [e['data'] for e in self.queue.audit() if e['kind']=='retry-interrupted-reviewed-repair']
+        self.assertEqual((event['attempt_id'], event['evidence']), (retry, proof))
+        claimed = self.queue.claim('third')
+        self.assertEqual(claimed['job']['rules'], self.job['rules'])
+        self.terminal(claimed)
+        with self.assertRaisesRegex(ValueError, 'already used'):
+            self.queue.retry_reviewed_repair('repair', claimed['attempt_id'], 'base', proof)
+
 
 if __name__ == "__main__":
     unittest.main()

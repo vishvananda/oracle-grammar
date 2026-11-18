@@ -113,6 +113,20 @@ def verify(campaign, job_id, attempt, state, evidence):
     return {'pid': pid, 'artifact_sha256': {name: hashlib.sha256(value).hexdigest() for name, value in raw.items()}}
 
 
+def verify_interrupted_diagnostic(campaign, job_id, attempt, state, evidence):
+    """Require the archived timeout and exact coordinator interruption."""
+    timeout = evidence.get('timeout') if isinstance(evidence, dict) else None
+    if not isinstance(timeout, dict) or timeout.get('kind') != 'timeout-small-retry':
+        raise ValueError('interrupted diagnostic requires a verified small author timeout')
+    verify(campaign, job_id, attempt, state, timeout)
+    folder = campaign/'.cache/attempts'/attempt/'workers'/job_id
+    evaluation = json.loads(artifact(timeout, 'model_receipt', folder/'receipt.json')).get('evaluation')
+    lines = artifact(evidence, 'log', folder/'evaluation.log').splitlines()
+    if (evaluation != {'passed': False, 'error': 'independent evaluation failed; inspect evaluation.log'}
+            or lines[-1:] != [b'ValueError: a diagnostic helper is still running; retain and wait on its handle']):
+        raise ValueError('retained artifacts do not record the coordinator diagnostic interruption')
+
+
 def rehabilitate(queue, job_id, attempt, checkpoint, evidence):
     """Recover one proved timeout, preserving its immutable attempt and archive."""
     if not isinstance(attempt, str) or not attempt or Path(attempt).name != attempt:

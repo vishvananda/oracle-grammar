@@ -400,6 +400,11 @@ owner and a fresh attempt. Pass `--include-small` to
 `tools/retire_timeout_operator.py` when preparing the plan to include these
 retries. Apply the rehearsed plan by its SHA-256. The original attempt, archive
 and cost history remain intact.
+A previously retried author repair can be queued once more when the protected
+timeout artifacts identify an interrupted coordinator diagnostic and a fresh
+independent report passes the assigned cohort and edited cases. The retry
+keeps the same rule owner and runs ordinary worker and integration checks.
+
 A verified singleton mechanical removal with named native or print regressions
 can move to an author job scoped to those faces. The original evidence stays
 with the terminal mechanical attempt and the author runs fresh gates. Timeout children cannot
