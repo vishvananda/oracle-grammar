@@ -1068,5 +1068,48 @@ class ReviewedRepairRetryTests(unittest.TestCase):
             self.queue.retry_reviewed_repair('repair',attempt,'base',proof)
 
 
+    def test_parse_repair_requires_the_single_culprit_of_a_verified_readmission(self):
+        self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
+        candidate = self.queue.claim('retried')
+        attempt = candidate['attempt_id']
+        self.queue.mark_started(attempt, pid=2_000_000_000)
+        self.queue.finish(attempt, 'provisional-pass', {'report': 'independent-pass'},
+                          {'seeded_test': {'status': 'pass', 'reason': 'matching print', 'evidence': 'old'}})
+        rejection = {'manifest': 'batch', 'validation': {'source_checkpoint': 'base',
+                     'reason': 'full allowed-population parse screen failed'}}
+        self.queue.reject_jobs(['repair'], rejection)
+        manifest = self.campaign/'.cache/batches/batch/manifest.json'
+        manifest.parent.mkdir(parents=True)
+        self.write(manifest, {'id': 'batch', 'base_commit': 'base', 'jobs': [
+            {'job_id': 'repair', 'attempt_id': attempt, 'status': 'included'}]})
+        isolation = manifest.parent/'isolation.json'
+        self.write(isolation, {'parent': 'base', 'excluded_jobs': ['repair']})
+        manifest_spec = {'path': str(manifest), 'sha256': self.digest(manifest)}
+        isolation_spec = {'path': str(isolation), 'sha256': self.digest(isolation)}
+        evidence = {'manifest': manifest_spec, 'isolation': isolation_spec}
+        old = {'status': 'integration-rejected', 'checkpoint': None, 'evidence': rejection}
+        verified = {'manifest': 'batch', 'excluded_jobs': ['repair'],
+                    'verified_artifacts': {str(isolation): isolation_spec['sha256']},
+                    'requires_fresh_full_validation': True}
+        with self.queue._transaction() as db:
+            for excluded in (['repair', 'other'], ['repair']):
+                self.queue._event(db, 'readmitted-parse-screen-batch', {
+                    'manifest': 'batch', 'previous_adjudication': old, 'evidence': evidence,
+                    'proof': {**verified, 'excluded_jobs': excluded}})
+            seqs = [row[0] for row in db.execute(
+                "SELECT seq FROM events WHERE kind='readmitted-parse-screen-batch' ORDER BY seq")]
+        for seq in (-1, seqs[0]):
+            proof = {**self.evidence, 'source_checkpoint': 'base', 'staging_failure': {
+                'readmission_event_seq': seq, 'isolation': isolation_spec}}
+            with self.assertRaisesRegex(ValueError, 'completed survivor readmission|single isolated rejection'):
+                self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 1})
+        proof = {**self.evidence, 'source_checkpoint': 'base', 'staging_failure': {
+            'readmission_event_seq': seqs[1], 'isolation': isolation_spec}}
+        self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'pending': 1})
+        self.assertEqual(self.queue.reviewed_draft('repair')['report'], proof['report'])
+
+
 if __name__ == "__main__":
     unittest.main()

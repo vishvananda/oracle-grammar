@@ -192,6 +192,47 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
     raise ValueError('staging repair does not bind a recorded diagnostic failure')
 
 
+
+def _verify_parse_repair(db, campaign, checkpoint, job, attempt, rejection, evidence):
+    """Bind a staged repair to the one culprit in a verified survivor readmission."""
+    seq = evidence.get('readmission_event_seq')
+    if set(evidence) != {'readmission_event_seq', 'isolation'} or type(seq) is not int or seq <= 0:
+        raise ValueError('parse repair must identify a completed survivor readmission')
+    row = db.execute("SELECT data FROM events WHERE seq=? AND kind='readmitted-parse-screen-batch'",
+                     (seq,)).fetchone()
+    if row is None:
+        raise ValueError('parse repair survivor readmission is missing')
+    readmitted = json.loads(row[0])
+    isolation_path, isolation_bytes = _proof_file(evidence['isolation'])
+    isolation = json.loads(isolation_bytes)
+    original = readmitted.get('evidence', {})
+    proof = readmitted.get('proof', {})
+    manifest_path, manifest_bytes = _proof_file(original.get('manifest'))
+    manifest = json.loads(manifest_bytes)
+    validation = rejection.get('evidence', {}).get('validation', {})
+    batch, origin = manifest.get('id'), manifest.get('base_commit')
+    if (not isinstance(batch, str) or not batch or Path(batch).name != batch
+            or manifest_path != campaign/'.cache/batches'/batch/'manifest.json'
+            or manifest_path.resolve() != manifest_path
+            or isolation_path.resolve() != isolation_path
+            or readmitted.get('manifest') != batch
+            or readmitted.get('previous_adjudication') != rejection
+            or original.get('isolation') != evidence['isolation']
+            or proof.get('verified_artifacts', {}).get(str(isolation_path)) != evidence['isolation']['sha256']
+            or proof.get('manifest') != batch or proof.get('excluded_jobs') != [job]
+            or proof.get('requires_fresh_full_validation') is not True
+            or isolation.get('excluded_jobs') != [job]
+            or isolation.get('parent') != origin
+            or validation.get('source_checkpoint') != origin
+            or validation.get('reason') != 'full allowed-population parse screen failed'):
+        raise ValueError('parse repair does not match the single isolated rejection')
+    matches = [item for item in manifest.get('jobs', []) if item.get('job_id') == job]
+    if (len(matches) != 1 or matches[0].get('attempt_id') != attempt
+            or matches[0].get('status') != 'included'):
+        raise ValueError('parse repair does not identify the rejected attempt')
+    _verify_readmission_origin(db, checkpoint, origin)
+
+
 _GATE_NAMES = {'fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test'}
 _DIAGNOSTIC_EXCLUSIONS = {'src/bin/family-check.rs', 'src/tests/family_check_modes.rs'}
 
@@ -1123,8 +1164,12 @@ class Queue:
                 _verify_readmission_origin(db, checkpoint, source)
                 campaign = Path(self.path).parent
                 if staging:
-                    _verify_staging_repair(campaign, job_id, attempt_id, source, json.loads(row[3]),
-                                           evidence['staging_failure'])
+                    rejection = json.loads(row[3])
+                    failure = evidence['staging_failure']
+                    if isinstance(failure, dict) and 'readmission_event_seq' in failure:
+                        _verify_parse_repair(db, campaign, source, job_id, attempt_id, rejection, failure)
+                    else:
+                        _verify_staging_repair(campaign, job_id, attempt_id, source, rejection, failure)
                 timed_out_attempt = None
                 if interrupted:
                     state = retire_timeout_recovery.TimeoutState(row[4], job, row[5], row[6])
