@@ -194,7 +194,7 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
 
 
 def _verify_parse_repair(db, campaign, checkpoint, job, attempt, rejection, evidence):
-    """Bind a staged repair to the one culprit in a verified survivor readmission."""
+    """Bind a staged repair to an excluded proposal in a verified survivor readmission."""
     seq = evidence.get('readmission_event_seq')
     if set(evidence) != {'readmission_event_seq', 'isolation'} or type(seq) is not int or seq <= 0:
         raise ValueError('parse repair must identify a completed survivor readmission')
@@ -211,6 +211,7 @@ def _verify_parse_repair(db, campaign, checkpoint, job, attempt, rejection, evid
     manifest = json.loads(manifest_bytes)
     validation = rejection.get('evidence', {}).get('validation', {})
     batch, origin = manifest.get('id'), manifest.get('base_commit')
+    excluded = isolation.get('excluded_jobs')
     if (not isinstance(batch, str) or not batch or Path(batch).name != batch
             or manifest_path != campaign/'.cache/batches'/batch/'manifest.json'
             or manifest_path.resolve() != manifest_path
@@ -219,13 +220,14 @@ def _verify_parse_repair(db, campaign, checkpoint, job, attempt, rejection, evid
             or readmitted.get('previous_adjudication') != rejection
             or original.get('isolation') != evidence['isolation']
             or proof.get('verified_artifacts', {}).get(str(isolation_path)) != evidence['isolation']['sha256']
-            or proof.get('manifest') != batch or proof.get('excluded_jobs') != [job]
+            or proof.get('manifest') != batch
+            or not isinstance(excluded, list) or not 1 <= len(excluded) <= 96 or job not in excluded
+            or proof.get('excluded_jobs') != excluded
             or proof.get('requires_fresh_full_validation') is not True
-            or isolation.get('excluded_jobs') != [job]
             or isolation.get('parent') != origin
             or validation.get('source_checkpoint') != origin
             or validation.get('reason') != 'full allowed-population parse screen failed'):
-        raise ValueError('parse repair does not match the single isolated rejection')
+        raise ValueError('parse repair does not match the verified excluded proposals')
     matches = [item for item in manifest.get('jobs', []) if item.get('job_id') == job]
     if (len(matches) != 1 or matches[0].get('attempt_id') != attempt
             or matches[0].get('status') != 'included'):
