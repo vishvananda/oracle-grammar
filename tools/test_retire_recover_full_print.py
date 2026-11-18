@@ -100,6 +100,44 @@ class PendingFullPrintTests(unittest.TestCase):
         readmit.assert_called_once_with(self.campaign, folder/'proof-with-witnesses', result, full_check=False)
         self.assertEqual(receipt['proof'], str(folder/'proof-with-witnesses/result.json'))
 
+    def test_recovery_extends_only_after_verifying_the_added_baseline_faces(self):
+        folder = self.output/self.batch
+        folder.mkdir()
+        source, inputs = self.campaign/'source', self.campaign/'inputs'
+        for path in (source/'grammar', inputs/'frozen/grammar'):
+            path.mkdir(parents=True)
+            (path/'root.ebnf').write_text('root ::= "accepted"\n')
+        (self.campaign/'checkpoints').mkdir()
+        r.write(self.campaign/'checkpoints/head.json', {'commit': 'head', 'source': str(source), 'inputs': str(inputs)})
+        config = self.campaign/'config.json'
+        prior, rejected = folder/'before.json', folder/'failed-faces.json'
+        r.write(prior, {'cards': ['Existing']})
+        r.write(rejected, {'cards': ['Existing', 'Regressed']})
+        before = {'native_regression_controls': recover.isolation._spec(prior)}
+        r.write(config, before)
+        proof = folder/'isolation.json'
+        r.write(proof, {'profile': recover.isolation._spec(rejected)})
+        result = {'evidence': {'isolation': recover.isolation._spec(proof)}}
+        with (
+            patch.object(recover, 'Queue') as queue,
+            patch.object(recover.tasks, 'close_cohort') as closure,
+            patch.object(recover.batches, '_control_setup') as setup,
+            patch.object(recover.batches, '_control_check') as check,
+        ):
+            queue.return_value.progress.return_value = {'checkpoint': 'head'}
+            check.return_value = {'failures': ['invalid baseline']}
+            with self.assertRaisesRegex(ValueError, 'accepted baseline'):
+                recover._retain_recovery_faces(self.campaign, folder, result)
+            self.assertEqual(r.read(config), before)
+            check.return_value = {'failures': []}
+            extended = recover._retain_recovery_faces(self.campaign, folder, result)
+        self.assertEqual(extended['added'], ['Regressed'])
+        self.assertEqual(r.read(config)['native_regression_controls'], extended['profile'])
+        self.assertEqual(r.read(Path(extended['profile']['path']))['cards'], ['Existing', 'Regressed'])
+        closure.assert_called_with(inputs, {'names': ['Existing', 'Regressed']})
+        focused = setup.call_args.args[0]['native_regression_controls']['path']
+        self.assertEqual(r.read(Path(focused))['cards'], ['Regressed'])
+
     def test_live_parse_recovery_requires_enabled_complete_additions(self):
         self.validation.update(reason=PARSE_SCREEN_REJECTION,
                                parse_screen={'status': 'failed', 'native_exit': 0,
