@@ -148,10 +148,7 @@ def _rebased_files(frozen, checkout, archived, prepared, task, allowed_files):
     return files
 
 
-def rebase_candidate(campaign, checkout, task_id, commit, allowed_files, reuse, *, rules):
-    """Prepare a reviewed archived draft from an accepted ancestor on the current checkout."""
-    campaign, checkout = Path(campaign).resolve(), Path(checkout).resolve()
-    origin = reuse.get('base_commit')
+def _frozen_origin(campaign, checkout, origin, commit):
     r.require(isinstance(origin, str) and re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', origin),
               'candidate archive has no immutable origin checkpoint')
     previous = r.read(campaign/'checkpoints'/f'{origin}.json')
@@ -163,6 +160,21 @@ def rebase_candidate(campaign, checkout, task_id, commit, allowed_files, reuse, 
     r.require(previous['commit'] == manifest['commit'] == origin and expected
               and r.tree(frozen/'grammar') == expected, 'candidate frozen origin differs')
     _git(checkout, 'merge-base', '--is-ancestor', origin, commit)
+    return frozen
+
+
+def _install_rebased(checkout, files):
+    for name, path in files.items():
+        target = checkout/name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, target)
+
+
+def rebase_candidate(campaign, checkout, task_id, commit, allowed_files, reuse, *, rules):
+    """Prepare a reviewed archived draft from an accepted ancestor on the current checkout."""
+    campaign, checkout = Path(campaign).resolve(), Path(checkout).resolve()
+    origin = reuse.get('base_commit')
+    frozen = _frozen_origin(campaign, checkout, origin, commit)
     with tempfile.TemporaryDirectory(prefix='.archive-rebase-', dir=checkout.parent) as scratch:
         scratch = Path(scratch)
         archived = scratch/'archived'
@@ -174,11 +186,53 @@ def rebase_candidate(campaign, checkout, task_id, commit, allowed_files, reuse, 
                 files = _rebased_files(frozen, checkout, archived, scratch/'prepared', task, allowed_files)
             except (ValueError, FileNotFoundError, subprocess.CalledProcessError, tarfile.TarError) as error:
                 raise merge.MergeConflict(str(error)) from error
-            # Complete all scope and conflict checks before changing the task checkout.
-            for name, path in files.items():
-                target = checkout/name
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(path, target)
+            _install_rebased(checkout, files)
         finally:
             _git(checkout, 'worktree', 'remove', '--force', str(archived))
     return {**result, 'rebased_from': origin, 'rebased_onto': commit}
+
+
+def _copy_reviewed_snapshot(archived, proof, report, task, allowed_files):
+    from retire_queue import _proof_file
+
+    path = Path(proof['report']['path'])
+    work = path.parents[3]
+    checkout = work.parents[2]/'workspaces'/work.name
+    r.require(task['checkout'] == str(checkout) and checkout.resolve() == checkout,
+              'reviewed draft checkout differs')
+    shutil.copytree(path.parent/'grammar', archived/'grammar', symlinks=True)
+    grammar = archived/'grammar'
+    r.require(not any(item.is_symlink() for item in grammar.rglob('*'))
+              and r.tree(grammar) == report['grammar'], 'reviewed draft grammar changed while copying')
+    for key, original, digest in (('fixture', path.parent/'family.json', 'fixture_sha256'),
+                                  ('edits', checkout/_relative(task['edits']), 'edits_sha256')):
+        relative = _relative(task[key])
+        r.require(str(relative) in allowed_files and original.resolve() == original,
+                  'reviewed draft fixture or operand edits exceed the write scope')
+        _, data = _proof_file({'path': str(original), 'sha256': report[digest]})
+        target = archived/relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
+
+
+def restore_reviewed_draft(campaign, checkout, commit, job, allowed_files, proof):
+    """Rebase the exact no-hook repair protected by an independent evaluation."""
+    from retire_queue import _verify_reviewed_repair
+
+    origin = proof['source_checkpoint']
+    scope = set(allowed_files)
+    with tempfile.TemporaryDirectory(prefix='.reviewed-rebase-', dir=checkout.parent) as scratch:
+        scratch = Path(scratch)
+        archived = scratch/'archived'
+        try:
+            frozen = _frozen_origin(campaign, checkout, origin, commit)
+            report, task = _verify_reviewed_repair(campaign, origin, job, proof)
+            r.require(report['hooks'] == [] and report['source_grammar'] == report['grammar'],
+                      'reviewed draft uses coordinator hooks')
+            _copy_reviewed_snapshot(archived, proof, report, task, scope)
+            files = _rebased_files(frozen, checkout, archived, scratch/'prepared', task, scope)
+        except (ValueError, OSError, KeyError, subprocess.CalledProcessError) as error:
+            raise merge.MergeConflict(str(error)) from error
+        _install_rebased(checkout, files)
+    return {'kind': 'independently-reviewed-draft', 'report_sha256': proof['report']['sha256'],
+            'rebased_from': origin, 'rebased_onto': commit}

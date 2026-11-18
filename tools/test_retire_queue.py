@@ -914,8 +914,11 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'outside the accepted checkpoint chain'):
             self.queue.retry_reviewed_repair('repair', attempt, 'next',
                                              {**self.evidence, 'source_checkpoint': 'unaccepted'})
-        self.queue.retry_reviewed_repair('repair', attempt, 'next',
-                                         {**self.evidence, 'source_checkpoint': 'base'})
+        proof = {**self.evidence, 'source_checkpoint': 'base'}
+        self.queue.retry_reviewed_repair('repair', attempt, 'next', proof)
+        self.assertEqual(self.queue.reviewed_draft('repair'),
+                         {'source_checkpoint': 'base', 'report': proof['report']})
+        self.assertIsNone(self.queue.reviewed_draft('another-job'))
         claim = self.queue.claim('fresh')
         self.assertEqual(claim['base_commit'], 'next')
         self.assertIn('repair on base.', claim['job']['goal'])

@@ -409,6 +409,76 @@ class TaskTests(unittest.TestCase):
                     self.assertEqual((checkout/seeded).read_text(), initial_seeded)
                     self.assertFalse((checkout/task['fixture']).exists())
 
+    def test_exact_reviewed_draft_rebases_and_rejects_changed_operand_fixture(self):
+        actions = 'grammar/syntax/actions.ebnf'
+        seeded = 'grammar/syntax/mined.ebnf'
+        (self.source/actions).write_text('shared ::= "base"\n')
+        (self.source/seeded).write_text('mined_operation ::= m_one | never_mined_operation\nm_one ::= "old"\n')
+        self.git('commit', '-qam', 'origin')
+        origin = self.git('rev-parse', 'HEAD')
+        self.checkpoint['commit'] = origin
+        frozen = self.inputs/'frozen'
+        shutil.copytree(self.source/'grammar', frozen/'grammar')
+        manifest = r.read(self.inputs/'manifest.json')
+        r.write(self.inputs/'manifest.json', {**manifest, 'commit': origin, 'files': r.tree(frozen)})
+        (self.campaign/'checkpoints').mkdir()
+        r.write(self.campaign/'checkpoints'/f'{origin}.json', {'commit': origin, 'inputs': str(self.inputs)})
+        private = self.base/'review'
+        shutil.copytree(self.campaign/'runner', private/'runner')
+        shutil.copy2(self.campaign/'runner.json', private/'runner.json')
+        attempt = str(uuid.uuid4())
+        original = tasker.prepare_task(private, {'attempt_id':attempt,'base_commit':origin,'job':self.job},
+                                       self.checkpoint,self.job,self.cohort)
+        workspace, run = Path(original['checkout']), Path(original['run'])
+        (workspace/actions).write_text('shared ::= "checked"\n')
+        mined.remove(workspace, self.job['rules'])
+        descriptor = run/'tasks/job-123.json'
+        task = r.read(descriptor)
+        edits = workspace/task['edits']
+        edits.parent.mkdir(parents=True, exist_ok=True)
+        r.write(edits, [{'edit': 1}, {'edit': 2}])
+        result = run/'evaluations/job-123/checked'
+        shutil.copytree(workspace/'grammar', result/'grammar')
+        family = result/'family.json'
+        r.write(family, {'cases': []})
+        grammar = r.tree(result/'grammar')
+        report = result/'report.json'
+        r.write(report, {'task':'job-123','source':origin,'directory':str(result),'passed':True,'failures':[],
+                         'grammar':grammar,'source_grammar':grammar,'hooks':[],'faces':2,'edited':[{},{}],
+                         'family_returncode':0,'descriptor_sha256':r.digest(descriptor),
+                         'support_sha256':r.digest(run/'support.json'),'fixture_sha256':r.digest(family),
+                         'edits_sha256':r.digest(edits)})
+        proof = {'source_checkpoint':origin,'report':{'path':str(report),'sha256':r.digest(report)}}
+        current = 'shared ::= "base"\nfresh ::= "new"\n'
+        (self.source/actions).write_text(current)
+        self.git('commit', '-qam', 'accepted successor')
+        head = self.git('rev-parse', 'HEAD')
+        inputs = self.base/'head'
+        shutil.copytree(frozen, inputs/'frozen')
+        shutil.copy2(self.source/actions, inputs/'frozen'/actions)
+        r.write(inputs/'manifest.json', {**manifest,'commit':head,'files':r.tree(inputs/'frozen')})
+        checkpoint = {**self.checkpoint,'commit':head,'inputs':inputs}
+        for tampered in (False, True):
+            with self.subTest(tampered=tampered):
+                if tampered:
+                    edits.write_text('changed')
+                claim = {'attempt_id':str(uuid.uuid4()),'base_commit':head,'job':self.job,'reviewed_repair':proof}
+                prepared = tasker.prepare_task(self.campaign,claim,checkpoint,self.job,self.cohort)
+                checkout = Path(prepared['checkout'])
+                packet = r.read(Path(prepared['run'])/'packet.json')
+                if tampered:
+                    self.assertIn('reviewed_reuse_conflict', packet)
+                    self.assertNotIn('reuse', packet)
+                    self.assertEqual((checkout/actions).read_text(), current)
+                    self.assertFalse((checkout/task['edits']).exists())
+                else:
+                    self.assertEqual(packet['reuse']['report_sha256'],r.digest(report))
+                    self.assertEqual(packet['reuse']['rebased_onto'],head)
+                    self.assertEqual((checkout/actions).read_text(), current.replace('"base"', '"checked"'))
+                    self.assertNotIn('m_one ::=', (checkout/seeded).read_text())
+                    self.assertEqual(r.digest(checkout/task['fixture']),r.digest(family))
+                    self.assertEqual(r.digest(checkout/task['edits']),r.digest(edits))
+
     def test_missing_modules_marked_for_discovery(self):
         self.job['allowedwritepaths'] = ['grammar/syntax/nonexistent.ebnf']
         result = self.prepare()

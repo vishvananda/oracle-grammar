@@ -131,8 +131,12 @@ An independently checked author repair can return its original assignment to
 the Terra queue once. The retry verifies the report against its accepted
 checkpoint, the assigned rules, the allowed cohort, the family check and the
 edited operands. The worker receives the coordinator's reproduction note and
-authors a fresh proposal on the latest checkpoint. The previous attempt remains
-in the audit history. When a model times out before submitting its dispositions,
+authors a fresh proposal on the latest checkpoint. An independent repair with
+retained grammar, family and operand fixtures can also seed the private
+checkout. The preparer checks the artifact hashes, rebases the exact assignment
+and uses the ordinary archive or clean checkout if the repair cannot be reused.
+The worker's preview and independent validation run on the new checkout.
+The previous attempt remains in the audit history. When a model times out before submitting its dispositions,
 a passing coordinator report can supply this evidence if it belongs to the
 protected terminal receipt for that attempt.
 

@@ -231,8 +231,15 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
         r.require(dev.source(checkout) == manifest['source'], 'private checkout compiled source differs')
         (checkout/'.cache').mkdir(exist_ok=True)
         reuse = None
+        reviewed = claim.get('reviewed_repair')
+        if reviewed:
+            try:
+                reuse = retire_reuse.restore_reviewed_draft(campaign, checkout, claim['base_commit'],
+                                                           job, write_files, reviewed)
+            except MergeConflict as error:
+                packet['reviewed_reuse_conflict'] = str(error)
         prior = claim.get('reuse_archive')
-        if prior:
+        if not reuse and prior:
             if prior.get('base_commit', claim['base_commit']) == claim['base_commit']:
                 reuse = retire_reuse.restore_candidate(campaign, checkout, job['id'], claim['base_commit'],
                                                         write_files, prior, rules=job['rules'])
@@ -242,9 +249,9 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
                                                          write_files, prior, rules=job['rules'])
                 except MergeConflict as error:
                     packet['reuse_conflict'] = str(error)
+        if reuse:
             r.require(dev.source(checkout) == manifest['source'], 'restored candidate changed compiled inputs')
-            if reuse:
-                packet['reuse'] = reuse
+            packet['reuse'] = reuse
         (run/'inputs').symlink_to(inputs, target_is_directory=True)
         runner, binaries = run/'support/runner', run/'support/bin'
         runner.mkdir(parents=True)
@@ -283,8 +290,10 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
                         'Request root dispatch hooks through .cache/author-hooks.json.')
         if reuse:
             task['reuse'] = reuse
-            task['goal'] = ('Private checkout starts with a prior infrastructure-tainted candidate; '
-                            'recheck current files and retain or revise them. ' + task['goal'])
+            starting_draft = ('an independently reviewed repair' if reuse.get('kind') == 'independently-reviewed-draft'
+                              else 'a prior infrastructure-tainted candidate')
+            task['goal'] = (f'Private checkout starts with {starting_draft}. '
+                            'Recheck current files and retain or revise them. ' + task['goal'])
         if compact is not None:
             (run/'screen-packet.json').write_bytes(compact)
             task['screen_packet_sha256'] = hashlib.sha256(compact).hexdigest()

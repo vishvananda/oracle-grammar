@@ -221,6 +221,9 @@ def perform(run, claim, contexts, runner=None):
                     job['mechanical_chunks'] = chunks
             else:
                 detail = planner.select_cohort_detail(job,inverted,data[1],scan)
+                draft = queue.reviewed_draft(job['id'])
+                if draft:
+                    claim = dict(claim, reviewed_repair=draft)
             reused=run/'reuse'/(job['id']+'.json')
             if reused.exists():
                 prior=r.read(reused)

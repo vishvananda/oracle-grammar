@@ -145,6 +145,7 @@ def _verify_reviewed_repair(campaign, checkpoint, job, evidence, *, timed_out_at
             or report.get('scope') == 'author-target-preview'
             or report.get('family_returncode') != 0 or not isinstance(edits, list) or not 2 <= len(edits) <= 8):
         raise ValueError('repair report differs from the assigned checkpoint, cohort or required checks')
+    return report, task
 
 
 _GATE_NAMES = {'fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test'}
@@ -1750,6 +1751,19 @@ class Queue:
             return {"attempt_id": row[0], "job_id": row[1], "worker": row[2],
                     "base_commit": row[3], "started": json.loads(row[4]) if row[4] else None,
                     "result": json.loads(row[5]) if row[5] else None}
+
+    def reviewed_draft(self, job_id):
+        """Return the most recent independent replay recorded for this exact assignment."""
+        with closing(self._connect()) as db:
+            row = db.execute(
+                "SELECT data FROM events WHERE kind IN ('retry-reviewed-repair','retry-interrupted-reviewed-repair',"
+                "'retry-preview-reviewed-repair') "
+                "AND json_extract(data,'$.job_id')=? ORDER BY seq DESC LIMIT 1", (job_id,)).fetchone()
+        if row:
+            evidence = json.loads(row[0])['evidence']
+            if 'timeout' not in evidence and 'source_checkpoint' in evidence:
+                return {name: evidence[name] for name in ('source_checkpoint', 'report')}
+        return None
 
     def inventory(self):
         return self.coverage()
