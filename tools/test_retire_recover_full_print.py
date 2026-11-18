@@ -54,7 +54,8 @@ class PendingFullPrintTests(unittest.TestCase):
         self.assertEqual(self.pending(), [])
         self.db.execute("UPDATE jobs SET attempt_id='old-b', status='provisional-pass' WHERE id='b'")
         self.db.commit()
-        self.assertEqual(self.pending(), [])
+        self.assertEqual(self.pending(), [self.batch])
+        self.assertEqual(recover.unavailable_recovery_jobs(self.campaign, self.batch), {'b'})
 
     def test_managed_watcher_holds_completion_until_terminal_recovery(self):
         r.write(self.campaign/'full-print-recovery.json', {'output': str(self.output)})
@@ -82,17 +83,42 @@ class PendingFullPrintTests(unittest.TestCase):
                 patch.object(recover.isolation, 'readmit_result', side_effect=ValueError('stale evidence')) as verify:
             receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True)
         proof = self.output/self.batch/'proof'
-        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=True, witness_retry=32)
+        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=True,
+                                        witness_retry=32, unavailable=set())
         verify.assert_called_once_with(self.campaign, proof, result, full_check=True)
         self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'stale evidence'})
         self.assertEqual(self.pending(), [])
+
+    def test_recovery_rechecks_survivors_when_a_selected_attempt_moves(self):
+        before = {'rules': 2, 'jobs': ['a', 'b']}
+        after = {'rules': 1, 'jobs': ['a']}
+        original = self.output/self.batch/'proof'
+        retry = self.output/self.batch/'proof-retry'
+
+        def verify(_campaign, path, result, *, full_check):
+            if path == original:
+                self.assertEqual(result, before)
+                self.db.execute("UPDATE jobs SET status='superseded' WHERE id='b'")
+                self.db.commit()
+                raise ValueError('readmission requires current rejected attempts')
+            self.assertEqual(path, retry)
+            self.assertEqual(result, after)
+
+        with patch.object(recover.isolation, 'isolate', side_effect=[before, after]) as isolate, \
+                patch.object(recover.isolation, 'readmit_result', side_effect=verify) as readmit:
+            receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True)
+        self.assertEqual([call.kwargs['unavailable'] for call in isolate.call_args_list], [set(), {'b'}])
+        self.assertEqual(readmit.call_count, 2)
+        self.assertEqual(receipt, {'status': 'readmitted', 'rules': 1, 'jobs': 1,
+                                   'proof': str(retry/'result.json')})
 
     def test_recovery_reserves_retry_budget_in_the_same_proof(self):
         with patch.object(recover.isolation, 'isolate', side_effect=recover.isolation.FocusedTrialLimit(['b'])) as isolate, \
                 patch.object(recover.isolation, 'readmit_result') as readmit:
             receipt = recover.recover(self.campaign, self.output, self.batch, 52, apply=True, mode='parse')
         proof = self.output/self.batch/'proof'
-        isolate.assert_called_once_with(self.campaign, self.batch, proof, 52, full_check=False, witness_retry=44)
+        isolate.assert_called_once_with(self.campaign, self.batch, proof, 52, full_check=False,
+                                        witness_retry=44, unavailable=set())
         readmit.assert_not_called()
         self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'focused trial limit reached'})
 
@@ -177,7 +203,8 @@ class PendingFullPrintTests(unittest.TestCase):
                 patch.object(recover.isolation, 'readmit_result') as readmit:
             receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True, mode='parse')
         proof = self.output/self.batch/'proof'
-        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=False, witness_retry=32)
+        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=False,
+                                        witness_retry=32, unavailable=set())
         readmit.assert_called_once_with(self.campaign, proof, result, full_check=False)
         self.assertEqual(receipt['status'], 'readmitted')
 

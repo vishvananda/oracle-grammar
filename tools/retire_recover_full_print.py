@@ -12,7 +12,7 @@ import retire_library_isolate as library
 import retire_parse_isolate as isolation
 import retire_tasks as tasks
 from retire_native_readmission import _allowed
-from retire_parse_readmission import pending_failed_batches
+from retire_parse_readmission import pending_failed_batches, unavailable_recovery_jobs
 from retire_queue import Queue
 
 
@@ -76,6 +76,35 @@ def _retain_recovery_faces(campaign, folder, result):
     raise ValueError('the accepted checkpoint or retained profile changed during validation')
 
 
+def _recover_native(campaign, folder, batch, max_trials, *, apply, full_check):
+    unavailable = unavailable_recovery_jobs(campaign, batch)
+    retry_trials = min(max_trials, 96-max_trials)
+    for name in ('proof', 'proof-retry'):
+        path = folder/name
+        result = isolation.isolate(campaign, batch, path, max_trials, full_check=full_check,
+                                   witness_retry=retry_trials if retry_trials >= 3 else 0,
+                                   unavailable=unavailable)
+        if not apply:
+            return path, result
+        if name == 'proof':
+            try:
+                retained = _retain_recovery_faces(campaign, folder, result)
+            except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+                retained = {'deferred': str(error)}
+            if retained:
+                r.write(folder/'retained-control-extension.json', retained)
+        try:
+            isolation.readmit_result(campaign, path, result, full_check=full_check)
+        except ValueError:
+            if name == 'proof-retry':
+                raise
+            unavailable = unavailable_recovery_jobs(campaign, batch)
+            if not unavailable.intersection(result['jobs']):
+                raise
+        else:
+            return path, result
+
+
 def recover(campaign, output, batch, max_trials, *, apply, mode='print'):
     folder = output/batch
     try:
@@ -86,18 +115,8 @@ def recover(campaign, output, batch, max_trials, *, apply, mode='print'):
                 library.readmit_result(campaign, path, result)
         else:
             r.require(mode in ('print', 'parse'), 'unsupported batch recovery mode')
-            full_check = mode == 'print'
-            retry_trials = min(max_trials, 96-max_trials)
-            result = isolation.isolate(campaign, batch, path, max_trials, full_check=full_check,
-                                       witness_retry=retry_trials if retry_trials >= 3 else 0)
-            if apply:
-                try:
-                    retained = _retain_recovery_faces(campaign, folder, result)
-                except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
-                    retained = {'deferred': str(error)}
-                if retained:
-                    r.write(folder/'retained-control-extension.json', retained)
-                isolation.readmit_result(campaign, path, result, full_check=full_check)
+            path, result = _recover_native(campaign, folder, batch, max_trials, apply=apply,
+                                           full_check=mode == 'print')
         receipt = {'status': 'readmitted' if apply else 'proved', 'rules': result['rules'],
                    'jobs': len(result['jobs']), 'proof': str(path/'result.json')}
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:

@@ -98,7 +98,7 @@ def _eligible_recovery(campaign, folder, validation, mode):
 
 
 def pending_failed_batches(campaign, output, *, include_parse=False, include_library=False, include_active=False):
-    """Find intact current-attempt groups eligible for automatic recovery."""
+    """Find archived batches with still-current attempts eligible for recovery."""
     groups = defaultdict(set)
     modes = {PRINT_ONLY_REJECTION: 'print', PARSE_SCREEN_REJECTION: 'parse',
              library.LIBRARY_REJECTION: 'library'}
@@ -115,7 +115,7 @@ def pending_failed_batches(campaign, output, *, include_parse=False, include_lib
                 groups[(batch, reason)].add((job, attempt))
     ready = []
     for (batch, reason), current in groups.items():
-        if not 2 <= len(current) <= 96:
+        if not 1 <= len(current) <= 96:
             continue
         if (output/batch).exists() and not (include_active and _lease_held(output/f'{batch}.lock')):
             continue
@@ -126,7 +126,8 @@ def pending_failed_batches(campaign, output, *, include_parse=False, include_lib
             included = [job for job in manifest['jobs'] if job['status'] == 'included']
             original = {(job['job_id'], job['attempt_id']) for job in included}
             mode = modes[reason]
-            if (manifest['id'] == batch and current == original and len(included) == len(original)
+            eligible = current == original if mode == 'library' else current <= original
+            if (manifest['id'] == batch and eligible and 2 <= len(included) == len(original) <= 96
                     and validation['reason'] == reason and validation['status'] == 'failed'
                     and validation['scope'] == 'combined-batch'
                     and _eligible_recovery(campaign, folder, validation, mode)):
@@ -135,6 +136,30 @@ def pending_failed_batches(campaign, output, *, include_parse=False, include_lib
             # Legacy or incomplete receipts remain available for review.
             continue
     return [(batch, mode) for _, batch, mode in sorted(ready)]
+
+
+def unavailable_recovery_jobs(campaign, batch):
+    """Find archived jobs whose original rejection is no longer current."""
+    folder = campaign/'.cache/batches'/batch
+    manifest, validation = (r.read(folder/name) for name in ('manifest.json', 'validation.json'))
+    original = {row['job_id']: row['attempt_id'] for row in manifest['jobs'] if row['status'] == 'included'}
+    uri = (campaign/'queue.sqlite').as_uri()+'?mode=ro'
+    with closing(sqlite3.connect(uri, uri=True)) as db:
+        current = set()
+        for job, attempt, adjudication in db.execute("""
+                SELECT id, attempt_id, adjudication FROM jobs
+                WHERE status='integration-rejected'
+                AND json_extract(adjudication,'$.evidence.manifest')=?
+                """, (batch,)):
+            evidence = json.loads(adjudication)['evidence']
+            if evidence.get('validation') != validation:
+                continue
+            if job not in original or original[job] != attempt:
+                raise ValueError('current rejection does not match the archived attempt')
+            current.add(job)
+    if not current:
+        raise ValueError('no current rejected attempts remain from the archived batch')
+    return original.keys()-current
 
 
 def awaiting_print_recovery(campaign):

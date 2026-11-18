@@ -38,6 +38,11 @@ when removal was interrupted. The latest applied pass records its removals and
 retention reasons in `CAMPAIGN/.cache/storage/worktree-cleanup.json`. Attempt
 reports, frozen inputs and audit evidence remain available for replay.
 
+When jobs from a failed parse or print batch move to new attempts, recovery
+replays the remaining current rejections as a group. If a selected attempt
+moves during recovery, the watcher checks the updated group once more before
+readmission. The original failure and both checks remain available for review.
+
 When a reviewed archive comes from an accepted ancestor, the controller can
 reuse the existing production merge to place the draft on the worker's current
 checkpoint. It reapplies only the assigned seeded removals. A merge conflict
