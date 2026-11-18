@@ -4,6 +4,8 @@ import json
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
+import re
+import shlex
 import tarfile
 
 import retire_rehabilitation
@@ -125,6 +127,42 @@ def verify_interrupted_diagnostic(campaign, job_id, attempt, state, evidence):
     if (evaluation != {'passed': False, 'error': 'independent evaluation failed; inspect evaluation.log'}
             or lines[-1:] != [b'ValueError: a diagnostic helper is still running; retain and wait on its handle']):
         raise ValueError('retained artifacts do not record the coordinator diagnostic interruption')
+
+
+def _shell_command(command):
+    args = shlex.split(command)
+    if (len(args) == 3 and Path(args[0]).name in ('bash', 'sh') and args[1] in ('-c', '-lc')):
+        args = shlex.split(args[2])
+    first = next((i for i, arg in enumerate(args) if not re.match(r'^[A-Za-z_]\w*=', arg)), len(args))
+    return args[first:]
+
+
+def verify_legacy_full_diagnostic(campaign, job_id, attempt, timeout, prompt_proof):
+    """Confirm a campaign worker expired with its old prompted full check still open."""
+    run = campaign/'.cache/attempts'/attempt
+    worker = run/'workers'/job_id
+    descriptor = json.loads(artifact(timeout, 'descriptor', run/'tasks'/f'{job_id}.json'))
+    prompt = artifact(prompt_proof, 'prompt', worker/'prompt.txt').decode()
+    expected = [str(run/'support/runner/retire_author.py'), str(run), job_id]
+    commands = [json.loads(line) for line in prompt.splitlines() if line.startswith('["')]
+    declared = [cmd for cmd in commands if isinstance(cmd, list) and cmd[1:4] == expected
+                and isinstance(cmd[0], str) and Path(cmd[0]).name == 'python3']
+    full = [cmd for cmd in declared if cmd[1:] == expected]
+    if (descriptor.get('full_pass') is not True or len(full) != 1
+            or any('--preview' in cmd[4:] for cmd in declared)):
+        raise ValueError('old campaign prompt does not require the full worker diagnostic')
+    events = [json.loads(line) for line in artifact(timeout, 'events', worker/'events.jsonl').splitlines()
+              if line.strip()]
+    completed = {event.get('item', {}).get('id') for event in events if event.get('type') == 'item.completed'}
+    for event in events:
+        item = event.get('item', {})
+        command = item.get('command')
+        if (event.get('type') == 'item.started' and item.get('type') == 'command_execution'
+                and item.get('status') == 'in_progress' and isinstance(item.get('id'), str)
+                and item['id'] not in completed and isinstance(command, str)
+                and expected[0] in command and _shell_command(command) == full[0]):
+            return
+    raise ValueError('timeout events do not prove an unfinished full worker diagnostic')
 
 
 def rehabilitate(queue, job_id, attempt, checkpoint, evidence):

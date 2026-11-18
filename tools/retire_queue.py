@@ -1023,16 +1023,20 @@ class Queue:
                             'previous_adjudication': rejection, 'evidence': evidence})
 
     def retry_reviewed_repair(self, job_id, attempt_id, checkpoint, evidence):
-        """Retry a verified repair, with one recovery for an interrupted coordinator check."""
+        """Retry a verified repair and recover once from each proven diagnostic interruption."""
         if not isinstance(evidence, dict) or evidence.get('kind') != 'reviewed-author-repair':
             raise ValueError('reviewed-author-repair evidence is required')
         notes = evidence.get('review_notes')
         if not isinstance(notes, str) or not notes.strip() or len(notes) > 2048:
             raise ValueError('reviewed author repair requires a concise reproduction note')
         interrupted = 'interrupted_diagnostic' in evidence
+        legacy = 'legacy_diagnostic_prompt' in evidence
         if interrupted and 'timeout' in evidence:
             raise ValueError('interrupted diagnostic recovery requires a fresh independent report')
-        event = 'retry-interrupted-reviewed-repair' if interrupted else 'retry-reviewed-repair'
+        if legacy and 'timeout' not in evidence:
+            raise ValueError('legacy full diagnostic recovery requires a protected passing timeout')
+        events = ('retry-reviewed-repair', 'retry-interrupted-reviewed-repair', 'retry-preview-reviewed-repair')
+        event = events[2] if legacy else events[1] if interrupted else events[0]
         with self._retry_lease(job_id):
             with self._transaction() as db:
                 row = db.execute(
@@ -1051,12 +1055,12 @@ class Queue:
                         or result.get('status') != expected_status or set(result.get('outcomes', {})) != rules):
                     raise ValueError('completed author assignment or rule coverage differs')
                 history = {item[0] for item in db.execute(
-                    "SELECT kind FROM events WHERE kind IN ('retry-reviewed-repair','retry-interrupted-reviewed-repair') "
-                    "AND json_extract(data,'$.job_id')=?", (job_id,))}
+                    "SELECT kind FROM events WHERE kind IN (?,?,?) AND json_extract(data,'$.job_id')=?",
+                    (*events, job_id))}
                 if event in history:
                     raise ValueError('reviewed repair retry already used for this job')
-                if interrupted and ('retry-reviewed-repair' not in history or row[0] != 'needs-review'):
-                    raise ValueError('interrupted diagnostic requires a previously retried author repair')
+                if (interrupted or legacy) and (events[0] not in history or row[0] != 'needs-review'):
+                    raise ValueError('diagnostic recovery requires a previously retried author repair')
                 pid = start.get('pid')
                 if type(pid) is not int or pid <= 0:
                     raise ValueError('attempt process identity is unknown')
@@ -1081,6 +1085,9 @@ class Queue:
                     report_path, _ = _proof_file(evidence.get('report'))
                     if model.get('evaluation') != {'passed': True, 'directory': str(report_path.parent)}:
                         raise ValueError('passed evaluation differs from the protected timeout receipt')
+                    if legacy:
+                        retire_timeout_recovery.verify_legacy_full_diagnostic(
+                            campaign, job_id, attempt_id, timeout, evidence['legacy_diagnostic_prompt'])
                     timed_out_attempt = attempt_id
                 _verify_reviewed_repair(campaign, source, job, evidence, timed_out_attempt=timed_out_attempt)
                 job['goal'] += ' Coordinator replay passed this repair on '+source+'. '+notes.strip()

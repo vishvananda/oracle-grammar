@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 from pathlib import Path
+import shlex
 import subprocess
 import tarfile
 import tempfile
@@ -88,6 +89,32 @@ class TimeoutRecoveryTests(unittest.TestCase):
 
     def split(self):
         return self.queue.rehabilitate_timeout('family', self.attempt, 'new', self.proof)
+
+    def test_legacy_diagnostic_requires_the_exact_prompt_and_unfinished_command(self):
+        worker = self.run/'workers/family'
+        prompt = worker/'prompt.txt'
+        events = worker/'events.jsonl'
+        descriptor = self.run/'tasks/family.json'
+        write(descriptor, {**json.loads(descriptor.read_text()), 'full_pass': True})
+        self.proof['descriptor'] = spec(descriptor)
+        command = ['/usr/bin/python3', str(self.run/'support/runner/retire_author.py'), str(self.run), 'family']
+        shell = shlex.join(['/bin/bash', '-lc', 'ORACLE_GRAMMAR_THREADS=2 '+shlex.join(command)])
+        started = {'type': 'item.started',
+                   'item': {'id': 'check', 'type': 'command_execution', 'command': shell, 'status': 'in_progress'}}
+
+        def verify(body, observed):
+            write(prompt, body)
+            events.write_text(''.join(json.dumps(event)+'\n' for event in observed))
+            timeout = {**self.proof, 'events': spec(events)}
+            recovery.verify_legacy_full_diagnostic(self.root, 'family', self.attempt, timeout, {'prompt': spec(prompt)})
+
+        verify(command, [started])
+        with self.assertRaisesRegex(ValueError, 'old campaign prompt'):
+            verify([*command, '--preview'], [started])
+        with self.assertRaisesRegex(ValueError, 'unfinished full worker diagnostic'):
+            verify(command, [started, {'type': 'item.completed', 'item': {'id': 'check'}}])
+        with self.assertRaisesRegex(ValueError, 'unfinished full worker diagnostic'):
+            verify(command, [{**started, 'item': {**started['item'], 'command': shlex.join([*command, '--preview'])}}])
 
     def test_split_preserves_attempt_and_exact_coverage_without_acceptance(self):
         original = self.queue.get_attempt(self.attempt)

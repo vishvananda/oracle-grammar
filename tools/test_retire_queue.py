@@ -984,6 +984,48 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'already used'):
             self.queue.retry_reviewed_repair('repair', claimed['attempt_id'], 'base', proof)
 
+    def test_requeues_a_proved_legacy_prompt_timeout_once(self):
+        first = self.claim['attempt_id']
+        legacy = {**self.evidence, 'legacy_diagnostic_prompt': {}}
+        with self.assertRaisesRegex(ValueError, 'protected passing timeout'):
+            self.queue.retry_reviewed_repair('repair', first, 'base', legacy)
+        with self.assertRaisesRegex(ValueError, 'previously retried author repair'):
+            self.queue.retry_reviewed_repair('repair', first, 'base', {**legacy, 'timeout': {}})
+        self.queue.retry_reviewed_repair('repair', first, 'base', self.evidence)
+        second = self.queue.claim('second')
+        self.terminal(second)
+        attempt = second['attempt_id']
+        original = self.queue.get_attempt(attempt)
+        work = self.campaign/'.cache/attempts'/attempt
+        work.parent.mkdir(parents=True)
+        self.task_path.parent.parent.rename(work)
+        self.task_path = work/'tasks/repair.json'
+        self.folder = work/'evaluations/repair/diagnostic'
+        self.report_path = self.folder/'report.json'
+        self.report['directory'] = str(self.folder)
+        self.record(work/'support.json')
+        receipt = work/'workers/repair/receipt.json'
+        receipt.parent.mkdir(parents=True)
+        self.write(receipt, {'evaluation': {'passed': True, 'directory': str(self.folder)}})
+        proof = {**self.evidence, 'timeout': {'model_receipt': {'path': str(receipt), 'sha256': self.digest(receipt)}},
+                 'legacy_diagnostic_prompt': {}}
+        with patch('retire_timeout_recovery.verify'), patch(
+                'retire_timeout_recovery.verify_legacy_full_diagnostic') as verified:
+            verified.side_effect = ValueError('diagnostic is unproved')
+            with self.assertRaisesRegex(ValueError, 'diagnostic is unproved'):
+                self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
+            self.assertEqual(self.queue.coverage()['counts'], {'needs-review': 1})
+            verified.side_effect = None
+            self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
+            verified.assert_called_with(self.campaign, 'repair', attempt, proof['timeout'], {})
+        self.assertEqual(self.queue.get_attempt(attempt), original)
+        event, = [e['data'] for e in self.queue.audit() if e['kind']=='retry-preview-reviewed-repair']
+        self.assertEqual((event['attempt_id'], event['evidence']), (attempt, proof))
+        latest = self.queue.claim('fresh')
+        self.terminal(latest)
+        with self.assertRaisesRegex(ValueError, 'already used'):
+            self.queue.retry_reviewed_repair('repair', latest['attempt_id'], 'base', proof)
+
 
 if __name__ == "__main__":
     unittest.main()

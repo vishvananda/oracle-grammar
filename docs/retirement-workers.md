@@ -409,6 +409,12 @@ A previously retried author repair can be queued once more when the protected
 timeout artifacts identify an interrupted coordinator diagnostic and a fresh
 independent report passes the assigned cohort and edited cases. The retry
 keeps the same rule owner and runs ordinary worker and integration checks.
+When an older campaign prompt sent a worker into the full diagnostic and the
+worker timed out during that command, a previously retried repair with a
+passing coordinator evaluation can get one attempt under the preview prompt.
+The recovery verifies the archived prompt, unfinished command, and passing
+report against the same timed-out attempt. The replacement worker supplies
+fresh dispositions and the candidate runs through the ordinary acceptance gates.
 
 A verified singleton mechanical removal with named native or print regressions
 can move to an author job scoped to those faces. The original evidence stays
