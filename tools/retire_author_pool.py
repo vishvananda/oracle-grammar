@@ -120,11 +120,14 @@ def response_schema(rules):
                         'reason': {'type': 'string'}, 'evidence': {'type': 'string'}}}}}}
 
 
-def launch(run, task_id, on_started=None, extra_fds=(), startup_lock=None):
+def launch(run, task_id, on_started=None, extra_fds=(), startup_lock=None, *, previous_evaluation=None):
     descriptor = r.read(run/'tasks'/f'{task_id}.json')
     folder = run/'workers'/task_id
     folder.mkdir()
     text = prompt(run, task_id)
+    if previous_evaluation:
+        text += (f'\nThe restored draft failed independent evaluation at the current checkpoint. '
+                 f'Read {previous_evaluation} and use its failures to guide the repair.\n')
     if descriptor.get('full_pass'):
         text += '''\nReturn the required structured JSON response with exactly one disposition for
 EVERY assigned rule. Use proposed only when the target preview passes;

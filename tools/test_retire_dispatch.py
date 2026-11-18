@@ -160,9 +160,82 @@ class DispatchCanaries(unittest.TestCase):
             self.assertEqual(evidence['reviewed_replay'], identity)
             self.assertEqual(evidence['usage'], {'status': 'no-model', 'estimated_usd': 0.0})
             self.assertEqual(evidence['dispositions']['r_one']['rule'], 'r_one')
-            self.assertIsNone(dispatch.exact_reviewed_replay(working, 'one', 'other', proof))
+            self.assertIsNone(dispatch.reviewed_replay(working, 'one', 'other', proof))
             r.write(working/'tasks/one.json', {'reuse': {**identity, 'report_sha256': 'other'}})
-            self.assertIsNone(dispatch.exact_reviewed_replay(working, 'one', 'base', proof))
+            self.assertIsNone(dispatch.reviewed_replay(working, 'one', 'base', proof))
+
+    def test_rebased_draft_is_checked_first_and_terra_can_repair_a_veto(self):
+        for outcome in ('pass', 'repair', 'launch-error'):
+            with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as temporary:
+                run = Path(temporary)
+                (run/'leases').mkdir()
+                queue = dispatch.Queue(run/'queue.sqlite')
+                queue.add_checkpoint('base', {'proof': 'test'})
+                queue.add_checkpoint('head', {'proof': 'test'}, expected_parent='base')
+                queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'author'}])
+                claim = queue.claim('worker')
+                attempt = claim['attempt_id']
+                working = run/'attempt'
+                report = working/'evaluations/one/rebase/report.json'
+                report.parent.mkdir(parents=True)
+                passed = outcome == 'pass'
+                r.write(report, {'passed': passed, 'failures': [] if passed else ['exact wording changed']})
+                proof = {'source_checkpoint': 'base', 'report': {'sha256': 'reviewed-hash'}}
+                identity = {'kind': 'independently-reviewed-draft', 'report_sha256': 'reviewed-hash',
+                            'rebased_from': 'base', 'rebased_onto': 'head'}
+                (working/'tasks').mkdir()
+                r.write(working/'tasks/one.json', {'reuse': identity})
+                contexts = SimpleNamespace(get=lambda cp: (('index', 'gold', 'oracle'), {}, 'inverted'))
+                process = Mock(pid=123)
+                process.wait.return_value = 0
+                model_report = working/'evaluations/one/terra/report.json'
+
+                def launch_model(path, task, *, on_started, **options):
+                    process.wait.assert_called_once()
+                    self.assertIsNone(queue.get_attempt(attempt)['started'])
+                    self.assertEqual(options['previous_evaluation'], report)
+                    if outcome == 'launch-error':
+                        raise OSError('Terra never started')
+                    on_started(456, 'model-receipt')
+                    final = path/'workers'/task/'final.txt'
+                    final.parent.mkdir(parents=True)
+                    r.write(final, {'rules': [{'rule': 'r_one', 'status': 'proposed',
+                                               'reason': 'Repairs the new print regression',
+                                               'evidence': 'independent model evaluation'}]})
+                    model_report.parent.mkdir()
+                    r.write(model_report, {'passed': True, 'failures': []})
+                    return {'finished_unix': 7}
+
+                with (
+                    patch.object(dispatch.Queue, 'reviewed_draft', return_value=proof),
+                    patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'head'}),
+                    patch.object(dispatch.planner, 'select_cohort_detail', return_value={'names': []}),
+                    patch.object(dispatch, 'prepare_task', return_value={'run': str(working), 'task_id': 'one'}),
+                    patch.object(dispatch.models, 'launch', side_effect=launch_model) as launch,
+                    patch.object(dispatch.subprocess, 'Popen', return_value=process),
+                    patch.object(dispatch.retire_retention, 'archive_checkout', return_value={}),
+                ):
+                    dispatch.perform(run, claim, contexts)
+                final_attempt = queue.get_attempt(attempt)
+                result = final_attempt['result']
+                evidence = result['evidence']
+                if passed:
+                    launch.assert_not_called()
+                    self.assertEqual(evidence['reviewed_replay'], identity)
+                    self.assertEqual(evidence['usage'], {'status': 'no-model', 'estimated_usd': 0.0})
+                    self.assertEqual(evidence['report'], str(report))
+                else:
+                    launch.assert_called_once()
+                    self.assertEqual(evidence['reviewed_rebase_veto'],
+                                     {'reuse': identity, 'report': {'path': str(report), 'sha256': r.digest(report)}})
+                    self.assertNotIn('reviewed_replay', evidence)
+                    self.assertEqual(evidence['usage']['status'], 'unavailable')
+                if outcome == 'repair':
+                    self.assertEqual(evidence['report'], str(model_report))
+                    self.assertEqual(final_attempt['started']['pid'], 456)
+                else:
+                    self.assertEqual(final_attempt['started']['pid'], 123)
+                self.assertEqual(result['status'], 'failed' if outcome == 'launch-error' else 'provisional-pass')
 
     def test_invalid_paid_model_response_keeps_usage_in_queue_evidence(self):
         with tempfile.TemporaryDirectory() as temporary:

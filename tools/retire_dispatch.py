@@ -213,14 +213,38 @@ def mechanical_detail(inputs, names):
              'full_batch_audit_required': True}, names, None)
 
 
-def exact_reviewed_replay(working, task_id, checkpoint, reviewed):
-    """Use a restored, independently checked draft on its original checkpoint."""
-    if not reviewed or reviewed['source_checkpoint'] != checkpoint:
+def reviewed_replay(working, task_id, checkpoint, reviewed):
+    """Match the prepared draft to the exact reviewed report and checkout."""
+    if not reviewed:
         return None
     task = r.read(working/'tasks'/f'{task_id}.json')
     expected = {'kind': 'independently-reviewed-draft', 'report_sha256': reviewed['report']['sha256'],
-                'rebased_from': checkpoint, 'rebased_onto': checkpoint}
+                'rebased_from': reviewed['source_checkpoint'], 'rebased_onto': checkpoint}
     return expected if task.get('reuse') == expected else None
+
+
+def _automatic_evaluation(command, log_path, evaluations, fd, record_start, *, check_rebase):
+    """Keep the model's start receipt available if a rebased draft needs repair."""
+    env = dict(os.environ, RETIRE_JOB_FD=str(fd))
+    with log_path.open('w') as log:
+        process = subprocess.Popen(command, env=env, stdout=log, stderr=log, pass_fds=(fd,))
+        try:
+            if check_rebase:
+                r.write(log_path.with_suffix('.json'), {'pid': process.pid, 'receipt': str(log_path)})
+            else:
+                record_start(process.pid, str(log_path))
+            code = process.wait()
+            paths = list(evaluations.glob('*/report.json'))
+            r.require(code == 0 and len(paths) == 1, f'{log_path.stem} did not publish a report')
+            report = r.read(paths[0])
+            r.require(type(report.get('passed')) is bool, 'automatic evaluation did not record a verdict')
+        except Exception:
+            if check_rebase:
+                record_start(process.pid, str(log_path))
+            raise
+    if check_rebase and report['passed']:
+        record_start(process.pid, str(log_path))
+    return paths, report
 
 
 def _repairable_mechanical_print(job, report):
@@ -261,6 +285,7 @@ def perform(run, claim, contexts, runner=None):
     usage=None
     usage_collected=False
     replay=None
+    rebase_veto=None
     mechanical_print_failure=None
     with lease(run/'leases'/job['id']) as fd:
         try:
@@ -288,10 +313,14 @@ def perform(run, claim, contexts, runner=None):
             task_id = prepared['task_id']
             mechanical = job['kind']=='mechanical'
             if not mechanical:
-                replay = exact_reviewed_replay(working, task_id, cp['commit'], claim.get('reviewed_repair'))
+                replay = reviewed_replay(working, task_id, cp['commit'], claim.get('reviewed_repair'))
+            check_rebase = replay is not None and replay['rebased_from'] != replay['rebased_onto']
+            evaluations = working/'evaluations'/task_id
+
+            def record_start(pid, path):
+                queue.mark_started(attempt, pid, path)
             if mechanical or replay:
                 if runner is not None: validate_runner(run,runner)
-                env = dict(os.environ,RETIRE_JOB_FD=str(fd))
                 if mechanical:
                     command = [sys.executable, str(Path(runner or run/'runner')/'retire_dispatch.py'),
                                'mechanical', str(working), task_id]
@@ -300,25 +329,26 @@ def perform(run, claim, contexts, runner=None):
                     command = [sys.executable, str(working/'support/runner/retire_author.py'),
                                str(working), task_id, '--coordinator']
                     name, success = 'reviewed-replay', 'Independently reviewed draft passed a fresh coordinator check'
-                with (working/f'{name}.log').open('w') as log:
-                    process=subprocess.Popen(command,env=env,stdout=log,stderr=log,pass_fds=(fd,))
-                    queue.mark_started(attempt,process.pid,str(working/f'{name}.log'))
-                    code=process.wait()
-                paths=list((working/'evaluations'/task_id).glob('*/report.json'))
-                r.require(code==0 and len(paths)==1,f'{name} execution did not publish a report')
-                report=r.read(paths[0])
-                reviewed={rule:{'status':'proposed' if report['passed'] else 'needs-review',
-                    'reason':success if report['passed'] else str(report['failures']),
-                    'evidence':str(paths[0])} for rule in job['rules']}
-                if replay:
-                    for rule, disposition in reviewed.items():
-                        disposition['rule'] = rule
-            else:
-                receipt=models.launch(working,task_id,
-                    on_started=lambda pid,path: queue.mark_started(attempt,pid,path),extra_fds=(fd,),
-                    startup_lock=run/'startup.lock')
-                reviewed=decisions(working/'workers'/task_id/'final.txt',job['rules'])
-                paths=list((working/'evaluations'/task_id).glob('*/report.json'))
+                paths, report = _automatic_evaluation(command, working/f'{name}.log', evaluations,
+                                                      fd, record_start, check_rebase=check_rebase)
+                if check_rebase and not report['passed']:
+                    rebase_veto = {'reuse': replay,
+                                   'report': {'path': str(paths[0]), 'sha256': r.digest(paths[0])}}
+                    replay = None
+                else:
+                    reviewed = {rule: {'status': 'proposed' if report['passed'] else 'needs-review',
+                                       'reason': success if report['passed'] else str(report['failures']),
+                                       'evidence': str(paths[0])} for rule in job['rules']}
+                    if replay:
+                        for rule, disposition in reviewed.items():
+                            disposition['rule'] = rule
+            if not mechanical and not replay:
+                previous_evaluation = Path(rebase_veto['report']['path']) if rebase_veto else None
+                receipt = models.launch(working, task_id, on_started=record_start, extra_fds=(fd,),
+                                        startup_lock=run/'startup.lock', previous_evaluation=previous_evaluation)
+                reviewed = decisions(working/'workers'/task_id/'final.txt', job['rules'])
+                paths = sorted(path for path in evaluations.glob('*/report.json')
+                               if not rebase_veto or str(path) != rebase_veto['report']['path'])
                 report=r.read(paths[0]) if len(paths)==1 else {
                     'passed':False,'failures':[receipt.get('evaluation',{}).get('error','evaluation absent')]}
             passed=bool(report.get('passed')) and all(x['status']=='proposed' for x in reviewed.values())
@@ -332,6 +362,8 @@ def perform(run, claim, contexts, runner=None):
                     'kind':job['kind'],'dispositions':reviewed,'base_commit':claim['base_commit']}
             if replay:
                 result['reviewed_replay'] = replay
+            if rebase_veto:
+                result['reviewed_rebase_veto'] = rebase_veto
             usage = attempt_usage(run,job,working,receipt,reviewed_replay=bool(replay))
             usage_collected=True
             if usage is not None:
@@ -345,6 +377,10 @@ def perform(run, claim, contexts, runner=None):
             result={'attempt':attempt,'job':job['id'],'kind':job['kind'],
                     'status':'operational-failure','error':str(error),
                     'run':str(working) if working else None,'task':job['id'],'base_commit':claim['base_commit']}
+            if rebase_veto:
+                result['reviewed_rebase_veto'] = rebase_veto
+                if queue.get_attempt(attempt)['started'] is None:
+                    queue.mark_started(attempt, **r.read(working/'reviewed-replay.json'))
             if not usage_collected:
                 usage = attempt_usage(run,job,working,receipt,reviewed_replay=bool(replay))
             if usage is not None:
