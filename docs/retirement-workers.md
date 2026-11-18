@@ -134,6 +134,13 @@ cohort, native and edited-operand check runs. Edited-operand diagnostics also
 check the generated contextual family cases before reporting a pass. A skipped
 check cannot establish success.
 
+An author can add `--preview` to the diagnostic command for early feedback.
+It checks the compositional family, the edited operands and native readings
+and printing for the assigned target faces, including their companion faces.
+The report identifies this scope as `author-target-preview`. The regular
+author command and the independent coordinator evaluation still check the
+complete assigned cohort.
+
 Configured usage collection records attempt-scoped token counts and estimates
 Standard API-equivalent cost using a pinned estimator and explicit pricing.
 Unavailable or partial usage is reported as such, not as zero cost; estimates

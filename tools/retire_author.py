@@ -98,6 +98,19 @@ def check_seeded_files(base, root, rules, directory):
 EARLY_PARSE_FULL_OCCURRENCES = 128
 
 
+def _cohort_index(index):
+    by_name = {}
+    for ordinal, row in index.items():
+        by_name.setdefault(row['name'], []).append((int(ordinal), row))
+    return by_name
+
+
+def _primary_cohort(by_name, records, full_names, targets):
+    primary = cohort.close_cohort(by_name, records, {'names': targets})
+    r.require(set(primary['names']) <= set(full_names), 'primary closure escaped full diagnostic cohort')
+    return primary
+
+
 def early_parse_screen(run, directory, grammar, task, data=None, compact=None):
     """Reject obvious primary-cohort regressions; a pass is not acceptance."""
     targets = task.get('target_faces', [])
@@ -105,14 +118,11 @@ def early_parse_screen(run, directory, grammar, task, data=None, compact=None):
         return None
     if compact is None:
         index, records, _ = data
-        by_name = {}
-        for ordinal, row in index.items():
-            by_name.setdefault(row['name'], []).append((int(ordinal), row))
+        by_name = _cohort_index(index)
         full = cohort.close_cohort(by_name, records, {'names': task['cohort']}, already_closed=True)
         if full['closure_occurrence_count'] <= EARLY_PARSE_FULL_OCCURRENCES:
             return None
-        primary = cohort.close_cohort(by_name, records, {'names': targets})
-        r.require(set(primary['names']) <= set(full['names']), 'primary closure escaped full diagnostic cohort')
+        primary = _primary_cohort(by_name, records, full['names'], targets)
     folder = directory/'parse-screen'
     folder.mkdir()
     if compact is None:
@@ -334,7 +344,21 @@ def validate_author_family(family):
                   for case in cases), 'worker-authored family cases must be compositional')
 
 
-def _check(run, task_id, coordinator=False):
+def _preview_checks(run, directory, grammar, task, root):
+    data = w.payload(run/'inputs')
+    by_name = _cohort_index(data[0])
+    targets = task.get('target_faces')
+    primary = (_primary_cohort(by_name, data[1], task['cohort'], targets) if targets
+               else cohort.close_cohort(by_name, data[1], {'names': task['cohort']}, already_closed=True))
+    result = w.checks(run/'inputs', directory, grammar, primary['names'], data, 2)
+    r.require(result['faces'] == primary['closure_occurrence_count'], 'preview omitted target occurrences')
+    if not result['failures']:
+        result['edited'] = edited_checks(run, directory, grammar, task, root, data)
+    return result
+
+
+def _check(run, task_id, coordinator=False, *, preview=False):
+    r.require(not (coordinator and preview), 'coordinator diagnostics require the full assigned cohort')
     task, root, manifest = verify(run, task_id)
     parent = (run/'evaluations'/task_id if coordinator else root/'.cache/author-checks')
     parent.mkdir(parents=True, exist_ok=True)
@@ -350,6 +374,8 @@ def _check(run, task_id, coordinator=False):
                   'descriptor_sha256': r.digest(run/'tasks'/f'{task_id}.json'),
                   'support_sha256': r.digest(run/'support.json'),
                   'directory': str(directory), 'failures': []}
+        if preview:
+            report['scope'] = 'author-target-preview'
         before = r.tree(root/'grammar')
         shutil.copytree(root/'grammar', directory/'grammar')
         grammar = directory/'grammar'
@@ -378,6 +404,9 @@ def _check(run, task_id, coordinator=False):
                     'reason': 'authored compositional family regression failed',
                     'checks': ['cohort score', 'cohort native validation', 'edited operand checks'],
                 }
+            elif preview:
+                report.update(_preview_checks(run, directory, grammar, task, root))
+                report['passed'] = not report['failures']
             else:
                 compact = screen_packet.load(run, task, r.digest(run/'inputs/manifest.json'),
                                              r.read(run/'support.json')) if 'screen_packet_sha256' in task else None
@@ -410,10 +439,10 @@ def _check(run, task_id, coordinator=False):
         return report
 
 
-def check(run, task_id, coordinator=False):
+def check(run, task_id, coordinator=False, *, preview=False):
     task = r.read(run/'tasks'/f'{task_id}.json')
     if not task.get('cpu_pool'):
-        return _check(run, task_id, coordinator)
+        return _check(run, task_id, coordinator, preview=preview)
     import retire_cpu
     with retire_cpu.reserve(Path(task['cpu_pool']), task.get('helper_threads', 2),
                             capacity=task.get('cpu_capacity', 32)) as fds:
@@ -423,7 +452,7 @@ def check(run, task_id, coordinator=False):
         if inherited:
             r._LEASES.append(int(inherited))
         try:
-            return _check(run, task_id, coordinator)
+            return _check(run, task_id, coordinator, preview=preview)
         finally:
             r._CPU_LEASES = ()
             if inherited:
@@ -437,8 +466,11 @@ def main():
     parser.add_argument('run', type=Path)
     parser.add_argument('task')
     parser.add_argument('--coordinator', action='store_true')
+    parser.add_argument('--preview', action='store_true')
     parser.add_argument('--remove-assigned', action='store_true')
     args = parser.parse_args()
+    if args.preview and (args.coordinator or args.remove_assigned):
+        parser.error('a target preview is an author diagnostic')
     if args.remove_assigned:
         task, root, _ = verify(args.run.resolve(), args.task)
         with r.locked(root/'.cache/author-check.lock', blocking=False) as acquired:
@@ -447,7 +479,7 @@ def main():
             verify(args.run.resolve(), args.task)
             print(json.dumps(result))
     else:
-        check(args.run.resolve(), args.task, args.coordinator)
+        check(args.run.resolve(), args.task, args.coordinator, preview=args.preview)
 
 
 if __name__ == '__main__':

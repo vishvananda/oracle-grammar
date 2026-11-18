@@ -15,6 +15,29 @@ import retire as r
 
 
 class AuthoringTests(unittest.TestCase):
+    def test_preview_keeps_duplicate_targets_and_companion_faces(self):
+        records = [{'faces': [{'name': 'Target'}, {'name': 'Companion'}]},
+                   {'faces': [{'name': 'Target'}]}, {'faces': [{'name': 'Near match'}]}]
+        index = {'0': {'name': 'Target', 'record': 0, 'face': 0},
+                 '1': {'name': 'Companion', 'record': 0, 'face': 1},
+                 '2': {'name': 'Target', 'record': 1, 'face': 0},
+                 '3': {'name': 'Near match', 'record': 2, 'face': 0}}
+        task = {'target_faces': ['Target'], 'cohort': ['Companion', 'Near match', 'Target']}
+        data = (index, records, [])
+        run = Path('/private/task')
+        for failures in ([], [{'face': 'Target', 'lost': ['exact_default']}]):
+            with self.subTest(failures=failures), \
+                 patch.object(a.w, 'payload', return_value=data), \
+                 patch.object(a.w, 'checks', return_value={'faces': 3, 'failures': failures}) as checks, \
+                 patch.object(a, 'edited_checks', return_value=[{'face': 'Target'}]) as edited:
+                report = a._preview_checks(run, run/'logs', run/'grammar', task, run/'checkout')
+                checks.assert_called_once_with(run/'inputs', run/'logs', run/'grammar',
+                                               ['Companion', 'Target'], data, 2)
+                self.assertEqual(report['failures'], failures)
+                self.assertEqual(edited.call_count, int(not failures))
+        with self.assertRaisesRegex(ValueError, 'full assigned cohort'):
+            a._check(run, 'task', coordinator=True, preview=True)
+
     def test_edited_pair_preserves_independent_face_order_and_refuses_ambiguity(self):
         gold = [{'faces': [{'name': 'Back'}, {'name': 'Front'}]}]
         oracle = [{'cards': [{'name': 'Front', 'text': 'front'}, {'name': 'Back', 'text': 'back'}]}]
