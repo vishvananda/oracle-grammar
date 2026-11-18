@@ -1,4 +1,3 @@
-/* Conditions on triggers and activations. */
 condition ::= condition_one | condition_and | condition_or
 
 /* @sem Condition::AllOf([$condition_one, $condition_one_2]) */
@@ -1174,3 +1173,12 @@ condition_source_no_other_control ::= "you" "don't" "control" "another" filter_p
 
 /* @sem Condition::AllOf([Window(UntapStep), PlayerIsActive(AbilityController)]) */
 condition_your_untap_step ::= "your" "untap" "step"
+
+/* Conditions on triggers and activations. */
+/* Keep the producer and its consumer in the same inverse pattern: a receipt
+   by itself does not establish which action produced it. */
+/* @sem Instruction::[Effect{result:@mark, operation:Discard{players:One(AbilityController), amount:$card_count, random:true}}, If{condition:SubsetMeets{objects:Transition{result:@marked, phase:After}, comparison:GreaterOrEqual, amount:$card_count_2, constraints:[CommonProperty(CardTypes)]}, then:Program{instructions:$clause}, otherwise:Program{}}] */
+instructions_discard_common_card_type ::= "discard" card_count "at" "random" "." "if" card_count "that" "share" "a" "card" "type" "are" "discarded" "this" "way" "," clause
+
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, If{condition:SubsetMeets{objects:Recorded(@marked), comparison:GreaterOrEqual, amount:$card_count_2, constraints:[AllSameProperty(CardTypes)]}, then:Program{instructions:$clause}, otherwise:Program{}}] */
+instructions_mill_same_card_types ::= "mill" card_count "." "if" card_count "that" "share" "all" "their" "card" "types" "were" "milled" "this" "way" "," clause

@@ -3415,3 +3415,31 @@ drag_counter_requirement ::= "all" counter_drag_filter "attack" "if" "able"
 /* The ability being reduced and its target filter are independent operands. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:[Rule(OwnActivationCost{abilities:AllOf([OnStack(Keyword(Equip)), TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}))]), change:Reduce($generic_reduction_symbols)})]}) */
 static_equip_target_reduction ::= "this" "Equipment's" "equip" "ability" "costs" generic_reduction_symbols "less" "to" "activate" "if" "it" "targets" "a" filter_phrase "."
+
+/* A spell population and its independent stack rule compose in both directions. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($prohibited_spell_population), changes:$spell_prohibition_changes} */
+static_prohibited_spell_population ::= prohibited_spell_population spell_prohibition_changes "."
+
+prohibited_spell_population ::= prohibited_spells_all | prohibited_spells_typed | prohibited_spells_shared_type | cross_spells
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:Any} */
+prohibited_spells_all ::= "spells"
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:$card_filter} */
+prohibited_spells_typed ::= card_filter "spells"
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:SharesWithAny{property:CardTypes, with:$shared_type_library_tops}} */
+prohibited_spells_shared_type ::= "spells" "that" "share" "a" "card" "type" "with" shared_type_library_tops
+
+shared_type_library_tops ::= library_tops | any_library_tops
+
+/* @sem ObjectSet::LibraryTops(All) */
+any_library_tops ::= "the" "top" "card" "of" "a" "library"
+
+spell_prohibition_changes ::= spell_cant_be_countered | spell_cant_be_cast
+
+/* @sem Change::[Change::Rule(Prohibit(Counter))] */
+spell_cant_be_countered ::= "can't" "be" "countered"
+
+/* @sem Change::[Change::Rule(Prohibit(Cast))] */
+spell_cant_be_cast ::= "can't" "be" "cast"
