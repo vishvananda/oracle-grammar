@@ -98,9 +98,17 @@ class SurvivorTests(unittest.TestCase):
                 patch.object(isolate, '_controls', side_effect=lambda roots: {k: str(v) for k, v in roots.items()}),
             ):
                 result = isolate.isolate(campaign, 'batch', scratch, 5, witness_retry=3)
+                original_trials = trials.copy()
+                trials.clear()
+                refreshed = campaign/'.cache/refreshed'
+                survivors = isolate.isolate(campaign, 'batch', refreshed, 3, unavailable=['1', '2'])
             self.assertEqual(result['jobs'], ['0', '2', '3'])
-            self.assertEqual(trials, [[], [0, 1, 2, 3], [0, 1], [0], [1], [0, 2, 3]])
+            self.assertEqual(original_trials, [[], [0, 1, 2, 3], [0, 1], [0], [1], [0, 2, 3]])
             proof = isolate.r.read(scratch/'isolation.json')
             self.assertEqual(proof['excluded_jobs'], ['1'])
             self.assertEqual(proof['controls']['base'], str(scratch/'base'))
             self.assertEqual(proof['controls']['full'], str(scratch/'full'))
+            self.assertEqual(survivors['jobs'], ['0', '3'])
+            self.assertEqual(trials, [[], [0, 1, 2, 3], [0, 3]])
+            proof = isolate.r.read(refreshed/'isolation.json')
+            self.assertEqual(proof['excluded_jobs'], ['1', '2'])

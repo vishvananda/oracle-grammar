@@ -193,7 +193,7 @@ def _controls(roots):
 
 
 def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(), full_check=False,
-            witness_retry=0):
+            witness_retry=0, unavailable=()):
     r.require(3 <= max_trials <= 96 and 0 <= witness_retry <= 96-max_trials,
               'invalid focused trial budget')
     folder, manifest, jobs, checkpoint, inputs, run, names, archived = _archived(campaign, batch_id, full_check=full_check)
@@ -201,6 +201,9 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     hints = [suspect] if suspect is not None else list(suspects)
     r.require((suspect is None or not suspects) and len(hints) == len(set(hints)) and set(hints) <= by_job.keys(),
               'suspects must be distinct included proposals')
+    unavailable = set(unavailable)
+    r.require(unavailable < by_job.keys() and not unavailable.intersection(hints),
+              'unavailable proposals must be an included subset disjoint from suspects')
     r.require(_allowed(campaign, scratch) and not scratch.exists(), 'private isolation directory already exists or is outside scratch')
     scratch.mkdir(parents=True)
     profile = scratch/'profile.json'
@@ -214,6 +217,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     with cpu.reserve(Path(cp['cpu_pool']), 1, cp['cpu_capacity'], background=True):
         proposals = list(zip(jobs, _proposals(campaign, jobs, scratch, cached), strict=True))
     indices = list(range(len(jobs)))
+    eligible = [i for i in indices if jobs[i]['job_id'] not in unavailable]
     mechanics = [i for i in indices if jobs[i]['kind'] == 'mechanical']
     prefix = mechanics if mechanics == indices[:len(mechanics)] else []
     seen, roots = {}, {}
@@ -257,7 +261,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         return result
 
     r.require(not trial([], 'base')['failures'], 'accepted base does not pass focused checks')
-    pinned = prefix if prefix and not trial(prefix, 'mechanical')['failures'] else []
+    pinned = prefix if prefix and prefix == eligible[:len(prefix)] and not trial(prefix, 'mechanical')['failures'] else []
     failed = trial(indices, 'full')['failures']
     r.require(failed, 'combined audit failure did not reproduce')
     if full_check:
@@ -265,15 +269,16 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
                   'focused full audit did not reproduce the exact failures')
     routed = [by_job[job] for job in hints]
     try:
-        remaining = (_survivors(indices, trial, pinned, routed[0]) if len(routed) == 1
-                     else _survivors(indices, trial, pinned, suspects=routed))
+        remaining = (_survivors(eligible, trial, pinned, routed[0]) if len(routed) == 1
+                     else _survivors(eligible, trial, pinned, suspects=routed))
     except FocusedTrialLimit as exhausted:
         if not exhausted.suspects or not witness_retry:
             raise
         # The witnesses and both baseline trials already ran against these
         # immutable inputs. Keep their exact results and prove the survivor union.
         limit += witness_retry
-        remaining = _survivors(indices, trial, pinned, suspects=[by_job[job] for job in exhausted.suspects])
+        remaining = _survivors(eligible, trial, pinned, suspects=[by_job[job] for job in exhausted.suspects
+                                                                 if job not in unavailable])
     excluded = [i for i in indices if i not in remaining]
     r.require(excluded and remaining and not trial(remaining, 'remaining')['failures'],
               'there is no nonempty survivor union with passing focused checks')
