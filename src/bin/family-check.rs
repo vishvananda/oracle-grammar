@@ -67,6 +67,39 @@ fn exact(engine: &Engine, case: &Case, reading: &Value) -> Result<bool, String> 
     }
 }
 
+/// An authored operand order may carry a printable surface lost in canonical
+/// reduction. The caller has already matched this IR to the current reading.
+fn exact_authored(
+    engine: &Engine,
+    case: &Case,
+    authored: &Value,
+    types: &[String],
+) -> Result<bool, String> {
+    let name = &case.name;
+    let text = case.text.as_str();
+    if let Some(full) = engine.derivation_of(name, authored, text)? {
+        let default = engine.productions_of(name, authored, types)?;
+        let trimmed = Engine::trim_key(&full, &default);
+        if engine
+            .print_keyed_narrow(name, authored, types, &trimmed)?
+            .as_deref()
+            == Some(text)
+            || engine.print_keyed(name, authored, types, &full)?.as_deref() == Some(text)
+            || (trimmed != full
+                && engine
+                    .print_keyed(name, authored, types, &trimmed)?
+                    .as_deref()
+                    == Some(text))
+        {
+            return Ok(true);
+        }
+    }
+    if let Some(trail) = engine.trail_of(name, authored, text)? {
+        return Ok(engine.print_trail(name, authored, &trail)?.as_deref() == Some(text));
+    }
+    Ok(false)
+}
+
 fn check(engine: &Engine, off: &RuleSet, case: &Case) -> Result<usize, String> {
     if case.reject
         && (case.expected.is_some() || case.expected_notes.is_some() || case.exact || case.default)
@@ -99,16 +132,31 @@ fn check(engine: &Engine, off: &RuleSet, case: &Case) -> Result<usize, String> {
             parsed.readings.len()
         ));
     }
-    if let Some(expected) = &case.expected {
-        validate_abilities(expected)?;
-        if !parsed.readings.contains(&canonical_abilities(expected)?) {
-            return Err("no reading equals the expected IR".into());
-        }
+    let expected = case
+        .expected
+        .as_ref()
+        .map(|authored| {
+            validate_abilities(authored)?;
+            Ok::<_, String>((authored, canonical_abilities(authored)?))
+        })
+        .transpose()?;
+    if let Some((_, canonical)) = &expected
+        && !parsed.readings.contains(canonical)
+    {
+        return Err("no reading equals the expected IR".into());
     }
     for reading in &parsed.readings {
         validate_abilities(reading)?;
         if case.exact && !exact(engine, case, reading)? {
-            return Err("a reading has no exact keyed print".into());
+            let reproduced = match &expected {
+                Some((authored, canonical)) if canonical == reading => {
+                    exact_authored(engine, case, authored, &case.types)?
+                }
+                _ => false,
+            };
+            if !reproduced {
+                return Err("a reading has no exact keyed print".into());
+            }
         }
         if case.default
             && engine
@@ -177,6 +225,14 @@ fn check_card(
                     .print_card_trail(&case.name, reading, context, &trail)?
                     .as_deref()
                     == Some(&case.text);
+            }
+            if !exact
+                && reading.notes.is_empty()
+                && expected.as_ref() == Some(&reading.abilities)
+                && let Some(authored) = &case.expected
+            {
+                let types = corpus::print_context(&json!({"characteristics": context}));
+                exact = exact_authored(engine, case, authored, &types)?;
             }
             if !exact {
                 return Err("a card reading has no exact keyed print".into());
