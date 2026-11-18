@@ -108,7 +108,7 @@ counter_group_reference ::= "they" | "those" "creatures" | "those" "permanents"
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:$number, preventable:true}}, Instruction::Effect{result:@next, operation:Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$changes, duration:$duration, evaluation:Snapshot}}] */
 clause_damage_and_change ::= object_ref "deals" number "damage" "to" recipients "and" changes duration
 
-affected ::= affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference
+affected ::= owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference
 
 counter_choice_reference ::= counter_choice_singular_reference | counter_choice_group_reference
 /* @sem ObjectSet::@counter_reference_single */
@@ -3723,3 +3723,40 @@ their_cast_graveyards ::= "their" "graveyards"
 their_cast_libraries ::= "their" "libraries"
 
 their_cast_zone ::= their_cast_hands | their_cast_graveyards | their_cast_libraries
+
+/* A turn-scoped permission can carry an independent persistent condition. */
+/* @sem Ability::Conditional{condition:AllOf([PlayerIsActive(AbilityController), $condition_after_or_if]), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$turn_exile_permissions})]} */
+turn_exile_permission_as_long_as ::= "during" "your" "turn" "," "as" "long" "as" condition_after_or_if "," turn_exile_permissions "."
+
+/* Ownership and the commander designation are independent of the holder's controller. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([State(Commander), $filter_plural, OwnedBy(One(AbilityController))])} */
+owned_commander_population ::= "commander" filter_plural "you" "own"
+
+/* Plural pump and a list of granted abilities share the same affected set. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[Pump{power:$signed, toughness:$signed_2}, ...$shared_comma_grants]} */
+shared_plural_pump_grants ::= affected "get" signed "/" signed "and" "have" shared_comma_grants
+
+shared_comma_grants ::= shared_comma_keyword_grants | shared_comma_ward_grant
+
+/* @sem Change::[$grant_keyword, ...$shared_comma_grants] */
+shared_comma_keyword_grants ::= grant_keyword "," shared_comma_grants
+
+/* @sem Change::[GrantKeyword(Ward($cost)), $shared_granted_turn_closed] */
+shared_comma_ward_grant ::= '"' "ward" "―" cost "," '"' "and" shared_granted_turn_closed
+
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$program})) */
+shared_granted_turn_closed ::= '"' "at" turn_event "," program "." '"'
+
+/* The other population excludes the attachment event's host, independently of
+   the population's remaining characteristics. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(EventOther)), $filter_phrase)}), changes:[CopyOf{object:EventOther, exceptions:[]}], duration:Indefinite, evaluation:Snapshot}}] */
+attachment_other_population_copy ::= "each" "other" filter_phrase "becomes" "a" "copy" "of" "that" "creature"
+
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventOther)), changes:[CopyOf{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and(ObjectFilter::Not(SameObject(EventOther)), $filter_phrase)}), index:0}, exceptions:[]}], duration:WhileMatches{object:Source, filter:AttachedTo(SameObject(EventOther))}, evaluation:Snapshot}}]}}] */
+attachment_optional_copy ::= "for" "as" "long" "as" self_equipment "remains" "attached" "to" "it" "," "you" "may" "have" "that" "creature" "become" "a" "copy" "of" "another" "target" filter_phrase
+
+/* @sem Ability::Triggered{event:$attachment_aura_enters_creature, limits:_{}, announcement:@announcement, body:Program{instructions:$attachment_other_population_copy}} */
+triggered_attachment_population_copy ::= attachment_aura_enters_creature "," attachment_other_population_copy "."
+
+/* @sem Ability::Triggered{event:$attachment_equipment_becomes_creature, limits:_{}, announcement:@announcement, body:Program{instructions:$attachment_optional_copy}} */
+triggered_attachment_optional_copy ::= attachment_equipment_becomes_creature "," attachment_optional_copy "."

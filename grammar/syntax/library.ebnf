@@ -1388,3 +1388,17 @@ library_topmost_filtered_card ::= "the" "topmost" library_filtered_card_set
 
 /* @sem ObjectSet::Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:$filter_phrase} */
 library_filtered_card_set ::= filter_phrase "card" "in" "your" "library"
+
+/* Search for a attached_search_subtype with a name distinct from an attached subtype, then attach the selection. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([$attached_search_subtype, Not(SharesNameWithAny(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$attached_search_subtype_2, AttachedToPlayer(EnchantedBy(Source))])}))]), count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[AttachedToPlayer(EnchantedBy(Source))]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}}] */
+instructions_may_search_attached_distinct ::= "you" "may" "search" "your" "library" "for" "a" attached_search_subtype "card" "that" "doesn't" "have" "the" "same" "name" "as" "a" attached_search_subtype "attached" "to" "enchanted" "player" "," "put" "it" "onto" "the" "battlefield" "attached" "to" "that" "player" "," "then" "shuffle"
+
+attached_search_subtype ::= st_curse | st_cartouche | st_role
+
+/* The count is scoped by its enclosing adjacent destruction instruction. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:$filter_phrase, count:UpTo(CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:$filter_plural}))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+search_destroyed_count_tapped ::= "search" "your" "library" "for" "up" "to" "X" filter_phrase "cards" "," "where" "X" "is" "the" "number" "of" filter_plural "destroyed" "this" "way" "," "put" "those" "cards" "onto" "the" "battlefield" "tapped" "," "then" "shuffle"
+
+/* Only a destruction may supply the receipt for the following search. */
+/* @sem Instruction::[...$clause_destroy_required_opponent_targets, ...$search_destroyed_count_tapped] */
+instructions_destroy_search_count ::= clause_destroy_required_opponent_targets "." search_destroyed_count_tapped

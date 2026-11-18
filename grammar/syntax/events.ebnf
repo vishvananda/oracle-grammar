@@ -2184,3 +2184,65 @@ transform_active_opponent ::= "an" "opponent" "of" "the" "active" "player"
 
 /* @sem PlayerSet::OpponentsOf(PlayerRef::Chosen) */
 transform_chosen_opponent ::= "an" "opponent" "of" "the" "chosen" "player"
+
+/* Typed history event phrases keep the actor and object filter explicit. */
+/* @sem EventSpec::Player{event:CreatesToken, players:One(AbilityController), objects:Any} */
+history_token_event ::= "you" "created"
+
+/* @sem EventSpec::Player{event:Draws, players:One(AbilityController)} */
+history_draw_event ::= "you" "drew"
+
+/* @sem EventSpec::Player{event:LosesLife, players:One(AbilityController)} */
+history_life_loss_event ::= "you" "lost"
+
+/* @sem EventSpec::Object{event:LeavesGraveyard, objects:InZone(Players{zone:Graveyard, players:One(AbilityController)})} */
+history_graveyard_departure ::= "left" "your" "graveyard"
+
+/* @sem EventSpec::Player{event:Sacrifices, players:One(AbilityController), objects:$filter_phrase} */
+history_sacrifice_event ::= "you've" "sacrificed" "a" filter_phrase
+
+/* Past actions carry their actor and any object filter independently. */
+past_you_event ::= past_you_lost_life | past_you_surveilled | past_you_visited_attraction | past_you_sacrificed_permanent | past_you_sacrificed_an
+
+/* @sem EventSpec::Player{event:LosesLife, players:One(AbilityController)} */
+past_you_lost_life ::= "lost" "life"
+
+/* @sem EventSpec::Player{event:Surveils, players:One(AbilityController)} */
+past_you_surveilled ::= "surveilled"
+
+/* @sem EventSpec::Player{event:VisitsAttraction, players:One(AbilityController), objects:Any} */
+past_you_visited_attraction ::= "visited" "an" "Attraction"
+
+/* @sem EventSpec::Player{event:Sacrifices, players:One(AbilityController), objects:Any} */
+past_you_sacrificed_permanent ::= "sacrificed" "a" "permanent"
+
+/* @sem EventSpec::Player{event:Sacrifices, players:One(AbilityController), objects:$filter_phrase} */
+past_you_sacrificed_an ::= "sacrificed" "an" filter_phrase
+
+/* @sem EventSpec::Player{event:RollsADie, players:One(AbilityController)} */
+past_you_roll_event ::= "rolled"
+
+/* The other event participant is the enlisted creature. */
+/* @sem EventSpec::Pair{event:Enlists, objects:$event_self, others:$filter_phrase} */
+event_enlists_filtered ::= event_self "enlists" "a" filter_phrase
+
+/* @sem Program::Program{instructions:$instructions_may_conjure_duplicate_change} */
+program_enlist_conjure_duplicate ::= instructions_may_conjure_duplicate_change
+
+/* @sem Ability::Triggered{event:$event_enlists_filtered, limits:TriggerLimits{}, announcement:@announcement, body:$program_enlist_conjure_duplicate} */
+triggered_enlist_conjure_duplicate ::= "whenever" event_enlists_filtered "," program_enlist_conjure_duplicate "."
+
+/* Attachment events retain the host as EventOther for the triggered body. */
+/* @sem EventSpec::Pair{event:EntersAttachedTo, objects:SameObject(Source), others:CardType(Creature)} */
+attachment_aura_enters_creature ::= "when" self_aura "enters" "attached" "to" "a" "creature"
+
+/* @sem EventSpec::Pair{event:BecomesAttachedTo, objects:SameObject(Source), others:CardType(Creature)} */
+attachment_equipment_becomes_creature ::= "whenever" self_equipment "becomes" "attached" "to" "a" "creature"
+
+/* The amount refers to the counters tested on the departing event subject.
+   Keep the condition and count together so no unrelated antecedent can print. */
+/* @sem Ability::Triggered{event:$counter_departure_clause, intervening_if:ObjectMatches{object:EventSubject, filter:Counters{comparison:Greater, value:Constant(0)}}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:CountCounters{recipients:Objects(One(EventSubject)), information:CurrentOrLastKnown}}]}}]}}]}} */
+triggered_departure_counter_transfer ::= counter_departure_clause "," "if" "it" "had" "one" "or" "more" "counters" "on" "it" "," "you" "may" "put" "that" "number" "of" counter_kind "counters" "on" affected "."
+
+/* @sem $event_put_graveyard */
+counter_departure_clause ::= "whenever" event_put_graveyard

@@ -3306,3 +3306,72 @@ next_hand_sorcery ::= "a" spell_sorcery
 
 /* @sem Operand::Term{family:SpellEffect, form:ResolvesIntoHandInsteadOfGraveyard} */
 resolving_spell_effect ::= "put" "that" "card" "into" "your" "hand" "instead" "of" "into" "your" "graveyard" "as" "it" "resolves"
+
+/* The arrival set is tied to this exact conjure, in its library destination. */
+/* @sem Instruction::[Effect{result:@next, operation:$conjure_named_library_top}, Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:InSet(Transition{result:@prior, phase:After})}), changes:[GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program}))]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+instructions_conjure_named_top_grant ::= conjure_named_library_top "." "they" "perpetually" "gain" '"' event_clause "," program "." '"' "then" "shuffle"
+
+/* @sem Operation::Conjure{actor:One(AbilityController), card:Named($referenced_card_name), count:$card_count, destination:Library{position:Top, arrival:CardArrival{counters:[], states:[]}}} */
+conjure_named_library_top ::= "conjure" card_count "named" referenced_card_name "on" "top" "of" "your" "library"
+
+/* @sem Instruction::[Effect{result:@next, operation:$conjure_whole_spellbook_library}, Effect{result:@next, operation:$conjure_whole_spellbook_library}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+instructions_conjure_spellbook_twice ::= conjure_whole_spellbook_library "twice" "," "then" "shuffle"
+
+/* @sem Operation::Conjure{actor:One(AbilityController), card:Spellbook{book:@card_name, pick:Each}, count:Constant(1), destination:Library{position:Random, arrival:CardArrival{counters:[], states:[]}}} */
+conjure_whole_spellbook_library ::= "conjure" self_named "'s" "spellbook" "into" "your" "library"
+
+/* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Duplicate(One(EventOther)), count:$counter_amount, owner:AbilityController, destination:Library{position:AmongTop($card_count), arrival:CardArrival{counters:[], states:[]}}}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$static_changes}}]}}] */
+instructions_may_conjure_duplicate_change ::= "you" "may" "conjure" counter_amount "duplicate" "of" "that" "creature" "into" "the" "top" card_count "of" "your" "library" "at" "random" "." "the" "duplicate" "perpetually" static_changes
+
+/* Entry modifications to a spell cast under a permission are shared operands. */
+/* @sem Operand::Term{family:SpellEffect, form:EntersWithACounter, operands:[Vocabulary{family:CounterType, form:FinalityCounter}]} */
+cast_entry_finality ::= "enters" "with" "a" "finality" "counter" "on" "it"
+
+/* @sem Operand::Term{family:SpellEffect, form:EntersWithLayerEffect, operands:[Term{family:LayerEffect, form:AddCreatureType, operands:[Vocabulary{family:CreatureType, form:Vampire}]}]} */
+cast_entry_vampire ::= "is" "a" "Vampire" "in" "addition" "to" "its" "other" "types"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$noun_creature}, terms:_{cost:Additional(Cost{parts:[Keyword{action:Forage}]}), effects:[$cast_entry_effects]}})], duration:$duration, evaluation:LiveObjects}}] */
+instructions_graveyard_forage_entry ::= duration "," "you" "may" "cast" noun_creature "spells" "from" "your" "graveyard" "by" "foraging" "in" "addition" "to" "paying" "their" "other" "costs" "." "if" "you" "cast" "a" "spell" "this" "way" "," "that" "creature" cast_entry_effects
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$filter_phrase}, terms:_{limit:Total(1), cost:Normal, effects:[$cast_entry_effects]}})], duration:$this_duration, evaluation:LiveObjects}}] */
+instructions_graveyard_single_entry ::= "you" "may" "cast" "a" filter_phrase "spell" "from" "your" "graveyard" this_duration "." "if" "you" "do" "," "it" cast_entry_effects
+
+/* @sem Operand::List([$cast_entry_finality]) */
+cast_entry_effects_single ::= cast_entry_finality
+
+/* @sem Operand::List([$cast_entry_finality, $cast_entry_vampire]) */
+cast_entry_effects_pair ::= cast_entry_finality "and" cast_entry_vampire
+
+cast_entry_effects ::= cast_entry_effects_single | cast_entry_effects_pair
+
+/* The cast event's antecedent and the grant recipient are bound together. */
+/* @sem Operand::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($affected_2), changes:[GainAbilitiesOf{objects:$affected, kinds:$copied_ability_kinds}], duration:$until_end_of_turn, evaluation:Snapshot}}]} */
+cast_grant_abilities_program ::= "when" "you" "cast" affected "this" "turn" "," affected "gains" "all" copied_ability_kinds "abilities" "of" "that" "card" until_end_of_turn
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:$noun}), index:0}), from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Normal, effects:[$cast_grant_abilities_program]}})], duration:EndOfTurn, evaluation:LiveObjects}}] */
+instructions_target_graveyard_cast_grant ::= "you" "may" "cast" "target" noun "card" "in" "a" "graveyard" "this" "turn" "." cast_grant_abilities_program
+
+/* Optional counter payment followed by a counter-dependent change to the same target. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PutCounters([_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun_creature}), index:0})), kind:$counter_payment_named, amount:Constant(1)}])]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@last_slot, index:0})), changes:[SetBasePowerToughness{power:$number_digits, toughness:$number_digits_2}, GrantKeyword($keyword_name)], duration:WhileMatches{object:Affected, filter:Counters(_{kind:$counter_payment_named_2, comparison:Greater, value:Constant(0)})}, evaluation:Snapshot}}]}, otherwise:_{}}] */
+instructions_counter_payment_base_keyword ::= "you" "may" "put" "a" counter_payment_named "counter" "on" "target" noun_creature "." "if" "you" "do" "," "that" "creature" "has" "base" "power" "and" "toughness" number_digits "/" number_digits "and" "has" keyword_name "for" "as" "long" "as" "it" "has" "a" counter_payment_named "counter" "on" "it"
+
+counter_payment_named ::= cn_feather | cn_charge | cn_time | cn_flying
+
+/* The X definition fixes the target count from current or last-known counters
+   on the named object; the final sentence modifies this destruction itself. */
+/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:$counter_count_targets, regeneration:false}}] */
+clause_destroy_counter_count_no_regeneration ::= "destroy" counter_count_targets "." "they" "can't" "be" "regenerated"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(CountCounters(_{recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, information:CurrentOrLastKnown})), filter:$filter_plural})) */
+counter_count_targets ::= "up" "to" "X" "target" filter_plural "," "where" "X" "is" "the" "number" "of" counter_kind "counters" "on" self_explicit_ref
+
+/* One target per opponent, with distinct controllers, announced together. */
+/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:$required_each_opponent_targets, regeneration:true}}] */
+clause_destroy_required_opponent_targets ::= "for" "each" "opponent" "," "destroy" required_each_opponent_targets
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(CountPlayers(OpponentsOf(AbilityController))), filter:@and($adjective_nontype, $filter_phrase, ObjectFilter::ControlledBy(OpponentsOf(AbilityController))), constraints:[DifferentControllers]})) */
+required_each_opponent_targets ::= "target" adjective_nontype filter_phrase "that" "player" "controls"
+
+/* The named payer may prevent the stated operation by paying life. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$target_opponent, cost:Cost{parts:[Life($number)]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:$operation}]}, otherwise:Program{}}] */
+clause_unless_named_life ::= operation "unless" target_opponent "pays" number "life"
