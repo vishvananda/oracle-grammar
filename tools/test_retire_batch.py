@@ -51,6 +51,61 @@ def optimized_fixture(root):
 
 
 class BatchTests(unittest.TestCase):
+    def test_focused_isolation_handles_multiple_retained_families(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root/'source'
+            (source/'grammar').mkdir(parents=True)
+            fixture_dir = source/'families'
+            fixture_dir.mkdir()
+            registry = root/'registry.json'
+            batch.r.write(registry, [])
+            paths = [f'families/{index}.json' for index in range(2)]
+            report_dir = root/'previous'
+            report_dir.mkdir()
+            failures = [[{'name':name, 'why':'unexpected reading'}] for name in ('A', 'B')]
+            checks = []
+            for index, name in enumerate(paths):
+                batch.r.write(source/name, {})
+                log = f'family-{index:03d}.log'
+                batch.r.write(report_dir/log, {'failures':failures[index]})
+                checks.append({'kind':'baseline', 'fixture':name, 'log':log})
+            witnesses = batch._retained_family_failure((0, 1), {'family_checks':checks}, source, report_dir)
+            self.assertEqual([row['fixture'] for row in witnesses['fixtures']], paths)
+            context = {
+                'source':source, 'folder':root, 'checkpoint':{}, 'manifest':{'fixtures':[]},
+                'baseline':[(name,batch.r.digest(source/name)) for name in paths],
+                'registry_path':registry,'registry_hash':batch.r.digest(registry),
+            }
+            entries = [(index,{'job_id':str(index)}) for index in range(4)]
+
+            def replay(context, entries, temporary, inputs):
+                grammar = temporary/'grammar'
+                grammar.mkdir()
+                batch.r.write(grammar/'indices.json', [index for index, _ in entries])
+                return grammar
+
+            def family(checkpoint, source, fixtures, log, *, grammar_dir, threads):
+                self.assertEqual(fixtures,[source/name for name in paths])
+                failed = tuple(index for index, culprit in enumerate((0,3))
+                               if culprit in batch.r.read(grammar_dir/'indices.json'))
+                for index in failed:
+                    batch.r.write(log.parent/f'family-{index:03d}.log', {'failures':failures[index]})
+                if failed:
+                    raise batch._FamilyCheckFailure(log,failed)
+
+            with (
+                patch.object(batch,'_replay_focused_grammar',side_effect=replay),
+                patch.object(batch,'_helper',side_effect=family),
+            ):
+                result = batch._isolate_retained_family(context,entries,witnesses,root/'probes')
+            self.assertEqual(result,0)
+            self.assertEqual([batch.r.read(path)['outcome']
+                              for path in sorted((root/'probes').glob('*/probe.json'))],
+                             ['passed','reproduced','reproduced','reproduced'])
+            checks[1]['kind'] = 'new-proposal'
+            self.assertIsNone(batch._retained_family_failure((0,1),{'family_checks':checks},source,report_dir))
+
     def test_edited_family_gold_is_independently_reconstructed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

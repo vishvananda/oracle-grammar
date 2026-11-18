@@ -35,6 +35,7 @@ DEFAULT_NATIVE_CONTROL_THREADS = 6
 DEFAULT_PARSE_SCREEN_THREADS = 6
 MAX_ROUTED_EXCLUSIONS = 8
 RETAINED_NATIVE_PROBE_LIMIT = 16
+RETAINED_FAMILY_PROBE_LIMIT = 4
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
                   'bin/score', 'bin/validate-readings')
 BASE_CONTROL_ARTIFACTS = {'before.jsonl', 'commands.jsonl', 'gold.jsonl', 'native-failures.jsonl',
@@ -743,22 +744,25 @@ def _merge_trial_proposal(trial, scratch, proposal, mechanical, input_cache):
     a.apply_hooks(trial/'grammar', hooks)
 
 
-def _retained_family_failure(failures, proof, source, logs):
+def _retained_family_failure(failed_indices, proof, source, logs):
     checks = proof.get('family_checks', [])
-    if len(failures) != 1 or not 0 <= failures[0] < len(checks):
+    if not 1 <= len(failed_indices) <= RETAINED_FAMILY_PROBE_LIMIT:
         return None
-    check = checks[failures[0]]
-    if check['kind'] not in ('baseline', 'prior-proposal'):
-        return None
-    fixture = check['fixture']
-    try:
-        failures = r.read(logs/check['log'])['failures']
-        digest = r.digest(source/fixture)
-    except (ValueError, OSError, KeyError, TypeError):
-        return None
-    if not isinstance(failures, list) or not failures:
-        return None
-    return {'fixture': fixture, 'sha256': digest, 'failures': failures}
+    witnesses = []
+    for index in failed_indices:
+        if not 0 <= index < len(checks) or checks[index]['kind'] not in ('baseline', 'prior-proposal'):
+            return None
+        check = checks[index]
+        fixture = check['fixture']
+        try:
+            failures = r.read(logs/check['log'])['failures']
+            digest = r.digest(source/fixture)
+        except (ValueError, OSError, KeyError, TypeError):
+            return None
+        if not isinstance(failures, list) or not failures:
+            return None
+        witnesses.append({'fixture': fixture, 'sha256': digest, 'failures': failures})
+    return witnesses[0] if len(witnesses) == 1 else {'fixtures': witnesses}
 
 
 def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
@@ -931,17 +935,22 @@ def _replay_focused_grammar(context, entries, trial, input_cache):
     return grammar
 
 
-def _probe_retained_family(context, entries, failure, logs, input_cache):
-    """Check one witnessed family on a private ordered subset."""
+def _probe_retained_family(context, entries, witnesses, logs, input_cache, *, partial=False):
+    """Check witnessed retained families on a private ordered subset."""
     logs.mkdir()
     source, folder = context['source'], context['folder']
     known = dict(context['baseline']) | {
         name: r.digest(source/name) for name in context['manifest']['fixtures']}
-    fixture = source/failure['fixture']
-    if known.get(failure['fixture']) != failure['sha256'] or r.digest(fixture) != failure['sha256']:
+    fixture_hashes = {source/item['fixture']: item['sha256'] for item in witnesses}
+    if (len(fixture_hashes) != len(witnesses)
+            or any(known.get(str(path.relative_to(source))) != digest or r.digest(path) != digest
+                   for path, digest in fixture_hashes.items())):
         raise _UncertainPromotion('retained family changed before focused replay')
-    proof = {'proposal_indices': [index for index, _ in entries], 'fixture': failure['fixture'],
-             'fixture_sha256': failure['sha256']}
+    proof = {'proposal_indices': [index for index, _ in entries]}
+    if len(witnesses) == 1:
+        proof.update(fixture=witnesses[0]['fixture'], fixture_sha256=witnesses[0]['sha256'])
+    else:
+        proof['fixtures'] = [{'fixture': item['fixture'], 'sha256': item['sha256']} for item in witnesses]
     prefix = r.tree(source/'grammar')
     try:
         with tempfile.TemporaryDirectory(dir=folder) as temporary:
@@ -949,20 +958,24 @@ def _probe_retained_family(context, entries, failure, logs, input_cache):
             tree = r.tree(grammar)
             proof['trial_grammar'] = tree
             try:
-                _helper(context['checkpoint'], source, fixture, logs/'family.log', grammar_dir=grammar, threads=2)
+                _helper(context['checkpoint'], source, list(fixture_hashes), logs/'family.log',
+                        grammar_dir=grammar, threads=2)
                 outcome = 'passed'
             except _FamilyCheckFailure as error:
-                observed = r.read(logs/'family-000.log')['failures'] if error.failed_fixtures == (0,) else None
-                outcome = 'reproduced' if observed == failure['failures'] else 'inconclusive'
+                observed = error.failed_fixtures
+                matched = (bool(observed) and (partial or len(observed) == len(witnesses))
+                           and all(0 <= i < len(witnesses)
+                                   and r.read(logs/f'family-{i:03d}.log')['failures'] == witnesses[i]['failures']
+                                   for i in observed))
+                outcome = 'reproduced' if matched else 'inconclusive'
             if not input_cache.unchanged() or r.tree(grammar) != tree:
                 raise _UncertainPromotion('retained family inputs changed during focused replay')
     except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
         outcome = 'inconclusive'
         proof['reason'] = str(error)
     try:
-        current = (r.tree(source/'grammar'), r.digest(fixture),
-                   r.digest(context['registry_path']))
-        if current != (prefix, failure['sha256'], context['registry_hash']):
+        if (r.tree(source/'grammar') != prefix or r.digest(context['registry_path']) != context['registry_hash']
+                or any(r.digest(path) != digest for path, digest in fixture_hashes.items())):
             raise _UncertainPromotion('retained family prefix changed during focused replay')
     except OSError as error:
         raise _UncertainPromotion('retained family prefix unavailable after focused replay') from error
@@ -997,11 +1010,15 @@ def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False):
 
 
 def _isolate_retained_family(context, entries, failure, folder):
+    witnesses = failure.get('fixtures', [failure])
+    multiple = len(witnesses) > 1
+
     def test(group, logs, input_cache):
-        return _probe_retained_family(context, group, failure, logs, input_cache)
+        return _probe_retained_family(context, group, witnesses, logs, input_cache,
+                                      partial=multiple and len(group) < len(entries))
 
     inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
-    return _isolate_retained(entries, test, folder, inputs)
+    return _isolate_retained(entries, test, folder, inputs, verify_full=multiple)
 
 
 def _retained_native_failure(control, report):
