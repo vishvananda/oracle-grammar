@@ -144,6 +144,10 @@ The report identifies this scope as `author-target-preview`. The regular
 author command and the independent coordinator evaluation still check the
 complete assigned cohort.
 
+If a native diagnostic outlives its model process, the coordinator waits for
+that task's diagnostic lease before reserving CPU for independent evaluation.
+The retained diagnostic can finish before the worktree is archived.
+
 Configured usage collection records attempt-scoped token counts and estimates
 Standard API-equivalent cost using a pinned estimator and explicit pricing.
 Unavailable or partial usage is reported as such, not as zero cost; estimates

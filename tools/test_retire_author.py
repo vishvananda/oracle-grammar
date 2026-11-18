@@ -1,6 +1,8 @@
 """Authoring trials constrain operands, source identities and model isolation."""
 import copy
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stdout
+import fcntl
 import io
 import unittest
 from unittest.mock import patch
@@ -15,6 +17,34 @@ import retire as r
 
 
 class AuthoringTests(unittest.TestCase):
+    def test_coordinator_waits_for_the_existing_diagnostic_before_reserving_cpu(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            lock = root/'.cache/author-check.lock'
+            lock.parent.mkdir()
+            verified = threading.Event()
+            prepared = ({'cpu_pool': str(root/'cpu')}, root, {'commit': 'base'})
+
+            def verify(run, task):
+                verified.set()
+                return prepared
+
+            with lock.open('w') as active, ThreadPoolExecutor(max_workers=1) as executor, \
+                 patch.object(a, 'verify', side_effect=verify), \
+                 patch.object(a, '_check_with_cpu', return_value={'passed': True}) as check:
+                fcntl.flock(active, fcntl.LOCK_EX)
+                later = executor.submit(a.check, root, 'task', coordinator=True)
+                try:
+                    self.assertTrue(verified.wait(2))
+                    with self.assertRaisesRegex(ValueError, 'diagnostic helper is still running'):
+                        a.check(root, 'task')
+                    check.assert_not_called()
+                    self.assertFalse(later.done())
+                finally:
+                    fcntl.flock(active, fcntl.LOCK_UN)
+                self.assertEqual(later.result(timeout=2), {'passed': True})
+                check.assert_called_once_with(root, 'task', True, False, prepared)
+
     def test_preview_keeps_duplicate_targets_and_companion_faces(self):
         records = [{'faces': [{'name': 'Target'}, {'name': 'Companion'}]},
                    {'faces': [{'name': 'Target'}]}, {'faces': [{'name': 'Near match'}]}]

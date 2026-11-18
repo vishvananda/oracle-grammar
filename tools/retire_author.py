@@ -2,6 +2,7 @@
 """Bounded diagnostics for isolated syntax-authoring trials; never accept source."""
 import argparse
 import copy
+from contextlib import nullcontext
 import json
 import os
 import re
@@ -357,12 +358,13 @@ def _preview_checks(run, directory, grammar, task, root):
     return result
 
 
-def _check(run, task_id, coordinator=False, *, preview=False):
+def _check(run, task_id, coordinator=False, *, preview=False, prepared=None):
     r.require(not (coordinator and preview), 'coordinator diagnostics require the full assigned cohort')
-    task, root, manifest = verify(run, task_id)
+    task, root, manifest = prepared if prepared is not None else verify(run, task_id)
     parent = (run/'evaluations'/task_id if coordinator else root/'.cache/author-checks')
     parent.mkdir(parents=True, exist_ok=True)
-    with r.locked(root/'.cache/author-check.lock', blocking=False) as acquired:
+    lock = nullcontext(True) if prepared is not None else r.locked(root/'.cache/author-check.lock', blocking=False)
+    with lock as acquired:
         r.require(acquired, 'a diagnostic helper is still running; retain and wait on its handle')
         attempts = list(parent.glob('attempt-*'))
         limit = task.get('max_diagnostic_attempts', 8)
@@ -440,9 +442,19 @@ def _check(run, task_id, coordinator=False, *, preview=False):
 
 
 def check(run, task_id, coordinator=False, *, preview=False):
-    task = r.read(run/'tasks'/f'{task_id}.json')
+    r.require(not (coordinator and preview), 'coordinator diagnostics require the full assigned cohort')
+    prepared = verify(run, task_id)
+    task, root, _ = prepared
+    # A native child can retain the task lease after its model process exits.
+    with r.locked(root/'.cache/author-check.lock', blocking=coordinator) as acquired:
+        r.require(acquired, 'a diagnostic helper is still running; retain and wait on its handle')
+        return _check_with_cpu(run, task_id, coordinator, preview, prepared)
+
+
+def _check_with_cpu(run, task_id, coordinator, preview, prepared):
+    task = prepared[0]
     if not task.get('cpu_pool'):
-        return _check(run, task_id, coordinator, preview=preview)
+        return _check(run, task_id, coordinator, preview=preview, prepared=prepared)
     import retire_cpu
     with retire_cpu.reserve(Path(task['cpu_pool']), task.get('helper_threads', 2),
                             capacity=task.get('cpu_capacity', 32)) as fds:
@@ -452,7 +464,7 @@ def check(run, task_id, coordinator=False, *, preview=False):
         if inherited:
             r._LEASES.append(int(inherited))
         try:
-            return _check(run, task_id, coordinator, preview=preview)
+            return _check(run, task_id, coordinator, preview=preview, prepared=prepared)
         finally:
             r._CPU_LEASES = ()
             if inherited:
