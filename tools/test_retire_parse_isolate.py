@@ -21,6 +21,16 @@ class SurvivorTests(unittest.TestCase):
 
         self.assertEqual(isolate._survivors([0, 1, 2, 3], trial, [0], suspect=1), [0, 1, 3])
 
+    def test_multiple_suspects_exclude_only_reproduced_failures(self):
+        trials = []
+
+        def trial(indices):
+            trials.append(indices)
+            return {'failures': ['regression'] if {2, 4}.intersection(indices) else []}
+
+        self.assertEqual(isolate._survivors([0, 1, 2, 3, 4], trial, [0], suspects=[1, 2, 4]), [0, 1, 3])
+        self.assertEqual(trials, [[0, 1], [0, 2], [0, 4], [0, 1, 3]])
+
     def test_second_failure_crosses_halves_after_first_culprit_is_removed(self):
         checked = []
 

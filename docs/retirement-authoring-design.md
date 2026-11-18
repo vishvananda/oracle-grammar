@@ -300,6 +300,12 @@ independently replays all included proposals and the selected remainder in order
 When an archived patch identifies a specific suspect, pass its job ID with
 `retire_parse_isolate.py --suspect`. The tool first tries the union without that
 proposal and uses ordinary bisection if the focused checks still fail.
+Repeat `--suspect` to test multiple proposals individually against the protected
+mechanical prefix and retry the guarded union without the witnessed contributors.
+Pass `--full-check` to isolate a completed full audit. This mode uses the accepted
+print flags frozen in that audit, checks the exact failed faces and their
+companions, and emits evidence for full-check readmission. Applying the recovery
+independently replays the original union and the proposed survivors.
 When checkpoint input rows precede the accepted parse baseline, both immutable
 baselines must match in every field except the parse report's top-level `key`
 array. This bounded string-array derivation metadata is recorded explicitly
