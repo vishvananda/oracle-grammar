@@ -894,7 +894,14 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
             if control is not None:
                 for item in items:
                     item['native_control'] = str(logs/'native-control')
-                _control_check(checkpoint, control, trial/'grammar', logs/'native-control')
+                try:
+                    _control_check(checkpoint, control, trial/'grammar', logs/'native-control')
+                except _NativeControlFailure:
+                    if not input_cache.unchanged() or r.tree(trial/'grammar') != proof['trial_grammar']:
+                        raise _UncertainPromotion('failed native trial inputs changed during verification')
+                    proof['verified_native_snapshot'] = {
+                        key: control[key] for key in ('profile_sha256', 'manifest_sha256', 'threads')}
+                    raise
             if context['library_control'] is not None:
                 for item in items:
                     item['library_control'] = str(logs/'library-control')
@@ -1040,7 +1047,7 @@ def _locate_retained_culprit(entries, probe):
     return entries[0][0]
 
 
-def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, limit=1):
+def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, limit=1, stop_after=None):
     """Find independent regressions before the fully gated retry."""
     folder.mkdir()
     results = {}
@@ -1060,7 +1067,7 @@ def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, 
         if culprit is None:
             break
         culprits.append(culprit)
-        if len(culprits) >= limit:
+        if len(culprits) >= limit or (stop_after is not None and stop_after(culprit)):
             break
         entries = [entry for entry in entries if entry[0] != culprit]
         if not entries or probe(entries) != 'reproduced':
@@ -1153,6 +1160,7 @@ def _probe_retained_native(context, entries, control, failures, logs, input_cach
             except _NativeControlFailure as error:
                 matched = _reproduces_native_failure(error.report, control['occurrences'], failures, partial=partial)
                 outcome = 'reproduced' if matched else 'inconclusive'
+                proof['reproduced_full_failure'] = matched and error.report['failures'] == failures
             if not input_cache.unchanged() or r.tree(grammar) != tree:
                 raise _UncertainPromotion('native control inputs changed during focused replay')
             proof['result_sha256'] = r.digest(logs/'native-control/result.json')
@@ -1166,26 +1174,43 @@ def _probe_retained_native(context, entries, control, failures, logs, input_cach
     return outcome
 
 
-def _isolate_retained_native(context, entries, failure, folder):
+def _matches_verified_native_trial(context, entries, failure, trial):
+    control = context['control']
+    return (trial is not None and trial.get('verified_native_snapshot') ==
+            {key: control[key] for key in ('profile_sha256', 'manifest_sha256', 'threads')}
+            and trial.get('status') == 'failed' and trial.get('retained_native_failure') == failure
+            and trial.get('proposal_indices') == [index for index, _ in entries]
+            and trial.get('jobs') == [item['job_id'] for _, item in entries]
+            and trial.get('attempts') == [item['attempt_id'] for _, item in entries]
+            and trial.get('prefix_grammar') == r.tree(context['source']/'grammar'))
+
+
+def _isolate_retained_native(context, entries, failure, folder, *, limit, initial_trial=None):
     control = context['control']
     _control_verify(control)
     names = failure['faces'] if 'faces' in failure else [failure['face']]
+    multiple = len(names) > 1
     try:
         closure = tasks.close_cohort(control['run'], {'names': names}, max_occurrences=RETAINED_NATIVE_PROBE_LIMIT)
     except tasks.CohortClosureLimit:
-        return None
+        return []
     if not set(closure['names']) <= set(control['names']):
-        return None
+        return []
     focused = {**control, 'names': closure['names'], 'occurrences': closure['closure_occurrence_count'],
                'threads': min(2, control['threads'])}
+    full_witnesses = set()
 
     def test(group, logs, input_cache):
-        return _probe_retained_native(context, group, focused, failure['failures'], logs, input_cache,
-                                      partial=len(names) > 1 and len(group) < len(entries))
+        outcome = _probe_retained_native(context, group, focused, failure['failures'], logs, input_cache,
+                                         partial=multiple and len(group) < len(entries))
+        if outcome == 'reproduced' and len(group) == 1 and r.read(logs/'probe.json').get('reproduced_full_failure'):
+            full_witnesses.add(group[0][0])
+        return outcome
 
     inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
-    culprits = _isolate_retained(entries, test, folder, inputs, verify_full=True)
-    return culprits[0] if culprits else None
+    verify_full = not multiple or not _matches_verified_native_trial(context, entries, failure, initial_trial)
+    return _isolate_retained(entries, test, folder, inputs, verify_full=verify_full,
+                             limit=limit if multiple else 1, stop_after=full_witnesses.__contains__)
 
 
 def _retry_retained_control(context, entries, proof, whole_proof, size, withheld=()):
@@ -1205,8 +1230,8 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
         culprits = _isolate_retained_family(context, selection, family, folder, limit=size-len(withheld),
                                             initial_trial=proof)
     else:
-        culprit = _isolate_retained_native(context, selection, native, folder)
-        culprits = [culprit] if culprit is not None else []
+        culprits = _isolate_retained_native(context, selection, native, folder, limit=size-len(withheld),
+                                            initial_trial=proof)
     if not culprits or not set(culprits) <= {index for index, _ in selection}:
         return False
     return _retry_without(context, entries, whole_proof, sorted([*withheld, *culprits]), size,

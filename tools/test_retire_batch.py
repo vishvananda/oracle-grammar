@@ -597,6 +597,52 @@ class BatchTests(unittest.TestCase):
                          {'faces': names[1:], 'failures': failures[:16]})
         self.assertIsNone(batch._retained_native_failure(control, {**report, 'failures': failures}))
 
+    def test_native_isolation_finds_both_independent_culprits_from_verified_trial(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary)
+            grammar = source/'grammar'
+            grammar.mkdir()
+            (grammar/'root.ebnf').write_text('root ::= "verified"\n')
+            control = {'run': source, 'profile_sha256': 'profile', 'manifest_sha256': 'frozen',
+                       'threads': 12, 'names': ['A', 'B']}
+            context = {'source': source, 'control': control}
+            entries = [(i, {'job_id': f'j{i}', 'attempt_id': f'a{i}'}) for i in range(6)]
+            failure = {'faces': ['A', 'B'], 'failures': [{'face': face, 'lost': ['exact_default']}
+                                                        for face in control['names']]}
+            trial = {'status': 'failed', 'retained_native_failure': failure,
+                     'verified_native_snapshot': {key: control[key] for key in
+                                                  ('profile_sha256', 'manifest_sha256', 'threads')},
+                     'proposal_indices': list(range(6)), 'jobs': [f'j{i}' for i in range(6)],
+                     'attempts': [f'a{i}' for i in range(6)], 'prefix_grammar': batch.r.tree(grammar)}
+            for verified, contributors in ((True, {1, 4}), (False, {1, 4}), (True, {1})):
+                seen = []
+                evidence = trial if verified else {**trial, 'attempts': ['stale']}
+
+                def probe(_context, group, focused, _failures, logs, _inputs, *, partial):
+                    selected = {i for i, _ in group}
+                    seen.append(selected)
+                    self.assertEqual(focused['threads'], 2)
+                    self.assertEqual(partial, len(group) < len(entries))
+                    logs.mkdir()
+                    batch.r.write(logs/'probe.json', {'reproduced_full_failure': contributors <= selected})
+                    return 'reproduced' if selected & contributors else 'passed'
+
+                with (
+                    patch.object(batch, '_control_verify'),
+                    patch.object(batch.tasks, 'close_cohort',
+                                 return_value={'names': ['A', 'B'], 'closure_occurrence_count': 2}),
+                    patch.object(batch, '_probe_retained_native', side_effect=probe),
+                ):
+                    output = source/f'{verified}-{len(contributors)}'
+                    found = batch._isolate_retained_native(context, entries, failure, output,
+                                                           limit=2, initial_trial=evidence)
+                self.assertEqual(found, sorted(contributors))
+                self.assertEqual(seen[0], set())
+                self.assertIn({1}, seen)
+                self.assertEqual({4} in seen, len(contributors) == 2)
+                self.assertEqual({0, 2, 3, 4, 5} in seen, len(contributors) == 2)
+                self.assertEqual(set(range(6)) in seen, not verified)
+
     def test_native_focus_reproduces_mixed_failures_without_accepting_unknown_deltas(self):
         control = {'occurrences': 3, 'names': ['A', 'B', 'C']}
         native = 'native readings changed or failed validation'
@@ -1436,7 +1482,7 @@ class BatchTests(unittest.TestCase):
 
             with patch.object(batch, '_stage_trial', side_effect=trial), \
                  patch.object(batch, '_isolate_retained_family', side_effect=family), \
-                 patch.object(batch, '_isolate_retained_native', return_value=4) as native:
+                 patch.object(batch, '_isolate_retained_native', return_value=[4]) as native:
                 self.assertTrue(batch._retry_retained_control(context, entries,
                     {'retained_family_failure': {'culprit': 1}}, {'path': 'whole'}, 5, [0, 3]))
             self.assertEqual(probes, ['retained-family-000', 'retained-family-000-003'])
