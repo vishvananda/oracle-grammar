@@ -284,7 +284,7 @@ tt_enchantment_creature ::= "enchantment" "creature"
 /* @sem CardType::[Land, Creature] */
 tt_land_creature ::= "land" "creature"
 
-token_named_recipe ::= tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure
+token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure
 
 /* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Blood], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Discard{count:Expr::Constant(1), filter:Any}, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
 tn_blood ::= "Blood"
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver
+created_token_name ::= card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -600,3 +600,39 @@ triggered_named_attacking_token_cleanup ::= event_clause "," create_named_attack
 
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_counted_copy_attacking_sentence}, $token_cleanup_plural]}} */
 triggered_counted_copy_attacking_cleanup ::= event_clause "," create_counted_copy_attacking_sentence "." token_cleanup_plural "."
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Enchantment], subtypes:[Shard], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(2)]), Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Scry{players:One(AbilityController), amount:Constant(1)}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Constant(1)}}]}})]} */
+tn_shard ::= "Shard"
+
+/* The singular token and all three options share this creation receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, ChooseOne{decider:AbilityController, options:[Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@marked)), kind:$counter_kind, amount:$counter_amount}]}}]}, Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@marked)), kind:$counter_kind_2, amount:$counter_amount_2}]}}]}, Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@marked)), kind:$counter_kind_3, amount:$counter_amount_3}]}}]}]}] */
+clause_created_counter_choice ::= "create" "a" token_recipe "." "put" "your" "choice" "of" counter_amount counter_kind "counter" "," counter_amount counter_kind "counter" "," "or" counter_amount counter_kind "counter" "on" "it"
+
+/* The mill operation is part of the same contract as its transition receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:Mill{players:One(AbilityController), amount:$card_count}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@last_result, phase:After}, filter:$adjective_color}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@marked)), kind:$counter_kind, amount:$counter_amount}]}}]}, otherwise:Program{}}] */
+clause_created_mill_counter ::= "create" "a" token_recipe "," "then" "mill" card_count "." "put" counter_amount counter_kind "counter" "on" "the" "token" "if" "a" adjective_color "card" "was" "milled" "this" "way"
+
+/* The announced targets are copied individually; the result binds the created batch. */
+/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$copy_chosen_creatures, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+clause_copy_chosen_creatures ::= "choose" copy_chosen_creatures "." "for" "each" "of" "those" "creatures" "," "create" "a" "token" "that's" "a" "copy" "of" "that" "creature"
+
+/* @sem Instruction::[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:CopyEach{objects:$copy_chosen_creatures, exceptions:[CopyException::AddAbilities([Keyword($keyword_value)])]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+clause_copy_chosen_creatures_with_keyword ::= "choose" copy_chosen_creatures "." "for" "each" "of" "them" "," "create" token_copy_single "that" "creature" "," "except" "it" "has" keyword_value
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:$plural_target_count_any, filter:@and(ObjectFilter::CardType(Creature), $copy_chosen_controller)})) */
+copy_chosen_creatures ::= plural_target_count_any "target" "creatures" copy_chosen_controller
+
+/* @sem ObjectFilter::ControlledBy(One(AbilityController)) */
+copy_chosen_controller_own ::= "you" "control"
+
+/* @sem ObjectFilter::ControlledBy(OthersThan(AbilityController)) */
+copy_chosen_controller_other ::= "you" "don't" "control"
+
+copy_chosen_controller ::= copy_chosen_controller_own | copy_chosen_controller_other
+
+/* The cleanup refers to the batch created by the preceding copy instruction. */
+/* @sem Instruction::[...$clause_copy_chosen_creatures_with_keyword, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:Move{objects:$created_batch_reference, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+instructions_copy_chosen_keyword_cleanup ::= clause_copy_chosen_creatures_with_keyword "." "exile" created_batch_reference "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem String::'Feather' */
+created_name_feather ::= "Feather"

@@ -77,7 +77,7 @@ clause_third_quoted ::= players_singular verbs_third_quoted
 /* @sem Instruction::[Instruction::Optional{decider:AbilityController, body:Program{instructions:$clause_imperative_quoted}}] */
 clause_may_quoted ::= "you" "may" clause_imperative_quoted
 
-verbs_base_quoted ::= verb_base_quoted_list | verbs_base_before_quoted
+verbs_base_quoted ::= verb_base_quoted_list | verb_base_attacking_quoted_list | verbs_base_before_quoted
 
 /* @sem Instruction::[$verb_base_quoted] */
 verb_base_quoted_list ::= verb_base_quoted
@@ -132,8 +132,8 @@ token_defined_quoted ::= token_amount token_recipe_quoted
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_exceptions_closed}} */
 token_copy_quoted ::= token_copy_quantity object_ref "," "except" copy_exceptions_closed
 
-/* @sem TokenRecipe::@token_abilities($token_recipe_base, $token_description_quoted) */
-token_recipe_quoted ::= token_recipe_base token_description_quoted
+/* @sem TokenRecipe::@token_abilities($token_recipe_quote_base, $token_description_quoted) */
+token_recipe_quoted ::= token_recipe_quote_base token_description_quoted
 
 token_description_quoted ::= token_description_with_quoted | token_description_after_quoted
     | token_description_with_then_quoted | token_description_after_then_quoted
@@ -173,7 +173,7 @@ token_abilities_quoted_more ::= token_ability "," token_abilities_quoted_tail
 /* @sem Ability::@holder($token_ability_sentence) */
 token_quoted_sentence ::= '"' token_ability_sentence '"'
 
-token_ability_sentence ::= static_assign_as_unblocked | departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if | static_ability | static_conditional | static_conditional_first | static_conditional_first_closed | static_during_turn | static_player_prohibition | static_player_prohibition_if | replacement_ability | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence | emblem_cast_spell_grant | emblem_cast_spell_cost | triggered_life_amount_pump | quoted_cumulative_mana | quoted_cumulative_words | quoted_bands_with_others | static_untap_each_other_untap | activated_untap_symbol
+token_ability_sentence ::= static_assign_as_unblocked | departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if | static_ability | static_conditional | static_conditional_first | static_conditional_first_closed | static_during_turn | static_player_prohibition | static_player_prohibition_if | replacement_ability | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence | emblem_cast_spell_grant | emblem_cast_spell_cost | triggered_life_amount_pump | quoted_cumulative_mana | quoted_cumulative_words | quoted_bands_with_others | static_untap_each_other_untap | activated_untap_symbol | static_ordinary_ability | source_cast_trigger
 
 /* A final quoted sentence closes a duration-led grant too. The existing
    token_quoted_sentence enforces its inner period and resets the holder. */
@@ -191,7 +191,7 @@ closed_grant_keyword_prefix ::= grant_keyword "and" closed_grants
 /* The ability's own closing period also ends this perpetual grant. Scalar
    references retain the current moved/selected object; closed_grants resets
    the holder. Private graveyard cards use the pinned AnyZone/AddAbility form. */
-clause_perpetual_grant_quoted ::= perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant
+clause_perpetual_grant_quoted ::= perpetual_random_event_hand_grant | perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$perpetual_quote_scalar, changes:$closed_grants}}] */
 perpetual_quote_scalar_grant ::= perpetual_quote_scalar "perpetually" ("gains" | "gain") closed_grants
 /* @sem ObjectSet::One($perpetual_quote_reference) */
@@ -271,3 +271,27 @@ quoted_cumulative_words ::= "cumulative" "upkeep" keyword_word_parts
 
 /* @sem Ability::Mechanic{mechanic:BandsWithOthers, filter:$filter_plural} */
 quoted_bands_with_others ::= "↓" "bands" "with" "other" filter_plural "."
+
+/* The random selection and its perpetual grant share the actual selection receipt.
+   The quoted ability creates a fresh holder and scope. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(EventSubject)}, kind:Card, filter:$adjective_nontype}, count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$closed_grants}}] */
+perpetual_random_event_hand_grant ::= "a" "random" adjective_nontype "card" "in" "that" "player's" "hand" "perpetually" "gains" closed_grants
+
+/* @sem Instruction::[$verb_base_attacking_quoted] */
+verb_base_attacking_quoted_list ::= verb_base_attacking_quoted
+
+/* @sem Instruction::Effect{result:@next, operation:$create_prefix_attacking_quoted} */
+verb_base_attacking_quoted ::= create_prefix_attacking_quoted
+
+token_recipe_quote_base ::= token_recipe_base | token_named_artifact_base
+
+/* The entry modifier belongs to the creation, not to the token recipe. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[$token_prefix_attacking_quoted], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_prefix_attacking_quoted ::= "create" token_prefix_attacking_quoted
+
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe_quoted} */
+token_prefix_attacking_quoted ::= token_amount "tapped" "and" "attacking" token_recipe_quoted
+
+/* An explicit token name remains separate from its colors and types. */
+/* @sem TokenRecipe::Defined{name:Explicit($created_token_name), colors:$token_colors, card_types:[Artifact]} */
+token_named_artifact_base ::= token_colors "artifact" "token" "named" created_token_name

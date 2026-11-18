@@ -96,8 +96,8 @@ activated_exile_self_after ::= cost_parts "," "↑" "exile" self_text "from" you
 /* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
 activated_discard_self ::= "discard" self_text ":" program "."
 
-/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program})} */
-activated_discard_self_after ::= cost_parts "," "↑" "discard" self_text ":" program "."
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:ActivationLimits{}, announcement:@announcement, body:$program_sentence})} */
+activated_discard_self_after ::= cost_parts "," "↑" "discard" self_text ":" program_sentence
 
 /* @sem CostPart::RemoveCounters{removals:[CounterRemoval{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, amount:Count(Exactly($counter_amount))}]} */
 cost_remove_counters ::= "remove" counter_amount counter_kind ("counter" | "counters") "from" self_explicit_ref
@@ -347,7 +347,7 @@ activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card
 activated_self_graveyard_return ::= cost ":" self_graveyard_return "."
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
 activated_self_graveyard_return_limited ::= cost ":" self_graveyard_return "." activation_limits "."
-self_graveyard_return ::= self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter
+self_graveyard_return ::= self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter
 /* @sem Operation::Move{objects:One($self_ref), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 self_return_hand ::= "return" self_ref "from" "your" "graveyard" "to" "your" "hand"
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
@@ -751,3 +751,7 @@ cost_object_action_gain_control ::= "gain" "control" "of"
 cost_object_action_suspect ::= "suspect"
 
 cost_object_action_verb ::= cost_object_action_gain_control | cost_object_action_suspect
+
+/* The returned holder enters attacking with the specified counter. */
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[[$counter_kind, $entry_counter_amount]], states:[Attacking{}]}}, qualifiers:[]} */
+self_return_battlefield_tapped_attacking_counter ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "and" "attacking" "with" entry_counter_amount counter_kind "counter" "on" "it"

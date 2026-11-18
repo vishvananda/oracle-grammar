@@ -353,7 +353,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined
+dig_block ::= dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -1402,3 +1402,56 @@ search_destroyed_count_tapped ::= "search" "your" "library" "for" "up" "to" "X" 
 /* Only a destruction may supply the receipt for the following search. */
 /* @sem Instruction::[...$clause_destroy_required_opponent_targets, ...$search_destroyed_count_tapped] */
 instructions_destroy_search_count ::= clause_destroy_required_opponent_targets "." search_destroyed_count_tapped
+
+/* Search and move the chosen card, comparing its mana value to the event subject. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:Less, value:ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown}}}]), count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+next_cast_search_instructions ::= "search" "your" "library" "for" "a" filter_phrase "card" "with" "lesser" "mana" "value" "," "put" "it" "onto" "the" "battlefield" "," "then" "shuffle"
+
+/* The observation, selected move and remainder form one receipt scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$observed_exile_one_other_hand] */
+dig_look_exile_other ::= look_top "." observed_exile_one_other_hand
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+observed_exile_one_other_hand ::= "exile" "one" "of" "them" "and" "put" "the" "other" "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$opponent_choose_observed_other_silver] */
+dig_reveal_opponent_other ::= reveal_top "." opponent_choose_observed_other_silver
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:OneOf(OpponentsOf(AbilityController)), objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[[Named(SilverCounter), Constant(1)]], states:[]}}, qualifiers:[]}}] */
+opponent_choose_observed_other_silver ::= "an" "opponent" "chooses" "one" "of" "them" "." "put" "that" "card" "into" "your" "hand" "and" "exile" "the" "other" "with" "a" "silver" "counter" "on" "it"
+
+/* A single hidden top card supplies the same receipt to both permissions. */
+/* @sem Operation::Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+hidden_top_card ::= "exile" "the" "top" "card" "of" "your" "library" "face" "down"
+
+/* @sem Instruction::[Effect{result:@mark, operation:$hidden_top_card}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:One(Result{result:@marked, phase:After, index:0}), audience:AffectedPlayer})], duration:WhileExiled(Result{result:@marked, phase:After, index:0}), evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Free}})], duration:WhileOnBattlefield($self_explicit_ref), evaluation:LiveObjects}}] */
+clause_hidden_top_access ::= hidden_top_card "." "you" "may" "look" "at" "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "." "you" "may" exiled_play_action "that" "card" "without" "paying" "its" "mana" "cost" "for" "as" "long" "as" self_explicit_ref "remains" "on" "the" "battlefield"
+
+/* Each offer consumes the enclosing reveal receipt; the later moves partition it. */
+/* @sem Instruction::[ForEachObject{objects:InZone{objects:Observed(@marked), zone:Library}, binding:0, body:_{instructions:[Effect{result:@next, operation:PayCost{player:FirstWilling(OpponentsOf(AbilityController)), cost:_{parts:[Life($value)]}, optional:true}}]}}, Effect{result:@next, operation:Move{objects:Unpaid(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+revealed_opponent_offers ::= "for" "each" "of" "those" "cards" "," "put" "that" "card" "into" "your" "hand" "unless" "any" "opponent" "pays" value "life" "." "then" "exile" "the" "rest"
+
+/* The producer is explicitly a reveal from the controller's library. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$revealed_opponent_offers] */
+instructions_reveal_opponent_offers ::= reveal_top "." revealed_opponent_offers
+
+/* The same player's top card is observed and remains the object of the free play. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:$revealed_it_free, cards:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]}, otherwise:Program{}}] */
+instructions_player_top_conditional_free ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," "you" "may" revealed_it_free
+
+/* Reveal and hand movement share one receipt; the callback reads its revealed values. */
+/* @sem Instruction::[Effect{result:@next, operation:WithReflexive{action:Reveal{objects:$your_top}, when:Revealed($card_filter), body:Ability(@scope(Ability::Spell{body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:Earlier{what:Revealed, measure:Total(ManaValue)}, preventable:true}}]}, announcement:@announcement}))}}, Effect{result:@next, operation:Move{objects:AnyZone(InSet(Recorded(@back(3)))), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+instructions_reveal_hand_reflexive_total ::= "reveal" your_top "and" "put" "them" "into" "your" "hand" "." "when" "you" "reveal" "one" "or" "more" card_filter "cards" "this" "way" "," "this" "scheme" "deals" "damage" "equal" "to" "their" "total" "mana" "value" "to" "any" "target"
+
+/* Draw payment and a subsequent, independently authored continuation share
+   the actual payment result; the continuation owns its own bindings. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Draw{count:$card_count}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$chosen_drawn_hand_followup}, otherwise:Program{}}] */
+optional_draw_chosen_followup ::= "you" "may" "draw" card_count "." "if" "you" "do" "," chosen_drawn_hand_followup
+
+/* The selected hand cards remain a fixed choice, while their history is a
+   this-turn draw predicate, independent of the preceding draw payment. */
+/* @sem Instruction::[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:History{event:Drawn(None), window:ThisTurn}}, count:AsManyAsCan($card_count)}}, ForEachObject{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:InSet(Selected(@marked))}, binding:0, body:Program{instructions:$chosen_card_pay_or_top}}] */
+chosen_drawn_hand_followup ::= "choose" card_count "in" "your" "hand" "drawn" "this" "turn" "." "for" "each" "of" "those" "cards" "," chosen_card_pay_or_top
+
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$cost, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Bound(0)), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{}}] */
+chosen_card_pay_or_top ::= cost "or" "put" "the" "card" "on" "top" "of" "your" "library"

@@ -357,7 +357,7 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger
+grant ::= grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability
 
 /* "Gains all creature types", "a 2/2 creature with all creature types": every creature
    type replaces the old ones (CR 205.3m), like a changeling's characteristic. */
@@ -650,7 +650,7 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base
+static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base | vehicle_artifact_with_crew_change
 /* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
    the protection names the object it keeps attached. */
 /* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
@@ -3780,3 +3780,45 @@ control_all_untap_nonland ::= "nonland"
 
 /* @sem CardType::Creature */
 control_all_untap_noncreature ::= "noncreature"
+
+/* A type setting and a granted crew ability compose independently; the
+   final anaphor refers to the subject of this static change. */
+/* @sem Change::[...$vehicle_artifact_type, ...$it_loses_other_card_types, $grant_crew_ability] */
+vehicle_artifact_with_crew_change ::= vehicle_artifact_type "with" grant_crew_ability "and" it_loses_other_card_types
+
+/* @sem Change::[SetArtifactType(Vehicle)] */
+vehicle_artifact_type ::= "is" "a" "Vehicle" "artifact"
+
+/* @sem Change::[SetCardTypes([Artifact])] */
+it_loses_other_card_types ::= "it" "loses" "all" "other" "card" "types"
+
+/* Crew is an activated ability of each recipient of the grant. */
+/* @sem Change::GrantAbility(@holder($crew_ability)) */
+grant_crew_ability ::= crew_ability
+
+/* Each attacker binds the payer and the creature whose blockers receive the grant. */
+/* @sem Instruction::[ForEachObject{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Attacking, CardType(Creature), Not(HasKeyword($keyword_name))])}, binding:0, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:ControllerOf(Bound(0)), cost:Cost{parts:[Mana($mana_symbols)]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController)), BlockingObject(Bound(0))])}), changes:[GrantKeyword($keyword_name_2)], duration:$duration, evaluation:Snapshot}}]}, otherwise:Program{}}]}}] */
+instructions_attacker_controller_payment ::= "for" "each" "attacking" "creature" "without" keyword_name "," "its" "controller" "may" "pay" mana_symbols "." "if" "that" "player" "doesn't" "," "creatures" "you" "control" "blocking" "that" "creature" "gain" keyword_name duration
+
+/* The turn restriction governs the entire graveyard permission. The two
+   permission clauses retain their own card populations and cast effects. */
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$turn_graveyard_permission]})]} */
+once_each_turn_graveyard_permission ::= "once" "during" "each" "of" "your" "turns" "," turn_graveyard_permission
+
+turn_graveyard_permission ::= turn_graveyard_artifact_tapped | turn_graveyard_permanent_perpetual
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:CardType(Artifact)}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_artifact_entry_effect])]}}) */
+turn_graveyard_artifact_tapped ::= "you" "may" "cast" "an" "artifact" "spell" "from" "your" "graveyard" "." cast_artifact_entry_effect
+
+/* @sem Operand::Term{family:SpellEffect, form:EntersTapped} */
+cast_artifact_entry_effect ::= "if" "you" "cast" "a" "spell" "this" "way" "," "that" "artifact" "enters" "tapped" "."
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(Subtype(Aura)), $filter_phrase, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])}), from:Graveyard, action:CastSpell, filter:AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_perpetual_creature_effect])]}}) */
+turn_graveyard_permanent_perpetual ::= "you" "may" "cast" "a" "permanent" "spell" "from" "among" "non-Aura" "," filter_phrase "cards" "in" "your" "graveyard" "." cast_perpetual_creature_effect
+
+/* @sem Operand::Term{family:SpellEffect, form:CastWithPerpetualEffect, operands:[Term{family:PerpetualEffect, form:SetPT, operands:[Term{family:PT, form:PT, operands:[Integer($number), Integer($number_2)]}]}, Term{family:PerpetualEffect, form:AddCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]}, Term{family:PerpetualEffect, form:AddCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}]} */
+cast_perpetual_creature_effect ::= "if" "you" "do" "," "it" "perpetually" "becomes" "a" NUMBER "/" NUMBER creature_subtype "creature" "in" "addition" "to" "its" "other" "types" "."
+
+/* A per-combat blocker cap expires with the stated turn. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_block_limit, duration:$this_duration, evaluation:LiveObjects} */
+combat_block_cap_this_turn ::= affected rule_block_limit "each" "combat" this_duration
