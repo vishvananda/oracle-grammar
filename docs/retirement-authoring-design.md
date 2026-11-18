@@ -292,6 +292,9 @@ print gate; the full control must reproduce the original added readings at
 those original occurrence identities. The verifier checks frozen subset bytes,
 recomputes native/report consistency and print losses from saved rows, and
 independently replays all included proposals and the selected remainder in order.
+When an archived patch identifies a specific suspect, pass its job ID with
+`retire_parse_isolate.py --suspect`. The tool first tries the union without that
+proposal and uses ordinary bisection if the focused checks still fail.
 When checkpoint input rows precede the accepted parse baseline, both immutable
 baselines must match in every field except the parse report's top-level `key`
 array. This bounded string-array derivation metadata is recorded explicitly

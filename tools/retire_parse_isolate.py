@@ -128,9 +128,13 @@ def _isolate(scope, trial, prefix):
     return separate or (left if len(left) < len(right) else right)
 
 
-def _survivors(indices, trial, pinned):
+def _survivors(indices, trial, pinned, suspect=None):
     """Keep excluding witnessed failures until the remaining union passes."""
     remaining = list(indices)
+    if suspect is not None and suspect not in pinned:
+        without = [index for index in remaining if index != suspect]
+        if without and not trial(without)['failures']:
+            return without
     while remaining and trial(remaining)['failures']:
         excluded = _isolate([i for i in remaining if i not in pinned], trial, pinned)
         r.require(excluded, 'focused failure could not be separated from the protected prefix')
@@ -145,8 +149,10 @@ def _controls(roots):
             for label, root in roots.items()}
 
 
-def isolate(campaign, batch_id, scratch, max_trials):
+def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None):
     folder, manifest, jobs, checkpoint, inputs, names = _archived(campaign, batch_id)
+    suspect_index = next((i for i, job in enumerate(jobs) if job['job_id'] == suspect), None)
+    r.require(suspect is None or suspect_index is not None, 'suspect is not an included proposal')
     r.require(_allowed(campaign, scratch) and not scratch.exists(), 'private isolation directory already exists or is outside scratch')
     scratch.mkdir(parents=True)
     profile = scratch/'profile.json'
@@ -202,7 +208,7 @@ def isolate(campaign, batch_id, scratch, max_trials):
     r.require(not trial([], 'base')['failures'], 'accepted base does not pass focused checks')
     pinned = prefix if prefix and not trial(prefix, 'mechanical')['failures'] else []
     r.require(trial(indices, 'full')['failures'], 'combined parse failure did not reproduce')
-    remaining = _survivors(indices, trial, pinned)
+    remaining = _survivors(indices, trial, pinned, suspect_index)
     excluded = [i for i in indices if i not in remaining]
     r.require(excluded and remaining and not trial(remaining, 'remaining')['failures'],
               'there is no nonempty survivor union with passing focused checks')
@@ -234,12 +240,13 @@ def main():
     parser.add_argument('batch')
     parser.add_argument('scratch', type=Path)
     parser.add_argument('--max-trials', type=int, default=24)
+    parser.add_argument('--suspect', help='try the remaining union without this included job first')
     parser.add_argument('--apply', action='store_true', help='verify and return survivors to fresh validation')
     args = parser.parse_args()
     if not 3 <= args.max_trials <= 96:
         parser.error('--max-trials must be between 3 and 96')
     campaign, scratch = args.campaign.resolve(), args.scratch.resolve()
-    result = isolate(campaign, args.batch, scratch, args.max_trials)
+    result = isolate(campaign, args.batch, scratch, args.max_trials, suspect=args.suspect)
     if args.apply:
         queue = Queue(campaign/'queue.sqlite')
         for retry in range(4):
