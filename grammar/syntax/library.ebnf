@@ -760,9 +760,8 @@ clause_shuffle_graveyards ::= shuffle_plural_players "shuffles" "their" "graveya
 /* One player's graveyard goes into their library, then that library is shuffled. */
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Graveyard, players:One($player_ref)}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($player_ref)}}] */
 clause_player_shuffles_graveyard ::= player_ref "shuffles" "their" "graveyard" "into" "their" "library"
-/* A hand and graveyard go into their library together, then that library is shuffled. */
-/* @sem Instruction::[ForEachPlayer{players:$shuffle_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
-clause_shuffle_hands_graveyards ::= shuffle_plural_players "shuffles" "their" "hand" "and" "graveyard" "into" "their" "library"
+/* @sem Instruction::[ForEachPlayer{players:$shuffle_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$bound_hand_and_graveyard, destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
+clause_shuffle_hands_graveyards ::= shuffle_plural_players "shuffles" bound_hand_and_graveyard "into" "their" "library"
 /* Then each of those players draws. */
 /* @sem Instruction::[ForEachPlayer{players:$shuffle_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}, Effect{result:@next, operation:Draw{players:$shuffle_plural_players, amount:$card_count}}] */
 clause_shuffle_hands_graveyards_draw ::= shuffle_plural_players "shuffles" "their" "hand" "and" "graveyard" "into" "their" "library" "," "then" "draws" card_count
@@ -782,7 +781,7 @@ named_search_upto ::= "up" "to" number
 named_search_any ::= "any" "number" "of"
 
 /* Card targets keep their graveyard domain, quantity and owner restrictions. */
-graveyard_target_cards ::= graveyard_distinct_values_many | graveyard_typed_modified_many | graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many
+graveyard_target_cards ::= graveyard_modified_any_many | graveyard_distinct_values_many | graveyard_typed_modified_many | graveyard_budget_one | graveyard_budget_many | graveyard_any_one | graveyard_any_many | graveyard_typed_one | graveyard_typed_many
     | graveyard_common_any_one | graveyard_common_any_many | graveyard_common_typed_one | graveyard_common_typed_many
     | graveyard_target_owner_one | graveyard_target_owner_typed_one
 
@@ -1455,3 +1454,50 @@ chosen_drawn_hand_followup ::= "choose" card_count "in" "your" "hand" "drawn" "t
 
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$cost, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Bound(0)), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{}}] */
 chosen_card_pay_or_top ::= cost "or" "put" "the" "card" "on" "top" "of" "your" "library"
+
+/* The two zones belong to the player bound by the enclosing loop. */
+/* @sem ObjectSet::Union([Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any})]) */
+bound_hand_and_graveyard ::= "their" "hand" "and" "graveyard"
+
+/* The choice receipt belongs to the shuffle in the same player's loop. */
+/* @sem Instruction::[ForEachPlayer{players:$shuffle_plural_players, binding:0, body:Program{instructions:[Optional{decider:Bound(0), body:Program{instructions:[Effect{result:@next, operation:Move{objects:$bound_hand_and_graveyard, destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}]}}, Effect{result:@next, operation:Draw{players:Matching{binding:0, condition:PlayerTook{player:Bound(0), result:@prior}}, amount:$card_count}}] */
+clause_optional_shuffle_follow_draw ::= shuffle_plural_players "may" "shuffle" bound_hand_and_graveyard "into" "their" "library" "," "then" "each" "player" "who" "does" "draws" card_count
+
+/* @sem Instruction::[ForEachPlayer{players:$shuffle_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:DrawUpTo{players:One(Bound(0)), amount:$card_count}}]}}] */
+clause_each_draw_up_to ::= shuffle_plural_players "draws" "up" "to" card_count
+
+/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}] */
+clause_you_exile_top_cards ::= "you" exile_top_cards_of_your_library
+
+/* @sem Instruction::[...$clause_shuffle_hands_graveyards, ...$clause_you_exile_top_cards, ...$clause_each_draw_up_to] */
+clause_shuffle_exile_then_draw ::= clause_shuffle_hands_graveyards "." clause_you_exile_top_cards "." "then" clause_each_draw_up_to
+
+/* The modifier applies to each target; the scope identifies its graveyard. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:$graveyard_plural_count, filter:@and($modifier_mana_value_numeric, $graveyard_scope)})) */
+graveyard_modified_any_many ::= graveyard_plural_count "target" "cards" modifier_mana_value_numeric graveyard_scope
+
+/* Keep the shuffle payment and its conditional body in the same scope: the
+   owner is the actor and the payment result controls the subsequent program. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:OwnerOf(Source), cost:Cost{parts:[PlayerAction{player:OwnerOf(Source), body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}}]}, optional:false}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$owner_named_reveal}, otherwise:Program{}}] */
+instructions_owner_shuffle_reveal ::= "this" "creature's" "owner" "shuffles" "it" "into" "their" "library" "." "if" "that" "player" "does" "," owner_named_reveal
+
+/* The two moves consume the reveal receipt and the first move's before
+   receipt, respectively; neither may bind to a different producer. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:OwnerOf(Source), filter:Name(@card_name), count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:Name(@card_name)}, destination:Battlefield{controller:Player(OwnerOf(Source)), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+owner_named_reveal ::= "they" "reveal" "cards" "from" "the" "top" "of" "that" "library" "until" "a" "card" "named" SELF_NAME "is" "revealed" "." "the" "player" "puts" "that" "card" "onto" "the" "battlefield" "and" "all" "other" "cards" "revealed" "this" "way" "into" "their" "graveyard"
+
+/* A choice and observation share the same targeted library owner. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0}), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[Term{family:CardsInOracle, form:AnyOracleCard}]}}}, Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Target{slot:0, index:0})}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}] */
+named_top_choice ::= "target" "player" "chooses" "a" "card" "name" "," "then" "reveals" "the" "top" "card" "of" "their" "library"
+
+/* @sem Instruction::[...$named_top_choice, $named_top_result] */
+named_top_choice_branches ::= named_top_choice "." named_top_result
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:Chosen(CardName)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:_{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}} */
+named_top_result ::= "if" "that" "card" "has" "the" "chosen" "name" "," "that" "player" "puts" "it" "into" "their" "hand" "." "if" "it" "doesn't" "," "the" "player" "puts" "it" "into" "their" "graveyard"
+
+/* @sem Instruction::[...$named_top_choice, $named_top_damage_result] */
+named_top_choice_damage ::= named_top_choice "." named_top_damage_result
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Observed(@marked)), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:Chosen(CardName)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:_{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One(Target{slot:0, index:0})), amount:$number, preventable:true}}]}}]}, otherwise:_{}} */
+named_top_damage_result ::= "if" "that" "card" "has" "the" "chosen" "name" "," "that" "player" "puts" "it" "into" "their" "hand" "." "otherwise" "," "they" "put" "it" "into" "their" "graveyard" "and" "this" "artifact" "deals" number "damage" "to" "them"

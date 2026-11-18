@@ -79,7 +79,7 @@ player_rule_one ::= player_rule_ability
 /* @sem Ability::[$player_rule_ability, ...$player_rule_list] */
 player_rule_more ::= player_rule_ability "and" player_rule_list
 
-player_prohibitions ::= player_prohibition | player_prohibitions_more | zone_cast_prohibitions | player_prohibit_shared_cast_land | player_prohibit_pay_life_pair
+player_prohibitions ::= player_prohibition | player_prohibitions_more | zone_cast_prohibitions | player_prohibit_shared_cast_land | player_prohibit_pay_life_pair | player_qualified_prohibition
 /* @sem Change::[Change::PlayerRule(Prohibit($player_prohibited_action))] */
 player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
@@ -287,3 +287,43 @@ opponent_fewer_graveyard_cards ::= "target" "opponent" "who" "has" "at" "least" 
 /* Counts cards once when cycling also discards the same card. */
 /* @sem Expr::PlayerNumber{player:AbilityController, number:CardsCycledOrDiscardedThisTurn} */
 cycled_or_discarded_this_turn ::= "you've" "cycled" "or" "discarded" "this" "turn"
+
+/* Qualified actions remain a single prohibition, preserving separate sentences. */
+/* @sem Change::[PlayerRule(Prohibit($player_qualified_action))] */
+player_qualified_prohibition ::= player_qualified_action
+
+player_qualified_action ::= player_prohibit_cast_spell_filter | player_prohibit_block_qualified
+
+/* A shared spell filter retains the comparison and the affected player's turn count. */
+/* @sem PlayerAction::CastSpell{filter:$prohibited_spell_filter} */
+player_prohibit_cast_spell_filter ::= "cast" "spells" prohibited_spell_filter
+
+prohibited_spell_filter ::= prohibited_chosen_color | prohibited_mana_value_singular | prohibited_mana_value_plural
+
+/* @sem ObjectFilter::Chosen(Color) */
+prohibited_chosen_color ::= "of" "the" "chosen" "color"
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:$prohibited_mana_test} */
+prohibited_mana_value_singular ::= "with" "mana" "value" prohibited_mana_test
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:$prohibited_parity} */
+prohibited_mana_value_plural ::= "with" prohibited_parity "mana" "values"
+
+prohibited_mana_test ::= prohibited_at_most | prohibited_turns_begun
+
+/* @sem NumberTest::Compare{comparison:LessOrEqual, value:$value} */
+prohibited_at_most ::= value "or" "less"
+
+/* @sem NumberTest::Compare{comparison:Greater, value:PlayerNumber{player:Affected, number:TurnsBegun}} */
+prohibited_turns_begun ::= "greater" "than" "the" "number" "of" "turns" "they" "have" "begun"
+
+prohibited_parity ::= prohibited_even | prohibited_odd
+
+/* @sem NumberTest::Compare{comparison:SameParity, value:Constant(0)} */
+prohibited_even ::= "even"
+
+/* @sem NumberTest::Compare{comparison:SameParity, value:Constant(1)} */
+prohibited_odd ::= "odd"
+
+/* @sem PlayerAction::BlockWith(@and($filter_plural, ObjectFilter::Property{property:ManaValue, test:$prohibited_parity})) */
+player_prohibit_block_qualified ::= "block" "with" filter_plural "with" prohibited_parity "mana" "values"

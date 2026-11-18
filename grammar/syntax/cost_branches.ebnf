@@ -35,7 +35,7 @@ spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
 /* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
 awaken_land ::= "awaken" number
 
-kicker_branch_program ::= program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception
+kicker_branch_program ::= kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional
    cost was paid, this effect doesn't affect combat damage that would be dealt by red
    creatures": the paid prevention spares damage those sources deal. */
@@ -188,3 +188,20 @@ cleave_hand_size_reduction ::= "Your" "maximum" "hand" "size" "is" "reduced" "by
    unless clause is performed only in the unpaid branch. */
 /* @sem Ability::CostBranch{keyword:Teamwork, cost:Cost{parts:[Teamwork($number)]}, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, ...$clause]}})} */
 spell_teamwork_unless_branch ::= "teamwork" NUMBER NEWLINE instructions "." "then" clause "unless" "this" "spell" "was" "cast" "using" "teamwork" "."
+
+/* A conditional extra source adds a distinct target to the prevention set.
+   The two source descriptions must agree; each branch announces its own set. */
+/* @sem Program::Program{instructions:[If{condition:$condition, then:_{instructions:[Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Permanent, sources:InSet(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:@agree($filter_phrase, $filter_phrase_2)}))), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Permanent, sources:SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@agree($filter_phrase, $filter_phrase_2)}), index:0}), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}]}}]} */
+kicker_prevent_another_source ::= "prevent" "all" "combat" "damage" "target" filter_phrase "would" "deal" "this" "turn" "." "if" condition "," "prevent" "all" "combat" "damage" "another" "target" filter_phrase "would" "deal" "this" "turn" "."
+
+/* The abbreviated replacement repeats the complete distributed prevention
+   contract, changing only its allocation. Both alternatives announce targets. */
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:UpTo($number), filter:Any, distribute:$number})), kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:DamageToEach(Expr::DistributedShare(@share)), duration:EndOfTurn, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_distributed_this_way ::= "prevent" "the" "next" number "damage" "this" "way"
+
+/* This variant proves the omitted continuation uses the same turn window. */
+/* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:UpTo($number), filter:Any, distribute:$number})), kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:DamageToEach(Expr::DistributedShare(@share)), duration:EndOfTurn, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_distributed_this_turn ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "this" "turn" "to" "any" "number" "of" "targets" "," "divided" "as" "you" "choose"
+
+/* @sem Ability::CostBranch{keyword:Kicker, cost:$kicker_branch_header, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$prevent_distributed_this_way}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$prevent_distributed_this_turn}]}})} */
+spell_kicker_distributed_override ::= kicker_branch_header NEWLINE prevent_distributed_this_turn "." "if" "this" "spell" "was" "kicked" "," prevent_distributed_this_way "instead" "."

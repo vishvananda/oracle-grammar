@@ -96,3 +96,15 @@ copy_current_payload ::= "this" "ability"
 copy_has_current ::= "it" "has" copy_current_payload
 /* @sem Vec<CopyException>::[$copy_added_keyword, $copy_current_payload] */
 copy_keyword_current ::= "it" "has" copy_added_keyword "and" copy_current_payload
+
+/* The target is announced once and the replacement copies that same object. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Not(Supertype(Legendary)), CardType(Creature)])}), index:0} */
+chosen_nonlegendary_creature ::= "choose" "target" "nonlegendary" "creature"
+
+/* @sem ObjectFilter::AnyOf(@unordered([$plural_creature, $plural])) */
+copy_entry_creature_disjunction ::= plural_creature "or" plural
+
+copy_entry_population ::= copy_entry_creature_disjunction | filter_plural
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateReplacement{event:Enter{objects:$copy_entry_population}, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:One($chosen_nonlegendary_creature), exceptions:[]})}}]}}}] */
+clause_next_entries_copy_target ::= chosen_nonlegendary_creature "." "the" "next" "time" "one" "or" "more" copy_entry_population "enter" this_duration "," "they" "enter" "as" "copies" "of" "the" "chosen" "creature"

@@ -100,7 +100,7 @@ current_card_ref ::= "that" "card"
 /* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
 linked_exiled_card ::= "the" "exiled" "card"
 
-target_card ::= target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard
+target_card ::= target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
@@ -605,7 +605,7 @@ adjective ::= quality_unscoped | noun_atomic
 
 /* An adjective that is not also a noun, so `or` between two of them is one slot. */
 quality ::= quality_unscoped | adjective_equipped
-quality_unscoped ::= adjective_party | adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_tapped | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked
+quality_unscoped ::= adjective_modified | adjective_party | adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_tapped | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked
     | adjective_noncommander | adjective_nontoken | adjective_legendary | adjective_nonlegendary | adjective_basic | adjective_nonbasic
     | adjective_color | adjective_noncolor | adjective_nontype | subtype_negated
     | adjective_colorless | adjective_snow | adjective_nonsnow | adjective_enchanted | adjective_attacking_or_blocking | adjective_stickered
@@ -1897,3 +1897,32 @@ chosen_creature_unmodified ::= chosen_creature_base | chosen_creature_unmodified
 
 /* @sem @and($filter_outer_adjectives, $chosen_creature_unmodified) */
 chosen_creature_unmodified_adjectives ::= filter_outer_adjectives chosen_creature_unmodified
+
+/* @sem ObjectFilter::Modified */
+adjective_modified ::= "modified"
+
+/* @sem ObjectFilter::Counters{comparison:Greater, value:Expr::Constant(0)} */
+modifier_counters_on_it ::= "with" "counters" "on" "it"
+
+/* Exile populations retain their filter and, for linked cards, their source. */
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:Any}) */
+exile_cards_population ::= "cards" "in" "exile"
+
+owned_exile_population ::= owned_exile_any | owned_exile_adventure
+
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:Any}) */
+owned_exile_any ::= "in" "exile"
+
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:State(HasAdventure)}) */
+owned_exile_adventure ::= "in" "exile" "that" "has" "an" "Adventure"
+
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})}) */
+exile_counter_population ::= "exiled" "cards" "with" counter_kind "counters" "on" "them"
+
+/* A singular optional target shares a creature type union and graveyard owner. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:UpTo(Expr::Constant(1)), filter:@and(ObjectFilter::AnyOf(@unordered([$subtype, $subtype_2])), $noun_creature, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+target_card_up_to_union_your_graveyard ::= "up" "to" "one" "target" subtype "or" subtype noun_creature "card" "from" "your" "graveyard"
+
+/* A singular card description retains its independently stated filter. */
+/* @sem ObjectFilter::$card_filter */
+singular_filtered_card ::= "a" card_filter "card"

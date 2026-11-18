@@ -34,14 +34,14 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
-continuous_live ::= continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object
+continuous_live ::= continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$rule_duration, evaluation:LiveObjects} */
 continuous_live_trailing ::= affected rule_changes ("↓")? rule_duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
 continuous_live_leading ::= duration "," affected rule_changes
 /* "Can't be blocked this turn except by" puts its duration before its exception. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(Prohibit(BeBlocked(Not($filter_plural))))], duration:$rule_duration, evaluation:LiveObjects} */
-continuous_live_except_by ::= affected "can't" "be" "blocked" rule_duration "except" "by" filter_plural
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(Prohibit(BeBlocked(Not($blocker_exception_filter))))], duration:$rule_duration, evaluation:LiveObjects} */
+continuous_live_except_by ::= affected "can't" "be" "blocked" rule_duration "except" "by" blocker_exception_filter
 /* For a while, blocking one object is forbidden; a static ability says the same as
    "can't be blocked by" on that object. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(Prohibit(Block(SameObject($object_ref))))], duration:$rule_duration, evaluation:LiveObjects} */
@@ -175,7 +175,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type
+change ::= change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -391,7 +391,7 @@ rule_changes ::= rule_change | rule_changes_and
 /* @sem Change::[...$rule_change, ...$rule_changes] */
 rule_changes_and ::= rule_change "and" rule_changes
 
-rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule
+rule_change ::= defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule | rule_blocked_greater_power
 
 /* A spell is a stack object of kind Spell; "abilities" are every other stack
    object, and an ability "from" a source is an ability of that source. "Spells or
@@ -650,7 +650,7 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base | vehicle_artifact_with_crew_change | static_remove_singular_card_type
+static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base | vehicle_artifact_with_crew_change | static_remove_singular_card_type | change_set_only_card_type
 /* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
    the protection names the object it keeps attached. */
 /* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
@@ -2198,8 +2198,8 @@ static_skip_draw_step ::= "skip" "your" "draw" "step" "."
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(HandSize(Unlimited))]}) */
 static_players_no_maximum_hand_size ::= "players" "have" "no" "maximum" "hand" "size" "."
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Set($value)))]}) */
-static_maximum_hand_size_set ::= "your" "maximum" "hand" "size" "is" value "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Set($hand_size_value)))]}) */
+static_maximum_hand_size_set ::= "your" "maximum" "hand" "size" "is" hand_size_value "."
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[Rule(LegendRuleExempt)]}) */
 static_legend_rule_exempt ::= "the" '"' "↓" "legend" "rule" '"' "doesn't" "apply" "to" affected "."
@@ -3830,3 +3830,63 @@ singular_a_card_type ::= added_creature | added_land | singular_planeswalker_car
 
 /* @sem CardType::Planeswalker */
 singular_planeswalker_card_type ::= "planeswalker"
+
+hand_size_value ::= value | hand_size_equal_value
+
+/* @sem $value */
+hand_size_equal_value ::= "equal" "to" value
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected_plural)), changes:$target_ban_kind_spells, duration:$rule_duration, evaluation:LiveObjects} */
+continuous_live_plural_target_ban ::= affected_plural "can't" "be" "the" "targets" "of" target_ban_kind_spells ("↓")? rule_duration
+
+/* A blocker exception can name either of two independent populations. */
+blocker_exception_filter ::= filter_plural | blocker_exception_union
+
+/* @sem ObjectFilter::AnyOf([$filter_plural, $filter_plural_2]) */
+blocker_exception_union ::= filter_plural "and" "/" "or" filter_plural
+
+/* Compare a prospective blocker's power with the triggering object. */
+/* @sem Change::[Rule(Prohibit(BeBlocked(AllOf([$filter_plural, Property{property:Power, test:NumberTest::Compare{comparison:Greater, value:ObjectProperty{object:EventSubject, property:Power, information:CurrentOrLastKnown}}}]))))] */
+rule_blocked_greater_power ::= "can't" "be" "blocked" "by" filter_plural "with" "greater" "power"
+
+/* Rule changes follow their affected objects while the named source stays tapped. */
+/* @sem Operation::CreateContinuousEffect{source:$object_ref, affected:Objects($affected), changes:$rule_change, duration:WhileMatches{object:$object_ref, filter:Tapped}, evaluation:LiveObjects} */
+live_rule_while_tapped ::= affected rule_change "for" "as" "long" "as" object_ref "remains" "tapped"
+
+/* The two anaphors have separate print shapes for the same controller-relative window. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})], duration:$controller_next_window, evaluation:LiveObjects} */
+skip_plural_controller_window ::= affected controller_next_window
+
+controller_next_window ::= their_next_untap_window | that_players_next_untap_window
+
+/* @sem Duration::DuringControllersNextUntapStep */
+their_next_untap_window ::= "don't" "untap" "during" "their" "next" "untap" "step"
+
+/* @sem Duration::DuringControllersNextUntapStep */
+that_players_next_untap_window ::= "don't" "untap" "during" "that" "player's" "next" "untap" "step"
+
+/* Both abilities belong to the chosen permanent, with separate trigger scope. */
+/* @sem Change::GrantAbility(Replacement{active:Battlefield, event:Object{event:LeavesBattlefield, objects:SameObject(Source)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}}) */
+grant_departure_exile ::= '"' "if" "this" "creature" "would" "leave" "the" "battlefield" "," "exile" "it" "instead" "of" "putting" "it" "anywhere" "else" '"'
+
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(Source), from:Battlefield, to:Exile}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}})) */
+grant_exile_arrival_token ::= '"' "when" "this" "creature" "is" "put" "into" "exile" "," "create" "a" token_recipe "." '"'
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ControlledBy(One(AbilityController))])}), index:0})), changes:[$grant_departure_exile, $grant_exile_arrival_token], duration:$duration, evaluation:Snapshot}}] */
+clause_choose_grant_departure ::= "choose" "target" noun "you" "control" "." duration "," "it" "gains" grant_departure_exile "and" grant_exile_arrival_token
+
+/* A replacement of the whole card-type set retains its typed operand. */
+/* @sem Change::[SetCardTypes([$only_card_type])] */
+change_set_only_card_type ::= "is" only_card_type "and" "loses" "all" "other" "card" "types"
+
+only_card_type ::= only_card_type_vowel | only_card_type_consonant
+
+/* @sem $vowel_card_type */
+only_card_type_vowel ::= "an" vowel_card_type
+
+/* @sem $consonant_card_type */
+only_card_type_consonant ::= "a" consonant_card_type
+
+vowel_card_type ::= added_artifact | added_enchantment
+
+consonant_card_type ::= added_creature | added_land
