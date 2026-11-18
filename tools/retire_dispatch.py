@@ -552,9 +552,11 @@ def run_campaign(run, runner=None):
                         pass
                 if len(queue.get_jobs('failed'))>=3:
                     stop_reason='Repeated operational failures require tooling review'
-                drain=run/'drain.json'
-                if drain.exists():
-                    stop_reason=r.read(drain).get('reason','Explicit controller drain requested')
+                for marker in ('drain.json', 'controller-drain.json'):
+                    drain=run/marker
+                    if drain.exists():
+                        stop_reason=r.read(drain).get('reason','Explicit controller drain requested')
+                        break
                 if shutil.disk_usage(run).free < 15*1024**3:
                     stop_reason='Campaign filesystem has less than 15 GiB free'
                 if shutil.disk_usage(Path(config['main_repo'])).free < 2*1024**3:

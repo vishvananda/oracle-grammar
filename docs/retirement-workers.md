@@ -170,9 +170,11 @@ original usage is absent, so an attempt is counted once.
 The read-only observer separates model time from claim-to-finish slot time and
 reports every retained attempt, including verified infrastructure retries.
 Provisional candidates, accepted rules and parked reviews remain separate.
-For a controlled runner upgrade, write a reason to `CAMPAIGN/drain.json`; the
-controller finishes active attempts without claiming new work. Verify its process
-is terminal before replacing the runner or removing the drain request.
+To upgrade the worker controller while an external batch driver continues
+validating, write a reason to `CAMPAIGN/controller-drain.json`. The controller
+finishes active attempts and stops claiming work. Verify that its process is
+terminal before replacing the runner or removing the drain request. Use
+`CAMPAIGN/drain.json` to drain both processes.
 
 An immutable version can instead live at `CAMPAIGN/runners/VERSION`, with its
 complete file-hash map at `CAMPAIGN/runners/VERSION.json`. Launch that version's

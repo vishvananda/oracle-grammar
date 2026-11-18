@@ -381,6 +381,14 @@ class DriverTests(unittest.TestCase):
         self.assertEqual(state['last_batch']['validation_status'], 'passed')
         self.assertEqual(r._LEASES, [])
 
+    def test_controller_drain_leaves_external_batch_driver_running(self):
+        self.queue.value = progress(ready=4)
+        r.write(self.run/'controller-drain.json', {'reason': 'replace author runner'})
+        with patch.object(driver.dispatch, '_batch', side_effect=self.outcome()) as batch:
+            driver.run_driver(self.run, self.runner)
+        batch.assert_called_once_with(self.run)
+        self.assertEqual(r.read(self.run/'batch-driver.json')['phase'], 'first-pass-complete')
+
     def test_flush_once_and_no_pending_both_trigger_partial_batch(self):
         for flush in (False, True):
             with self.subTest(flush=flush), tempfile.TemporaryDirectory() as sub:

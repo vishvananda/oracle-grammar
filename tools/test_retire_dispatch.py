@@ -494,7 +494,7 @@ class DispatchCanaries(unittest.TestCase):
                 queue.finish(claim['attempt_id'], 'provisional-pass', 'proof',
                              {'r_one': {'status': 'pass', 'evidence': 'proof'}})
                 def drain(_seconds):
-                    r.write(root/'drain.json', {'reason': 'external owner test drain'})
+                    r.write(root/'controller-drain.json', {'reason': 'external owner test drain'})
                 child = SimpleNamespace(poll=lambda: 0, returncode=0, pid=12345)
                 with patch.object(dispatch.shutil, 'disk_usage', return_value=SimpleNamespace(free=100*1024**3)), \
                         patch.object(dispatch.time, 'sleep', side_effect=drain), \
