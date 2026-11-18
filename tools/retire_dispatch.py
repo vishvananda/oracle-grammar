@@ -513,6 +513,7 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     config=r.read(run/'config.json')
     policy=priority_policy(config)
     cp=dict(cp,audit_threads=config.get('audit_threads',24))
+    cp['repository_check_threads']=config.get('repository_check_threads',cp['audit_threads'])
     screen=config.get('full_parse_screen',False)
     r.require(type(screen) is bool,'full_parse_screen must be boolean')
     cp['full_parse_screen']=screen

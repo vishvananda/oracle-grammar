@@ -1587,6 +1587,9 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
     if (type(threads) is not int or not 16 <= threads <= 24
             or type(capacity) is not int or not threads <= capacity <= 32):
         raise ValueError('audit threads must be 16–24 and within CPU capacity')
+    repository_threads = checkpoint.get('repository_check_threads', threads)
+    if type(repository_threads) is not int or not 8 <= repository_threads <= threads:
+        raise ValueError('repository_check_threads must be between 8 and audit_threads')
     source = Path(manifest['source']).resolve()
     if (_git(source, 'rev-parse', 'HEAD') != manifest['commit']
             or _git(source, 'status', '--porcelain')
@@ -1605,9 +1608,9 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
                 'baseline_sha256': r.digest(baseline),
                 'checkpoint_manifest_sha256': r.digest(input_run/'manifest.json'), 'inputs': str(output),
                 'source_checkpoint': checkpoint['commit'], 'audit_threads': threads,
-                'cpu_capacity': capacity}
+                'cpu_capacity': capacity, 'repository_check_threads': repository_threads}
     try:
-        with _audit_cpu(checkpoint, threads, capacity):
+        with _audit_cpu(checkpoint, repository_threads, capacity):
             selected_helpers = Path(checkpoint['helpers']).resolve()
             candidate_spec = checkpoint.get('candidate_validation_helpers')
             if candidate_spec is not None:
@@ -1619,9 +1622,9 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
                                oracle=inputs/'oracle.json', parse=baseline, prints=[baseline]))
             # dev.py runs families and library tests concurrently. Divide the lease
             # between those two gates, leaving headroom for the fast gates.
-            gate_threads = str(max(2, threads//2-2))
+            gate_threads = str(max(2, repository_threads//2-2))
             gate_env = {key: value for key, value in os.environ.items() if not key.startswith('ORACLE_GRAMMAR_')}
-            gate_env.update(CARGO_BUILD_JOBS=str(max(4, threads-4)), RAYON_NUM_THREADS=gate_threads,
+            gate_env.update(CARGO_BUILD_JOBS=str(max(4, repository_threads-4)), RAYON_NUM_THREADS=gate_threads,
                             ORACLE_GRAMMAR_THREADS=gate_threads, RUST_TEST_THREADS=gate_threads)
             driver_sha256 = r.digest(REPOSITORY_DRIVER)
             evidence.update(repository_driver_sha256=driver_sha256, repository_grammar=str(source/'grammar'))

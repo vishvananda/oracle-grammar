@@ -259,12 +259,17 @@ class BatchTests(unittest.TestCase):
     def test_configured_parse_screen_budget_leaves_full_audit_budget_intact(self):
         self._validate_threads(24, True, screen='passed', screen_threads=12)
 
+    def test_repository_checks_can_reserve_less_than_the_full_audit(self):
+        self._validate_threads(24, True, screen='passed', screen_threads=12, scan=True,
+                               repository_threads=16)
+
     def test_checkpoint_scan_keeps_the_full_audit_reservation(self):
         self._validate_threads(16, True, screen='passed', scan=True)
         self._validate_threads(16, True, native_rejection=True, scan=True)
 
     def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False,
-                          native_rejection=False, screen=None, screen_threads=None, scan=False):
+                          native_rejection=False, screen=None, screen_threads=None, scan=False,
+                          repository_threads=None):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -293,6 +298,9 @@ class BatchTests(unittest.TestCase):
                 cp['full_parse_screen'] = True
             if screen_threads is not None:
                 cp['parse_screen_threads'] = screen_threads
+            if repository_threads is not None:
+                cp['repository_check_threads'] = repository_threads
+            gate_budget = repository_threads if repository_threads is not None else expected
             order = []
             audit_fds = []
             def git(_source, *args):
@@ -313,12 +321,15 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(command[1:4], [str(driver), str(source), '--lease-fds'])
                 self.assertEqual(command[4], ','.join(map(str, kwargs['pass_fds'])))
                 order.append('gate')
-                self.assertEqual(len(kwargs['pass_fds']), expected)
-                self.assertEqual(kwargs['env']['CARGO_BUILD_JOBS'], str(expected - 4))
+                self.assertEqual(len(kwargs['pass_fds']), gate_budget)
+                self.assertEqual(kwargs['env']['CARGO_BUILD_JOBS'], str(gate_budget - 4))
+                if gate_budget < expected:
+                    with batch.retire_cpu.reserve(Path(cp['cpu_pool']), 32-gate_budget, 32, wait=False):
+                        pass
                 self.assertNotIn('ORACLE_GRAMMAR_POISON', kwargs['env'])
                 self.assertNotIn('ORACLE_GRAMMAR_DIR', kwargs['env'])
                 for name in ('RAYON_NUM_THREADS', 'ORACLE_GRAMMAR_THREADS', 'RUST_TEST_THREADS'):
-                    self.assertEqual(kwargs['env'][name], str(expected//2-2))
+                    self.assertEqual(kwargs['env'][name], str(gate_budget//2-2))
                 if driver_changed:
                     driver.write_bytes(b'changed coordinator gate driver')
                 return SimpleNamespace(returncode=gate_code)
@@ -403,6 +414,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(result['status'], 'passed')
             self.assertEqual(result['scope'], 'combined-batch')
             self.assertEqual(result['audit_threads'], expected)
+            self.assertEqual(result['repository_check_threads'], gate_budget)
             self.assertEqual(result['included_jobs'], ['j1'])
             self.assertEqual(result['inputs'], str(folder/'validation-inputs'))
             self.assertEqual(batch.r._LEASES, [])
@@ -412,6 +424,11 @@ class BatchTests(unittest.TestCase):
         for threads, capacity in ((15, 32), (25, 32), (16, 15), (True, 32), (16, 33)):
             with self.subTest(threads=threads, capacity=capacity), self.assertRaises(ValueError):
                 batch._validate(manifest, {'audit_threads': threads, 'cpu_capacity': capacity}, 12)
+
+    def test_validate_rejects_invalid_repository_budgets(self):
+        for threads in (False, 7, 25, '12'):
+            with self.subTest(threads=threads), self.assertRaisesRegex(ValueError, 'repository_check_threads'):
+                batch._validate({'status': 'provisional'}, {'repository_check_threads': threads}, 12)
 
     def test_validate_rejects_invalid_parse_screen_budgets(self):
         for threads in (False, 0, 17, '12'):
