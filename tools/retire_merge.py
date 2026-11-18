@@ -3,6 +3,7 @@
 Seeded removals are checked against mined.remove and deliberately excluded from
 returned changes. The coordinator applies those removals and registered hooks.
 """
+from functools import lru_cache
 from pathlib import Path
 import re
 import shutil
@@ -134,6 +135,18 @@ def merge_text(base, current, proposed):
     return result
 
 
+@lru_cache(maxsize=64)
+def _cached_symbols(text):
+    return tuple(_blocks(text)[1])
+
+
+def _symbols(text):
+    # Bound the retained module text. Large modules still get the same validation.
+    if len(text) > 384 * 1024:
+        return tuple(_blocks(text)[1])
+    return _cached_symbols(text)
+
+
 def merge_grammar(base_dir, current_dir, proposed_dir, assigned_rules, hook_requests):
     """Preview changes as {relative path: text}; do not modify any input tree.
 
@@ -159,24 +172,27 @@ def merge_grammar(base_dir, current_dir, proposed_dir, assigned_rules, hook_requ
     paths = set()
     for root in (base, current, proposed):
         paths.update(path.relative_to(root) for path in (root / 'grammar').rglob('*.ebnf'))
+    paths = sorted(path for path in paths
+                   if not (path.name == 'mined.ebnf' and path.parent.name in ('syntax', 'tail')))
     result, seen, existing = {}, {}, {}
+    current_modules = {}
     for path in paths:
-        if path.name == 'mined.ebnf' and path.parent.name in ('syntax', 'tail'):
-            continue
         file = current / path
         if file.exists():
-            for name in _blocks(file.read_text())[1]:
+            text = file.read_text()
+            names = _symbols(text)
+            current_modules[path] = text, names
+            for name in names:
                 existing.setdefault(name, set()).add(path)
-    for path in sorted(paths):
-        if path.name == 'mined.ebnf' and path.parent.name in ('syntax', 'tail'):
-            continue
+    for path in paths:
         def read(root):
             file = root / path
             return file.read_text() if file.exists() else ''
-        old, now, new = read(base), read(current), read(proposed)
+        now, current_names = current_modules.get(path, ('', ()))
         try:
-            merged = merge_text(old, now, new)
-            for name in _blocks(merged)[1]:
+            merged = merge_text(read(base), now, read(proposed))
+            names = current_names if merged == now else _symbols(merged)
+            for name in names:
                 seen.setdefault(name, set()).add(path)
         except MergeConflict as exc:
             raise MergeConflict(f'{path}: {exc}') from exc
