@@ -56,6 +56,7 @@ class AuthorLaunchTests(unittest.TestCase):
         self.assertIn('Exact keyed preservation does not waive default-print', text)
         command = [sys.executable, str(self.run/'support/runner/retire_author.py'), str(self.run), 'task']
         self.assertIn(json.dumps([*command, '--preview']), text)
+        self.assertIn('The coordinator independently checks the full assigned cohort and edited operands', text)
         self.assertIn('Use proposed only when the target preview passes', text)
         self.assertEqual(evaluate.call_args.args[0], [*command, '--coordinator'])
 

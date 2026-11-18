@@ -159,11 +159,12 @@ check the generated contextual family cases before reporting a pass. A skipped
 check cannot establish success.
 
 Campaign workers use `--preview` before returning their per-rule dispositions.
-It checks the compositional family, edited operands, native readings and
-printing for the assigned target faces and their companions. The report
-identifies this scope as `author-target-preview`. The independent coordinator
-then checks the complete assigned cohort. The full diagnostic is also available
-directly and remains the default for paired pilot workers.
+It checks the compositional family, native readings and printing for the
+assigned target faces and their companions. The report identifies this scope
+as `author-target-preview` and records the checks deferred to the coordinator.
+The independent coordinator checks the complete assigned cohort and edited
+operands. The full diagnostic is also available directly and remains the
+default for paired pilot workers.
 
 If a native diagnostic outlives its model process, the coordinator waits for
 that task's diagnostic lease before reserving CPU for independent evaluation.

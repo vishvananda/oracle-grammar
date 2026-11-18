@@ -33,9 +33,9 @@ def prompt(run, task_id):
         diagnostic.append('--preview')
         diagnostic_note = (
             'After grouped changes, run the target preview and read its report. '
-            'It checks target faces, the authored family, and edited operands.\n'
+            'It checks target readings, printing, and the authored family.\n'
             'Return your per-rule dispositions after the preview. '
-            'The coordinator runs the full assigned cohort independently after your response.'
+            'The coordinator independently checks the full assigned cohort and edited operands after your response.'
         )
     return f'''Author shared Oracle grammar for this bounded pilot task.
 Read AGENTS.md, SPEC.md, docs/print-shapes.md and {run/'tasks'/f'{task_id}.json'}.

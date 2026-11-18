@@ -345,7 +345,7 @@ def validate_author_family(family):
                   for case in cases), 'worker-authored family cases must be compositional')
 
 
-def _preview_checks(run, directory, grammar, task, root):
+def _preview_checks(run, directory, grammar, task):
     data = w.payload(run/'inputs')
     by_name = _cohort_index(data[0])
     targets = task.get('target_faces')
@@ -353,8 +353,7 @@ def _preview_checks(run, directory, grammar, task, root):
                else cohort.close_cohort(by_name, data[1], {'names': task['cohort']}, already_closed=True))
     result = w.checks(run/'inputs', directory, grammar, primary['names'], data, 2)
     r.require(result['faces'] == primary['closure_occurrence_count'], 'preview omitted target occurrences')
-    if not result['failures']:
-        result['edited'] = edited_checks(run, directory, grammar, task, root, data)
+    result['deferred_checks'] = ['full assigned cohort', 'edited operand checks']
     return result
 
 
@@ -407,7 +406,7 @@ def _check(run, task_id, coordinator=False, *, preview=False, prepared=None):
                     'checks': ['cohort score', 'cohort native validation', 'edited operand checks'],
                 }
             elif preview:
-                report.update(_preview_checks(run, directory, grammar, task, root))
+                report.update(_preview_checks(run, directory, grammar, task))
                 report['passed'] = not report['failures']
             else:
                 compact = screen_packet.load(run, task, r.digest(run/'inputs/manifest.json'),

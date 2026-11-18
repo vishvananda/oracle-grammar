@@ -59,12 +59,13 @@ class AuthoringTests(unittest.TestCase):
             with self.subTest(failures=failures), \
                  patch.object(a.w, 'payload', return_value=data), \
                  patch.object(a.w, 'checks', return_value={'faces': 3, 'failures': failures}) as checks, \
-                 patch.object(a, 'edited_checks', return_value=[{'face': 'Target'}]) as edited:
-                report = a._preview_checks(run, run/'logs', run/'grammar', task, run/'checkout')
+                 patch.object(a, 'edited_checks') as edited:
+                report = a._preview_checks(run, run/'logs', run/'grammar', task)
                 checks.assert_called_once_with(run/'inputs', run/'logs', run/'grammar',
                                                ['Companion', 'Target'], data, 2)
                 self.assertEqual(report['failures'], failures)
-                self.assertEqual(edited.call_count, int(not failures))
+                self.assertEqual(report['deferred_checks'], ['full assigned cohort', 'edited operand checks'])
+                edited.assert_not_called()
         with self.assertRaisesRegex(ValueError, 'full assigned cohort'):
             a._check(run, 'task', coordinator=True, preview=True)
 
