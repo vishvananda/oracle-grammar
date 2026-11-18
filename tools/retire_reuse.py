@@ -192,7 +192,31 @@ def rebase_candidate(campaign, checkout, task_id, commit, allowed_files, reuse, 
     return {**result, 'rebased_from': origin, 'rebased_onto': commit}
 
 
-def _copy_reviewed_snapshot(archived, proof, report, task, allowed_files):
+def _copy_reviewed_grammar(archived, checkout, evaluated, report, frozen):
+    hooks = report['hooks']
+    r.require(isinstance(hooks, list), 'reviewed draft has invalid hook requests')
+    if not hooks:
+        r.require(report['source_grammar'] == report['grammar'], 'unhooked draft grammar differs from its evaluation')
+    source = checkout/'grammar' if hooks else evaluated
+    grammar = archived/'grammar'
+    r.require(not source.is_symlink(), 'reviewed draft grammar is a symlink')
+    shutil.copytree(source, grammar, symlinks=True)
+    r.require(not any(item.is_symlink() for item in grammar.rglob('*'))
+              and r.tree(grammar) == report['source_grammar'], 'reviewed draft grammar changed while copying')
+    if hooks:
+        from retire_author import apply_hooks, check_root_hooks
+
+        check_root_hooks(frozen, archived)
+        with tempfile.TemporaryDirectory(prefix='.reviewed-hooks-', dir=archived.parent) as temporary:
+            rendered = Path(temporary)/'grammar'
+            shutil.copytree(grammar, rendered)
+            apply_hooks(rendered, hooks)
+            r.require(r.tree(rendered) == report['grammar'], 'reviewed hooks do not reproduce the evaluated grammar')
+        (archived/'.cache').mkdir()
+        r.write(archived/HOOKS, hooks)
+
+
+def _copy_reviewed_snapshot(archived, proof, report, task, allowed_files, frozen):
     from retire_queue import _proof_file
 
     path = Path(proof['report']['path'])
@@ -200,10 +224,7 @@ def _copy_reviewed_snapshot(archived, proof, report, task, allowed_files):
     checkout = work.parents[2]/'workspaces'/work.name
     r.require(task['checkout'] == str(checkout) and checkout.resolve() == checkout,
               'reviewed draft checkout differs')
-    shutil.copytree(path.parent/'grammar', archived/'grammar', symlinks=True)
-    grammar = archived/'grammar'
-    r.require(not any(item.is_symlink() for item in grammar.rglob('*'))
-              and r.tree(grammar) == report['grammar'], 'reviewed draft grammar changed while copying')
+    _copy_reviewed_grammar(archived, checkout, path.parent/'grammar', report, frozen)
     for key, original, digest in (('fixture', path.parent/'family.json', 'fixture_sha256'),
                                   ('edits', checkout/_relative(task['edits']), 'edits_sha256')):
         relative = _relative(task[key])
@@ -216,7 +237,7 @@ def _copy_reviewed_snapshot(archived, proof, report, task, allowed_files):
 
 
 def restore_reviewed_draft(campaign, checkout, commit, job, allowed_files, proof):
-    """Rebase the exact no-hook repair protected by an independent evaluation."""
+    """Rebase the exact repair protected by an independent evaluation."""
     from retire_queue import _verify_reviewed_repair
 
     origin = proof['source_checkpoint']
@@ -227,11 +248,9 @@ def restore_reviewed_draft(campaign, checkout, commit, job, allowed_files, proof
         try:
             frozen = _frozen_origin(campaign, checkout, origin, commit)
             report, task = _verify_reviewed_repair(campaign, origin, job, proof)
-            r.require(report['hooks'] == [] and report['source_grammar'] == report['grammar'],
-                      'reviewed draft uses coordinator hooks')
-            _copy_reviewed_snapshot(archived, proof, report, task, scope)
+            _copy_reviewed_snapshot(archived, proof, report, task, scope, frozen)
             files = _rebased_files(frozen, checkout, archived, scratch/'prepared', task, scope)
-        except (ValueError, OSError, KeyError, subprocess.CalledProcessError) as error:
+        except (ValueError, OSError, KeyError, TypeError, subprocess.CalledProcessError) as error:
             raise merge.MergeConflict(str(error)) from error
         _install_rebased(checkout, files)
     return {'kind': 'independently-reviewed-draft', 'report_sha256': proof['report']['sha256'],

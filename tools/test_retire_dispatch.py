@@ -17,10 +17,12 @@ import uuid
 from unittest.mock import Mock, patch
 
 import retire as r
+from retire_author import apply_hooks
 import retire_batch
 import retire_cpu
 import retire_dispatch as dispatch
 import retire_rehabilitation as rehabilitation
+import retire_reuse
 import retire_tasks
 
 
@@ -48,6 +50,34 @@ def repository(path):
 
 
 class DispatchCanaries(unittest.TestCase):
+    def test_reviewed_hooks_preserve_the_raw_root_and_reproduce_the_evaluated_tree(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            checkout, frozen, evaluated = root/'checkout', root/'frozen', root/'evaluation/grammar'
+            raw_path = checkout/'grammar/syntax/card.ebnf'
+            raw_path.parent.mkdir(parents=True)
+            raw_path.write_text('ability ::= existing\n'
+                                '/* @sem Ability::New */\nreviewed ::= "new"\n')
+            shutil.copytree(checkout/'grammar', frozen/'grammar')
+            shutil.copytree(checkout/'grammar', evaluated)
+            hooks = [{'root': 'ability', 'production': 'reviewed'}]
+            apply_hooks(evaluated, hooks)
+            report = {'hooks': hooks, 'source_grammar': r.tree(checkout/'grammar'), 'grammar': r.tree(evaluated)}
+            archived = root/'archived'
+            retire_reuse._copy_reviewed_grammar(archived, checkout, evaluated, report, frozen)
+            self.assertEqual(r.tree(archived/'grammar'), report['source_grammar'])
+            self.assertEqual(r.read(archived/retire_reuse.HOOKS), hooks)
+            self.assertIn('ability ::= existing | reviewed', (evaluated/'syntax/card.ebnf').read_text())
+
+            with self.assertRaisesRegex(ValueError, 'do not reproduce'):
+                retire_reuse._copy_reviewed_grammar(root/'different-hook', checkout, evaluated,
+                                                    {**report, 'grammar': report['source_grammar']}, frozen)
+            raw_path.write_text('ability ::= reviewed\n/* @sem Ability::New */\nreviewed ::= "new"\n')
+            changed = r.tree(checkout/'grammar')
+            with self.assertRaisesRegex(ValueError, 'direct root dispatch edits are forbidden'):
+                retire_reuse._copy_reviewed_grammar(root/'direct-write', checkout, evaluated,
+                                                    {**report, 'source_grammar': changed, 'grammar': changed}, frozen)
+
     def test_exact_reviewed_draft_uses_coordinator_without_launching_a_model(self):
         with tempfile.TemporaryDirectory() as temporary:
             run = Path(temporary)

@@ -366,7 +366,10 @@ candidate changes require separate restoration review before reuse.
 When a reviewed draft is restored on the exact checkpoint where its independent
 report passed, the coordinator evaluates that draft directly. The attempt records
 its source report hash and zero model cost. The usual author route handles a
-restoration conflict or a draft rebased onto a different checkpoint. Every
+restoration conflict or a draft rebased onto a different checkpoint. A draft
+with typed hooks also needs its original private grammar. The coordinator
+verifies the protected root declarations and reapplies the recorded hooks in
+scratch to reproduce the evaluated grammar before restoring the draft. Every
 passing replay still needs staging and the full integration audit.
 
 Per-worker native helpers use verified independent copies. Copy-on-write support
