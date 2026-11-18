@@ -810,27 +810,40 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
     return True
 
 
+def _fallback_trial(context, entries, whole_proof, label):
+    manifest, folder = context['manifest'], context['folder']
+    items, proof = _stage_trial(context, entries, label)
+    trial_proof = items[0]['trial_proof']
+    manifest.setdefault('fallback_trials', []).append(
+        {'jobs': proof['jobs'], 'status': proof['status'], 'proof': trial_proof,
+         'group_attempt': whole_proof})
+    passed = proof['status'] == 'passed'
+    if passed:
+        for item in items:
+            item['group_attempt'] = whole_proof
+        manifest['jobs'].extend(items)
+    r.write(folder/'manifest.json', manifest)
+    return passed, trial_proof
+
+
 def _subgroup_fallback(context, entries, whole_proof, size):
-    """Try ordered bounded subgroups, with individual fallback only on failure."""
+    """Check a mixed batch's mechanical prefix together before smaller trials."""
     manifest, folder = context['manifest'], context['folder']
     manifest['fallback_group_size'] = size
     r.write(folder/'manifest.json', manifest)
+    prefix = next((offset for offset, (_, item) in enumerate(entries) if item.get('kind') != 'mechanical'),
+                  len(entries))
+    if size < prefix < len(entries):
+        passed, _ = _fallback_trial(context, entries[:prefix], whole_proof, 'mechanical-prefix')
+        if passed:
+            entries = entries[prefix:]
     for offset in range(0, len(entries), size):
         group = entries[offset:offset+size]
         subgroup_proof = None
         if len(group) > 1:
-            items, proof = _stage_trial(context, group, f'subgroup-{group[0][0]:03d}')
-            subgroup_proof = items[0]['trial_proof']
-            manifest.setdefault('fallback_trials', []).append(
-                {'jobs': proof['jobs'], 'status': proof['status'], 'proof': subgroup_proof,
-                 'group_attempt': whole_proof})
-            if proof['status'] == 'passed':
-                for item in items:
-                    item['group_attempt'] = whole_proof
-                manifest['jobs'].extend(items)
-                r.write(folder/'manifest.json', manifest)
+            passed, subgroup_proof = _fallback_trial(context, group, whole_proof, f'subgroup-{group[0][0]:03d}')
+            if passed:
                 continue
-            r.write(folder/'manifest.json', manifest)
         for index, proposal in group:
             single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')
             single[0]['group_attempt'] = whole_proof

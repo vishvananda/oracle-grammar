@@ -1006,6 +1006,35 @@ class BatchTests(unittest.TestCase):
                     self.assertEqual(text, [name for name in names if name != rejected])
                     self.assertFalse((Path(result['source'])/f'families/{rejected}.json').exists())
 
+    def test_mixed_fallback_can_validate_the_mechanical_prefix_together(self):
+        for prefix_passes in (True, False):
+            with self.subTest(prefix_passes=prefix_passes), tempfile.TemporaryDirectory() as temporary:
+                folder = Path(temporary)
+                entries = [(i, {'job_id': f'job-{i}', 'kind': 'mechanical' if i < 8 else 'author'})
+                           for i in range(12)]
+                context = {'folder': folder, 'manifest': {'jobs': []}}
+                calls = []
+
+                def trial(ctx, proposals, label):
+                    jobs = [item['job_id'] for _, item in proposals]
+                    calls.append((label, jobs))
+                    passed = label != 'mechanical-prefix' or prefix_passes
+                    proof = {'jobs': jobs, 'status': 'passed' if passed else 'failed'}
+                    return [{'job_id': job, 'trial_proof': {'path': label}} for job in jobs], proof
+
+                whole_proof = {'path': 'failed mixed trial'}
+                with patch.object(batch, '_stage_trial', side_effect=trial):
+                    batch._subgroup_fallback(context, entries, whole_proof, 4)
+                expected = ['mechanical-prefix', 'subgroup-008'] if prefix_passes else [
+                    'mechanical-prefix', 'subgroup-000', 'subgroup-004', 'subgroup-008']
+                self.assertEqual([label for label, _ in calls], expected)
+                self.assertEqual(calls[0][1], [f'job-{i}' for i in range(8)])
+                manifest = batch.r.read(folder/'manifest.json')
+                self.assertEqual([item['job_id'] for item in manifest['jobs']],
+                                 [item['job_id'] for _, item in entries])
+                self.assertTrue(all(item['group_attempt'] == whole_proof for item in manifest['jobs']))
+                self.assertEqual(manifest['fallback_trials'][0]['status'], 'passed' if prefix_passes else 'failed')
+
     def test_unknown_compiler_rule_finds_only_a_unique_proposal_deletion(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
