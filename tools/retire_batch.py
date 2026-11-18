@@ -61,11 +61,14 @@ def _baseline_fixture_path(value):
 
 
 class _ProposalInputCache:
-    """Verify each shared frozen checkpoint once within an ordered replay."""
+    """Reuse a verified frozen checkpoint across trials in the same batch."""
 
-    def __init__(self):
-        self.snapshots = {}
+    def __init__(self, snapshots=None):
+        self.snapshots = {} if snapshots is None else snapshots
         self.locations = {}
+
+    def trial(self):
+        return _ProposalInputCache(self.snapshots)
 
     @staticmethod
     def identity(root):
@@ -99,7 +102,7 @@ class _ProposalInputCache:
 
     def unchanged(self):
         return (all(directory.resolve() == root for directory, root in self.locations.items())
-                and all(self.identity(root) == original for root, (original, _) in self.snapshots.items()))
+                and all(self.identity(root) == self.snapshots[root][0] for root in set(self.locations.values())))
 
 
 def _proposal(proposal, *, input_cache=None):
@@ -740,7 +743,7 @@ def _stage_trial(context, entries, label):
              'jobs': [item['job_id'] for item in items], 'status': 'running',
              'attempts': [item['attempt_id'] for item in items],
              'prefix_grammar': prefix_tree, 'prefix_fixtures': prefix_fixtures}
-    input_cache = _ProposalInputCache()
+    input_cache = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
     try:
         with tempfile.TemporaryDirectory(dir=folder) as temporary:
             trial = Path(temporary)
@@ -922,12 +925,10 @@ def _probe_retained_family(context, entries, failure, logs, input_cache):
     return outcome
 
 
-def _isolate_retained(entries, test, folder, *, verify_full=False):
+def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False):
     """Find one independently reproducible regression for a fully gated retry."""
     folder.mkdir()
     counter = 0
-    input_cache = _ProposalInputCache()
-
     def probe(group):
         nonlocal counter
         logs = folder/f'probe-{counter:02d}'
@@ -953,7 +954,8 @@ def _isolate_retained_family(context, entries, failure, folder):
     def test(group, logs, input_cache):
         return _probe_retained_family(context, group, failure, logs, input_cache)
 
-    return _isolate_retained(entries, test, folder)
+    inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
+    return _isolate_retained(entries, test, folder, inputs)
 
 
 def _retained_native_failure(control, report):
@@ -1025,7 +1027,8 @@ def _isolate_retained_native(context, entries, failure, folder):
     def test(group, logs, input_cache):
         return _probe_retained_native(context, group, focused, failure['failures'], logs, input_cache)
 
-    return _isolate_retained(entries, test, folder, verify_full=True)
+    inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
+    return _isolate_retained(entries, test, folder, inputs, verify_full=True)
 
 
 def _retry_retained_control(context, entries, proof, whole_proof, size, withheld=()):

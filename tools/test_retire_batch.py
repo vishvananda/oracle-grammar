@@ -1337,11 +1337,18 @@ class BatchTests(unittest.TestCase):
                 for alias in aliases:
                     self.assertEqual(cache.read(alias), manifest)
                 self.assertTrue(cache.unchanged())
+                later = cache.trial()
+                self.assertEqual(later.read(aliases[0]), manifest)
+                self.assertTrue(later.unchanged())
                 hashed.assert_called_once_with(frozen)
             gold.write_text('modified\n')
             self.assertFalse(cache.unchanged())
+            self.assertFalse(later.unchanged())
+            self.assertTrue(cache.trial().unchanged())
             with self.assertRaisesRegex(ValueError, 'frozen inputs changed'):
                 cache.read(aliases[1])
+            with self.assertRaisesRegex(ValueError, 'frozen inputs changed'):
+                cache.trial().read(aliases[0])
 
             gold.write_text('baseline\n')
             new_cache = batch._ProposalInputCache()

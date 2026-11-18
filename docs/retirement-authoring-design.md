@@ -468,4 +468,6 @@ before promotion. If this route fails, staging uses ordered subgroups and retrie
 each failing subgroup. When a diagnosis points to one proposal, the subgroup
 can share a single guarded trial for the other proposals. A separate guarded
 trial adjudicates the isolated proposal. The manifest retains each trial's evidence.
+Trials within a batch share the verified hashes of frozen proposal inputs. Each
+trial rechecks its own input paths and file identities before promotion.
 Uncertain promotion still fails the entire batch.
