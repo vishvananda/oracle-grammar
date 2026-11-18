@@ -1,0 +1,75 @@
+"""Automatically recover only intact, small full-print rejection groups."""
+import json
+from pathlib import Path
+import sqlite3
+from tempfile import TemporaryDirectory
+import unittest
+from unittest.mock import patch
+
+import retire as r
+import retire_recover_full_print as recover
+
+
+class PendingFullPrintTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.campaign = Path(self.temporary.name)
+        self.output = self.campaign/'output'
+        self.output.mkdir()
+        self.batch = '0123456789abcdef'*2
+        self.folder = self.campaign/'.cache/batches'/self.batch
+        self.folder.mkdir(parents=True)
+        self.manifest = {'id': self.batch, 'jobs': [
+            {'job_id': 'a', 'attempt_id': 'old-a', 'status': 'included'},
+            {'job_id': 'b', 'attempt_id': 'old-b', 'status': 'included'},
+            {'job_id': 'c', 'attempt_id': 'old-c', 'status': 'excluded'},
+        ]}
+        self.validation = {'reason': recover.REJECTION, 'scope': 'combined-batch', 'status': 'failed',
+                           'full_checks': {'failures': [{'face': 'One', 'lost': ['exact_default']}]}}
+        r.write(self.folder/'manifest.json', self.manifest)
+        r.write(self.folder/'validation.json', self.validation)
+        self.db = sqlite3.connect(self.campaign/'queue.sqlite')
+        self.addCleanup(self.db.close)
+        self.db.execute('CREATE TABLE jobs (id, attempt_id, adjudication, status)')
+        for job in ('a', 'b'):
+            self.db.execute('INSERT INTO jobs VALUES (?, ?, ?, ?)', (job, 'old-'+job,
+                json.dumps({'evidence': {'manifest': self.batch, 'validation': self.validation}}),
+                'integration-rejected'))
+        self.db.commit()
+
+    def pending(self):
+        return recover.pending_batches(self.campaign, self.output)
+
+    def test_complete_current_group_can_be_recovered_once(self):
+        self.assertEqual(self.pending(), [self.batch])
+        (self.output/self.batch).mkdir()
+        self.assertEqual(self.pending(), [])
+
+    def test_readmitted_or_changed_attempt_is_not_replayed(self):
+        self.db.execute("UPDATE jobs SET attempt_id='new-b' WHERE id='b'")
+        self.db.commit()
+        self.assertEqual(self.pending(), [])
+        self.db.execute("UPDATE jobs SET attempt_id='old-b', status='provisional-pass' WHERE id='b'")
+        self.db.commit()
+        self.assertEqual(self.pending(), [])
+
+    def test_mixed_and_large_failures_are_left_for_review(self):
+        for failures in ([{'face': 'One', 'lost': ['exact_default', 'exact']}],
+                         [{'face': 'One', 'gate': 'native'}],
+                         [{'face': str(i), 'lost': ['exact_default']} for i in range(17)]):
+            with self.subTest(failures=failures):
+                self.validation['full_checks']['failures'] = failures
+                r.write(self.folder/'validation.json', self.validation)
+                self.assertEqual(self.pending(), [])
+
+    def test_recovery_requires_the_existing_readmission_verifier(self):
+        result = {'rules': 7, 'jobs': ['a']}
+        with patch.object(recover.isolation, 'isolate', return_value=result) as isolate, \
+                patch.object(recover.isolation, 'readmit_result', side_effect=ValueError('stale evidence')) as verify:
+            receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True)
+        proof = self.output/self.batch/'proof'
+        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=True)
+        verify.assert_called_once_with(self.campaign, proof, result, full_check=True)
+        self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'stale evidence'})
+        self.assertEqual(self.pending(), [])

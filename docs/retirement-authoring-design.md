@@ -306,6 +306,12 @@ Pass `--full-check` to isolate a completed full audit. This mode uses the accept
 print flags frozen in that audit, checks the exact failed faces and their
 companions, and emits evidence for full-check readmission. Applying the recovery
 independently replays the original union and the proposed survivors.
+`retire_recover_full_print.py CAMPAIGN SCRATCH --watch --apply` can run alongside
+integration. It picks intact rejected groups whose current attempts match the
+archived manifest and whose full audit reports only exact-default losses on up
+to sixteen faces. It uses the same isolation command and queue verifier, records
+one outcome per started batch, and lets integration continue with other work.
+Omit `--watch` for one scan or `--apply` to produce evidence without readmission.
 When checkpoint input rows precede the accepted parse baseline, both immutable
 baselines must match in every field except the parse report's top-level `key`
 array. This bounded string-array derivation metadata is recorded explicitly

@@ -261,6 +261,21 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     return result
 
 
+def readmit_result(campaign, scratch, result, *, full_check=False):
+    queue = Queue(campaign/'queue.sqlite')
+    readmit = queue.readmit_full_check_batch_proposals if full_check else queue.readmit_parse_screen_batch_proposals
+    for retry in range(4):
+        head = queue.progress()['checkpoint']
+        try:
+            receipt = readmit(result['jobs'], head, result['evidence'])
+            break
+        except ValueError:
+            if queue.progress()['checkpoint'] == head or retry == 3:
+                raise
+    r.write(scratch/'readmitted.json', receipt)
+    return receipt
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('campaign', type=Path)
@@ -276,17 +291,7 @@ def main():
     campaign, scratch = args.campaign.resolve(), args.scratch.resolve()
     result = isolate(campaign, args.batch, scratch, args.max_trials, suspects=args.suspect, full_check=args.full_check)
     if args.apply:
-        queue = Queue(campaign/'queue.sqlite')
-        readmit = queue.readmit_full_check_batch_proposals if args.full_check else queue.readmit_parse_screen_batch_proposals
-        for retry in range(4):
-            head = queue.progress()['checkpoint']
-            try:
-                receipt = readmit(result['jobs'], head, result['evidence'])
-                break
-            except ValueError:
-                if queue.progress()['checkpoint'] == head or retry == 3:
-                    raise
-        r.write(scratch/'readmitted.json', receipt)
+        readmit_result(campaign, scratch, result, full_check=args.full_check)
     print(json.dumps({'rules': result['rules'], 'jobs': len(result['jobs']), 'proof': str(scratch/'result.json')}))
 
 
