@@ -97,6 +97,22 @@ def _frozen(campaign, checkpoint, manifest, validation, reads, archived=None):
     return cp, inputs, run, data, trees
 
 
+def _refusals(entries, rows, missing):
+    refused, expected = [], []
+    for (ordinal, entry), row in zip(entries, rows, strict=True):
+        if row.get('name') != entry['name'] or row.get('text') != entry['text']:
+            raise ValueError('parse refusal occurrence changed its name or wording')
+        count = entry['parse']['readings']
+        if row['status'] == 'refused':
+            refused.append(ordinal)
+            expected.extend((entry['name'], reading) for reading in range(count))
+        elif row['status'] != 'equal' or row.get('readings') != count:
+            raise ValueError('refusal-only isolation contains another reading change')
+    if not refused or sorted(expected) != sorted((item['name'], item['reading']) for item in missing):
+        raise ValueError('refusal-only isolation does not match the missing native readings')
+    return refused
+
+
 def _original(run, folder, validation, data, reads):
     result = validation.get('parse_screen')
     if (not isinstance(result, dict) or result.get('status') != 'failed'
@@ -112,10 +128,12 @@ def _original(run, folder, validation, data, reads):
         raise ValueError('recomputed original parse-screen result differs')
     native = r.read(folder/'parse-screen/native.json')['reading_preservation']
     rows = r.rows(folder/'parse-screen/rows.jsonl')
+    if native['missing'] and native['merged_faces'] == 0 and not native['additions'] and not native['passed']:
+        return [], _refusals(enumerate(data[0].values()), rows, native['missing'])
     if (native['missing'] or native['merged_faces'] != 0 or not native['additions'] or not native['passed']
             or any(row.get('status') != 'equal' for row in rows)):
-        raise ValueError('parse recovery only supports complete additions-only failures, not refusals or missing meanings')
-    return native['additions']
+        raise ValueError('parse recovery requires a complete additions-only or refusal-only failure')
+    return native['additions'], []
 
 
 def _original_full_checks(run, folder, validation, data, reads, artifacts):
@@ -220,13 +238,19 @@ def _focus(campaign, controls, profile_spec, context, reads):
                 raise ValueError('parse focused native command is incomplete')
             screen.assess(projection, checks, focused, commands[1]['returncode'])
             native = r.read(checks/'native.json')
+            rows = r.rows(checks/'rows.jsonl')
             actual = {'faces': count, 'failures': worker.native_failures(native, count)
-                      + worker.compare(r.rows(checks/'rows.jsonl'), data[0], selected)}
+                      + worker.compare(rows, data[0], selected)}
             if result != actual or (label == 'full') != bool(actual['failures']):
                 raise ValueError('parse focused native or print outcome differs')
             if label == 'full' and full_failures is not None and actual['failures'] != full_failures:
                 raise ValueError('focused full checks did not reproduce the exact archived failures')
             preservation = native['reading_preservation']
+            if label == 'full' and context['refusals']:
+                if (preservation['additions'] or preservation['merged_faces'] or preservation['passed']
+                        or _refusals(entries, rows, preservation['missing']) != context['refusals']):
+                    raise ValueError('focused full checks did not reproduce the same refused occurrences')
+                continue
             additions = [dict(item, occurrence=entries[item['occurrence']][0]) for item in preservation['additions']]
             if preservation['missing'] or preservation['merged_faces'] or (label == 'full' and additions != original):
                 raise ValueError('parse full focus does not exactly reproduce original added readings')
@@ -275,12 +299,16 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
         raise ValueError('parse isolation identity differs')
     archive = evidence.get('archive_manifests', {}) if full_checks else None
     cp, inputs, run, data, trees = _frozen(campaign, checkpoint, manifest, validation, reads, archive)
+    refused = []
     if full_checks:
         original, full_failures, named = _original_full_checks(
             run, folder, validation, data, reads, evidence.get('full_artifacts'))
     else:
-        original = _original(run, folder, validation, data, reads)
+        original, refused = _original(run, folder, validation, data, reads)
         named = {item['name'] for item in original}
+        if refused:
+            entries = list(data[0].values())
+            named = {entries[ordinal]['name'] for ordinal in refused}
         full_failures = None
     expected = {'base': [], 'full': list(range(len(ids))),
                 'remaining': [i for i, job in enumerate(ids) if job not in excluded]}
@@ -292,7 +320,7 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     control_data = data if full_checks else worker.payload(inputs)
     focus = {'data': data, 'control_data': control_data, 'run': run, 'expected': expected, 'included': included,
              'trees': trees, 'original': original, 'count': count, 'named_failures': named,
-             'full_failures': full_failures,
+             'full_failures': full_failures, 'refusals': refused,
              'has_declared_key_changes': 'derivation_key_changes' in isolation,
              'declared_key_changes': isolation.get('derivation_key_changes')}
     control_trees = _focus(campaign, isolation['controls'], isolation.get('profile'), focus, reads)
@@ -316,9 +344,12 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     grammars = {str(inputs/'frozen/grammar'): trees[0], str(run/'frozen/grammar'): trees[1]}
     grammars.update({str(Path(isolation['controls'][label]['identity']['path']).parent/'grammar'): tree
                      for label, tree in control_trees.items()})
+    proof_scope = 'archived full-check isolation' if full_checks else 'additions-only parse-screen isolation'
+    if refused:
+        proof_scope = 'refusal-only parse-screen isolation'
     return {'manifest': batch, 'excluded_jobs': excluded, 'focused_faces': count,
             'requires_fresh_full_validation': True,
-            'proof_scope': 'archived full-check isolation' if full_checks else 'additions-only parse-screen isolation',
+            'proof_scope': proof_scope,
             'verified_artifacts': artifacts, 'verified_grammars': grammars,
             'verified_frozen_inputs': [str(inputs), str(run)],
             'derivation_key_changes': focus['derivation_key_changes']}

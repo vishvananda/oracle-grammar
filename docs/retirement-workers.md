@@ -65,13 +65,14 @@ only when Git independently proves identical grammar and native implementation,
 excluding the diagnostic CLI and its tests, and all repository gates pass again.
 The original failure remains in the audit trail. Readmission of other parked
 proposals only restores provisional status; their combined grammar is rechecked.
-An additions-only parse-screen isolation can cite the accepted ancestor where
-the batch originally failed. The queue verifies that proof at the original
-checkpoint, then restores only the still-current rejected attempts at the
-latest checkpoint. Staging replays them against that checkpoint and runs its
-full validation before publication. An archived full-check failure can use
-the same recovery path if all prior readings remain and focused controls
-reproduce every added reading and print failure.
+A parse-screen isolation can cite the accepted ancestor where the batch
+originally failed. The focused controls must reproduce every added reading
+or every refused occurrence and its missing native readings. The queue
+verifies the original proof and restores only the still-current rejected
+attempts. Staging checks the resulting union on the latest checkpoint before
+full validation and publication. An archived full-check failure can use the
+same recovery path if all prior readings remain and focused controls reproduce
+every added reading and print failure.
 
 One full audit runs at a time, reserving 16 tokens by default from a shared
 32-token CPU pool; a 24-thread option is also supported. Worker helpers reserve two

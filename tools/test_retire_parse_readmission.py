@@ -29,7 +29,7 @@ def native_report(rows, old_count, additions):
 
 
 class ParseReadmissionTests(BatchReadmissionTests):
-    def fixture(self):
+    def fixture(self, *, refusal=False):
         folder = self.root/'.cache/batches/batch'
         self.old = [{'name': n, 'text': n.lower(), 'status': 'equal', 'readings': 1, 'exact': True}
                     for n in ('C', 'A', 'B')]
@@ -60,8 +60,8 @@ class ParseReadmissionTests(BatchReadmissionTests):
         addition = {'name': 'A', 'occurrence': 1, 'previous_status': 'equal',
                     'added_current_indices': [1], 'retained_current_indices': [0]}
         self.original = folder/'parse-screen'; self.original.mkdir()
-        self.make_checks(self.original, {'A', 'B', 'C'}, addition)
-        original_screen = screen.assess(self.run, self.original, self.data, 0)
+        self.make_checks(self.original, {'A', 'B', 'C'}, None if refusal else addition, refusal=1 if refusal else None)
+        original_screen = screen.assess(self.run, self.original, self.data, int(refusal))
         original_screen['artifacts'] = {name: spec(self.original/name) for name in parsed.ARTIFACTS}
         write(self.original/'result.json', original_screen)
         validation = {'status': 'failed', 'scope': 'combined-batch', 'candidate': 'candidate', 'source_checkpoint': 'parent',
@@ -83,8 +83,9 @@ class ParseReadmissionTests(BatchReadmissionTests):
             identity = {'method':'ordered-proposal-replay-v1','indices':indices,'tree':r.tree(root/'grammar'),
                         'proposals':[{'job_id':self.items[i]['job_id'],'attempt_id':self.items[i]['attempt_id']}for i in indices]}
             write(root/'identity.json', identity); checks = root/'checks'; checks.mkdir()
-            focused_addition = dict(addition, occurrence=0) if label == 'full' else None
-            result = self.make_checks(checks, {'A', 'B'}, focused_addition)
+            focused_addition = dict(addition, occurrence=0) if label == 'full' and not refusal else None
+            result = self.make_checks(checks, {'A', 'B'}, focused_addition,
+                                      refusal=0 if label == 'full' and refusal else None)
             write(root/'result.json', result)
             controls[label] = {'identity':spec(root/'identity.json'),'result':spec(root/'result.json'),
                 'population':spec(checks/'slice.json'),'artifacts':{name:spec(checks/name)for name in parsed.ARTIFACTS}}
@@ -97,20 +98,43 @@ class ParseReadmissionTests(BatchReadmissionTests):
                 'repository_log':spec(self.log),'isolation':spec(self.isolation),
                 'reports':{name:spec(self.reports[name])for name in ('author','mechanical')}}
 
-    def make_checks(self, directory, names, addition):
+    def make_checks(self, directory, names, addition, *, refusal=None):
         worker.subset(directory, names, self.data)
         rows = [dict(entry['parse'])for entry in self.data[0].values()if entry['name'] in names]
         if addition: rows[addition['occurrence']]['readings'] = 2
+        if refusal is not None:
+            rows[refusal].update(status='refused', readings=0)
         r.jsonl(directory/'rows.jsonl', rows)
-        r.write(directory/'native.json', native_report(rows,len(rows),[addition]if addition else []))
+        native = native_report(rows,len(rows),[addition]if addition else [])
+        if refusal is not None:
+            for count in ('recognized_faces', 'faces_with_any_valid_reading', 'faces_with_all_readings_valid'):
+                native[count] -= 1
+            native['reading_preservation'].update(passed=False, missing=[{'name':rows[refusal]['name'],'reading':0}])
+        r.write(directory/'native.json', native)
         (directory/'native-failures.jsonl').write_text('')
-        r.jsonl(directory/'commands.jsonl',[{'program':'score','returncode':0},{'program':'validate-readings','returncode':0}])
+        r.jsonl(directory/'commands.jsonl',[{'program':'score','returncode':0},
+                                          {'program':'validate-readings','returncode':int(refusal is not None)}])
         for name in ('score.log','validate-readings.log'): (directory/name).write_text('complete\n')
         return {'faces':len(rows),'failures':worker.native_failures(r.read(directory/'native.json'),len(rows))
                 +worker.compare(rows,self.data[0],set(names))}
 
     def invoke(self, proof):
         return self.queue.readmit_parse_screen_batch_proposals(['author','mechanical'],'parent',proof)
+
+    def test_readmits_survivors_after_reproducing_the_original_refusal(self):
+        proof = self.fixture(refusal=True)
+        with patch.object(parsed.library, '_replay'):
+            result = self.invoke(proof)
+        self.assertEqual(result['proof']['proof_scope'], 'refusal-only parse-screen isolation')
+        self.assertTrue(result['proof']['requires_fresh_full_validation'])
+        self.assertEqual(self.queue.coverage()['counts'], {'provisional-pass': 2, 'integration-rejected': 1})
+
+    def test_refusal_cannot_explain_a_missing_reading_on_a_recognized_face(self):
+        self.fixture(refusal=True)
+        rows = r.rows(self.original/'rows.jsonl')
+        rows[1].update(status='equal', readings=1)
+        with self.assertRaisesRegex(ValueError, 'match the missing native readings'):
+            parsed._refusals(enumerate(self.data[0].values()), rows, [{'name':'A','reading':0}])
 
     def full_fixture(self):
         proof = self.fixture()
