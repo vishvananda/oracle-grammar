@@ -5,6 +5,14 @@ import retire_parse_isolate as isolate
 
 
 class SurvivorTests(unittest.TestCase):
+    def test_retry_hints_require_a_failing_singleton_with_the_pinned_prefix(self):
+        jobs = [{'job_id': str(i)} for i in range(6)]
+        failure = {'result': {'failures': ['regression']}}
+        passed = {'result': {'failures': []}}
+        seen = {(0, 1): passed, (0, 1, 2, 3): failure, (0, 1, 2): failure,
+                (0, 1, 4): passed, (1, 5): failure}
+        self.assertEqual(isolate._witnessed_suspects(seen, [0, 1], jobs), ['2'])
+
     def test_suspect_skips_bisection_when_the_remaining_union_passes(self):
         trials = []
 

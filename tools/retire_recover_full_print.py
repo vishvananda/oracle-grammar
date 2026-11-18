@@ -24,11 +24,19 @@ def recover(campaign, output, batch, max_trials, *, apply, mode='print'):
         else:
             r.require(mode in ('print', 'parse'), 'unsupported batch recovery mode')
             full_check = mode == 'print'
-            result = isolation.isolate(campaign, batch, path, max_trials, full_check=full_check)
+            try:
+                result = isolation.isolate(campaign, batch, path, max_trials, full_check=full_check)
+            except isolation.FocusedTrialLimit as exhausted:
+                retry_trials = min(max_trials, 96-max_trials)
+                if not exhausted.suspects or retry_trials < 3:
+                    raise
+                path = folder/'proof-with-witnesses'
+                result = isolation.isolate(campaign, batch, path, retry_trials,
+                                           suspects=exhausted.suspects, full_check=full_check)
             if apply:
                 isolation.readmit_result(campaign, path, result, full_check=full_check)
         receipt = {'status': 'readmitted' if apply else 'proved', 'rules': result['rules'],
-                   'jobs': len(result['jobs']), 'proof': str(folder/'proof/result.json')}
+                   'jobs': len(result['jobs']), 'proof': str(path/'result.json')}
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         receipt = {'status': 'needs-review', 'reason': str(error)}
     folder.mkdir(exist_ok=True)

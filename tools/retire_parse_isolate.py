@@ -22,6 +22,12 @@ from retire_native_readmission import _allowed
 from retire_queue import Queue, _gates, _proof_file
 
 
+class FocusedTrialLimit(ValueError):
+    def __init__(self, suspects):
+        super().__init__('focused trial limit reached')
+        self.suspects = tuple(suspects)
+
+
 def _spec(path):
     return {'path': str(path), 'sha256': r.digest(path)}
 
@@ -168,6 +174,17 @@ def _survivors(indices, trial, pinned, suspect=None, *, suspects=()):
     return remaining
 
 
+def _witnessed_suspects(seen, pinned, jobs):
+    pinned = set(pinned)
+    suspects = set()
+    for selection, item in seen.items():
+        selected = set(selection)
+        candidates = selected - pinned
+        if len(candidates) == 1 and pinned <= selected and item['result']['failures']:
+            suspects.update(candidates)
+    return [jobs[i]['job_id'] for i in sorted(suspects)]
+
+
 def _controls(roots):
     return {label: {'identity': _spec(root/'identity.json'), 'result': _spec(root/'result.json'),
                     'population': _spec(root/'checks/slice.json'),
@@ -197,6 +214,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     mechanics = [i for i in indices if jobs[i]['kind'] == 'mechanical']
     prefix = mechanics if mechanics == indices[:len(mechanics)] else []
     seen, roots = {}, {}
+    pinned = []
 
     def trial(selection, label=None):
         key = tuple(selection)
@@ -208,7 +226,8 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
             if label:
                 roots[label] = saved
             return seen[key]['result']
-        r.require(len(seen) < max_trials, 'focused trial limit reached')
+        if len(seen) >= max_trials:
+            raise FocusedTrialLimit(_witnessed_suspects(seen, pinned, jobs))
         root = scratch/(label or f'trial-{len(seen):03d}')
         frozen = inputs/'frozen/grammar'
         remainder = selection

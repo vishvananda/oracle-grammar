@@ -87,6 +87,19 @@ class PendingFullPrintTests(unittest.TestCase):
         self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'stale evidence'})
         self.assertEqual(self.pending(), [])
 
+    def test_exhausted_diagnosis_rechecks_witnesses_before_readmission(self):
+        result = {'rules': 1, 'jobs': ['a']}
+        attempts = [recover.isolation.FocusedTrialLimit(['b']), result]
+        with patch.object(recover.isolation, 'isolate', side_effect=attempts) as isolate, \
+                patch.object(recover.isolation, 'readmit_result') as readmit:
+            receipt = recover.recover(self.campaign, self.output, self.batch, 52, apply=True, mode='parse')
+        folder = self.output/self.batch
+        self.assertEqual(isolate.call_args_list[0].args, (self.campaign, self.batch, folder/'proof', 52))
+        self.assertEqual(isolate.call_args.args, (self.campaign, self.batch, folder/'proof-with-witnesses', 44))
+        self.assertEqual(isolate.call_args.kwargs, {'suspects': ('b',), 'full_check': False})
+        readmit.assert_called_once_with(self.campaign, folder/'proof-with-witnesses', result, full_check=False)
+        self.assertEqual(receipt['proof'], str(folder/'proof-with-witnesses/result.json'))
+
     def test_live_parse_recovery_requires_enabled_complete_additions(self):
         self.validation.update(reason=PARSE_SCREEN_REJECTION,
                                parse_screen={'status': 'failed', 'native_exit': 0,
