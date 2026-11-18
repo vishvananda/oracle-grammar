@@ -3375,3 +3375,36 @@ required_each_opponent_targets ::= "target" adjective_nontype filter_phrase "tha
 /* The named payer may prevent the stated operation by paying life. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$target_opponent, cost:Cost{parts:[Life($number)]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:$operation}]}, otherwise:Program{}}] */
 clause_unless_named_life ::= operation "unless" target_opponent "pays" number "life"
+
+/* Inclusive random bounds remain independent operands of the choice. */
+/* @sem Operation::ChooseAtRandom{kind:Number, options:[Comparison([GreaterOrEqual, $value]), Comparison([LessOrEqual, $value_2])]} */
+random_number_range ::= "where" "X" "is" "a" "number" "chosen" "at" "random" "from" value "to" value
+
+/* @sem Operation::DealDamage{source:$object_ref, recipients:Objects($affected), amount:ChosenNumber, preventable:true} */
+random_number_damage ::= object_ref "deals" "X" "damage" "to" affected
+
+/* @sem Instruction::[Effect{result:@next, operation:$random_number_range}, Effect{result:@next, operation:$random_number_damage}] */
+instructions_random_number_damage ::= random_number_damage "," random_number_range
+
+/* The chosen controller is scoped to the bound object in the enclosing loop. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseAtRandom{kind:Player, options:[$recipients]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Bound(0))), changes:[SetController(Chosen)], duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:One(Bound(0)), tapped:false}}] */
+random_controller_untap ::= "then" recipients "gains" "control" "of" "each" "permanent" "for" "which" "they" "were" "chosen" "." "untap" "those" "permanents"
+
+/* @sem Instruction::[ForEachObject{objects:$affected, binding:0, body:Program{instructions:$random_controller_untap}}] */
+instructions_random_controller_untap ::= "for" affected "," "choose" "a" "player" "at" "random" "." random_controller_untap
+
+/* A payment action can occur in any program, including an entry replacement. */
+/* @sem Instruction::[Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:$payment_resource}}] */
+clause_pay_any_resource ::= "pay" "any" "amount" "of" payment_resource
+
+/* @sem Resource::Life */
+payment_resource_life ::= "life"
+
+/* @sem Resource::Mana */
+payment_resource_mana ::= "mana"
+
+payment_resource ::= payment_resource_life | payment_resource_mana
+
+/* Keep the payment producer and its aggregate consumer in one program. */
+/* @sem Program::Program{instructions:[ForEachPlayer{players:All, binding:0, starting_with:AbilityController, body:_{instructions:[Effect{result:@next, operation:PayAnyAmount{actor:One(Bound(0)), resource:Mana}}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:[Pump{power:Performed(@prior), toughness:$number_digits}], duration:EndOfTurn, evaluation:Snapshot}}]} */
+program_shared_mana_payment_pump ::= "each" "player" "starting" "with" "you" "may" "pay" "any" "amount" "of" "mana" "." object_ref "gets" "+" "X" "/" "+" number_digits "until" "end" "of" "turn" "," "where" "X" "is" "the" "total" "amount" "of" "mana" "paid" "this" "way"

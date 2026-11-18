@@ -24,7 +24,7 @@ copy_each_referent ::= "it" | "that" "creature" | "that" "permanent"
 create_each_named_leading ::= "for" "each" leading_count_each "," "create" ("a" | "an") token_named_recipe "token"
 /* A leading count names present permanents. "This way" counts name a producing
    instruction, which a sentence boundary can separate from @prior. */
-leading_count_each ::= count_attached_to_him | count_controlled_either | count_each_permanent | count_each_other
+leading_count_each ::= count_spells_cast_this_turn | count_attached_to_him | count_controlled_either | count_each_permanent | count_each_other
 
 /* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}) */
 create_tapped_third ::= "creates" token_groups_tapped
@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors
+token_recipe ::= token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors
 
 token_recipe_base ::= token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless
 
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver
+created_token_name ::= card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -553,3 +553,50 @@ random_green_plain ::= counter_amount value "/" value subtype
 
 /* @sem Operand::List([Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:[Green], card_types:[Creature], subtypes:[@subtype_name($subtype)], power_toughness:[$value, $value_2], abilities:[Keyword($keyword_value)]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}]) */
 random_green_keyword ::= counter_amount value "/" value subtype "with" keyword_value
+
+/* A leading spell count is the controller's cast-event history. */
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:One(AbilityController), spells:Any}, window:ThisTurn, measure:Occurrences} */
+count_spells_cast_this_turn ::= "spell" "you've" "cast" "this" "turn"
+
+/* The same defined quantity supplies both token characteristics. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_spell_max, $token_spell_max], abilities:$token_abilities}) */
+token_recipe_history_max ::= "X" "/" "X" token_colors token_subtypes token_types "token" "with" token_abilities "," "where" "X" "is" token_spell_max
+
+/* @sem Expr::EventHistory{event:Spell{event:Cast, players:All, spells:AllOf([$token_spell_history_filter, Cast{by:One(AbilityController)}])}, window:ThisTurn, measure:Property([ManaValue, Maximum])} */
+token_spell_max ::= "the" "greatest" "mana" "value" "among" token_spell_history_filter "spells" "you've" "cast" "this" "turn"
+
+/* @sem ObjectFilter::AnyOf([$spell_adjective, $spell_adjective_2]) */
+token_spell_history_filter ::= spell_adjective "and" spell_adjective
+
+/* The separate entry sentence modifies the creation itself. The name in the
+   singular form is fixed on both sides, so it cannot name an unrelated token. */
+/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:Explicit(Ragavan), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2]}} */
+attacking_ragavan_spec ::= "Ragavan" "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token"
+
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[$attacking_ragavan_spec], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}} */
+create_named_attacking_sentence ::= "create" attacking_ragavan_spec "." "Ragavan" "enters" "tapped" "and" "attacking"
+
+/* The historical count is self-contained: receipt-derived counts require a
+   producer proof and are deliberately excluded from this phrase. */
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$count_each_discarded_turn, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$token_copy_exception}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}} */
+create_counted_copy_attacking_sentence ::= "for" "each" count_each_discarded_turn "," "create" "a" "token" "that's" "a" "copy" "of" object_ref "," "except" token_copy_exception "." "the" "tokens" "enter" "tapped" "and" "attacking"
+
+/* @sem Vec<CopyException>::[CopyException::RemoveSupertypes([Legendary])] */
+token_copy_exception ::= "the" "token" "isn't" "legendary"
+
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(0), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
+token_cleanup_singular ::= "exile" "that" "token" "at" token_cleanup_event
+
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(0), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
+token_cleanup_plural ::= "exile" "the" "tokens" "at" token_cleanup_event
+
+token_cleanup_event ::= turn_end_combat | token_cleanup_end_step
+
+/* @sem EventSpec::Turn{point:EndStepBegins, players:All} */
+token_cleanup_end_step ::= "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_named_attacking_sentence}, $token_cleanup_singular]}} */
+triggered_named_attacking_token_cleanup ::= event_clause "," create_named_attacking_sentence "." token_cleanup_singular "."
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_counted_copy_attacking_sentence}, $token_cleanup_plural]}} */
+triggered_counted_copy_attacking_cleanup ::= event_clause "," create_counted_copy_attacking_sentence "." token_cleanup_plural "."

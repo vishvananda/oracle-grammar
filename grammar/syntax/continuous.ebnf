@@ -3760,3 +3760,23 @@ triggered_attachment_population_copy ::= attachment_aura_enters_creature "," att
 
 /* @sem Ability::Triggered{event:$attachment_equipment_becomes_creature, limits:_{}, announcement:@announcement, body:Program{instructions:$attachment_optional_copy}} */
 triggered_attachment_optional_copy ::= attachment_equipment_becomes_creature "," attachment_optional_copy "."
+
+/* The follow-ups use the same snapshot captured by the control effect. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateContinuousEffect{source:Source, affected:Objects($control_all_untap_population), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:Affected(@marked), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Affected(@marked)), changes:$grants, duration:$duration_2, evaluation:Snapshot}}] */
+clause_control_all_untap_grant ::= "gain" "control" "of" control_all_untap_population duration "." "untap" "them" "." "they" "gain" grants duration
+
+control_all_untap_population ::= control_all_untap_creatures | control_all_untap_negated_permanents
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)} */
+control_all_untap_creatures ::= "all" "creatures"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:Not(CardType($control_all_untap_excluded_type))} */
+control_all_untap_negated_permanents ::= "all" control_all_untap_excluded_type "permanents"
+
+control_all_untap_excluded_type ::= control_all_untap_nonland | control_all_untap_noncreature
+
+/* @sem CardType::Land */
+control_all_untap_nonland ::= "nonland"
+
+/* @sem CardType::Creature */
+control_all_untap_noncreature ::= "noncreature"

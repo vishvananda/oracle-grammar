@@ -1,0 +1,900 @@
+{
+  "family": "retirement-random-choice",
+  "cases": [
+    {
+      "name": "Flametongue Kavu Avatar",
+      "text": "Whenever a nontoken creature you control enters, that creature deals X damage to target creature, where X is a number chosen at random from 0 to 4.",
+      "types": [
+        "Vanguard"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "Token"
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseAtRandom",
+                      "args": {
+                        "kind": "Number",
+                        "options": [
+                          {
+                            "kind": "Comparison",
+                            "args": [
+                              "GreaterOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 0
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "Comparison",
+                            "args": [
+                              "LessOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 4
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "EventSubject"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "ChosenNumber"
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Scrambleverse",
+      "text": "For each nonland permanent, choose a player at random. Then each player gains control of each permanent for which they were chosen. Untap those permanents.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachObject",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "CardType",
+                            "args": "Land"
+                          }
+                        }
+                      }
+                    },
+                    "binding": 0,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseAtRandom",
+                              "args": {
+                                "kind": "Player",
+                                "options": [
+                                  {
+                                    "kind": "Players",
+                                    "args": {
+                                      "kind": "All"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Objects": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Bound",
+                                      "args": 0
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "SetController",
+                                    "args": {
+                                      "kind": "Chosen"
+                                    }
+                                  }
+                                ],
+                                "duration": "Indefinite",
+                                "evaluation": "Snapshot"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "SetTapped",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "tapped": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Random damage lower bound",
+      "text": "Whenever a nontoken creature you control enters, that creature deals X damage to target creature, where X is a number chosen at random from 1 to 4.",
+      "types": [
+        "Vanguard"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "Token"
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseAtRandom",
+                      "args": {
+                        "kind": "Number",
+                        "options": [
+                          {
+                            "kind": "Comparison",
+                            "args": [
+                              "GreaterOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "Comparison",
+                            "args": [
+                              "LessOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 4
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "EventSubject"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "ChosenNumber"
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Incomplete random range",
+      "text": "Whenever a nontoken creature you control enters, that creature deals X damage to target creature, where X is a number chosen at random from 0.",
+      "types": [
+        "Vanguard"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Flametongue Kavu Avatar",
+      "text": "Whenever a nontoken creature you control enters, that creature deals X damage to target creature, where X is a number chosen at random from 1 to 4.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Vanguard"
+        ],
+        "subtypes": [],
+        "mana_cost": null,
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "Token"
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseAtRandom",
+                      "args": {
+                        "kind": "Number",
+                        "options": [
+                          {
+                            "kind": "Comparison",
+                            "args": [
+                              "GreaterOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "Comparison",
+                            "args": [
+                              "LessOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 4
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "EventSubject"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "ChosenNumber"
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Flametongue Kavu Avatar",
+      "text": "Whenever a nontoken creature you control enters, that creature deals X damage to target creature, where X is a number chosen at random from 0 to 6.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Vanguard"
+        ],
+        "subtypes": [],
+        "mana_cost": null,
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "Token"
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseAtRandom",
+                      "args": {
+                        "kind": "Number",
+                        "options": [
+                          {
+                            "kind": "Comparison",
+                            "args": [
+                              "GreaterOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 0
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "Comparison",
+                            "args": [
+                              "LessOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 6
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "EventSubject"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "amount": {
+                          "kind": "ChosenNumber"
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Scrambleverse",
+      "text": "For each noncreature permanent, choose a player at random. Then each player gains control of each permanent for which they were chosen. Untap those permanents.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 6
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachObject",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        }
+                      }
+                    },
+                    "binding": 0,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseAtRandom",
+                              "args": {
+                                "kind": "Player",
+                                "options": [
+                                  {
+                                    "kind": "Players",
+                                    "args": {
+                                      "kind": "All"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Objects": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Bound",
+                                      "args": 0
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "SetController",
+                                    "args": {
+                                      "kind": "Chosen"
+                                    }
+                                  }
+                                ],
+                                "duration": "Indefinite",
+                                "evaluation": "Snapshot"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "SetTapped",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "tapped": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
