@@ -1368,10 +1368,11 @@ class Queue:
                 'native-exit-one': 'isolated-native-exit-one-revalidation',
                 'parse-screen': 'isolated-parse-screen-revalidation',
                 'full-check': 'isolated-full-check-revalidation'}[mode]
-        if not isinstance(evidence, dict) or evidence.get('kind') != kind:
+        cached = mode == 'library' and isinstance(evidence, dict) and evidence.get('kind') == 'stale-schema-test-cache-revalidation'
+        if not cached and (not isinstance(evidence, dict) or evidence.get('kind') != kind):
             raise ValueError('matching isolated batch revalidation evidence is required')
         verify_archived_replay = mode in ('parse-screen', 'full-check')
-        origin = evidence.get('source_checkpoint', checkpoint) if verify_archived_replay else checkpoint
+        origin = evidence.get('source_checkpoint', checkpoint) if verify_archived_replay or cached else checkpoint
         if not isinstance(origin, str) or not origin or Path(origin).name != origin:
             raise ValueError('invalid parse readmission origin')
         reports = evidence.get('reports')

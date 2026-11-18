@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import retire_library_readmission as library
 from retire_queue import Queue
 import retire_queue as queue_module
 
@@ -19,6 +20,59 @@ def write(path, value):
 
 def spec(path):
     return {'path': str(path), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+
+
+class CachedSchemaTestReadmissionTests(unittest.TestCase):
+    def test_recovery_requires_every_original_proposal_and_unchanged_ir(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bad, good = (root/'.cache/batches'/(name*32) for name in ('a', 'b'))
+            parent, candidate, replacement = (name*40 for name in ('c', 'd', 'e'))
+            selected = {'job': 'attempt'}
+            grammar = bad/'validation-inputs/frozen/grammar'
+            grammar.mkdir(parents=True)
+            (grammar/'base.ebnf').write_text('candidate')
+            tree = {'base.ebnf': spec(grammar/'base.ebnf')['sha256']}
+            write(root/'config.json', {'source_repo': str(root)})
+            write(bad/'manifest.json', {'id': bad.name, 'commit': candidate, 'status': 'provisional',
+                 'base_commit': parent, 'grammar': tree,
+                 'jobs': [{'status': 'included', 'job_id': 'job', 'attempt_id': 'attempt'}]})
+            validation = {'status': 'failed', 'scope': 'combined-batch', 'reason': 'repository gates failed',
+                          'repository_check_returncode': 1, 'candidate': candidate, 'source_checkpoint': parent,
+                          'included_jobs': ['job'], 'inputs': str(grammar.parent.parent)}
+            write(bad/'validation.json', validation)
+            write(good/'manifest.json', {'id': good.name, 'commit': replacement})
+            tests = ('ir_schema::contract::frozen_descriptors_match_the_compiled_contract',
+                     'ir_schema::contract::schema_shape_is_frozen')
+            pass_log = ''.join(f'{name} passed 1.0 s\n' for name in sorted(queue_module._GATE_NAMES))
+            failed_log = (pass_log.replace('test passed', 'test FAILED')
+                          + 'code: 2, kind: NotFound, message: "No such file or directory"\n'*2
+                          + 'failures:\n' + ''.join(f'    {test}\n' for test in tests)
+                          + '\ntest result: FAILED. 3 passed; 2 failed; 2 ignored;\n'
+                          + 'error: test failed, to rerun pass `-p oracle-ir --lib`\n')
+            (bad/'repository-check.log').write_text(failed_log)
+            (good/'repository-check.log').write_text(pass_log)
+            fixed_tests = root/'.cache/test.log'
+            fixed_tests.write_text(''.join(f'test {test} ... ok\n' for test in tests))
+            proof = {'kind': 'stale-schema-test-cache-revalidation', 'reports': {},
+                     'manifest': spec(bad/'manifest.json'), 'validation': spec(bad/'validation.json'),
+                     'repository_log': spec(bad/'repository-check.log'),
+                     'fixed_manifest': spec(good/'manifest.json'),
+                     'fixed_repository_log': spec(good/'repository-check.log'), 'fixed_tests': spec(fixed_tests)}
+            rejections = {'job': {'evidence': {'manifest': bad.name, 'validation': validation}}}
+            with patch.object(library, '_replay') as replay, \
+                 patch.object(library.subprocess, 'check_output', return_value=b'same-tree') as git:
+                def verify(selection):
+                    return library.verify(root, selection, parent, rejections, proof,
+                                          queue_module._proof_file, queue_module._gates)
+                self.assertTrue(verify(selected)['requires_fresh_full_validation'])
+                replay.assert_called_once()
+                with self.assertRaisesRegex(ValueError, 'original cohort'):
+                    verify({})
+                git.side_effect = [b'base-tree', b'base-tree', b'changed-tree']
+                with self.assertRaisesRegex(ValueError, 'IR crate changed'):
+                    verify(selected)
+                replay.assert_called_once()
 
 
 @contextmanager

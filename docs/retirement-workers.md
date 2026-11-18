@@ -84,6 +84,10 @@ attempts. Staging checks the resulting union on the latest checkpoint before
 full validation and publication. An archived full-check failure can use the
 same recovery path if all prior readings remain and focused controls reproduce
 every added reading and print failure.
+When only the two IR schema tests fail because a reused executable cannot find
+its build checkout, the affected batch can return to provisional review. The
+retry verifies a fresh passing test run on the same IR crate, replays every
+proposal from the rejected batch, and requires a full audit before acceptance.
 
 One full audit runs at a time, reserving 16 tokens by default from a shared
 32-token CPU pool; a 24-thread option is also supported. Worker helpers reserve two

@@ -5,6 +5,7 @@ from pathlib import Path
 import re
 import shutil
 import sqlite3
+import subprocess
 import tempfile
 
 from retire_native_readmission import _allowed, _grammar_tree
@@ -183,7 +184,68 @@ def _failed_tests(log):
     return names
 
 
+def _cached_schema_failure(campaign, selected, checkpoint, rejections, evidence, read_proof, gates):
+    """Verify a stale checkout-bound test executable before retrying the same proposals."""
+    entries = {name: read_proof(evidence.get(name)) for name in
+               ('manifest', 'validation', 'repository_log', 'fixed_manifest', 'fixed_repository_log', 'fixed_tests')}
+    manifest, validation, fixed = [json.loads(entries[key][1]) for key in
+                                    ('manifest', 'validation', 'fixed_manifest')]
+    batch_id, fixed_id = manifest['id'], fixed['id']
+    for name in (batch_id, fixed_id):
+        if not isinstance(name, str) or not re.fullmatch('[0-9a-f]{32}', name):
+            raise ValueError('invalid cached test batch identity')
+    original = campaign/'.cache/batches'/batch_id
+    replacement = campaign/'.cache/batches'/fixed_id
+    locations = {'manifest': original/'manifest.json', 'validation': original/'validation.json',
+                 'repository_log': original/'repository-check.log',
+                 'fixed_manifest': replacement/'manifest.json', 'fixed_repository_log': replacement/'repository-check.log'}
+    if batch_id == fixed_id or any(entries[key][0].resolve() != path for key, path in locations.items()):
+        raise ValueError('cached test failure or replacement is outside its batch')
+    included = [item for item in manifest['jobs'] if item['status'] == 'included']
+    ids = [item['job_id'] for item in included]
+    if (len(ids) != len(selected) or {item['job_id']: item['attempt_id'] for item in included} != selected
+            or manifest['status'] != 'provisional' or manifest['base_commit'] != checkpoint
+            or validation.get('candidate') != manifest['commit'] or validation.get('source_checkpoint') != checkpoint
+            or validation.get('included_jobs') != ids or validation.get('scope') != 'combined-batch'
+            or validation.get('status') != 'failed' or validation.get('reason') != 'repository gates failed'
+            or validation.get('repository_check_returncode') != 1 or 'full_checks' in validation
+            or any(item.get('evidence') != {'manifest': batch_id, 'validation': validation}
+                   for item in rejections.values())):
+        raise ValueError('cached test failure does not cover the original cohort')
+    failed_log = entries['repository_log'][1]
+    tests = {'ir_schema::contract::frozen_descriptors_match_the_compiled_contract',
+             'ir_schema::contract::schema_shape_is_frozen'}
+    if ({name for name, status in gates(failed_log).items() if status == 'FAILED'} != {'test'}
+            or set(_failed_tests(failed_log.decode())) != tests
+            or failed_log.count(b'code: 2, kind: NotFound, message: "No such file or directory"') != len(tests)
+            or b'error: test failed, to rerun pass `-p oracle-ir --lib`' not in failed_log
+            or any(status == 'FAILED' for status in gates(entries['fixed_repository_log'][1]).values())
+            or gates(entries['fixed_repository_log'][1])['test'] != 'passed'
+            or any(f'test {name} ... ok\n'.encode() not in entries['fixed_tests'][1] for name in tests)
+            or not _allowed(campaign, entries['fixed_tests'][0])):
+        raise ValueError('cached test logs do not show exactly the missing fixtures and a successful retry')
+    repo = json.loads((campaign/'config.json').read_text())['source_repo']
+    trees = []
+    for commit in (checkpoint, manifest['commit'], fixed['commit']):
+        if not isinstance(commit, str) or not re.fullmatch('[0-9a-f]{40}|[0-9a-f]{64}', commit):
+            raise ValueError('cached test proof needs immutable Git commits')
+        trees.append(subprocess.check_output(['git', '-C', repo, 'rev-parse', commit+':crates/oracle-ir']))
+    if len(set(trees)) != 1:
+        raise ValueError('IR crate changed across the failed and passing test runs')
+    candidate = original/'validation-inputs/frozen/grammar'
+    if Path(validation['inputs']).resolve() != candidate.parent.parent or _grammar_tree(candidate) != manifest['grammar']:
+        raise ValueError('cached test candidate grammar differs')
+    _replay(campaign, checkpoint, included, list(range(len(included))), manifest['grammar'],
+            original, evidence['reports'], canonical_mechanical=True)
+    if _grammar_tree(candidate) != manifest['grammar'] or any(read_proof(evidence[key]) != value for key, value in entries.items()):
+        raise ValueError('cached test evidence changed during replay')
+    return {'manifest': batch_id, 'fixed_batch': fixed_id, 'failed_tests': sorted(tests),
+            'requires_fresh_full_validation': True}
+
+
 def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gates):
+    if isinstance(evidence, dict) and evidence.get('kind') == 'stale-schema-test-cache-revalidation':
+        return _cached_schema_failure(campaign, selected, checkpoint, rejections, evidence, read_proof, gates)
     if not isinstance(evidence, dict) or evidence.get('kind') != 'isolated-batch-library-revalidation':
         raise ValueError('isolated library batch revalidation evidence is required')
     proof_reads = []
