@@ -742,7 +742,7 @@ def _retained_family_failure(failures, proof, source, logs):
     return {'fixture': fixture, 'sha256': digest, 'failures': failures}
 
 
-def _stage_trial(context, entries, label):
+def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
     """Merge and gate one ordered trial; publish nothing until every gate passes."""
     source, folder, manifest = context['source'], context['folder'], context['manifest']
     checkpoint, control = context['checkpoint'], context['control']
@@ -756,6 +756,7 @@ def _stage_trial(context, entries, label):
              'attempts': [item['attempt_id'] for item in items],
              'prefix_grammar': prefix_tree, 'prefix_fixtures': prefix_fixtures}
     input_cache = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
+    merge_conflicts = []
     try:
         with tempfile.TemporaryDirectory(dir=folder) as temporary:
             trial = Path(temporary)
@@ -782,15 +783,23 @@ def _stage_trial(context, entries, label):
                             'kind': proposal.get('kind', 'author')}
                 try:
                     _merge_trial_proposal(trial, folder, (run, task, directory, hooks), mechanical)
-                except merger.MergeConflict:
-                    proof['merge_conflict_at'] = index
-                    raise
+                except merger.MergeConflict as error:
+                    # The merge preview raises before it writes to the trial.
+                    # Continue over the same prefix a retry would use.
+                    merge_conflicts.append((index, error))
+                    if len(merge_conflicts) == merge_conflict_limit:
+                        break
+                    continue
                 if fixture:
                     filename = 'family.json' if len(entries) == 1 else f'family-{offset:03d}.json'
                     temporary_family = trial/filename
                     r.write(temporary_family, family)
                     additions.append((temporary_family, fixture))
                 prepared.append((task, fixture, item, metadata))
+            if merge_conflicts:
+                if not input_cache.unchanged():
+                    raise _UncertainPromotion('proposal inputs changed during merge diagnosis')
+                raise merge_conflicts[0][1]
             proof['proposals'] = [{'job_id': item['job_id'], 'attempt_id': item['attempt_id'],
                                    'base_commit': metadata['base_commit'],
                                    'descriptor_sha256': metadata['descriptor_sha256'],
@@ -849,6 +858,12 @@ def _stage_trial(context, entries, label):
                 raise _UncertainPromotion('accepted prefix changed during failed trial')
         except OSError as mismatch:
             raise _UncertainPromotion('accepted prefix unavailable after failed trial') from mismatch
+        if merge_conflicts:
+            first, error = merge_conflicts[0]
+            proof['merge_conflict_at'] = first
+            if len(merge_conflicts) > 1:
+                proof['merge_conflicts'] = [{'proposal_index': index, 'reason': str(conflict)}
+                                            for index, conflict in merge_conflicts]
         proof.update(status='failed', reason=str(error))
         if isinstance(error, _FamilyCheckFailure) and error.failed_fixtures:
             checks = proof.get('family_checks', [])
@@ -1068,7 +1083,9 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
 
 def _diagnosed_proposals(proof):
     if 'merge_conflict_at' in proof:
-        return 'merge', [proof['merge_conflict_at']]
+        conflicts = proof.get('merge_conflicts')
+        return 'merge', ([item['proposal_index'] for item in conflicts]
+                         if conflicts else [proof['merge_conflict_at']])
     for route, key in (('stale', 'stale_rule_conflict'), ('dependency', 'removed_rule_conflict')):
         if proof.get(key):
             return route, proof[key]['without_proposal_indices']
@@ -1275,7 +1292,9 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
         for first in range(0, len(indexed), group_size):
             entries = indexed[first:first+group_size]
             label = f'proposal-{first:03d}' if len(entries) == 1 else f'group-{first:03d}'
-            items, proof = _stage_trial(context, entries, label)
+            route_union = combine_selected and len(entries) > fallback_size
+            retry_limit = max(fallback_size, min(MAX_ROUTED_EXCLUSIONS, len(entries)//8)) if route_union else 1
+            items, proof = _stage_trial(context, entries, label, merge_conflict_limit=retry_limit)
             if len(entries) > 1:
                 manifest.setdefault('group_trials', []).append({'jobs': proof['jobs'], 'status': proof['status'],
                                                                  'proof': items[0]['trial_proof']})
@@ -1286,9 +1305,8 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
                 r.write(folder/'manifest.json', manifest)
                 continue
             group_proof = items[0]['trial_proof']
-            if combine_selected and len(entries) > fallback_size:
+            if route_union:
                 route, failed = _diagnosed_proposals(proof)
-                retry_limit = max(fallback_size, min(MAX_ROUTED_EXCLUSIONS, len(entries)//8))
                 if failed:
                     passed = _retry_without(context, entries, group_proof, failed, retry_limit, route=route)
                 else:

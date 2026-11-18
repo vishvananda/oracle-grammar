@@ -1067,11 +1067,13 @@ class BatchTests(unittest.TestCase):
                     self.assertNotIn('fallback_trials', result)
                     self.assertEqual([name for name, _ in calls], ['without-merge-conflict-002'])
                     attempts = result['merge_retry_attempts']
-                    self.assertEqual([x['without_proposal_indices'] for x in attempts], [[2], [2, 6]])
-                    self.assertEqual([x['status'] for x in attempts], ['failed', 'passed'])
+                    self.assertEqual([x['without_proposal_indices'] for x in attempts], [[2, 6]])
+                    self.assertEqual([x['status'] for x in attempts], ['passed'])
                     initial = batch.r.read(Path(result['group_trials'][0]['proof']['path']))
-                    second = batch.r.read(Path(attempts[0]['proof']['path']))
-                    self.assertEqual([initial['merge_conflict_at'], second['merge_conflict_at']], [2, 6])
+                    self.assertEqual(initial['merge_conflict_at'], 2)
+                    self.assertEqual([item['proposal_index'] for item in initial['merge_conflicts']], [2, 6])
+                    self.assertEqual(initial['prefix_grammar'],
+                                     batch.r.read(Path(attempts[0]['proof']['path']))['prefix_grammar'])
                     self.assertEqual({x['job_id'] for x in result['jobs'] if x['status'] != 'included'}, {'j2', 'j6'})
                     self.assertEqual(result['rules'], [f'm_{name}' for name in names if name not in ('j2', 'j6')])
                     continue
