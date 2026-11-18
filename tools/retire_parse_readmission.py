@@ -497,9 +497,12 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     if any(reports.get(job) != evidence['reports'].get(job) for job in selected):
         raise ValueError('parse selected original report identities differ')
     for spec in reports.values(): reads(spec)
+    from retire_batch import _ProposalInputCache
+    # Both replays verify their own grammar; their immutable proposal inputs can be shared.
+    input_cache = _ProposalInputCache()
     for label in ('full', 'remaining'):
         library._replay(campaign, checkpoint, included, expected[label], control_trees[label],
-                        paths['isolation'].parent, reports, canonical_mechanical=True)
+                        paths['isolation'].parent, reports, canonical_mechanical=True, input_cache=input_cache.trial())
     reads.recheck(); r.verify(inputs); r.verify(run)
     if (_grammar_tree(inputs/'frozen/grammar') != trees[0] or _grammar_tree(run/'frozen/grammar') != trees[1]
             or any(_grammar_tree(Path(isolation['controls'][label]['identity']['path']).parent/'grammar') != tree

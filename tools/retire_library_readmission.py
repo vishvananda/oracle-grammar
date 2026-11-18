@@ -12,7 +12,8 @@ from retire_native_readmission import _allowed, _grammar_tree
 
 LIBRARY_REJECTION = 'repository gates failed'
 
-def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, reports, *, canonical_mechanical=False):
+def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, reports, *,
+            canonical_mechanical=False, input_cache=None):
     """Independently replay every retained protected proposal, in original order."""
     import mined
     import retire as r
@@ -45,7 +46,8 @@ def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, rep
         with tempfile.TemporaryDirectory(prefix='.library-replay-', dir=scratch) as temporary:
             trial = Path(temporary)
             shutil.copytree(base/'grammar', trial/'grammar')
-            inputs = batch._ProposalInputCache()
+            inputs = batch._ProposalInputCache() if input_cache is None else input_cache
+            merge_options = {} if input_cache is None else {'canonical_removal': inputs.canonical_seeded_removal}
             for index in indices:
                 item = included[index]
                 base_commit, result, job = originals[index]
@@ -88,7 +90,7 @@ def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, rep
                         raise ValueError('replay mechanical proposal contains hooks')
                     batch._mechanical_removal(run, directory, rules, scratch)
                 else:
-                    changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, rules, hooks)
+                    changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, rules, hooks, **merge_options)
                     if original['kind'] == 'mechanical' and (hooks or changes):
                         raise ValueError('replay mechanical proposal contains additional edits')
                     for name, text in changes.items():
