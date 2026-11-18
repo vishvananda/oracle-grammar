@@ -470,4 +470,6 @@ can share a single guarded trial for the other proposals. A separate guarded
 trial adjudicates the isolated proposal. The manifest retains each trial's evidence.
 Trials within a batch share the verified hashes of frozen proposal inputs. Each
 trial rechecks its own input paths and file identities before promotion.
+`family_check_threads` sets the shared CPU reservation for a full staging family
+check. The default is six. Focused diagnostic probes keep their smaller reservation.
 Uncertain promotion still fails the entire batch.

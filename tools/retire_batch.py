@@ -214,7 +214,18 @@ def _failed_fixtures(fixtures, reports, returncode):
     return tuple(index for index, report in enumerate(reports) if report['failures'])
 
 
-def _helper(checkpoint, source, fixture, log, grammar_dir=None, *, threads=FAMILY_CHECK_THREADS):
+def _family_check_threads(checkpoint):
+    threads = checkpoint.get('family_check_threads', FAMILY_CHECK_THREADS)
+    capacity = checkpoint.get('cpu_capacity', 32)
+    if (type(capacity) is not int or not 1 <= capacity <= 32
+            or type(threads) is not int or not 1 <= threads <= min(16, capacity)):
+        raise ValueError('family_check_threads must be an integer from 1 to min(16, cpu_capacity)')
+    return threads
+
+
+def _helper(checkpoint, source, fixture, log, grammar_dir=None, *, threads=None):
+    if threads is None:
+        threads = _family_check_threads(checkpoint)
     fixtures = [fixture] if isinstance(fixture, (str, Path)) else list(fixture)
     if not fixtures:
         raise ValueError('family check requires at least one fixture')
@@ -1182,6 +1193,7 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
     group_size = checkpoint.get('stage_group_size', 1)
     if type(group_size) is not int or not 1 <= group_size <= 4:
         raise ValueError('stage_group_size must be an integer from 1 to 4')
+    family_threads = _family_check_threads(checkpoint)
     if type(combine_selected) is not bool:
         raise ValueError('combine_selected must be boolean')
     fallback_size = group_size
@@ -1203,7 +1215,7 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
         _git(origin, 'worktree', 'add', '-b', branch, str(source), checkpoint['commit'])
     manifest = {'id': ident, 'folder': str(folder), 'source': str(source), 'branch': branch, 'base_commit': checkpoint['commit'],
                 'status': 'staging', 'jobs': [], 'fixtures': [], 'rules': [],
-                'family_check_threads': FAMILY_CHECK_THREADS, 'stage_group_size': group_size,
+                'family_check_threads': family_threads, 'stage_group_size': group_size,
                 'combine_selected': combine_selected}
     registry_path = source/'tests/families.json'
     registry_hash = r.digest(registry_path)

@@ -119,8 +119,8 @@ class BatchTests(unittest.TestCase):
             checkpoint = {'helpers': str(helpers), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
             def execute(*args, **kwargs):
                 self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_DIR'], str(trial))
-                self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_THREADS'], '6')
-                self.assertEqual(len(kwargs['pass_fds']), 6)
+                self.assertEqual(kwargs['env']['ORACLE_GRAMMAR_THREADS'], str(expected_threads))
+                self.assertEqual(len(kwargs['pass_fds']), expected_threads)
                 for fd in kwargs['pass_fds']:
                     os.fstat(fd)
                 self.assertIn(f'--module=events={trial/"syntax/events.ebnf"}', args[0])
@@ -129,7 +129,10 @@ class BatchTests(unittest.TestCase):
                 return SimpleNamespace(returncode=0)
             with patch.object(batch.dev, 'source', return_value='source'), patch.object(batch.dev, 'modules', return_value=['--module=events=/base/events.ebnf']), \
                     patch.object(batch.subprocess, 'run', side_effect=execute):
-                batch._helper(checkpoint, root, root/'family.json', root/'check.log', grammar_dir=trial)
+                for expected_threads in (6, 12):
+                    if expected_threads == 12:
+                        checkpoint['family_check_threads'] = expected_threads
+                    batch._helper(checkpoint, root, root/'family.json', root/'check.log', grammar_dir=trial)
             self.assertEqual(batch.r._LEASES, [])
 
     def test_trial_helper_parses_multi_family_and_writes_individual_proofs(self):
