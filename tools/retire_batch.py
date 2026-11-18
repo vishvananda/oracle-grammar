@@ -65,12 +65,13 @@ def _baseline_fixture_path(value):
 class _ProposalInputCache:
     """Reuse a verified frozen checkpoint across trials in the same batch."""
 
-    def __init__(self, snapshots=None):
+    def __init__(self, snapshots=None, removals=None):
         self.snapshots = {} if snapshots is None else snapshots
+        self.removals = {} if removals is None else removals
         self.locations = {}
 
     def trial(self):
-        return _ProposalInputCache(self.snapshots)
+        return _ProposalInputCache(self.snapshots, self.removals)
 
     @staticmethod
     def identity(root):
@@ -105,6 +106,16 @@ class _ProposalInputCache:
     def unchanged(self):
         return (all(directory.resolve() == root for directory, root in self.locations.items())
                 and all(self.identity(root) == self.snapshots[root][0] for root in set(self.locations.values())))
+
+    def canonical_seeded_removal(self, base, rules):
+        directory = base.parent
+        root = self.locations.get(directory)
+        if base.name != 'frozen' or root is None or directory.resolve() != root:
+            raise ValueError('canonical removal requires the verified proposal base')
+        key = root, tuple(sorted(rules))
+        if key not in self.removals:
+            self.removals[key] = merger.canonical_seeded_removal(root/'frozen', rules)
+        return self.removals[key]
 
 
 def _proposal(proposal, *, input_cache=None):
@@ -707,14 +718,15 @@ def _rule_reference_conflict(source, entries, log):
     return result
 
 
-def _merge_trial_proposal(trial, scratch, proposal, mechanical):
+def _merge_trial_proposal(trial, scratch, proposal, mechanical, input_cache):
     run, task, directory, hooks = proposal
     if mechanical:
         if hooks:
             raise ValueError('mechanical proposal cannot request hooks')
         _mechanical_removal(run, directory, task['rules'], scratch)
     else:
-        changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks)
+        changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks,
+                                      canonical_removal=input_cache.canonical_seeded_removal)
         for name, text in changes.items():
             target = trial/name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -783,7 +795,7 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                             'support_sha256': report['support_sha256'], 'fixture_sha256': report.get('fixture_sha256'),
                             'kind': proposal.get('kind', 'author')}
                 try:
-                    _merge_trial_proposal(trial, folder, (run, task, directory, hooks), mechanical)
+                    _merge_trial_proposal(trial, folder, (run, task, directory, hooks), mechanical, input_cache)
                 except merger.MergeConflict as error:
                     # The merge preview raises before it writes to the trial.
                     # Continue over the same prefix a retry would use.
@@ -909,7 +921,7 @@ def _replay_focused_grammar(context, entries, trial, input_cache):
     shutil.copytree(context['source']/'grammar', grammar)
     for _, item in entries:
         _merge_trial_proposal(trial, context['folder'], _proposal(item, input_cache=input_cache),
-                              item.get('kind') == 'mechanical')
+                              item.get('kind') == 'mechanical', input_cache)
     return grammar
 
 

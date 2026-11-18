@@ -100,6 +100,9 @@ their old base identity. The coordinator stages them against the new checkpoint,
 resolves conflicts explicitly, and repeats affected checks. A clean textual
 application is not semantic acceptance. Deduplicate failed retries by identical
 input/patch hashes; a new attempt needs a changed hypothesis or dependency.
+When a batch retries an ordered merge, it can reuse the canonical seeded-file
+hashes for the same verified input snapshot and assigned rules. It still checks
+the proposal's seeded files and runs the gates on each new staged grammar.
 
 ## Integration and escalation
 

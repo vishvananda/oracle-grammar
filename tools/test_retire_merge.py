@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from retire_merge import MergeConflict, merge_grammar, merge_text
+from retire_merge import MergeConflict, canonical_seeded_removal, merge_grammar, merge_text
 
 
 class MergeTests(unittest.TestCase):
@@ -100,9 +100,13 @@ class MergeTests(unittest.TestCase):
             self.assertEqual(list(changes), ['grammar/syntax/actions.ebnf'])
             self.assertIn('root ::= one | two | three', changes['grammar/syntax/actions.ebnf'])
             self.assertIn('m_old', (root/'current/grammar/syntax/mined.ebnf').read_text())
+            expected = canonical_seeded_removal(root/'base', ['m_old'])
             (root/'proposed/grammar/syntax/mined.ebnf').write_text('bad\n')
             with self.assertRaises(MergeConflict):
                 merge_grammar(root/'base', root/'current', root/'proposed', ['m_old'], [])
+            with self.assertRaisesRegex(MergeConflict, 'noncanonical seeded file'):
+                merge_grammar(root/'base', root/'current', root/'proposed', ['m_old'], [],
+                              canonical_removal=lambda *_: expected)
 
 
 if __name__ == '__main__':

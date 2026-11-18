@@ -604,7 +604,7 @@ class BatchTests(unittest.TestCase):
                 name = p['job_id']
                 return root/name, {'fixture': 'families/existing.json' if name == 'overwrite' else f'families/{name}.json',
                                    'rules': ['m_'+('old' if name == 'conflict' else 'good')]}, root/name, []
-            def merge(base, current, proposed, rules, hooks):
+            def merge(base, current, proposed, rules, hooks, *, canonical_removal):
                 if rules == ['m_old']:
                     raise batch.merger.MergeConflict('semantic conflict')
                 return {'grammar/syntax/added.ebnf': 'shared ::= "good"\n'}
@@ -656,7 +656,7 @@ class BatchTests(unittest.TestCase):
             def proposal(p, *, input_cache=None):
                 name = p['job_id']
                 return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
-            def merge(base, trial, proposed, rules, hooks):
+            def merge(base, trial, proposed, rules, hooks, *, canonical_removal):
                 if rules == ['m_mech']:
                     return {}
                 name = rules[0][2:]
@@ -733,7 +733,7 @@ class BatchTests(unittest.TestCase):
             def proposal(p, *, input_cache=None):
                 name = p['job_id']
                 return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
-            def merge(base, trial, proposed, rules, hooks):
+            def merge(base, trial, proposed, rules, hooks, *, canonical_removal):
                 name = rules[0][2:]
                 existing = trial/'grammar/syntax/shared.ebnf'
                 return {'grammar/syntax/shared.ebnf': (existing.read_text() if existing.exists() else '') + name+'\n'}
@@ -803,7 +803,7 @@ class BatchTests(unittest.TestCase):
                     if mode == 'structural' and name == 'bad':
                         raise ValueError('bad immutable report')
                     return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
-                def merge(base, trial, proposed, rules, hooks):
+                def merge(base, trial, proposed, rules, hooks, *, canonical_removal):
                     name = rules[0][2:]
                     if name == 'mech':
                         return {}
@@ -935,7 +935,7 @@ class BatchTests(unittest.TestCase):
                 def proposal(item, *, input_cache=None):
                     name = item['job_id']
                     return root/name, {'fixture': f'families/{name}.json', 'rules': [f'm_{name}']}, root/name, []
-                def merge(base, trial, proposed, rules, hooks):
+                def merge(base, trial, proposed, rules, hooks, *, canonical_removal):
                     name = rules[0][2:]
                     path = trial/'grammar/syntax/shared.ebnf'
                     prior = path.read_text() if path.exists() else ''
@@ -1387,6 +1387,35 @@ class BatchTests(unittest.TestCase):
             self.assertFalse(new_cache.unchanged())
             with self.assertRaisesRegex(ValueError, 'input location changed'):
                 new_cache.read(aliases[0])
+
+    def test_canonical_removal_reuse_requires_the_current_verified_base(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            grammar = root/'checkpoint/frozen/grammar/syntax'
+            grammar.mkdir(parents=True)
+            source = grammar/'mined.ebnf'
+            source.write_text('mined_action ::= m_a | m_b | never_action\n'
+                              'm_a ::= "a"\nm_b ::= "b"\nnever_action ::= "never"\n')
+            frozen = grammar.parents[1]
+            alias = root/'attempt-inputs'
+            alias.symlink_to(frozen.parent, target_is_directory=True)
+            batch.r.write(frozen.parent/'manifest.json', {'files': batch.r.tree(frozen)})
+            cache = batch._ProposalInputCache()
+            with patch.object(batch.merger, 'canonical_seeded_removal',
+                              wraps=batch.merger.canonical_seeded_removal) as canonical:
+                with self.assertRaisesRegex(ValueError, 'verified proposal base'):
+                    cache.canonical_seeded_removal(alias/'frozen', ['m_a'])
+                cache.read(alias)
+                first = cache.canonical_seeded_removal(alias/'frozen', ['m_a'])
+                next_trial = cache.trial()
+                next_trial.read(frozen.parent)
+                self.assertEqual(next_trial.canonical_seeded_removal(frozen, ['m_a']), first)
+                canonical.assert_called_once_with(frozen, ['m_a'])
+                self.assertNotEqual(next_trial.canonical_seeded_removal(frozen, ['m_b']), first)
+                self.assertEqual(canonical.call_count, 2)
+                source.write_text('m_a ::= "changed"\n')
+                with self.assertRaisesRegex(ValueError, 'frozen inputs changed'):
+                    cache.trial().read(alias)
 
     def test_family_failure_hint_requires_a_complete_matching_report(self):
         with tempfile.TemporaryDirectory() as temporary:

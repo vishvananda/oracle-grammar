@@ -4,6 +4,7 @@ Seeded removals are checked against mined.remove and deliberately excluded from
 returned changes. The coordinator applies those removals and registered hooks.
 """
 from functools import lru_cache
+import hashlib
 from pathlib import Path
 import re
 import shutil
@@ -147,7 +148,35 @@ def _symbols(text):
     return _cached_symbols(text)
 
 
-def merge_grammar(base_dir, current_dir, proposed_dir, assigned_rules, hook_requests):
+_SEEDED_FILES = ('syntax/mined.ebnf', 'tail/mined.ebnf')
+
+
+def _seeded_hashes(grammar):
+    result = {}
+    for name in _SEEDED_FILES:
+        path = grammar/name
+        if path.exists():
+            with path.open('rb') as stream:
+                result[name] = hashlib.file_digest(stream, 'sha256').hexdigest()
+    return result
+
+
+def canonical_seeded_removal(base, assigned_rules):
+    """Compute the canonical seeded file hashes for one base and assignment."""
+    with tempfile.TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        shutil.copytree(base/'grammar', work/'grammar')
+        try:
+            removed, kept = mined.remove(work, assigned_rules)
+        except ValueError as exc:
+            raise MergeConflict(f'invalid seeded removal: {exc}') from exc
+        if set(removed) != set(assigned_rules) or kept:
+            raise MergeConflict('assigned seeded rules cannot all be removed')
+        return _seeded_hashes(work/'grammar')
+
+
+def merge_grammar(base_dir, current_dir, proposed_dir, assigned_rules, hook_requests, *,
+                  canonical_removal=canonical_seeded_removal):
     """Preview changes as {relative path: text}; do not modify any input tree.
 
     Hook requests are intentionally not executed here. Seeded files must exactly
@@ -156,19 +185,11 @@ def merge_grammar(base_dir, current_dir, proposed_dir, assigned_rules, hook_requ
     base, current, proposed = map(Path, (base_dir, current_dir, proposed_dir))
     if not isinstance(hook_requests, list):
         raise MergeConflict('hook requests must be a list')
-    with tempfile.TemporaryDirectory() as tmp:
-        work = Path(tmp)
-        shutil.copytree(base / 'grammar', work / 'grammar')
-        try:
-            removed, kept = mined.remove(work, assigned_rules)
-        except ValueError as exc:
-            raise MergeConflict(f'invalid seeded removal: {exc}') from exc
-        if set(removed) != set(assigned_rules) or kept:
-            raise MergeConflict('assigned seeded rules cannot all be removed')
-        for name in ('syntax/mined.ebnf', 'tail/mined.ebnf'):
-            expected, actual = work / 'grammar' / name, proposed / 'grammar' / name
-            if expected.exists() != actual.exists() or (expected.exists() and expected.read_bytes() != actual.read_bytes()):
-                raise MergeConflict(f'noncanonical seeded file: {name}')
+    expected = canonical_removal(base, assigned_rules)
+    actual = _seeded_hashes(proposed/'grammar')
+    for name in _SEEDED_FILES:
+        if expected.get(name) != actual.get(name):
+            raise MergeConflict(f'noncanonical seeded file: {name}')
     paths = set()
     for root in (base, current, proposed):
         paths.update(path.relative_to(root) for path in (root / 'grammar').rglob('*.ebnf'))
