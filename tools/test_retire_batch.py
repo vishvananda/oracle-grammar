@@ -425,6 +425,41 @@ class BatchTests(unittest.TestCase):
                         full.assert_not_called()
                 self.assertEqual(batch.r._LEASES, [])
 
+    def test_base_control_reuses_exact_positive_receipt_and_refreshes_after_tampering(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            campaign = Path(tmp)
+            inputs, grammar = campaign/'inputs', campaign/'grammar'
+            inputs.mkdir()
+            grammar.mkdir()
+            source = grammar/'syntax.ebnf'
+            source.write_text('sample ::= "sample"\n')
+            batch.r.write(inputs/'manifest.json', {'files': {'grammar/syntax.ebnf': batch.r.digest(source)}})
+            control = {'run': inputs, 'manifest_sha256': batch.r.digest(inputs/'manifest.json'),
+                       'profile_sha256': 'profile', 'threads': 2, 'occurrences': 2}
+            original, restored, refreshed = ((campaign/'.cache/batches'/name/'native-control-base')
+                                               for name in ('original', 'restored', 'refreshed'))
+            for directory in (original, restored, refreshed):
+                directory.parent.mkdir(parents=True)
+            result = {'faces': 2, 'failures': []}
+
+            def check(cp, controls, grammar_dir, directory):
+                directory.mkdir()
+                for name in batch.BASE_CONTROL_ARTIFACTS - {'result.json'}:
+                    (directory/name).write_text(name)
+                batch.r.write(directory/'result.json', result)
+                return result
+
+            with patch.object(batch, '_control_verify'), patch.object(batch, '_control_check', side_effect=check) as run:
+                self.assertEqual(batch._control_baseline(campaign, {}, control, grammar, original), result)
+                self.assertEqual(batch._control_baseline(campaign, {}, control, grammar, restored), result)
+                run.assert_called_once()
+                self.assertEqual(batch.r.read(restored/'reuse.json')['origin'], str(original))
+                self.assertEqual(batch.r.tree(original), {k: v for k, v in batch.r.tree(restored).items() if k != 'reuse.json'})
+                (original/'rows.jsonl').write_text('changed')
+                self.assertEqual(batch._control_baseline(campaign, {}, control, grammar, refreshed), result)
+                self.assertEqual(run.call_count, 2)
+                self.assertFalse((refreshed/'reuse.json').exists())
+
     def test_native_control_profile_closure_and_tampering_fail_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

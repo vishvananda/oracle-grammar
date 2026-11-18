@@ -104,6 +104,9 @@ An optional hash-bound `native_regression_controls` profile lists allowed face
 names. Staging verifies the base against that closed population, then checks each
 family-passing trial before admitting it. This catches known cross-family
 reading and default-print regressions early; the full audit still runs.
+Repeated staging on the same accepted grammar, input snapshot, helpers and
+control profile can reuse the passing baseline report and its verified files.
+Each trial runs its own controls against its candidate grammar.
 
 Task cohorts close transitively over shared face names in frozen gold records,
 including every duplicate occurrence and companion face. This expansion does not

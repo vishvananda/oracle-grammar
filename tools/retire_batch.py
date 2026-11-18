@@ -34,6 +34,9 @@ FAMILY_CHECK_THREADS = 6
 DEFAULT_NATIVE_CONTROL_THREADS = 6
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
                   'bin/score', 'bin/validate-readings')
+BASE_CONTROL_ARTIFACTS = {'before.jsonl', 'commands.jsonl', 'gold.jsonl', 'native-failures.jsonl',
+                          'native.json', 'oracle.json', 'result.json', 'rows.jsonl', 'score.log',
+                          'slice.json', 'validate-readings.log'}
 
 
 def _git(source, *args):
@@ -431,6 +434,63 @@ def _control_check(checkpoint, control, grammar, directory):
         raise ValueError('native regression control failed: '+str(directory/'result.json'))
     _control_verify(control)
     return report
+
+
+def _restore_control_baseline(campaign, index, identity, directory, occurrences):
+    try:
+        if index.is_symlink() or not index.is_file():
+            return False
+        proof = r.read(index)
+        origin = Path(proof['path'])
+        if (proof['identity'] != identity or origin.name != 'native-control-base'
+                or origin.parent.parent != campaign/'.cache/batches' or origin.resolve() != origin
+                or any(path.is_symlink() for path in origin.rglob('*'))
+                or r.read(origin/'result.json') != {'faces': occurrences, 'failures': []}
+                or set(proof['files']) != BASE_CONTROL_ARTIFACTS
+                or r.tree(origin) != proof['files']):
+            return False
+        with tempfile.TemporaryDirectory(dir=directory.parent) as temporary:
+            restored = Path(temporary)/directory.name
+            shutil.copytree(origin, restored)
+            if r.tree(restored) != proof['files']:
+                return False
+            r.write(restored/'reuse.json', {'identity': identity, 'origin': str(origin),
+                                          'index_sha256': r.digest(index)})
+            os.rename(restored, directory)
+        return True
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
+def _control_baseline(campaign, checkpoint, control, grammar, directory):
+    _control_verify(control)
+    frozen = r.read(control['run']/'manifest.json')['files']
+    grammar_hashes = r.tree(grammar)
+    if (grammar_hashes != {name.removeprefix('grammar/'): sha for name, sha in frozen.items()
+                           if name.startswith('grammar/')}
+            or any(path.is_symlink() for path in grammar.rglob('*'))):
+        return _control_check(checkpoint, control, grammar, directory)
+    identity = {'grammar': grammar_hashes, 'checkpoint': control['manifest_sha256'],
+                'profile': control['profile_sha256'], 'threads': control['threads'],
+                'tooling': {name: r.digest(Path(__file__).with_name(name))
+                            for name in ('retire.py', 'retire_batch.py', 'retire_worker.py')}}
+    key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+    lookup = campaign/'.cache/native-baselines'
+    if lookup.is_symlink() or lookup.parent.is_symlink():
+        return _control_check(checkpoint, control, grammar, directory)
+    index = lookup/(key+'.json')
+    if _restore_control_baseline(campaign, index, identity, directory, control['occurrences']):
+        _control_verify(control)
+        return r.read(directory/'result.json')
+    result = _control_check(checkpoint, control, grammar, directory)
+    files = r.tree(directory)
+    if set(files) == BASE_CONTROL_ARTIFACTS and r.tree(grammar) == grammar_hashes:
+        try:
+            lookup.mkdir(exist_ok=True)
+            r.write(index, {'identity': identity, 'path': str(directory), 'files': files})
+        except OSError:
+            pass  # The baseline already passed and its complete evidence is in the batch.
+    return result
 
 
 @contextmanager
@@ -852,7 +912,7 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
         r.write(state, {'folder': str(folder)})
     if control is not None:
         try:
-            _control_check(checkpoint, control, source/'grammar', folder/'native-control-base')
+            _control_baseline(campaign, checkpoint, control, source/'grammar', folder/'native-control-base')
         except (ValueError, OSError, subprocess.CalledProcessError, KeyError) as error:
             manifest.update(status='failed', reason=str(error), failure_scope='baseline-native-control')
             r.write(folder/'manifest.json', manifest)
