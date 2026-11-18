@@ -1513,3 +1513,17 @@ instructions_paid_discard_exile_play ::= "you" "may" impulse_discard_part "." "i
 /* The subject exiles cards from that same player's library. */
 /* @sem Operation::Move{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
 player_exiles_all_library ::= player_ref "exiles" "all" "cards" "from" "their" "library"
+
+/* The same player looks at the library slice and separates that observation.
+   The two face-down labels describe exactly two piles. */
+/* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:$player_ref, objects:$your_top}}, Effect{result:@next, operation:Piles{actor:One($player_ref), objects:InZone{objects:Observed(@marked), zone:Library}, count:Constant(2), names:['face down', 'face down']}}] */
+clause_player_look_split_face_down ::= player_ref "looks" "at" your_top "and" "separates" "them" "into" "two" "face-down" "piles"
+
+/* A whole hand is revealed immediately before its matching cards determine damage.
+   Both the hand population and the damaged player use the same player operand. */
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}}}, Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Players(One($hand_player)), amount:Multiply([$number, CountObjects(Matching{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}, filter:$revealed_count_chosen_card})]), preventable:true}}] */
+instructions_revealed_hand_damage ::= hand_player "reveals" "their" "hand" "." damage_source_ref "deals" number "damage" "to" "that" "player" "for" "each" revealed_count_chosen_card "revealed" "this" "way"
+
+/* A live count of cards matching a filter in the ability controller’s library. */
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}) */
+count_each_filtered_library ::= filter_phrase "card" "in" "your" "library"

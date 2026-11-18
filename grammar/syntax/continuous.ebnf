@@ -175,7 +175,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness
+change ::= change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -489,7 +489,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix
+static_ability ::= static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -531,8 +531,8 @@ linked_stat_cards_any ::= "the" "exiled" "card's"
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[GrantKeyword($keyword_value), Pump{power:@times($defined_x_sign, Expr::Aggregate{objects:$linked_stat_cards, property:$stat, aggregation:Sum}), toughness:$signed}]} */
 static_linked_card_power_keyword ::= affected "has" keyword_value "and" "gets" defined_x_sign "/" signed "," "where" "X" "is" linked_stat_cards stat "."
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes}) */
-static_ordinary_ability ::= affected static_changes "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($static_affected), changes:$static_changes}) */
+static_ordinary_ability ::= static_affected static_changes "."
 
 /* Soulbond's pair: "both creatures" and "each of those creatures" name this creature
    and the creature it's paired with. */
@@ -561,8 +561,8 @@ static_pump_changes_more ::= static_pump_change ("and" | "," "and"?) static_pump
 
 /* This numeric definition must actually name X. A mana symbol {X} is a
    different operand and cannot silently retain its unbound spending meaning. */
-/* @sem Ability::@where(Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_numeric_x}), $value) */
-static_ability_where ::= affected static_numeric_x "," "where" "X" "is" value "."
+/* @sem Ability::@where(Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_numeric_x}), $static_definition_value) */
+static_ability_where ::= affected static_numeric_x "," "where" "X" "is" static_definition_value "."
 
 /* Define X over the complete change list, including earlier bonuses.
    Require a written numeric X; a mana symbol alone does not define a bonus. */
@@ -649,7 +649,7 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base | vehicle_artifact_with_crew_change | static_remove_singular_card_type | change_set_only_card_type | change_have_chosen_abilities | change_have_base_toughness | static_add_creature_type_a | static_add_creature_type_an | change_pump_for_each
+static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base | vehicle_artifact_with_crew_change | static_remove_singular_card_type | change_set_only_card_type | change_have_chosen_abilities | change_have_base_toughness | static_add_creature_type_a | static_add_creature_type_an | change_pump_for_each | change_is_three_basic_land_types
 /* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
    the protection names the object it keeps attached. */
 /* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
@@ -751,7 +751,7 @@ named_flash_if_after ::= self_named "has" "flash" "as" "long" "as" condition "."
 named_flash_if_before ::= "as" "long" "as" condition "," self_named "has" "flash" "."
 
 /* @sem Ability::Conditional{condition:$static_turn_window, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
-static_during_turn ::= static_turn_window "," affected static_changes "."
+static_during_turn ::= static_turn_window "," affected static_changes "." | affected static_changes static_turn_window "."
 
 static_turn_window ::= window_your_turn | window_other_turns
 /* @sem Condition::ExistsPlayer{players:OthersThan(AbilityController), binding:0, condition:PlayerIsActive(Bound(0))} */
@@ -3962,3 +3962,30 @@ conditional_counter_filter ::= "has" "a" counter_kind "counter" "on" "it"
 conditional_type_change ::= "a" conditional_a_card_type
 
 conditional_a_card_type ::= added_land | added_creature
+
+/* @sem ObjectSet::One(Chosen) */
+affected_chosen_creature ::= "the" "chosen" "creature"
+
+static_affected ::= affected | affected_chosen_creature
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(Source)), changes:$change_chosen_land_type_add_singular} */
+static_self_chosen_land_type_add ::= land_type_add_subject change_chosen_land_type_add_singular "."
+
+land_type_add_subject ::= self_land | self_permanent
+
+/* @sem Change::[ChosenType{kind:$chosen_land_type_kind, mode:Add}] */
+change_chosen_land_type_add_singular ::= "is" "the" chosen_land_type_kind "in" "addition" "to" "its" "other" "types"
+
+static_definition_value ::= value | value_life_lost_turn
+
+/* The causing event and the holder of the triggered ability are independent. */
+/* @sem Ability::[TriggerRule{cause:$trigger_cause_dying, abilities:AbilityOf($retrigger_holder), rule:TriggersAgain}] */
+line_cause_additional_trigger ::= "if" trigger_cause_dying "causes" "a" "triggered" "ability" "of" retrigger_holder "to" "trigger" "," "that" "ability" "triggers" "an" "additional" "time" "."
+
+/* Three named basic land types replace the land's previous land types. */
+/* @sem Change::[SetLandType(List([Vocabulary{family:LandType, form:@subtype_name($basic_land_type_named)}, Vocabulary{family:LandType, form:@subtype_name($basic_land_type_second)}, Vocabulary{family:LandType, form:@subtype_name($basic_land_type_third)}]))] */
+change_is_three_basic_land_types ::= "is" basic_land_type_named "," basic_land_type_second "," "and" basic_land_type_third
+
+basic_land_type_second ::= basic_land_type_consonant | st_island
+
+basic_land_type_third ::= basic_land_type_consonant | st_island

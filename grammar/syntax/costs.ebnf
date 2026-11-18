@@ -259,8 +259,8 @@ braced_x ::= "{" "X" "}"
 
 /* The printed generic reduction is a factor, not the number of counted objects;
    {1} for each is the count itself. */
-/* @sem Ability::Casting(ReduceCost([_{amount:@times($braced_number, $count_each)}])) */
-casting_reduction_each ::= "this" "spell" "costs" braced_number "less" "to" "cast" "for" "each" count_each "."
+/* @sem Ability::Casting(ReduceCost([_{amount:@times($braced_number, $casting_reduction_count)}])) */
+casting_reduction_each ::= "this" "spell" "costs" braced_number "less" "to" "cast" "for" "each" casting_reduction_count "."
 
 /* A following reduction modifies the offered payment, before deciding whether
    the holder is sacrificed. It cannot create a second sacrifice instruction. */
@@ -384,12 +384,12 @@ self_put_battlefield ::= "onto" "the" "battlefield"
 self_put_battlefield_transformed ::= "onto" "the" "battlefield" transformed_entry
 
 /* An additional cost to cast this spell. */
-/* @sem Ability::Casting(AdditionalCost{cost:$cost, repetition:Once}) */
-casting_additional_cost ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost "."
+/* @sem Ability::Casting(AdditionalCost{cost:$casting_additional_payment, repetition:Once}) */
+casting_additional_cost ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," casting_additional_payment "."
 
 /* An additional cost with a choice of payments. */
-/* @sem Ability::Casting(AdditionalCost{cost:_{parts:[Choice([$cost, $cost_2])]}, repetition:Once}) */
-casting_additional_cost_choice ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost "or" "pay" cost "."
+/* @sem Ability::Casting(AdditionalCost{cost:_{parts:[Choice([$casting_payment_before_alternative, $cost])]}, repetition:Once}) */
+casting_additional_cost_choice ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," casting_payment_before_alternative "or" "pay" cost "."
 
 /* An optional additional cost. */
 /* @sem Ability::Casting(AdditionalCost{cost:$cost, optional:true, repetition:Once}) */
@@ -431,9 +431,9 @@ static_spells_uncounterable ::= cross_spells "can't" "be" "countered" "."
 /* @sem Ability::Casting(If{condition:$condition, rule:ReduceCost([_{amount:$braced_amount}])}) */
 casting_reduction_if ::= "this" "spell" "costs" braced_amount "less" "to" "cast" ("if" | "as" "long" "as") condition "."
 
-/* A reduction when the spell targets a kind of permanent. */
-/* @sem Ability::Casting(If{condition:TargetsMatch(_{object:$object_ref, kind:Permanent, filter:$filter_phrase}), rule:ReduceCost([_{amount:$braced_amount}])}) */
-casting_reduction_if_targets ::= object_ref "costs" braced_amount "less" "to" "cast" "if" "it" "targets" "a" filter_phrase "."
+/* A cost adjustment when the spell targets a kind of permanent. */
+/* @sem Ability::Casting(If{condition:TargetsMatch(_{object:$object_ref, kind:Permanent, filter:$filter_phrase}), rule:$target_cast_cost_adjustment}) */
+casting_reduction_if_targets ::= object_ref target_cast_cost_adjustment "if" "it" "targets" "a" filter_phrase "."
 
 /* A reduction of X, defined after. */
 /* @sem Ability::Casting(ReduceCost([_{amount:$value}])) */
@@ -849,3 +849,55 @@ alternative_discard_filtered_and_another ::= "discard" ("a" | "an") filter_phras
 
 /* @sem Cost::Cost{parts:[Discard{count:Constant(1), filter:$filter_phrase}, Discard{count:$count_plural, filter:Any}]} */
 alternative_discard_filtered_and_others ::= "discard" ("a" | "an") filter_phrase "card" "and" count_plural "other" "cards"
+
+casting_reduction_count ::= count_each | count_each_controlled_and_zone
+
+/* Alternative complete payments retain each branch as its own cost. */
+/* @sem Cost::Cost{parts:[Choice([Cost::Cost{parts:$cost_parts}, Cost::Cost{parts:$cost_parts_2}])]} */
+cost_choice ::= cost_parts "or" cost_parts
+
+casting_additional_payment ::= cost | cost_choice
+
+/* @sem Ability::Casting(If{condition:$condition, rule:ReduceCost($casting_reduction_generic_colored)}) */
+casting_reduction_colored_if ::= "this" "spell" "costs" casting_reduction_generic_colored "less" "to" "cast" "if" condition "."
+
+/* @sem ManaReduction::[_{amount:$braced_amount}, ...$colored_cost_reductions] */
+casting_reduction_generic_colored ::= braced_amount colored_cost_reductions
+
+/* A selected card revealed from the payer’s hand as a cost. */
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$filter_phrase} */
+cost_reveal_filtered_from_hand ::= "reveal" "a" filter_phrase "card" "from" "your" "hand"
+
+/* @sem Ability::Casting(AdditionalCost{cost:_{parts:[$cost_reveal_filtered_from_hand]}, repetition:Once}) */
+casting_additional_reveal ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_reveal_filtered_from_hand "."
+
+/* A card revealed from the payer's hand as a cost. */
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$filter_phrase} */
+cost_reveal_filtered_hand_a ::= "reveal" "a" filter_phrase "card" "from" "your" "hand"
+
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$filter_phrase} */
+cost_reveal_filtered_hand_an ::= "reveal" "an" filter_phrase "card" "from" "your" "hand"
+
+casting_payment_before_alternative ::= cost | casting_reveal_choice_payment
+
+/* @sem Cost::Cost{parts:[$casting_reveal_choice_part]} */
+casting_reveal_choice_payment ::= casting_reveal_choice_part
+
+casting_reveal_choice_part ::= cost_reveal_filtered_hand_a | cost_reveal_filtered_hand_an
+
+target_cast_cost_adjustment ::= target_cast_cost_more | target_cast_cost_less
+
+/* @sem CastingRule::AdditionalCost{cost:$cost, repetition:Once} */
+target_cast_cost_more ::= "costs" cost "more" "to" "cast"
+
+/* @sem CastingRule::ReduceCost([_{amount:$braced_amount}]) */
+target_cast_cost_less ::= "costs" braced_amount "less" "to" "cast"
+
+/* A conditional difference defines the reduction directly, including its
+   zero floor, rather than adding a separate conditional casting rule. */
+/* @sem Ability::Casting(ReduceCost([_{amount:$life_difference_below}])) */
+casting_reduction_life_difference ::= life_difference_below "," "this" "spell" "costs" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" "the" "difference" "."
+
+/* The ability controller determines the opponent population allowed to activate. */
+/* @sem ActivationLimits::ActivationLimits{modifiers:[Change::ActivationRule(OnlyBy(OpponentsOf(AbilityController)))]} */
+limit_opponents_only ::= "only" "your" "opponents" "may" "activate" "this" "ability"

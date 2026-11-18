@@ -356,3 +356,24 @@ pay_to_ignore_player_restriction ::= "can't" "search" "libraries"
 /* Any player pays for that same player; the subject set is explicitly all players. */
 /* @sem Ability::PayToIgnore{subjects:Players($player_keyword_all), rules:$pay_to_ignore_player_restriction, cost:$cost, until:EndOfTurn} */
 pay_to_ignore_all_player_rule ::= player_keyword_all pay_to_ignore_player_restriction "." "any" "player" "may" "pay" cost "for" "that" "player" "to" "ignore" "this" "effect" "until" "end" "of" "turn" "."
+
+/* The difference is clamped because the reduction applies only below the
+   stated starting total. Keep the two player operands independent. */
+/* @sem Expr::Maximum(Constant(0), Subtract($life_difference_starting, $life_difference_current)) */
+life_difference_below ::= "if" life_difference_current "is" "less" "than" life_difference_starting
+
+/* @sem Expr::PlayerNumber{player:$life_difference_current_player, number:Life} */
+life_difference_current ::= life_difference_current_player "life" "total"
+
+life_difference_current_player ::= life_difference_your | life_difference_active
+
+life_difference_starting_player ::= life_difference_your | life_difference_active
+
+/* @sem PlayerRef::AbilityController */
+life_difference_your ::= "your"
+
+/* @sem PlayerRef::Active */
+life_difference_active ::= "the" "active" "player's"
+
+/* @sem Expr::StartingLife($life_difference_starting_player) */
+life_difference_starting ::= life_difference_starting_player "starting" "life" "total"
