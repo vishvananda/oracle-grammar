@@ -216,8 +216,7 @@ class ParseReadmissionTests(BatchReadmissionTests):
         self.assertEqual(driver.recovered_cohort(self.queue,'current'),
                          {'manifest':'batch','checkpoint':'current','jobs':['author','mechanical']})
 
-    def test_archived_full_controls_use_accepted_print_rows(self):
-        proof = self.full_fixture()
+    def _downgrade_checkpoint_print_rows(self):
         frozen = self.inputs/'frozen'
         index = r.read(frozen/'index.json')
         earlier = next(entry for entry in index.values() if entry['name'] == 'A')
@@ -230,6 +229,40 @@ class ParseReadmissionTests(BatchReadmissionTests):
         manifest = r.read(manifest_path)
         manifest['files'] = r.tree(frozen)
         r.write(manifest_path, manifest)
+        return manifest_path
+
+    def test_parse_controls_use_frozen_validation_rows_with_new_baseline(self):
+        proof = self.fixture()
+        manifest_path = self._downgrade_checkpoint_print_rows()
+        validation = r.read(self.validation)
+        validation['checkpoint_manifest_sha256'] = r.digest(manifest_path)
+        write(self.validation, validation)
+        proof['validation'] = spec(self.validation)
+        with closing(self.queue._connect()) as db:
+            for item in self.items:
+                db.execute('UPDATE jobs SET adjudication=? WHERE id=?',
+                           (json.dumps({'status': 'integration-rejected', 'evidence': {'manifest': 'batch',
+                                         'validation': validation}}), item['job_id']))
+        for baseline, reason in ((None, 'baseline meanings'), ('other', 'control baseline is invalid')):
+            with self.subTest(baseline=baseline):
+                isolation = r.read(self.isolation)
+                if baseline is not None:
+                    isolation['control_baseline'] = baseline
+                write(self.isolation, isolation)
+                proof['isolation'] = spec(self.isolation)
+                with self.assertRaisesRegex(ValueError, reason):
+                    self.invoke(proof)
+        isolation['control_baseline'] = parsed.VALIDATION_INPUTS
+        write(self.isolation, isolation)
+        proof['isolation'] = spec(self.isolation)
+        with patch.object(parsed.library, '_replay'):
+            receipt = self.invoke(proof)
+        self.assertEqual(receipt['jobs'], ['author', 'mechanical'])
+        self.assertEqual(receipt['proof']['derivation_key_changes'], [])
+
+    def test_archived_full_controls_use_accepted_print_rows(self):
+        proof = self.full_fixture()
+        manifest_path = self._downgrade_checkpoint_print_rows()
         proof['archive_manifests']['checkpoint_manifest_sha256'] = spec(manifest_path)
         with patch.object(parsed.library, '_replay'):
             result = self.queue.readmit_full_check_batch_proposals(['author','mechanical'], 'parent', proof)

@@ -186,10 +186,9 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     profile = scratch/'profile.json'
     r.write(profile, {'cards': names})
     cp = dict(checkpoint, native_regression_controls=_spec(profile), native_control_threads=2)
-    if full_check:
-        # The rejected candidate froze the accepted audit's print flags. Older
-        # checkpoint input indices can have the same readings with older flags.
-        cp.update(commit=manifest['commit'], inputs=str(run))
+    # Use the accepted audit rows frozen for the rejected candidate, including
+    # any print flags improved after the checkpoint inputs were captured.
+    cp.update(commit=manifest['commit'], inputs=str(run))
     control = batch._control_setup(cp)
     cached = batch._ProposalInputCache()
     with cpu.reserve(Path(cp['cpu_pool']), 1, cp['cpu_capacity'], background=True):
@@ -252,7 +251,8 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     r.write(original_reports, reports)
     isolation = scratch/'isolation.json'
     mode = 'full-check' if full_check else 'parse-screen'
-    r.write(isolation, {'kind': f'isolated-{mode}-regressions', 'manifest': batch_id,
+    control_baseline = {} if full_check else {'control_baseline': readmission.VALIDATION_INPUTS}
+    r.write(isolation, {**control_baseline, 'kind': f'isolated-{mode}-regressions', 'manifest': batch_id,
                         'candidate': manifest['commit'], 'parent': checkpoint['commit'],
                         'excluded_jobs': [jobs[i]['job_id'] for i in excluded],
                         'reason': 'The retained union preserved every reading and print gate on the failed face closure.',

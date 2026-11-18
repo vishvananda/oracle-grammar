@@ -21,6 +21,7 @@ ARTIFACTS = ('commands.jsonl', 'gold.jsonl', 'oracle.json', 'slice.json', 'befor
              'rows.jsonl', 'native.json', 'native-failures.jsonl', 'score.log', 'validate-readings.log')
 PRINT_ONLY_REJECTION = 'full allowed-population checks failed'
 PARSE_SCREEN_REJECTION = 'full allowed-population parse screen failed'
+VALIDATION_INPUTS = 'validation-inputs'
 
 
 def _lease_held(path):
@@ -477,9 +478,12 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     count = isolation.get('population_count')
     if type(count) is not int or not 1 <= count <= min(1024, len(data[0])):
         raise ValueError('parse isolation population is invalid')
-    # Full-check controls use the accepted audit rows frozen in validation inputs.
-    # The accepted checkpoint's input index can retain older print flags.
-    control_data = data if full_checks else worker.payload(inputs)
+    has_control_baseline = 'control_baseline' in isolation
+    if has_control_baseline and (full_checks or isolation['control_baseline'] != VALIDATION_INPUTS):
+        raise ValueError('parse isolation control baseline is invalid')
+    # Existing parse proofs may use the older checkpoint input rows. New ones
+    # use the accepted audit rows frozen for validation, as full checks do.
+    control_data = data if full_checks or has_control_baseline else worker.payload(inputs)
     focus = {'data': data, 'control_data': control_data, 'run': run, 'expected': expected, 'included': included,
              'trees': trees, 'original': original, 'count': count, 'named_failures': named,
              'full_failures': full_failures, 'refusals': refused, 'losses': losses,
