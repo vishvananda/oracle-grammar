@@ -116,6 +116,42 @@ class TimeoutRecoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'unfinished full worker diagnostic'):
             verify(command, [{**started, 'item': {**started['item'], 'command': shlex.join([*command, '--preview'])}}])
 
+    def test_legacy_preview_retry_requires_an_archived_over_budget_pass(self):
+        worker = self.run/'workers/family'
+        descriptor = self.run/'tasks/family.json'
+        write(descriptor, {**json.loads(descriptor.read_text()), 'full_pass': True})
+        self.proof['descriptor'] = spec(descriptor)
+        command = ['/usr/bin/python3', str(self.run/'support/runner/retire_author.py'), str(self.run),
+                   'family', '--preview']
+        prompt = worker/'prompt.txt'
+        prompt.write_text('It checks target faces, the authored family, and edited operands.\n'
+                          + json.dumps(command) + '\n')
+        events = worker/'events.jsonl'
+        write(events, {'type': 'item.started', 'item': {'id': 'preview', 'type': 'command_execution',
+             'command': shlex.join(command), 'status': 'in_progress'}})
+        self.proof['events'] = spec(events)
+        member = 'files/.cache/author-checks/attempt-'+'0'*32+'/report.json'
+        proof = {'prompt': spec(prompt), 'preview_report': member}
+        archive = Path(self.proof['archive']['path'])
+        report = {'task': 'family', 'source': 'old', 'scope': 'author-target-preview', 'passed': True,
+                  'failures': [], 'wall_seconds': 1200, 'edited': [{}, {}],
+                  'descriptor_sha256': self.proof['descriptor']['sha256'],
+                  'support_sha256': self.proof['support']['sha256']}
+
+        def verify(candidate):
+            data = json.dumps(candidate).encode()
+            with tarfile.open(archive, 'w:gz') as tar:
+                info = tarfile.TarInfo(member)
+                info.size = len(data)
+                tar.addfile(info, io.BytesIO(data))
+            self.proof['archive'] = spec(archive)
+            recovery.verify_legacy_full_diagnostic(self.root, 'family', self.attempt, self.proof, proof)
+
+        verify(report)
+        for changes in ({'wall_seconds': 899}, {'passed': False}, {'edited': []}, {'source': 'wrong'}):
+            with self.subTest(changes=changes), self.assertRaisesRegex(ValueError, 'beyond the worker budget'):
+                verify({**report, **changes})
+
     def test_split_preserves_attempt_and_exact_coverage_without_acceptance(self):
         original = self.queue.get_attempt(self.attempt)
         result = self.split()

@@ -432,6 +432,10 @@ passing coordinator evaluation can get one attempt under the preview prompt.
 The recovery verifies the archived prompt, unfinished command, and passing
 report against the same timed-out attempt. The replacement worker supplies
 fresh dispositions and the candidate runs through the ordinary acceptance gates.
+A preview that included edited-operand checks qualifies for the same retry
+when its archived passing report exceeded the worker budget and the worker's
+record shows that exact command still open at timeout. The replacement uses the
+shorter preview and the coordinator checks edited operands independently.
 If a retried repair passes the author checks and fails an isolated integration
 trial, one further repair can return to the worker queue. It needs a fresh
 independent pass and the retained trial and diagnostic records for that exact

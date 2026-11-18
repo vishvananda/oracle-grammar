@@ -1,5 +1,6 @@
 """Bounded evidence for recovering finished author timeouts."""
 import hashlib
+import io
 import json
 from contextlib import closing
 from dataclasses import dataclass
@@ -137,8 +138,29 @@ def _shell_command(command):
     return args[first:]
 
 
+def _verify_expensive_preview(campaign, run, job, timeout, descriptor, member_name):
+    if (not isinstance(member_name, str)
+            or re.fullmatch(r'files/\.cache/author-checks/attempt-[0-9a-f]{32}/report\.json', member_name) is None):
+        raise ValueError('invalid archived target preview path')
+    archive = artifact(timeout, 'archive', campaign/'.cache/archives'/f'{run.name}.tar.gz')
+    with tarfile.open(fileobj=io.BytesIO(archive), mode='r:gz') as tar:
+        member = tar.getmember(member_name)
+        if not member.isfile() or member.size > 1024*1024:
+            raise ValueError('archived target preview exceeds the evidence limit')
+        report = json.load(tar.extractfile(member))
+    manifest = json.loads(artifact(timeout, 'base_manifest', run/'inputs/manifest.json'))
+    seconds = report.get('wall_seconds')
+    if (report.get('task') != job or report.get('source') != manifest['commit']
+            or report.get('scope') != 'author-target-preview' or report.get('passed') is not True
+            or report.get('failures') != [] or report.get('descriptor_sha256') != timeout['descriptor']['sha256']
+            or report.get('support_sha256') != timeout['support']['sha256']
+            or not isinstance(report.get('edited'), list) or not 2 <= len(report['edited']) <= 8
+            or type(seconds) not in (int, float) or not seconds > descriptor['wall_budget_seconds']):
+        raise ValueError('archive does not prove a passing edited preview beyond the worker budget')
+
+
 def verify_legacy_full_diagnostic(campaign, job_id, attempt, timeout, prompt_proof):
-    """Confirm a campaign worker expired with its old prompted full check still open."""
+    """Confirm the timed-out worker still had its old prompted diagnostic open."""
     run = campaign/'.cache/attempts'/attempt
     worker = run/'workers'/job_id
     descriptor = json.loads(artifact(timeout, 'descriptor', run/'tasks'/f'{job_id}.json'))
@@ -147,10 +169,17 @@ def verify_legacy_full_diagnostic(campaign, job_id, attempt, timeout, prompt_pro
     commands = [json.loads(line) for line in prompt.splitlines() if line.startswith('["')]
     declared = [cmd for cmd in commands if isinstance(cmd, list) and cmd[1:4] == expected
                 and isinstance(cmd[0], str) and Path(cmd[0]).name == 'python3']
-    full = [cmd for cmd in declared if cmd[1:] == expected]
-    if (descriptor.get('full_pass') is not True or len(full) != 1
-            or any('--preview' in cmd[4:] for cmd in declared)):
+    preview_report = prompt_proof.get('preview_report')
+    arguments = [*expected, '--preview'] if preview_report is not None else expected
+    matching = [cmd for cmd in declared if cmd[1:] == arguments]
+    alternate = (any('--preview' in cmd[4:] for cmd in declared) if preview_report is None
+                 else any(cmd[1:] == expected for cmd in declared))
+    if descriptor.get('full_pass') is not True or len(matching) != 1 or alternate:
         raise ValueError('old campaign prompt does not require the full worker diagnostic')
+    if preview_report is not None:
+        if 'It checks target faces, the authored family, and edited operands.' not in prompt:
+            raise ValueError('old campaign prompt does not require edited operands in the preview')
+        _verify_expensive_preview(campaign, run, job_id, timeout, descriptor, preview_report)
     events = [json.loads(line) for line in artifact(timeout, 'events', worker/'events.jsonl').splitlines()
               if line.strip()]
     completed = {event.get('item', {}).get('id') for event in events if event.get('type') == 'item.completed'}
@@ -160,7 +189,7 @@ def verify_legacy_full_diagnostic(campaign, job_id, attempt, timeout, prompt_pro
         if (event.get('type') == 'item.started' and item.get('type') == 'command_execution'
                 and item.get('status') == 'in_progress' and isinstance(item.get('id'), str)
                 and item['id'] not in completed and isinstance(command, str)
-                and expected[0] in command and _shell_command(command) == full[0]):
+                and expected[0] in command and _shell_command(command) == matching[0]):
             return
     raise ValueError('timeout events do not prove an unfinished full worker diagnostic')
 
