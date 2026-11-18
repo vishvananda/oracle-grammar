@@ -117,11 +117,20 @@ def main():
         p.add_argument('run', type=Path)
         if name == 'run':
             p.add_argument('--runner', type=Path)
+    split = commands.add_parser('split-reviewed', help='restore an independently verified subset of a deferred author job')
+    split.add_argument('run', type=Path)
+    split.add_argument('job')
+    split.add_argument('attempt')
+    split.add_argument('evidence', type=Path)
     args = parser.parse_args()
     if args.command == 'prepare':
         prepare(args)
     elif args.command == 'status':
         status(args.run.resolve())
+    elif args.command == 'split-reviewed':
+        queue = Queue(args.run.resolve()/'queue.sqlite')
+        result = queue.split_reviewed_author(args.job, args.attempt, queue.progress()['checkpoint'], r.read(args.evidence))
+        print(json.dumps(result, sort_keys=True))
     else:
         import retire_dispatch
         retire_dispatch.run_campaign(args.run.resolve(), args.runner)

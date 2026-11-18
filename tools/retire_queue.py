@@ -32,7 +32,9 @@ REVIEWED_RETRY_EVENTS = {
     'staging_failure': 'retry-staging-reviewed-repair',
     'full_check_failure': 'retry-full-check-reviewed-repair',
 }
-_REVIEWED_RETRY_SLOTS = ','.join('?' for _ in REVIEWED_RETRY_EVENTS)
+SPLIT_REVIEWED_AUTHOR = 'split-reviewed-author'
+_REVIEWED_EVENTS = (*REVIEWED_RETRY_EVENTS.values(), SPLIT_REVIEWED_AUTHOR)
+_REVIEWED_EVENT_SLOTS = ','.join('?' for _ in _REVIEWED_EVENTS)
 
 
 def _json(value):
@@ -198,9 +200,9 @@ def _verify_rewritten_review(db, campaign, assignment, start, result, evidence, 
     """Recover the same checked draft after an author rewrote it and staging vetoed it."""
     job, attempt, source = assignment
     prior = db.execute(
-        f"SELECT data FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) "
+        f"SELECT data FROM events WHERE kind IN ({_REVIEWED_EVENT_SLOTS}) "
         "AND json_extract(data,'$.job_id')=? ORDER BY seq DESC LIMIT 1",
-        (*REVIEWED_RETRY_EVENTS.values(), job)).fetchone()
+        (*_REVIEWED_EVENTS, job)).fetchone()
     prior = json.loads(prior[0]) if prior else {}
     original = prior.get('evidence', {})
     if (prior.get('checkpoint') != source or original.get('source_checkpoint') != source
@@ -621,6 +623,27 @@ def _verify_readmission_origin(db, checkpoint, origin):
     raise ValueError('proof origin is outside the accepted checkpoint chain')
 
 
+def _reviewed_split_jobs(parent, checkpoint, origin, evidence):
+    rules, selected, targets = parent['rules'], evidence.get('rules'), evidence.get('target_faces')
+    if (not isinstance(selected, list) or not selected or any(not isinstance(x, str) for x in selected)
+            or len(set(selected)) != len(selected) or not set(selected) < set(rules)
+            or not isinstance(targets, list) or not targets or any(not isinstance(x, str) for x in targets)
+            or len(set(targets)) != len(targets) or not set(targets) <= set(parent.get('target_faces', []))):
+        raise ValueError('split needs a proper rule subset and assigned target faces')
+    kept = [rule for rule in rules if rule in selected]
+    deferred = [rule for rule in rules if rule not in selected]
+    prefix = parent['id']+'\0'+checkpoint+'\0'
+    selected_id = 'rehab-author-'+hashlib.sha256((prefix+'\0'.join(sorted(kept))).encode()).hexdigest()[:20]
+    deferred_id = 'rehab-review-'+hashlib.sha256((prefix+'deferred').encode()).hexdigest()[:20]
+
+    def child(job_id, part):
+        fragments = [x for x in parent.get('source_fragments', []) if x.get('name') in part]
+        return dict(parent, id=job_id, rules=part, source_fragments=fragments, review_origin=origin,
+                    review_checkpoint=checkpoint)
+
+    return dict(child(selected_id, kept), target_faces=targets), child(deferred_id, deferred)
+
+
 class RehabilitationIneligible(ValueError):
     """A parked job is safely ineligible or changed while being checked."""
 
@@ -732,6 +755,62 @@ class Queue:
                 db.executemany("UPDATE rules SET job_id=? WHERE rule=?", [(group["id"], rule) for rule in group["rules"]])
             db.execute("UPDATE jobs SET status='superseded' WHERE id=?", (jobid,))
             self._event(db, "split", {"job_id": jobid, "groups": groups, "evidence": evidence})
+
+    def split_reviewed_author(self, job_id, attempt_id, checkpoint, evidence):
+        """Queue an independently evaluated subset and preserve its deferred siblings."""
+        if (not isinstance(evidence, dict) or evidence.get('kind') != 'reviewed-author-split'
+                or evidence.get('source_checkpoint') != checkpoint or not isinstance(attempt_id, str) or not attempt_id):
+            raise ValueError('reviewed author split evidence must bind the current attempt and checkpoint')
+        notes = evidence.get('review_notes')
+        if not isinstance(notes, str) or not notes.strip() or len(notes) > 2048:
+            raise ValueError('reviewed author split requires concise review notes')
+        campaign = Path(self.path).parent
+        with self._retry_lease(job_id):
+            with self._transaction() as db:
+                row = db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?',
+                                 (job_id,)).fetchone()
+                head = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+                if not row or tuple(row[:2]) != ('needs-review', attempt_id) or not head or head[0] != checkpoint:
+                    raise ValueError('parked author attempt or checkpoint changed')
+                parent, origin, base, started, raw = retire_rehabilitation.resolve_origin(db, job_id, row)
+                owned = {item[0] for item in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
+                if (parent.get('kind') != 'author' or parent.get('id') != job_id
+                        or len(parent['rules']) != len(owned) or set(parent['rules']) != owned):
+                    raise ValueError('the parked author no longer owns its original assignment')
+                pid = json.loads(started or '{}').get('pid')
+                if type(pid) is not int or pid <= 0:
+                    raise ValueError('the parked author process identity is unknown')
+                self._require_absent_pid(pid)
+                _verify_readmission_origin(db, checkpoint, base)
+                selected, deferred = _reviewed_split_jobs(parent, checkpoint, origin, evidence)
+                original = json.loads(raw)['evidence']
+                dispositions = original.get('dispositions', {})
+                if (original.get('kind') != 'author' or not isinstance(dispositions, dict) or set(dispositions) != owned
+                        or any(not isinstance(dispositions[rule], dict) or dispositions[rule].get('status') != 'proposed'
+                               or dispositions[rule].get('rule') != rule for rule in selected['rules'])):
+                    raise ValueError('the selected subset was not proposed in the original assignment')
+                archived, _ = _verify_original_report(campaign, job_id, attempt_id, base, original,
+                                                      evidence.get('original_report'))
+                if archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':
+                    raise ValueError('the original report lacks a full author evaluation')
+                _, task = _verify_reviewed_repair(campaign, checkpoint, selected, evidence)
+                descriptor = campaign/'.cache/attempts'/attempt_id/'tasks'/f'{job_id}.json'
+                old = descriptor.read_bytes()
+                if hashlib.sha256(old).hexdigest() != archived['descriptor_sha256']:
+                    raise ValueError('the original author descriptor changed during review')
+                if not set(json.loads(old)['cohort']) <= set(task['cohort']):
+                    raise ValueError('the narrowed evaluation does not cover the original cohort')
+                selected['goal'] += ' Coordinator replay passed the narrowed assignment. '+notes.strip()
+                for child, status in ((selected, 'pending'), (deferred, 'needs-review')):
+                    db.execute('INSERT INTO jobs(id,payload,status) VALUES (?,?,?)',
+                               (child['id'], _json(child), status))
+                    db.executemany('UPDATE rules SET job_id=? WHERE rule=? AND job_id=?',
+                                   [(child['id'], rule, job_id) for rule in child['rules']])
+                db.execute("UPDATE jobs SET status='superseded' WHERE id=?", (job_id,))
+                receipt = {'parent_job':job_id, 'job_id':selected['id'], 'review_job':deferred['id'],
+                           'origin_attempt':attempt_id, 'checkpoint':checkpoint, 'rules':selected['rules']}
+                self._event(db, SPLIT_REVIEWED_AUTHOR, {**receipt, 'evidence':evidence})
+                return receipt
 
     def rehabilitate_unused(self, job_id, checkpoint, evidence):
         """Move newly unused parked rules to fresh mechanical jobs atomically."""
@@ -1197,11 +1276,12 @@ class Queue:
                     "SELECT kind, CASE WHEN json_type(data,'$.evidence.staging_failure.rewritten_draft') IS NOT NULL "
                     "THEN 'rewritten' WHEN json_type(data,'$.evidence.staging_failure.readmission_event_seq') "
                     "IS NOT NULL THEN 'parse' ELSE 'ordinary' END "
-                    f"FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) AND json_extract(data,'$.job_id')=?",
-                    (*REVIEWED_RETRY_EVENTS.values(), job_id))}
-                if (event, recovery) in retries:
+                    f"FROM events WHERE kind IN ({_REVIEWED_EVENT_SLOTS}) AND json_extract(data,'$.job_id')=?",
+                    (*_REVIEWED_EVENTS, job_id))}
+                split = (SPLIT_REVIEWED_AUTHOR, 'ordinary') in retries
+                if (event, recovery) in retries or (route is None and split):
                     raise ValueError('reviewed repair retry already used for this job')
-                reviewed = (REVIEWED_RETRY_EVENTS[None], 'ordinary') in retries
+                reviewed = (REVIEWED_RETRY_EVENTS[None], 'ordinary') in retries or split
                 if (interrupted or legacy) and (not reviewed or row[0] != 'needs-review'):
                     raise ValueError('diagnostic recovery requires a previously retried author repair')
                 if staging and (not reviewed or row[0] != 'integration-rejected'):
@@ -1917,9 +1997,9 @@ class Queue:
         """Return the most recent independent replay recorded for this exact assignment."""
         with closing(self._connect()) as db:
             row = db.execute(
-                f"SELECT data FROM events WHERE kind IN ({_REVIEWED_RETRY_SLOTS}) "
+                f"SELECT data FROM events WHERE kind IN ({_REVIEWED_EVENT_SLOTS}) "
                 "AND json_extract(data,'$.job_id')=? ORDER BY seq DESC LIMIT 1",
-                (*REVIEWED_RETRY_EVENTS.values(), job_id)).fetchone()
+                (*_REVIEWED_EVENTS, job_id)).fetchone()
         if row:
             evidence = json.loads(row[0])['evidence']
             if 'timeout' not in evidence and 'source_checkpoint' in evidence:
