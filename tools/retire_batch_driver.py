@@ -31,7 +31,8 @@ def _runner(run, runner):
 
 def _recorded_stage_retry(queue, job, checkpoint, expected):
     original = {'status': 'integration-rejected', 'checkpoint': None, 'evidence': expected}
-    matches = [event['data'] for event in queue.audit() if event['kind'] == 'retry-staging-reviewed-repair'
+    matches = [event['data'] for event in queue.audit()
+               if event['kind'] in ('retry-reviewed-repair', 'retry-staging-reviewed-repair')
                and event['data'].get('job_id') == job['job_id']
                and event['data'].get('attempt_id') == job['attempt_id']]
     return (len(matches) == 1 and matches[0].get('checkpoint') == checkpoint

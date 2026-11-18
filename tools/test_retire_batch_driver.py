@@ -205,11 +205,14 @@ class DriverTests(unittest.TestCase):
                  'previous_status':'integration-rejected',
                  'previous_adjudication':{'status':'integration-rejected','checkpoint':None,
                                           'evidence':{'manifest':'id','reason':'merge or staging rejected'}}}
-        self.queue.audit = lambda: [{'kind':'retry-staging-reviewed-repair','data':event}]
-        self.assertEqual(driver._batch_observation(self.run,set(),self.queue,'parent')['outcome'],'rejected')
-        event['previous_adjudication']['evidence']['manifest'] = 'another-batch'
-        with self.assertRaisesRegex(ValueError,'disposition is missing or differs'):
-            driver._batch_observation(self.run,set(),self.queue,'parent')
+        for kind in ('retry-reviewed-repair', 'retry-staging-reviewed-repair'):
+            with self.subTest(kind=kind):
+                self.queue.audit = lambda: [{'kind': kind, 'data': event}]
+                self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'],
+                                 'rejected')
+                with patch.dict(event['previous_adjudication']['evidence'], manifest='another-batch'):
+                    with self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
+                        driver._batch_observation(self.run, set(), self.queue, 'parent')
 
     def test_mechanical_threshold_takes_only_mechanics_and_caps_at_96(self):
         config = r.read(self.run/'config.json')
