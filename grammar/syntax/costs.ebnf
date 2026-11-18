@@ -1,6 +1,5 @@
 /* Costs and mana symbols. */
-/* @sem Cost::Cost{parts:$cost_parts} */
-cost ::= cost_parts
+cost ::= cost_standard | cost_pay_mana_or_words
 
 cost_parts ::= cost_parts_one | cost_parts_more | cost_sacrifice_three | cost_remove_counters_and_sacrifice
 
@@ -34,14 +33,14 @@ cost_part_later ::= cost_symbols | cost_word_later
 /* @sem $cost_words */
 cost_word_later ::= "↑" cost_words
 
-cost_part ::= cost_symbols | cost_words
+cost_part ::= cost_symbols | cost_words | cost_three_word_choices
 
 cost_symbols ::= cost_mana | cost_tap
 
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card
+cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_hand_on_top | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -398,7 +397,7 @@ casting_optional_additional_cost ::= "as" "an" "additional" "cost" "to" "cast" "
 
 /* Any number of one optional payment, each buying "{N} less": the spell's cost falls
    by one reduction for each single payment, so the rule records the single unit. */
-casting_reduce_for_each_paid ::= reduce_sacrifice_creatures | reduce_sacrifice_permanents | reduce_tap_creatures | reduce_exile_graveyard_cards | reduce_exile_hand_cards | reduce_remove_counters
+casting_reduce_for_each_paid ::= reduce_collect_evidence | reduce_sacrifice_creatures | reduce_sacrifice_permanents | reduce_tap_creatures | reduce_exile_graveyard_cards | reduce_exile_hand_cards | reduce_remove_counters
 /* @sem () */
 optional_cost_opening ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "you" "may"
 /* @sem () */
@@ -430,7 +429,7 @@ static_spells_uncounterable ::= cross_spells "can't" "be" "countered" "."
 
 /* A reduction while a condition holds. */
 /* @sem Ability::Casting(If{condition:$condition, rule:ReduceCost([_{amount:$braced_amount}])}) */
-casting_reduction_if ::= "this" "spell" "costs" braced_amount "less" "to" "cast" "if" condition "."
+casting_reduction_if ::= "this" "spell" "costs" braced_amount "less" "to" "cast" ("if" | "as" "long" "as") condition "."
 
 /* A reduction when the spell targets a kind of permanent. */
 /* @sem Ability::Casting(If{condition:TargetsMatch(_{object:$object_ref, kind:Permanent, filter:$filter_phrase}), rule:ReduceCost([_{amount:$braced_amount}])}) */
@@ -768,3 +767,22 @@ payment_per_chosen_creature ::= "pay" cost "for" "each" "creature" "chosen" "thi
 
 /* @sem CostPart::Discard{count:Constant(1), filter:AnyOf(@unordered([$singular_filtered_card, $singular_filtered_card_2]))} */
 cost_discard_either_card ::= "discard" singular_filtered_card "or" singular_filtered_card
+
+/* The conditional reduction is tied to this particular evidence payment. */
+/* @sem Ability::Casting(ReduceForEachPaid{reductions:[_{amount:$braced_amount}], cost:_{parts:[$cost_collect_evidence]}}) */
+reduce_collect_evidence ::= optional_cost_opening cost_collect_evidence reduce_for_each_opening braced_amount "less" "to" "cast" "if" "evidence" "was" "collected" "."
+
+/* @sem Cost::Cost{parts:$cost_parts} */
+cost_standard ::= cost_parts
+
+/* A choice between a mana payment and a verb-led payment. */
+/* @sem Cost::Cost{parts:[Choice([Cost::Cost{parts:[$cost_mana]}, Cost::Cost{parts:[$cost_words_owned]}])]} */
+cost_pay_mana_or_words ::= "pay" cost_mana "or" cost_words_owned
+
+/* Three alternative verb-led payments, each retaining its own cost. */
+/* @sem CostPart::Choice([_{parts:[$cost_words_owned]}, _{parts:[$cost_words_owned_2]}, _{parts:[$cost_words_owned_3]}]) */
+cost_three_word_choices ::= cost_words_owned "," cost_words_owned "," "or" cost_words_owned
+
+/* A payment can choose a matching card from any graveyard. */
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$card_filter}, choose:Exactly(Expr::Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_any_graveyard_kind ::= "exile" "a" card_filter "card" "from" "a" "graveyard"

@@ -30,7 +30,7 @@ mana_clause_restricted ::= mana_clause "." mana_spending
 /* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($program)}}}] */
 instructions_mana_spent_trigger ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" spell_filter "," program
 
-mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat
+mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat | mana_spend_only_countered
 /* @sem $mana_use */
 mana_spend_only ::= "spend" "this" "mana" "only" "to" mana_use
 /* @sem $mana_use */
@@ -43,7 +43,7 @@ mana_persists ::= until_end_of_turn "," "you" "don't" "lose" "this" "mana" "as" 
 /* @sem ManaUse::Persists($until_end_of_combat) */
 mana_persists_combat ::= until_end_of_combat "," "you" "don't" "lose" "this" "mana" "as" "steps" "end"
 
-mana_use ::= mana_use_atom | mana_use_either | mana_use_comma_either | mana_use_ability_or_cast
+mana_use ::= mana_use_atom | mana_use_either | mana_use_comma_either | mana_use_ability_or_cast | mana_use_three | mana_use_artifact_cast_or_ability | mana_use_cast_activate_pay_colorless | mana_use_cast_chosen_or_activate
 /* @sem ManaUse::Either([$mana_use_atom, ...$mana_use_tail]) */
 mana_use_either ::= mana_use_atom "or" mana_use_tail
 mana_use_tail ::= mana_use_last | mana_use_more
@@ -57,6 +57,7 @@ mana_use_later ::= "to"? mana_use_atom
 mana_use_atom ::= mana_use_cast
     | mana_use_activate | mana_use_activate_sources | mana_use_activate_source
     | mana_use_activate_permanents | mana_use_activate_permanent | mana_use_pay
+    | mana_use_equip
 
 /* Reuse the shared plural spell filters; full singular phrases can also
    share one cast verb, as in "an instant or sorcery spell or a kicked spell". */
@@ -99,7 +100,7 @@ mana_use_activate_permanent ::= "activate" ("a" | "an") "ability" "of" ("a" | "a
 
 /* @sem ManaUse::Purpose($mana_purpose) */
 mana_use_pay ::= "pay" mana_purpose
-mana_purpose ::= mana_purpose_cumulative | mana_purpose_disturb | mana_purpose_generic
+mana_purpose ::= mana_purpose_cumulative | mana_purpose_disturb | mana_purpose_generic | mana_purpose_colorless_cost
 /* @sem ManaPurpose::CumulativeUpkeep */
 mana_purpose_cumulative ::= "cumulative" "upkeep" "costs"
 
@@ -160,3 +161,44 @@ mana_purpose_generic ::= "generic" "mana" "costs"
 
 /* @sem ManaUse::Either([$mana_use_activate_one, $mana_use_cast]) */
 mana_use_ability_or_cast ::= mana_use_activate_one "or" mana_use_cast
+
+/* @sem ManaUse::Either([$mana_use_cast, $mana_use_unlock, $mana_use_turn_face_up]) */
+mana_use_three ::= mana_use_cast "," mana_use_unlock "," "or" mana_use_turn_face_up
+
+/* @sem ManaUse::Purpose(AbilityKeyword(Equip)) */
+mana_use_equip ::= "activate" "an" "equip" "ability"
+
+/* @sem ManaUse::Purpose(UnlockDoor) */
+mana_use_unlock ::= "unlock" "a" "door"
+
+/* @sem ManaUse::Purpose(TurnFaceUp($filter_phrase)) */
+mana_use_turn_face_up ::= "turn" "a" filter_phrase "face" "up"
+
+/* @sem ManaPurpose::CostContaining(Term{family:ManaSymbol, form:ManaCostC}) */
+mana_purpose_colorless_cost ::= "a" "cost" "that" "contains" "{" "C" "}"
+
+/* @sem ObjectFilter::@and(ObjectFilter::CardType(Creature), ObjectFilter::Chosen(CreatureType)) */
+mana_spell_chosen_type ::= "a" "spell" "of" "the" "chosen" "type"
+
+/* @sem ManaUse::ActivateAbility{sources:@and(ObjectFilter::CardType(Creature), ObjectFilter::Chosen(CreatureType)), permanents_only:false} */
+mana_use_chosen_source ::= "activate" "an" "ability" "of" "a" "source" "of" "the" "chosen" "type"
+
+/* @sem ManaUse::All([CastSpell($mana_cast_filter), SpentGives{spells:Any, effects:[Term{family:SpellEffect, form:CantBeCountered}]}]) */
+mana_spend_only_countered ::= "spend" "this" "mana" "only" "to" "cast" mana_cast_filter "," "and" "that" "spell" "can't" "be" "countered"
+
+/* @sem ManaUse::CastSpell(ObjectFilter::CardType(Artifact)) */
+mana_use_cast_artifact_singular ::= "cast" "an" "artifact" "spell"
+
+/* @sem ManaUse::Either([$mana_use_cast_artifact_singular, $mana_use_activate_one]) */
+mana_use_artifact_cast_or_ability ::= mana_use_cast_artifact_singular "or" mana_use_activate_one
+
+/* A three-purpose restriction retains the written split around its mana cost. */
+/* @prefer always */
+/* @sem ManaUse::Either([$mana_use_cast, $mana_use_activate_permanent, $mana_use_pay_colorless_cost]) */
+mana_use_cast_activate_pay_colorless ::= mana_use_cast "," mana_use_activate_permanent "," "or" mana_use_pay_colorless_cost
+
+/* @sem ManaUse::Purpose($mana_purpose_colorless_cost) */
+mana_use_pay_colorless_cost ::= "pay" mana_purpose_colorless_cost
+
+/* @sem ManaUse::Either([CastSpell($mana_spell_chosen_type), $mana_use_chosen_source]) */
+mana_use_cast_chosen_or_activate ::= "cast" mana_spell_chosen_type "or" mana_use_chosen_source
