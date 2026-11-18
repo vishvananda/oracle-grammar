@@ -33,7 +33,7 @@ def _archived(campaign, batch_id, *, full_check=False):
     validation = r.read(folder/'validation.json')
     origin = manifest['base_commit']
     jobs = [row for row in manifest['jobs'] if row['status'] == 'included']
-    reason = 'full allowed-population checks failed' if full_check else 'full allowed-population parse screen failed'
+    reason = readmission.PRINT_ONLY_REJECTION if full_check else readmission.PARSE_SCREEN_REJECTION
     r.require(manifest['id'] == batch_id and 2 <= len(jobs) <= 96
               and len({row['job_id'] for row in jobs}) == len(jobs)
               and all(row['kind'] in ('author', 'mechanical') for row in jobs)
@@ -65,8 +65,7 @@ def _archived(campaign, batch_id, *, full_check=False):
     return folder, manifest, jobs, checkpoint, inputs, run, sorted(names), evidence
 
 
-def _proposals(campaign, jobs, scratch):
-    cached = batch._ProposalInputCache()
+def _proposals(campaign, jobs, scratch, cached):
     uri = (campaign/'queue.sqlite').as_uri()+'?mode=ro'
     proposals = []
     with closing(sqlite3.connect(uri, uri=True)) as db:
@@ -92,10 +91,12 @@ def _proposals(campaign, jobs, scratch):
     return proposals
 
 
-def _apply(root, job, proposal):
+def _apply(root, job, proposal, cached):
     run, directory, rules, hooks, _ = proposal
     if job['kind'] == 'author':
-        for name, text in merge.merge_grammar(run/'inputs/frozen', root, directory, rules, hooks).items():
+        files = merge.merge_grammar(run/'inputs/frozen', root, directory, rules, hooks,
+                                    canonical_removal=cached.canonical_seeded_removal)
+        for name, text in files.items():
             path = root/name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text)
@@ -177,8 +178,9 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         # checkpoint input indices can have the same readings with older flags.
         cp.update(commit=manifest['commit'], inputs=str(run))
     control = batch._control_setup(cp)
+    cached = batch._ProposalInputCache()
     with cpu.reserve(Path(cp['cpu_pool']), 1, cp['cpu_capacity'], background=True):
-        proposals = _proposals(campaign, jobs, scratch)
+        proposals = _proposals(campaign, jobs, scratch, cached)
     indices = list(range(len(jobs)))
     mechanics = [i for i in indices if jobs[i]['kind'] == 'mechanical']
     prefix = mechanics if mechanics == indices[:len(mechanics)] else []
@@ -209,7 +211,8 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
                 remainder = selection[len(prefix):]
             shutil.copytree(frozen, root/'grammar')
             for i in remainder:
-                _apply(root, jobs[i], proposals[i])
+                _apply(root, jobs[i], proposals[i], cached)
+            r.require(cached.unchanged(), 'archived proposal input changed during replay')
             tree = r.tree(root/'grammar')
         if label == 'full':
             r.require(tree == manifest['grammar'], 'complete ordered replay differs from rejected batch')

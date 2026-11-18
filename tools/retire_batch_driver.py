@@ -12,7 +12,7 @@ sys.dont_write_bytecode = True
 import retire as r
 import retire_campaign as campaign
 import retire_dispatch as dispatch
-from retire_parse_readmission import PRINT_ONLY_REJECTION, awaiting_print_recovery
+from retire_parse_readmission import PARSE_SCREEN_REJECTION, PRINT_ONLY_REJECTION, awaiting_print_recovery
 from retire_queue import Queue
 from retire_tasks import validate_runner
 
@@ -31,10 +31,17 @@ def _runner(run, runner):
 
 
 def _recorded_recovery(events, job, checkpoint, expected):
+    reason = expected.get('validation', {}).get('reason')
+    recovered_kinds = {
+        PRINT_ONLY_REJECTION: ('readmitted-native-batch', 'isolated-full-check-revalidation'),
+        PARSE_SCREEN_REJECTION: ('readmitted-parse-screen-batch', 'isolated-parse-screen-revalidation'),
+    }
+    recovery = None
     if job.get('status') == 'integration-rejected':
         kinds = ('retry-reviewed-repair', 'retry-staging-reviewed-repair')
-    elif job.get('status') == 'included' and expected.get('validation', {}).get('reason') == PRINT_ONLY_REJECTION:
-        kinds = ('readmitted-native-batch',)
+    elif job.get('status') == 'included' and reason in recovered_kinds:
+        recovery = recovered_kinds[reason]
+        kinds = (recovery[0],)
     else:
         return False
     original = {'status': 'integration-rejected', 'checkpoint': None, 'evidence': expected}
@@ -46,9 +53,9 @@ def _recorded_recovery(events, job, checkpoint, expected):
     if len(matches) != 1 or matches[0].get('checkpoint') != checkpoint:
         return False
     event = matches[0]
-    if kinds == ('readmitted-native-batch',):
+    if recovery:
         return (event.get('manifest') == expected['manifest']
-                and event.get('evidence', {}).get('kind') == 'isolated-full-check-revalidation')
+                and event.get('evidence', {}).get('kind') == recovery[1])
     return event.get('previous_status') == 'integration-rejected'
 
 
@@ -88,7 +95,7 @@ def _batch_observation(run, before, queue, checkpoint):
             return result
         if validation.get('status') != 'failed' or validation.get('reason') not in (
                 'repository gates failed', 'explicit candidate grammar tests failed',
-                'full allowed-population checks failed', 'full allowed-population parse screen failed',
+                PRINT_ONLY_REJECTION, PARSE_SCREEN_REJECTION,
                 'optimized family report contains failures'):
             raise ValueError('batch validation failed operationally: '+str(validation_path))
         result.update(outcome='rejected', reason=validation['reason'])
@@ -256,7 +263,7 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             continue
                         if not pending and not running and not ready:
                             if awaiting_print_recovery(run):
-                                status('idle', progress, reason='automatic print recovery is active')
+                                status('idle', progress, reason='automatic batch recovery is active')
                                 time.sleep(poll_seconds)
                                 continue
                             final = queue.progress()

@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 import retire as r
-from retire_parse_readmission import PRINT_ONLY_REJECTION, awaiting_print_recovery
+from retire_parse_readmission import PARSE_SCREEN_REJECTION, PRINT_ONLY_REJECTION, awaiting_print_recovery
 import retire_recover_full_print as recover
 
 
@@ -40,7 +40,7 @@ class PendingFullPrintTests(unittest.TestCase):
         self.db.commit()
 
     def pending(self):
-        return recover.pending_print_batches(self.campaign, self.output)
+        return [batch for batch, _ in recover.pending_failed_batches(self.campaign, self.output)]
 
     def test_complete_current_group_can_be_recovered_once(self):
         self.assertEqual(self.pending(), [self.batch])
@@ -85,3 +85,32 @@ class PendingFullPrintTests(unittest.TestCase):
         verify.assert_called_once_with(self.campaign, proof, result, full_check=True)
         self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'stale evidence'})
         self.assertEqual(self.pending(), [])
+
+    def test_live_parse_recovery_requires_enabled_complete_additions(self):
+        self.validation.update(reason=PARSE_SCREEN_REJECTION,
+                               parse_screen={'status': 'failed', 'native_exit': 0,
+                                             'failures': ['native readings changed or failed validation',
+                                                          {'face': 'One', 'gate': 'parse/reading-count/text'}]})
+        r.write(self.folder/'validation.json', self.validation)
+        self.db.execute("UPDATE jobs SET adjudication=json_set(adjudication,'$.evidence.validation.reason',?)",
+                        (PARSE_SCREEN_REJECTION,))
+        self.db.commit()
+        self.assertEqual(self.pending(), [])
+        self.assertEqual(recover.pending_failed_batches(self.campaign, self.output, include_parse=True),
+                         [(self.batch, False)])
+        r.write(self.campaign/'full-print-recovery.json', {'output': str(self.output), 'include_parse': True})
+        with r.locked(self.campaign/'full-print-recovery.lock'):
+            self.assertTrue(awaiting_print_recovery(self.campaign))
+            self.validation['parse_screen']['native_exit'] = 1
+            r.write(self.folder/'validation.json', self.validation)
+            self.assertFalse(awaiting_print_recovery(self.campaign))
+
+    def test_parse_recovery_uses_the_parse_proof_for_readmission(self):
+        result = {'rules': 7, 'jobs': ['a']}
+        with patch.object(recover.isolation, 'isolate', return_value=result) as isolate, \
+                patch.object(recover.isolation, 'readmit_result') as readmit:
+            receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True, full_check=False)
+        proof = self.output/self.batch/'proof'
+        isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=False)
+        readmit.assert_called_once_with(self.campaign, proof, result, full_check=False)
+        self.assertEqual(receipt['status'], 'readmitted')

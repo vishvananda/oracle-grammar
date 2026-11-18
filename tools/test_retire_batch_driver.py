@@ -216,23 +216,27 @@ class DriverTests(unittest.TestCase):
                     with self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
                         driver._batch_observation(self.run, set(), self.queue, 'parent')
 
-    def test_recorded_full_print_readmission_preserves_batch_observation(self):
+    def test_recorded_readmission_preserves_batch_observation(self):
         folder = self.run/'.cache/batches/id'
         folder.mkdir(parents=True)
         r.write(folder/'manifest.json', {'id': 'id', 'base_commit': 'parent', 'status': 'provisional',
                                          'commit': 'candidate', 'jobs': [{'job_id': 'one', 'status': 'included',
                                                                            'attempt_id': 'attempt'}]})
-        validation = {'status': 'failed', 'candidate': 'candidate', 'source_checkpoint': 'parent',
-                      'reason': driver.PRINT_ONLY_REJECTION}
-        r.write(folder/'validation.json', validation)
-        event = {'job_id': 'one', 'attempt_id': 'attempt', 'checkpoint': 'parent', 'manifest': 'id',
-                 'evidence': {'kind': 'isolated-full-check-revalidation'},
-                 'previous_adjudication': {'status': 'integration-rejected', 'checkpoint': None,
-                                           'evidence': {'manifest': 'id', 'validation': validation}}}
-        self.queue.audit = lambda: [{'kind': 'readmitted-native-batch', 'data': event}]
-        self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'], 'rejected')
-        with patch.dict(event, attempt_id='stale'), self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
-            driver._batch_observation(self.run, set(), self.queue, 'parent')
+        for reason, event_kind, evidence_kind in (
+                (driver.PRINT_ONLY_REJECTION, 'readmitted-native-batch', 'isolated-full-check-revalidation'),
+                (driver.PARSE_SCREEN_REJECTION, 'readmitted-parse-screen-batch', 'isolated-parse-screen-revalidation')):
+            with self.subTest(reason=reason):
+                validation = {'status': 'failed', 'candidate': 'candidate', 'source_checkpoint': 'parent',
+                              'reason': reason}
+                r.write(folder/'validation.json', validation)
+                event = {'job_id': 'one', 'attempt_id': 'attempt', 'checkpoint': 'parent', 'manifest': 'id',
+                         'evidence': {'kind': evidence_kind},
+                         'previous_adjudication': {'status': 'integration-rejected', 'checkpoint': None,
+                                                   'evidence': {'manifest': 'id', 'validation': validation}}}
+                self.queue.audit = lambda: [{'kind': event_kind, 'data': event}]
+                self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'], 'rejected')
+                with patch.dict(event, attempt_id='stale'), self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
+                    driver._batch_observation(self.run, set(), self.queue, 'parent')
 
     def test_mechanical_threshold_takes_only_mechanics_and_caps_at_96(self):
         config = r.read(self.run/'config.json')
@@ -432,7 +436,7 @@ class DriverTests(unittest.TestCase):
         def recovery_finishes(_):
             state = r.read(self.run/'batch-driver.json')
             self.assertEqual(state['phase'], 'idle')
-            self.assertEqual(state['reason'], 'automatic print recovery is active')
+            self.assertEqual(state['reason'], 'automatic batch recovery is active')
             self.queue.value = progress(pending=0, ready=2)
 
         with patch.object(driver, 'awaiting_print_recovery', side_effect=[True, False]), \

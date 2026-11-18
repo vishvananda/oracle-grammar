@@ -20,6 +20,7 @@ from retire_native_readmission import _allowed, _control, _grammar_tree
 ARTIFACTS = ('commands.jsonl', 'gold.jsonl', 'oracle.json', 'slice.json', 'before.jsonl',
              'rows.jsonl', 'native.json', 'native-failures.jsonl', 'score.log', 'validate-readings.log')
 PRINT_ONLY_REJECTION = 'full allowed-population checks failed'
+PARSE_SCREEN_REJECTION = 'full allowed-population parse screen failed'
 
 
 def _lease_held(path):
@@ -41,20 +42,34 @@ def _focused_print_losses(failures):
                     and row['lost'] == ['exact_default'] for row in failures))
 
 
-def pending_print_batches(campaign, output, *, include_active=False):
+def _focused_parse_additions(result):
+    if not isinstance(result, dict):
+        return False
+    failures = result.get('failures', [])
+    if result.get('status') != 'failed' or result.get('native_exit') != 0 or not isinstance(failures, list):
+        return False
+    named = [row for row in failures if isinstance(row, dict)]
+    return (1 <= len(named) <= 16 and len(failures) == len(named) + 1
+            and 'native readings changed or failed validation' in failures
+            and all(set(row) == {'face', 'gate'} and isinstance(row['face'], str) and row['face']
+                    and row['gate'] == 'parse/reading-count/text' for row in named))
+
+
+def pending_failed_batches(campaign, output, *, include_parse=False, include_active=False):
     """Find intact current-attempt groups eligible for automatic recovery."""
     groups = defaultdict(set)
     uri = (campaign/'queue.sqlite').as_uri()+'?mode=ro'
     with closing(sqlite3.connect(uri, uri=True)) as db:
-        for job, attempt, batch in db.execute("""
-                SELECT id, attempt_id, json_extract(adjudication,'$.evidence.manifest')
+        for job, attempt, batch, reason in db.execute("""
+                SELECT id, attempt_id, json_extract(adjudication,'$.evidence.manifest'),
+                    json_extract(adjudication,'$.evidence.validation.reason') AS reason
                 FROM jobs WHERE status='integration-rejected'
-                AND json_extract(adjudication,'$.evidence.validation.reason')=?
-                """, (PRINT_ONLY_REJECTION,)):
+                AND reason IN (?, ?)
+                """, (PRINT_ONLY_REJECTION, PARSE_SCREEN_REJECTION if include_parse else None)):
             if isinstance(batch, str) and re.fullmatch(r'[0-9a-f]{32}', batch):
-                groups[batch].add((job, attempt))
+                groups[(batch, reason)].add((job, attempt))
     ready = []
-    for batch, current in groups.items():
+    for (batch, reason), current in groups.items():
         if not 2 <= len(current) <= 96:
             continue
         if (output/batch).exists() and not (include_active and _lease_held(output/f'{batch}.lock')):
@@ -65,15 +80,17 @@ def pending_print_batches(campaign, output, *, include_active=False):
             validation = r.read(folder/'validation.json')
             included = [job for job in manifest['jobs'] if job['status'] == 'included']
             original = {(job['job_id'], job['attempt_id']) for job in included}
+            full_check = reason == PRINT_ONLY_REJECTION
+            eligible = (_focused_print_losses(validation['full_checks']['failures']) if full_check
+                        else _focused_parse_additions(validation['parse_screen']))
             if (manifest['id'] == batch and current == original and len(included) == len(original)
-                    and validation['reason'] == PRINT_ONLY_REJECTION and validation['status'] == 'failed'
-                    and validation['scope'] == 'combined-batch'
-                    and _focused_print_losses(validation['full_checks']['failures'])):
-                ready.append((folder.stat().st_mtime_ns, batch))
+                    and validation['reason'] == reason and validation['status'] == 'failed'
+                    and validation['scope'] == 'combined-batch' and eligible):
+                ready.append((folder.stat().st_mtime_ns, batch, full_check))
         except (OSError, KeyError, ValueError, TypeError):
             # Legacy or incomplete receipts remain available for review.
             continue
-    return [batch for _, batch in sorted(ready)]
+    return [(batch, full_check) for _, batch, full_check in sorted(ready)]
 
 
 def awaiting_print_recovery(campaign):
@@ -82,11 +99,13 @@ def awaiting_print_recovery(campaign):
         return False
     marker = campaign/'full-print-recovery.json'
     try:
-        output = Path(r.read(marker)['output'])
+        state = r.read(marker)
+        output = Path(state['output'])
     except (OSError, KeyError, ValueError, TypeError):
         return False
     return bool(output.is_absolute() and _allowed(campaign, output)
-                and pending_print_batches(campaign, output, include_active=True))
+                and pending_failed_batches(campaign, output, include_parse=state.get('include_parse') is True,
+                                           include_active=True))
 
 
 class Reads:
@@ -396,7 +415,7 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
             or paths['validation'] != (folder/'validation.json').resolve()
             or paths['repository_log'] != (folder/'repository-check.log').resolve() or not _allowed(campaign, paths['isolation'])):
         raise ValueError('parse isolation selection or original artifact paths differ')
-    reason = 'full allowed-population checks failed' if full_checks else 'full allowed-population parse screen failed'
+    reason = PRINT_ONLY_REJECTION if full_checks else PARSE_SCREEN_REJECTION
     if (manifest.get('base_commit') != checkpoint or validation.get('scope') != 'combined-batch'
             or validation.get('status') != 'failed' or validation.get('reason') != reason
             or validation.get('repository_check_returncode') != 0 or validation.get('candidate') != manifest.get('commit')
