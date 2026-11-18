@@ -995,7 +995,7 @@ class BatchTests(unittest.TestCase):
                             if mode in ('removed-rule', 'retained-family-after-deletion') else None)):
                     result = batch.stage(root, cp, proposals, combine_selected=True)
                 if native:
-                    merge_retry = batch.r.read(result['merge_retry']['proof']['path'])
+                    merge_retry = batch.r.read(result['merge_retry_attempts'][0]['proof']['path'])
                     self.assertEqual(merge_retry['retained_native_failure']['face'], 'A')
                     probes = sorted((Path(result['folder'])/'retained-native-000').glob('probe-*/probe.json'))
                     outcomes = [batch.r.read(path)['outcome'] for path in probes]
@@ -1033,8 +1033,10 @@ class BatchTests(unittest.TestCase):
                     self.assertTrue(probes)
                     self.assertLessEqual(len(probes), 7)
                     if mode == 'retained-family-interaction':
-                        self.assertNotIn('retained_family_retry', result)
                         self.assertIn('fallback_trials', result)
+                        retry = result['retained_family_retry']
+                        self.assertEqual(retry['without_proposal_indices'], [6])
+                        self.assertIn('subgroup-004-without-retained-family-regression', retry['proof']['path'])
                     else:
                         self.assertNotIn('fallback_trials', result)
                         retry = result['retained_family_retry']
@@ -1177,6 +1179,33 @@ class BatchTests(unittest.TestCase):
             self.assertIsNone(batch._rule_reference_conflict(root/'source', entries, log))
             log.write_text('Error: "some other compiler message"\n')
             self.assertIsNone(batch._rule_reference_conflict(root/'source', entries, log))
+
+    def test_failing_subgroups_share_guards_after_a_witnessed_single_culprit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            entries = [(i, {'job_id': f'job-{i}'}) for i in range(8)]
+            context = {'folder': folder, 'manifest': {'jobs': []}}
+            calls = []
+
+            def trial(_, proposals, label):
+                indices = [i for i, _ in proposals]
+                jobs = [item['job_id'] for _, item in proposals]
+                calls.append((label, indices))
+                proof = {'jobs': jobs, 'status': 'passed'}
+                if label in ('subgroup-000', 'subgroup-004'):
+                    proof.update(status='failed', merge_conflict_at=indices[1])
+                if label in ('proposal-001', 'proposal-005'):
+                    proof.update(status='failed')
+                return [{'job_id': job, 'trial_proof': {'path': label}} for job in jobs], proof
+
+            with patch.object(batch, '_stage_trial', side_effect=trial):
+                batch._subgroup_fallback(context, entries, {'path': 'whole'}, 4)
+            self.assertEqual(calls, [
+                ('subgroup-000', [0, 1, 2, 3]), ('subgroup-000-without-merge-conflict', [0, 2, 3]),
+                ('proposal-001', [1]), ('subgroup-004', [4, 5, 6, 7]),
+                ('subgroup-004-without-merge-conflict', [4, 6, 7]), ('proposal-005', [5])])
+            self.assertEqual([job['subgroup_attempt']['path'] for job in context['manifest']['jobs']],
+                             ['subgroup-000']*4+['subgroup-004']*4)
 
     def test_multiple_unknown_rules_require_a_unique_owner_for_each_diagnostic(self):
         with tempfile.TemporaryDirectory() as temporary:

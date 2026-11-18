@@ -1067,6 +1067,11 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
              'merge': 'without-merge-conflict', 'stale': 'without-stale-rule-reference',
              'retained_family': 'without-retained-family-regression',
              'retained_native': 'without-retained-native-regression'}[route]
+    subgroup = context.get('subgroup_attempt')
+    completed = {'group_attempt': whole_proof}
+    if subgroup is not None:
+        label = f'subgroup-{entries[0][0]:03d}-{label}'
+        completed['subgroup_attempt'] = subgroup
     receipt = route+'_retry'
     first_attempt = True
     while 1 <= len(failed_indices) <= size:
@@ -1094,13 +1099,14 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
         return _retry_retained_control(context, entries, proof, whole_proof, size, failed_indices)
     else:
         return False
+    completed[receipt] = survivor_proof
     for item in items:
-        item.update(group_attempt=whole_proof, **{receipt: survivor_proof})
+        item.update(completed)
     manifest['jobs'].extend(items)
     r.write(folder/'manifest.json', manifest)
     for index, proposal in withheld:
         single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')
-        single[0].update(group_attempt=whole_proof, **{receipt: survivor_proof})
+        single[0].update(completed)
         manifest['jobs'].extend(single)
         r.write(folder/'manifest.json', manifest)
     return True
@@ -1119,7 +1125,7 @@ def _fallback_trial(context, entries, whole_proof, label):
             item['group_attempt'] = whole_proof
         manifest['jobs'].extend(items)
     r.write(folder/'manifest.json', manifest)
-    return passed, trial_proof
+    return passed, trial_proof, proof
 
 
 def _subgroup_fallback(context, entries, whole_proof, size):
@@ -1130,16 +1136,25 @@ def _subgroup_fallback(context, entries, whole_proof, size):
     prefix = next((offset for offset, (_, item) in enumerate(entries) if item.get('kind') != 'mechanical'),
                   len(entries))
     if size < prefix < len(entries):
-        passed, _ = _fallback_trial(context, entries[:prefix], whole_proof, 'mechanical-prefix')
+        passed, _, _ = _fallback_trial(context, entries[:prefix], whole_proof, 'mechanical-prefix')
         if passed:
             entries = entries[prefix:]
     for offset in range(0, len(entries), size):
         group = entries[offset:offset+size]
         subgroup_proof = None
         if len(group) > 1:
-            passed, subgroup_proof = _fallback_trial(context, group, whole_proof, f'subgroup-{group[0][0]:03d}')
+            passed, subgroup_proof, proof = _fallback_trial(context, group, whole_proof, f'subgroup-{group[0][0]:03d}')
             if passed:
                 continue
+            if len(group) >= 3:
+                scoped = dict(context, subgroup_attempt=subgroup_proof)
+                route, failed = _diagnosed_proposals(proof)
+                if failed:
+                    passed = _retry_without(scoped, group, whole_proof, failed, 1, route=route)
+                else:
+                    passed = _retry_retained_control(scoped, group, proof, whole_proof, 1)
+                if passed:
+                    continue
         for index, proposal in group:
             single, _ = _stage_trial(context, [(index, proposal)], f'proposal-{index:03d}')
             single[0]['group_attempt'] = whole_proof

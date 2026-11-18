@@ -465,5 +465,7 @@ diagnostic must identify a unique proposal before it can guide a retry. The
 retry can follow successive diagnoses, up to eight exclusions in a large
 batch. Staging runs all guards on the remainder and on each excluded proposal
 before promotion. If this route fails, staging uses ordered subgroups and retries
-each failing subgroup individually. The manifest retains each trial's evidence.
+each failing subgroup. When a diagnosis points to one proposal, the subgroup
+can share a single guarded trial for the other proposals. A separate guarded
+trial adjudicates the isolated proposal. The manifest retains each trial's evidence.
 Uncertain promotion still fails the entire batch.
