@@ -64,49 +64,63 @@ def _baseline_fixture_path(value):
 
 
 class _ProposalInputCache:
-    """Reuse a verified frozen checkpoint across trials in the same batch."""
+    """Reuse verified frozen inputs and proposal support across ordered trials."""
 
-    def __init__(self, snapshots=None, removals=None):
+    def __init__(self, snapshots=None, removals=None, supports=None):
         self.snapshots = {} if snapshots is None else snapshots
         self.removals = {} if removals is None else removals
+        self.supports = {} if supports is None else supports
         self.locations = {}
+        self.used_supports = set()
 
     def trial(self):
-        return _ProposalInputCache(self.snapshots, self.removals)
+        return _ProposalInputCache(self.snapshots, self.removals, self.supports)
 
     @staticmethod
-    def identity(root):
+    def identity(root, directory='frozen', manifest='manifest.json'):
         files = []
-        frozen = root/'frozen'
-        if frozen.is_symlink() or not frozen.is_dir():
-            raise ValueError('proposal frozen inputs changed')
-        for path in sorted(frozen.rglob('*')):
+        tree = root/directory
+        if tree.is_symlink() or not tree.is_dir():
+            raise ValueError(f'proposal {directory} tree changed')
+        for path in sorted(tree.rglob('*')):
             meta = path.stat(follow_symlinks=False)
             if stat.S_ISREG(meta.st_mode):
-                files.append((path.relative_to(frozen), meta.st_dev, meta.st_ino, meta.st_size,
+                files.append((path.relative_to(tree), meta.st_dev, meta.st_ino, meta.st_size,
                               meta.st_ctime_ns, meta.st_mtime_ns))
             elif not stat.S_ISDIR(meta.st_mode):
-                raise ValueError('proposal frozen inputs contain a nonregular path')
-        return r.digest(root/'manifest.json'), files
+                raise ValueError(f'proposal {directory} tree contains a nonregular path')
+        return r.digest(root/manifest), files
+
+    def _verified(self, root, directory, manifest, snapshots, error, expected=None):
+        identity = self.identity(root, directory, manifest)
+        if expected is not None and identity[0] != expected:
+            raise ValueError(error)
+        if root not in snapshots:
+            contents = r.read(root/manifest)
+            if contents['files'] != r.tree(root/directory) or self.identity(root, directory, manifest) != identity:
+                raise ValueError(error)
+            snapshots[root] = identity, contents
+        previous, contents = snapshots[root]
+        if identity != previous:
+            raise ValueError(error)
+        return contents
 
     def read(self, directory):
         root = directory.resolve()
         if self.locations.setdefault(directory, root) != root:
             raise ValueError('proposal frozen input location changed')
-        identity = self.identity(root)
-        if root not in self.snapshots:
-            manifest = r.read(root/'manifest.json')
-            if manifest['files'] != r.tree(root/'frozen') or self.identity(root) != identity:
-                raise ValueError('proposal frozen inputs changed')
-            self.snapshots[root] = identity, manifest
-        previous, manifest = self.snapshots[root]
-        if identity != previous:
-            raise ValueError('proposal frozen inputs changed')
+        return self._verified(root, 'frozen', 'manifest.json', self.snapshots, 'proposal frozen inputs changed')
+
+    def read_support(self, run, expected):
+        manifest = self._verified(run, 'support', 'support.json', self.supports, 'proposal support changed', expected)
+        self.used_supports.add(run)
         return manifest
 
     def unchanged(self):
         return (all(directory.resolve() == root for directory, root in self.locations.items())
-                and all(self.identity(root) == self.snapshots[root][0] for root in set(self.locations.values())))
+                and all(self.identity(root) == self.snapshots[root][0] for root in set(self.locations.values()))
+                and all(self.identity(run, 'support', 'support.json') == self.supports[run][0]
+                        for run in self.used_supports))
 
     def canonical_seeded_removal(self, base, rules):
         directory = base.parent
@@ -128,11 +142,13 @@ def _proposal(proposal, *, input_cache=None):
     if Path(task).name != task:
         raise ValueError('invalid task id')
     descriptor = run/'tasks'/f'{task}.json'
-    support = r.read(run/'support.json')
-    if (r.digest(run/'support.json') != report['support_sha256']
-            or r.tree(run/'support') != support['files']
-            or r.digest(descriptor) != report['descriptor_sha256']
-            or support['tasks'][task] != report['descriptor_sha256']):
+    if input_cache is None:
+        support = r.read(run/'support.json')
+        if r.digest(run/'support.json') != report['support_sha256'] or r.tree(run/'support') != support['files']:
+            raise ValueError('proposal support or descriptor changed')
+    else:
+        support = input_cache.read_support(run, report['support_sha256'])
+    if r.digest(descriptor) != report['descriptor_sha256'] or support['tasks'][task] != report['descriptor_sha256']:
         raise ValueError('proposal support or descriptor changed')
     if input_cache is None:
         inputs = r.read(run/'inputs/manifest.json')

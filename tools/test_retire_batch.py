@@ -1484,6 +1484,33 @@ class BatchTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'input location changed'):
                 new_cache.read(aliases[0])
 
+    def test_proposal_support_reuses_verification_and_detects_changes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            support = run/'support'
+            support.mkdir()
+            helper = support/'family-check'
+            helper.write_bytes(b'helper')
+            manifest = {'files': batch.r.tree(support), 'tasks': {'task': 'descriptor'}}
+            batch.r.write(run/'support.json', manifest)
+            expected = batch.r.digest(run/'support.json')
+            cache = batch._ProposalInputCache()
+            with patch.object(batch.r, 'tree', wraps=batch.r.tree) as hashed:
+                self.assertEqual(cache.read_support(run, expected), manifest)
+                later = cache.trial()
+                self.assertEqual(later.read_support(run, expected), manifest)
+                self.assertTrue(cache.unchanged())
+                self.assertTrue(later.unchanged())
+                hashed.assert_called_once_with(support)
+                with self.assertRaisesRegex(ValueError, 'proposal support changed'):
+                    later.read_support(run, 'different manifest')
+            helper.write_bytes(b'same-length edit'[:len(b'helper')])
+            self.assertFalse(cache.unchanged())
+            self.assertFalse(later.unchanged())
+            self.assertTrue(cache.trial().unchanged())
+            with self.assertRaisesRegex(ValueError, 'proposal support changed'):
+                cache.trial().read_support(run, expected)
+
     def test_canonical_removal_reuse_requires_the_current_verified_base(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
