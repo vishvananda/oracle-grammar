@@ -456,7 +456,13 @@ def _control_check(checkpoint, control, grammar, directory):
         r._LEASES.extend(fds)
         try:
             try:
-                report = w.checks(control['run'], directory, grammar, control['names'], control['data'], threads)
+                try:
+                    report = w.checks(control['run'], directory, grammar, control['names'], control['data'], threads)
+                except subprocess.CalledProcessError as native_error:
+                    index, gold, oracle = control['data']
+                    selected = set(control['names'])
+                    subset = ({key: row for key, row in index.items() if row['name'] in selected}, gold, oracle)
+                    report = retire_native_outcome.preservation_failure(native_error, control['run'], directory, subset)
             except (ValueError, OSError, subprocess.CalledProcessError, KeyError) as error:
                 r.write(directory/'result.json', {'status': 'error', 'error': str(error)})
                 raise

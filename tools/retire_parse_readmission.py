@@ -43,17 +43,37 @@ def _focused_print_losses(failures):
                     and row['lost'] == ['exact_default'] for row in failures))
 
 
-def _focused_parse_additions(result):
+def _complete_focused_parse_failure(folder, result):
     if not isinstance(result, dict):
         return False
     failures = result.get('failures', [])
-    if result.get('status') != 'failed' or result.get('native_exit') != 0 or not isinstance(failures, list):
+    exit_code = result.get('native_exit')
+    if (result.get('status') != 'failed' or type(exit_code) is not int or exit_code not in (0, 1)
+            or not isinstance(failures, list)):
         return False
     named = [row for row in failures if isinstance(row, dict)]
-    return (1 <= len(named) <= 16 and len(failures) == len(named) + 1
-            and 'native readings changed or failed validation' in failures
-            and all(set(row) == {'face', 'gate'} and isinstance(row['face'], str) and row['face']
-                    and row['gate'] == 'parse/reading-count/text' for row in named))
+    if (not 1 <= len(named) <= 16 or len(failures) != len(named) + 1
+            or 'native readings changed or failed validation' not in failures
+            or any(set(row) != {'face', 'gate'} or not isinstance(row['face'], str) or not row['face']
+                   or row['gate'] != 'parse/reading-count/text' for row in named)):
+        return False
+    if exit_code == 0:
+        return True
+    return _focused_native_parse_loss(folder, result, {row['face'] for row in named})
+
+
+def _focused_native_parse_loss(folder, result, names):
+    path = folder/'parse-screen/native.json'
+    spec = result['artifacts']['native.json']
+    if (path.is_symlink() or not path.is_file() or path.stat().st_size > 8*1024*1024
+            or spec != {'path': str(path), 'sha256': r.digest(path)}):
+        return False
+    preserved = r.read(path)['reading_preservation']
+    missing, additions = preserved['missing'], preserved['additions']
+    return (preserved['passed'] is False and preserved['merged_faces'] == 0
+            and isinstance(missing, list) and bool(missing) and isinstance(additions, list)
+            and all(isinstance(row, dict) for row in missing+additions)
+            and {row['name'] for row in missing+additions} == names)
 
 
 def _focused_library_failure(campaign, folder, validation):
@@ -73,7 +93,7 @@ def _eligible_recovery(campaign, folder, validation, mode):
     if mode == 'print':
         return _focused_print_losses(validation['full_checks']['failures'])
     if mode == 'parse':
-        return _focused_parse_additions(validation['parse_screen'])
+        return _complete_focused_parse_failure(folder, validation['parse_screen'])
     return _focused_library_failure(campaign, folder, validation)
 
 

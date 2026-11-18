@@ -42,7 +42,7 @@ def main():
     parser.add_argument('output', type=Path)
     parser.add_argument('--watch', action='store_true')
     parser.add_argument('--apply', action='store_true')
-    parser.add_argument('--include-parse', action='store_true', help='also isolate small parse additions')
+    parser.add_argument('--include-parse', action='store_true', help='also isolate localized parse regressions')
     parser.add_argument('--include-library', action='store_true', help='also isolate exact library test failures')
     parser.add_argument('--max-trials', type=int, default=48)
     args = parser.parse_args()

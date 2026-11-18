@@ -105,6 +105,24 @@ class PendingFullPrintTests(unittest.TestCase):
             self.validation['parse_screen']['native_exit'] = 1
             r.write(self.folder/'validation.json', self.validation)
             self.assertFalse(awaiting_print_recovery(self.campaign))
+            native = self.folder/'parse-screen/native.json'
+            native.parent.mkdir()
+            native_report = {'reading_preservation': {'passed': False, 'merged_faces': 0,
+                                                       'missing': [{'name': 'One', 'reading': 0}],
+                                                       'additions': [{'name': 'Two', 'added_current_indices': [0]}]}}
+            r.write(native, native_report)
+            screen = self.validation['parse_screen']
+            screen['failures'].append({'face': 'Two', 'gate': 'parse/reading-count/text'})
+            screen['artifacts'] = {'native.json': {'path': str(native), 'sha256': r.digest(native)}}
+            r.write(self.folder/'validation.json', self.validation)
+            self.assertTrue(awaiting_print_recovery(self.campaign))
+
+            native_report['reading_preservation']['missing'][0]['name'] = 'Another'
+            r.write(native, native_report)
+            self.assertFalse(awaiting_print_recovery(self.campaign))
+            screen['artifacts']['native.json']['sha256'] = r.digest(native)
+            r.write(self.folder/'validation.json', self.validation)
+            self.assertFalse(awaiting_print_recovery(self.campaign))
 
     def test_parse_recovery_uses_the_parse_proof_for_readmission(self):
         result = {'rules': 7, 'jobs': ['a']}

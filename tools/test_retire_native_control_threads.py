@@ -36,6 +36,26 @@ class NativeControlThreadTests(unittest.TestCase):
                 self.assertEqual(r.read(root/'result/result.json'), {'faces': 2, 'failures': []})
                 self.assertEqual(r._LEASES, [])
 
+    def test_verified_native_exit_preserves_the_focused_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cp = control_fixture(root, 'base')
+            control = batch._control_setup(cp)
+            control['data'][0]['outside'] = {'name': 'Outside'}
+            error = subprocess.CalledProcessError(1, ['validate-readings'])
+            expected = {'faces': 2, 'failures': ['native readings changed or failed validation',
+                                                 {'face': 'A', 'gate': 'parse/reading-count/text'}]}
+            with (
+                patch.object(batch.w, 'checks', side_effect=error),
+                patch.object(batch.retire_native_outcome, 'preservation_failure', return_value=expected) as verify,
+                self.assertRaises(batch._NativeControlFailure) as rejected,
+            ):
+                batch._control_check(cp, control, root/'grammar', root/'result')
+            self.assertEqual(rejected.exception.report, expected)
+            self.assertEqual(r.read(root/'result/result.json'), expected)
+            self.assertEqual(set(verify.call_args.args[3][0]), {'0', '1'})
+            self.assertEqual(r._LEASES, [])
+
     def test_invalid_threads_and_capacity_refuse_before_native_execution(self):
         invalid = [(value, 32) for value in (True, False, 0, -1, 17, 1.5, '12', None)]
         invalid += [(12, 8), (6, True), (6, 0), (6, 33)]
