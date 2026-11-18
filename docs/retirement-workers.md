@@ -27,6 +27,17 @@ verified evidence. Each attempt retains its original checkpoint even as later
 claims use a newer one. After a terminal receipt, the private checkout can be
 verified and archived before its worktree is removed; retain the evaluation,
 report, patch and provenance needed for review.
+
+The worker normally archives its checkout after finishing. Schedule
+`python3 tools/retire_storage.py CAMPAIGN --apply` every 15 minutes for a
+long-running campaign to reconcile checkouts left behind by interrupted
+workers. Run without `--apply` to preview eligible checkouts. Cleanup takes
+the same per-job lease as the worker and checks the terminal receipt and
+recorded process before verifying the archive. It can reuse a verified archive
+when removal was interrupted. The latest applied pass records its removals and
+retention reasons in `CAMPAIGN/.cache/storage/worktree-cleanup.json`. Attempt
+reports, frozen inputs and audit evidence remain available for replay.
+
 When a reviewed archive comes from an accepted ancestor, the controller can
 reuse the existing production merge to place the draft on the worker's current
 checkpoint. It reapplies only the assigned seeded removals. A merge conflict

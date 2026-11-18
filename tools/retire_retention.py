@@ -151,7 +151,7 @@ def archive_checkout(run, taskid, terminal_receipt):
     folder = campaign/'.cache/archives'
     folder.mkdir(parents=True, exist_ok=True)
     target = folder/(run.name+'.tar.gz')
-    r.require(not target.exists(), 'attempt archive already exists')
+    r.require(not target.is_symlink(), 'attempt archive is a symlink')
     temporary = folder/(run.name+'.'+uuid.uuid4().hex+'.tmp')
     manifest = {'format': 1, 'task': taskid, 'attempt': run.name, 'base_commit': commit,
                 'descriptor_sha256': r.digest(run/'tasks'/f'{taskid}.json'),
@@ -160,12 +160,15 @@ def archive_checkout(run, taskid, terminal_receipt):
                 'files': {name: {'sha256': _file_hash(data), 'mode': modes[name]}
                           for name, data in sorted(files.items())}}
     try:
-        with tarfile.open(temporary, 'w:gz') as archive:
-            _add(archive, 'manifest.json', json.dumps(manifest, sort_keys=True).encode())
-            _add(archive, 'candidate.patch', patch)
-            for name, data in sorted(files.items()):
-                _add(archive, 'files/'+name, data, modes[name])
-        _verify_archive(temporary, manifest, files, modes, patch)
+        if target.exists():
+            _verify_archive(target, manifest, files, modes, patch)
+        else:
+            with tarfile.open(temporary, 'w:gz') as archive:
+                _add(archive, 'manifest.json', json.dumps(manifest, sort_keys=True).encode())
+                _add(archive, 'candidate.patch', patch)
+                for name, data in sorted(files.items()):
+                    _add(archive, 'files/'+name, data, modes[name])
+            _verify_archive(temporary, manifest, files, modes, patch)
         r.require(_git(checkout, 'diff', '--no-ext-diff', '--binary', '--full-index') == patch,
                   'checkout changed during archival')
         for name, data in files.items():
@@ -185,7 +188,8 @@ def archive_checkout(run, taskid, terminal_receipt):
                          | set(_names(_git(checkout, 'ls-files', '--others', '--exclude-standard', '-z'))))
         expected_names = (set(files) & set(task['write_files'])) | set(deleted)
         r.require(current_names == expected_names, 'checkout changed during archival')
-        os.replace(temporary, target)
+        if temporary.exists():
+            os.replace(temporary, target)
         subprocess.run(['git', '-C', str(checkout), 'worktree', 'remove', '--force', str(checkout)],
                        check=True, cwd=campaign, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         return {'archive': str(target), 'sha256': r.digest(target), 'files': len(files),

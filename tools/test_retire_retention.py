@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from pathlib import Path
 import subprocess
 import tarfile
@@ -9,6 +10,7 @@ from unittest.mock import patch
 
 import retire as r
 import retire_retention as retention
+import retire_storage as storage
 from retire_queue import Queue
 
 
@@ -146,6 +148,67 @@ class RetentionTests(unittest.TestCase):
                 retention.archive_checkout(self.run, self.taskid, self.receipt)
         self.assertTrue(self.checkout.exists())
         self.assertFalse(list((self.campaign/'.cache/archives').glob('*.tar.gz')))
+
+    def test_cleanup_retries_an_interrupted_verified_archive(self):
+        original = retention.subprocess.run
+
+        def interrupt(command, *args, **kwargs):
+            if command[0] == 'git' and 'remove' in command:
+                raise subprocess.CalledProcessError(1, command)
+            return original(command, *args, **kwargs)
+
+        attempt = self.claim['attempt_id']
+        (self.campaign/'leases').mkdir()
+        (self.campaign/'leases'/self.taskid).touch()
+        worker = subprocess.Popen(['true'])
+        worker.wait()
+        self.queue.mark_started(attempt, pid=worker.pid, receipt=str(self.receipt))
+        self.queue.finish(attempt, 'needs-review',
+                          {'receipt': str(self.receipt), 'run': str(self.run), 'task': self.taskid},
+                          {'m_one': {'status': 'needs-review', 'reason': 'unresolved', 'evidence': 'report'}})
+        path = self.checkout/'grammar/shared.ebnf'
+        path.write_text('draft\n')
+        with patch.object(retention.subprocess, 'run', side_effect=interrupt):
+            with self.assertRaises(subprocess.CalledProcessError):
+                retention.archive_checkout(self.run, self.taskid, self.receipt)
+        archived, = (self.campaign/'.cache/archives').glob('*.tar.gz')
+        digest = r.digest(archived)
+        path.write_text('different draft\n')
+        self.assertEqual(storage.clean(self.campaign, True)['removed'], [])
+        self.assertTrue(self.checkout.exists())
+        self.assertEqual(r.digest(archived), digest)
+        path.write_text('draft\n')
+        self.assertEqual(storage.clean(self.campaign, False)['eligible'], [attempt])
+        self.assertTrue(self.checkout.exists())
+        self.assertEqual(storage.clean(self.campaign, True)['removed'], [attempt])
+        self.assertEqual(r.read(self.run/'archive.json')['sha256'], digest)
+        self.assertFalse(self.checkout.exists())
+
+    def test_cleanup_respects_live_process_and_worker_lease(self):
+        attempt = self.claim['attempt_id']
+        (self.campaign/'leases').mkdir()
+        lease = self.campaign/'leases'/self.taskid
+        lease.touch()
+        self.queue.mark_started(attempt, pid=os.getpid(), receipt=str(self.receipt))
+        self.assertEqual(storage.clean(self.campaign, True)['eligible'], [])
+        self.queue.finish(attempt, 'needs-review',
+                          {'receipt': str(self.receipt), 'run': str(self.run), 'task': self.taskid},
+                          {'m_one': {'status': 'needs-review', 'reason': 'unresolved', 'evidence': 'report'}})
+        with r.locked(lease):
+            locked = storage.clean(self.campaign, True)
+            self.assertIn('lease', locked['retained'][0]['reason'])
+        live = storage.clean(self.campaign, True)
+        self.assertIn('process is still present', live['retained'][0]['reason'])
+        self.assertTrue(self.checkout.exists())
+
+    def test_cleanup_can_run_before_the_first_checkout(self):
+        prepared = self.root/'prepared'
+        prepared.mkdir()
+        Queue(prepared/'queue.sqlite')
+        with patch('sys.argv', ['retire_storage.py', str(prepared), '--apply']), patch('builtins.print'):
+            storage.main()
+        self.assertEqual(r.read(prepared/'.cache/storage/worktree-cleanup.json'),
+                         {'applied': True, 'eligible': [], 'removed': [], 'retained': []})
 
 
 if __name__ == '__main__':
