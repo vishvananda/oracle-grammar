@@ -117,7 +117,7 @@ def main():
         p.add_argument('run', type=Path)
         if name == 'run':
             p.add_argument('--runner', type=Path)
-    split = commands.add_parser('split-reviewed', help='restore an independently verified subset of a deferred author job')
+    split = commands.add_parser('split-reviewed', help='queue an independently verified subset of a deferred author job')
     split.add_argument('run', type=Path)
     split.add_argument('job')
     split.add_argument('attempt')

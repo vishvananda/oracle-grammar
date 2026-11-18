@@ -90,7 +90,7 @@ def _verify_readmission_artifacts(campaign, job_id, attempt_id, base_commit, ori
         raise ValueError('family gate proof does not match generated operand cases')
 
 
-def _verify_original_report(campaign, job_id, attempt_id, base_commit, original, report_spec):
+def _verify_original_report(campaign, job_id, attempt_id, base_commit, original, report_spec, *, passed=True):
     report_path, report_bytes = _proof_file(report_spec)
     if report_path != Path(original.get('report', '')):
         raise ValueError('report is not the original independently evaluated report')
@@ -99,10 +99,12 @@ def _verify_original_report(campaign, job_id, attempt_id, base_commit, original,
     if not report_path.resolve().is_relative_to(expected_eval.resolve()) or report_path.name != 'report.json':
         raise ValueError('report is outside the original evaluation')
     report = json.loads(report_bytes)
-    if (report.get('passed') is not True or report.get('failures') != []
+    failures = report.get('failures')
+    if (report.get('passed') is not passed or not isinstance(failures, list) or bool(failures) == passed
             or report.get('task') != job_id or report.get('source') != base_commit
             or Path(report.get('directory', '')).resolve() != report_path.parent.resolve()):
-        raise ValueError('original independent report did not pass')
+        raise ValueError('original independent report did not pass' if passed
+                         else 'original independent report did not record a failure')
     descriptor = expected_run/'tasks'/f'{job_id}.json'
     support = expected_run/'support.json'
     family = report_path.parent/'family.json'
@@ -644,6 +646,17 @@ def _reviewed_split_jobs(parent, checkpoint, origin, evidence):
     return dict(child(selected_id, kept), target_faces=targets), child(deferred_id, deferred)
 
 
+def _verify_split_dispositions(original, owned, selected, repaired):
+    dispositions = original.get('dispositions')
+    if original.get('kind') != 'author' or not isinstance(dispositions, dict) or set(dispositions) != owned:
+        raise ValueError('the original author dispositions do not cover its assignment')
+    if any(not isinstance(row, dict) or row.get('rule') != name
+           or row.get('status') not in ('proposed', 'needs-review') for name, row in dispositions.items()):
+        raise ValueError('the original author dispositions are malformed')
+    if not repaired and any(dispositions[name]['status'] != 'proposed' for name in selected):
+        raise ValueError('the selected subset was not proposed in the original assignment')
+
+
 class RehabilitationIneligible(ValueError):
     """A parked job is safely ineligible or changed while being checked."""
 
@@ -758,7 +771,9 @@ class Queue:
 
     def split_reviewed_author(self, job_id, attempt_id, checkpoint, evidence):
         """Queue an independently evaluated subset and preserve its deferred siblings."""
-        if (not isinstance(evidence, dict) or evidence.get('kind') != 'reviewed-author-split'
+        kind = evidence.get('kind') if isinstance(evidence, dict) else None
+        repaired = kind == 'reviewed-author-repair-split'
+        if (kind not in ('reviewed-author-split', 'reviewed-author-repair-split')
                 or evidence.get('source_checkpoint') != checkpoint or not isinstance(attempt_id, str) or not attempt_id):
             raise ValueError('reviewed author split evidence must bind the current attempt and checkpoint')
         notes = evidence.get('review_notes')
@@ -784,13 +799,9 @@ class Queue:
                 _verify_readmission_origin(db, checkpoint, base)
                 selected, deferred = _reviewed_split_jobs(parent, checkpoint, origin, evidence)
                 original = json.loads(raw)['evidence']
-                dispositions = original.get('dispositions', {})
-                if (original.get('kind') != 'author' or not isinstance(dispositions, dict) or set(dispositions) != owned
-                        or any(not isinstance(dispositions[rule], dict) or dispositions[rule].get('status') != 'proposed'
-                               or dispositions[rule].get('rule') != rule for rule in selected['rules'])):
-                    raise ValueError('the selected subset was not proposed in the original assignment')
+                _verify_split_dispositions(original, owned, selected['rules'], repaired)
                 archived, _ = _verify_original_report(campaign, job_id, attempt_id, base, original,
-                                                      evidence.get('original_report'))
+                                                      evidence.get('original_report'), passed=not repaired)
                 if archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':
                     raise ValueError('the original report lacks a full author evaluation')
                 _, task = _verify_reviewed_repair(campaign, checkpoint, selected, evidence)

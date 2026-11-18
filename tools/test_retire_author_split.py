@@ -40,8 +40,9 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
                          'target_faces':['A'],'review_notes':'Keep the deferred rule.',
                          'original_report':{'path':'old','sha256':'old'}, 'report':{'path':'new','sha256':'new'}}
         self.enterContext(patch.object(self.q,'_require_absent_pid'))
-        original_report = {'family_returncode':0, 'descriptor_sha256':sha256(task.read_bytes()).hexdigest()}
-        self.enterContext(patch.object(retire_queue,'_verify_original_report',return_value=(original_report,{})))
+        self.original_report = {'family_returncode':0, 'descriptor_sha256':sha256(task.read_bytes()).hexdigest()}
+        self.archive = self.enterContext(patch.object(retire_queue, '_verify_original_report',
+                                                      return_value=(self.original_report, {})))
         self.review = self.enterContext(patch.object(retire_queue,'_verify_reviewed_repair',
                                                     return_value=({}, {'cohort':['A','B']})))
 
@@ -64,6 +65,25 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
             self.assertEqual(resolved[1]['attempt_id'],self.attempt)
         with self.assertRaisesRegex(ValueError,'parked author attempt'):
             self.q.split_reviewed_author('parent',self.attempt,'head',self.evidence)
+
+    def test_failed_archive_can_be_split_after_a_fresh_passing_repair(self):
+        evidence = {**self.evidence, 'kind':'reviewed-author-repair-split',
+                    'rules':['m_deferred'], 'target_faces':['B']}
+        self.original_report['family_returncode'] = 1
+        with self.assertRaisesRegex(ValueError, 'lacks a full author evaluation'):
+            self.q.split_reviewed_author('parent', self.attempt, 'head', evidence)
+        self.assertEqual(self.q.coverage()['counts'], {'needs-review':2})
+        self.original_report['family_returncode'] = 0
+        self.review.return_value = ({}, {'cohort':['B']})
+        with self.assertRaisesRegex(ValueError, 'does not cover the original cohort'):
+            self.q.split_reviewed_author('parent', self.attempt, 'head', evidence)
+
+        self.review.return_value = ({}, {'cohort':['A','B']})
+        receipt = self.q.split_reviewed_author('parent', self.attempt, 'head', evidence)
+        self.assertEqual(self.archive.call_args.kwargs, {'passed':False})
+        self.assertEqual(receipt['rules'], ['m_deferred'])
+        self.assertEqual(self.q.get_attempt(self.attempt), self.original)
+        self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
     def test_selected_rule_and_coverage_must_match_without_writes(self):
         before = self.q.audit()
