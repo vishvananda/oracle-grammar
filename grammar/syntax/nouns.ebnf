@@ -710,7 +710,7 @@ modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_t
 
 modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
 
-modifier_nonnumeric ::= modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell | modifier_stat_compared | modifier_stat_compared_holder | modifier_source_name | modifier_not_named_self | modifier_referenced_name | modifier_banded_with | modifier_with_toxic_family | modifier_named_counters_on_them | modifier_blocked_this_turn | modifier_with_level_up | modifier_shares_card_type | modifier_name_first_printed_in_homelands
+modifier_nonnumeric ::= modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell | modifier_stat_compared | modifier_stat_compared_holder | modifier_source_name | modifier_not_named_self | modifier_referenced_name | modifier_banded_with | modifier_with_toxic_family | modifier_named_counters_on_them | modifier_blocked_this_turn | modifier_with_level_up | modifier_shares_card_type | modifier_name_first_printed_in_homelands | modifier_bare_sticker_vowel | modifier_bare_sticker_consonant
 
 /* Band membership refers to the explicitly described object; it is neither
    a target nor a new group of creatures chosen by this effect. */
@@ -1943,3 +1943,64 @@ filter_permanent_of_that_color ::= "permanent" modifier_that_color
 
 /* @sem ObjectFilter::Chosen(Color) */
 modifier_that_color ::= "of" "that" "color"
+
+/* A casting target restriction composes an article-qualified permanent filter
+   with the casting-time frame, preserving the filter for inverse printing. */
+/* @sem $filter_phrase */
+casting_target_filter_a ::= "a" filter_phrase
+
+/* @sem $filter_phrase */
+casting_target_filter_an ::= "an" filter_phrase
+
+casting_target_filter ::= casting_target_filter_a | casting_target_filter_an
+
+/* @sem CastingRule::ProhibitTargets{domain:_{kind:Permanent, zones:[Battlefield]}, filter:$casting_target_filter} */
+casting_target_prohibition ::= "you" "can't" "choose" casting_target_filter
+
+/* @sem Ability::Casting($casting_target_prohibition) */
+casting_target_prohibition_ability ::= casting_target_prohibition "as" "this" "spell's" "target" "as" "you" "cast" "it" "."
+
+/* A graveyard-only ability and the naming effect it contains remain independently composable. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:$graveyard_named_effect} */
+graveyard_named_ability ::= "if" "this" "card" "is" "in" "a" "graveyard" "," graveyard_named_effect "."
+
+/* @sem Ability::CountsAsNamed{name:$referenced_card_name_2, for_spells:$referenced_card_name} */
+graveyard_named_effect ::= "effects" "from" "spells" "named" referenced_card_name "count" "it" "as" "a" "card" "named" referenced_card_name
+
+/* A name-counting rule may use independent spell and counted-card names. */
+/* @sem Ability::CountsAsNamed{name:$referenced_card_name_2, for_spells:$referenced_card_name} */
+counts_as_named_for_spells ::= "effects" "from" "spells" "named" referenced_card_name "count" "it" "as" "a" "card" "named" referenced_card_name
+
+/* @sem Ability::Scoped{zones:[Graveyard], ability:$counts_as_named_for_spells} */
+graveyard_counts_as_named ::= "if" "this" "card" "is" "in" "a" "graveyard" "," counts_as_named_for_spells "."
+
+/* Blockers are creatures; the selected-pile filter identifies the eligible set. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:InPile(None)} */
+chosen_pile_blockers ::= "creatures" "in" "the" "chosen" "piles"
+
+/* The chooser selects a subset of the referenced group at resolution. */
+/* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:$group_pronoun, chooser:Players(One(AbilityController)), count:AnyNumber}) */
+any_number_of_group ::= "any" "number" "of" group_pronoun
+
+/* Sticker qualifiers share their typed kind across card and permanent populations. */
+/* @sem ObjectFilter::State(Sticker($sticker_vowel_kind)) */
+modifier_bare_sticker_vowel ::= "with" "an" sticker_vowel_kind "sticker"
+
+sticker_vowel_kind ::= sticker_art | sticker_ability
+
+/* @sem ObjectFilter::State(Sticker($sticker_consonant_kind)) */
+modifier_bare_sticker_consonant ::= "with" "a" sticker_consonant_kind "sticker"
+
+sticker_consonant_kind ::= sticker_name | sticker_power_toughness
+
+/* A protection quality can name each card type of a referenced card. */
+/* @sem ObjectFilter::Shares{property:CardTypes, with:$card_type_possessive} */
+protection_shared_card_types ::= "each" "of" card_type_possessive "card" "types"
+
+/* @sem ObjectFilter::Shares{property:CreatureTypes, with:$card_type_possessive} */
+protection_shared_creature_types ::= "each" "of" card_type_possessive "creature" "types"
+
+card_type_possessive ::= linked_card_type_possessive | self_possessive
+
+/* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
+linked_card_type_possessive ::= "the" "exiled" "card's"

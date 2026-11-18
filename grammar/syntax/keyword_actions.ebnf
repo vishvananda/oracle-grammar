@@ -190,7 +190,7 @@ object_endures ::= object_ref "endures" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Saddle{object:$object_ref}} */
 object_becomes_saddled ::= object_ref "becomes" "saddled" "until" "end" "of" "turn"
 
-group_keyword_action ::= goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores
+group_keyword_action ::= selected_group_keyword_action | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores
     | turn_all_face_down | detain_each
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$affected} */
 affected_phase_out ::= affected "phase" "out"
@@ -240,3 +240,18 @@ roll_mana_d6_phrase ::= roll_mana_amount
 
 /* @sem Expr::Add([$counter_amount, ManaSpentFrom{object:Source, sources:$filter_plural}]) */
 roll_mana_amount ::= counter_amount "six-sided" "die" "plus" "an" "additional" "six-sided" "die" "for" "each" "mana" "from" filter_plural "spent" "to" "activate" "this" "ability"
+
+/* The additional wording requires the same action in the trigger. */
+/* @sem Ability::Triggered{event:FirstEachTurn(Player{event:Investigates, players:One(PlayerRef::AbilityController)}), limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(PlayerRef::AbilityController), action:KeywordAction::Investigate{}}}]}} */
+triggered_investigate_additional ::= "whenever" event_you_investigate "for" "the" "first" "time" "each" "turn" "," "investigate" "an" "additional" "time" "."
+
+/* @sem $selected_group_action */
+selected_group_keyword_action ::= "you" "may" "have" selected_group_action
+
+selected_group_action ::= selected_group_phase_out | selected_group_connive
+
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$any_number_of_group} */
+selected_group_phase_out ::= any_number_of_group "phase" "out"
+
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Connive, objects:$any_number_of_group} */
+selected_group_connive ::= any_number_of_group "connive"
