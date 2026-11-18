@@ -1029,6 +1029,44 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'already used'):
             self.queue.retry_reviewed_repair('repair', latest['attempt_id'], 'base', proof)
 
+    def test_staging_repair_binds_the_new_failure_and_remains_a_retry(self):
+        self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
+        candidate = self.queue.claim('retried')
+        attempt = candidate['attempt_id']
+        self.queue.mark_started(attempt, pid=2_000_000_000)
+        self.queue.finish(attempt, 'provisional-pass', {'report': 'independent-pass'},
+                          {'seeded_test': {'status': 'pass', 'reason': 'matching print', 'evidence': 'old'}})
+        rejection = {'manifest': 'batch', 'reason': 'merge or staging rejected'}
+        self.queue.reject_jobs(['repair'], rejection)
+        original = self.queue.get_attempt(attempt)
+        trial = self.campaign/'.cache/batches/batch/proposal-000/trial.json'
+        failure = trial.parent/'native-control/result.json'
+        failure.parent.mkdir(parents=True)
+        self.write(failure, {'faces': 4, 'failures': [{'face': 'Other card', 'lost': ['exact_default']}]})
+        def spec(path):
+            return {'path': str(path), 'sha256': self.digest(path)}
+        reason = f'native regression control failed: {failure}'
+        self.write(trial, {'jobs':['repair'], 'attempts':[attempt], 'status':'failed',
+                           'reason':reason,'native_result_sha256':self.digest(failure)})
+        manifest = trial.parent.parent/'manifest.json'
+        self.write(manifest, {'id':'batch', 'base_commit':'base', 'jobs':[
+            {'job_id':'repair','attempt_id':attempt,'status':'integration-rejected',
+             'reason':reason,'trial_proof':spec(trial)}]})
+        identified = {'manifest':spec(manifest),'trial':spec(trial),'failure':spec(failure)}
+        proof = {**self.evidence,'source_checkpoint':'base','staging_failure':identified}
+        invalid = {**proof,'staging_failure':{**identified,'failure':spec(trial)}}
+        with self.assertRaisesRegex(ValueError, 'recorded diagnostic failure'):
+            self.queue.retry_reviewed_repair('repair',attempt,'base',invalid)
+        self.assertEqual(self.queue.coverage()['counts'],{'integration-rejected':1})
+        self.queue.retry_reviewed_repair('repair',attempt,'base',proof)
+        self.assertEqual(self.queue.coverage()['counts'],{'pending':1})
+        self.assertEqual(self.queue.get_attempt(attempt),original)
+        self.assertEqual(self.queue.reviewed_draft('repair')['report'],proof['report'])
+        event, = [x['data'] for x in self.queue.audit() if x['kind']=='retry-staging-reviewed-repair']
+        self.assertEqual(event['previous_adjudication']['evidence'],rejection)
+        with self.assertRaisesRegex(ValueError, 'attempt or checkpoint changed'):
+            self.queue.retry_reviewed_repair('repair',attempt,'base',proof)
+
 
 if __name__ == "__main__":
     unittest.main()

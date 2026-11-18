@@ -25,6 +25,13 @@ import retire_library_readmission
 import retire_priority
 import retire_timeout_recovery
 
+REVIEWED_RETRY_EVENTS = {
+    None: 'retry-reviewed-repair',
+    'interrupted_diagnostic': 'retry-interrupted-reviewed-repair',
+    'legacy_diagnostic_prompt': 'retry-preview-reviewed-repair',
+    'staging_failure': 'retry-staging-reviewed-repair',
+}
+
 
 def _json(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -146,6 +153,43 @@ def _verify_reviewed_repair(campaign, checkpoint, job, evidence, *, timed_out_at
             or report.get('family_returncode') != 0 or not isinstance(edits, list) or not 2 <= len(edits) <= 8):
         raise ValueError('repair report differs from the assigned checkpoint, cohort or required checks')
     return report, task
+
+
+def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
+    """Bind a repair to the exact solo trial rejected by the integration driver."""
+    if not isinstance(evidence, dict):
+        raise ValueError('staging repair requires retained trial evidence')
+    manifest_path, manifest_bytes = _proof_file(evidence.get('manifest'))
+    trial_path, trial_bytes = _proof_file(evidence.get('trial'))
+    manifest, trial = json.loads(manifest_bytes), json.loads(trial_bytes)
+    previous = rejection.get('evidence', {})
+    batch = previous.get('manifest')
+    if (not isinstance(batch, str) or Path(batch).name != batch or not batch
+            or previous != {'manifest': batch, 'reason': 'merge or staging rejected'}
+            or manifest_path != campaign/'.cache/batches'/batch/'manifest.json'
+            or manifest_path.resolve() != manifest_path or manifest.get('id') != batch
+            or manifest.get('base_commit') != source
+            or trial_path.name != 'trial.json' or trial_path.parent.parent != manifest_path.parent
+            or trial_path.resolve() != trial_path or not re.fullmatch(r'proposal-\d{3}', trial_path.parent.name)):
+        raise ValueError('staging repair is outside the rejected solo trial')
+    matches = [item for item in manifest.get('jobs', []) if item.get('job_id') == job]
+    if (len(matches) != 1 or matches[0].get('attempt_id') != attempt
+            or matches[0].get('status') != 'integration-rejected'
+            or matches[0].get('trial_proof') != evidence['trial']
+            or matches[0].get('reason') != trial.get('reason')
+            or trial.get('jobs') != [job] or trial.get('attempts') != [attempt]
+            or trial.get('status') != 'failed'):
+        raise ValueError('staging repair does not identify the rejected attempt')
+    for reason, relative, digest in (
+            ('family check failed', 'family.log', 'family_log_sha256'),
+            ('native regression control failed', 'native-control/result.json', 'native_result_sha256'),
+            ('library regression control failed', 'library-control/result.json', 'library_result_sha256')):
+        failure = trial_path.parent/relative
+        if trial.get('reason') == f'{reason}: {failure}':
+            path, _ = _proof_file(evidence.get('failure'))
+            if path == failure and path.resolve() == path and evidence['failure']['sha256'] == trial.get(digest):
+                return
+    raise ValueError('staging repair does not bind a recorded diagnostic failure')
 
 
 _GATE_NAMES = {'fmt', 'pin', 'hygiene', 'tools', 'clippy', 'build', 'families', 'test'}
@@ -1024,20 +1068,26 @@ class Queue:
                             'previous_adjudication': rejection, 'evidence': evidence})
 
     def retry_reviewed_repair(self, job_id, attempt_id, checkpoint, evidence):
-        """Retry a verified repair and recover once from each proven diagnostic interruption."""
+        """Retry a verified repair, with bounded recovery for later diagnostic failures."""
         if not isinstance(evidence, dict) or evidence.get('kind') != 'reviewed-author-repair':
             raise ValueError('reviewed-author-repair evidence is required')
         notes = evidence.get('review_notes')
         if not isinstance(notes, str) or not notes.strip() or len(notes) > 2048:
             raise ValueError('reviewed author repair requires a concise reproduction note')
-        interrupted = 'interrupted_diagnostic' in evidence
-        legacy = 'legacy_diagnostic_prompt' in evidence
+        routes = [key for key in REVIEWED_RETRY_EVENTS if key is not None and key in evidence]
+        if len(routes) > 1:
+            raise ValueError('one diagnostic recovery route is allowed per attempt')
+        route = routes[0] if routes else None
+        interrupted = route == 'interrupted_diagnostic'
+        legacy = route == 'legacy_diagnostic_prompt'
+        staging = route == 'staging_failure'
         if interrupted and 'timeout' in evidence:
             raise ValueError('interrupted diagnostic recovery requires a fresh independent report')
         if legacy and 'timeout' not in evidence:
             raise ValueError('legacy full diagnostic recovery requires a protected passing timeout')
-        events = ('retry-reviewed-repair', 'retry-interrupted-reviewed-repair', 'retry-preview-reviewed-repair')
-        event = events[2] if legacy else events[1] if interrupted else events[0]
+        if staging and 'timeout' in evidence:
+            raise ValueError('a staged rejection requires a fresh independent repair')
+        event = REVIEWED_RETRY_EVENTS[route]
         with self._retry_lease(job_id):
             with self._transaction() as db:
                 row = db.execute(
@@ -1056,12 +1106,14 @@ class Queue:
                         or result.get('status') != expected_status or set(result.get('outcomes', {})) != rules):
                     raise ValueError('completed author assignment or rule coverage differs')
                 history = {item[0] for item in db.execute(
-                    "SELECT kind FROM events WHERE kind IN (?,?,?) AND json_extract(data,'$.job_id')=?",
-                    (*events, job_id))}
+                    "SELECT kind FROM events WHERE kind IN (?,?,?,?) AND json_extract(data,'$.job_id')=?",
+                    (*REVIEWED_RETRY_EVENTS.values(), job_id))}
                 if event in history:
                     raise ValueError('reviewed repair retry already used for this job')
-                if (interrupted or legacy) and (events[0] not in history or row[0] != 'needs-review'):
+                if (interrupted or legacy) and (REVIEWED_RETRY_EVENTS[None] not in history or row[0] != 'needs-review'):
                     raise ValueError('diagnostic recovery requires a previously retried author repair')
+                if staging and (REVIEWED_RETRY_EVENTS[None] not in history or row[0] != 'integration-rejected'):
+                    raise ValueError('staging recovery requires a previously retried integration rejection')
                 pid = start.get('pid')
                 if type(pid) is not int or pid <= 0:
                     raise ValueError('attempt process identity is unknown')
@@ -1070,6 +1122,9 @@ class Queue:
                 source = evidence.get('source_checkpoint', checkpoint)
                 _verify_readmission_origin(db, checkpoint, source)
                 campaign = Path(self.path).parent
+                if staging:
+                    _verify_staging_repair(campaign, job_id, attempt_id, source, json.loads(row[3]),
+                                           evidence['staging_failure'])
                 timed_out_attempt = None
                 if interrupted:
                     state = retire_timeout_recovery.TimeoutState(row[4], job, row[5], row[6])
@@ -1756,9 +1811,9 @@ class Queue:
         """Return the most recent independent replay recorded for this exact assignment."""
         with closing(self._connect()) as db:
             row = db.execute(
-                "SELECT data FROM events WHERE kind IN ('retry-reviewed-repair','retry-interrupted-reviewed-repair',"
-                "'retry-preview-reviewed-repair') "
-                "AND json_extract(data,'$.job_id')=? ORDER BY seq DESC LIMIT 1", (job_id,)).fetchone()
+                "SELECT data FROM events WHERE kind IN (?,?,?,?) "
+                "AND json_extract(data,'$.job_id')=? ORDER BY seq DESC LIMIT 1",
+                (*REVIEWED_RETRY_EVENTS.values(), job_id)).fetchone()
         if row:
             evidence = json.loads(row[0])['evidence']
             if 'timeout' not in evidence and 'source_checkpoint' in evidence:
