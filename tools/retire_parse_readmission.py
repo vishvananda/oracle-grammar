@@ -55,17 +55,41 @@ def _focused_parse_additions(result):
                     and row['gate'] == 'parse/reading-count/text' for row in named))
 
 
-def pending_failed_batches(campaign, output, *, include_parse=False, include_active=False):
+def _focused_library_failure(campaign, folder, validation):
+    # The actual isolation verifies the complete executable and source identity.
+    from retire_queue import _gates
+    origin = validation['source_checkpoint']
+    if (not re.fullmatch(r'[0-9a-f]{40}', origin) or validation['repository_check_returncode'] != 1
+            or 'full_checks' in validation or 'parse_screen' in validation):
+        return False
+    checkpoint = r.read(campaign/'checkpoints'/f'{origin}.json')
+    log = folder/'repository-check.log'
+    return (bool(checkpoint.get('library_regression_controls')) and log.stat().st_size <= 8*1024*1024
+            and bool(library._repository_library_failure(log.read_bytes(), _gates)))
+
+
+def _eligible_recovery(campaign, folder, validation, mode):
+    if mode == 'print':
+        return _focused_print_losses(validation['full_checks']['failures'])
+    if mode == 'parse':
+        return _focused_parse_additions(validation['parse_screen'])
+    return _focused_library_failure(campaign, folder, validation)
+
+
+def pending_failed_batches(campaign, output, *, include_parse=False, include_library=False, include_active=False):
     """Find intact current-attempt groups eligible for automatic recovery."""
     groups = defaultdict(set)
+    modes = {PRINT_ONLY_REJECTION: 'print', PARSE_SCREEN_REJECTION: 'parse',
+             library.LIBRARY_REJECTION: 'library'}
     uri = (campaign/'queue.sqlite').as_uri()+'?mode=ro'
     with closing(sqlite3.connect(uri, uri=True)) as db:
         for job, attempt, batch, reason in db.execute("""
                 SELECT id, attempt_id, json_extract(adjudication,'$.evidence.manifest'),
                     json_extract(adjudication,'$.evidence.validation.reason') AS reason
                 FROM jobs WHERE status='integration-rejected'
-                AND reason IN (?, ?)
-                """, (PRINT_ONLY_REJECTION, PARSE_SCREEN_REJECTION if include_parse else None)):
+                AND reason IN (?, ?, ?)
+                """, (PRINT_ONLY_REJECTION, PARSE_SCREEN_REJECTION if include_parse else None,
+                      library.LIBRARY_REJECTION if include_library else None)):
             if isinstance(batch, str) and re.fullmatch(r'[0-9a-f]{32}', batch):
                 groups[(batch, reason)].add((job, attempt))
     ready = []
@@ -80,17 +104,16 @@ def pending_failed_batches(campaign, output, *, include_parse=False, include_act
             validation = r.read(folder/'validation.json')
             included = [job for job in manifest['jobs'] if job['status'] == 'included']
             original = {(job['job_id'], job['attempt_id']) for job in included}
-            full_check = reason == PRINT_ONLY_REJECTION
-            eligible = (_focused_print_losses(validation['full_checks']['failures']) if full_check
-                        else _focused_parse_additions(validation['parse_screen']))
+            mode = modes[reason]
             if (manifest['id'] == batch and current == original and len(included) == len(original)
                     and validation['reason'] == reason and validation['status'] == 'failed'
-                    and validation['scope'] == 'combined-batch' and eligible):
-                ready.append((folder.stat().st_mtime_ns, batch, full_check))
+                    and validation['scope'] == 'combined-batch'
+                    and _eligible_recovery(campaign, folder, validation, mode)):
+                ready.append((folder.stat().st_mtime_ns, batch, mode))
         except (OSError, KeyError, ValueError, TypeError):
             # Legacy or incomplete receipts remain available for review.
             continue
-    return [(batch, full_check) for _, batch, full_check in sorted(ready)]
+    return [(batch, mode) for _, batch, mode in sorted(ready)]
 
 
 def awaiting_print_recovery(campaign):
@@ -105,6 +128,7 @@ def awaiting_print_recovery(campaign):
         return False
     return bool(output.is_absolute() and _allowed(campaign, output)
                 and pending_failed_batches(campaign, output, include_parse=state.get('include_parse') is True,
+                                           include_library=state.get('include_library') is True,
                                            include_active=True))
 
 

@@ -1397,7 +1397,7 @@ class Queue:
                             'previous_adjudication': rejection, 'evidence': evidence})
 
     def readmit_library_batch_proposals(self, job_ids, checkpoint, evidence):
-        """Atomically return library-isolated jobs for fresh integration review."""
+        """Return library-isolated jobs on the current checkpoint from a verified accepted ancestor."""
         return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='library')
 
     def readmit_native_exit_one_batch_proposals(self, job_ids, checkpoint, evidence):
@@ -1430,9 +1430,9 @@ class Queue:
         if not cached and (not isinstance(evidence, dict) or evidence.get('kind') != kind):
             raise ValueError('matching isolated batch revalidation evidence is required')
         verify_archived_replay = mode in ('parse-screen', 'full-check')
-        origin = evidence.get('source_checkpoint', checkpoint) if verify_archived_replay or cached else checkpoint
+        origin = evidence.get('source_checkpoint', checkpoint) if verify_archived_replay or mode == 'library' else checkpoint
         if not isinstance(origin, str) or not origin or Path(origin).name != origin:
-            raise ValueError('invalid parse readmission origin')
+            raise ValueError('invalid batch readmission origin')
         reports = evidence.get('reports')
         if not isinstance(reports, dict) or set(reports) != set(job_ids):
             raise ValueError('individual report evidence must cover every selected job')

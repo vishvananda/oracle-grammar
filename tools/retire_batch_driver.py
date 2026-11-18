@@ -12,6 +12,7 @@ sys.dont_write_bytecode = True
 import retire as r
 import retire_campaign as campaign
 import retire_dispatch as dispatch
+from retire_library_readmission import LIBRARY_REJECTION
 from retire_parse_readmission import PARSE_SCREEN_REJECTION, PRINT_ONLY_REJECTION, awaiting_print_recovery
 from retire_queue import Queue
 from retire_tasks import validate_runner
@@ -35,6 +36,7 @@ def _recorded_recovery(events, job, checkpoint, expected):
     recovered_kinds = {
         PRINT_ONLY_REJECTION: ('readmitted-native-batch', 'isolated-full-check-revalidation'),
         PARSE_SCREEN_REJECTION: ('readmitted-parse-screen-batch', 'isolated-parse-screen-revalidation'),
+        LIBRARY_REJECTION: ('readmitted-library-batch', 'isolated-batch-library-revalidation'),
     }
     recovery = None
     if job.get('status') == 'integration-rejected':
@@ -94,7 +96,7 @@ def _batch_observation(run, before, queue, checkpoint):
             result['outcome'] = 'passed'
             return result
         if validation.get('status') != 'failed' or validation.get('reason') not in (
-                'repository gates failed', 'explicit candidate grammar tests failed',
+                LIBRARY_REJECTION, 'explicit candidate grammar tests failed',
                 PRINT_ONLY_REJECTION, PARSE_SCREEN_REJECTION,
                 'optimized family report contains failures'):
             raise ValueError('batch validation failed operationally: '+str(validation_path))

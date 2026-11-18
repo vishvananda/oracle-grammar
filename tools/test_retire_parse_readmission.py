@@ -300,7 +300,7 @@ class ParseReadmissionTests(BatchReadmissionTests):
         self.queue.add_checkpoint('middle', 'evidence', expected_parent='parent')
         self.queue.add_checkpoint('current', 'evidence', expected_parent='middle')
         for source, error in (('unknown', 'accepted checkpoint chain'), ('middle', 'original additions-only'),
-                              ('../parent', 'invalid parse readmission origin')):
+                              ('../parent', 'invalid batch readmission origin')):
             with self.subTest(source=source), self.assertRaisesRegex(ValueError, error):
                 self.queue.readmit_parse_screen_batch_proposals(
                     ['author', 'mechanical'], 'current', dict(proof, source_checkpoint=source))

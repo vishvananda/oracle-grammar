@@ -419,6 +419,16 @@ class BatchReadmissionTests(unittest.TestCase):
                 self.queue.readmit_library_batch_proposals(['author', 'mechanical'], 'parent', proof)
         self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 3})
 
+    def test_library_replay_of_a_verified_ancestor_is_still_provisional(self):
+        proof = {**self.library_fixture(), 'source_checkpoint':'parent'}
+        self.queue.add_checkpoint('later', {'source':'test'}, expected_parent='parent')
+        with patch('retire_library_readmission._replay') as replay:
+            result = self.queue.readmit_library_batch_proposals(['author', 'mechanical'], 'later', proof)
+        self.assertEqual(replay.call_args.args[1], 'parent')
+        self.assertEqual(result['checkpoint'], 'later')
+        self.assertEqual(result['proof']['source_checkpoint'], 'parent')
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+
     def test_library_batch_rejects_partial_or_tampered_proof(self):
         proof = self.library_fixture()
         isolation_path = self.root/'.cache/library-isolation.json'

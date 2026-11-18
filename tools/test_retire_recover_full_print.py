@@ -1,4 +1,4 @@
-"""Automatically recover only intact, small full-print rejection groups."""
+"""Only complete and bounded rejection groups qualify for recovery."""
 import json
 from pathlib import Path
 import sqlite3
@@ -7,6 +7,7 @@ import unittest
 from unittest.mock import patch
 
 import retire as r
+from retire_library_readmission import LIBRARY_REJECTION
 from retire_parse_readmission import PARSE_SCREEN_REJECTION, PRINT_ONLY_REJECTION, awaiting_print_recovery
 import retire_recover_full_print as recover
 
@@ -97,7 +98,7 @@ class PendingFullPrintTests(unittest.TestCase):
         self.db.commit()
         self.assertEqual(self.pending(), [])
         self.assertEqual(recover.pending_failed_batches(self.campaign, self.output, include_parse=True),
-                         [(self.batch, False)])
+                         [(self.batch, 'parse')])
         r.write(self.campaign/'full-print-recovery.json', {'output': str(self.output), 'include_parse': True})
         with r.locked(self.campaign/'full-print-recovery.lock'):
             self.assertTrue(awaiting_print_recovery(self.campaign))
@@ -109,8 +110,42 @@ class PendingFullPrintTests(unittest.TestCase):
         result = {'rules': 7, 'jobs': ['a']}
         with patch.object(recover.isolation, 'isolate', return_value=result) as isolate, \
                 patch.object(recover.isolation, 'readmit_result') as readmit:
-            receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True, full_check=False)
+            receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True, mode='parse')
         proof = self.output/self.batch/'proof'
         isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=False)
         readmit.assert_called_once_with(self.campaign, proof, result, full_check=False)
+        self.assertEqual(receipt['status'], 'readmitted')
+
+    def test_live_library_recovery_requires_exact_library_only_failure(self):
+        origin = 'a'*40
+        self.validation = {'status':'failed', 'reason':LIBRARY_REJECTION, 'scope':'combined-batch',
+                           'source_checkpoint':origin, 'repository_check_returncode':1}
+        r.write(self.folder/'validation.json', self.validation)
+        (self.campaign/'checkpoints').mkdir()
+        r.write(self.campaign/'checkpoints'/f'{origin}.json', {'library_regression_controls':{'path':'profile'}})
+        self.db.execute("UPDATE jobs SET adjudication=json_set(adjudication,'$.evidence.validation.reason',?)",
+                        (LIBRARY_REJECTION,))
+        self.db.commit()
+        log = self.folder/'repository-check.log'
+        states = ''.join(f'{gate} passed 1.0 s\n' for gate in ('fmt','pin','hygiene','tools','clippy','build','families'))
+        summary = 'test FAILED 2.0 s\n\nfailures:\n    tests::old\n\ntest result: FAILED. 1 passed; 1 failed;\n'
+        log.write_text(states+summary)
+        self.assertEqual(self.pending(), [])
+        self.assertEqual(recover.pending_failed_batches(self.campaign, self.output, include_library=True),
+                         [(self.batch, 'library')])
+        r.write(self.campaign/'full-print-recovery.json', {'output':str(self.output), 'include_library':True})
+        with r.locked(self.campaign/'full-print-recovery.lock'):
+            self.assertTrue(awaiting_print_recovery(self.campaign))
+            for broken in (states.replace('pin passed', 'pin FAILED')+summary, states+'test FAILED 2.0 s\n'):
+                log.write_text(broken)
+                self.assertFalse(awaiting_print_recovery(self.campaign))
+
+    def test_library_recovery_uses_the_library_proof_for_readmission(self):
+        result = {'rules':7, 'jobs':['a']}
+        with patch.object(recover.library, 'isolate', return_value=result) as isolate, \
+                patch.object(recover.library, 'readmit_result') as readmit:
+            receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True, mode='library')
+        path = self.output/self.batch/'proof'
+        isolate.assert_called_once_with(self.campaign, self.batch, path, 32)
+        readmit.assert_called_once_with(self.campaign, path, result)
         self.assertEqual(receipt['status'], 'readmitted')

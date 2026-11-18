@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recover small, complete parse or print batch rejections in the background."""
+"""Recover bounded parse, print or library batch rejections in the background."""
 import argparse
 import json
 from pathlib import Path
@@ -7,20 +7,29 @@ import subprocess
 import time
 
 import retire as r
+import retire_library_isolate as library
 import retire_parse_isolate as isolation
 from retire_native_readmission import _allowed
 from retire_parse_readmission import pending_failed_batches
 
 
-def recover(campaign, output, batch, max_trials, *, apply, full_check=True):
+def recover(campaign, output, batch, max_trials, *, apply, mode='print'):
     folder = output/batch
     try:
-        result = isolation.isolate(campaign, batch, folder/'proof', max_trials, full_check=full_check)
-        if apply:
-            isolation.readmit_result(campaign, folder/'proof', result, full_check=full_check)
+        path = folder/'proof'
+        if mode == 'library':
+            result = library.isolate(campaign, batch, path, max_trials)
+            if apply:
+                library.readmit_result(campaign, path, result)
+        else:
+            r.require(mode in ('print', 'parse'), 'unsupported batch recovery mode')
+            full_check = mode == 'print'
+            result = isolation.isolate(campaign, batch, path, max_trials, full_check=full_check)
+            if apply:
+                isolation.readmit_result(campaign, path, result, full_check=full_check)
         receipt = {'status': 'readmitted' if apply else 'proved', 'rules': result['rules'],
                    'jobs': len(result['jobs']), 'proof': str(folder/'proof/result.json')}
-    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
         receipt = {'status': 'needs-review', 'reason': str(error)}
     folder.mkdir(exist_ok=True)
     r.write(folder/'outcome.json', {'batch': batch, **receipt})
@@ -34,6 +43,7 @@ def main():
     parser.add_argument('--watch', action='store_true')
     parser.add_argument('--apply', action='store_true')
     parser.add_argument('--include-parse', action='store_true', help='also isolate small parse additions')
+    parser.add_argument('--include-library', action='store_true', help='also isolate exact library test failures')
     parser.add_argument('--max-trials', type=int, default=48)
     args = parser.parse_args()
     campaign, output = args.campaign.resolve(), args.output.resolve()
@@ -43,14 +53,15 @@ def main():
     with r.locked(campaign/'full-print-recovery.lock', blocking=False) as owned:
         r.require(owned, 'another full print recovery process owns the campaign')
         r.write(campaign/'full-print-recovery.json', {'output': str(output) if args.watch and args.apply else None,
-                                                    'include_parse': args.include_parse})
+                                                    'include_parse': args.include_parse,
+                                                    'include_library': args.include_library})
         while not (campaign/'drain.json').exists():
-            for batch, full_check in pending_failed_batches(campaign, output, include_parse=args.include_parse):
+            for batch, mode in pending_failed_batches(campaign, output, include_parse=args.include_parse,
+                                                      include_library=args.include_library):
                 if (campaign/'drain.json').exists():
                     return
                 with r.locked(output/f'{batch}.lock'):
-                    receipt = recover(campaign, output, batch, args.max_trials, apply=args.apply,
-                                      full_check=full_check)
+                    receipt = recover(campaign, output, batch, args.max_trials, apply=args.apply, mode=mode)
                 print(json.dumps({'batch': batch, **receipt}), flush=True)
             if not args.watch:
                 return

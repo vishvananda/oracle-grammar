@@ -105,6 +105,19 @@ def _apply(root, job, proposal, cached):
     author.apply_hooks(root/'grammar', hooks)
 
 
+def _materialize(root, grammar, selection, applied, proposals, cached):
+    shutil.copytree(grammar, root/'grammar')
+    for index in applied:
+        job, proposal = proposals[index]
+        _apply(root, job, proposal, cached)
+    r.require(cached.unchanged(), 'archived proposal inputs changed during replay')
+    tree = r.tree(root/'grammar')
+    assigned = [{k: proposals[i][0][k] for k in ('job_id', 'attempt_id')} for i in selection]
+    r.write(root/'identity.json', {'method': 'ordered-proposal-replay-v1', 'indices': selection,
+                                  'tree': tree, 'proposals': assigned})
+    return tree
+
+
 def _check(checkpoint, control, root):
     index, gold, oracle = control['data']
     selected = set(control['names'])
@@ -180,7 +193,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     control = batch._control_setup(cp)
     cached = batch._ProposalInputCache()
     with cpu.reserve(Path(cp['cpu_pool']), 1, cp['cpu_capacity'], background=True):
-        proposals = _proposals(campaign, jobs, scratch, cached)
+        proposals = list(zip(jobs, _proposals(campaign, jobs, scratch, cached), strict=True))
     indices = list(range(len(jobs)))
     mechanics = [i for i in indices if jobs[i]['kind'] == 'mechanical']
     prefix = mechanics if mechanics == indices[:len(mechanics)] else []
@@ -209,16 +222,9 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
                 frozen = saved/'grammar'
                 r.require(r.tree(frozen) == r.read(saved/'identity.json')['tree'], 'cached grammar prefix changed')
                 remainder = selection[len(prefix):]
-            shutil.copytree(frozen, root/'grammar')
-            for i in remainder:
-                _apply(root, jobs[i], proposals[i], cached)
-            r.require(cached.unchanged(), 'archived proposal input changed during replay')
-            tree = r.tree(root/'grammar')
+            tree = _materialize(root, frozen, selection, remainder, proposals, cached)
         if label == 'full':
             r.require(tree == manifest['grammar'], 'complete ordered replay differs from rejected batch')
-        assigned = [{k: jobs[i][k] for k in ('job_id', 'attempt_id')} for i in selection]
-        r.write(root/'identity.json', {'method': 'ordered-proposal-replay-v1', 'indices': selection,
-                                      'tree': tree, 'proposals': assigned})
         result = _check(cp, control, root)
         r.require(r.tree(root/'grammar') == tree, 'focused grammar changed during validation')
         if label:
@@ -242,7 +248,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     r.require(excluded and remaining and not trial(remaining, 'remaining')['failures'],
               'there is no nonempty survivor union with passing focused checks')
     original_reports = scratch/'original-reports.json'
-    reports = {job['job_id']: proposals[i][-1] for i, job in enumerate(jobs)}
+    reports = {job['job_id']: proposal[-1] for job, proposal in proposals}
     r.write(original_reports, reports)
     isolation = scratch/'isolation.json'
     mode = 'full-check' if full_check else 'parse-screen'
@@ -267,6 +273,10 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
 def readmit_result(campaign, scratch, result, *, full_check=False):
     queue = Queue(campaign/'queue.sqlite')
     readmit = queue.readmit_full_check_batch_proposals if full_check else queue.readmit_parse_screen_batch_proposals
+    return _readmit(queue, scratch, result, readmit)
+
+
+def _readmit(queue, scratch, result, readmit):
     for retry in range(4):
         head = queue.progress()['checkpoint']
         try:

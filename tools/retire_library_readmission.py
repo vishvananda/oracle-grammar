@@ -10,6 +10,8 @@ import tempfile
 
 from retire_native_readmission import _allowed, _grammar_tree
 
+LIBRARY_REJECTION = 'repository gates failed'
+
 def _replay(campaign, checkpoint, included, indices, expected_tree, scratch, reports, *, canonical_mechanical=False):
     """Independently replay every retained protected proposal, in original order."""
     import mined
@@ -182,6 +184,14 @@ def _failed_tests(log):
             or any('::' not in name for name in names)):
         raise ValueError('repository log does not identify an exact bounded failed test set')
     return names
+
+
+def _repository_library_failure(log, gates):
+    states = gates(log)
+    if (states['test'] != 'FAILED'
+            or any(state not in ('passed', 'reused') for name, state in states.items() if name != 'test')):
+        raise ValueError('the repository failure is not limited to library tests')
+    return _failed_tests(log.decode())
 
 
 def _cached_schema_failure(campaign, selected, checkpoint, rejections, evidence, read_proof, gates):

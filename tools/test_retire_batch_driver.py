@@ -224,7 +224,8 @@ class DriverTests(unittest.TestCase):
                                                                            'attempt_id': 'attempt'}]})
         for reason, event_kind, evidence_kind in (
                 (driver.PRINT_ONLY_REJECTION, 'readmitted-native-batch', 'isolated-full-check-revalidation'),
-                (driver.PARSE_SCREEN_REJECTION, 'readmitted-parse-screen-batch', 'isolated-parse-screen-revalidation')):
+                (driver.PARSE_SCREEN_REJECTION, 'readmitted-parse-screen-batch', 'isolated-parse-screen-revalidation'),
+                (driver.LIBRARY_REJECTION, 'readmitted-library-batch', 'isolated-batch-library-revalidation')):
             with self.subTest(reason=reason):
                 validation = {'status': 'failed', 'candidate': 'candidate', 'source_checkpoint': 'parent',
                               'reason': reason}
