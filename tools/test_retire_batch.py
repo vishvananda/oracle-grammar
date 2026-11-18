@@ -238,7 +238,11 @@ class BatchTests(unittest.TestCase):
             def screen_run(run, directory, grammar, data, threads):
                 order.append('screen')
                 self.assertEqual(threads, 6)
-                self.assertEqual(len(batch.r._LEASES), expected)
+                self.assertEqual(len(batch.r._LEASES), threads)
+                for fd in batch.r._LEASES:
+                    os.fstat(fd)
+                with batch.retire_cpu.reserve(Path(cp['cpu_pool']), 26, 32, wait=False) as available:
+                    self.assertEqual(len(available), 26)
                 directory.mkdir()
                 result = {'status': screen, 'failures': ['bad'] if screen == 'failed' else []}
                 batch.r.write(directory/'result.json', result)

@@ -1050,6 +1050,20 @@ def validate(manifest, checkpoint, slots=12):
         return _validate(manifest, checkpoint, slots)
 
 
+@contextmanager
+def _audit_cpu(checkpoint, threads, capacity):
+    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, capacity,
+                                background=checkpoint.get('background_cpu', False))
+             if checkpoint.get('cpu_pool') else nullcontext(()))
+    with lease as fds:
+        r._LEASES.extend(fds)
+        try:
+            yield
+        finally:
+            for fd in fds:
+                r._LEASES.remove(fd)
+
+
 def _validate(manifest, checkpoint, slots):
     """Freeze and run full allowed-population and repository gates for a candidate."""
     if manifest.get('status') != 'provisional':
@@ -1081,49 +1095,47 @@ def _validate(manifest, checkpoint, slots):
                 'checkpoint_manifest_sha256': r.digest(input_run/'manifest.json'), 'inputs': str(output),
                 'source_checkpoint': checkpoint['commit'], 'audit_threads': threads,
                 'cpu_capacity': capacity}
-    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, capacity,
-                                background=checkpoint.get('background_cpu', False))
-             if checkpoint.get('cpu_pool') else nullcontext(()))
     try:
-      with lease as fds:
-        r._LEASES.extend(fds)
-        selected_helpers = Path(checkpoint['helpers']).resolve()
-        candidate_spec = checkpoint.get('candidate_validation_helpers')
-        if candidate_spec is not None:
-            selected_helpers, candidate_build = _candidate_helper_snapshot(candidate_spec, checkpoint, source, folder)
-            evidence['candidate_helper_build_sha256'] = candidate_spec['build_sha256']
-            evidence['candidate_helper_profile'] = candidate_build['profile']
-        r.freeze(Namespace(run=output, source=source, helpers=selected_helpers,
-                           slots=1, threads=threads, allowed=inputs/'allowed.json', gold=inputs/'gold.jsonl',
-                           oracle=inputs/'oracle.json', parse=baseline, prints=[baseline]))
-        # dev.py runs families and library tests concurrently. Divide the lease
-        # between those two gates, leaving headroom for the fast gates.
-        gate_threads = str(max(2, threads//2-2))
-        gate_env = {key: value for key, value in os.environ.items() if not key.startswith('ORACLE_GRAMMAR_')}
-        gate_env.update(CARGO_BUILD_JOBS=str(max(4, threads-4)), RAYON_NUM_THREADS=gate_threads,
-                        ORACLE_GRAMMAR_THREADS=gate_threads, RUST_TEST_THREADS=gate_threads)
-        driver_sha256 = r.digest(REPOSITORY_DRIVER)
-        evidence.update(repository_driver_sha256=driver_sha256, repository_grammar=str(source/'grammar'))
-        with (folder/'repository-check.log').open('w') as log:
-            code = subprocess.run([sys.executable, str(REPOSITORY_DRIVER), str(source),
-                                   '--lease-fds', ','.join(map(str, r._LEASES))], cwd=source, env=gate_env,
-                                  stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode
-        evidence['repository_check_returncode'] = code
-        if r.digest(REPOSITORY_DRIVER) != driver_sha256:
-            raise ValueError('repository gate driver changed during validation')
-        if code:
-            raise ValueError('repository gates failed')
-        if candidate_spec is not None:
-            evidence['optimized_family_log'] = str(folder/'optimized-family-check.log')
-            family_log = _optimized_families(source, selected_helpers, folder, int(gate_threads))
-            evidence['optimized_family_log_sha256'] = r.digest(family_log)
+        with _audit_cpu(checkpoint, threads, capacity):
+            selected_helpers = Path(checkpoint['helpers']).resolve()
+            candidate_spec = checkpoint.get('candidate_validation_helpers')
+            if candidate_spec is not None:
+                selected_helpers, candidate_build = _candidate_helper_snapshot(candidate_spec, checkpoint, source, folder)
+                evidence['candidate_helper_build_sha256'] = candidate_spec['build_sha256']
+                evidence['candidate_helper_profile'] = candidate_build['profile']
+            r.freeze(Namespace(run=output, source=source, helpers=selected_helpers,
+                               slots=1, threads=threads, allowed=inputs/'allowed.json', gold=inputs/'gold.jsonl',
+                               oracle=inputs/'oracle.json', parse=baseline, prints=[baseline]))
+            # dev.py runs families and library tests concurrently. Divide the lease
+            # between those two gates, leaving headroom for the fast gates.
+            gate_threads = str(max(2, threads//2-2))
+            gate_env = {key: value for key, value in os.environ.items() if not key.startswith('ORACLE_GRAMMAR_')}
+            gate_env.update(CARGO_BUILD_JOBS=str(max(4, threads-4)), RAYON_NUM_THREADS=gate_threads,
+                            ORACLE_GRAMMAR_THREADS=gate_threads, RUST_TEST_THREADS=gate_threads)
+            driver_sha256 = r.digest(REPOSITORY_DRIVER)
+            evidence.update(repository_driver_sha256=driver_sha256, repository_grammar=str(source/'grammar'))
+            with (folder/'repository-check.log').open('w') as log:
+                code = subprocess.run([sys.executable, str(REPOSITORY_DRIVER), str(source),
+                                       '--lease-fds', ','.join(map(str, r._LEASES))], cwd=source, env=gate_env,
+                                      stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode
+            evidence['repository_check_returncode'] = code
+            if r.digest(REPOSITORY_DRIVER) != driver_sha256:
+                raise ValueError('repository gate driver changed during validation')
+            if code:
+                raise ValueError('repository gates failed')
+            if candidate_spec is not None:
+                evidence['optimized_family_log'] = str(folder/'optimized-family-check.log')
+                family_log = _optimized_families(source, selected_helpers, folder, int(gate_threads))
+                evidence['optimized_family_log_sha256'] = r.digest(family_log)
         data = w.payload(output)
         if enabled:
             evidence['validation_manifest_sha256'] = r.digest(output/'manifest.json')
             _screen_identity(source, manifest, baseline, input_run, output, evidence)
+            screen_threads = min(6, threads)
             try:
-                screen = retire_parse_screen.run(output, folder/'parse-screen', source/'grammar', data,
-                                                  min(6, threads))
+                with _audit_cpu(checkpoint, screen_threads, capacity):
+                    screen = retire_parse_screen.run(output, folder/'parse-screen', source/'grammar',
+                                                      data, screen_threads)
             finally:
                 _screen_identity(source, manifest, baseline, input_run, output, evidence)
             evidence['parse_screen'] = screen
@@ -1133,7 +1145,9 @@ def _validate(manifest, checkpoint, slots):
         checks = folder/'full-checks'
         checks.mkdir()
         try:
-            report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()], data, threads)
+            with _audit_cpu(checkpoint, threads, capacity):
+                report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()],
+                                  data, threads)
         except subprocess.CalledProcessError as error:
             report = retire_native_outcome.preservation_failure(error, output, checks, data)
         evidence['full_checks'] = report
@@ -1157,9 +1171,5 @@ def _validate(manifest, checkpoint, slots):
         evidence['status'] = 'passed'
     except (ValueError, OSError, subprocess.CalledProcessError, KeyError) as error:
         evidence.update(status='failed', reason=str(error))
-    finally:
-        if 'fds' in locals():
-            for fd in fds:
-                r._LEASES.remove(fd)
     r.write(folder/'validation.json', evidence)
     return evidence
