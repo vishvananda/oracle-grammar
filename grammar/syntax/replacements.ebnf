@@ -166,7 +166,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage
+prevent_clause ::= shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -1592,3 +1592,49 @@ death_exile_callback_plain ::= create_base "."
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $create_base_quoted)}]}, otherwise:Program{}}]} */
 death_exile_callback_paid_quoted ::= "you" "may" payment "." "if" "you" "do" "," create_base_quoted
+
+/* Damage prevention composes the damage kind with the affected source set. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Permanent, sources:$prevent_would_sources, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_would_deal ::= "prevent" "all" prevent_damage prevent_would_sources "would" "deal" this_duration
+
+prevent_would_sources ::= prevent_would_affected | prevent_would_pair
+
+/* @sem ObjectFilter::InSet($affected) */
+prevent_would_affected ::= affected
+
+/* @sem ObjectFilter::AnyOf(@unordered([$filter_plural, $filter_plural_2])) */
+prevent_would_pair ::= filter_plural "and" filter_plural
+
+/* The multiplier remains an operand of the replacement, shared with ordinary damage replacements. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:ControlledBy(One(AbilityController)), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([$damage_factor, EventAmount]))}}]}} */
+damage_scaled_unrestricted ::= "if" "a" "source" "you" "control" "would" "deal" "damage" this_duration "," "it" "deals" damage_factor "that" "damage" "instead"
+
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:ControlledBy(One(AbilityController)), recipients:ObjectsAndPlayers{objects:$filter_phrase, players:OpponentsOf(AbilityController)}, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([$damage_factor, EventAmount]))}}]}} */
+damage_scaled_opponent ::= "if" "a" "source" "you" "control" "would" "deal" "damage" this_duration "to" "an" "opponent" "or" "a" filter_phrase "," "it" "deals" damage_factor "that" "damage" "instead"
+
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:ControlledBy(One(AbilityController)), recipients:ObjectsAndPlayers{objects:$filter_phrase, players:All}, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([$damage_factor, EventAmount]))}}]}} */
+damage_scaled_permanent_player ::= "if" "any" "source" "you" "control" "would" "deal" "damage" "to" "a" filter_phrase "or" "player" this_duration "," "it" "deals" damage_factor "that" "damage" "to" "that" "permanent" "or" "player" "instead"
+
+/* Both mentions stay independent so binding and printing retain their identities. */
+/* @sem Operation::CreateReplacement{event:ProduceColor{sources:SameObject($object_ref), color:$replacement_mana_color_word_2}, limit:UntilExpired, duration:WhileOnBattlefield($object_ref_2), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceMana(Amount{color:$replacement_mana_color_word, amount:Constant(1)})}}]}} */
+mana_tap_color_replacement ::= "if" object_ref "is" "tapped" "for" "mana" "," object_ref "produces" replacement_mana_color_word "mana" "instead" "of" replacement_mana_color_word "mana"
+
+replacement_mana_color_word ::= mana_word_white | mana_word_blue | mana_word_black | mana_word_red | mana_word_green | mana_word_colorless
+
+/* @sem ManaColor::White */
+mana_word_white ::= "white"
+
+/* @sem ManaColor::Blue */
+mana_word_blue ::= "blue"
+
+/* @sem ManaColor::Black */
+mana_word_black ::= "black"
+
+/* @sem ManaColor::Red */
+mana_word_red ::= "red"
+
+/* @sem ManaColor::Green */
+mana_word_green ::= "green"
+
+/* @sem ManaColor::Colorless */
+mana_word_colorless ::= "colorless"
