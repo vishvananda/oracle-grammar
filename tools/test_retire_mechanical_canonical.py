@@ -123,6 +123,29 @@ class MechanicalCanonicalTests(unittest.TestCase):
         self.assertEqual(result['rules'], [])
         self.assertIn('cannot request hooks', result['jobs'][0]['reason'])
 
+    def test_repeat_trials_cache_the_expected_tree_and_verify_the_candidate(self):
+        self.prepare_proposal()
+        cache = batch._ProposalInputCache()
+        original = batch._canonical_mechanical_tree
+        with patch.object(batch, '_canonical_mechanical_tree', wraps=original) as canonical:
+            for _ in range(2):
+                trial = cache.trial()
+                trial.read(self.run/'inputs')
+                batch._mechanical_removal(self.run, self.directory, ['m_rule'], self.root, input_cache=trial)
+                self.assertTrue(trial.unchanged())
+            canonical.assert_called_once()
+
+            (self.directory/'grammar/lexical.ebnf').write_text('word ::= "changed"\n')
+            trial = cache.trial()
+            trial.read(self.run/'inputs')
+            with self.assertRaisesRegex(ValueError, 'complete canonical removal'):
+                batch._mechanical_removal(self.run, self.directory, ['m_rule'], self.root, input_cache=trial)
+            canonical.assert_called_once()
+
+            (self.run/'inputs/frozen/grammar/lexical.ebnf').write_text('word ::= "stale"\n')
+            with self.assertRaisesRegex(ValueError, 'frozen inputs changed'):
+                cache.trial().read(self.run/'inputs')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -677,13 +677,17 @@ class BatchTests(unittest.TestCase):
                 frozen = run/'inputs/frozen'
                 frozen.mkdir()
                 shutil.copytree((repo if index == 1 else root/'workspace')/'grammar', frozen/'grammar')
+                batch.r.write(run/'inputs/manifest.json', {'files': batch.r.tree(frozen)})
                 attempt = root/f'attempt{index}'
                 attempt.mkdir()
                 shutil.copytree(frozen/'grammar', attempt/'grammar')
                 mined.remove(attempt, [rule])
                 report = {'task': f'task{index}', 'source': cp['commit'], 'descriptor_sha256': 'd', 'support_sha256': 's'}
                 job = {'job_id': f'j{index}', 'attempt_id': f'a{index}', 'kind': 'mechanical', 'run': str(run), 'report': report}
-                with patch.object(batch, '_proposal', return_value=(run, {'rules': [rule]}, attempt, [])):
+                def verified_proposal(_, *, input_cache):
+                    input_cache.read(run/'inputs')
+                    return run, {'rules': [rule]}, attempt, []
+                with patch.object(batch, '_proposal', side_effect=verified_proposal):
                     return batch.stage(root, cp, [job])
             first = execute('m_one', 1)
             self.assertEqual(first['status'], 'provisional')

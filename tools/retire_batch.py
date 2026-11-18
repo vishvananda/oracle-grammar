@@ -122,14 +122,25 @@ class _ProposalInputCache:
                 and all(self.identity(run, 'support', 'support.json') == self.supports[run][0]
                         for run in self.used_supports))
 
-    def canonical_seeded_removal(self, base, rules):
+    def _removal_key(self, base, rules):
         directory = base.parent
         root = self.locations.get(directory)
         if base.name != 'frozen' or root is None or directory.resolve() != root:
             raise ValueError('canonical removal requires the verified proposal base')
-        key = root, tuple(sorted(rules))
+        return root, tuple(sorted(rules))
+
+    def canonical_seeded_removal(self, base, rules):
+        root, assignment = self._removal_key(base, rules)
+        key = 'seeded', root, assignment
         if key not in self.removals:
             self.removals[key] = merger.canonical_seeded_removal(root/'frozen', rules)
+        return self.removals[key]
+
+    def canonical_mechanical_removal(self, base, rules, scratch):
+        root, assignment = self._removal_key(base, rules)
+        key = 'grammar', root, assignment
+        if key not in self.removals:
+            self.removals[key] = _canonical_mechanical_tree(root/'frozen/grammar', rules, scratch)
         return self.removals[key]
 
 
@@ -628,7 +639,21 @@ def _promote_trial(source, trial, fixtures):
         raise
 
 
-def _mechanical_removal(run, directory, rules, scratch):
+def _canonical_mechanical_tree(base, rules, scratch):
+    before = r.tree(base)
+    with tempfile.TemporaryDirectory(prefix='canonical-removal-', dir=scratch) as temporary:
+        expected = Path(temporary)
+        shutil.copytree(base, expected/'grammar')
+        removed, kept = mined.remove(expected, rules)
+        if set(removed) != set(rules) or kept:
+            raise ValueError('mechanical canonical removal has retained users')
+        tree = r.tree(expected/'grammar')
+    if r.tree(base) != before:
+        raise _UncertainPromotion('mechanical frozen base changed during verification')
+    return tree
+
+
+def _mechanical_removal(run, directory, rules, scratch, *, input_cache=None):
     """Require the complete candidate to equal the canonical assigned removals."""
     if (not isinstance(rules, list) or not rules or len(set(rules)) != len(rules)
             or any(not isinstance(name, str) or not mined.SEEDED.fullmatch(name) for name in rules)):
@@ -639,17 +664,10 @@ def _mechanical_removal(run, directory, rules, scratch):
             raise ValueError('mechanical grammar is unavailable or a symlink')
         if any(path.is_symlink() or not (path.is_file() or path.is_dir()) for path in grammar.rglob('*')):
             raise ValueError('mechanical grammar contains a symlink or nonregular entry')
-    before = r.tree(base)
-    with tempfile.TemporaryDirectory(prefix='canonical-removal-', dir=scratch) as temporary:
-        expected = Path(temporary)
-        shutil.copytree(base, expected/'grammar')
-        removed, kept = mined.remove(expected, rules)
-        if set(removed) != set(rules) or kept:
-            raise ValueError('mechanical canonical removal has retained users')
-        if r.tree(candidate) != r.tree(expected/'grammar'):
-            raise ValueError('mechanical proposal differs from complete canonical removal')
-        if r.tree(base) != before:
-            raise _UncertainPromotion('mechanical frozen base changed during verification')
+    expected = (_canonical_mechanical_tree(base, rules, scratch) if input_cache is None
+                else input_cache.canonical_mechanical_removal(base.parent, rules, scratch))
+    if r.tree(candidate) != expected:
+        raise ValueError('mechanical proposal differs from complete canonical removal')
 
 
 def _declares(root, rule):
@@ -746,7 +764,7 @@ def _merge_trial_proposal(trial, scratch, proposal, mechanical, input_cache):
     if mechanical:
         if hooks:
             raise ValueError('mechanical proposal cannot request hooks')
-        _mechanical_removal(run, directory, task['rules'], scratch)
+        _mechanical_removal(run, directory, task['rules'], scratch, input_cache=input_cache)
     else:
         changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks,
                                       canonical_removal=input_cache.canonical_seeded_removal)
