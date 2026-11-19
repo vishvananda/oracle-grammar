@@ -772,8 +772,9 @@ class Queue:
     def split_reviewed_author(self, job_id, attempt_id, checkpoint, evidence):
         """Queue an independently evaluated subset and preserve its deferred siblings."""
         kind = evidence.get('kind') if isinstance(evidence, dict) else None
+        integration = kind == 'reviewed-integration-repair-split'
         repaired = kind == 'reviewed-author-repair-split'
-        if (kind not in ('reviewed-author-split', 'reviewed-author-repair-split')
+        if (not (integration or repaired or kind == 'reviewed-author-split')
                 or evidence.get('source_checkpoint') != checkpoint or not isinstance(attempt_id, str) or not attempt_id):
             raise ValueError('reviewed author split evidence must bind the current attempt and checkpoint')
         notes = evidence.get('review_notes')
@@ -785,7 +786,8 @@ class Queue:
                 row = db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?',
                                  (job_id,)).fetchone()
                 head = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
-                if not row or tuple(row[:2]) != ('needs-review', attempt_id) or not head or head[0] != checkpoint:
+                status = 'integration-rejected' if integration else 'needs-review'
+                if not row or tuple(row[:2]) != (status, attempt_id) or not head or head[0] != checkpoint:
                     raise ValueError('parked author attempt or checkpoint changed')
                 parent, origin, base, started, raw = retire_rehabilitation.resolve_origin(db, job_id, row)
                 owned = {item[0] for item in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
@@ -798,7 +800,10 @@ class Queue:
                 self._require_absent_pid(pid)
                 _verify_readmission_origin(db, checkpoint, base)
                 selected, deferred = _reviewed_split_jobs(parent, checkpoint, origin, evidence)
-                original = json.loads(raw)['evidence']
+                result = json.loads(raw)
+                if integration and result['status'] != 'provisional-pass':
+                    raise ValueError('integration split requires an originally passing proposal')
+                original = result['evidence']
                 _verify_split_dispositions(original, owned, selected['rules'], repaired)
                 archived, _ = _verify_original_report(campaign, job_id, attempt_id, base, original,
                                                       evidence.get('original_report'), passed=not repaired)

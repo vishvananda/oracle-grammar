@@ -173,6 +173,12 @@ The previous attempt remains in the audit history. When a model times out before
 a passing coordinator report can supply this evidence if it belongs to the
 protected terminal receipt for that attempt.
 
+A rejected integration proposal can be split when an independent replay
+passes for a proper subset of the assigned rules. The replay covers every
+face from the original cohort, with fresh family and operand checks. The
+verified subset returns to the queue and the remaining rules retain the
+original integration rejection for further review.
+
 Author diagnostics stop when the compositional family fails, explicitly marking
 cohort and edited-operand checks as skipped. Once the family passes, every normal
 cohort, native and edited-operand check runs. Edited-operand diagnostics also

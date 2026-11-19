@@ -28,14 +28,9 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         (leases/'parent').touch()
         with closing(self.q._connect()) as db:
             db.execute('UPDATE attempts SET started=? WHERE id=?', (json.dumps({'pid':4567}),self.attempt))
-        self.q.finish(self.attempt,'needs-review',{'kind':'author','dispositions':{
-            'm_good':{'rule':'m_good','status':'proposed'},
-            'm_deferred':{'rule':'m_deferred','status':'needs-review'}}},{
-                rule:{'status':'needs-review','reason':'held','evidence':'archive'} for rule in parent['rules']})
         task = self.root/'.cache/attempts'/self.attempt/'tasks/parent.json'
         task.parent.mkdir(parents=True)
         task.write_text(json.dumps({'cohort':['A','B']}))
-        self.original = self.q.get_attempt(self.attempt)
         self.evidence = {'kind':'reviewed-author-split','source_checkpoint':'head','rules':['m_good'],
                          'target_faces':['A'],'review_notes':'Keep the deferred rule.',
                          'original_report':{'path':'old','sha256':'old'}, 'report':{'path':'new','sha256':'new'}}
@@ -46,7 +41,19 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.review = self.enterContext(patch.object(retire_queue,'_verify_reviewed_repair',
                                                     return_value=({}, {'cohort':['A','B']})))
 
+    def park(self, *, integration=False):
+        proposed = {'m_good':'proposed','m_deferred':'proposed' if integration else 'needs-review'}
+        dispositions = {rule:{'rule':rule,'status':status} for rule,status in proposed.items()}
+        outcomes = {rule:{'status':'pass' if integration else 'needs-review',
+                          'reason':'held','evidence':'archive'} for rule in dispositions}
+        self.q.finish(self.attempt,'provisional-pass' if integration else 'needs-review',
+                      {'kind':'author','dispositions':dispositions},outcomes)
+        if integration:
+            self.q.reject_jobs(['parent'],{'reason':'full-population disagreement'})
+        self.original = self.q.get_attempt(self.attempt)
+
     def test_split_preserves_archived_outcomes_and_reviewed_draft(self):
+        self.park()
         receipt = self.q.split_reviewed_author('parent',self.attempt,'head',self.evidence)
         self.assertEqual(self.q.coverage()['counts'],{'pending':1,'needs-review':1})
         self.assertEqual(self.q.coverage()['accepted_rules'],0)
@@ -67,6 +74,7 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
             self.q.split_reviewed_author('parent',self.attempt,'head',self.evidence)
 
     def test_failed_archive_can_be_split_after_a_fresh_passing_repair(self):
+        self.park()
         evidence = {**self.evidence, 'kind':'reviewed-author-repair-split',
                     'rules':['m_deferred'], 'target_faces':['B']}
         self.original_report['family_returncode'] = 1
@@ -86,6 +94,7 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
     def test_selected_rule_and_coverage_must_match_without_writes(self):
+        self.park()
         before = self.q.audit()
         tests = (({'rules':['m_deferred']},'was not proposed'),
                  ({'rules':['m_good','m_deferred']},'proper rule subset'),
@@ -99,6 +108,25 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.audit(),before)
         self.assertEqual(self.q.get_attempt(self.attempt),self.original)
         self.assertEqual(self.q.coverage()['counts'],{'needs-review':2})
+
+    def test_rejected_integration_keeps_the_passing_archive_and_full_cohort(self):
+        self.park(integration=True)
+        evidence = {**self.evidence,'kind':'reviewed-integration-repair-split'}
+        before = self.q.audit()
+        with self.assertRaisesRegex(ValueError,'parked author attempt'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',self.evidence)
+        self.review.return_value = ({},{'cohort':['A']})
+        with self.assertRaisesRegex(ValueError,'does not cover the original cohort'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        self.assertEqual(self.q.audit(),before)
+        self.review.return_value = ({},{'cohort':['A','B']})
+        receipt = self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        self.assertEqual(self.archive.call_args.kwargs,{'passed':True})
+        self.assertEqual(receipt['rules'],['m_good'])
+        self.assertEqual(self.q.get_attempt(self.attempt),self.original)
+        self.assertEqual(self.q.coverage()['counts'],{'pending':1,'needs-review':1})
+        held, = self.q.get_jobs('needs-review')
+        self.assertEqual(held['job']['review_origin']['status'],'integration-rejected')
 
 
 if __name__ == '__main__':
