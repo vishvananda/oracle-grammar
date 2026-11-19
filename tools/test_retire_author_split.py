@@ -148,7 +148,7 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
             self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
         dependencies({'m_good':['A'],'m_deferred':['B']})
         repaired([positive])
-        with self.assertRaisesRegex(ValueError,'omitted an archived passing case or refusal'):
+        with self.assertRaisesRegex(ValueError,'omitted an archived positive case or refusal'):
             self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
         repaired([positive,refusal])
         outside = self.root/'family-check.log'
@@ -156,7 +156,14 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'outside the original evaluation'):
             self.q.split_reviewed_author('parent',self.attempt,'head',
                                          {**evidence,'family_gate':{**evidence['family_gate'],'path':str(outside)}})
+        data['passed'] -= 1
+        data['failures'].append({'name':'A','why':'a card reading has no exact keyed print'})
+        evidence = gate_evidence()
+        repaired([refusal])
+        with self.assertRaisesRegex(ValueError,'omitted an archived positive case or refusal'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
         self.assertEqual(self.q.audit(), before)
+        repaired([positive,refusal])
         receipt = self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
         self.assertEqual(receipt['rules'], ['m_good'])
         self.assertEqual(self.q.get_attempt(self.attempt), self.original)

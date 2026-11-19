@@ -201,6 +201,11 @@ face from the original cohort, with fresh family and operand checks. The
 verified subset returns to the queue and the remaining rules retain the
 original integration rejection for further review.
 
+An assignment with a localized compositional family failure can also be
+split. The accepted scan must show disjoint dependent faces for the two
+subsets. The fresh replay keeps all selected positive family cases,
+including any that previously failed, and every archived refusal.
+
 A deferred author assignment can carry an independently verified draft for
 all its remaining rules. The queue ties the draft to the current checkpoint
 and checks the archived original cohort before handing it to the normal

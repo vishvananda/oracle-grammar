@@ -818,7 +818,7 @@ def _verify_split_dispositions(original, owned, selected, repaired):
 
 
 def _family_split_cases(evidence, archived, family, selected, deferred):
-    """Preserve the passing compositional cases and every archived refusal."""
+    """Replay every selected compositional case and every archived refusal."""
     if (archived.get('family_returncode') != 1 or archived.get('scope') == 'author-target-preview'
             or archived.get('failures') != ['family regression tests failed']):
         raise ValueError('the original report lacks a single compositional family veto')
@@ -839,16 +839,18 @@ def _family_split_cases(evidence, archived, family, selected, deferred):
     except (ValueError, IndexError, KeyError, TypeError, AttributeError) as exc:
         raise ValueError('invalid archived family veto') from exc
     targets = set(selected['target_faces'])
+    positive = [case for case in cases if case['name'] in targets and case.get('expected') is not None
+                and case.get('compositional', True) is True and not case.get('reject')]
+    positive_names = {case['name'] for case in positive}
+    known_failures = (set(deferred['target_faces']) - targets) | positive_names
     if (result.get('compositional') is not True or result.get('family') != family.get('family')
             or result.get('cases') != len(cases) or type(result.get('passed')) is not int
             or result['passed'] + len(failures) != len(cases) or len(failed) != len(failures)
-            or not failed or not localized or failed & targets or not failed <= set(deferred['target_faces'])
+            or not failed or not localized or not failed <= known_failures
             or any(sum(case['name'] == name for case in cases) != 1 for name in failed)):
-        raise ValueError('archived family veto does not isolate the deferred side')
-    positive = [case for case in cases if case['name'] in targets and case.get('expected') is not None
-                and case.get('compositional', True) is True and not case.get('reject')]
+        raise ValueError('archived family veto does not isolate replayable cases')
     required = [*positive, *(case for case in cases if case.get('reject') is True)]
-    return {case['name'] for case in positive}, required
+    return positive_names, required
 
 
 def _verify_family_split_coverage(campaign, evidence, checkpoint_evidence, selected, deferred, positive=None):
@@ -860,7 +862,7 @@ def _verify_family_split_coverage(campaign, evidence, checkpoint_evidence, selec
     if any(rule in unused or not dependencies.get(rule) for rule in selected['rules']):
         raise ValueError('each selected rule needs an accepted dependent face')
     if positive is not None and any(not positive.intersection(dependencies[rule]) for rule in selected['rules']):
-        raise ValueError('each selected rule needs an archived passing family case')
+        raise ValueError('each selected rule needs an archived positive family case')
     selected_faces = {name for rule in selected['rules'] for name in dependencies[rule]}
     deferred_faces = {name for rule in deferred['rules'] for name in dependencies.get(rule, ())}
     if selected_faces != targets or selected_faces & deferred_faces:
@@ -874,7 +876,7 @@ def _verify_family_split_fixture(report, preserved):
         raise ValueError('the repaired family fixture changed')
     current = json.loads(data)['cases']
     if any(case not in current for case in preserved):
-        raise ValueError('the repaired family omitted an archived passing case or refusal')
+        raise ValueError('the repaired family omitted an archived positive case or refusal')
 
 
 class RehabilitationIneligible(ValueError):
