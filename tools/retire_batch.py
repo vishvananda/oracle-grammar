@@ -1012,15 +1012,17 @@ def _early_default_print(checkpoint, grammar, data, logs):
     expected = [entry for entry in data[0].values() if entry['name'] in selected]
     rows = folder/'rows.jsonl'
     threads = checkpoint['audit_threads']
-    with _audit_cpu(checkpoint, threads, checkpoint['cpu_capacity']):
+    capacity = checkpoint['cpu_capacity']
+    minimum = min(threads, (capacity+1)//2)
+    with _audit_cpu(checkpoint, threads, capacity, minimum_threads=minimum) as granted:
         r.execute(run, folder, grammar, 'score', [folder/'gold.jsonl', folder/'oracle.json',
-                  folder/'slice.json', rows, '--render'], threads)
+                  folder/'slice.json', rows, '--render'], granted)
     if r.verify(run) != manifest:
         raise ValueError('The early print inputs changed')
     losses = _early_render_losses(r.rows(rows), expected)
     r.write(folder/'result.json', {'status': 'inconclusive' if losses is None else 'checked',
             'occurrences': len(expected), 'protected_occurrences': sum(entry['flags'][3] for entry in expected),
-            'rows_sha256': r.digest(rows), 'failures': losses})
+            'rows_sha256': r.digest(rows), 'failures': losses, 'threads': granted})
     return losses
 
 
@@ -1906,14 +1908,14 @@ def _parse_screen_threads(checkpoint):
 
 
 @contextmanager
-def _audit_cpu(checkpoint, threads, capacity):
-    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, capacity,
-                                background=checkpoint.get('background_cpu', False))
-             if checkpoint.get('cpu_pool') else nullcontext(()))
+def _audit_cpu(checkpoint, threads, capacity, *, minimum_threads=None):
+    pool = checkpoint.get('cpu_pool')
+    lease = (retire_cpu.reserve(Path(pool), threads, capacity, minimum_threads=minimum_threads,
+                                background=checkpoint.get('background_cpu', False)) if pool else nullcontext(()))
     with lease as fds:
         r._LEASES.extend(fds)
         try:
-            yield
+            yield len(fds) if pool else threads
         finally:
             for fd in fds:
                 r._LEASES.remove(fd)

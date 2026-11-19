@@ -11,9 +11,11 @@ POLL_SECONDS = 0.2
 
 @contextmanager
 def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool = True,
-            *, priority_wait: bool = False, background: bool = False):
+            *, priority_wait: bool = False, background: bool = False, minimum_threads: int | None = None):
     """Reserve all requested tokens together and yield their open file descriptors.
 
+    A caller that can scale its work to the granted count may supply a minimum.
+    It gets the largest available bundle between that minimum and its request.
     Every process using the same root participates in the same pool. A smaller
     capacity uses its first tokens, so temporary restrictions remain compatible
     with larger reservations. Pass the yielded descriptors in subprocess
@@ -30,6 +32,9 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
         raise ValueError(f'capacity must be an integer from 1 to {MAX_CAPACITY}')
     if isinstance(threads, bool) or not isinstance(threads, int) or not 1 <= threads <= capacity:
         raise ValueError('threads must be an integer between 1 and capacity')
+    minimum = threads if minimum_threads is None else minimum_threads
+    if type(minimum) is not int or not 1 <= minimum <= threads:
+        raise ValueError('minimum_threads must be an integer between 1 and threads')
     if type(background) is not bool or (background and priority_wait):
         raise ValueError('background reservations cannot request waiting priority')
     root = Path(root)
@@ -72,7 +77,7 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
                     held.append(fd)
                     if len(held) == threads:
                         break
-                if len(held) != threads:
+                if len(held) < minimum:
                     for fd in held:
                         os.close(fd)
                     held.clear()

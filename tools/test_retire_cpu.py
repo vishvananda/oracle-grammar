@@ -71,6 +71,36 @@ class LeaseTests(unittest.TestCase):
                     pass
         release.set()
 
+    def test_scalable_bundle_uses_free_tokens_without_waiting_for_the_requested_count(self):
+        ready, release = multiprocessing.Event(), multiprocessing.Event()
+        child = self.start(holder, self.root, 16, 32, ready, release)
+        self.assertTrue(ready.wait(5))
+        with self.assertRaises(BlockingIOError):
+            with retire_cpu.reserve(self.root, 24, 32, wait=False):
+                pass
+        with retire_cpu.reserve(self.root, 24, 32, wait=False, minimum_threads=16) as tokens:
+            self.assertEqual(len(tokens), 16)
+            with self.assertRaises(BlockingIOError):
+                with retire_cpu.reserve(self.root, 1, 32, wait=False):
+                    pass
+        release.set()
+        child.join(timeout=5)
+        self.assertEqual(child.exitcode, 0)
+        with retire_cpu.reserve(self.root, 24, 32, wait=False, minimum_threads=16) as tokens:
+            self.assertEqual(len(tokens), 24)
+
+    def test_scalable_bundle_enforces_its_minimum(self):
+        for minimum in (False, 0, 3):
+            with self.subTest(minimum=minimum), self.assertRaises(ValueError):
+                with retire_cpu.reserve(self.root, 2, 3, minimum_threads=minimum):
+                    pass
+        with retire_cpu.reserve(self.root, 2, 3):
+            with self.assertRaises(BlockingIOError):
+                with retire_cpu.reserve(self.root, 3, 3, wait=False, minimum_threads=2):
+                    pass
+            with retire_cpu.reserve(self.root, 1, 3, wait=False) as tokens:
+                self.assertEqual(len(tokens), 1)
+
     def wait_for_priority(self):
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
