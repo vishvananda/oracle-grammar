@@ -3,6 +3,7 @@
 import argparse
 from collections import Counter, defaultdict
 from contextlib import closing
+import json
 import os
 from pathlib import Path
 import sys
@@ -17,6 +18,7 @@ import retire_dispatch as dispatch
 from retire_library_readmission import LIBRARY_REJECTION
 from retire_parse_readmission import PARSE_SCREEN_REJECTION, PRINT_ONLY_REJECTION, awaiting_print_recovery
 from retire_queue import Queue
+from retire_rehabilitation import scan_evidence, verify_scan
 from retire_tasks import validate_runner
 
 
@@ -229,6 +231,36 @@ def verified_ready_lane(queue, checkpoint, limit, minimum, mechanical=(), recove
     return None
 
 
+def unused_author_jobs(queue, checkpoint, limit, covered):
+    """Prioritize provisional author jobs whose entire assignment is now unused."""
+    if limit <= 0:
+        return []
+    root = Path(queue.path).parent
+    covered = set(covered)
+    with closing(queue._connect()) as db:
+        db.execute('BEGIN')
+        latest = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+        if not latest or latest[0] != checkpoint:
+            raise ValueError('checkpoint changed during unused author selection')
+        inputs = Path(campaign.checkpoint(root, checkpoint)['inputs'])
+        _, unused, _, _ = verify_scan(root, checkpoint, json.loads(latest[1]), scan_evidence(inputs))
+        if not unused:
+            return []
+        selected = []
+        candidates = db.execute("""SELECT j.id,j.payload FROM jobs j
+            JOIN attempts a ON a.id=j.attempt_id AND a.job_id=j.id
+            WHERE j.status='provisional-pass' AND json_extract(j.payload,'$.kind')='author'
+                AND json_extract(a.result,'$.status')='provisional-pass'
+            ORDER BY j.rowid""")
+        for job, payload in candidates:
+            rules = json.loads(payload)['rules']
+            if job not in covered and rules and unused.issuperset(rules):
+                selected.append(job)
+                if len(selected) == limit:
+                    break
+        return selected
+
+
 def dependency_caller_jobs(queue, checkpoint, covered, limit):
     """Prioritize ready jobs whose seeded callers keep parked rules reachable."""
     if limit <= 0:
@@ -265,12 +297,12 @@ def dependency_caller_jobs(queue, checkpoint, covered, limit):
     return sorted(ready,key=lambda job:(-ready[job],job))[:limit]
 
 
-def with_reviewed_replays(queue, checkpoint, slots, limit, fifo, *, mechanical=(), callers=()):
-    slots = min(slots, max(0, limit-len(mechanical)))
-    if not slots and not callers:
+def with_reviewed_replays(queue, checkpoint, slots, limit, fifo, *, preferred=(), callers=()):
+    slots = min(slots, max(0, limit-len(preferred)))
+    if not slots and not callers and not preferred:
         return fifo
     reviewed = reviewed_replay_jobs(queue, checkpoint, slots) if slots else []
-    return list(dict.fromkeys([*mechanical, *reviewed, *callers, *fifo]))[:limit]
+    return list(dict.fromkeys([*preferred, *reviewed, *callers, *fifo]))[:limit]
 
 
 def recovered_replay_fill(queue, checkpoint, selected, slots, limit):
@@ -344,6 +376,9 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         dependency_slots = config.get('dependency_caller_slots', 0)
                         if type(dependency_slots) is not int or not 0 <= dependency_slots <= 96:
                             raise ValueError('dependency_caller_slots must be between 0 and 96')
+                        unused_slots = config.get('unused_author_slots', 0)
+                        if type(unused_slots) is not int or not 0 <= unused_slots <= 96:
+                            raise ValueError('unused_author_slots must be between 0 and 96')
                         ready = jobs.get('provisional-pass', 0)
                         lane = mechanical_lane(queue, limit, mechanical_minimum) if mechanical_priority and ready else None
                         large_mechanical = lane is not None and lane['combine']
@@ -374,34 +409,36 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                                 existing = set(recovered)
                                 unselected = [job for job in lane['mechanical'] if job not in existing]
                                 also_mechanical = unselected[:limit-len(recovered)]
+                            prefix = recovered+also_mechanical if cohort else (
+                                chosen_lane['mechanical'] if chosen_lane and not standalone_lane else [])
+                            unused = [] if standalone_lane else unused_author_jobs(
+                                queue, progress['checkpoint'], min(unused_slots, limit-len(prefix)), prefix)
                             also_reviewed = (recovered_replay_fill(queue, progress['checkpoint'],
-                                             recovered+also_mechanical, recovered_replay_slots, limit)
+                                             prefix+unused, recovered_replay_slots, limit)
                                              if cohort else [])
-                            if cohort:
-                                protected = recovered+also_mechanical+also_reviewed
-                            else:
-                                protected = chosen_lane['mechanical'] if chosen_lane and not standalone_lane else []
+                            protected = prefix+unused+also_reviewed
                             caller_room = 0 if standalone_lane else min(dependency_slots, limit-len(protected))
                             callers = dependency_caller_jobs(queue, progress['checkpoint'], protected, caller_room)
                             status('running', progress, lane=chosen_lane['lane'] if chosen_lane else
                                    'recovered-with-reviewed' if also_reviewed else
                                    'recovered-with-mechanical' if also_mechanical else
-                                   'recovered' if cohort else 'fifo', dependency_callers=callers)
+                                   'recovered' if cohort else 'fifo', dependency_callers=callers,
+                                   unused_author_jobs=unused)
                             if chosen_lane:
                                 selected = chosen_lane['jobs']
                                 if not chosen_lane['combine']:
                                     selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots,
-                                                                   limit, selected, mechanical=chosen_lane['mechanical'],
+                                                                   limit, selected, preferred=protected,
                                                                    callers=callers)
                                 dispatch._batch(run, selected,
                                                 combine_selected=chosen_lane['combine'] or fresh_union)
                             elif cohort:
                                 dispatch._batch(run, protected+callers,
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)
-                            elif fresh_union or replay_slots or callers:
+                            elif fresh_union or replay_slots or callers or unused:
                                 fifo = [row['id'] for row in queue.get_jobs('provisional-pass', limit=limit)]
                                 selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots,
-                                                               limit, fifo, callers=callers)
+                                                               limit, fifo, preferred=unused, callers=callers)
                                 dispatch._batch(run, selected, combine_selected=fresh_union)
                             else:
                                 dispatch._batch(run)

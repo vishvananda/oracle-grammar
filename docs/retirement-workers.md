@@ -161,6 +161,12 @@ reviewed drafts. The newest accepted base takes precedence. Mechanical jobs
 already selected for a mixed batch keep their places, and recovered cohorts use
 their existing routing. Each selected job runs the same staging and batch gates.
 
+Set `unused_author_slots` to reserve places for passing author assignments whose
+rules are all unused in the verified current checkpoint scan. This uses open
+places after mechanical work and the active recovery cohort. It allows those
+author proposals to reach a full audit sooner while retaining their checked
+grammar changes and original attempt evidence.
+
 An optional hash-bound `native_regression_controls` profile lists allowed face
 names. Staging verifies the base against that closed population, then checks each
 family-passing trial before admitting it. This catches known cross-family

@@ -122,6 +122,28 @@ class RecoveredCohortTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'checkpoint changed'):
             driver.reviewed_replay_jobs(self.queue,'head',2)
 
+    def test_unused_author_priority_requires_full_assignment_and_passing_attempt(self):
+        self.prepare(['covered', 'mixed', 'failed', 'parked', 'ready', 'later'])
+        root = Path(self.temp.name)
+        inputs = root/'inputs'
+        (root/'checkpoints').mkdir()
+        r.write(root/'checkpoints/head.json', {'inputs': str(inputs)})
+        with closing(self.queue._connect()) as db:
+            db.execute("UPDATE attempts SET result=json_object('status','provisional-pass')")
+            db.execute("UPDATE attempts SET result=json_object('status','needs-review') WHERE job_id='failed'")
+            db.execute("UPDATE jobs SET payload=json_set(payload,'$.rules',json('[\"rule_mixed\",\"needed\"]')) "
+                       "WHERE id='mixed'")
+            db.execute("UPDATE jobs SET status='needs-review' WHERE id='parked'")
+        unused = {'rule_'+name for name in ['covered', 'mixed', 'failed', 'parked', 'ready', 'later']}
+        with patch.object(driver, 'scan_evidence', return_value={'proof': 'scan'}) as evidence, \
+                patch.object(driver, 'verify_scan', return_value=(inputs, unused, 'manifest', 'scan')) as verify:
+            self.assertEqual(driver.unused_author_jobs(self.queue, 'head', 1, ['covered']), ['ready'])
+            evidence.assert_called_once_with(inputs)
+            verify.assert_called_once_with(root, 'head', 'proof', {'proof': 'scan'})
+            self.assertEqual(driver.unused_author_jobs(self.queue, 'head', 3, ['covered']), ['ready', 'later'])
+            with self.assertRaisesRegex(ValueError, 'checkpoint changed'):
+                driver.unused_author_jobs(self.queue, 'past', 1, [])
+
     def test_ready_caller_priority_respects_other_blockers_and_already_selected_jobs(self):
         root = Path(self.temp.name)
         source = root/'source'
@@ -152,14 +174,14 @@ class RecoveredCohortTests(unittest.TestCase):
         self.assertEqual(driver.with_reviewed_replays(self.queue,'head',0,2,['fifo','last'],
                                                      callers=['first']),['first','fifo'])
 
-    def test_union_opt_in_dispatches_only_the_current_attempt_recovery_group(self):
+    def test_recovery_dispatch_fills_spare_slots_with_unused_author_work(self):
         self.prepare(['fresh', 'a', 'b', 'stale', 'other'])
         self.event('a', 'isolated'); self.event('b', 'isolated')
         self.event('stale', 'isolated', attempt='previous-attempt'); self.event('other', 'later')
         run = Path(self.temp.name); runner = run/'runners/test'; runner.mkdir(parents=True)
         r.write(run/'config.json', {'first_batch_size': 4, 'batch_size': 4, 'initial_commit': 'head',
                                    'batch_wait_seconds': 900, 'recovered_cohorts_first': True,
-                                   'recovered_union_trial': True})
+                                   'recovered_union_trial': True, 'unused_author_slots': 2})
         with closing(self.queue._connect()) as db:
             for name in ('fresh', 'a', 'b', 'stale', 'other'):
                 report = run/(name+'.json'); r.write(report, {'identity': name})
@@ -167,16 +189,20 @@ class RecoveredCohortTests(unittest.TestCase):
                                                                    'report': str(report)}}
                 db.execute('UPDATE attempts SET result=? WHERE id=?', (json.dumps(result), 'attempt_'+name))
         def guarded_batch(selected_run, ids, *, combine_selected):
-            self.assertEqual(ids, ['a', 'b']); self.assertTrue(combine_selected)
+            self.assertEqual(ids, ['a', 'b', 'fresh']); self.assertTrue(combine_selected)
             proposals = driver.dispatch.proposals(selected_run, 4, ids)
             self.assertEqual([(p['job_id'], p['attempt_id'], p['report']['identity']) for p in proposals],
-                             [('a', 'attempt_a', 'a'), ('b', 'attempt_b', 'b')])
+                             [('a', 'attempt_a', 'a'), ('b', 'attempt_b', 'b'), ('fresh', 'attempt_fresh', 'fresh')])
             raise RuntimeError('guarded staging reached')
         with patch.object(driver, '_runner', return_value=runner), \
+                patch.object(driver, 'unused_author_jobs', return_value=['fresh']) as preferred, \
                 patch.object(driver.dispatch, '_batch', side_effect=guarded_batch) as batch, \
                 self.assertRaisesRegex(RuntimeError, 'guarded staging reached'):
             driver.run_driver(run, runner)
-        batch.assert_called_once_with(run, ['a', 'b'], combine_selected=True)
+        preferred.assert_called_once()
+        queue, head, slots, prefix = preferred.call_args.args
+        self.assertEqual((queue.path, head, slots, prefix), (self.queue.path, 'head', 2, ['a', 'b']))
+        batch.assert_called_once_with(run, ['a', 'b', 'fresh'], combine_selected=True)
 
     def test_numeric_job_identity_is_not_coerced_to_a_string(self):
         self.prepare(['123'])
