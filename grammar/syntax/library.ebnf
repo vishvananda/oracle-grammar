@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow
+clause_search ::= clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_any_number}, ...$search_plural_follow] */
@@ -452,7 +452,7 @@ dig_reveal_any ::= "you" "may" "reveal" "any" "number" "of" search_filter_many "
 dig_found_many ::= "them" | "those" "cards" | "the" "revealed" "cards"
 
 /* "You may put a card" takes at most one; "put a card" takes one if there is one. */
-dig_put_take ::= dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all | dig_put_one_each
+dig_put_take ::= dig_put_same_name | dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all | dig_put_one_each
 
 /* "A creature card and/or a land card": up to one card of each kind. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:UpTo(Constant(2)), constraints:[OneForEach([$card_filter, $card_filter_2])]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
@@ -1679,3 +1679,66 @@ pile_top_count ::= "the" "top" card_count "of" "your" "library"
 /* A chance-selected subset of a named player's hand is observed by the ability controller. */
 /* @sem Operation::WithSelections{steps:[_{binding:@selection_id(0), objects:Zone(_{scope:Players{zone:Hand, players:One($player_possessive)}, kind:Card, filter:Any}), chooser:Chance, count:AsManyAsCan($card_count)}], action:LookAt{player:AbilityController, objects:Prepared(@selection_id(0))}} */
 look_random_hand_cards ::= "look" "at" card_count "at" "random" "in" player_possessive "hand"
+
+/* Select from the looked-at library cards by a name shared with a battlefield permanent. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:SharesNameWithAny(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase})}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+dig_put_same_name ::= "you" "may" "put" "one" "of" "those" "cards" "onto" "the" "battlefield" "if" "it" "has" "the" "same" "name" "as" "a" filter_phrase
+
+/* The cast consumes the singular selection of the immediately preceding search. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$target_possessive, choices:[$search_cast_single_choice]}}, Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Selected(@prior), count:AnyNumber, terms:_{cost:Free}}}] */
+clause_search_selected_free_cast ::= "search" target_possessive "library" "for" search_cast_single_choice "." "you" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost"
+
+search_cast_single_choice ::= search_choice_filtered | search_choice_any | search_choice_modified | search_named_one
+
+/* Move the named private-zone populations together before shuffling. */
+/* @sem ObjectSet::Union([Zone{scope:Players{zone:$your_zone, players:One(AbilityController)}, kind:Card, filter:Any}, Zone{scope:Players{zone:$shuffle_own_zone, players:One(AbilityController)}, kind:Card, filter:Any}]) */
+shuffle_own_zone_pair ::= your_zone "and" shuffle_own_zone
+
+/* @sem EventZone::Hand */
+shuffle_own_hand ::= "hand"
+
+/* @sem EventZone::Graveyard */
+shuffle_own_zone_graveyard ::= "graveyard"
+
+shuffle_own_zone ::= shuffle_own_hand | shuffle_own_zone_graveyard
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:$shuffle_own_zone_pair, destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+clause_shuffle_own_zones ::= "shuffle" shuffle_own_zone_pair "into" "your" "library"
+
+/* Plural counted searches use plural follow-ups, preserving agreement. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_counted}, ...$search_counted_reorder] */
+clause_search_counted ::= search_counted search_counted_reorder
+
+/* Reordering takes the selected cards out of the shuffle and then places them. */
+search_counted_reorder ::= search_shuffle_top_any_order | search_shuffle_bottom_any_order | search_shuffle_top_random_order
+
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_counted_choice]} */
+search_counted ::= "search" "your" "library" "for" search_counted_choice
+
+search_counted_choice ::= search_choice_counted | search_choice_counted_filtered
+
+/* Counted searches retain their selected cards for the shared follow-ups. */
+/* @sem SearchChoice::SearchChoice{filter:Any, count:AsManyAsCan($count)} */
+search_choice_counted ::= count "cards"
+
+/* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:AsManyAsCan($count)} */
+search_choice_counted_filtered ::= count search_filter_many
+
+/* The found cards remain excluded from the shuffle before their chosen placement. */
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Shuffle{players:One(PlayerRef::AbilityController), excluding:Selected(@marked)}}, Instruction::Effect{result:@next, operation:Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@marked), end:Bottom, order:Chosen}}] */
+search_shuffle_bottom_any_order ::= "," "then" "shuffle" "and" "put" "those" "cards" "on" "the" "bottom" "in" "any" "order"
+
+/* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::Shuffle{players:One(PlayerRef::AbilityController), excluding:Selected(@marked)}}, Instruction::Effect{result:@next, operation:Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@marked), end:Top, order:Random}}] */
+search_shuffle_top_random_order ::= "," "then" "shuffle" "and" "put" "those" "cards" "on" "top" "in" "a" "random" "order"
+
+/* Keep the singular search receipt across the shuffle and the placement. */
+/* @sem Instruction::[Effect{result:@mark, operation:$search_single_library}, ...$search_shuffle_depth] */
+clause_search_single_depth ::= search_single_library search_shuffle_depth
+
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_single_choice]} */
+search_single_library ::= "search" "your" "library" "for" search_single_choice
+
+search_single_choice ::= search_choice_any | search_choice_filtered | search_choice_modified | search_choice_optional_one
+
+/* @sem Instruction::[Effect{result:@next, operation:Shuffle{players:One(AbilityController), excluding:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Library{position:FromTop($library_depth), order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+search_shuffle_depth ::= "," "then" "shuffle" "and" "put" "that" "card" library_depth "from" "the" "top"

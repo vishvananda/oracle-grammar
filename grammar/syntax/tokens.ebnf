@@ -115,9 +115,9 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power
+token_group ::= token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x
 
-token_copy ::= token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander
+token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -133,7 +133,7 @@ token_copy_plural ::= count "tokens" "that" "are" "copies" "of"
 token_copy_modified ::= token_copy_quantity object_ref "," "except" copy_exceptions_plain
 
 /* The word `tapped` follows the count, so the count and description stay one phrase. */
-token_group_tapped ::= token_defined_tapped | token_defined_each_tapped | token_named_tapped | token_copy_plain_tapped | token_copy_modified_tapped | token_copy_characteristics_tapped
+token_group_tapped ::= token_defined_tapped | token_defined_each_tapped | token_named_tapped | token_copy_plain_tapped | token_copy_plural_tapped | token_copy_modified_tapped | token_copy_characteristics_tapped
 
 /* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe} */
 token_defined ::= token_amount token_recipe
@@ -284,7 +284,7 @@ tt_enchantment_creature ::= "enchantment" "creature"
 /* @sem CardType::[Land, Creature] */
 tt_land_creature ::= "land" "creature"
 
-token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf
+token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites
 
 /* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Blood], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Discard{count:Expr::Constant(1), filter:Any}, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
 tn_blood ::= "Blood"
@@ -429,7 +429,7 @@ token_explicit_legendary ::= token_explicit_legendary_plain | token_explicit_leg
 token_explicit_legendary_plain ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token"
 /* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
 token_explicit_legendary_with ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
-explicit_legendary_name ::= explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned
+explicit_legendary_name ::= explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami
 /* @sem TokenName::Explicit(Tiny) */
 explicit_token_tiny ::= "Tiny"
 /* @sem TokenName::Explicit('Stangg Twin') */
@@ -688,3 +688,65 @@ token_named_death_treasure ::= "when" "Smaug" "dies" "," "create" chapter_plural
 chapter_quoted_token ::= explicit_token_smaug "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" "with" keyword_name "," keyword_name "," "and" '"' token_named_death_treasure '"'
 
 chapter_plural_token_count ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20 | n30
+
+/* Names and token characteristics are independent operands. */
+/* @sem TokenName::Explicit(Voja) */
+explicit_voja ::= "Voja"
+
+/* @sem TokenName::Explicit('Voja Fenstalker') */
+explicit_voja_fenstalker ::= "Voja" "Fenstalker"
+
+/* @sem TokenName::Explicit('Voja, Friend to Elves') */
+explicit_voja_friend ::= "Voja" "," "↑" "friend" "to" "Elves"
+
+/* Walker's intrinsic characteristics do not vary with the quantity created. */
+/* @sem TokenSpec::TokenSpec{amount:$count, words:Rules, recipe:Defined{name:Explicit(Walker), colors:[Black], card_types:[Creature], subtypes:[Zombie], power_toughness:[Constant(2), Constant(2)]}} */
+token_walker_group ::= count "Walker" "tokens"
+
+/* The plural exception agrees with the copied batch. */
+/* @sem TokenSpec::TokenSpec{amount:$count, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_plural_stats_types_keyword}} */
+token_copy_plural_dragon ::= count "tokens" "that" "are" "copies" "of" object_ref "," "except" copy_plural_stats_types_keyword
+
+/* @sem Vec<CopyException>::[SetPowerToughness{power:$token_stat, toughness:$token_stat_2}, AddCreatureTypes($becomes_types), AddCardTypes([Creature]), AddAbilities([Keyword($keyword_value)])] */
+copy_plural_stats_types_keyword ::= "they're" token_stat "/" token_stat becomes_types "creatures" "in" "addition" "to" "their" "other" "types" "," "and" "they" "have" keyword_value
+
+/* @sem TokenRecipe::Defined{name:FromSubtypes, colors:[$token_color], card_types:[Creature], subtypes:[@subtype_name($creature_subtype)], power_toughness:[Aggregate{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}), property:ManaValue, aggregation:Sum}, Aggregate{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}), property:ManaValue, aggregation:Sum}]} */
+linked_exile_value_token ::= "X" "/" "X" token_color creature_subtype "creature" "token" "," "where" "X" "is" "the" "mana" "value" "of" "the" "exiled" "card"
+
+/* Plural copy wording retains the copied object and each exception. */
+/* @sem TokenSpec::TokenSpec{amount:$count, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_plural_exceptions}} */
+token_copy_modified_plural ::= count "tokens" "that" "are" "copies" "of" object_ref "," "except" copy_plural_exceptions
+
+/* @sem Vec<CopyException>::[$copy_plural_remove_legendary] */
+copy_plural_exceptions_one ::= copy_plural_remove_legendary
+
+/* @sem Vec<CopyException>::[$copy_plural_stats, $copy_plural_remove_legendary_2] */
+copy_plural_exceptions_stats ::= copy_plural_stats "and" copy_plural_remove_legendary_2
+
+copy_plural_exceptions ::= copy_plural_exceptions_one | copy_plural_exceptions_stats
+
+/* @sem CopyException::RemoveSupertypes([Legendary]) */
+copy_plural_remove_legendary ::= "they're" "not" "legendary"
+
+/* @sem CopyException::RemoveSupertypes([Legendary]) */
+copy_plural_remove_legendary_2 ::= "they" "aren't" "legendary"
+
+/* @sem CopyException::SetPowerToughness{power:$value, toughness:$value_2} */
+copy_plural_stats ::= "they're" value "/" value
+
+/* @sem TokenSpec::TokenSpec{amount:$count, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
+token_copy_plural_tapped ::= count "tapped" "tokens" "that" "are" "copies" "of" object_ref
+
+/* @sem TokenName::Explicit(Urami) */
+explicit_token_urami ::= "Urami"
+
+/* @sem TokenRecipe::Named('Scryb Sprites') */
+tn_scryb_sprites ::= "Scryb" "Sprites"
+
+/* Named token recipes compose with a measured quantity. */
+/* @sem TokenSpec::TokenSpec{amount:$value_opponents, words:Rules, recipe:$token_named_recipe} */
+token_named_equal ::= "a" "number" "of" token_named_recipe "tokens" "equal" "to" value_opponents
+
+/* The triggering object's cast X is distinct from a spell's announced X. */
+/* @sem TokenSpec::TokenSpec{amount:Divide{numerator:CastX(EventSubject), denominator:Constant(2), rounding:$rounding_words}, words:Rules, recipe:$token_named_recipe} */
+token_named_half_event_x ::= "half" "X" token_named_recipe "tokens" "," rounding_words

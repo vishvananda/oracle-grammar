@@ -97,14 +97,14 @@ level_stage ::= level_range | level_range_abilities | level_from | level_from_ab
 /* @sem CounterStage::CounterStage{minimum:$number, maximum:$number_2, power_toughness:[$number_3, $number_4], animates:false, abilities:[]} */
 level_range ::= "LEVEL" NUMBER "‑" NUMBER NEWLINE NUMBER "/" NUMBER
 
-/* @sem CounterStage::CounterStage{minimum:$number, maximum:$number_2, power_toughness:[$number_3, $number_4], animates:false, abilities:$stage_abilities} */
-level_range_abilities ::= "LEVEL" NUMBER "‑" NUMBER NEWLINE NUMBER "/" NUMBER NEWLINE stage_abilities
+/* @sem CounterStage::CounterStage{minimum:$number, maximum:$number_2, power_toughness:[$number_3, $number_4], animates:false, abilities:$level_stage_abilities} */
+level_range_abilities ::= "LEVEL" NUMBER "‑" NUMBER NEWLINE NUMBER "/" NUMBER NEWLINE level_stage_abilities
 
 /* @sem CounterStage::CounterStage{minimum:$number, power_toughness:[$number_2, $number_3], animates:false, abilities:[]} */
 level_from ::= "LEVEL" NUMBER "⁺" NEWLINE NUMBER "/" NUMBER
 
-/* @sem CounterStage::CounterStage{minimum:$number, power_toughness:[$number_2, $number_3], animates:false, abilities:$stage_abilities} */
-level_from_abilities ::= "LEVEL" NUMBER "⁺" NEWLINE NUMBER "/" NUMBER NEWLINE stage_abilities
+/* @sem CounterStage::CounterStage{minimum:$number, power_toughness:[$number_2, $number_3], animates:false, abilities:$level_stage_abilities} */
+level_from_abilities ::= "LEVEL" NUMBER "⁺" NEWLINE NUMBER "/" NUMBER NEWLINE level_stage_abilities
 
 /* Spree: each mode adds its cost. */
 /* @sem Ability::[Ability::Spree{modes:$spree_modes}] */
@@ -855,3 +855,12 @@ mechanic_splice_onto_dashed ::= "splice" "onto" filter_phrase "―" cost "."
 /* A charge threshold wraps a single independently parsed stage ability. */
 /* @sem Ability::CounterStages{counter:Named(ChargeCounter), stages:[_{minimum:$number, abilities:$stage_line}]} */
 charge_threshold_ability ::= NUMBER "⁺" "|" stage_line
+
+/* Comma-separated keywords on a level line share its stage. */
+level_stage_abilities ::= stage_abilities | level_keyword_pair | level_keyword_pair_more
+
+/* @sem Ability::[Keyword($keyword_value), Keyword($keyword_value_2)] */
+level_keyword_pair ::= keyword_value "," keyword_value
+
+/* @sem Ability::[...$level_keyword_pair, ...$stage_abilities] */
+level_keyword_pair_more ::= level_keyword_pair NEWLINE stage_abilities

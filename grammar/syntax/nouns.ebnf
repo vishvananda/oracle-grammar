@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand
+object_set ::= objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -2551,3 +2551,19 @@ counter_payment_source_an ::= "an" filter_phrase
 
 /* @sem ObjectFilter::AllOf([Not(SameObject(Source)), $filter_phrase]) */
 counter_payment_source_another ::= "another" filter_phrase
+
+/* Each member of either controlled population, with inclusive and/or wording. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::@or($controlled_union_compound, $noun), ObjectFilter::ControlledBy(One(AbilityController)))} */
+objects_each_controlled_and_or_union ::= "each" controlled_union_compound "and" "/" "or" noun "you" "control"
+
+/* A typed head is one branch of this union, independently of the other noun. */
+/* @sem @and($noun_atomic, $filter_simple) */
+controlled_union_compound ::= noun_atomic filter_simple
+
+/* Both zones belong to the ability controller and share the selected filter. */
+/* @sem ObjectSet::Union([Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}), Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase})]) */
+private_spell_population ::= filter_phrase "spell" "from" "your" "hand" "or" "graveyard"
+
+/* A disjunction of five plural populations joined by the Oracle and/or form. */
+/* @sem ObjectFilter::AnyOf([$filter_plural, $filter_plural_2, $filter_plural_3, $filter_phrase, $filter_plural_4]) */
+plural_five_and_or ::= filter_plural "," filter_plural "," filter_plural "," filter_phrase "," "and" "/" "or" filter_plural

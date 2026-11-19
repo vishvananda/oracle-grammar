@@ -1,0 +1,722 @@
+{
+  "family": "retirement-dd9e3d7582891736",
+  "cases": [
+    {
+      "name": "Demilich",
+      "text": "This spell costs {U} less to cast for each instant and sorcery spell you've cast this turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "ReduceCost": [
+              {
+                "color": "Blue",
+                "amount": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "Spell": {
+                        "event": "Cast",
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "spells": {
+                          "kind": "AnyOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Instant"
+                            },
+                            {
+                              "kind": "CardType",
+                              "args": "Sorcery"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Ertai's Scorn",
+      "text": "This spell costs {U} less to cast if an opponent cast two or more spells this turn.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "If": {
+              "condition": {
+                "kind": "ExistsPlayer",
+                "args": {
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "binding": 0,
+                  "condition": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Spell": {
+                              "event": "Cast",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                }
+                              },
+                              "spells": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 2
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "rule": {
+                "ReduceCost": [
+                  {
+                    "color": "Blue",
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Mindbreak Trap",
+      "text": "If an opponent cast three or more spells this turn, you may pay {0} rather than pay this spell's mana cost.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "If": {
+              "condition": {
+                "kind": "ExistsPlayer",
+                "args": {
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "binding": 0,
+                  "condition": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Spell": {
+                              "event": "Cast",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                }
+                              },
+                              "spells": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 3
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "rule": {
+                "AlternativeCost": {
+                  "parts": [
+                    {
+                      "Mana": [
+                        {
+                          "Generic": 0
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Once Upon a Time",
+      "text": "If this spell is the first spell you've cast this game, you may cast it without paying its mana cost.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "If": {
+              "condition": {
+                "kind": "Not",
+                "args": {
+                  "kind": "Compare",
+                  "args": {
+                    "left": {
+                      "kind": "EventHistory",
+                      "args": {
+                        "event": {
+                          "Spell": {
+                            "event": "Cast",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            },
+                            "spells": {
+                              "kind": "Any"
+                            }
+                          }
+                        },
+                        "window": "ThisGame",
+                        "measure": "Occurrences"
+                      }
+                    },
+                    "test": {
+                      "kind": "Compare",
+                      "args": {
+                        "comparison": "GreaterOrEqual",
+                        "value": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "rule": {
+                "AlternativeCost": {
+                  "parts": []
+                }
+              }
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Refraction Trap",
+      "text": "If an opponent cast a red instant or sorcery spell this turn, you may pay {W} rather than pay this spell's mana cost.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "If": {
+              "condition": {
+                "kind": "ExistsPlayer",
+                "args": {
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "binding": 0,
+                  "condition": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Spell": {
+                              "event": "Cast",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                }
+                              },
+                              "spells": {
+                                "kind": "AllOf",
+                                "args": [
+                                  {
+                                    "kind": "Color",
+                                    "args": "Red"
+                                  },
+                                  {
+                                    "kind": "AnyOf",
+                                    "args": [
+                                      {
+                                        "kind": "CardType",
+                                        "args": "Instant"
+                                      },
+                                      {
+                                        "kind": "CardType",
+                                        "args": "Sorcery"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "rule": {
+                "AlternativeCost": {
+                  "parts": [
+                    {
+                      "Mana": [
+                        {
+                          "Color": "White"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Example",
+      "text": "If an opponent cast three or more lands this turn, you may pay {0} rather than pay this spell's mana cost.",
+      "types": [
+        "Instant"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Mindbreak Trap",
+      "text": "If an opponent cast four or more spells this turn, you may pay {0} rather than pay this spell's mana cost.\nExile any number of target spells.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [
+          "Trap"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "If": {
+              "condition": {
+                "kind": "ExistsPlayer",
+                "args": {
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "binding": 0,
+                  "condition": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Spell": {
+                              "event": "Cast",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                }
+                              },
+                              "spells": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 4
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "rule": {
+                "AlternativeCost": {
+                  "parts": [
+                    {
+                      "Mana": [
+                        {
+                          "Generic": 0
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": "AnyNumber",
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Stack"
+                            },
+                            "kind": "Spell",
+                            "filter": {
+                              "kind": "InSet",
+                              "args": {
+                                "kind": "Targets",
+                                "args": 0
+                              }
+                            }
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Ertai's Scorn",
+      "text": "This spell costs {U} less to cast if an opponent cast three or more spells this turn.\nCounter target spell.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "If": {
+              "condition": {
+                "kind": "ExistsPlayer",
+                "args": {
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "binding": 0,
+                  "condition": {
+                    "kind": "Compare",
+                    "args": {
+                      "left": {
+                        "kind": "EventHistory",
+                        "args": {
+                          "event": {
+                            "Spell": {
+                              "event": "Cast",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Bound",
+                                  "args": 0
+                                }
+                              },
+                              "spells": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "window": "ThisTurn",
+                          "measure": "Occurrences"
+                        }
+                      },
+                      "test": {
+                        "kind": "Compare",
+                        "args": {
+                          "comparison": "GreaterOrEqual",
+                          "value": {
+                            "kind": "Constant",
+                            "args": 3
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "rule": {
+                "ReduceCost": [
+                  {
+                    "color": "Blue",
+                    "amount": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Counter",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "destination": {
+                          "OwnersGraveyard": {
+                            "counters": [],
+                            "states": []
+                          }
+                        },
+                        "destination_when": null
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
