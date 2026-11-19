@@ -89,6 +89,9 @@ Read their -- usage from src/bin if needed, instead of building anything.
 Create {task['fixture']} with 4-64 focused family cases including an explicit
 expected IR, a refusal and exact/default printing controls. It will run with
 --compositional. Derive expected IR from the fixed allowed gold, not changed output.
+Each case's name is its card name for tokenization. Use the actual face name
+for self-references. For synthetic cases, choose a name whose full and shortened
+forms do not occur in the rules text.
 Keep every authored family case compositional; do not set compositional:false.
 The coordinator separately checks whole-card operand edits with any unrelated,
 unassigned seeded clauses retained; that check does not establish phrase coverage.
