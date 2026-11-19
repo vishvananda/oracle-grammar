@@ -932,6 +932,7 @@ mod grouped_numbers;
 mod lowered_statics;
 mod nonlegendary;
 mod print_frontier;
+mod print_style;
 mod reference_prints;
 mod reported_corrections;
 mod reported_issue_contracts;

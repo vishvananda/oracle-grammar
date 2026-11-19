@@ -723,16 +723,9 @@ fn plain_phrasing(tokens: &[Token], found: &mut Found) {
 #[derive(Default)]
 pub struct Model {
     ids: HashMap<String, u32>,
-    three: HashMap<(u32, u32, u32), u32>,
-    /// Trigrams by their first two tokens.
-    leading: HashMap<(u32, u32), u32>,
-    /// Trigrams by their last two tokens.
-    pairs: HashMap<(u32, u32), u32>,
-    /// Trigrams by their middle token.
-    middle: HashMap<u32, u32>,
-    /// Trigrams by their last token.
-    last: HashMap<u32, u32>,
-    total: f32,
+    three: HashMap<(u32, u32, u32), f32>,
+    pairs: HashMap<(u32, u32), f32>,
+    last: HashMap<u32, f32>,
     /// What printing Oracle's cards taught about each trigram, on top of its likelihood.
     learned: HashMap<(u32, u32, u32), f32>,
 }
@@ -740,6 +733,14 @@ pub struct Model {
 impl Model {
     pub fn parse(table: &str) -> Self {
         let mut model = Self::default();
+        let (mut three, mut leading, mut pairs, mut middle, mut last) = (
+            HashMap::default(),
+            HashMap::<_, u32>::default(),
+            HashMap::<_, u32>::default(),
+            HashMap::<_, u32>::default(),
+            HashMap::<_, u32>::default(),
+        );
+        let mut total = 0.0;
         for line in table.lines() {
             let mut fields = line.split(' ');
             let (Some(a), Some(b), Some(c), Some(count)) =
@@ -751,13 +752,32 @@ impl Model {
                 continue;
             };
             let (a, b, c) = (model.id(a), model.id(b), model.id(c));
-            model.three.insert((a, b, c), count);
-            *model.leading.entry((a, b)).or_default() += count;
-            *model.pairs.entry((b, c)).or_default() += count;
-            *model.middle.entry(b).or_default() += count;
-            *model.last.entry(c).or_default() += count;
-            model.total += count as f32;
+            three.insert((a, b, c), count);
+            *leading.entry((a, b)).or_default() += count;
+            *pairs.entry((b, c)).or_default() += count;
+            *middle.entry(b).or_default() += count;
+            *last.entry(c).or_default() += count;
+            total += count as f32;
         }
+        // Freeze the same backoff weights once. Ranking repeatedly looks up these
+        // probabilities while exploring alternatives for a partial derivation.
+        model.three = three
+            .into_iter()
+            .map(|((a, b, c), count)| ((a, b, c), (count as f32 / leading[&(a, b)] as f32).ln()))
+            .collect();
+        model.pairs = pairs
+            .into_iter()
+            .map(|((b, c), count)| {
+                (
+                    (b, c),
+                    BACKOFF.ln() + (count as f32 / middle[&b] as f32).ln(),
+                )
+            })
+            .collect();
+        model.last = last
+            .into_iter()
+            .map(|(c, count)| (c, 2.0 * BACKOFF.ln() + (count as f32 / total).ln()))
+            .collect();
         model
     }
 
@@ -809,20 +829,16 @@ impl Model {
             return UNSEEN;
         };
         if let (Some(a), Some(b)) = (a, b)
-            && let (Some(seen), Some(before)) =
-                (self.three.get(&(a, b, c)), self.leading.get(&(a, b)))
+            && let Some(weight) = self.three.get(&(a, b, c))
         {
-            return (*seen as f32 / *before as f32).ln();
+            return *weight;
         }
         if let Some(b) = b
-            && let (Some(seen), Some(before)) = (self.pairs.get(&(b, c)), self.middle.get(&b))
+            && let Some(weight) = self.pairs.get(&(b, c))
         {
-            return BACKOFF.ln() + (*seen as f32 / *before as f32).ln();
+            return *weight;
         }
-        match self.last.get(&c) {
-            Some(count) => 2.0 * BACKOFF.ln() + (*count as f32 / self.total).ln(),
-            None => UNSEEN,
-        }
+        self.last.get(&c).copied().unwrap_or(UNSEEN)
     }
 
     /// The log likelihood of a run of tokens, given the two before it when there are any.
