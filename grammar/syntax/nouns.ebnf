@@ -519,7 +519,7 @@ noun_outlaw ::= "outlaw"
 /* @sem ObjectFilter::CardType(Battle) */
 noun_battle ::= "battle"
 
-filter_plural ::= plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among | filter_plural_except_shared | filter_plural_quantified_three
+filter_plural ::= plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among | filter_plural_except_shared | filter_plural_quantified_three | plural_nonattacker_except_unable
 
 /* @sem @and($filter_outer_adjectives, $filter_plural) */
 filter_plural_adjectives ::= filter_outer_adjectives filter_plural
@@ -548,7 +548,7 @@ filter_plural_tail ::= plural_head | plural_modified | plural_compound_or | plur
 /* @sem @and($plural_head, $modifiers) */
 plural_modified ::= plural_head modifiers
 
-plural_head ::= plural | plural_either | plural_or | plural_and_or | plural_three | plural_four
+plural_head ::= plural | plural_either | plural_or | plural_and_or | plural_three | plural_four | plural_five
 
 /* @sem ObjectFilter::AnyOf([$plural, $plural_2]) */
 plural_or ::= plural "or" plural
@@ -572,8 +572,7 @@ plural_equipped_head ::= plural_atomic | plural_equipped_qualified
 /* @sem @and($adjective, $plural_equipped_head) */
 plural_equipped_qualified ::= adjective plural_equipped_head
 
-plural_atomic ::= plural_outlaw | plural_creature | plural_artifact | plural_enchantment | plural_land | plural_permanent | plural_planeswalker | subtype_plural
-    | plural_token | plural_commander | subtype_plural
+plural_atomic ::= plural_outlaw | plural_creature | plural_artifact | plural_enchantment | plural_land | plural_permanent | plural_planeswalker | subtype_plural | plural_token | plural_commander | subtype_plural
 
 /* @sem ObjectFilter::State(Commander) */
 plural_commander ::= "commanders"
@@ -953,7 +952,7 @@ players_or_controller ::= "that" "player" "or" "that" "planeswalker's" "controll
 /* @sem PlayerSet::One($player_ref) */
 player_one ::= player_ref
 
-player_ref ::= mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner
+player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner
     | attacking_player | damage_source_controller
 
 /* "That source's controller": the controller of the event's damage source. */
@@ -1406,7 +1405,7 @@ retarget_many_stack_object ::= retarget_instant_sorcery | retarget_subtype_spell
 retarget_instant_sorcery ::= "target" "instant" "or" "sorcery" "spell"
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:$subtype}), index:0} */
 retarget_subtype_spell ::= "target" subtype "spell"
-retarget_single_stack_object ::= retarget_single_spell | retarget_single_any_stack | retarget_single_instant_sorcery | retarget_single_activated | retarget_spell_only_source
+retarget_single_stack_object ::= retarget_spell_single_permanent | retarget_single_spell | retarget_single_any_stack | retarget_single_instant_sorcery | retarget_single_activated | retarget_spell_only_source
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(SingleTarget)}), index:0} */
 retarget_single_spell ::= "target" "spell" "with" "a" "single" "target"
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:OnStack(SingleTarget)}), index:0} */
@@ -1457,7 +1456,7 @@ filter_activated_or_tapped ::= noun "that" "was" "activated" "this" "turn" "or" 
 target_event_subject_choice ::= "target" adjective_nontype "permanent" "of" "that" "player's" "choice" "that" "one" "of" "your" "opponents" "controls"
 
 /* Stack selections are shared operands for counter effects. */
-counter_stack_objects ::= counter_one_linked_name | counter_one_sourced_ability | counter_one_mixed_stack | counter_many_stack | counter_many_spells | counter_one_cast_from_zone
+counter_stack_objects ::= counter_targeting_spell_or_ability | counter_targeting_instant_or_subtype | counter_one_linked_name | counter_one_sourced_ability | counter_one_mixed_stack | counter_many_stack | counter_many_spells | counter_one_cast_from_zone | counter_one_ability_or_filtered_spell
 
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([$counter_ability_kind, AbilityOf($counter_source_filter)])}), index:0}) */
 counter_one_sourced_ability ::= "target" counter_ability_kind "ability" "from" counter_source_filter "source"
@@ -2404,3 +2403,67 @@ filter_coin_tails ::= filter_plain "whose" "coin" "comes" "up" "tails"
 
 /* @sem ObjectFilter::History{event:Attacked, window:LastTurnOf(ControllerOf(Candidate))} */
 modifier_attacked_controllers_last_turn ::= "that" "attacked" "during" "their" "controller's" "last" "turn"
+
+/* Targeting restrictions describe the stack object, independently of the counter action. */
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:$counter_targeting_filter}), index:0}) */
+counter_targeting_spell_or_ability ::= "target" "spell" "or" "ability" "that" counter_targeting_filter
+
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([CardType(Instant), $subtype]), $counter_targeting_filter])}), index:0}) */
+counter_targeting_instant_or_subtype ::= "target" "instant" "or" subtype "spell" "that" counter_targeting_filter
+
+counter_targeting_filter ::= counter_targets_permanent | counter_targets_you_or_controlled
+
+/* @sem ObjectFilter::TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase})) */
+counter_targets_permanent ::= "targets" "a" filter_phrase
+
+/* @sem ObjectFilter::AnyOf([TargetsAny(Players(One(AbilityController))), TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(AbilityController))])}))]) */
+counter_targets_you_or_controlled ::= "targets" "you" "or" "a" noun "you" "control"
+
+/* @sem ObjectFilter::AnyOf([$plural_five_item, $plural_five_item_2, $plural_five_item_3, $plural_five_item_4, $plural_five_item_5]) */
+plural_five ::= plural_five_item "," plural_five_item "," plural_five_item "," plural_five_item "," union_and plural_five_item
+
+plural_five_item ::= plural | plural_marked_bats
+
+/* A full-turn attack-history filter with its explicit unable-to-attack exception. */
+/* @sem ObjectFilter::AllOf([@and($plural, $object_did_not_attack_turn), Not(AllOf([$filter_plural, State(CouldntAttack)]))]) */
+plural_nonattacker_except_unable ::= plural "that" object_did_not_attack_turn "," "except" "for" filter_plural "that" "couldn't" "attack"
+
+/* An announced spell is distinct from the permanent it targets. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:Any}), index:0} */
+condition_stack_target ::= "target" "spell"
+
+/* A threshold qualifies the same permanent named by the noun phrase. */
+/* @sem ObjectFilter::Counters{kind:$counter_kind, comparison:GreaterOrEqual, value:$value} */
+modifier_counter_threshold_on_it ::= "with" value "or" "more" counter_kind "counters" "on" "it"
+
+/* A named permanent controlled by the ability controller, used as an ability source. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(AbilityController)), Name($referenced_card_name)])} */
+controlled_named_ability_source ::= filter_phrase "you" "control" "named" referenced_card_name
+
+/* A single target may be either an ability of the stated kind or a spell
+   satisfying the stated characteristic. The two filters retain their own scope. */
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:AnyOf([AllOf([OnStack(Spell), $counter_spell_quality]), $counter_single_ability_kind])}), index:0}) */
+counter_one_ability_or_filtered_spell ::= "target" counter_single_ability_kind "ability" "or" counter_spell_quality "spell"
+
+counter_single_ability_kind ::= counter_ability_activated | counter_ability_triggered
+
+/* @sem ObjectFilter::OnStack(Triggered) */
+counter_ability_triggered ::= "triggered"
+
+counter_spell_quality ::= adjective_colorless | adjective_nontype
+
+/* A plural selection from one graveyard ranges over all owners; its enclosing
+   payment must enforce that the selected cards share an owner. */
+/* @sem CostObjectSelection::CostObjectSelection{objects:Matching{objects:Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$filter_phrase}), filter:OwnedBy(All)}, choose:Exactly($count_plural)} */
+single_graveyard_card_selection ::= count_plural filter_phrase "cards" "from" "a" "single" "graveyard"
+
+/* The later creature anaphor must refer to this exact target. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:CardType(Creature)}), index:0} */
+excess_damage_creature_target ::= "target" "creature"
+
+/* @sem PlayerRef::Active */
+active_player_ref ::= "the" "active" "player"
+
+/* A single-target spell constrained by the kind of permanent it targets. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([OnStack(SingleTarget), TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun}))])}), index:0} */
+retarget_spell_single_permanent ::= "target" "spell" "that" "targets" "only" "a" "single" noun

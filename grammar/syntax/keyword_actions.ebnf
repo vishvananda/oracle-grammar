@@ -190,8 +190,7 @@ object_endures ::= object_ref "endures" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Saddle{object:$object_ref}} */
 object_becomes_saddled ::= object_ref "becomes" "saddled" "until" "end" "of" "turn"
 
-group_keyword_action ::= selected_group_keyword_action | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores
-    | turn_all_face_down | detain_each
+group_keyword_action ::= selected_group_keyword_action | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$affected} */
 affected_phase_out ::= affected "phase" "out"
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Connive, objects:$affected} */
@@ -255,3 +254,15 @@ selected_group_phase_out ::= any_number_of_group "phase" "out"
 
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Connive, objects:$any_number_of_group} */
 selected_group_connive ::= any_number_of_group "connive"
+
+/* Phasing clauses retain the independently stated populations. */
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseIn, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}} */
+phase_in_filtered ::= "all" "phased-out" filter_plural "phase" "in"
+
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, HasKeywordFamily(Phasing)])}} */
+phase_out_with_phasing ::= "all" filter_plural "with" "phasing" "phase" "out"
+
+phase_action ::= phase_in_filtered | phase_out_with_phasing
+
+/* @sem Operation::Together([$phase_action, $phase_action_2]) */
+simultaneous_phase_actions ::= "simultaneously" "," phase_action "and" phase_action

@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring
+chapter_program ::= chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -112,3 +112,10 @@ chapter_target_block_ring ::= target_up_to_one "can't" "block" "for" "as" "long"
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$chapter_quoted_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}})] */
 chapter_3_named_token_quote ::= "III" "—" "create" chapter_quoted_token
 
+/* A standalone distribution chapter prints its total as a cardinal word. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$distribute_counters_chapter_targets}]} */
+chapter_distribute_counters ::= distribute_counters_chapter_targets
+
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo($count_plural), filter:$filter_plural, distribute:$count_plural}))), kind:$counter_kind, amount:DistributedShare(@share)}]} */
+distribute_counters_chapter_targets ::= "distribute" count_plural counter_kind "counters" "among" "any" "number" "of" "target" filter_plural

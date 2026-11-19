@@ -1,7 +1,7 @@
 /* Costs and mana symbols. */
 cost ::= cost_standard | cost_pay_mana_or_words
 
-cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another
+cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many
 
 /* "Remove three quest counters from this enchantment and sacrifice it": "it" is the
    source the counters come off. */
@@ -40,7 +40,7 @@ cost_symbols ::= cost_mana | cost_tap | cost_untap_symbol
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action
+cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -186,7 +186,7 @@ cost_discard_either_kind ::= "discard" ("a" | "an") card_filter "card" "or" card
 /* @sem CostPart::Exert(ObjectRef::Source) */
 cost_exert ::= "exert" self_text
 
-/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:$number, from:Top}, choose:Exactly($number)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:@plural_amount($number), from:Top}, choose:Exactly(@plural_amount($number))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
 cost_exile_top ::= "exile" "the" "top" number "cards" "of" "your" "library"
 
 /* "Exile the top creature card of your graveyard": the card the graveyard's order and
@@ -615,8 +615,7 @@ cost_exile_hand_selection ::= "exile" hand_cost_selection
 cost_put_counter_on_selected ::= "put" "a" counter_kind "counter" "on" cost_selected_permanent
 
 /* A coordinated sacrifice names three independent payments. */
-/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))} */
-cost_sacrifice_item ::= "a" filter_phrase
+cost_sacrifice_item ::= cost_sacrifice_item_a | cost_sacrifice_item_an
 
 /* @sem CostPart::[$cost_sacrifice_item, $cost_sacrifice_item_2, $cost_sacrifice_item_3] */
 cost_sacrifice_three ::= "sacrifice" cost_sacrifice_item "," cost_sacrifice_item "," "and" cost_sacrifice_item
@@ -1179,3 +1178,30 @@ cost_constraint_total_mana_value ::= "with" "total" "mana" "value" number
 /* A single paid choice keeps both source-zone branches and their selection rules together. */
 /* @sem CostPart::Choice([_{parts:[Move{selections:[_{objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}])}), choose:Exactly($counter_amount)}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, _{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}])}), count:AsManyAsCan($counter_amount)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}]) */
 hand_graveyard_entry_choice ::= "put" counter_amount filter_phrase "card" "with" "mana" "value" value "or" "less" "from" "your" "hand" "or" "graveyard" "onto" "the" "battlefield"
+
+/* A coordinated payment retains two independent sacrifice selections. */
+/* @sem CostPart::[CostPart::Sacrifice{objects:$affected}, $cost_sacrifice_item] */
+cost_sacrifice_self_and_one ::= "sacrifice" affected "and" cost_sacrifice_item
+
+/* @sem CostPart::[CostPart::Sacrifice{objects:$affected}, CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count)}] */
+cost_sacrifice_affected_and_many ::= "sacrifice" affected "and" count filter_plural
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice_item_a ::= "a" filter_phrase
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice_item_an ::= "an" filter_phrase
+
+/* @sem Ability::Casting(If{condition:$condition_opponent_controls_a, rule:$source_spell_reduction}) */
+casting_reduction_if_opponent_controls ::= source_spell_reduction "if" condition_opponent_controls_a "."
+
+/* Exiling a selection from one graveyard preserves the shared owner constraint. */
+/* @sem CostPart::Constrained{part:Move{selections:[$single_graveyard_card_selection], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}, constraints:[CommonProperty(Owners)]} */
+cost_exile_single_graveyard_selection ::= "exile" single_graveyard_card_selection
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, choose:Exactly(Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_top_one ::= "exile" "the" "top" "card" "of" "your" "library"
+
+/* A self-move from the command zone establishes the activation zone. */
+/* @sem Ability::Scoped{zones:[Command], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$command_self_entry}]}})} */
+activated_command_self_entry ::= cost ":" command_self_entry "."

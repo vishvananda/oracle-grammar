@@ -30,7 +30,7 @@ mana_clause_restricted ::= mana_clause "." mana_spending
 /* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($program)}}}] */
 instructions_mana_spent_trigger ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" spell_filter "," program
 
-mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat | mana_spend_only_countered
+mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat | mana_spend_only_countered | mana_spent_gives_riot
 /* @sem $mana_use */
 mana_spend_only ::= "spend" "this" "mana" "only" "to" mana_use
 /* @sem $mana_use */
@@ -245,3 +245,16 @@ mana_use_face_down_or_turn ::= "cast" "face-down" "spells" "or" "to" "turn" filt
 /* The persistence sentence qualifies the mana action, not the life gain. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:$mana_persists}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$value}}]} */
 program_sentence_mana_life_persists ::= "add" mana_production "and" "you" "gain" value "life" "." mana_persists "."
+
+/* The spell receiving riot is the one paid for with this mana. */
+/* @sem ManaUse::SpentGives{spells:$filter_phrase, effects:[Term{family:SpellEffect, form:Riot}]} */
+mana_spent_gives_riot ::= "if" "that" "mana" "is" "spent" "on" "a" filter_phrase "spell" "," "it" "gains" "riot"
+
+/* A player activates mana abilities of a described population. */
+/* @sem Operation::KeywordEach{actor:$players_singular, action:ObjectKeywordAction::ActivateManaAbility, objects:$affected} */
+mana_abilities_of_population ::= players_singular "activates" "a" "mana" "ability" "of" affected
+
+/* Keep the loss and its receipt in one production so the printed receipt has
+   the same producer in both directions. */
+/* @sem Instruction::[Effect{result:@next, operation:Together([$mana_abilities_of_population, Keyword{actor:$players_singular, action:KeywordAction::LoseUnspentMana}])}, Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:LostThisWay(@prior)}}] */
+instructions_mana_abilities_lost_receipt ::= mana_abilities_of_population "." "then" players_singular "loses" "all" "unspent" "mana" "and" "you" "add" "the" "mana" "lost" "this" "way"

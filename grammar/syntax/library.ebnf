@@ -353,7 +353,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other
+dig_block ::= dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -1635,3 +1635,32 @@ mode_search_that_card_hand ::= "•" search_that_card_hand_program
 /* The controller moves their whole graveyard and shuffles their library. */
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
 shuffle_own_graveyard ::= "shuffle" "your" "graveyard" "into" "your" "library"
+
+/* The remainder branches follow the take that produced their movement receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top_for_conditional_rest}, ...$dig_put_take, $dig_conditional_rest] */
+dig_look_conditional_rest ::= look_top_for_conditional_rest "." dig_put_take "." dig_conditional_rest
+
+/* @sem Instruction::If{condition:$condition_one, then:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(2), phase:Before}])}, zone:Library}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(3), phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}}]}} */
+dig_conditional_rest ::= "then" "if" condition_one "," "put" "the" "rest" "into" "your" "hand" "." "otherwise" "," "put" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order
+
+look_top_for_conditional_rest ::= look_top_spelled_count | look_top
+
+/* Retain written cardinal numbers in the initial look of this rest clause. */
+/* @prefer always */
+/* @sem Operation::LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:$count_plural, from:Top}} */
+look_top_spelled_count ::= "look" "at" "the" "top" count_plural "cards" "of" "your" "library"
+
+/* Keep the mill and its selected arrivals in one inverse-print contract. */
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$count_plural}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}, count:UpTo($count_plural_2)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+instructions_mill_put_battlefield ::= "mill" count_plural "cards" "." "put" "up" "to" count_plural card_filter "cards" "from" "among" "the" "milled" "cards" "onto" "the" "battlefield"
+
+/* Randomly exile part of a looked-at library slice, then reorder the cards
+   still in that library. The look owns the observation used by both steps. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, Effect{result:@next, operation:$look_random_exile}, Effect{result:@next, operation:$look_remaining_top}] */
+dig_look_random_exile ::= look_top "." look_random_exile "," "then" look_remaining_top
+
+/* @sem Operation::WithSelections{steps:[_{binding:@selection_id(0), chooser:Chance, objects:InZone{objects:Observed(@marked), zone:Library}, count:Exactly($value), constraints:[]}], action:Move{objects:Prepared(@selection_id(0)), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}} */
+look_random_exile ::= "exile" value "of" "them" "at" "random"
+
+/* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Top, order:$library_order} */
+look_remaining_top ::= "put" "the" "rest" "on" "top" "of" "your" "library" library_order
