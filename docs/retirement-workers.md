@@ -286,9 +286,37 @@ Other provisional work stays queued. The optional wait acquires the same batch
 lock as automatic batches; every selected proposal still receives normal
 staging, repository gates and full-population validation.
 
-This describes the campaign workflow, not evidence that a campaign has started
-or completed. See [the authoring pilot](retirement-authoring-pilot-20261116.md)
-for measured results and their population.
+See [the authoring pilot](retirement-authoring-pilot-20261116.md) for the
+matched Luna Max and Terra High results and their population.
+
+### Source-derived shared drafts
+
+Keep Terra High available for general authoring and screen source-derived drafts
+in a separate background process using the campaign CPU leases. The initial
+screen runs sequentially, takes at most two helper CPU slots, and tries at most
+eight single-owner candidates per accepted checkpoint. Rescan after publication
+so both tracks can reuse new grammar. Recheck the checkpoint and rule owner
+before screening, and hand ownership over only through a verified queue replay.
+
+Derive a typed slot from seeded declarations that share a syntax frame and a
+semantic structure. Reuse an existing child with a compatible type and binding,
+restricted to the witnessed alternatives when its full domain would expand the
+rule. Check the exact witnesses and approved overlapping surfaces before
+qualifying the draft. For qualification, use a proved compositional frame, keep
+applicable archived positives and refusals, and test edits to current operands
+with verified print and reparse. Replay the complete original owner cohort and
+keep any unselected rules assigned. Send ambiguous cases and drafts without
+independent fixtures to general authoring with their diagnostics.
+
+In the 21-cluster pilot, direct Terra qualified 37 rules and synthesis first
+qualified 40, with estimated API costs of $4.17 and $3.75 respectively. Both
+combined candidates failed full validation. A standalone closed subtype recipe
+passed all 32,755 approved occurrences for two rules with zero model calls.
+The live source inventory identified 33 of 7,313 remaining rules for screening,
+including cross-owner drafts. Keep all 12 Terra slots until the synthesis track
+shows sustained work at a higher accepted-rule rate across multiple checkpoints.
+Measure qualified-to-accepted conversion, model cost and CPU per accepted rule,
+and time to acceptance through the same integration gates.
 
 ## Legacy deletion-only worker
 
