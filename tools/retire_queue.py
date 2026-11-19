@@ -112,7 +112,8 @@ def _verify_readmission_artifacts(campaign, job_id, attempt_id, base_commit, ori
         raise ValueError('family gate proof does not match generated operand cases')
 
 
-def _verify_original_report(campaign, job_id, attempt_id, base_commit, original, report_spec, *, passed=True):
+def _verify_original_report(campaign, job_id, attempt_id, base_commit, original, report_spec, *,
+                            passed=True, unremoved=False):
     report_path, report_bytes = _proof_file(report_spec)
     if report_path != Path(original.get('report', '')):
         raise ValueError('report is not the original independently evaluated report')
@@ -130,7 +131,16 @@ def _verify_original_report(campaign, job_id, attempt_id, base_commit, original,
     descriptor = expected_run/'tasks'/f'{job_id}.json'
     support = expected_run/'support.json'
     family = report_path.parent/'family.json'
-    for path, key in ((descriptor, 'descriptor_sha256'), (support, 'support_sha256'), (family, 'fixture_sha256')):
+    artifacts = [(descriptor, 'descriptor_sha256'), (support, 'support_sha256')]
+    if unremoved:
+        if (passed or failures != ['remove exactly assigned rules; never rename or adopt seeded rules']
+                or report.get('scope') == 'author-target-preview'
+                or 'family_returncode' in report or family.exists()
+                or report.get('source_grammar') != report.get('grammar')):
+            raise ValueError('the archived draft did not stop at canonical seeded removal')
+    else:
+        artifacts.append((family, 'fixture_sha256'))
+    for path, key in artifacts:
         if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != report.get(key):
             raise ValueError('original evaluation artifact hash differs: '+key)
     support_data = json.loads(support.read_bytes())
@@ -147,8 +157,7 @@ def _verify_original_report(campaign, job_id, attempt_id, base_commit, original,
             grammar_files[str(path.relative_to(grammar))] = hashlib.sha256(path.read_bytes()).hexdigest()
     if grammar_files != report.get('grammar'):
         raise ValueError('original evaluated grammar changed')
-    authored = json.loads(family.read_bytes())
-    return report, authored
+    return report, None if unremoved else json.loads(family.read_bytes())
 
 
 def _verify_reviewed_repair(campaign, checkpoint, job, evidence, *, timed_out_attempt=None):
@@ -756,13 +765,15 @@ def _family_split_cases(evidence, archived, family, selected, deferred):
     return {case['name'] for case in positive}, required
 
 
-def _verify_family_split_coverage(campaign, evidence, checkpoint_evidence, selected, deferred, positive):
+def _verify_family_split_coverage(campaign, evidence, checkpoint_evidence, selected, deferred, positive=None):
     checkpoint = evidence['source_checkpoint']
     inputs, unused, _, digest = retire_rehabilitation.verify_scan(campaign, checkpoint, checkpoint_evidence,
                                                                   evidence.get('scan'))
     dependencies = json.loads(retire_rehabilitation._read(inputs/'scan/rules.json', digest)[0])['needed']
     targets = set(selected['target_faces'])
-    if any(rule in unused or not positive.intersection(dependencies.get(rule, ())) for rule in selected['rules']):
+    if any(rule in unused or not dependencies.get(rule) for rule in selected['rules']):
+        raise ValueError('each selected rule needs an accepted dependent face')
+    if positive is not None and any(not positive.intersection(dependencies[rule]) for rule in selected['rules']):
         raise ValueError('each selected rule needs an archived passing family case')
     selected_faces = {name for rule in selected['rules'] for name in dependencies[rule]}
     deferred_faces = {name for rule in deferred['rules'] for name in dependencies.get(rule, ())}
@@ -897,7 +908,8 @@ class Queue:
         kind = evidence.get('kind') if isinstance(evidence, dict) else None
         integration = kind == 'reviewed-integration-repair-split'
         family_split = kind == 'reviewed-family-repair-split'
-        repaired = family_split or kind == 'reviewed-author-repair-split'
+        unremoved = kind == 'reviewed-unremoved-draft-split'
+        repaired = family_split or unremoved or kind == 'reviewed-author-repair-split'
         if (not (integration or repaired or kind == 'reviewed-author-split')
                 or not isinstance(evidence.get('source_checkpoint'), str) or not evidence['source_checkpoint']
                 or not isinstance(attempt_id, str) or not attempt_id):
@@ -946,10 +958,14 @@ class Queue:
                 original = result['evidence']
                 _verify_split_dispositions(original, set(result['outcomes']), selected['rules'], repaired)
                 origin_job = origin['job_id']
+                options = {'passed': not repaired}
+                if unremoved:
+                    options['unremoved'] = True
                 archived, family = _verify_original_report(campaign, origin_job, attempt_id, base, original,
-                                                           evidence.get('original_report'), passed=not repaired)
-                if family_split:
-                    positive, preserved = _family_split_cases(evidence, archived, family, selected, deferred)
+                                                           evidence.get('original_report'), **options)
+                if family_split or unremoved:
+                    positive, preserved = (_family_split_cases(evidence, archived, family, selected, deferred)
+                                           if family_split else (None, []))
                     (accepted,), = db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (source,))
                     _verify_family_split_coverage(campaign, evidence, json.loads(accepted), selected, deferred, positive)
                 elif archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':

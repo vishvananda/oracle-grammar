@@ -146,6 +146,29 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.get_attempt(self.attempt), self.original)
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
+    def test_unremoved_draft_split_keeps_the_original_cohort_and_requires_separate_rules(self):
+        self.park()
+        evidence = {**self.evidence,'kind':'reviewed-unremoved-draft-split','scan':{'proof':'accepted'}}
+        scan = self.root/'scan/rules.json'
+        scan.parent.mkdir()
+        with patch.object(retire_rehabilitation,'verify_scan') as accepted:
+            def dependencies(value):
+                scan.write_text(json.dumps({'needed':value}))
+                accepted.return_value = self.root,set(),'manifest',sha256(scan.read_bytes()).hexdigest()
+            dependencies({'m_good':['A'],'m_deferred':['A']})
+            with self.assertRaisesRegex(ValueError,'does not separate'):
+                self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+            dependencies({'m_good':['A'],'m_deferred':['B']})
+            self.review.return_value = ({},{'cohort':['A']})
+            with self.assertRaisesRegex(ValueError,'does not cover the original cohort'):
+                self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+            self.review.return_value = ({},{'cohort':['A','B']})
+            receipt = self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        self.assertEqual(self.archive.call_args.kwargs, {'passed':False,'unremoved':True})
+        self.assertEqual(receipt['rules'], ['m_good'])
+        self.assertEqual(self.q.get_attempt(self.attempt), self.original)
+        self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
+
     def test_repair_can_split_an_inherited_review_using_the_original_attempt(self):
         self.park()
         rules = ['m_initial', 'm_repaired', 'm_held']
