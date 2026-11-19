@@ -80,6 +80,19 @@ class PreparationTests(unittest.TestCase):
             dispatch.mechanical_detail(Path('/input'), ['a', 'b'])
         chunk.assert_called_once_with(Path('/input'), ['a', 'b'])
 
+    def test_chunk_limit_routes_to_full_parse_screen(self):
+        inputs = Path('/input')
+        names = [f'n{i}' for i in range(4001)]
+        with patch.object(dispatch, 'mechanical_chunks',
+                          side_effect=cohort.MechanicalChunkLimit('too many chunks')):
+            detail, targets, plan = dispatch.mechanical_detail(inputs, names)
+        self.assertEqual((detail['names'], targets, plan), ([], [], None))
+        self.assertEqual(detail['scope'], dispatch.LARGE_MECHANICAL_POPULATION)
+        self.assertTrue(detail['full_batch_audit_required'])
+        with patch.object(dispatch, 'mechanical_chunks', side_effect=ValueError('invalid index')):
+            with self.assertRaisesRegex(ValueError, 'invalid index'):
+                dispatch.mechanical_detail(inputs, names)
+
 
 class WorkerTests(unittest.TestCase):
     def run_worker(self, mode):

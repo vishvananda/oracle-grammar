@@ -862,24 +862,36 @@ class DispatchCanaries(unittest.TestCase):
                 r.write(path/'result.json', result)
                 return result
 
-            for body, passed in (('number', True), ('"one"', False)):
-                with self.subTest(body=body):
+            large_scope = dispatch.LARGE_MECHANICAL_POPULATION
+            for body, scope, actual_scope, passed in (
+                    ('number', '', '', True), ('"one"', '', '', False),
+                    ('"one"', large_scope, large_scope, True),
+                    ('"one"', large_scope, 'bounded', False)):
+                with self.subTest(body=body, scope=scope, actual_scope=actual_scope):
                     (grammar/'mined.ebnf').write_text(
                         'mined_action ::= m_one | never_action\n'
                         f'm_one ::= {body}\nnever_action ::= "never"\n')
+                    task['cohort_detail'] = {'scope': scope}
                     with patch.object(dispatch.author, 'verify', return_value=(task, run, manifest)), \
                             patch.object(dispatch.r, 'verify', return_value=manifest), \
                             patch.object(dispatch.w, 'payload', return_value=payload), \
+                            patch.object(dispatch, 'mechanical_detail',
+                                         return_value=({'scope': actual_scope}, [], None)) as detail, \
                             patch.object(dispatch.retire_parse_screen, 'run', side_effect=screen) as audit, \
                             redirect_stdout(io.StringIO()) as output:
                         dispatch.mechanical(run, 'job')
                     report = json.loads(output.getvalue())
                     self.assertEqual(report['passed'], passed)
                     self.assertEqual(audit.call_count, int(passed))
+                    self.assertEqual(detail.call_count, int(scope == large_scope))
                     if passed:
                         proof = report['population_parse_screen']
                         self.assertEqual(r.digest(proof['path']), proof['sha256'])
                         self.assertEqual(report['faces'], 1)
+                        if scope == large_scope:
+                            self.assertEqual(report['literal_matches'], 1)
+                    elif scope == large_scope:
+                        self.assertIn('mechanical literal cohort fits the bounded diagnostic', report['failures'])
                     else:
                         self.assertIn('empty mechanical cohort omits known literal matches', report['failures'])
 

@@ -25,6 +25,7 @@ import retire_author as author
 import retire_author_pool as models
 import retire_batch
 import retire_campaign as campaign_api
+from retire_cohort import MechanicalChunkLimit
 import retire_cpu
 import retire_plan as planner
 import retire_parse_screen
@@ -38,6 +39,8 @@ from retire_queue import Queue, RehabilitationIneligible
 from retire_tasks import (CohortClosureLimit, close_cohort, mechanical_chunks,
                           prepare_task, validate_runner)
 import retire_worker as w
+
+LARGE_MECHANICAL_POPULATION = 'literal cohort exceeds chunk bounds; use full allowed parse screen'
 
 
 @contextmanager
@@ -110,7 +113,13 @@ def mechanical(run, task_id):
                           'mechanical cohort uncertain or too large')
                 names.update(cohort)
             if population_screen:
-                r.require(not names, 'empty mechanical cohort omits known literal matches')
+                if names:
+                    r.require(task.get('cohort_detail', {}).get('scope') == LARGE_MECHANICAL_POPULATION,
+                              'empty mechanical cohort omits known literal matches')
+                    detail, _, _ = mechanical_detail(inputs, sorted(names))
+                    r.require(detail['scope'] == LARGE_MECHANICAL_POPULATION,
+                              'mechanical literal cohort fits the bounded diagnostic')
+                    report['literal_matches'] = len(names)
                 path = directory/'parse-screen'
                 screen = retire_parse_screen.run(inputs, path, directory/'grammar', data, 2)
                 report.update(faces=screen['faces'], failures=screen['failures'], passed=screen['status'] == 'passed',
@@ -204,7 +213,11 @@ def mechanical_detail(inputs, names):
         except CohortClosureLimit:
             chunked = True
     if chunked:
-        chunks = mechanical_chunks(inputs, names)
+        try:
+            chunks = mechanical_chunks(inputs, names)
+        except (CohortClosureLimit, MechanicalChunkLimit):
+            return ({'names': [], 'sampled': False, 'scope': LARGE_MECHANICAL_POPULATION,
+                     'full_batch_audit_required': True}, [], None)
         detail = {'names': chunks[0]['base_names'], 'sampled': False,
                   'scope': 'first of complete bounded mechanical chunks',
                   'full_batch_audit_required': True}

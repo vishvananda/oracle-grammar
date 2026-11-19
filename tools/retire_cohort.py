@@ -70,6 +70,11 @@ def close_cohort(by_name, records, detail, *, max_occurrences=MAX_COHORT_OCCURRE
 
 
 MAX_MECHANICAL_CHUNKS = 8
+MECHANICAL_CHUNK_LIMIT = 'mechanical cohort exceeds bounded chunk count'
+
+
+class MechanicalChunkLimit(ValueError):
+    """The full set cannot be represented by bounded literal chunks."""
 
 
 def mechanical_chunks(by_name, records, names):
@@ -78,9 +83,9 @@ def mechanical_chunks(by_name, records, names):
               'mechanical cohort needs nonempty target names')
     initial = set(names)
     r.require(len(initial) == len(names), 'mechanical cohort targets must be unique')
-    r.require(len(initial) <= MAX_BASE_COHORT_NAMES * MAX_MECHANICAL_CHUNKS,
-              'mechanical cohort exceeds bounded chunk count')
     r.require(initial <= by_name.keys(), 'mechanical target outside frozen population')
+    if len(initial) > MAX_BASE_COHORT_NAMES * MAX_MECHANICAL_CHUNKS:
+        raise MechanicalChunkLimit(MECHANICAL_CHUNK_LIMIT)
     remaining = set(initial)
     components = []
     while remaining:
@@ -88,7 +93,8 @@ def mechanical_chunks(by_name, records, names):
         closed = close_cohort(by_name, records, {'names': [seed]})
         component = set(closed['names'])
         targets = sorted(component & initial)
-        r.require(len(targets) <= MAX_BASE_COHORT_NAMES, 'mechanical component exceeds base-name limit')
+        if len(targets) > MAX_BASE_COHORT_NAMES:
+            raise MechanicalChunkLimit('mechanical component exceeds base-name limit')
         remaining.difference_update(targets)
         components.append((targets, component, closed['closure_occurrence_count']))
     batches, base, closed_names, occurrences = [], [], set(), 0
@@ -102,7 +108,8 @@ def mechanical_chunks(by_name, records, names):
         occurrences += count
     if base:
         batches.append((base, closed_names, occurrences))
-    r.require(len(batches) <= MAX_MECHANICAL_CHUNKS, 'mechanical cohort exceeds bounded chunk count')
+    if len(batches) > MAX_MECHANICAL_CHUNKS:
+        raise MechanicalChunkLimit(MECHANICAL_CHUNK_LIMIT)
     result = []
     for base, expected, count in batches:
         detail = close_cohort(by_name, records, {'names': sorted(base)})

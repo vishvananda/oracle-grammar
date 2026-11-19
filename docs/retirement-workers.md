@@ -79,6 +79,11 @@ current general batch size. An operator can lower it to audit a smaller group
 separately from author proposals. The mechanical selection keeps the 96-job cap
 and goes through the same acceptance checks.
 
+A mechanical rule with more literal matches than the diagnostic chunks can
+hold uses a parse-only screen over the full allowed population. The worker
+independently checks the chunk limit and the assigned removal. Integration
+still requires the whole-population reading and printing audit.
+
 Worker-authored cases always run compositionally. Coordinator-generated
 whole-card operand cases may explicitly retain unrelated seeded clauses; these
 cases still require their independently mutated expected IR and verified prints.
