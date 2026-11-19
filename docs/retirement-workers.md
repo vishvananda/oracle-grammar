@@ -324,11 +324,18 @@ In the 21-cluster pilot, direct Terra qualified 37 rules and synthesis first
 qualified 40, with estimated API costs of $4.17 and $3.75 respectively. Both
 combined candidates failed full validation. A standalone closed subtype recipe
 passed all 32,755 approved occurrences for two rules with zero model calls.
-The live source inventory identified 33 of 7,313 remaining rules for screening,
-including cross-owner drafts. Keep all 12 Terra slots until the synthesis track
-shows sustained work at a higher accepted-rule rate across multiple checkpoints.
-Measure qualified-to-accepted conversion, model cost and CPU per accepted rule,
-and time to acceptance through the same integration gates.
+The first live campaign audit with generated drafts accepted eight generated
+retirements across four recipes in an 81-rule batch. It preserved all 33,730
+native readings and protected print gates across the approved population. The
+published checkpoint left 7,232 seeded rules, of which 20 qualified for the
+source-derived screen and six had both a single owner and a child already
+bounded to its observed alternatives.
+
+Keep all 12 Terra slots at that level of demand. Increase synthesis concurrency
+only when several accepted checkpoints show sustained eligible work and higher
+accepted-rule throughput under the same CPU budget. Measure
+qualified-to-accepted conversion, model cost and CPU per accepted rule, and time
+to acceptance through the same integration gates.
 
 ## Legacy deletion-only worker
 
