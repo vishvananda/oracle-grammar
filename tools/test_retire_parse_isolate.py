@@ -9,6 +9,15 @@ import retire_parse_isolate as isolate
 
 
 class SurvivorTests(unittest.TestCase):
+    def test_added_trace_keeps_the_hint_when_the_retained_meaning_has_no_route(self):
+        row = {'all': [[{'route':'retained'}],[{'route':'added'}]]}
+        delta = {'retained_current_indices':[0],'added_current_indices':[1]}
+        lines = [b'[{"route":"retained"}]', b'  rules []', b'[{"route":"added"}]',
+                 b'  rules ["new_phrase"]']
+        self.assertEqual(isolate._added_trace_rules(lines,row,delta),{'new_phrase'})
+        with self.assertRaisesRegex(ValueError,'empty trace for added native reading'):
+            isolate._added_trace_rules(lines[:-1],row,delta)
+
     def test_parse_hint_routes_only_new_productions_on_the_added_meaning(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)

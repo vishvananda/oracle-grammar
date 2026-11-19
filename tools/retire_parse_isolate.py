@@ -274,17 +274,19 @@ def _added_trace_rules(lines, row, delta):
         elif line.startswith(b'  rules ') and meanings:
             meanings[-1][1].update(_route_names(line))
 
-    def rules(indices):
+    def rules(indices, *, require_route):
         readings = row['all']
         wanted = set()
         for index in indices:
             r.require(type(index) is int and 0 <= index < len(readings), 'invalid trace reading index')
             trace, = [route for meaning,route in meanings if meaning == readings[index]]
-            r.require(trace, 'empty trace for native reading')
+            r.require(trace or not require_route, 'empty trace for added native reading')
             wanted.update(trace)
         return wanted
 
-    return rules(delta['added_current_indices'])-rules(delta['retained_current_indices'])
+    added = rules(delta['added_current_indices'],require_route=True)
+    retained = rules(delta['retained_current_indices'],require_route=False)
+    return added-retained
 
 
 def _parse_hints(checkpoint, run, full, proposals, eligible):
