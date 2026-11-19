@@ -783,15 +783,26 @@ class Queue:
         if not isinstance(notes, str) or not notes.strip() or len(notes) > 2048:
             raise ValueError('reviewed author split requires concise review notes')
         campaign = Path(self.path).parent
-        with self._retry_lease(job_id):
+        status = 'integration-rejected' if integration else 'needs-review'
+
+        def current(db):
+            row = db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?',
+                             (job_id,)).fetchone()
+            if not row or row[0] != status or (row[1] != attempt_id and not (repaired and row[1] is None)):
+                raise ValueError('parked author attempt or checkpoint changed')
+            resolved = retire_rehabilitation.resolve_origin(db, job_id, row)
+            if resolved is None or (resolved[1]['attempt_id'], resolved[1]['status']) != (attempt_id, status):
+                raise ValueError('parked author attempt or checkpoint changed')
+            return resolved
+
+        with closing(self._connect()) as db:
+            expected = current(db)
+        with self._retry_lease(expected[1]['job_id']):
             with self._transaction() as db:
-                row = db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?',
-                                 (job_id,)).fetchone()
                 head = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
-                status = 'integration-rejected' if integration else 'needs-review'
-                if not row or tuple(row[:2]) != (status, attempt_id) or not head or head[0] != checkpoint:
+                if not head or head[0] != checkpoint or current(db) != expected:
                     raise ValueError('parked author attempt or checkpoint changed')
-                parent, origin, base, started, raw = retire_rehabilitation.resolve_origin(db, job_id, row)
+                parent, origin, base, started, raw = expected
                 owned = {item[0] for item in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
                 if (parent.get('kind') != 'author' or parent.get('id') != job_id
                         or len(parent['rules']) != len(owned) or set(parent['rules']) != owned):
@@ -809,13 +820,14 @@ class Queue:
                 if integration and result['status'] != 'provisional-pass':
                     raise ValueError('integration split requires an originally passing proposal')
                 original = result['evidence']
-                _verify_split_dispositions(original, owned, selected['rules'], repaired)
-                archived, _ = _verify_original_report(campaign, job_id, attempt_id, base, original,
+                _verify_split_dispositions(original, set(result['outcomes']), selected['rules'], repaired)
+                origin_job = origin['job_id']
+                archived, _ = _verify_original_report(campaign, origin_job, attempt_id, base, original,
                                                       evidence.get('original_report'), passed=not repaired)
                 if archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':
                     raise ValueError('the original report lacks a full author evaluation')
                 _, task = _verify_reviewed_repair(campaign, source, selected, evidence)
-                descriptor = campaign/'.cache/attempts'/attempt_id/'tasks'/f'{job_id}.json'
+                descriptor = campaign/'.cache/attempts'/attempt_id/'tasks'/f'{origin_job}.json'
                 old = descriptor.read_bytes()
                 if hashlib.sha256(old).hexdigest() != archived['descriptor_sha256']:
                     raise ValueError('the original author descriptor changed during review')

@@ -93,6 +93,42 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.get_attempt(self.attempt), self.original)
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
+    def test_repair_can_split_an_inherited_review_using_the_original_attempt(self):
+        self.park()
+        rules = ['m_initial', 'm_repaired', 'm_held']
+        self.q.add_jobs([{'id':'chain', 'kind':'author', 'goal':'Retire three rules.',
+                          'rules':rules, 'target_faces':['A','B']}])
+        attempt = self.q.claim('terra')['attempt_id']
+        (self.root/'leases/chain').touch()
+        with closing(self.q._connect()) as db:
+            db.execute('UPDATE attempts SET started=? WHERE id=?', (json.dumps({'pid':4567}),attempt))
+        task = self.root/'.cache/attempts'/attempt/'tasks/chain.json'
+        task.parent.mkdir(parents=True)
+        task.write_text(json.dumps({'cohort':['A','B']}))
+        self.original_report['descriptor_sha256'] = sha256(task.read_bytes()).hexdigest()
+        dispositions = {rule:{'rule':rule,'status':'proposed' if rule == 'm_initial' else 'needs-review'}
+                        for rule in rules}
+        outcomes = {rule:{'status':'needs-review','reason':'held','evidence':'archive'} for rule in rules}
+        self.q.finish(attempt, 'needs-review', {'kind':'author','dispositions':dispositions}, outcomes)
+        first = self.q.split_reviewed_author('chain', attempt, 'head', {**self.evidence,'rules':['m_initial']})
+        parent = first['review_job']
+        self.q.add_checkpoint('next', 'accepted newer grammar', expected_parent='head')
+        repair = {**self.evidence,'kind':'reviewed-author-repair-split','source_checkpoint':'next',
+                  'rules':['m_repaired'],'target_faces':['B']}
+        with self.assertRaisesRegex(ValueError,'parked author attempt'):
+            self.q.split_reviewed_author(parent, self.attempt, 'next', repair)
+        old = self.q.get_attempt(attempt)
+        self.review.return_value = ({}, {'cohort':['B']})
+        with self.assertRaisesRegex(ValueError,'does not cover the original cohort'):
+            self.q.split_reviewed_author(parent, attempt, 'next', repair)
+        self.review.return_value = ({}, {'cohort':['A','B']})
+        second = self.q.split_reviewed_author(parent, attempt, 'next', repair)
+        self.assertEqual(self.archive.call_args.args[1:3], ('chain',attempt))
+        self.assertEqual(self.q.get_attempt(attempt), old)
+        review = next(job for job in self.q.coverage()['jobs'] if job['id'] == second['review_job'])
+        self.assertEqual((review['rules'],review['review_origin']['attempt_id']), (['m_held'],attempt))
+        self.assertEqual(self.q.reviewed_draft(second['job_id'])['source_checkpoint'], 'next')
+
     def test_split_preserves_the_verified_child_when_checkpoint_advances(self):
         self.park()
         self.q.add_checkpoint('new', 'accepted newer grammar', expected_parent='head')
