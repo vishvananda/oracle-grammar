@@ -172,7 +172,8 @@ class BatchTests(unittest.TestCase):
                                  for name in 'ABCDE'])
             checkpoint = {'inputs': str(root), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
             drafts = [(1, root, root/'old'), (4, root, root/'added')]
-            with (patch.object(batch, '_trace_binary', return_value=(probe,batch.r.digest(probe))),
+            with (patch.object(batch.retire_cpu, 'reserve', wraps=batch.retire_cpu.reserve) as reserve,
+                  patch.object(batch, '_trace_binary', return_value=(probe,batch.r.digest(probe))),
                   patch.object(batch, '_probe_rules', side_effect=lambda _, __, name, text, ___:
                                {'baseline','fresh'} if text == 'New.' else {'baseline'}) as traced,
                   patch.object(batch, '_new_productions', side_effect=lambda run, directory, names:
@@ -180,6 +181,7 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(batch._retained_print_hints(
                     checkpoint, root/'grammar', rows, drafts, {'failures':failures}), [4])
                 self.assertEqual(traced.call_count,6)
+                reserve.assert_called_once_with(root/'cpu', 1, 32, background=True)
 
     def test_early_print_verdict_only_covers_prior_exact_defaults(self):
         lost = {'name':'A', 'text':'Written.', 'status':'equal', 'readings':1, 'exact':True, 'default':'Other.'}

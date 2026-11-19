@@ -929,8 +929,10 @@ def _retained_print_hints(checkpoint, grammar, rows_path, drafts, evidence):
             return []
         binary, expected = _trace_binary(checkpoint, Path(checkpoint['inputs']))
         hints = set()
+        # Focused isolation also needs CPU tokens. Keep the bounded route
+        # hint available while a foreground bundle is draining the pool.
         with retire_cpu.reserve(Path(checkpoint['cpu_pool']), 1, checkpoint['cpu_capacity'],
-                                wait=False, background=True) as fds:
+                                background=True) as fds:
             for row in sorted(rows, key=lambda item: (len(item['text']), item['name']))[:3]:
                 try:
                     delta = _print_trace_delta(row, lambda name, text: _probe_rules(binary, grammar, name, text, fds))
