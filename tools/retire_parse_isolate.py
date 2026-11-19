@@ -199,7 +199,7 @@ def _probe_lines(binary, grammar, name, text, fds):
     env['ORACLE_GRAMMAR_DIR'] = str(grammar)
     with tempfile.TemporaryFile() as output:
         subprocess.run([str(binary), name, text], env=env, stdout=output, stderr=subprocess.DEVNULL,
-                       check=True, timeout=12, pass_fds=fds)
+                       check=True, timeout=24, pass_fds=fds)
         output.seek(0)
         result = output.read(1024*1024+1)
     r.require(len(result) <= 1024*1024, 'parse trace exceeds the hint budget')
@@ -474,6 +474,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
             automatic = _print_hints(checkpoint, run, roots['full'], proposals, eligible, failed)
         else:
             automatic = _parse_hints(checkpoint,run,roots['full'],proposals,eligible)
+    r.write(scratch/'routing.json',{'explicit':hints,'automatic':[jobs[i]['job_id'] for i in automatic]})
     try:
         remaining = (_survivors(eligible, trial, pinned, routed[0]) if len(routed) == 1
                      else _survivors(eligible, trial, pinned, suspects=routed or automatic))
