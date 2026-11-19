@@ -799,6 +799,21 @@ def _retained_family_failure(failed_indices, proof, source, logs):
     return witnesses[0] if len(witnesses) == 1 else {'fixtures': witnesses}
 
 
+def _check_trial_native(context, items, proof, input_cache, grammar, logs):
+    control = context['control']
+    directory = logs/'native-control'
+    for item in items:
+        item['native_control'] = str(directory)
+    try:
+        _control_check(context['checkpoint'], control, grammar, directory)
+    except _NativeControlFailure:
+        if not input_cache.unchanged() or r.tree(grammar) != proof['trial_grammar']:
+            raise _UncertainPromotion('failed native trial inputs changed during verification')
+        proof['verified_native_snapshot'] = {
+            key: control[key] for key in ('profile_sha256', 'manifest_sha256', 'threads')}
+        raise
+
+
 def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
     """Merge and gate one ordered trial; publish nothing until every gate passes."""
     source, folder, manifest = context['source'], context['folder'], context['manifest']
@@ -879,6 +894,10 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
             proof['trial_grammar'] = r.tree(trial/'grammar')
             proof['new_fixtures'] = [{'fixture': str(destination), 'sha256': r.digest(path)}
                                      for path, destination in additions]
+            native_first = (control is not None and len(entries) == 1
+                            and entries[0][0] in context.get('native_suspects', ()))
+            if native_first:
+                _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs)
             for item in items:
                 item.update(family_logs=str(logs), family_checks=family_checks)
             if fixtures:
@@ -891,17 +910,8 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                         raise _UncertainPromotion('failed family trial inputs changed during verification')
                     proof['verified_family_snapshot'] = True
                     raise
-            if control is not None:
-                for item in items:
-                    item['native_control'] = str(logs/'native-control')
-                try:
-                    _control_check(checkpoint, control, trial/'grammar', logs/'native-control')
-                except _NativeControlFailure:
-                    if not input_cache.unchanged() or r.tree(trial/'grammar') != proof['trial_grammar']:
-                        raise _UncertainPromotion('failed native trial inputs changed during verification')
-                    proof['verified_native_snapshot'] = {
-                        key: control[key] for key in ('profile_sha256', 'manifest_sha256', 'threads')}
-                    raise
+            if control is not None and not native_first:
+                _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs)
             if context['library_control'] is not None:
                 for item in items:
                     item['library_control'] = str(logs/'library-control')
@@ -1234,6 +1244,8 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
                                             initial_trial=proof)
     if not culprits or not set(culprits) <= {index for index, _ in selection}:
         return False
+    if native is not None:
+        context.setdefault('native_suspects', set()).update(culprits)
     return _retry_without(context, entries, whole_proof, sorted([*withheld, *culprits]), size,
                           route=route)
 

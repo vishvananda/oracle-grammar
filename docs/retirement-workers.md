@@ -145,6 +145,9 @@ reading and default-print regressions early; the full audit still runs.
 Repeated staging on the same accepted grammar, input snapshot, helpers and
 control profile can reuse the passing baseline report and its verified files.
 Each trial runs its own controls against its candidate grammar.
+When those controls isolate a rejected proposal, its individual retry checks
+the complete retained native profile against the new prefix before replaying
+the family registry. A passing retry still runs every staging gate.
 
 Task cohorts close transitively over shared face names in frozen gold records,
 including every duplicate occurrence and companion face. This expansion does not
