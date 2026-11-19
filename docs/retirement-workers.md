@@ -324,10 +324,10 @@ In the 21-cluster pilot, direct Terra qualified 37 rules and synthesis first
 qualified 40, with estimated API costs of $4.17 and $3.75 respectively. Both
 combined candidates failed full validation. A standalone closed subtype recipe
 passed all 32,755 approved occurrences for two rules with zero model calls.
-The first live campaign audit with generated drafts accepted eight generated
-retirements across four recipes in an 81-rule batch. It preserved all 33,730
-native readings and protected print gates across the approved population. The
-published checkpoint left 7,232 seeded rules, of which 20 qualified for the
+The first successful live campaign audit with generated drafts accepted eight
+generated retirements across four recipes in an 81-rule batch. It preserved all
+33,730 native readings and protected print gates across the approved population.
+The published checkpoint left 7,232 seeded rules, of which 20 qualified for the
 source-derived screen and six had both a single owner and a child already
 bounded to its observed alternatives.
 
