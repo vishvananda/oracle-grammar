@@ -1577,3 +1577,61 @@ search_fraction_choice ::= search_choice | foreign_choice_count
 /* The selected cards remain the referent across the sentence boundary. */
 /* @sem Instruction::[Effect{result:@mark, operation:$search_fraction}, Effect{result:@next, operation:$found_action}, ...$search_follow] */
 clause_search_sentence_follow ::= search_fraction "." found_action search_follow
+
+/* Implied alternatives retain their independently scoped targets and move results. */
+/* @sem Ability::Spell{announcement:_{modes:_{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:Any}), index:0}), destination:Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$mixed_library_permanent}), index:0}), destination:Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied}}, body:_{}} */
+owner_mixed_library_choice ::= "the" "owner" "of" "target" "spell" "or" mixed_library_permanent "puts" "it" "on" "their" "choice" "of" "the" "top" "or" "bottom" "of" "their" "library" "."
+
+/* @sem Ability::Spell{announcement:_{modes:_{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:Any}), index:0}), destination:Library{position:FromTop($library_ordinal), order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$mixed_library_permanent}), index:0}), destination:Library{position:FromTop($library_ordinal), order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied}}, body:_{}} */
+put_mixed_library_depth ::= "put" "target" "spell" "or" mixed_library_permanent "into" "its" "owner's" "library" library_ordinal "from" "the" "top" "."
+
+/* @sem Ability::Spell{announcement:_{modes:_{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:$mixed_library_color_pair}), index:0}), destination:Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$mixed_library_color_pair}), index:0}), destination:Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied}}, body:_{}} */
+choose_mixed_color_library ::= "choose" "target" "spell" "or" "permanent" "that's" mixed_library_color_pair "." "its" "owner" "puts" "it" "on" "their" "choice" "of" "the" "top" "or" "bottom" "of" "their" "library" "."
+
+mixed_library_permanent ::= mixed_permanent_noun | mixed_library_non_type
+
+/* @sem ObjectFilter::$adjective_nontype */
+mixed_library_non_type ::= adjective_nontype "permanent"
+
+/* @sem Expr::Constant(2) */
+library_ordinal_second ::= "second"
+
+/* @sem Expr::Constant(3) */
+library_ordinal_third ::= "third"
+
+library_ordinal ::= library_ordinal_second | library_ordinal_third
+
+/* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color_2]) */
+mixed_library_color_pair ::= adjective_color "or" adjective_color
+
+/* A player's library is revealed as a group and the observed cards are exiled.
+   The two endings preserve Oracle's distinct referring phrases. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:RevealUntilGroup{library:Bound(0), constraints:[TotalProperty{property:ManaValue, comparison:GreaterOrEqual, amount:$exile_library_mana_threshold}]}}, Effect{result:@next, operation:Move{objects:Observed(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
+clause_exile_library_mana_threshold ::= players_singular "exiles" "cards" "from" "the" "top" "of" "their" "library" "until" exile_library_mana_threshold
+
+exile_library_mana_threshold ::= exile_library_mana_threshold_they | exile_library_mana_threshold_that_player
+
+/* @sem $value */
+exile_library_mana_threshold_they ::= "they" "have" "exiled" "cards" "with" "total" "mana" "value" value "or" "greater" "this" "way"
+
+/* @sem $value */
+exile_library_mana_threshold_that_player ::= "that" "player" "has" "exiled" "cards" "with" "total" "mana" "value" value "or" "greater"
+
+/* The permission refers specifically to the preceding library exile loop. */
+/* @sem Instruction::[...$clause_exile_library_mana_threshold, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Free}})], duration:EndOfTurn, evaluation:LiveObjects}}] */
+instructions_exile_library_mana_free ::= clause_exile_library_mana_threshold "." "until" "end" "of" "turn" "," "you" "may" "cast" "cards" "exiled" "this" "way" "without" "paying" "their" "mana" "costs"
+
+/* Search the named card owner's zones, then exile the selection and shuffle. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:OwnerOf($current_card_ref), choices:[_{filter:SharesNameWith($current_card_ref), count:$name_search_count}], also:[Graveyard, Hand]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(OwnerOf($current_card_ref))}}] */
+clause_search_owner_same_name_exile ::= "search" "its" "owner's" "graveyard" "," "hand" "," "and" "library" "for" name_search_count "cards" "with" "the" "same" "name" "as" current_card_ref "and" "exile" "them" "." "then" "that" "player" "shuffles"
+
+/* The selected card remains the search receipt through its move and shuffle. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$player_search_one_choice]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]} */
+search_that_card_hand_program ::= "you" "search" "your" "library" "for" player_search_one_choice "," "put" "that" "card" "into" "your" "hand" "," "then" "shuffle" "."
+
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:$search_that_card_hand_program, weight:1}) */
+mode_search_that_card_hand ::= "•" search_that_card_hand_program
+
+/* The controller moves their whole graveyard and shuffles their library. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+shuffle_own_graveyard ::= "shuffle" "your" "graveyard" "into" "your" "library"

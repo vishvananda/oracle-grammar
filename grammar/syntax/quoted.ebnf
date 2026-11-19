@@ -14,7 +14,7 @@ program_sentence_action_once ::= "you" "may" program "." action_once_suffix
 /* @sem () */
 action_once_suffix ::= "do" "this" "only" "once" "each" "turn" "."
 
-ordinary_program_sentence ::= program_sentence_search_and_move | program_sentence_die_table | program_sentence_added_die_table | program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment
+ordinary_program_sentence ::= program_sentence_mana_life_persists | program_sentence_search_and_move | program_sentence_die_table | program_sentence_added_die_table | program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment
 
 /* @sem $program */
 program_sentence_plain ::= program "."
@@ -59,7 +59,7 @@ instructions_between_quoted ::= clause_quoted instructions_quoted
 /* @sem Instruction::[...$clause_quoted, ...$instructions] */
 instructions_after_quoted ::= clause_quoted "then"? instructions
 
-clause_quoted ::= clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted
+clause_quoted ::= clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger
 
 /* An emblem's final quoted sentence also closes its enclosing sentence. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateEmblem{actor:One(PlayerRef::AbilityController), abilities:[$token_quoted_sentence]}}] */
@@ -295,3 +295,26 @@ token_prefix_attacking_quoted ::= token_amount "tapped" "and" "attacking" token_
 /* An explicit token name remains separate from its colors and types. */
 /* @sem TokenRecipe::Defined{name:Explicit($created_token_name), colors:$token_colors, card_types:[Artifact]} */
 token_named_artifact_base ::= token_colors "artifact" "token" "named" created_token_name
+
+/* The emblem owns its quoted graveyard permission; the loyalty cost is supplied by the enclosing activation. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateEmblem{actor:One(AbilityController), abilities:[$emblem_graveyard_permission]}}] */
+clause_emblem_graveyard_permission ::= "you" "get" "an" "emblem" "with" '"' emblem_graveyard_permission '"'
+
+emblem_graveyard_permission ::= emblem_cast_graveyard_exile | emblem_play_land_cast_permanent
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:$cast_kind_pair_spells}, terms:_{cost:Normal, into_exile:true}})]}) */
+emblem_cast_graveyard_exile ::= "you" "may" "cast" cast_kind_pair_spells "from" "your" "graveyard" "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead" "."
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:CardType(Land)}), from:Graveyard, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])})]}) */
+emblem_play_land_cast_permanent ::= "you" "may" "play" "lands" "and" "cast" "permanent" "spells" "from" "your" "graveyard" "."
+
+/* The first quotation has no final period, while the triggered ability does. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateEmblem{actor:One(AbilityController), abilities:[$emblem_open_hand_size, $emblem_owned_card_return]}}] */
+clause_emblem_hand_and_trigger ::= "you" "get" "an" "emblem" "with" emblem_open_hand_size "and" emblem_owned_card_return
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(HandSize(Unlimited))]}) */
+emblem_open_hand_size ::= '"' "you" "have" "no" "maximum" "hand" "size" '"'
+
+/* This return is tied to the destination of the card entering its owner's graveyard. */
+/* @sem Ability::@scope(Ability::Triggered{event:ZoneChange{objects:AllOf([$graveyard_card_unqualified, OwnedBy(One(AbilityController)), Not(Token)]), to:Graveyard}, limits:_{}, announcement:@announcement, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]}}) */
+emblem_owned_card_return ::= '"' "whenever" graveyard_card_unqualified "is" "put" "into" "your" "graveyard" "from" "anywhere" "," "you" "may" "return" "it" "to" "your" "hand" "." '"'

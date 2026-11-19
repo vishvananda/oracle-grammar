@@ -6,7 +6,7 @@ entry_copy_objects ::= entry_copy_battlefield | entry_copy_graveyard_arrived | e
 entry_copy_battlefield ::= entry_copy_choice
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AllOf([$filter_phrase, ArrivedThisTurn{from:Battlefield}])} */
 entry_copy_graveyard_arrived ::= "any" filter_phrase "card" "in" "a" "graveyard" "that" "was" "put" "there" "from" "the" "battlefield" "this" "turn"
-entry_copy_choice ::= entry_copy_any | entry_copy_one
+entry_copy_choice ::= entry_copy_mana_spent | entry_copy_any | entry_copy_one
 /* @sem $filter_phrase */
 entry_copy_any ::= "any" filter_phrase "on" "the" "battlefield"
 /* @sem $filter_phrase */
@@ -22,7 +22,7 @@ copy_exceptions_sentence ::= copy_exceptions_period | copy_exceptions_closed
 /* @sem $copy_exceptions_plain */
 copy_exceptions_period ::= copy_exceptions_plain "."
 
-copy_exceptions_plain ::= copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain
+copy_exceptions_plain ::= copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain
 
 /* @sem Vec<CopyException>::[$copy_exception_plain] */
 copy_exception_plain_one ::= copy_exception_plain
@@ -33,7 +33,7 @@ copy_exception_plain_more ::= copy_exception_plain "and" copy_exceptions_plain
 /* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_plain] */
 copy_exception_quote_then_plain ::= copy_granted_sentence ("↓")? "and" copy_exceptions_plain
 
-copy_exceptions_closed ::= copy_exception_closed_one | copy_exception_plain_then_quote | copy_exception_quote_more | copy_keyword_then_quote
+copy_exceptions_closed ::= copy_same_name_goad_list | copy_exception_closed_one | copy_exception_plain_then_quote | copy_exception_quote_more | copy_keyword_then_quote
 
 /* @sem Vec<CopyException>::[$copy_granted_sentence] */
 copy_exception_closed_one ::= copy_granted_sentence
@@ -117,3 +117,64 @@ entry_copy_exile_card_type ::= entry_copy_exile_creature | entry_copy_exile_arti
 entry_copy_exile_creature ::= "a" noun_creature
 /* @sem $noun_artifact */
 entry_copy_exile_artifact ::= "an" noun_artifact
+
+/* Entry-copy exceptions are scoped to the copy's own replacement. */
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$number_digits, toughness:$number_digits_2}] */
+entry_copy_stats_tail ::= "," "except" "it's" number_digits "/" number_digits "."
+/* @sem Vec<CopyException>::[CopyException::AddCreatureTypes($becomes_types)] */
+entry_copy_creature_types_tail ::= "," "except" "it's" "a" becomes_types "in" "addition" "to" "its" "other" "creature" "types" "."
+/* @sem Vec<CopyException>::[CopyException::AddCreatureTypes($becomes_types), CopyException::AddCardTypes([Artifact, Creature])] */
+entry_copy_artifact_creature_tail ::= "," "except" "it's" "a" becomes_types "artifact" "creature" "in" "addition" "to" "its" "other" "types" "."
+/* @sem Vec<CopyException>::[CopyException::RemoveSupertypes([Legendary]), CopyException::AddCardTypes([Artifact]), CopyException::AddAbilities([@scope($mechanic_bare)])] */
+entry_copy_nonlegendary_artifact_tail ::= "," "except" "it" "isn't" "legendary" "," "is" "an" "artifact" "in" "addition" "to" "its" "other" "types" "," "and" "has" mechanic_bare "."
+
+/* The condition controls both copies of the same selected population. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[If{condition:ObjectMatches{object:$object_ref_2, filter:State(Embalmed)}, then:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_any}, exceptions:$entry_copy_embalmed_exceptions})}}]}}]}, otherwise:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_any}, exceptions:[]})}}]}}]}}]}}) */
+entry_copy_embalmed ::= "you" "may" "have" object_ref "enter" "as" "a" "copy" "of" entry_copy_any "," "except" "if" object_ref "was" "embalmed" "," entry_copy_embalmed_exceptions "."
+/* @sem Vec<CopyException>::[CopyException::RemoveManaCost, CopyException::Colors{mode:Set, colors:Listed([$mana_color_word])}, CopyException::AddCreatureTypes($becomes_types)] */
+entry_copy_embalmed_exceptions ::= "the" "token" "has" "no" "mana" "cost" "," "it's" mana_color_word "," "and" "it's" "a" becomes_types "in" "addition" "to" "its" "other" "types"
+
+/* The reflexive continuation refers to the object selected by this copy. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield, exceptions:$entry_copy_reflexive_exceptions})}}, Effect{result:@next, operation:ReflexiveTrigger{performed:0, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:SetTapped{objects:One(Earlier{what:Selected}), tapped:true}}, Effect{result:@next, operation:CreateContinuousEffect{source:$object_ref_3, affected:Objects(One(Earlier{what:Selected})), changes:$static_changes, duration:WhileControlled{player:AbilityController, object:$object_ref_2}, evaluation:LiveObjects}}]}}}]}}]}}) */
+entry_copy_reflexive ::= "you" "may" "have" object_ref "enter" "as" "a" "copy" "of" entry_copy_battlefield "," "except" entry_copy_reflexive_exceptions "." "when" "you" "do" "," "tap" "the" "copied" "creature" "and" object_ref static_changes "for" "as" "long" "as" "you" "control" object_ref "."
+/* @sem Vec<CopyException>::[CopyException::AddCreatureTypes($becomes_types), CopyException::AddAbilities([Keyword($keyword_value)])] */
+entry_copy_reflexive_exceptions ::= "it's" "a" becomes_types "in" "addition" "to" "its" "other" "types" "and" "has" keyword_value
+
+/* An explicit battlefield population is part of these exception sentences. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_any}, exceptions:$entry_copy_explicit_tail})}}]}}]}}) */
+entry_copy_explicit ::= "you" "may" "have" self_explicit_ref "enter" "as" "a" "copy" "of" entry_copy_any entry_copy_explicit_tail
+entry_copy_explicit_tail ::= entry_copy_stats_tail | entry_copy_creature_types_tail | entry_copy_artifact_creature_tail | entry_copy_nonlegendary_artifact_tail
+
+/* Entry-copy-specific qualifications preserve the chosen population and additions. */
+/* @sem ObjectFilter::AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:ManaSpent{object:$self_explicit_ref, filter:_{}, aggregation:Count}}}]) */
+entry_copy_mana_spent ::= "any" filter_phrase "on" "the" "battlefield" "with" "mana" "value" "less" "than" "or" "equal" "to" "the" "amount" "of" "mana" "spent" "to" "cast" self_explicit_ref
+
+/* @sem Vec<CopyException>::[CopyException::AddAbilityIfAbsent{ability:Mechanic{mechanic:VanishingEnters, amount:$value}, matching:KeywordFamily(Vanishing)}] */
+copy_vanishing_absent_list ::= "it" "has" "vanishing" value "if" "that" "creature" "doesn't" "have" "vanishing"
+
+/* @sem Vec<CopyException>::[CopyException::AddCardTypes([Artifact, Creature]), CopyException::KeepPowerToughness] */
+copy_artifact_creature_stats_list ::= "it's" "an" "artifact" "creature" "in" "addition" "to" "its" "other" "types" "," "and" "its" "power" "and" "toughness" "are" "equal" "to" "this" "creature's" "power" "and" "toughness"
+
+/* @sem Vec<CopyException>::[CopyException::SetCardTypes([Artifact]), CopyException::AddAbilities([@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})])] */
+copy_artifact_activated_list ::= "it's" "an" "artifact" "and" "it" "has" '"' cost ":" program "." '"'
+
+/* @sem Vec<CopyException>::[CopyException::AddAbilities([Static(_{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject($object_ref)), $filter_plural, SharesNameWith($object_ref_2)])}), changes:[Rule(GoadedBy(AbilityController))]})])] */
+copy_same_name_goad_list ::= object_ref "has" '"' "other" filter_plural "with" "the" "same" "name" "as" object_ref "are" "goaded" "." '"'
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:[]})}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$number})}}]}}]}}) */
+entry_copy_additional_counters ::= "you" "may" "have" self_explicit_ref "enter" "as" "a" "copy" "of" entry_copy_objects "," "except" "it" "enters" "with" number "additional" counter_kind "counters" "on" "it" "."
+
+/* These exceptions require the explicitly stated battlefield choice. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:$copy_battlefield_exception})}}]}}]}}) */
+entry_copy_battlefield_exception_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" "a" "copy" "of" entry_copy_battlefield_explicit "," "except" copy_battlefield_exception
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_any} */
+entry_copy_battlefield_explicit ::= entry_copy_any
+
+copy_battlefield_exception ::= copy_battlefield_vanishing | copy_artifact_activated_list
+
+/* @sem $copy_vanishing_absent_list */
+copy_battlefield_vanishing ::= copy_vanishing_absent_list "."
+
+/* @sem CopyException::SetPowerToughness{power:$number_digits, toughness:$number_digits_2} */
+copy_fixed_stats ::= "it's" number_digits "/" number_digits

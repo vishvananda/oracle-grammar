@@ -354,7 +354,7 @@ target_exactly ::= count
 /* @sem Count::UpTo($count) */
 target_up_to ::= "up" "to" count
 
-filter_phrase ::= filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list
+filter_phrase ::= filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails
 
 /* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
 filter_quality_list ::= quality noun "," noun "," "and" noun modifier
@@ -708,9 +708,9 @@ modifiers_more ::= modifier_nonattachment modifiers
 
 modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_to_a | modifier_enchanted_by_aura | modifier_except
 
-modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
+modifier_nonattachment ::= modifier_mana_value_pair | modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
 
-modifier_nonnumeric ::= modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell | modifier_stat_compared | modifier_stat_compared_holder | modifier_source_name | modifier_not_named_self | modifier_referenced_name | modifier_banded_with | modifier_with_toxic_family | modifier_named_counters_on_them | modifier_blocked_this_turn | modifier_with_level_up | modifier_shares_card_type | modifier_name_first_printed_in_homelands | modifier_bare_sticker_vowel | modifier_bare_sticker_consonant | modifier_attacking_last_chosen_player | modifier_attacking_enchanted_player | modifier_attacking_your_opponents | modifier_enchanted_or_equipped | modifier_controlled_by_last_choice | modifier_minimum_named_counters_on_them | modifier_draft_noted_self_type | modifier_draft_noted_creature_type
+modifier_nonnumeric ::= modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell | modifier_stat_compared | modifier_stat_compared_holder | modifier_source_name | modifier_not_named_self | modifier_referenced_name | modifier_banded_with | modifier_with_toxic_family | modifier_named_counters_on_them | modifier_blocked_this_turn | modifier_with_level_up | modifier_shares_card_type | modifier_name_first_printed_in_homelands | modifier_bare_sticker_vowel | modifier_bare_sticker_consonant | modifier_attacking_last_chosen_player | modifier_attacking_enchanted_player | modifier_attacking_your_opponents | modifier_enchanted_or_equipped | modifier_controlled_by_last_choice | modifier_minimum_named_counters_on_them | modifier_draft_noted_self_type | modifier_draft_noted_creature_type | modifier_other_than_enchanted
 
 /* Band membership refers to the explicitly described object; it is neither
    a target nor a new group of creatures chosen by this effect. */
@@ -2314,3 +2314,93 @@ payment_graveyard_card_union ::= card_filter_union
 
 /* @sem ObjectFilter::AnyOf(@unordered([$filter_phrase, $filter_phrase_2])) */
 card_filter_union ::= filter_phrase "card" "or" filter_phrase "card"
+
+/* Linked exile populations retain the anchor and any independent filter. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)} */
+linked_exiled_each ::= "each" "card" "exiled" "with" object_ref
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)} */
+linked_exiled_all ::= "all" "cards" "exiled" "with" object_ref
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, ExiledWith($object_ref)])} */
+linked_exiled_filtered_each ::= "each" filter_phrase "card" "exiled" "with" object_ref
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:Counters{kind:$counter_kind, comparison:Greater, value:Constant(0)}} */
+exiled_with_counters ::= "all" "exiled" "cards" "with" counter_kind "counters" "on" "them"
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([Not(SameObject(Result{result:@prior, phase:After, index:0})), AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]), ExiledWith($object_ref)])} */
+linked_exiled_other_permanents ::= "all" "other" "permanent" "cards" "exiled" "with" object_ref
+
+/* @sem ObjectRef::@member_count_it(ObjectRef::@it) */
+her_ref ::= "her"
+
+/* The explicit location qualifies the same battlefield population as all permanents. */
+/* @sem ObjectSet::@distributive_pump_subject(ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}) */
+objects_all_battlefield ::= "all" filter_plural "on" "the" "battlefield"
+
+/* Both values describe the same property of the selected object. */
+/* @sem ObjectFilter::AnyOf(@unordered([Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:$number}}, Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:$number_2}}])) */
+modifier_mana_value_pair ::= "with" "mana" "value" number "or" number
+
+/* Exclude the object currently enchanted by this Aura. */
+/* @sem ObjectFilter::Not(SameObject($enchanted_creature_ref)) */
+modifier_other_than_enchanted ::= "other" "than" enchanted_creature_ref
+
+/* The lexical word Zombie also folds to the ordinary word token. */
+/* @sem ObjectFilter::Subtype(Zombie) */
+noun_zombie_folded ::= "zombie"
+
+/* A comma-separated population remains a union regardless of its length. */
+/* @sem ObjectFilter::AnyOf([...$plural_subtype_commas, $plural_subtype_word]) */
+plural_subtype_list ::= plural_subtype_commas "and" plural_subtype_word
+
+plural_subtype_commas ::= plural_subtype_commas_more | plural_subtype_commas_last
+
+/* @sem ObjectFilter::[$plural_subtype_word, ...$plural_subtype_commas] */
+plural_subtype_commas_more ::= plural_subtype_word "," plural_subtype_commas
+
+/* @sem ObjectFilter::[$plural_subtype_word] */
+plural_subtype_commas_last ::= plural_subtype_word ","
+
+plural_subtype_word ::= subtype_plural | plural_marked_bats | plural_marked_rats
+
+/* @sem ObjectFilter::Subtype(Bat) */
+plural_marked_bats ::= "↑" "bats"
+
+/* @sem ObjectFilter::Subtype(Rat) */
+plural_marked_rats ::= "↑" "rats"
+
+/* Linked exiled cards retain the filter and the object establishing the link. */
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, ExiledWith($object_ref)])}) */
+linked_filtered_ability_origin ::= "all" filter_phrase "cards" "exiled" "with" object_ref
+
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)}) */
+craft_trait_origin ::= "an" "exiled" "card" "used" "to" "craft" object_ref
+
+/* The unearth qualifier belongs to this graveyard subject. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([$card_filter, InZone(Players{zone:Graveyard, players:One(AbilityController)}), Not(HasKeywordFamily(Unearth))])}), index:0} */
+graveyard_without_unearth_target ::= "target" card_filter "card" "in" "your" "graveyard" "without" "unearth"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([$card_filter, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
+graveyard_perpetual_target ::= "target" card_filter "card" "in" "your" "graveyard"
+
+/* A target card with an excluded basic card type. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:Not(AllOf([Supertype(Basic), $noun]))}), index:0} */
+target_card_graveyard_except_basic ::= "target" "card" "in" "a" "graveyard" "other" "than" "a" "basic" noun "card"
+
+/* A singular head qualified by three independently named alternatives. */
+/* @sem ObjectFilter::AllOf([$filter_plain, $that_is_three_kinds]) */
+filter_that_is_three_kinds ::= filter_plain that_is_three_kinds
+
+/* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3]) */
+that_is_three_kinds ::= "that's" "a" filter_phrase "," "a" filter_phrase "," "or" "a" filter_phrase
+
+/* A singular battlefield population and its explicit excluded class. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, Not($filter_phrase_2)])} */
+coin_each_population ::= "for" "each" filter_phrase "that" "isn't" "a" filter_phrase
+
+/* @sem ObjectFilter::AllOf([$filter_plain, Condition(CoinCameUp{outcome:Tails})]) */
+filter_coin_tails ::= filter_plain "whose" "coin" "comes" "up" "tails"
+
+/* @sem ObjectFilter::History{event:Attacked, window:LastTurnOf(ControllerOf(Candidate))} */
+modifier_attacked_controllers_last_turn ::= "that" "attacked" "during" "their" "controller's" "last" "turn"

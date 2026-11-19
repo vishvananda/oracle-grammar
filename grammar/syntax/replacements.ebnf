@@ -1,6 +1,6 @@
 /* Replacement effects, prevention and delayed triggers. */
 
-replacement_clause ::= replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle
+replacement_clause ::= team_counter_replacement | owned_extra_token_replacement | filtered_extra_token_replacement | combat_counter_mill_replacement | basic_tap_mana_replacement | replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -1807,3 +1807,61 @@ enchanted_owner_library_bottom ::= "put" "on" "the" "bottom" "of" "that" "player
 
 /* @sem EventChange::SetDestination(OwnersLibraryTop) */
 enchanted_owner_library_top ::= "put" "on" "the" "top" "of" "that" "player's" "library"
+
+/* Replacement event and outcome phrases keep the event subject and operands. */
+/* @sem ReplacementEvent::Counters(_{objects:InSet(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(Matching{binding:0, condition:SameTeam{player:Bound(0), other:AbilityController}})])})}) */
+team_counter_event ::= "one" "or" "more" "counters" "would" "be" "put" "on" "a" noun "your" "team" "controls"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Add([EventAmount, $number]))}}]} */
+team_counter_outcome ::= "that" "many" "plus" number "of" "each" "of" "those" "kinds" "of" "counters" "are" "put" "on" "that" "permanent" "instead"
+/* @sem Ability::Replacement{active:Battlefield, event:$team_counter_event, body:$team_counter_outcome} */
+team_counter_replacement ::= "if" team_counter_event "," team_counter_outcome "."
+
+/* @sem ReplacementEvent::Tokens{tokens:Any, controllers:One(AbilityController)} */
+owned_token_event ::= "one" "or" "more" "tokens" "would" "be" "created" "under" "your" "control"
+/* @sem TokenSpec::TokenSpec{amount:EventAmount, words:CreatingEffect, recipe:$token_recipe} */
+replacement_matching_token_group ::= "that" "many" token_recipe
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe} */
+replacement_additional_token_group ::= "an" "additional" token_recipe
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:Rules, recipe:$token_named_recipe} */
+replacement_additional_named_group ::= "an" "additional" token_named_recipe "token"
+replacement_extra_token_group ::= replacement_matching_token_group | replacement_additional_token_group | replacement_additional_named_group
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1, tokens:[$replacement_extra_token_group]}}}]} */
+replacement_extra_token_outcome ::= "those" "tokens" "plus" replacement_extra_token_group "are" "created" "instead"
+/* @sem Ability::Replacement{active:Battlefield, event:$owned_token_event, body:$replacement_extra_token_outcome} */
+owned_extra_token_replacement ::= "if" owned_token_event "," replacement_extra_token_outcome "."
+/* @sem Ability::Replacement{active:Battlefield, event:$replacement_filtered_token_event, body:$replacement_extra_token_outcome} */
+filtered_extra_token_replacement ::= "if" replacement_filtered_token_event "," replacement_extra_token_outcome "."
+
+/* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($self_ref_named), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Recipient}) */
+named_combat_player_event ::= self_ref_named "would" "deal" "combat" "damage" "to" "a" "player"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($self_ref_named)), kind:$counter_kind, amount:EventAmount}]}}, Effect{result:@next, operation:Mill{players:One(EventSubject), amount:EventAmount}}]} */
+combat_counter_mill_outcome ::= "instead" "put" "that" "many" counter_kind "counters" "on" self_ref_named "and" "that" "player" "mills" "that" "many" "cards"
+/* @sem Ability::Replacement{active:Battlefield, event:$named_combat_player_event, body:$combat_counter_mill_outcome} */
+combat_counter_mill_replacement ::= "if" named_combat_player_event "," combat_counter_mill_outcome "."
+
+/* @sem ReplacementEvent::ProduceMana{sources:AllOf([Supertype(Basic), $noun]), by:AbilityController} */
+basic_tap_mana_event ::= "you" "tap" "a" "basic" noun "for" "mana"
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([$number, EventAmount]))}}]} */
+mana_multiple_outcome ::= "it" "produces" number "times" "as" "much" "of" "that" "mana" "instead"
+/* @sem Ability::Replacement{active:Battlefield, event:$basic_tap_mana_event, body:$mana_multiple_outcome} */
+basic_tap_mana_replacement ::= "if" basic_tap_mana_event "," mana_multiple_outcome "."
+
+/* A hand observation followed by a choice of a card name or card type. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$hand_choice_observation}, Effect{result:@next, operation:$hand_choice_term}]} */
+program_observe_hand_choose_term ::= hand_choice_observation "," "then" hand_choice_term
+
+hand_choice_observation ::= hand_choice_opponent_observation | hand_observation_look
+
+/* @sem Operation::LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(OneOf(OpponentsOf(AbilityController)))}, kind:Card, filter:Any}} */
+hand_choice_opponent_observation ::= "look" "at" "an" "opponent's" "hand"
+
+hand_choice_term ::= hand_choice_any_name | hand_choice_typed_name | hand_choice_type_except
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[Term{family:CardsInOracle, form:AnyOracleCard}]}} */
+hand_choice_any_name ::= "choose" "any" "card" "name"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), options:[$card_name_kind]}} */
+hand_choice_typed_name ::= "choose" ("a" | "an") card_name_kind "card" "name"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{except:[$choice_card_type], count:Exactly(Constant(1))}} */
+hand_choice_type_except ::= "choose" "a" "card" "type" "other" "than" choice_card_type

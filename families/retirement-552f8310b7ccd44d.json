@@ -1,0 +1,778 @@
+{
+  "family": "retirement-552f8310b7ccd44d",
+  "cases": [
+    {
+      "name": "Archon of Coronation",
+      "text": "As long as you're the monarch, damage doesn't cause you to lose life.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "PlayerState",
+              "args": {
+                "player": {
+                  "kind": "AbilityController"
+                },
+                "state": "Monarch"
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": "DamageDoesNotCauseLifeLoss"
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Dragonlord Dromoka",
+      "text": "Your opponents can't cast spells during your turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "PlayerIsActive",
+              "args": {
+                "kind": "AbilityController"
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "Prohibit": {
+                          "CastSpell": {
+                            "from": null,
+                            "filter": {
+                              "kind": "Any"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Elderscale Wurm",
+      "text": "As long as you have 7 or more life, damage that would reduce your life total to less than 7 reduces it to 7 instead.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "PlayerNumber",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "number": "Life"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 7
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "DamageLifeFloor": {
+                          "kind": "Constant",
+                          "args": 7
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Geyser Drake",
+      "text": "During turns other than yours, spells you cast cost {1} less to cast.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ExistsPlayer",
+              "args": {
+                "players": {
+                  "kind": "OthersThan",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "binding": 0,
+                "condition": {
+                  "kind": "PlayerIsActive",
+                  "args": {
+                    "kind": "Bound",
+                    "args": 0
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "SpellCost": {
+                          "spells": {
+                            "kind": "Any"
+                          },
+                          "modifier": {
+                            "Reduce": {
+                              "reductions": [
+                                {
+                                  "color": null,
+                                  "amount": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              ],
+                              "spill_into_generic": true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Grand Abolisher",
+      "text": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "PlayerIsActive",
+              "args": {
+                "kind": "AbilityController"
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "Prohibit": {
+                          "CastSpell": {
+                            "from": null,
+                            "filter": {
+                              "kind": "Any"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "Prohibit": {
+                          "Activate": {
+                            "Of": {
+                              "kind": "AnyOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Artifact"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Enchantment"
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Marisi, Breaker of the Coil",
+      "text": "Your opponents can't cast spells during combat.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Window",
+              "args": "Combat"
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "Prohibit": {
+                          "CastSpell": {
+                            "from": null,
+                            "filter": {
+                              "kind": "Any"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Elderscale Wurm",
+      "text": "As long as you have 7 or more life, damage that would reduce your life total to less than 7 reduces it to 8 instead.",
+      "reject": true
+    },
+    {
+      "name": "Geyser Drake",
+      "text": "Flying\nDuring turns other than yours, spells you cast cost {2} less to cast.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Drake"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ExistsPlayer",
+              "args": {
+                "players": {
+                  "kind": "OthersThan",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "binding": 0,
+                "condition": {
+                  "kind": "PlayerIsActive",
+                  "args": {
+                    "kind": "Bound",
+                    "args": 0
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "SpellCost": {
+                          "spells": {
+                            "kind": "Any"
+                          },
+                          "modifier": {
+                            "Reduce": {
+                              "reductions": [
+                                {
+                                  "color": null,
+                                  "amount": {
+                                    "kind": "Constant",
+                                    "args": 2
+                                  }
+                                }
+                              ],
+                              "spill_into_generic": true
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Grand Abolisher",
+      "text": "During your turn, your opponents can't cast spells or activate abilities of lands, creatures, or enchantments.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Cleric"
+        ],
+        "mana_cost": [
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "PlayerIsActive",
+              "args": {
+                "kind": "AbilityController"
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "Prohibit": {
+                          "CastSpell": {
+                            "from": null,
+                            "filter": {
+                              "kind": "Any"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "Prohibit": {
+                          "Activate": {
+                            "Of": {
+                              "kind": "AnyOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Enchantment"
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Elderscale Wurm",
+      "text": "Trample\nWhen this creature enters, if your life total is less than 7, your life total becomes 7.\nAs long as you have 8 or more life, damage that would reduce your life total to less than 6 reduces it to 6 instead.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Wurm"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 4
+          },
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          7,
+          7
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "PlayerNumber",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "number": "Life"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Less",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 7
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "SetLifeTotal",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 7
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "PlayerNumber",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "number": "Life"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 8
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Players": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "PlayerRule",
+                      "args": {
+                        "DamageLifeFloor": {
+                          "kind": "Constant",
+                          "args": 6
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

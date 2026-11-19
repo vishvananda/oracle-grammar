@@ -43,7 +43,7 @@ mana_persists ::= until_end_of_turn "," "you" "don't" "lose" "this" "mana" "as" 
 /* @sem ManaUse::Persists($until_end_of_combat) */
 mana_persists_combat ::= until_end_of_combat "," "you" "don't" "lose" "this" "mana" "as" "steps" "end"
 
-mana_use ::= mana_use_atom | mana_use_either | mana_use_comma_either | mana_use_ability_or_cast | mana_use_three | mana_use_artifact_cast_or_ability | mana_use_cast_activate_pay_colorless | mana_use_cast_chosen_or_activate
+mana_use ::= mana_use_manifest_morph | mana_use_power_up | mana_use_colorless_or_ability | mana_use_chosen_type_pair | mana_use_unowned_spells | mana_use_face_down_or_turn | mana_use_atom | mana_use_either | mana_use_comma_either | mana_use_ability_or_cast | mana_use_three | mana_use_artifact_cast_or_ability | mana_use_cast_activate_pay_colorless | mana_use_cast_chosen_or_activate
 /* @sem ManaUse::Either([$mana_use_atom, ...$mana_use_tail]) */
 mana_use_either ::= mana_use_atom "or" mana_use_tail
 mana_use_tail ::= mana_use_last | mana_use_more
@@ -220,3 +220,28 @@ activated_conditional_mana_alternative ::= cost ":" mana_clause_plain "." "if" c
 /* A linked card is selected from the exiled cards of its own source. */
 /* @sem ObjectFilter::SameObject(Query{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)}), index:0}) */
 mana_last_linked_card ::= "the" "last" "card" "exiled" "with" object_ref
+
+/* Spending purposes retain the filters on each independently named use. */
+/* @sem ManaUse::Either([CastSpell($filter_phrase), Purpose(TurnFaceUp(State(Manifested))), Purpose(MorphCost)]) */
+mana_use_manifest_morph ::= "cast" "a" filter_phrase "spell" "," "pay" "a" "mana" "cost" "to" "turn" "a" "manifested" "creature" "face" "up" "," "or" "pay" "a" "morph" "cost"
+
+/* @sem ManaUse::Purpose(AbilityKeyword(PowerUp)) */
+mana_use_power_up ::= "activate" "power-up" "abilities"
+
+/* @prefer always */
+/* @sem ManaUse::Either([CastSpell(Colorless), ActivateAbility{sources:Any, permanents_only:false}]) */
+mana_use_colorless_or_ability ::= "cast" "a" "colorless" "spell" "or" "to" "activate" "an" "ability"
+
+/* @sem ManaUse::Either([CastSpell(AllOf([$filter_phrase, Chosen(CreatureType)])), ActivateAbility{sources:AllOf([$filter_phrase_2, Chosen(CreatureType)]), permanents_only:false}]) */
+mana_use_chosen_type_pair ::= "cast" "a" filter_phrase "spell" "of" "the" "chosen" "type" "or" "activate" "an" "ability" "of" "a" filter_phrase "source" "of" "the" "chosen" "type"
+
+/* @sem ManaUse::CastSpell(OwnedBy(OthersThan(AbilityController))) */
+mana_use_unowned_spells ::= "cast" "spells" "you" "don't" "own"
+
+/* @prefer always */
+/* @sem ManaUse::Either([CastSpell(State(FaceDown)), Purpose(TurnFaceUp($filter_plural))]) */
+mana_use_face_down_or_turn ::= "cast" "face-down" "spells" "or" "to" "turn" filter_plural "face" "up"
+
+/* The persistence sentence qualifies the mana action, not the life gain. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:$mana_persists}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$value}}]} */
+program_sentence_mana_life_persists ::= "add" mana_production "and" "you" "gain" value "life" "." mana_persists "."

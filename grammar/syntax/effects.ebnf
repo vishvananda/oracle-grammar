@@ -127,7 +127,7 @@ fraction_discard_single ::= player_ref "discards" fraction_hand_amount
 /* @sem Expr::Divide{numerator:CountObjects(Zone{scope:Players{zone:Hand, players:One(@that_player)}, kind:Card, filter:Any}), denominator:Constant(2), rounding:$rounding_words} */
 fraction_hand_amount ::= "half" "the" "cards" "in" "their" "hand" "," rounding_words
 
-instructions_player_fraction ::= fractional_each_sequence | fraction_mill_plural | fraction_discard_plural | fraction_sacrifice_plural | sacrifice_extreme_plural
+instructions_player_fraction ::= fractional_each_sequence | fraction_mill_plural | fraction_discard_plural | fraction_sacrifice_plural | sacrifice_extreme_plural | instructions_personal_count
 /* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Mill{players:One(Bound(0)), amount:Divide{numerator:CountObjects(Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}), denominator:Constant(2), rounding:$rounding_words}}}]}}] */
 fraction_mill_plural ::= hand_plural_players "mills" "half" "their" "library" "," rounding_words
 /* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Discard{players:One(Bound(0)), amount:Divide{numerator:CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), denominator:Constant(2), rounding:$rounding_words}}}]}}] */
@@ -350,7 +350,7 @@ continuous_beyond_first ::= affected ("gets" | "get") signed "/" signed duration
 
 /* Only explicit action families own this two-sentence contrast. Neither slot
    uses program, clause, operation, or a CDE with an arbitrary change list. */
-clause_atomic_instead ::= instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure
+clause_atomic_instead ::= clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure
 
 /* The replacing action may come first and its condition trail: "That creature gets
    -13/-13 until end of turn instead if a creature died this turn". Both slots are
@@ -995,3 +995,58 @@ verbs_third_serial ::= verb_third "," verbs_third_serial_end
 
 /* @sem Instruction::[$verb_third, $verb_third_2] */
 verbs_third_serial_end ::= verb_third "," "and" verb_third
+
+/* The named subject governs each of the three successive actions. */
+/* @sem Instruction::@apply(PlayerSet::One($player_ref), $player_three_verbs) */
+clause_player_three_actions ::= player_ref player_three_verbs
+
+/* @sem Instruction::[Effect{result:@next, operation:$sacrifice_choice_third}, Effect{result:@next, operation:$discard_third}, Effect{result:@next, operation:$lose_life_third}] */
+player_three_verbs ::= sacrifice_choice_third "," discard_third "," "then" lose_life_third
+
+/* The private-zone selection and movement stay together, with controller actions following. */
+/* @sem Instruction::[...$graveyard_return_you, ...$return_draw_gain_tail] */
+clause_return_draw_gain ::= graveyard_return_you "," return_draw_gain_tail
+
+/* @sem Instruction::@apply(PlayerSet::One(PlayerRef::AbilityController), $return_draw_gain_verbs) */
+return_draw_gain_tail ::= return_draw_gain_verbs
+
+/* @sem Instruction::[Effect{result:@next, operation:$draw_base}, Effect{result:@next, operation:$gain_life_base}] */
+return_draw_gain_verbs ::= draw_base "," "then" gain_life_base
+
+/* The replacement acts on the same announced player in either branch. */
+/* @sem Instruction::[If{condition:$condition_card_types_graveyard, then:Program{instructions:[Effect{result:@next, operation:Discard{players:One($target_opponent), amount:$card_count_2, random:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Discard{players:One($target_opponent), amount:$card_count, random:true}}]}}] */
+clause_random_discard_instead ::= target_opponent "discards" card_count "at" "random" "." NEWLINE "if" condition_card_types_graveyard "," "that" "player" "discards" card_count "at" "random" "instead"
+
+/* Each quantity is evaluated for the same player who performs the action. */
+/* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:$personal_count_action}]}}] */
+instructions_personal_count ::= hand_plural_players personal_count_action
+
+personal_count_action ::= personal_count_mill | personal_count_draw | personal_count_discard
+
+/* @sem Operation::Mill{players:One(Bound(0)), amount:$personal_zone_count} */
+personal_count_mill ::= "mills" "cards" "equal" "to" personal_zone_count
+
+/* @sem Operation::Draw{players:One(Bound(0)), amount:$personal_zone_count} */
+personal_count_draw ::= "draws" "cards" "equal" "to" personal_zone_count
+
+/* @sem Operation::Discard{players:One(Bound(0)), amount:$personal_zone_count, random:false} */
+personal_count_discard ::= "discards" "cards" "equal" "to" personal_zone_count
+
+personal_zone_count ::= personal_zone_count_any | personal_zone_count_filtered
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:$personal_count_zone, players:One(Bound(0))}, kind:Card, filter:Any}) */
+personal_zone_count_any ::= "the" "number" "of" "cards" "in" "their" personal_count_zone
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:$personal_count_zone, players:One(Bound(0))}, kind:Card, filter:$card_filter}) */
+personal_zone_count_filtered ::= "the" "number" "of" card_filter "cards" "in" "their" personal_count_zone
+
+personal_count_zone ::= personal_count_hand | personal_count_graveyard | personal_count_library
+
+/* @sem ZoneName::Hand */
+personal_count_hand ::= "hand"
+
+/* @sem ZoneName::Graveyard */
+personal_count_graveyard ::= "graveyard"
+
+/* @sem ZoneName::Library */
+personal_count_library ::= "library"
