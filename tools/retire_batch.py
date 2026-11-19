@@ -1044,7 +1044,11 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
     try:
         data = control['data'] if control is not None else w.payload(Path(checkpoint['inputs']))
         losses = _early_default_print(checkpoint, grammar, data, logs)
-        focus = _witness_control(checkpoint, losses, logs)
+        # A bounded sample can reject a large failing union. The full
+        # population still validates every candidate that leaves staging.
+        sampled = losses is not None and len(losses) > RETAINED_NATIVE_PROBE_LIMIT
+        witnesses = losses[:RETAINED_NATIVE_PROBE_LIMIT//2] if sampled else losses
+        focus = _witness_control(checkpoint, witnesses, logs)
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         proof['default_print_screen_error'] = str(error)
         return
@@ -1053,6 +1057,9 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
     if focus is None:
         return
     cp, focused, spec = focus
+    if sampled:
+        names = set(focused['names'])
+        losses = [item for item in losses if item['face'] in names]
     try:
         _control_check(cp, focused, grammar, logs/'native-focused')
     except _NativeControlFailure as error:

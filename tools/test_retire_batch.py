@@ -244,6 +244,33 @@ class BatchTests(unittest.TestCase):
                         batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
                 self.assertEqual(proof['retained_native_failure']['failures'],reading_change['failures'])
 
+    def test_large_early_print_screen_confirms_a_bounded_companion_cohort(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            grammar = root/'grammar'
+            grammar.mkdir()
+            losses = [{'face':f'Face {index:02d}','lost':['exact_default']} for index in range(26)]
+            limit = batch.RETAINED_NATIVE_PROBE_LIMIT
+            sampled = losses[:limit//2]
+            confirmed = [*sampled, losses[-1]]
+            control = dict(names=[item['face'] for item in confirmed], occurrences=len(confirmed),
+                           profile_sha256='profile', manifest_sha256='manifest', threads=2)
+            profile = {'path':str(root/'profile'),'sha256':'profile'}
+            context = {'checkpoint':{},'control':{'data':[]}}
+            proof = {'trial_grammar':{}}
+            with (patch.object(batch, '_early_default_print', return_value=losses),
+                  patch.object(batch, '_witness_control', return_value=({},control,profile)) as witness,
+                  patch.object(batch, '_retained_print_hints', return_value=[]),
+                  patch.object(batch, '_control_check', return_value={'failures':[]}) as native):
+                batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
+                witness.assert_called_once_with({}, sampled, root)
+                self.assertNotIn('retained_native_failure', proof)
+                native.side_effect = batch._NativeControlFailure(
+                    root/'native-focused/result.json', {'faces':len(confirmed),'failures':confirmed})
+                with self.assertRaises(batch._NativeControlFailure):
+                    batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
+                self.assertEqual(proof['retained_native_failure']['failures'],confirmed)
+
     def test_edited_family_gold_is_independently_reconstructed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
