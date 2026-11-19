@@ -30,7 +30,7 @@ class RehabilitationTests(unittest.TestCase):
         self.rules = ['m_one', 'm_two', 'm_three']
         self.queue.add_jobs([{'id': 'family', 'kind': 'author', 'rules': self.rules,
                               'source_fragments': [{'name': rule} for rule in self.rules],
-                              'target_faces': ['target']}])
+                              'target_faces': ['target', 'completed']}])
         self.claim = self.queue.claim('worker')
         self.attempt = self.claim['attempt_id']
         child = subprocess.Popen(['true'])
@@ -44,13 +44,14 @@ class RehabilitationTests(unittest.TestCase):
         self.queue.reject_jobs(['family'], {'reason': 'combined integration failure'})
         self.new_checkpoint('new', ['m_one'], 'old')
 
-    def new_checkpoint(self, commit, unused, parent):
+    def new_checkpoint(self, commit, unused, parent, needed=None):
         inputs = self.root/'checkpoints'/commit/'inputs'
         write(self.root/'checkpoints'/f'{commit}.json', {'commit': commit, 'inputs': str(inputs)})
         manifest = inputs/'manifest.json'
         write(manifest, {'format': 3, 'commit': commit, 'population': 2})
         scan = inputs/'scan/rules.json'
-        write(scan, {'summary': {'faces': 2, 'equal': 2, 'at_risk': 0, 'unused_rules': len(unused)}, 'unused': unused})
+        write(scan, {'summary': {'faces': 2, 'equal': 2, 'at_risk': 0, 'unused_rules': len(unused)},
+                     'unused': unused, 'needed': needed or {}})
         marker = inputs/'scan-complete.json'
         write(marker, {'report': spec(scan)['sha256']})
         commands = inputs/'scan/commands.jsonl'
@@ -105,6 +106,40 @@ class RehabilitationTests(unittest.TestCase):
         self.assertEqual(child['rules'], ['m_three'])
         self.assertEqual(child['review_origin']['job_id'], 'family')
         self.assertEqual(child['review_origin']['attempt_id'], self.attempt)
+
+    def test_deferred_author_starts_a_new_attempt_on_exact_current_faces(self):
+        deferred = self.queue.rehabilitate_unused('family', 'new', self.proof)['review_job']
+        old, attempt = self.parent_snapshot(), self.queue.get_attempt(self.attempt)
+        self.new_checkpoint('author-tip', [], 'new', {'m_two': ['target'], 'm_three': ['target']})
+        with self.lease.open('w') as held:
+            fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            with self.assertRaises(RehabilitationIneligible):
+                self.queue.queue_deferred_author(deferred, 'author-tip', self.proof)
+        receipt = self.queue.queue_deferred_author(deferred, 'author-tip', self.proof)
+        self.assertEqual(receipt['target_faces'], ['target'])
+        self.assertEqual(receipt['rules'], ['m_two', 'm_three'])
+        self.assertEqual(self.queue.coverage()['counts'], {'pending': 3})
+        self.assertEqual(self.queue.coverage()['rule_counts'], {'pending': 3})
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+        claimed = self.queue.claim('author', kinds=['author'])
+        self.assertEqual(claimed['job']['id'], deferred)
+        self.assertEqual(claimed['base_commit'], 'author-tip')
+        self.assertEqual(claimed['job']['target_faces'], ['target'])
+        self.assertNotEqual(claimed['attempt_id'], self.attempt)
+        self.assertEqual(self.queue.get_attempt(self.attempt), attempt)
+        self.assertEqual(self.parent_snapshot(), old)
+        with self.assertRaises(RehabilitationIneligible):
+            self.queue.queue_deferred_author(deferred, 'author-tip', self.proof)
+
+    def test_deferred_author_rejects_outside_and_unused_rules(self):
+        deferred = self.queue.rehabilitate_unused('family', 'new', self.proof)['review_job']
+        self.new_checkpoint('outside', [], 'new', {'m_two': ['target'], 'm_three': ['outside']})
+        with self.assertRaisesRegex(ValueError, 'outside its original scope'):
+            self.queue.queue_deferred_author(deferred, 'outside', self.proof)
+        self.new_checkpoint('mixed', ['m_three'], 'outside', {'m_two': ['target']})
+        with self.assertRaisesRegex(ValueError, 'separate mechanical verification'):
+            self.queue.queue_deferred_author(deferred, 'mixed', self.proof)
+        self.assertEqual(self.queue.coverage()['counts'], {'pending': 1, 'needs-review': 2})
 
     def test_guards_failed_scan_held_lease_and_checkpoint_race(self):
         with self.lease.open('w') as held:

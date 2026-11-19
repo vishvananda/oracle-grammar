@@ -1076,6 +1076,55 @@ class Queue:
                 self._event(db, 'rehabilitated-unused', {**result, 'evidence': evidence})
                 return result
 
+    def queue_deferred_author(self, job_id, checkpoint, evidence):
+        """Schedule the first standalone author attempt for an inherited review."""
+        def current(db):
+            row = db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?',
+                             (job_id,)).fetchone()
+            if not row or tuple(row[:2]) != ('needs-review', None):
+                raise RehabilitationIneligible('the deferred job already has a standalone disposition')
+            resolved = retire_rehabilitation.resolve_origin(db, job_id, row)
+            if resolved is None or resolved[0].get('id') != job_id or resolved[0].get('kind') != 'author':
+                raise RehabilitationIneligible('the deferred job has no verified author origin')
+            return resolved
+
+        latest = 'SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1'
+        with closing(self._connect()) as db:
+            initial = current(db)
+            head = db.execute(latest).fetchone()
+            if not head or head[0] != checkpoint:
+                raise RehabilitationIneligible('the accepted checkpoint changed')
+        job, origin, base, started, _ = initial
+        rules = job['rules']
+        pid = json.loads(started or '{}').get('pid')
+        if type(pid) is not int or pid <= 0:
+            raise RehabilitationIneligible('the original worker PID is unknown')
+        campaign = Path(self.path).parent
+        inputs, unused, manifest_hash, scan_hash = retire_rehabilitation.verify_scan(
+            campaign, checkpoint, json.loads(head[1]), evidence)
+        targets = retire_rehabilitation.deferred_author_faces(inputs, scan_hash, unused, job)
+        with self._retry_lease(origin['job_id'], unavailable_exc=RehabilitationIneligible):
+            with self._transaction() as db:
+                owned = {row[0] for row in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
+                if db.execute(latest).fetchone() != head or current(db) != initial or owned != set(rules):
+                    raise RehabilitationIneligible('the accepted checkpoint or deferred ownership changed')
+                _verify_readmission_origin(db, checkpoint, base)
+                finished = db.execute("SELECT unixepoch(at) FROM events WHERE kind='finished' "
+                                      "AND json_extract(data,'$.attempt_id')=?", (origin['attempt_id'],)).fetchall()
+                try:
+                    self._require_absent_pid(pid, finished=finished[0][0] if len(finished) == 1 else None)
+                except ValueError as exc:
+                    raise RehabilitationIneligible(str(exc)) from exc
+                archive = campaign/'.cache/attempts'/origin['attempt_id']
+                goal = (job.get('goal', '')+' Author the remaining rules in this assignment. Preserve the scopes and '
+                        f'meanings checked in earlier attempts. The original attempt evidence is under {archive}.')
+                payload = dict(job, target_faces=targets, goal=goal)
+                db.execute("UPDATE jobs SET payload=?,status='pending' WHERE id=?", (_json(payload), job_id))
+                receipt = {'job_id': job_id, 'origin_attempt': origin['attempt_id'], 'checkpoint': checkpoint,
+                           'rules': rules, 'target_faces': targets, 'manifest_sha256': manifest_hash, 'scan_sha256': scan_hash}
+                self._event(db, 'queued-deferred-author', {**receipt, 'evidence': evidence})
+                return receipt
+
     def escalate_mechanical_failure(self, job_id, attempt_id, checkpoint, evidence):
         """Schedule a fresh author attempt for a failure on the accepted chain."""
         if not isinstance(evidence, dict) or evidence.get('kind') != 'mechanical-author-escalation':
@@ -2143,7 +2192,7 @@ class Queue:
                 counts[row[2]] = counts.get(row[2], 0) + len(job["rules"])
                 attempt = db.execute("SELECT result FROM attempts WHERE id=?", (row[3],)).fetchone() if row[3] else None
                 result = json.loads(attempt[0]) if attempt and attempt[0] else None
-                inherited = payload.get("review_origin") is not None and row[3] is None
+                inherited = payload.get("review_origin") is not None and row[2] == "needs-review" and row[3] is None
                 if payload.get("review_origin") is not None and not inherited:
                     job["prior_review_origin"] = payload["review_origin"]
                 if inherited:

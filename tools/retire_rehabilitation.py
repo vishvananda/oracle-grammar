@@ -102,6 +102,26 @@ def verify_rule_receipts(inputs, rules, manifest_hash, scan_hash):
             raise ValueError('unused rule scan receipt differs')
 
 
+def deferred_author_faces(inputs, scan_hash, unused, job):
+    """Derive the exact remaining author scope from the accepted rule scan."""
+    rules, allowed = job['rules'], job.get('target_faces')
+    if (not isinstance(rules, list) or not rules or not all(isinstance(rule, str) for rule in rules)
+            or len(rules) != len(set(rules)) or not isinstance(allowed, list)
+            or not all(isinstance(name, str) for name in allowed)):
+        raise ValueError('invalid deferred assignment')
+    needed = json.loads(_read(inputs/'scan/rules.json', scan_hash)[0]).get('needed')
+    if not isinstance(needed, dict) or unused.intersection(rules):
+        raise ValueError('deferred assignment needs separate mechanical verification')
+    cohorts = [needed.get(rule) for rule in rules]
+    if any(not isinstance(cohort, list) or not cohort
+           or not all(isinstance(name, str) and name for name in cohort) for cohort in cohorts):
+        raise ValueError('the accepted scan does not witness every deferred rule')
+    targets = {name for cohort in cohorts for name in cohort}
+    if not targets <= set(allowed):
+        raise ValueError('the accepted scan puts a deferred rule outside its original scope')
+    return sorted(targets)
+
+
 def resolve_origin(db, job_id, row):
     """Find the original immutable terminal attempt for a parked job."""
     status, attempt_id, payload_raw, adjudication = row
