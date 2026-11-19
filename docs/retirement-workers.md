@@ -212,6 +212,12 @@ and checks the archived original cohort before handing it to the normal
 coordinator replay. The replay runs before any model call and still needs
 staging and full validation.
 
+Use `python3 tools/retire_deferred_frontier.py CAMPAIGN` to preview a refill
+for idle author slots. With `--apply` the refill verifies the accepted scan
+and queues small inherited assignments for their first standalone attempt.
+Each wave checks for overlap with active target faces and original owners.
+Use `--protect JOB` to reserve an assignment for a separate draft check.
+
 Author diagnostics stop when the compositional family fails, explicitly marking
 cohort and edited-operand checks as skipped. Once the family passes, every normal
 cohort, native and edited-operand check runs. Edited-operand diagnostics also

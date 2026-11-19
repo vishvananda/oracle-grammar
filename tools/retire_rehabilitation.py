@@ -104,12 +104,17 @@ def verify_rule_receipts(inputs, rules, manifest_hash, scan_hash):
 
 def deferred_author_faces(inputs, scan_hash, unused, job):
     """Derive the exact remaining author scope from the accepted rule scan."""
+    needed = json.loads(_read(inputs/'scan/rules.json', scan_hash)[0]).get('needed')
+    return deferred_author_targets(needed, unused, job)
+
+
+def deferred_author_targets(needed, unused, job):
+    """Derive one assignment's targets from an already verified dependency map."""
     rules, allowed = job['rules'], job.get('target_faces')
     if (not isinstance(rules, list) or not rules or not all(isinstance(rule, str) for rule in rules)
             or len(rules) != len(set(rules)) or not isinstance(allowed, list)
             or not all(isinstance(name, str) for name in allowed)):
         raise ValueError('invalid deferred assignment')
-    needed = json.loads(_read(inputs/'scan/rules.json', scan_hash)[0]).get('needed')
     if not isinstance(needed, dict) or unused.intersection(rules):
         raise ValueError('deferred assignment needs separate mechanical verification')
     cohorts = [needed.get(rule) for rule in rules]
