@@ -141,6 +141,29 @@ class RehabilitationTests(unittest.TestCase):
             self.queue.queue_deferred_author(deferred, 'mixed', self.proof)
         self.assertEqual(self.queue.coverage()['counts'], {'pending': 1, 'needs-review': 2})
 
+    def test_deferred_author_replays_only_a_reviewed_draft_covering_the_original_cohort(self):
+        deferred = self.queue.rehabilitate_unused('family', 'new', self.proof)['review_job']
+        self.new_checkpoint('author-tip', [], 'new', {'m_two': ['target'], 'm_three': ['target']})
+        old_task = self.root/'.cache/attempts'/self.attempt/'tasks/family.json'
+        write(old_task, {'cohort': ['target', 'companion']})
+        reviewed = {'report': {'path': 'approved-repair'}, 'original_report': {'path': 'archived-family'}}
+        with (patch('retire_queue._verify_original_report') as original,
+              patch('retire_queue._verify_reviewed_repair') as check):
+            original.return_value = ({'descriptor_sha256': spec(old_task)['sha256']}, {})
+            task = {'cohort': ['target']}
+            check.return_value = ({}, task)
+            with self.assertRaisesRegex(ValueError, 'omits its original cohort'):
+                self.queue.queue_deferred_author(deferred, 'author-tip', self.proof, reviewed=reviewed)
+            self.assertIsNone(self.queue.reviewed_draft(deferred))
+            task['cohort'].append('companion')
+            self.queue.queue_deferred_author(deferred, 'author-tip', self.proof, reviewed=reviewed)
+        payload = check.call_args.args[2]
+        self.assertEqual(payload['target_faces'], ['target'])
+        self.assertEqual(payload['rules'], ['m_two', 'm_three'])
+        self.assertEqual(self.queue.reviewed_draft(deferred), {'source_checkpoint': 'author-tip',
+                                                            'report': reviewed['report']})
+        self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+
     def test_guards_failed_scan_held_lease_and_checkpoint_race(self):
         with self.lease.open('w') as held:
             fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)

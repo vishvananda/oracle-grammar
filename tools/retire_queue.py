@@ -37,7 +37,8 @@ REVIEWED_RETRY_EVENTS = {
     'full_check_failure': 'retry-full-check-reviewed-repair',
 }
 SPLIT_REVIEWED_AUTHOR = 'split-reviewed-author'
-_REVIEWED_EVENTS = (*REVIEWED_RETRY_EVENTS.values(), SPLIT_REVIEWED_AUTHOR)
+DEFERRED_REVIEWED_AUTHOR = 'queued-deferred-reviewed-author'
+_REVIEWED_EVENTS = (*REVIEWED_RETRY_EVENTS.values(), SPLIT_REVIEWED_AUTHOR, DEFERRED_REVIEWED_AUTHOR)
 _REVIEWED_EVENT_SLOTS = ','.join('?' for _ in _REVIEWED_EVENTS)
 
 
@@ -1161,7 +1162,7 @@ class Queue:
                 self._event(db, 'rehabilitated-unused', {**result, 'evidence': evidence})
                 return result
 
-    def queue_deferred_author(self, job_id, checkpoint, evidence):
+    def queue_deferred_author(self, job_id, checkpoint, evidence, *, reviewed=None):
         """Schedule the first standalone author attempt for an inherited review."""
         def current(db):
             row = db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?',
@@ -1179,7 +1180,7 @@ class Queue:
             head = db.execute(latest).fetchone()
             if not head or head[0] != checkpoint:
                 raise RehabilitationIneligible('the accepted checkpoint changed')
-        job, origin, base, started, _ = initial
+        job, origin, base, started, original_result = initial
         rules = job['rules']
         pid = json.loads(started or '{}').get('pid')
         if type(pid) is not int or pid <= 0:
@@ -1188,6 +1189,9 @@ class Queue:
         inputs, unused, manifest_hash, scan_hash = retire_rehabilitation.verify_scan(
             campaign, checkpoint, json.loads(head[1]), evidence)
         targets = retire_rehabilitation.deferred_author_faces(inputs, scan_hash, unused, job)
+        if reviewed is not None and (not isinstance(reviewed, dict)
+                                     or set(reviewed) != {'report', 'original_report'}):
+            raise ValueError('deferred draft requires both independent reports')
         with self._retry_lease(origin['job_id'], unavailable_exc=RehabilitationIneligible):
             with self._transaction() as db:
                 owned = {row[0] for row in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
@@ -1204,10 +1208,25 @@ class Queue:
                 goal = (job.get('goal', '')+' Author the remaining rules in this assignment. Preserve the scopes and '
                         f'meanings checked in earlier attempts. The original attempt evidence is under {archive}.')
                 payload = dict(job, target_faces=targets, goal=goal)
+                event, recorded = 'queued-deferred-author', evidence
+                if reviewed is not None:
+                    recorded = dict(evidence, source_checkpoint=checkpoint, report=reviewed['report'])
+                    _, task = _verify_reviewed_repair(campaign, checkpoint, payload, recorded)
+                    original_task = archive/'tasks'/f"{origin['job_id']}.json"
+                    recorded['original_report'] = reviewed['original_report']
+                    report, _ = _verify_original_report(
+                        campaign, origin['job_id'], origin['attempt_id'], base,
+                        json.loads(original_result)['evidence'], recorded['original_report'],
+                        passed=origin['status']=='integration-rejected')
+                    data = original_task.read_bytes()
+                    if (hashlib.sha256(data).hexdigest() != report['descriptor_sha256']
+                            or not set(json.loads(data)['cohort']) <= set(task['cohort'])):
+                        raise ValueError('the deferred draft omits its original cohort')
+                    event = DEFERRED_REVIEWED_AUTHOR
                 db.execute("UPDATE jobs SET payload=?,status='pending' WHERE id=?", (_json(payload), job_id))
                 receipt = {'job_id': job_id, 'origin_attempt': origin['attempt_id'], 'checkpoint': checkpoint,
                            'rules': rules, 'target_faces': targets, 'manifest_sha256': manifest_hash, 'scan_sha256': scan_hash}
-                self._event(db, 'queued-deferred-author', {**receipt, 'evidence': evidence})
+                self._event(db, event, {**receipt, 'evidence': recorded})
                 return receipt
 
     def escalate_mechanical_failure(self, job_id, attempt_id, checkpoint, evidence):
@@ -1594,7 +1613,8 @@ class Queue:
                 split = (SPLIT_REVIEWED_AUTHOR, 'ordinary') in retries
                 if (event, recovery) in retries or (route is None and split):
                     raise ValueError('reviewed repair retry already used for this job')
-                reviewed = (REVIEWED_RETRY_EVENTS[None], 'ordinary') in retries or split
+                reviewed = (split or (REVIEWED_RETRY_EVENTS[None], 'ordinary') in retries
+                            or (DEFERRED_REVIEWED_AUTHOR, 'ordinary') in retries)
                 if (interrupted or legacy) and (not reviewed or row[0] != 'needs-review'):
                     raise ValueError('diagnostic recovery requires a previously retried author repair')
                 if staging and (not reviewed or row[0] != 'integration-rejected'):

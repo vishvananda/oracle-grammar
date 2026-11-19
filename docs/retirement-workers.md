@@ -198,6 +198,12 @@ face from the original cohort, with fresh family and operand checks. The
 verified subset returns to the queue and the remaining rules retain the
 original integration rejection for further review.
 
+A deferred author assignment can carry an independently verified draft for
+all its remaining rules. The queue ties the draft to the current checkpoint
+and checks the archived original cohort before handing it to the normal
+coordinator replay. The replay runs before any model call and still needs
+staging and full validation.
+
 Author diagnostics stop when the compositional family fails, explicitly marking
 cohort and edited-operand checks as skipped. Once the family passes, every normal
 cohort, native and edited-operand check runs. Edited-operand diagnostics also
