@@ -218,6 +218,14 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
             or trial.get('jobs') != [job] or trial.get('attempts') != [attempt]
             or trial.get('status') != 'failed'):
         raise ValueError('staging repair does not identify the rejected attempt')
+    conflict = trial.get('merge_conflict_at')
+    if (type(conflict) is int and 0 <= conflict < 96
+            and trial.get('proposal_indices') == [conflict]
+            and trial_path.parent.name == f'proposal-{conflict:03d}'
+            and isinstance(trial.get('reason'), str) and trial['reason']
+            and 'merge_conflicts' not in trial
+            and evidence.get('failure') == evidence['trial']):
+        return
     for reason, relative, digest in (
             ('family check failed', 'family.log', 'family_log_sha256'),
             ('native regression control failed', 'native-control/result.json', 'native_result_sha256'),
@@ -229,7 +237,7 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
             path, _ = _proof_file(evidence.get('failure'))
             if path == failure and path.resolve() == path and evidence['failure']['sha256'] == trial.get(digest):
                 return
-    raise ValueError('staging repair does not bind a recorded diagnostic failure')
+    raise ValueError('staging repair does not bind a recorded diagnostic failure or merge conflict')
 
 
 def _verify_rewritten_review(db, campaign, assignment, start, result, evidence, reviewed):

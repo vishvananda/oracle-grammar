@@ -1092,7 +1092,11 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
         self.check_staging_repair(focused=True)
 
-    def check_staging_repair(self, *, focused=False):
+    def test_staging_repair_binds_the_exact_solo_merge_conflict(self):
+        self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
+        self.check_staging_repair(merge=True)
+
+    def check_staging_repair(self, *, focused=False, merge=False):
         candidate = self.queue.claim('retried')
         attempt = candidate['attempt_id']
         self.queue.mark_started(attempt, pid=2_000_000_000)
@@ -1107,20 +1111,30 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.write(failure, {'faces': 4, 'failures': [{'face': 'Other card', 'lost': ['exact_default']}]})
         def spec(path):
             return {'path': str(path), 'sha256': self.digest(path)}
-        reason = f'native regression control failed: {failure}'
-        digest_key = 'native_focused_result_sha256' if focused else 'native_result_sha256'
-        self.write(trial, {'jobs':['repair'], 'attempts':[attempt], 'status':'failed',
-                           'reason':reason,digest_key:self.digest(failure)})
         manifest = trial.parent.parent/'manifest.json'
-        self.write(manifest, {'id':'stage-batch', 'base_commit':'base', 'jobs':[
-            {'job_id':'repair','attempt_id':attempt,'status':'integration-rejected',
-             'reason':reason,'trial_proof':spec(trial)}]})
-        identified = {'manifest':spec(manifest),'trial':spec(trial),'failure':spec(failure)}
-        proof = {**self.evidence,'source_checkpoint':'base','staging_failure':identified}
-        invalid = {**proof,'staging_failure':{**identified,'failure':spec(trial)}}
+        reason = ('grammar/syntax/actions.ebnf: conflicting addition or deletion of action_group' if merge
+                  else f'native regression control failed: {failure}')
+
+        def record(details, output):
+            self.write(trial, {'jobs':['repair'], 'attempts':[attempt], 'status':'failed', 'reason':reason, **details})
+            self.write(manifest, {'id':'stage-batch', 'base_commit':'base', 'jobs':[
+                {'job_id':'repair','attempt_id':attempt,'status':'integration-rejected',
+                 'reason':reason,'trial_proof':spec(trial)}]})
+            evidence = {'manifest':spec(manifest),'trial':spec(trial),'failure':spec(output)}
+            return {**self.evidence,'source_checkpoint':'base','staging_failure':evidence}
+
+        if merge:
+            invalid = record({'proposal_indices':[0], 'merge_conflict_at':1}, trial)
+        else:
+            digest_key = 'native_focused_result_sha256' if focused else 'native_result_sha256'
+            invalid = record({digest_key:self.digest(failure)}, trial)
         with self.assertRaisesRegex(ValueError, 'recorded diagnostic failure'):
             self.queue.retry_reviewed_repair('repair',attempt,'base',invalid)
         self.assertEqual(self.queue.coverage()['counts'],{'integration-rejected':1})
+        if merge:
+            proof = record({'proposal_indices':[0], 'merge_conflict_at':0}, trial)
+        else:
+            proof = record({digest_key:self.digest(failure)}, failure)
         self.queue.retry_reviewed_repair('repair',attempt,'base',proof)
         self.assertEqual(self.queue.coverage()['counts'],{'pending':1})
         self.assertEqual(self.queue.get_attempt(attempt),original)
