@@ -111,7 +111,7 @@ class NativeControlThreadTests(unittest.TestCase):
                 if configured is not None: config['native_control_threads'] = configured
                 r.write(root/'config.json', config)
                 cp = {'commit': 'base', 'native_control_threads': 12, 'cpu_capacity': 32}
-                queue = SimpleNamespace(coverage=lambda: {'checkpoint': 'base'})
+                queue = SimpleNamespace(progress=lambda: {'checkpoint': 'base'})
                 with patch.object(dispatch, 'Queue', return_value=queue), \
                         patch.object(dispatch.campaign_api, 'checkpoint', return_value=cp), \
                         patch.object(dispatch, 'proposals', return_value=[{'job_id': 'job'}]), \
@@ -125,7 +125,7 @@ class NativeControlThreadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             r.write(root/'config.json', {'native_control_threads': True})
-            queue = SimpleNamespace(coverage=lambda: {'checkpoint': 'base'})
+            queue = SimpleNamespace(progress=lambda: {'checkpoint': 'base'})
             with patch.object(dispatch, 'Queue', return_value=queue), \
                     patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
                     patch.object(batch, 'stage') as stage, self.assertRaisesRegex(ValueError, 'native_control_threads'):

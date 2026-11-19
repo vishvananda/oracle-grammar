@@ -537,7 +537,7 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     if type(combine_selected) is not bool or (combine_selected and not selected_job_ids):
         raise ValueError('combine_selected requires an explicit nonempty selection')
     queue=Queue(run/'queue.sqlite')
-    cp=campaign_api.checkpoint(run,queue.coverage()['checkpoint'])
+    cp=campaign_api.checkpoint(run,queue.progress()['checkpoint'])
     config=r.read(run/'config.json')
     policy=priority_policy(config)
     cp=dict(cp,audit_threads=config.get('audit_threads',24))

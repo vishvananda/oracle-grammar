@@ -500,7 +500,7 @@ class DispatchCanaries(unittest.TestCase):
             r.write(root/'config.json', {'initial_commit': 'base', 'first_batch_size': 1,
                                         'batch_size': 1, 'priority_policy': dispatch.retire_priority.VERSION})
             queue = Mock()
-            queue.coverage.return_value = {'checkpoint': 'base'}
+            queue.progress.return_value = {'checkpoint': 'base'}
             order = []
             queue.advance_and_accept.side_effect = lambda *args: order.append('accept')
             manifest = {'status': 'provisional', 'commit': 'next', 'id': 'batch',
@@ -518,6 +518,7 @@ class DispatchCanaries(unittest.TestCase):
                     patch.object(dispatch, 'refresh_priorities', side_effect=lambda *args: order.append('priority')) as refresh, \
                     patch.object(dispatch, 'publish_main'):
                 dispatch._batch(root)
+            queue.coverage.assert_not_called()
             self.assertTrue(validate.call_args.kwargs['scan'])
             self.assertEqual(order, ['accept', 'reclassify', 'priority'])
             refresh.assert_called_once_with(root, 'next', dispatch.retire_priority.VERSION)
@@ -541,7 +542,7 @@ class DispatchCanaries(unittest.TestCase):
                 r.write(root/'config.json', {'initial_commit': 'base', 'first_batch_size': 1,
                                             'batch_size': 1, 'candidate_validation_helpers': override})
                 queue = Mock()
-                queue.coverage.return_value = {'checkpoint': 'base'}
+                queue.progress.return_value = {'checkpoint': 'base'}
                 manifest = {'status': 'provisional', 'commit': 'next', 'id': 'batch', 'folder': str(folder),
                             'jobs': [{'job_id': 'one', 'status': 'included'}]}
                 result = {'status': 'passed' if passed else 'failed', 'inputs': str(inputs), 'rows': 'rows',
@@ -574,7 +575,7 @@ class DispatchCanaries(unittest.TestCase):
             root = Path(temporary)
             r.write(root/'config.json', {'candidate_validation_helpers': {'path': '/bad', 'build_sha256': 'bad'}})
             queue = Mock()
-            queue.coverage.return_value = {'checkpoint': 'base'}
+            queue.progress.return_value = {'checkpoint': 'base'}
             with patch.object(dispatch, 'Queue', return_value=queue), \
                     patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base', 'source': str(root)}), \
                     patch.object(dispatch.retire_batch, 'stage') as stage:
