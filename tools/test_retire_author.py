@@ -145,7 +145,7 @@ class AuthoringTests(unittest.TestCase):
         for family_code in (1, 0):
             with self.subTest(family_code=family_code), tempfile.TemporaryDirectory() as tmp:
                 run, root = Path(tmp)/'run', Path(tmp)/'worker'
-                for folder in (run/'tasks', root/'grammar/syntax', root/'families', root/'tests/fixtures'):
+                for folder in (run/'tasks', root/'.cache', root/'grammar/syntax', root/'families', root/'tests/fixtures'):
                     folder.mkdir(parents=True)
                 (root/'grammar/syntax/example.ebnf').write_text('example ::= "example"\n')
                 r.write(run/'tasks/task.json', {'task': 'test'})
@@ -165,10 +165,13 @@ class AuthoringTests(unittest.TestCase):
                      patch.object(a.w, 'checks', return_value={'faces': 3, 'failures': []}) as checks, \
                      patch.object(a, 'edited_checks', return_value=[{'face': 'Example'}]) as edited, \
                      redirect_stdout(io.StringIO()):
-                    report = a._check(run, 'task')
+                    report = a._check(run, 'task', coordinator=True)
                 self.assertEqual(verify.call_count, 2)
                 helper.assert_called_once()
                 self.assertEqual(r.read(Path(report['directory'])/'report.json'), report)
+                edits = Path(report['directory'])/'edits.json'
+                self.assertEqual(edits.read_bytes(), (root/task['edits']).read_bytes())
+                self.assertEqual(r.digest(edits), report['edits_sha256'])
                 if family_code:
                     self.assertFalse(report['passed'])
                     self.assertEqual(report['failures'], ['family regression tests failed'])

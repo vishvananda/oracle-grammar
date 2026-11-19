@@ -284,7 +284,9 @@ def edited_family_case(face, row, flags, *, allow_seeded):
 
 
 def edited_checks(run, directory, grammar, task, root, data):
-    path = root/task['edits']
+    path = directory/'edits.json'
+    if not path.is_file():
+        path = root/task['edits']
     r.require(path.exists(), 'missing operand edits fixture')
     edits = r.read(path)
     r.require(2 <= len(edits) <= 8, 'provide two to eight operand edit tests')
@@ -396,7 +398,12 @@ def _check(run, task_id, coordinator=False, *, preview=False, prepared=None):
             validate_author_family(r.read(fixture))
             shutil.copy2(fixture, directory/'family.json')
             report['fixture_sha256'] = r.digest(fixture)
-            report['edits_sha256'] = r.digest(root/task['edits'])
+            edits = root/task['edits']
+            if coordinator and edits.stat().st_size <= 1024*1024:
+                archived_edits = directory/'edits.json'
+                shutil.copyfile(edits, archived_edits)
+                edits = archived_edits
+            report['edits_sha256'] = r.digest(edits)
             report['family_returncode'] = helper(run, directory, grammar, 'family-check',
                                                   [directory/'family.json', '--compositional'])
             if report['family_returncode']:
