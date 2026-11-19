@@ -799,13 +799,16 @@ def _retained_family_failure(failed_indices, proof, source, logs):
     return witnesses[0] if len(witnesses) == 1 else {'fixtures': witnesses}
 
 
-def _check_trial_native(context, items, proof, input_cache, grammar, logs):
-    control = context['control']
-    directory = logs/'native-control'
+def _check_trial_native(context, items, proof, input_cache, grammar, logs, *, focused=None):
+    control = context['control'] if focused is None else focused
+    directory = logs/('native-control' if focused is None else 'native-focused')
+    checkpoint = context['checkpoint']
+    if focused is not None:
+        checkpoint = {**checkpoint, 'native_control_threads': control['threads']}
     for item in items:
         item['native_control'] = str(directory)
     try:
-        _control_check(context['checkpoint'], control, grammar, directory)
+        _control_check(checkpoint, control, grammar, directory)
     except _NativeControlFailure:
         if not input_cache.unchanged() or r.tree(grammar) != proof['trial_grammar']:
             raise _UncertainPromotion('failed native trial inputs changed during verification')
@@ -894,10 +897,12 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
             proof['trial_grammar'] = r.tree(trial/'grammar')
             proof['new_fixtures'] = [{'fixture': str(destination), 'sha256': r.digest(path)}
                                      for path, destination in additions]
-            native_first = (control is not None and len(entries) == 1
-                            and entries[0][0] in context.get('native_suspects', ()))
-            if native_first:
-                _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs)
+            witnesses = context.get('native_suspects', {}).get(entries[0][0]) if len(entries) == 1 else None
+            if control is not None and witnesses:
+                focused = _focused_native_control(control, witnesses)
+                if focused is not None:
+                    proof['native_focused_names'] = focused['names']
+                    _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs, focused=focused)
             for item in items:
                 item.update(family_logs=str(logs), family_checks=family_checks)
             if fixtures:
@@ -910,7 +915,7 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                         raise _UncertainPromotion('failed family trial inputs changed during verification')
                     proof['verified_family_snapshot'] = True
                     raise
-            if control is not None and not native_first:
+            if control is not None:
                 _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs)
             if context['library_control'] is not None:
                 for item in items:
@@ -973,6 +978,7 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
     try:
         for name, path in (('family_log_sha256', logs/'family.log'),
                            ('native_result_sha256', logs/'native-control/result.json'),
+                           ('native_focused_result_sha256', logs/'native-focused/result.json'),
                            ('library_result_sha256', logs/'library-control/result.json')):
             if path.is_file():
                 proof[name] = r.digest(path)
@@ -1195,19 +1201,26 @@ def _matches_verified_native_trial(context, entries, failure, trial):
             and trial.get('prefix_grammar') == r.tree(context['source']/'grammar'))
 
 
+def _focused_native_control(control, names):
+    try:
+        closure = tasks.close_cohort(control['run'], {'names': list(names)},
+                                     max_occurrences=RETAINED_NATIVE_PROBE_LIMIT)
+    except tasks.CohortClosureLimit:
+        return None
+    if not set(closure['names']) <= set(control['names']):
+        return None
+    return {**control, 'names': closure['names'], 'occurrences': closure['closure_occurrence_count'],
+            'threads': min(2, control['threads'])}
+
+
 def _isolate_retained_native(context, entries, failure, folder, *, limit, initial_trial=None):
     control = context['control']
     _control_verify(control)
     names = failure['faces'] if 'faces' in failure else [failure['face']]
     multiple = len(names) > 1
-    try:
-        closure = tasks.close_cohort(control['run'], {'names': names}, max_occurrences=RETAINED_NATIVE_PROBE_LIMIT)
-    except tasks.CohortClosureLimit:
+    focused = _focused_native_control(control, names)
+    if focused is None:
         return []
-    if not set(closure['names']) <= set(control['names']):
-        return []
-    focused = {**control, 'names': closure['names'], 'occurrences': closure['closure_occurrence_count'],
-               'threads': min(2, control['threads'])}
     full_witnesses = set()
 
     def test(group, logs, input_cache):
@@ -1245,7 +1258,8 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
     if not culprits or not set(culprits) <= {index for index, _ in selection}:
         return False
     if native is not None:
-        context.setdefault('native_suspects', set()).update(culprits)
+        names = native['faces'] if 'faces' in native else [native['face']]
+        context.setdefault('native_suspects', {}).update((index, names) for index in culprits)
     return _retry_without(context, entries, whole_proof, sorted([*withheld, *culprits]), size,
                           route=route)
 

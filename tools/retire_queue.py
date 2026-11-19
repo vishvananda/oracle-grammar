@@ -193,6 +193,7 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
     for reason, relative, digest in (
             ('family check failed', 'family.log', 'family_log_sha256'),
             ('native regression control failed', 'native-control/result.json', 'native_result_sha256'),
+            ('native regression control failed', 'native-focused/result.json', 'native_focused_result_sha256'),
             ('library regression control failed', 'library-control/result.json', 'library_result_sha256')):
         failure = trial_path.parent/relative
         if trial.get('reason') == f'{reason}: {failure}':

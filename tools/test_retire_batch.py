@@ -937,39 +937,48 @@ class BatchTests(unittest.TestCase):
                 return rules, {}
             calls = []
             def checks(run, directory, grammar, names, data, threads):
-                self.assertEqual(threads, 6)
-                self.assertEqual(len(batch.r._LEASES), 6)
+                focused = directory.name == 'native-focused'
+                self.assertEqual(threads, 2 if focused else 6)
+                self.assertEqual(len(batch.r._LEASES), threads)
                 for fd in batch.r._LEASES:
                     os.fstat(fd)
-                self.assertEqual(names, ['A', 'B'])
+                self.assertEqual(names, ['A'] if focused else ['A', 'B'])
                 self.assertEqual(len(data[0]), 2)
                 marker = grammar/'syntax/shared.ebnf'
                 text = marker.read_text() if marker.exists() else ''
-                calls.append(('native', text))
-                return {'faces': 2, 'failures': ['native change'] if 'bad\n' in text else []}
+                calls.append(('focused' if focused else 'native', text))
+                return {'faces': len(names), 'failures': ['native change'] if 'bad\n' in text else []}
             def family(*args, grammar_dir):
                 calls.append(('family', (grammar_dir/'syntax/shared.ebnf').read_text()))
             stage_trial = batch._stage_trial
             def trial(context, entries, label, **options):
-                context['native_suspects'] = {1, 2}
+                context['native_suspects'] = {1: ['A'], 2: ['A']}
                 return stage_trial(context, entries, label, **options)
+            close_cohort = batch.tasks.close_cohort
+            def closure(run, detail, *, max_occurrences):
+                if max_occurrences == batch.RETAINED_NATIVE_PROBE_LIMIT:
+                    return {'names': ['A'], 'closure_occurrence_count': 1}
+                return close_cohort(run, detail, max_occurrences=max_occurrences)
             with patch.object(batch, '_proposal', side_effect=proposal), \
                     patch.object(batch, '_family', return_value={'family': 'new', 'cases': []}), \
                     patch.object(batch.merger, 'merge_grammar', side_effect=merge), \
                     patch.object(batch.mined, 'remove', side_effect=remove), \
                     patch.object(batch.a, 'apply_hooks'), patch.object(batch, '_helper', side_effect=family), \
                     patch.object(batch, '_stage_trial', side_effect=trial), \
+                    patch.object(batch.tasks, 'close_cohort', side_effect=closure), \
                     patch.object(batch.w, 'checks', side_effect=checks):
                 result = batch.stage(root, cp, proposals)
             self.assertEqual(calls, [('native', ''), ('family', 'first\n'), ('native', 'first\n'),
-                                     ('native', 'first\nbad\n'), ('native', 'first\nlast\n'),
-                                     ('family', 'first\nlast\n')])
+                                     ('focused', 'first\nbad\n'), ('focused', 'first\nlast\n'),
+                                     ('family', 'first\nlast\n'), ('native', 'first\nlast\n')])
             self.assertEqual([job['status'] for job in result['jobs']],
                              ['included', 'integration-rejected', 'included'])
             self.assertEqual(result['status'], 'provisional')
             self.assertEqual(result['native_regression_controls']['names'], ['A', 'B'])
             self.assertEqual(json.loads((Path(result['jobs'][1]['native_control'])/'result.json').read_text())['failures'],
                              ['native change'])
+            self.assertEqual(Path(result['jobs'][1]['native_control']).name, 'native-focused')
+            self.assertEqual(Path(result['jobs'][2]['native_control']).name, 'native-control')
             self.assertNotIn('family_logs', result['jobs'][1])
             self.assertEqual((Path(result['source'])/'grammar/syntax/shared.ebnf').read_text(), 'first\nlast\n')
             self.assertEqual(batch.r._LEASES, [])
@@ -1527,7 +1536,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(calls[2], ('without-retained-native-regression', ['job-5', 'job-6', 'job-7']))
             self.assertEqual([label for label, _ in calls[3:]], [f'proposal-{i:03d}' for i in range(5)])
             self.assertEqual(len(context['manifest']['jobs']), 8)
-            self.assertEqual(context['native_suspects'], {4})
+            self.assertEqual(context['native_suspects'], {4: ['B']})
 
     def test_stale_rule_reference_routes_only_a_unique_new_symbolic_use(self):
         with tempfile.TemporaryDirectory() as temporary:

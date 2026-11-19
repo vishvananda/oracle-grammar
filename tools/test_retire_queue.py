@@ -1034,7 +1034,11 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
         self.check_staging_repair()
 
-    def check_staging_repair(self):
+    def test_staging_repair_binds_a_focused_native_failure(self):
+        self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
+        self.check_staging_repair(focused=True)
+
+    def check_staging_repair(self, *, focused=False):
         candidate = self.queue.claim('retried')
         attempt = candidate['attempt_id']
         self.queue.mark_started(attempt, pid=2_000_000_000)
@@ -1044,14 +1048,15 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.queue.reject_jobs(['repair'], rejection)
         original = self.queue.get_attempt(attempt)
         trial = self.campaign/'.cache/batches/stage-batch/proposal-000/trial.json'
-        failure = trial.parent/'native-control/result.json'
+        failure = trial.parent/('native-focused/result.json' if focused else 'native-control/result.json')
         failure.parent.mkdir(parents=True)
         self.write(failure, {'faces': 4, 'failures': [{'face': 'Other card', 'lost': ['exact_default']}]})
         def spec(path):
             return {'path': str(path), 'sha256': self.digest(path)}
         reason = f'native regression control failed: {failure}'
+        digest_key = 'native_focused_result_sha256' if focused else 'native_result_sha256'
         self.write(trial, {'jobs':['repair'], 'attempts':[attempt], 'status':'failed',
-                           'reason':reason,'native_result_sha256':self.digest(failure)})
+                           'reason':reason,digest_key:self.digest(failure)})
         manifest = trial.parent.parent/'manifest.json'
         self.write(manifest, {'id':'stage-batch', 'base_commit':'base', 'jobs':[
             {'job_id':'repair','attempt_id':attempt,'status':'integration-rejected',
