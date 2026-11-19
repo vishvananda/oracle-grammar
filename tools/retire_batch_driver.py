@@ -192,7 +192,8 @@ def mechanical_lane(queue, limit, minimum=None):
     if len(mechanical) >= minimum:
         return {'lane': 'mechanical', 'jobs': mechanical[:96], 'combine': True}
     if mechanical:
-        return {'lane': 'mechanical-first', 'jobs': (mechanical+authors)[:limit], 'combine': False}
+        return {'lane': 'mechanical-first', 'jobs': (mechanical+authors)[:limit],
+                'mechanical': mechanical, 'combine': False}
     return None
 
 
@@ -258,13 +259,20 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             folders = run/'.cache/batches'
                             before = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
                             chosen_lane = lane if large_mechanical or (lane and not cohort) else None
+                            recovered = cohort['jobs'] if cohort else []
+                            also_mechanical = []
+                            if cohort and lane and len(recovered) < limit:
+                                existing = set(recovered)
+                                unselected = [job for job in lane['mechanical'] if job not in existing]
+                                also_mechanical = unselected[:limit-len(recovered)]
                             status('running', progress, lane=chosen_lane['lane'] if chosen_lane else
+                                   'recovered-with-mechanical' if also_mechanical else
                                    'recovered' if cohort else 'fifo')
                             if chosen_lane:
                                 dispatch._batch(run, chosen_lane['jobs'],
                                                 combine_selected=chosen_lane['combine'] or fresh_union)
                             elif cohort:
-                                dispatch._batch(run, cohort['jobs'],
+                                dispatch._batch(run, recovered+also_mechanical,
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)
                             elif fresh_union:
                                 selected = queue.get_jobs('provisional-pass', limit=limit)

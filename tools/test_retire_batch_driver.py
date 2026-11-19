@@ -103,7 +103,8 @@ class RecoveredCohortTests(unittest.TestCase):
         self.assertEqual(driver.mechanical_lane(self.queue, 4),
                          {'lane': 'mechanical', 'jobs': ['m0', 'm1', 'm2', 'm3'], 'combine': True})
         self.assertEqual(driver.mechanical_lane(self.queue, 5),
-                         {'lane': 'mechanical-first', 'jobs': ['m0', 'm1', 'm2', 'm3', 'a0'], 'combine': False})
+                         {'lane': 'mechanical-first', 'jobs': ['m0', 'm1', 'm2', 'm3', 'a0'],
+                          'mechanical': ['m0', 'm1', 'm2', 'm3'], 'combine': False})
 
     def test_union_opt_in_dispatches_only_the_current_attempt_recovery_group(self):
         self.prepare(['fresh', 'a', 'b', 'stale', 'other'])
@@ -322,22 +323,24 @@ class DriverTests(unittest.TestCase):
                     driver.run_driver(self.run, self.runner)
                 batch.assert_not_called()
 
-    def test_small_mechanical_lane_preserves_recovered_cohort(self):
+    def test_small_mechanical_lane_fills_spare_recovered_batch_slots(self):
         config = r.read(self.run/'config.json')
-        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True, fresh_union_trial=True)
+        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True, fresh_union_trial=True,
+                      mechanical_batch_minimum=4)
         r.write(self.run/'config.json', config)
-        self.queue.value = progress(pending=5, ready=2)
-        self.queue.ready = [{'id': 'm1', 'job': {'kind': 'mechanical'}},
-                            {'id': 'a1', 'job': {'kind': 'author'}}]
+        self.queue.value = progress(pending=5, ready=6)
+        self.queue.ready = [{'id': name, 'job': {'kind': kind}} for name, kind in
+                            [('a1', 'author'), ('m1', 'mechanical'), ('m2', 'mechanical'),
+                             ('m3', 'mechanical'), ('a2', 'author'), ('a3', 'author')]]
         def selected(run, ids, *, combine_selected):
-            self.assertEqual(ids, ['recovered'])
+            self.assertEqual(ids, ['a2', 'm1', 'a3', 'm2'])
             self.assertFalse(combine_selected)
             self.outcome(drain=True)(run)
-        cohort = {'jobs': ['recovered'], 'manifest': 'batch', 'checkpoint': 'old'}
+        cohort = {'jobs': ['a2', 'm1', 'a3'], 'manifest': 'batch', 'checkpoint': 'old'}
         with patch.object(driver, 'recovered_cohort', return_value=cohort), \
                 patch.object(driver.dispatch, '_batch', side_effect=selected):
             driver.run_driver(self.run, self.runner)
-        self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'recovered')
+        self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'recovered-with-mechanical')
 
     def test_fresh_union_keeps_fifo_or_mechanical_priority_with_the_batch_limit(self):
         for prioritize_mechanical, expected in (
