@@ -1,6 +1,6 @@
 /* Replacement effects, prevention and delayed triggers. */
 
-replacement_clause ::= team_counter_replacement | owned_extra_token_replacement | filtered_extra_token_replacement | combat_counter_mill_replacement | basic_tap_mana_replacement | replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle | replacement_counter_creature_double | replacement_you_extra_draw | replacement_you_gain_draw | replacement_you_lose_program | replacement_you_dice_extra | replacement_you_create_extra
+replacement_clause ::= team_counter_replacement | owned_extra_token_replacement | filtered_extra_token_replacement | combat_counter_mill_replacement | basic_tap_mana_replacement | replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle | replacement_counter_creature_double | replacement_you_extra_draw | replacement_you_gain_draw | replacement_you_lose_program | replacement_you_dice_extra | replacement_you_create_extra | replacement_owned_zone_redirect | replacement_zone_redirect
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -165,7 +165,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal
+prevent_clause ::= next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -1099,8 +1099,8 @@ shield_by_next ::= "prevent" "the" "next" value "damage" shield_event_by this_du
 /* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:AllOf([$filter_phrase, Chosen(CreatureType)]), recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}) */
 shield_chosen_type_event ::= "a" filter_phrase "of" "the" "chosen" "type" "would" "deal" "damage" "to" "you"
 
-/* @sem Operation::CreateReplacement{event:$shield_chosen_type_event, limit:NextOccurrence, duration:$this_duration, body:$prevented_body_plain} */
-shield_next_occurrence ::= "the" "next" "time" shield_chosen_type_event this_duration "," prevented_body_plain
+/* @sem Operation::CreateReplacement{event:$next_prevent_event, limit:NextOccurrence, duration:$this_duration, body:$prevented_body_plain} */
+shield_next_occurrence ::= "the" "next" "time" next_prevent_event this_duration "," prevented_body_plain
 
 /* @sem ReplacementEvent::Damage(_{source_kind:Any, sources:Any, recipients:ObjectsAndPlayers{objects:SameObject($object_ref), players:One(AbilityController)}, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
 redirect_event_self_and_you ::= "damage" "would" "be" "dealt" "to" object_ref "and" "/" "or" "you"
@@ -1108,8 +1108,8 @@ redirect_event_self_and_you ::= "damage" "would" "be" "dealt" "to" object_ref "a
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage($recipients)}}]} */
 redirect_damage_body ::= "that" "damage" "is" "dealt" "to" recipients "instead"
 
-/* @sem Operation::CreateReplacement{event:$redirect_event_self_and_you, limit:NextOccurrence, duration:$this_duration, body:$redirect_damage_body} */
-redirect_next_occurrence ::= "the" "next" "time" redirect_event_self_and_you this_duration "," redirect_damage_body
+/* @sem Operation::CreateReplacement{event:$next_redirect_event, limit:NextOccurrence, duration:$this_duration, body:$redirect_damage_body} */
+redirect_next_occurrence ::= "the" "next" "time" next_redirect_event this_duration "," redirect_damage_body
 
 /* @sem DamageRecipients::Objects(SameObject($object_ref)) */
 redirect_object_recipient ::= "to" object_ref
@@ -1214,7 +1214,7 @@ replacement_leave_loyalty ::= "if" "damage" "dealt" "to" "a" noun "you" "control
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:$entry_receipt_program}) */
 entry_receipt_ability ::= "as" self_ref "enters" "," entry_receipt_program "."
 
-entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program
+entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program
 
 /* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:$affected, choose:AnyNumber}) */
 entry_sacrifice_any ::= "sacrifice" "any" "number" "of" affected
@@ -1919,3 +1919,203 @@ replacement_you_create_extra ::= "if" replacement_you_create_event "," replaceme
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_sacrifice_any}]} */
 entry_sacrifice_program ::= entry_sacrifice_any
+
+next_prevent_event ::= shield_chosen_type_event | next_damage_by_object
+
+/* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
+next_damage_by_object ::= object_ref "would" "deal" "damage"
+
+next_redirect_event ::= redirect_event_self_and_you | next_damage_to_object
+
+/* @sem ReplacementEvent::Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:Any, grouping:SourceRecipient, subject:Recipient}) */
+next_damage_to_object ::= "damage" "would" "be" "dealt" "to" object_ref
+
+/* Next-occurrence event and replacement phrases retain their independent operands. */
+/* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Players(OpponentsOf(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Recipient}) */
+next_combat_to_opponent ::= object_ref "would" "deal" "combat" "damage" "to" "an" "opponent"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Objects($affected))}}]} */
+combat_redirect_body ::= "it" "deals" "that" "damage" "to" affected "instead"
+
+/* @sem Operation::CreateReplacement{event:$next_combat_to_opponent, limit:NextOccurrence, duration:$this_duration, body:$combat_redirect_body} */
+next_combat_redirect ::= "the" "next" "time" next_combat_to_opponent this_duration "," combat_redirect_body
+
+/* @sem ReplacementEvent::Object{event:Adapts, objects:SameObject($object_ref)} */
+next_adapt_event ::= object_ref "adapts"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:ModifyEvent{change:IgnoreCounters($counter_kind)}}]} */
+adapt_ignore_body ::= "it" "adapts" "as" "though" "it" "had" "no" counter_kind "counters" "on" "it"
+
+/* @sem Operation::CreateReplacement{event:$next_adapt_event, limit:NextOccurrence, duration:$this_duration, body:$adapt_ignore_body} */
+next_adapt_replacement ::= "the" "next" "time" next_adapt_event this_duration "," adapt_ignore_body
+
+/* @sem ReplacementEvent::Enter{objects:$filter_plural} */
+next_enter_event ::= "one" "or" "more" filter_plural "enter"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]} */
+entry_additional_counters_body ::= "each" "enters" "with" value "additional" counter_kind "counters" "on" "it"
+
+/* @sem Operation::CreateReplacement{event:$next_enter_event, limit:NextOccurrence, duration:$this_duration, body:$entry_additional_counters_body} */
+next_entry_replacement ::= "the" "next" "time" next_enter_event this_duration "," entry_additional_counters_body
+
+/* @sem ReplacementEvent::Player{event:RollDice, players:$players_singular} */
+next_roll_event ::= players_singular "would" "roll" "one" "or" "more" "dice"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RollExtraDie(ChosenBy(AbilityController))}}]} */
+roll_extra_chosen_body ::= "instead" "they" "roll" "that" "many" "dice" "plus" "one" "and" "you" "choose" "one" "of" "those" "rolls" "to" "ignore"
+
+/* @sem Operation::CreateReplacement{event:$next_roll_event, limit:NextOccurrence, duration:$this_duration, body:$roll_extra_chosen_body} */
+next_roll_replacement ::= "the" "next" "time" next_roll_event this_duration "," roll_extra_chosen_body
+
+/* Resolution-time choice of a battlefield source, including its own filter. */
+/* @sem Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, HasKeyword($keyword_value)])}, count:AsManyAsCan($counter_amount)} */
+next_chosen_permanent_keyword ::= counter_amount filter_phrase "of" "your" "choice" "with" keyword_value
+
+/* @sem Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([State(Unblocked), $filter_phrase])}, count:AsManyAsCan($counter_amount)} */
+next_chosen_unblocked_permanent ::= counter_amount "unblocked" filter_phrase "of" "your" "choice"
+
+next_chosen_permanent ::= next_chosen_permanent_keyword | next_chosen_unblocked_permanent
+
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:SameObject(Result{result:@prior, phase:After, index:0}), recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}) */
+next_selected_damage_you ::= "deal" "damage" "to" "you"
+
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:SameObject(Result{result:@prior, phase:After, index:0}), recipients:Players(One(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Recipient}) */
+next_selected_combat_damage_you ::= "deal" "combat" "damage" "to" "you"
+
+next_selected_damage_event ::= next_selected_damage_you | next_selected_combat_damage_you
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventAllButDamage($value)}}]} */
+prevented_body_all_but ::= "prevent" "all" "but" value "of" "that" "damage"
+
+next_selected_prevention_body ::= prevented_body_plain | prevented_body_all_but
+
+/* @sem Instruction::[Effect{result:@next, operation:$next_chosen_permanent}, Effect{result:@next, operation:CreateReplacement{event:$next_selected_damage_event, limit:NextOccurrence, duration:$this_duration, body:$next_selected_prevention_body}}] */
+instructions_next_selected_prevention ::= "the" "next" "time" next_chosen_permanent "would" next_selected_damage_event this_duration "," next_selected_prevention_body
+
+/* A chosen damage source can be redirected to a target chosen by an opponent. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun, chooser:OneOf(OpponentsOf(AbilityController))}), index:0})))}}]} */
+redirect_damage_opponent_target ::= "that" "damage" "is" "dealt" "to" "target" noun "of" "an" "opponent's" "choice" "instead"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:$next_chosen_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$redirect_damage_opponent_target}}] */
+instructions_next_chosen_redirect ::= "the" "next" "time" counter_amount next_chosen_sources "would" "deal" "damage" next_chosen_to this_duration "," redirect_damage_opponent_target
+
+/* Zone-change replacements retain distinct owner and controller predicates. */
+/* Prefer the explicit card anaphor for this two-branch card event. */
+/* @prefer always */
+/* @sem Ability::Replacement{active:Battlefield, event:$replacement_owned_death_or_card, body:$replacement_exile_that_card} */
+replacement_owned_zone_redirect ::= "if" replacement_owned_death_or_card "," replacement_exile_that_card "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:$replacement_graveyard_event, body:$replacement_zone_program} */
+replacement_zone_redirect ::= "if" replacement_graveyard_event "," replacement_zone_program "."
+
+replacement_graveyard_event ::= replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard
+
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf([Not(Token), $filter_phrase, ControlledBy(OpponentsOf(AbilityController))]), from:Battlefield, to:Graveyard} */
+replacement_death_controlled ::= "a" "nontoken" filter_phrase "an" "opponent" "controls" "would" "die"
+
+/* @sem ReplacementEvent::Either([ZoneChange{objects:AllOf([Not(Token), $filter_phrase, OwnedBy(OpponentsOf(AbilityController))]), from:Battlefield, to:Graveyard}, ZoneChange{objects:AllOf([$filter_phrase_2, OwnedBy(OpponentsOf(AbilityController)), Not(InZone(Shared(Battlefield)))]), to:Graveyard}]) */
+replacement_owned_death_or_card ::= "a" "nontoken" filter_phrase "an" "opponent" "owns" "would" "die" "or" "a" filter_phrase "card" "not" "on" "the" "battlefield" "would" "be" "put" "into" "an" "opponent's" "graveyard"
+
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf([Any, OwnedBy(All)]), from:Battlefield, to:Graveyard} */
+replacement_permanent_graveyard ::= "a" "permanent" "would" "be" "put" "into" "a" "graveyard"
+
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf([Any, OwnedBy(OpponentsOf(AbilityController)), Not(Token)]), to:Graveyard} */
+replacement_opponent_card_graveyard ::= "a" "card" "would" "be" "put" "into" "an" "opponent's" "graveyard" "from" "anywhere"
+
+replacement_zone_program ::= replacement_exile_it | replacement_exile_that_card | replacement_exile_gain_life
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]} */
+replacement_exile_it ::= "exile" "it" "instead"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]} */
+replacement_exile_that_card ::= "exile" "that" "card" "instead"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number}}]} */
+replacement_exile_gain_life ::= "instead" "exile" "it" "and" "you" "gain" number "life"
+
+/* A battlefield object's impending graveyard move and its optional destination
+   change compose independently; a quoted grant binds this ability to its holder. */
+/* @sem Ability::Replacement{active:Battlefield, event:$graveyard_object_event, body:$optional_owners_library_top} */
+graveyard_optional_library_replacement ::= "if" graveyard_object_event "," optional_owners_library_top "."
+
+/* @sem ReplacementEvent::ZoneChange{objects:SameObject($object_ref), from:Battlefield, to:Graveyard} */
+graveyard_object_event ::= object_ref "would" "be" "put" "into" "a" "graveyard"
+
+/* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(OwnersLibraryTop)}}]}}]} */
+optional_owners_library_top ::= "you" "may" "put" "it" "on" "top" "of" "its" "owner's" "library" "instead"
+
+/* The discarded object belongs to the replacement event, so the reveal and
+   destination modification share that event rather than an earlier receipt. */
+/* @sem Ability::Replacement{active:Battlefield, event:$discard_replacement_event, body:$discard_reveal_destination_body} */
+discard_reveal_replacement ::= "if" discard_replacement_event "," discard_reveal_destination_body "."
+
+discard_replacement_event ::= discard_replacement_opponent | discard_replacement_effect
+
+/* @sem ReplacementEvent::Discard{players:One(AbilityController), causes:ControlledBy(OpponentsOf(AbilityController))} */
+discard_replacement_opponent ::= opponent_spell_or_ability "causes" "you" "to" "discard" "a" "card"
+
+/* @sem ReplacementEvent::Discard{players:One(AbilityController), effect_only:true} */
+discard_replacement_effect ::= "an" "effect" "causes" "you" "to" "discard" "a" "card"
+
+/* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:Reveal{objects:One(Discarded)}}, Effect{result:@next, operation:ModifyEvent{change:$discard_replacement_destination}}]}}]} */
+discard_reveal_destination_body ::= "you" "may" "reveal" "that" "card" "and" discard_replacement_destination "instead" "of" "putting" "it" "anywhere" "else"
+
+discard_replacement_destination ::= discard_destination_library | discard_destination_exile
+
+/* @sem EventChange::SetDestination(OwnersLibraryTop) */
+discard_destination_library ::= "put" "it" "on" "top" "of" "your" "library"
+
+/* @sem EventChange::SetDestination(Exile) */
+discard_destination_exile ::= "exile" "it"
+
+/* The counter quantity consumes the immediately preceding counted die roll. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::RollDie{sides:6, times:$number}} */
+entry_counted_d6_roll ::= "roll" number "d6"
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::RollDie{sides:8, times:$number}} */
+entry_counted_d8_roll ::= "roll" number "d8"
+
+entry_counted_die_roll ::= entry_counted_d6_roll | entry_counted_d8_roll
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_counted_die_roll}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Dice(Total)})}}]} */
+entry_dice_counter_program ::= entry_counted_die_roll "." "it" "enters" "with" "a" "number" "of" counter_kind "counters" "on" "it" "equal" "to" "the" "total" "of" "those" "results"
+
+/* A measured payment event can compose with any replacement operation. */
+/* @sem ReplacementEvent::Measured{event:Player{event:PayLife, players:One(AbilityController)}, comparison:GreaterOrEqual, amount:CountObjects(Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}))} */
+replacement_pay_life_library_capacity ::= "you" "would" "pay" "life" "while" "your" "library" "has" "at" "least" "that" "many" "cards" "in" "it"
+
+/* @sem Ability::Replacement{active:Battlefield, event:$replacement_pay_life_library_capacity, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$replacement_payment_operation}]}} */
+replacement_pay_life_with_operation ::= "if" replacement_pay_life_library_capacity "," replacement_payment_operation "instead" "."
+
+replacement_payment_operation ::= operation | replacement_event_exile_top
+
+/* The quantity refers to the replacement event, not a previous move. */
+/* @sem Operation::Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:EventAmount, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+replacement_event_exile_top ::= "exile" "that" "many" "cards" "from" "the" "top" "of" "your" "library"
+
+/* The entering source is not yet in the battlefield population. Its exclusion
+   by "other" therefore does not alter this entry-scoped sacrifice set. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(@self)}, body:_{instructions:[Effect{result:@next, operation:$entry_sacrifice_other}]}}) */
+entry_instead_sacrifice_other ::= "if" self_land "would" "enter" "," "instead" entry_sacrifice_other "," "then" "put" "this" "land" "onto" "the" "battlefield" "."
+
+/* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}}) */
+entry_sacrifice_other ::= "sacrifice" "each" "other" filter_phrase
+
+/* A draw replacement may cancel the event, optionally under a library count
+   condition. The condition and event retain their independent operands. */
+/* @sem Condition::Compare{left:$library_count_subject, test:$library_zero_test} */
+draw_library_empty_condition ::= library_count_subject "has" library_zero_test "cards" "in" "it"
+
+/* @sem Condition::Compare{left:$library_count_subject, test:$library_threshold_test} */
+draw_library_threshold_condition ::= library_count_subject "has" library_threshold_test "cards" "in" "it"
+
+draw_library_condition ::= draw_library_empty_condition | draw_library_threshold_condition
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}]} */
+draw_skip_body ::= "skip" "that" "draw" "instead" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:$draw_event, body:$draw_skip_body} */
+draw_skip_replacement ::= "if" draw_event "," draw_skip_body
+
+/* @sem Ability::Conditional{condition:$draw_library_condition, then:[Ability::Replacement{active:Battlefield, event:$draw_event, body:$draw_skip_body}]} */
+draw_skip_while_library ::= "if" draw_event "while" draw_library_condition "," draw_skip_body

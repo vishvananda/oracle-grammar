@@ -354,7 +354,7 @@ target_exactly ::= count
 /* @sem Count::UpTo($count) */
 target_up_to ::= "up" "to" count
 
-filter_phrase ::= filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails
+filter_phrase ::= filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails | filter_urzas_land_subtypes
 
 /* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
 filter_quality_list ::= quality noun "," noun "," "and" noun modifier
@@ -519,7 +519,7 @@ noun_outlaw ::= "outlaw"
 /* @sem ObjectFilter::CardType(Battle) */
 noun_battle ::= "battle"
 
-filter_plural ::= plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among | filter_plural_except_shared | filter_plural_quantified_three | plural_nonattacker_except_unable
+filter_plural ::= plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among | filter_plural_except_shared | filter_plural_quantified_three | plural_nonattacker_except_unable | plural_controlled_chosen_name
 
 /* @sem @and($filter_outer_adjectives, $filter_plural) */
 filter_plural_adjectives ::= filter_outer_adjectives filter_plural
@@ -2467,3 +2467,87 @@ active_player_ref ::= "the" "active" "player"
 /* A single-target spell constrained by the kind of permanent it targets. */
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([OnStack(SingleTarget), TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun}))])}), index:0} */
 retarget_spell_single_permanent ::= "target" "spell" "that" "targets" "only" "a" "single" noun
+
+/* The controller is bound independently of the object and owns the counted graveyard. */
+/* @sem @and($filter_plain, $controller_graveyard_qualifier) */
+filter_controller_graveyard ::= filter_plain controller_graveyard_qualifier
+
+/* @sem ObjectFilter::ControlledBy(Matching{binding:0, condition:Compare{left:CountObjects(Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any})), test:$condition_at_least}}) */
+controller_graveyard_qualifier ::= "whose" "controller" "has" condition_at_least "cards" "in" "their" "graveyard"
+
+/* Graveyard host phrases share the card filter across permanent and spell types. */
+enchant_graveyard_filter ::= filter_phrase | spell_instant | spell_sorcery
+
+/* @sem EnchantHosts::GraveyardCards{filter:$enchant_graveyard_filter, owners:All} */
+enchant_graveyard_cards ::= enchant_graveyard_filter "card" "in" "a" "graveyard"
+
+/* Another attachment excludes the Aura carrying this enchant ability; it refers to the host. */
+/* @sem EnchantHosts::Permanents(@and($filter_plain, ObjectFilter::HasAttached(@and($filter_phrase, ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)))))) */
+enchant_host_with_another_attachment ::= filter_plain "with" "another" filter_phrase "attached" "to" "it"
+
+/* The two printed land subtypes are distinct filters on the same permanent. */
+/* @sem ObjectFilter::AllOf([Subtype(Urzas), $urzas_land_subtype]) */
+filter_urzas_land_subtypes ::= "Urza's" urzas_land_subtype
+
+/* @sem ObjectFilter::Subtype(PowerPlant) */
+urzas_land_power_plant ::= "Power-Plant"
+
+/* @sem ObjectFilter::Subtype(Mine) */
+urzas_land_mine ::= "Mine"
+
+/* @sem ObjectFilter::Subtype(Tower) */
+urzas_land_tower ::= "Tower"
+
+urzas_land_subtype ::= urzas_land_power_plant | urzas_land_mine | urzas_land_tower
+
+/* Preserve the natural control-before-name order for a plural population. */
+/* @prefer always */
+/* @sem @and($plural_head, @and($plural_control_modifier, $modifier_chosen_name)) */
+plural_controlled_chosen_name ::= plural_head plural_control_modifier modifier_chosen_name
+
+plural_control_modifier ::= modifier_opponents_control | modifier_you_control
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$above_base_creature_kind, ControlledBy(One(AbilityController)), State(PowerAboveBase)])} */
+controlled_creatures_above_base ::= "for" "each" above_base_creature_kind "you" "control" "with" "power" "greater" "than" "that" "creature's" "base" "power"
+
+above_base_creature_kind ::= noun_creature | qualified_above_base_creature
+
+/* @sem @and($quality_unscoped, $noun_creature) */
+qualified_above_base_creature ::= quality_unscoped noun_creature
+
+/* A targeted card in the ante, including its explicit type restriction. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Ante]}), count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
+target_ante_card ::= "target" "card" "in" "the" "ante"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Ante]}), count:Exactly(Expr::Constant(1)), filter:$card_filter}), index:0} */
+target_ante_filtered_card ::= "target" card_filter "card" "in" "the" "ante"
+
+target_ante_object ::= target_ante_card | target_ante_filtered_card
+
+/* A pair of blocking targets belonging to one opponent, addressed by index. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:AllOf([Blocking, $plural, ControlledBy(OpponentsOf(AbilityController))]), constraints:[CommonProperty(Controllers)]}), index:0} */
+blocking_pair_first ::= "two" "target" "blocking" plural "controlled" "by" "the" "same" "opponent"
+
+/* Exiled cards selected for movement to the appropriate owner's graveyard. */
+exiled_card_to_owner_graveyard ::= linked_exiled_card_to_owner_graveyard | filtered_linked_exiled_card_to_owner_graveyard | opponent_exiled_card_to_owner_graveyard
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)} */
+linked_exiled_card_to_owner_graveyard ::= "a" "card" "exiled" "with" object_ref "into" "its" "owner's" "graveyard"
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, ExiledWith($object_ref)])} */
+filtered_linked_exiled_card_to_owner_graveyard ::= "a" filter_phrase "card" "exiled" "with" object_ref "into" "its" "owner's" "graveyard"
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:OwnedBy(OpponentsOf(AbilityController))} */
+opponent_exiled_card_to_owner_graveyard ::= "a" "card" "an" "opponent" "owns" "from" "exile" "into" "that" "player's" "graveyard"
+
+/* A counter payment chooses one permanent matching the current filter. */
+counter_payment_source ::= counter_payment_source_a | counter_payment_source_an | counter_payment_source_another
+
+/* @sem $filter_phrase */
+counter_payment_source_a ::= "a" filter_phrase
+
+/* @sem $filter_phrase */
+counter_payment_source_an ::= "an" filter_phrase
+
+/* @sem ObjectFilter::AllOf([Not(SameObject(Source)), $filter_phrase]) */
+counter_payment_source_another ::= "another" filter_phrase

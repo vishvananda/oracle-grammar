@@ -1,7 +1,7 @@
 /* Costs and mana symbols. */
 cost ::= cost_standard | cost_pay_mana_or_words
 
-cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many
+cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return
 
 /* "Remove three quest counters from this enchantment and sacrifice it": "it" is the
    source the counters come off. */
@@ -14,7 +14,7 @@ cost_parts_one ::= cost_part
 /* @sem CostPart::[$cost_part, ...$cost_parts_later] */
 cost_parts_more ::= cost_part "," cost_parts_later
 
-cost_parts_later ::= cost_parts_one_later | cost_parts_more_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_sacrifice_self_and_many | cost_exile_many_and_self | cost_sacrifice_self_and_another_later | cost_remove_counters_and_sacrifice_later
+cost_parts_later ::= cost_parts_one_later | cost_parts_more_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_sacrifice_self_and_many | cost_exile_many_and_self | cost_sacrifice_self_and_another_later | cost_remove_counters_and_sacrifice_later | cost_sacrifice_pair_later | cost_remove_counter_return_later | cost_remove_counters_return_later
 
 /* @sem CostPart::[CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count)}, CostPart::Sacrifice{objects:One(ObjectRef::Source)}] */
 cost_sacrifice_many_and_self ::= "↑" "sacrifice" count filter_plural "and" self_text
@@ -40,7 +40,7 @@ cost_symbols ::= cost_mana | cost_tap | cost_untap_symbol
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one
+cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one | cost_or_choice | cost_exile_hand_mana_value_one | cost_exile_hand_mana_value_many | cost_put_exiled_card_graveyard | cost_remove_selected_counter | cost_remove_selected_named_counter
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -70,8 +70,7 @@ cost_reveal_self_hand ::= "reveal" self_explicit_ref "from" "your" "hand"
 cost_exile_self ::= "exile" self_text
 
 /* An ability paid by moving this card out of a zone works only from that zone. */
-activated_from_zone ::= activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after
-    | activated_graveyard_return | activated_graveyard_return_limited
+activated_from_zone ::= activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited
 
 /* Returning this card explicitly from the graveyard scopes the whole
    activation there, including any preceding action and its announced targets. */
@@ -1205,3 +1204,94 @@ cost_exile_top_one ::= "exile" "the" "top" "card" "of" "your" "library"
 /* A self-move from the command zone establishes the activation zone. */
 /* @sem Ability::Scoped{zones:[Command], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$command_self_entry}]}})} */
 activated_command_self_entry ::= cost ":" command_self_entry "."
+
+/* A transfer from the source followed by a grant and a zero-counter conversion. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:$transfer_source_grant_convert}} */
+activated_transfer_source_grant_convert ::= cost ":" transfer_source_grant_convert "." activation_limits "."
+
+/* @sem Instruction::[Effect{result:@next, operation:MoveCounters{actor:One(AbilityController), from:One(Source), to:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Not(SameObject(Source)), CardType(Artifact)])}), index:0}), kind:PowerToughness([1, 1]), amount:Exactly(AnnouncedX)}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:0, index:0})), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}, If{condition:ObjectMatches{object:Source, filter:Counters(_{kind:PowerToughness([1, 1]), comparison:Equal, value:Constant(0)})}, then:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Convert{object:Source}}}]}, otherwise:Program{}}] */
+transfer_source_grant_convert ::= "move" "X" "+" "1" "/" "+" "1" "counters" "from" SELF_NAME "onto" "another" "target" "artifact" "." "that" "artifact" "gains" keyword_name duration "." "if" SELF_NAME "has" "no" "+" "1" "/" "+" "1" "counters" "on" "it" "," "convert" "it"
+
+/* A choice combines independently described payment parts. */
+/* @sem CostPart::Choice([_{parts:[$cost_reveal_card_from_hand]}, _{parts:[$cost_choose_one_permanent]}]) */
+cost_or_choice ::= cost_reveal_card_from_hand "or" cost_choose_one_permanent
+
+/* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$filter_phrase} */
+cost_reveal_card_from_hand ::= "reveal" "a" filter_phrase "card" "from" "your" "hand"
+
+/* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, count:AsManyAsCan(Constant(1))}}]}} */
+cost_choose_one_permanent ::= "choose" "a" filter_phrase
+
+/* A self-discard payment scopes the activation to hand; its independent
+   population reduction applies to the activation rather than its body. */
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:$activation_population_limit, announcement:@announcement, body:$program_sentence})} */
+activated_discard_self_after_population_limited ::= cost_parts "," "↑" "discard" self_text ":" program_sentence activation_population_limit "."
+
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:$activation_population_limit, announcement:@announcement, body:$program_sentence})} */
+activated_discard_self_population_limited ::= "discard" self_text ":" program_sentence activation_population_limit "."
+
+/* Restrict the count to a live battlefield population, not an unproved action receipt. */
+/* @sem ActivationLimits::ActivationLimits{modifiers:[Change::ActivationRule(Cost{modifier:Reduce{reductions:[ManaReduction{amount:@times($braced_amount, $count_each_permanent)}], spill_into_generic:true}})]} */
+activation_population_limit ::= "this" "ability" "costs" braced_amount "less" "to" "activate" "for" "each" count_each_permanent
+
+/* @sem CostPart::[$cost_sacrifice_item, $cost_sacrifice_item_2] */
+cost_sacrifice_pair ::= "sacrifice" cost_sacrifice_item "and" cost_sacrifice_item
+
+/* @sem $cost_sacrifice_pair */
+cost_sacrifice_pair_later ::= "↑" cost_sacrifice_pair
+
+/* The pronoun returns the same explicit object that supplied the counters. */
+/* @sem CostPart::[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, amount:Count(Exactly(Constant(1)))}]}, Move{selections:[_{objects:One($self_explicit_ref)}], destination:OwnersHand(CardArrival{})}] */
+cost_remove_counter_return ::= "remove" cost_counter_article counter_kind "counter" "from" self_explicit_ref "and" "return" "it" "to" "its" "owner's" "hand"
+
+/* @sem CostPart::[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, amount:Count(Exactly(@plural_amount($value)))}]}, Move{selections:[_{objects:One($self_explicit_ref)}], destination:OwnersHand(CardArrival{})}] */
+cost_remove_counters_return ::= "remove" value counter_kind "counters" "from" self_explicit_ref "and" "return" "it" "to" "its" "owner's" "hand"
+
+cost_counter_article ::= cost_counter_article_a | cost_counter_article_an
+
+/* @sem () */
+cost_counter_article_a ::= "a"
+
+/* @sem () */
+cost_counter_article_an ::= "an"
+
+/* @sem $cost_remove_counter_return */
+cost_remove_counter_return_later ::= "↑" cost_remove_counter_return
+
+/* @sem $cost_remove_counters_return */
+cost_remove_counters_return_later ::= "↑" cost_remove_counters_return
+
+/* A single discard payment scopes the receipt used by the following conditional. */
+discard_one_receipt_cost ::= cost_discard | cost_discard_filtered
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$discard_one_receipt_cost]}, limits:$activation_limits, announcement:@announcement, body:$discard_receipt_program} */
+activated_discard_receipt ::= discard_one_receipt_cost ":" discard_receipt_program "." activation_limits "."
+
+/* Any player may activate this ability while its source is on the stack. */
+/* @sem Ability::Scoped{zones:[Stack], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{activators:All}, announcement:@announcement, body:$program_sentence})} */
+activated_any_player_stack ::= cost ":" program_sentence "any" "player" "may" "activate" "this" "ability" "but" "only" "if" SELF_NAME "is" "on" "the" "stack" "."
+
+/* A casting payment followed by a bound on the announced value. */
+/* @sem Ability::[$casting_additional_cost, $casting_announced_x_cap] */
+casting_additional_cost_with_x_cap ::= casting_additional_cost casting_announced_x_cap
+
+/* @sem Ability::Casting(Require(Compare{left:AnnouncedX, test:NumberTest::Compare{comparison:LessOrEqual, value:$value_greatest}})) */
+casting_announced_x_cap ::= "x" "can't" "be" "greater" "than" value_greatest "."
+
+/* The filter and mana-value qualifier compose in a hand-exile payment. */
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Hand, players:One(PlayerRef::AbilityController)}, kind:Card, filter:@and($adjective_color, $modifier_mana_value_exact)}, choose:Exactly(Expr::Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_hand_mana_value_one ::= "exile" "a" adjective_color "card" modifier_mana_value_exact "from" "your" "hand"
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Hand, players:One(PlayerRef::AbilityController)}, kind:Card, filter:@and($adjective_color, $modifier_mana_value_exact)}, choose:Exactly($count)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_hand_mana_value_many ::= "exile" count adjective_color "cards" modifier_mana_value_exact "from" "your" "hand"
+
+/* The card-selection phrase carries its owner and exile link into the payment. */
+/* @sem CostPart::ExiledToGraveyard($exiled_card_to_owner_graveyard) */
+cost_put_exiled_card_graveyard ::= "put" exiled_card_to_owner_graveyard
+
+/* One selected permanent supplies the source of a counter payment. */
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counter_payment_source}), amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]} */
+cost_remove_selected_counter ::= "remove" "a" "counter" "from" counter_payment_source
+
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counter_payment_source}), kind:$counter_kind, amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]} */
+cost_remove_selected_named_counter ::= "remove" "a" counter_kind "counter" "from" counter_payment_source

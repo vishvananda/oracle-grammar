@@ -1467,11 +1467,11 @@ graveyard_exile_payment ::= "you" "may" "exile" self_card "from" "your" "graveya
 event_opponent_graveyard_card_leaves ::= "a" filter_phrase "card" "leaves" "an" "opponent's" "graveyard"
 
 /* The self-return program establishes the graveyard activation zone. */
-/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_self_program})} */
-scoped_turn_self_return ::= "at" turn_event "," graveyard_self_program
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_turn_self_program})} */
+scoped_turn_self_return ::= "at" turn_event "," graveyard_turn_self_program
 
-/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$turn_event, intervening_if:$condition, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_self_program})} */
-scoped_turn_if_self_return ::= "at" turn_event "," "if" condition "," graveyard_self_program
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$turn_event, intervening_if:$condition, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_turn_self_program})} */
+scoped_turn_if_self_return ::= "at" turn_event "," "if" condition "," graveyard_turn_self_program
 
 /* Ownership is independent of control. */
 /* @sem @and(ObjectFilter::OwnedBy(One(PlayerRef::AbilityController)), $filter_phrase) */
@@ -3784,3 +3784,28 @@ escape_reflexive_action ::= "when" "it" "enters" "this" "way" "," program
 /* The defender is the player bound by the enclosing population. */
 /* @sem Condition::Compare{left:EventHistory{event:Batch{event:Attack{attackers:Any, by:One(AbilityController), defenders:Players(One(Bound(0)))}, per:Defender}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
 attacked_bound_player_this_turn ::= "you" "attacked" "this" "turn"
+
+/* Face-up events compose independently with their prescribed action. */
+/* @sem Ability::AsEvent{object:$object_ref, event:TurnsFaceUp, actions:List([$face_up_put_action])} */
+as_object_turned_face_up_action ::= "as" object_ref "is" "turned" "face" "up" "," face_up_put_action "."
+
+/* @sem Operand::Term{family:FaceUpAction, form:PutCounters, operands:[$face_up_counter_placement]} */
+face_up_put_action ::= "put" face_up_counter_placement
+
+/* @sem Operand::Term{family:FaceUpActionPutCounters, form:NumberCountersOfTypeOnPermanent, operands:[Number($value), Term{family:CounterType, form:PTCounter, operands:[Integer(1), Integer(1)]}, Object($object_ref)]} */
+face_up_counter_placement ::= value "+" "1" "/" "+" "1" "counters" "on" object_ref
+
+/* The condition establishes the trigger's two active zones. */
+/* @sem Ability::Scoped{zones:[Graveyard, Battlefield], ability:@scope(Ability::Triggered{event:$turn_event, intervening_if:$source_in_graveyard_or_battlefield, limits:_{}, announcement:@announcement, body:$program_sentence})} */
+scoped_turn_source_zone_condition ::= "at" turn_event "," "if" source_in_graveyard_or_battlefield "," program_sentence
+
+/* The explicit self-exile action locates the holder in its graveyard. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_self_exile_reflexive_program})} */
+graveyard_self_exile_reflexive_trigger ::= event_clause "," graveyard_self_exile_reflexive_program "."
+
+/* The ordinal belongs to the controller performing each draw. */
+/* @sem EventSpec::NthEachTurn{event:Player{event:Draws, players:One(AbilityController)}, test:NumberTest::Compare{comparison:Equal, value:$ordinal}} */
+event_you_draw_ordinal ::= "you" "draw" "your" ordinal "card" "each" "turn"
+
+/* @sem EventSpec::@either_event($event_clause, $event_you_draw_ordinal) */
+shared_pair_event_clauses ::= event_clause "and" "whenever" event_you_draw_ordinal
