@@ -84,7 +84,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         *source_schemas
             .entry(face["schema_version"].to_string())
             .or_default() += 1;
-        match check(&face, &face["abilities"]) {
+        let source_gold = &face["abilities"];
+        let source_validation = check(&face, source_gold);
+        match &source_validation {
             Ok(()) => gold_valid += 1,
             Err(why) => {
                 *gold_reasons.entry(why.clone()).or_default() += 1;
@@ -95,8 +97,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 )?;
             }
         }
-        let canonical_gold = canonical_abilities(&face["abilities"])?;
-        if canonical(&canonical_gold)? {
+        let canonical_gold = canonical_abilities(source_gold)?;
+        let unchanged = *source_gold == canonical_gold;
+        let idempotent = unchanged || canonical(&canonical_gold)?;
+        if idempotent {
             canonical_gold_idempotent += 1;
         } else {
             writeln!(
@@ -105,7 +109,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 json!({"name":row["name"],"population":"canonical_gold","why":"normalization is not idempotent"})
             )?;
         }
-        match check(&face, &canonical_gold) {
+        // Every report population keeps its own verdict. An identical value has
+        // the same validation result within this face's full-card context.
+        let canonical_validation = if unchanged {
+            source_validation
+        } else {
+            check(&face, &canonical_gold)
+        };
+        match &canonical_validation {
             Ok(()) => canonical_gold_valid += 1,
             Err(why) => {
                 *canonical_gold_reasons.entry(why.clone()).or_default() += 1;
@@ -127,7 +138,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut valid = 0;
         for (index, value) in values.iter().enumerate() {
             readings += 1;
-            if canonical(value)? {
+            let same_as_gold = *value == canonical_gold;
+            let is_canonical = if same_as_gold {
+                idempotent
+            } else {
+                canonical(value)?
+            };
+            if is_canonical {
                 canonical_readings += 1;
             } else {
                 writeln!(
@@ -136,7 +153,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     json!({"name":row["name"],"population":"reading","index":index,"why":"saved reading is not canonical"})
                 )?;
             }
-            match check(&face, value) {
+            let validation = if same_as_gold {
+                canonical_validation.clone()
+            } else {
+                check(&face, value)
+            };
+            match validation {
                 Ok(()) => {
                     valid += 1;
                     valid_readings += 1;
