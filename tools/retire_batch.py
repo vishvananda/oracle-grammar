@@ -986,12 +986,13 @@ def _check_trial_native(context, items, proof, input_cache, grammar, logs, *, fo
         raise
 
 
-def _default_print_losses(rows, expected):
+def _early_render_losses(rows, expected):
     losses = []
     for row, before in zip(rows, expected, strict=True):
-        if (row['status'] != 'equal' or row['name'] != before['name'] or row['text'] != before['text']
-                or row['readings'] != before['parse']['readings']):
+        if row['status'] != 'equal' or row['name'] != before['name'] or row['text'] != before['text']:
             return None
+        if row['readings'] != before['parse']['readings']:
+            losses.append({'face': row['name'], 'gate': 'parse/reading-count/text'})
         if before['flags'][3] and not r.flags(row)[3]:
             losses.append({'face': row['name'], 'lost': ['exact_default']})
     return losses
@@ -1014,7 +1015,7 @@ def _early_default_print(checkpoint, grammar, data, logs):
                   folder/'slice.json', rows, '--render'], threads)
     if r.verify(run) != manifest:
         raise ValueError('The early print inputs changed')
-    losses = _default_print_losses(r.rows(rows), expected)
+    losses = _early_render_losses(r.rows(rows), expected)
     r.write(folder/'result.json', {'status': 'inconclusive' if losses is None else 'checked',
             'occurrences': len(expected), 'protected_occurrences': sum(entry['flags'][3] for entry in expected),
             'rows_sha256': r.digest(rows), 'failures': losses})
@@ -1025,7 +1026,7 @@ def _witness_control(checkpoint, losses, logs):
     if not losses or not 1 <= len(losses) <= RETAINED_NATIVE_PROBE_LIMIT:
         return None
     names = sorted({item['face'] for item in losses})
-    if len(names) != len(losses):
+    if len({(item['face'], 'gate' in item) for item in losses}) != len(losses):
         return None
     closure = tasks.close_cohort(Path(checkpoint['inputs']), {'names': names},
                                  max_occurrences=RETAINED_NATIVE_PROBE_LIMIT)
@@ -1056,7 +1057,12 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
         _control_check(cp, focused, grammar, logs/'native-focused')
     except _NativeControlFailure as error:
         failures = _retained_native_failure(focused, error.report)
-        if failures is None or failures['failures'] != losses:
+        if failures is None:
+            return
+        observed = failures['failures']
+        if any('gate' in failure for failure in losses):
+            observed = [failure for failure in observed if isinstance(failure, dict)]
+        if observed != losses:
             return
         if not input_cache.unchanged() or r.tree(grammar) != proof['trial_grammar']:
             raise _UncertainPromotion('Early print witness inputs changed during staging')
@@ -1161,8 +1167,8 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
             proof['new_fixtures'] = [{'fixture': str(destination), 'sha256': r.digest(path)}
                                      for path, destination in additions]
             witnesses = context.get('native_suspects', {}).get(entries[0][0]) if len(entries) == 1 else None
-            if control is not None and witnesses:
-                focused = _focused_native_control(control, witnesses)
+            if witnesses:
+                focused = _focused_native_control(witnesses['control'], witnesses['names'])
                 if focused is not None:
                     proof['native_focused_names'] = focused['names']
                     _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs, focused=focused)
@@ -1555,7 +1561,8 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
         return False
     if native is not None:
         names = native['faces'] if 'faces' in native else [native['face']]
-        context.setdefault('native_suspects', {}).update((index, names) for index in culprits)
+        witness = {'names': names, 'control': diagnostic['control']}
+        context.setdefault('native_suspects', {}).update((index, witness) for index in culprits)
     return _retry_without(context, entries, whole_proof, sorted([*withheld, *culprits]), size,
                           route=route)
 

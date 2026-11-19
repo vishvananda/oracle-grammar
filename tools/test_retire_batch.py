@@ -188,11 +188,27 @@ class BatchTests(unittest.TestCase):
             {'name':'A', 'text':'Written.', 'parse':{'readings':1}, 'flags':[True,True,True,True]},
             {'name':'B', 'text':'Written.', 'parse':{'readings':1}, 'flags':[True,True,True,False]},
         ]
-        self.assertEqual(batch._default_print_losses([lost,exact], before),
+        self.assertEqual(batch._early_render_losses([lost,exact], before),
                          [{'face':'A','lost':['exact_default']}])
-        self.assertIsNone(batch._default_print_losses([lost,dict(exact,readings=2)], before))
+        self.assertEqual(batch._early_render_losses([lost,dict(exact,readings=2)], before),
+                         [{'face':'A','lost':['exact_default']},
+                          {'face':'B','gate':'parse/reading-count/text'}])
+        self.assertIsNone(batch._early_render_losses([lost,dict(exact,status='refused')], before))
         with self.assertRaises(ValueError):
-            batch._default_print_losses([lost], before)
+            batch._early_render_losses([lost], before)
+
+    def test_early_witness_can_confirm_reading_and_wording_for_the_same_face(self):
+        reading = {'face': 'A', 'gate': 'parse/reading-count/text'}
+        print_loss = {'face': 'A', 'lost': ['exact_default']}
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            control = {'names': ['A']}
+            with (patch.object(batch.tasks, 'close_cohort', return_value={'names': ['A']}) as close,
+                  patch.object(batch, '_control_setup', return_value=control)):
+                _, checked, _ = batch._witness_control({'inputs': str(root)}, [reading, print_loss], root)
+                self.assertEqual(checked, control)
+                close.assert_called_once()
+                self.assertIsNone(batch._witness_control({'inputs': str(root)}, [reading, reading], root))
 
     def test_early_print_veto_requires_native_confirmation(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -218,6 +234,15 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(proof['early_print_control'],profile)
                 self.assertEqual(proof['retained_print_hints'],[3])
                 self.assertEqual(proof['retained_native_failure']['failures'],[failure])
+
+                mismatch = {'face':'A','gate':'parse/reading-count/text'}
+                reading_change = {'faces':1,'failures':['native readings changed or failed validation',mismatch]}
+                native.side_effect = batch._NativeControlFailure(root/'native-focused/result.json',reading_change)
+                proof = {'trial_grammar':{}}
+                with patch.object(batch, '_early_default_print', return_value=[mismatch]):
+                    with self.assertRaises(batch._NativeControlFailure):
+                        batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
+                self.assertEqual(proof['retained_native_failure']['failures'],reading_change['failures'])
 
     def test_edited_family_gold_is_independently_reconstructed(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -1059,7 +1084,8 @@ class BatchTests(unittest.TestCase):
                 calls.append(('family', (grammar_dir/'syntax/shared.ebnf').read_text()))
             stage_trial = batch._stage_trial
             def trial(context, entries, label, **options):
-                context['native_suspects'] = {1: ['A'], 2: ['A']}
+                scope = context['control']
+                context['native_suspects'] = {i: {'names': ['A'], 'control': scope} for i in (1, 2)}
                 return stage_trial(context, entries, label, **options)
             close_cohort = batch.tasks.close_cohort
             def closure(run, detail, *, max_occurrences):
@@ -1614,7 +1640,7 @@ class BatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             folder = Path(temporary)
             entries = [(i, {'job_id': f'job-{i}'}) for i in range(8)]
-            context = {'folder': folder, 'manifest': {'jobs': []}}
+            context = {'folder': folder, 'manifest': {'jobs': []}, 'control': {'names': ['B']}}
             calls, probes = [], []
 
             def family(_, selection, failure, output, *, limit, initial_trial):
@@ -1643,7 +1669,7 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(calls[2], ('without-retained-native-regression', ['job-5', 'job-6', 'job-7']))
             self.assertEqual([label for label, _ in calls[3:]], [f'proposal-{i:03d}' for i in range(5)])
             self.assertEqual(len(context['manifest']['jobs']), 8)
-            self.assertEqual(context['native_suspects'], {4: ['B']})
+            self.assertEqual(context['native_suspects'], {4: {'names': ['B'], 'control': context['control']}})
 
     def test_stale_rule_reference_routes_only_a_unique_new_symbolic_use(self):
         with tempfile.TemporaryDirectory() as temporary:
