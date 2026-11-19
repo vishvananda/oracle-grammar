@@ -14,6 +14,10 @@ from retire_rehabilitation import deferred_author_targets, resolve_origin, scan_
 
 MAX_WAVE = 12
 MAX_PARKED = 5000
+SMALL_RULES = 3
+SMALL_FACES = 8
+MAX_RULES = 5
+MAX_FACES = 16
 
 
 def _snapshot(campaign, limit, protected):
@@ -34,7 +38,7 @@ def _snapshot(campaign, limit, protected):
             if job_id in protected:
                 continue
             job = json.loads(row[2])
-            if job.get('kind') != 'author' or not 1 <= len(job.get('rules', [])) <= 3:
+            if job.get('kind') != 'author' or not 1 <= len(job.get('rules', [])) <= MAX_RULES:
                 continue
             origin = resolve_origin(db, job_id, row)
             if origin is not None:
@@ -57,11 +61,12 @@ def _rank(needed, unused, active, candidates, limit):
             faces = deferred_author_targets(needed, unused, job)
         except ValueError:
             continue
-        if not 1 <= len(faces) <= 8 or busy.intersection(faces):
+        if not 1 <= len(faces) <= MAX_FACES or busy.intersection(faces):
             continue
         rules = set(job['rules'])
         other = [len(by_face[face]-rules) for face in faces]
-        rank = (-sum(count == 0 for count in other), -sum(count <= 1 for count in other),
+        larger = len(rules) > SMALL_RULES or len(faces) > SMALL_FACES
+        rank = (larger, -sum(count == 0 for count in other), -sum(count <= 1 for count in other),
                 max(other), len(rules), len(faces), job['id'])
         ranked.append((rank, origin, faces, job))
     selected = []

@@ -219,6 +219,8 @@ staging and full validation.
 Use `python3 tools/retire_deferred_frontier.py CAMPAIGN` to preview a refill
 for idle author slots. With `--apply` the refill verifies the accepted scan
 and queues small inherited assignments for their first standalone attempt.
+It fills spare slots with assignments of up to five rules and sixteen target
+faces after selecting the available smaller assignments.
 Each wave checks for overlap with active target faces and original owners.
 Use `--protect JOB` to reserve an assignment for a separate draft check.
 

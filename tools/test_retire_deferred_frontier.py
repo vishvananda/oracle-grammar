@@ -31,3 +31,13 @@ class DeferredFrontierTests(unittest.TestCase):
         needed = {'m_a':['A'], 'm_b':['B'], 'm_c':['C'], 'm_d':['C']}
         wave = _rank(needed, set(), [], candidates, 12)
         self.assertEqual([item['job_id'] for item in wave], ['a','c'])
+
+    def test_refill_tries_the_small_assignments_before_wider_fallbacks(self):
+        wider = [f'Wide {index}' for index in range(9)]
+        unbounded = [f'Over {index}' for index in range(17)]
+        needed = {'m_small':['Small'], 'm_other':['Small'], 'm_wide':wider, 'm_over':unbounded}
+        candidates = [(_job('wide', 'm_wide', *wider), 'wide-origin'),
+                      (_job('small', 'm_small', 'Small'), 'small-origin'),
+                      (_job('over', 'm_over', *unbounded), 'over-origin')]
+        self.assertEqual([item['job_id'] for item in _rank(needed, set(), [], candidates, 1)], ['small'])
+        self.assertEqual([item['job_id'] for item in _rank(needed, set(), [], candidates, 12)], ['small','wide'])
