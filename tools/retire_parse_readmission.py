@@ -23,6 +23,7 @@ PRINT_ONLY_REJECTION = 'full allowed-population checks failed'
 PARSE_SCREEN_REJECTION = 'full allowed-population parse screen failed'
 VALIDATION_INPUTS = 'validation-inputs'
 MAX_FOCUSED_PRINT_FAILURES = 32
+MAX_FOCUSED_COMBINED_FAILURES = 96
 
 
 def _lease_held(path):
@@ -42,6 +43,25 @@ def _focused_print_losses(failures):
             and all(isinstance(row, dict) and set(row) == {'face', 'lost'}
                     and isinstance(row['face'], str) and row['face']
                     and row['lost'] == ['exact_default'] for row in failures))
+
+
+def _focused_combined_failure(failures):
+    """Recognize bounded native reading additions with optional print losses."""
+    if (not isinstance(failures, list) or not 2 <= len(failures) <= MAX_FOCUSED_COMBINED_FAILURES
+            or failures[0] != 'native readings changed or failed validation'):
+        return False
+    has_native = False
+    for row in failures[1:]:
+        if not isinstance(row, dict) or not isinstance(row.get('face'), str) or not row['face']:
+            return False
+        if set(row) == {'face', 'gate'} and row['gate'] == 'parse/reading-count/text':
+            has_native = True
+            continue
+        lost = row.get('lost')
+        if (set(row) != {'face', 'lost'} or not isinstance(lost, list) or not lost
+                or lost != [gate for gate in r.PRINT_GATES if gate in lost]):
+            return False
+    return has_native
 
 
 def _complete_focused_parse_failure(folder, result):
@@ -92,7 +112,8 @@ def _focused_library_failure(campaign, folder, validation):
 
 def _eligible_recovery(campaign, folder, validation, mode):
     if mode == 'print':
-        return _focused_print_losses(validation['full_checks']['failures'])
+        failures = validation['full_checks']['failures']
+        return _focused_print_losses(failures) or _focused_combined_failure(failures)
     if mode == 'parse':
         return _complete_focused_parse_failure(folder, validation['parse_screen'])
     return _focused_library_failure(campaign, folder, validation)

@@ -422,10 +422,13 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
                  and len(seen) < limit and not trial(preferred_indices)['failures'] else [])
     automatic = []
     if not remaining and not routed:
-        if full_check:
-            automatic = _print_hints(checkpoint, run, roots['full'], proposals, eligible, failed)
-        else:
+        if not full_check or readmission._focused_combined_failure(failed):
             automatic = _parse_hints(checkpoint,run,roots['full'],proposals,eligible)
+        if full_check:
+            print_losses = [row for row in failed if isinstance(row, dict) and row.get('lost') == ['exact_default']]
+            print_hints = _print_hints(checkpoint, run, roots['full'], proposals, eligible,
+                                       print_losses[:readmission.MAX_FOCUSED_PRINT_FAILURES])
+            automatic = list(dict.fromkeys([*automatic, *print_hints]))
     routing = {'explicit':hints,'automatic':[jobs[i]['job_id'] for i in automatic]}
     if preferred:
         routing.update(preferred=list(preferred), preferred_passed=bool(remaining))

@@ -86,6 +86,19 @@ class PendingFullPrintTests(unittest.TestCase):
                 r.write(self.folder/'validation.json', self.validation)
                 self.assertEqual(self.pending(), [self.batch])
 
+    def test_combined_native_additions_and_print_losses_use_full_check_recovery(self):
+        failures = ['native readings changed or failed validation',
+                    {'face': 'One', 'gate': 'parse/reading-count/text'},
+                    {'face': 'Two', 'lost': ['default', 'exact_default']}]
+        for extra, expected in (([], [self.batch]),
+                                ([{'face': 'Three', 'gate': 'unknown'}], []),
+                                (['gold validation is incomplete'], []),
+                                ([{'face': str(i), 'lost': ['exact_default']} for i in range(94)], [])):
+            with self.subTest(extra=extra):
+                self.validation['full_checks']['failures'] = [*failures, *extra]
+                r.write(self.folder/'validation.json', self.validation)
+                self.assertEqual(self.pending(), expected)
+
     def test_mixed_and_large_failures_are_left_for_review(self):
         for failures in ([{'face': 'One', 'lost': ['exact_default', 'exact']}],
                          [{'face': 'One', 'gate': 'native'}],

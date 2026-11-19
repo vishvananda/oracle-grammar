@@ -105,7 +105,10 @@ verifies the original proof and restores only the still-current rejected
 attempts. Staging checks the resulting union on the latest checkpoint before
 full validation and publication. An archived full-check failure can use the
 same recovery path if all prior readings remain and focused controls reproduce
-every added reading and print failure.
+every added reading and print failure. Automatic recovery considers combined
+audits with up to 96 recorded failure entries. Added-reading routes and exact
+default print traces can prioritize the focused trials. The archived audit and
+the focused replay independently verify the complete failure set.
 When only the two IR schema tests fail because a reused executable cannot find
 its build checkout, the affected batch can return to provisional review. The
 retry verifies a fresh passing test run on the same IR crate, replays every
