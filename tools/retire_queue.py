@@ -829,14 +829,19 @@ def _family_split_cases(evidence, archived, family, selected, deferred):
         result = json.loads(data.splitlines()[0])
         failures = result['failures']
         failed = {failure['name'] for failure in failures}
-        pure_refusals = all(failure['why'].startswith('unexpected refusal: NoParse {') for failure in failures)
+        exact = {case['name'] for case in cases if case.get('exact') is True}
+        localized = all(failure['why'].startswith(('unexpected refusal: NoParse {',
+                                                  'unexpected refusal: Binding('))
+                        or (failure['name'] in exact and failure['why'] in (
+                            'a reading has no exact keyed print', 'a card reading has no exact keyed print'))
+                        for failure in failures)
     except (ValueError, IndexError, KeyError, TypeError, AttributeError) as exc:
         raise ValueError('invalid archived family veto') from exc
     targets = set(selected['target_faces'])
     if (result.get('compositional') is not True or result.get('family') != family.get('family')
             or result.get('cases') != len(cases) or type(result.get('passed')) is not int
             or result['passed'] + len(failures) != len(cases) or len(failed) != len(failures)
-            or not failed or not pure_refusals or failed & targets or not failed <= set(deferred['target_faces'])
+            or not failed or not localized or failed & targets or not failed <= set(deferred['target_faces'])
             or any(sum(case['name'] == name for case in cases) != 1 for name in failed)):
         raise ValueError('archived family veto does not isolate the deferred side')
     positive = [case for case in cases if case['name'] in targets and case.get('expected') is not None

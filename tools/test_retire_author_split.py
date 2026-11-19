@@ -94,6 +94,11 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
     def test_family_veto_split_preserves_cases_and_requires_separate_dependencies(self):
+        with closing(self.q._connect()) as db, db:
+            row = db.execute("SELECT payload FROM jobs WHERE id='parent'").fetchone()
+            job = json.loads(row[0])
+            job['target_faces'].extend(['C','D'])
+            db.execute("UPDATE jobs SET payload=? WHERE id='parent'", (json.dumps(job),))
         self.park()
         old = self.root/'old-evaluation'
         new = self.root/'new-evaluation'
@@ -101,16 +106,22 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         new.mkdir()
         positive = {'name':'A','text':'A.','expected':['meaning'],'exact':True}
         refusal = {'name':'Refusal','text':'Incomplete.','reject':True}
-        family = {'family':'archived','cases':[positive,refusal,{'name':'B','expected':['held']}]}
+        family = {'family':'archived','cases':[positive,refusal,{'name':'B','expected':['held'],'exact':True},
+                                             {'name':'C','expected':['held']}, {'name':'D','expected':['held']}]}
         self.original_report.update(directory=str(old),family_returncode=1,
                                     failures=['family regression tests failed'])
         self.archive.return_value = self.original_report,family
         gate = old/'family-check.log'
-        data = {'family':'archived','cases':3,'passed':2,'compositional':True,
-                'failures':[{'name':'B','why':'unexpected refusal: NoParse { furthest: 0, tokens: 1 }'}]}
-        gate.write_text(json.dumps(data)+'\n')
-        evidence = {**self.evidence,'kind':'reviewed-family-repair-split','scan':{'proof':'accepted'},
+        data = {'family':'archived','cases':5,'passed':2,'compositional':True,
+                'failures':[{'name':'B','why':'a card reading has no exact keyed print'},
+                            {'name':'C','why':'unexpected refusal: Binding("missing event receipt")'},
+                            {'name':'D','why':'unexpected refusal: NoParse { furthest: 0, tokens: 1 }'}]}
+
+        def gate_evidence():
+            gate.write_text(json.dumps(data)+'\n')
+            return {**self.evidence,'kind':'reviewed-family-repair-split','scan':{'proof':'accepted'},
                     'family_gate':{'path':str(gate),'sha256':sha256(gate.read_bytes()).hexdigest()}}
+
         scan = self.root/'scan/rules.json'
         scan.parent.mkdir()
         check = self.enterContext(patch.object(retire_rehabilitation,'verify_scan'))
@@ -126,6 +137,11 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
                                         {'cohort':['A','B']})
 
         before = self.q.audit()
+        data['failures'][1]['why'] = 'report could not validate its test configuration'
+        with self.assertRaisesRegex(ValueError,'does not isolate'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',gate_evidence())
+        data['failures'][1]['why'] = 'unexpected refusal: Binding("missing event receipt")'
+        evidence = gate_evidence()
         dependencies({'m_good':['A'],'m_deferred':['A','B']})
         repaired([positive,refusal])
         with self.assertRaisesRegex(ValueError,'does not separate'):
