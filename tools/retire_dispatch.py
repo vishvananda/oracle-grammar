@@ -440,19 +440,33 @@ def reclassify(run, cp):
             latest=next(row for row in queue.get_jobs() if row['id']==job['id'])
             if latest['status']=='pending':
                 raise
+    parked=(row for status in ('needs-review','integration-rejected','failed')
+            for row in queue.get_jobs(status))
+    _rehabilitate_parked(queue, cp, unused, parked)
+
+
+def _rehabilitate_parked(queue, cp, unused, parked):
     proof=None
-    for status in ('needs-review','integration-rejected','failed'):
-        for row in queue.get_jobs(status):
-            job=row['job']
-            if (not set(job['rules']) & unused or job.get('review_checkpoint')==cp['commit']
-                    or job.get('mechanical_failure_origin')):
-                continue
-            if proof is None:
-                proof=retire_rehabilitation.scan_evidence(Path(cp['inputs']))
-            try:
-                queue.rehabilitate_unused(row['id'],cp['commit'],proof)
-            except RehabilitationIneligible:
-                continue
+    for row in parked:
+        job=row['job']
+        if (not set(job['rules']) & unused or job.get('review_checkpoint')==cp['commit']
+                or job.get('mechanical_failure_origin')):
+            continue
+        if proof is None:
+            proof=retire_rehabilitation.scan_evidence(Path(cp['inputs']))
+        try:
+            queue.rehabilitate_unused(row['id'],cp['commit'],proof)
+        except RehabilitationIneligible:
+            continue
+
+
+def _rehabilitate_staging_rejections(queue, cp, job_ids):
+    if not job_ids:
+        return
+    selected=set(job_ids)
+    unused=set(r.read(Path(cp['inputs'])/'scan/rules.json')['unused'])
+    parked=(row for row in queue.get_jobs('integration-rejected') if row['id'] in selected)
+    _rehabilitate_parked(queue, cp, unused, parked)
 
 
 def proposals(run, count, selected_job_ids=None):
@@ -559,10 +573,13 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     if manifest['status']!='provisional':
         if included:
             queue.reject_jobs(included,{'manifest':manifest['id'],'reason':manifest.get('reason','staging failed')})
+        if manifest['status']=='no-proposals':
+            _rehabilitate_staging_rejections(queue, cp, rejected)
         return
     result=retire_batch.validate(manifest,cp,slots=12,scan=True)
     if result['status']!='passed':
         queue.reject_jobs(included,{'manifest':manifest['id'],'validation':result})
+        _rehabilitate_staging_rejections(queue, cp, rejected)
         return
     next_helpers=cp['helpers']
     override=cp.get('candidate_validation_helpers')

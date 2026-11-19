@@ -118,6 +118,10 @@ Publish the accepted commit, grammar/helper/input hashes and complete evidence
 only after every gate passes. Rescan once per accepted batch for newly unused
 rules; feed those into the mechanical lane. This makes shared phrase work
 available to later workers and can retire additional rules without new authors.
+When staging rejects a stale draft and the accepted scan already marks its
+rule unused, the coordinator can schedule a fresh mechanical proof on that
+checkpoint. The queue retains the staging rejection and verifies the completed
+scan, current ownership, and original attempt before transferring the rule.
 When a singleton mechanical check finds only an exact spelling loss, the
 controller verifies the archived deletion and schedules one targeted author
 job after the mechanical process releases its lease. The original report and

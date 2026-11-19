@@ -422,6 +422,59 @@ class DispatchCanaries(unittest.TestCase):
                 queue.rehabilitate_unused.side_effect = dispatch.RehabilitationIneligible('worker still running')
                 dispatch.reclassify(root, {'commit': 'next', 'inputs': str(inputs)})
 
+    def test_rejected_staging_reclassifies_unused_rules_without_a_new_checkpoint(self):
+        for status in ('no-proposals', 'provisional', 'failed'):
+            with self.subTest(status=status), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                queue = dispatch.Queue(root/'queue.sqlite')
+                queue.add_checkpoint('base', {'proof': 'old'})
+                queue.add_jobs([{'id': name, 'kind': 'author', 'rules': [f'm_{name}']}
+                                for name in ('stale', 'other', 'included')])
+                child = subprocess.Popen([sys.executable, '-c', 'pass'])
+                child.wait()
+                for _ in range(3):
+                    claim = queue.claim('worker')
+                    queue.mark_started(claim['attempt_id'], pid=child.pid)
+                    rule, = claim['job']['rules']
+                    queue.finish(claim['attempt_id'], 'provisional-pass', 'proof',
+                                 {rule: {'status': 'pass', 'evidence': 'x'}})
+                    (root/'leases').mkdir(exist_ok=True)
+                    (root/'leases'/claim['job']['id']).touch()
+                queue.reject_jobs(['other'], {'manifest': 'older'})
+                queue.add_checkpoint('next', {'proof': 'accepted'}, expected_parent='base')
+                inputs = root/'inputs'
+                (inputs/'scan').mkdir(parents=True)
+                unused = {'m_stale', 'm_other', 'm_included'}
+                r.write(inputs/'scan/rules.json', {'unused': sorted(unused)})
+                for name in ('scan-complete.json', 'manifest.json', 'scan/commands.jsonl'):
+                    (inputs/name).write_text('{}')
+                r.write(root/'config.json', {'initial_commit': 'base', 'batch_size': 2})
+                cp = {'commit': 'next', 'inputs': str(inputs)}
+                jobs = [{'job_id': 'stale', 'status': 'integration-rejected'}]
+                if status == 'provisional':
+                    jobs.append({'job_id': 'included', 'status': 'included'})
+                manifest = {'id': 'batch', 'status': status, 'jobs': jobs}
+                with patch.object(dispatch.campaign_api, 'checkpoint', return_value=cp), \
+                        patch.object(dispatch, 'proposals', return_value=jobs), \
+                        patch.object(dispatch.retire_batch, 'stage', return_value=manifest), \
+                        patch.object(dispatch.retire_batch, 'validate', return_value={'status': 'failed'}), \
+                        patch.object(rehabilitation, 'verify_scan', return_value=(inputs, unused, 'manifest', 'scan')), \
+                        patch.object(rehabilitation, 'verify_rule_receipts'):
+                    dispatch.batch(root)
+                rejected = {row['id'] for row in queue.get_jobs('integration-rejected')}
+                pending = queue.get_jobs('pending')
+                self.assertEqual(queue.progress()['checkpoint'], 'next')
+                self.assertIn('other', rejected)
+                if status == 'failed':
+                    self.assertIn('stale', rejected)
+                    self.assertFalse(pending)
+                else:
+                    self.assertEqual([(row['job']['kind'], row['job']['rules']) for row in pending],
+                                     [('mechanical', ['m_stale'])])
+                    self.assertNotIn('stale', rejected)
+                if status == 'provisional':
+                    self.assertIn('included', rejected)
+
     def test_priority_refresh_is_opt_in_and_checkpoint_bound(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
