@@ -39,6 +39,7 @@ from retire_queue import Queue, RehabilitationIneligible
 from retire_tasks import (CohortClosureLimit, close_cohort, mechanical_chunks,
                           prepare_task, validate_runner)
 import retire_worker as w
+import shapes
 
 LARGE_MECHANICAL_POPULATION = 'literal cohort exceeds chunk bounds; use full allowed parse screen'
 
@@ -624,8 +625,15 @@ def publish_main(run, previous, current, manifest):
         r.require(r.digest(root/'tests/families.json')==r.digest(Path(previous['source'])/'tests/families.json'),
                   'main family registry differs')
         changed=git('diff-tree','--no-commit-id','--name-only','-r',current['commit']).splitlines()
-        r.require(changed and all(p.startswith(('grammar/','families/')) or p=='tests/families.json'
+        r.require(changed and all(p.startswith(('grammar/','families/')) or p in ('tests/families.json', shapes.BASELINE_PATH)
                                  for p in changed),'batch changed unapproved publication paths')
+        if shapes.BASELINE_PATH in changed:
+            base = root/shapes.BASELINE_PATH
+            r.require(r.digest(base)==r.digest(Path(previous['source'])/shapes.BASELINE_PATH),
+                      'main shape baseline differs')
+            new_source = Path(current['source'])
+            r.require(r.read(new_source/shapes.BASELINE_PATH)==shapes.remaining_exemptions(
+                shapes.found(new_source),r.read(base)), 'batch shape baseline differs from remaining exemptions')
         subprocess.run(['git','cherry-pick',current['commit']],cwd=root,check=True,
                        stdout=subprocess.DEVNULL)
         record.update(status='integrated',commit=git('rev-parse','HEAD'))

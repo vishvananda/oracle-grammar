@@ -27,6 +27,7 @@ import retire_parse_screen
 import retire_merge as merger
 import retire_tasks as tasks
 import retire_worker as w
+import shapes
 
 REPOSITORY_DRIVER = Path(__file__).with_name('retire_repository_checks.py')
 
@@ -1524,7 +1525,8 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
             if manifest['fixtures']:
                 r.write(registry, families + manifest['fixtures'])
             manifest['grammar'] = r.tree(source/'grammar')
-            _git(source, 'add', '--', 'grammar', 'tests/families.json', *manifest['fixtures'])
+            shape_baseline = [shapes.BASELINE_PATH] if (source/shapes.BASELINE_PATH).is_file() and shapes.prune_fixed(source) else []
+            _git(source, 'add', '--', 'grammar', 'tests/families.json', *manifest['fixtures'], *shape_baseline)
             _git(source, '-c', 'user.name=Retirement Coordinator', '-c', 'user.email=retirement@localhost',
                  'commit', '-m', 'Stage provisional retirement batch')
             manifest['commit'] = _git(source, 'rev-parse', 'HEAD')

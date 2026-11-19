@@ -42,6 +42,17 @@ class ShapeTests(unittest.TestCase):
     def test_repository_matches_its_baseline(self):
         self.assertEqual(shapes.check(), [])
 
+    def test_pruning_removes_only_resolved_exemptions(self):
+        self.grammar('pump ::= affected ("gets" | "get") signed\n'
+                     'size ::= player ("has" | "have") "no" "cards"\n',
+                     {'size': ['agreement has|have','agreement does|do'],
+                      'unused': ['agreement has|have']})
+        self.assertTrue(shapes.prune_fixed(self.root))
+        self.assertEqual(json.loads((self.root/shapes.BASELINE_PATH).read_text()),
+                         {'size': ['agreement has|have']})
+        self.assertFalse(shapes.prune_fixed(self.root))
+        self.assertIn('pump: new print-blowup shape', shapes.check(self.root)[0])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,6 +6,7 @@ SQLite transactions serialize claims, checkpoint advancement, and adjudication.
 import errno
 import fcntl
 import hashlib
+import io
 import json
 import os
 import re
@@ -13,6 +14,8 @@ import subprocess
 from pathlib import Path
 import stat
 import sqlite3
+import tarfile
+import tempfile
 import uuid
 from contextlib import ExitStack, closing, contextmanager
 
@@ -24,6 +27,7 @@ import retire_parse_readmission
 import retire_library_readmission
 import retire_priority
 import retire_timeout_recovery
+import shapes
 
 REVIEWED_RETRY_EVENTS = {
     None: 'retry-reviewed-repair',
@@ -376,6 +380,53 @@ def _verify_diagnostic_recovery(campaign, commit, parent, jobids, evidence):
         if identity.get(field) != actual[field]:
             raise ValueError('identity proof hash differs from verified Git source: '+field)
     return manifest, validation, included
+
+
+def _verify_shape_readmission(campaign, selected, origin, rejections, evidence):
+    values = {key: _proof_file(evidence.get(key)) for key in ('manifest', 'validation', 'repository_log')}
+    manifest = json.loads(values['manifest'][1])
+    validation = json.loads(values['validation'][1])
+    ident = manifest.get('id')
+    candidate = manifest.get('commit')
+    if not re.fullmatch(r'[0-9a-f]{32}', ident or '') or not re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', candidate or ''):
+        raise ValueError('shape readmission requires immutable batch identities')
+    folder = campaign/'.cache/batches'/ident
+    for key, name in (('manifest','manifest.json'), ('validation','validation.json'),
+                      ('repository_log','repository-check.log')):
+        if values[key][0] != folder/name:
+            raise ValueError('shape readmission batch artifacts differ')
+    included = [item for item in manifest['jobs'] if item['status']=='included']
+    attempts = {item['job_id']:item['attempt_id'] for item in included}
+    expected = {'status':'integration-rejected','checkpoint':None,
+                'evidence':{'manifest':ident,'validation': validation}}
+    if (manifest['status']!='provisional' or manifest.get('base_commit')!=origin
+            or validation.get('source_checkpoint')!=origin or validation.get('candidate')!=candidate
+            or validation.get('status')!='failed' or validation.get('reason')!='repository gates failed'
+            or validation.get('repository_check_returncode')!=1
+            or len(attempts)!=len(included) or attempts!=selected
+            or validation.get('included_jobs')!=list(attempts)
+            or any(rejection!=expected for rejection in rejections.values())):
+        raise ValueError('shape readmission does not cover the exact rejected batch')
+    log = values['repository_log'][1]
+    failures = {gate for gate, state in _gates(log).items() if state=='FAILED'}
+    if failures!={'hygiene','tools'}:
+        raise ValueError('repository rejection was not limited to shape diagnostics')
+    config = json.loads((campaign/'config.json').read_bytes())
+    git = ['git','-C',config['source_repo'],'archive',candidate,'grammar',shapes.BASELINE_PATH]
+    archive = subprocess.check_output(git,timeout=30)
+    with tempfile.TemporaryDirectory() as temporary:
+        with tarfile.open(fileobj=io.BytesIO(archive)) as contents:
+            contents.extractall(temporary,filter='data')
+        stale = shapes.check(Path(temporary))
+    text = log.decode()
+    header = re.search(r'^== hygiene \([^\n]+\)\n(.*?)\n\n== tools \(',text,re.M | re.S)
+    if (not stale or any(not msg.endswith('is gone; remove it from '+shapes.BASELINE_PATH) for msg in stale)
+            or header is None or header[1].splitlines()!=[*stale,f'{len(stale)} hygiene checks failed']
+            or re.findall(r'^FAIL: (\S+)',text,re.M)!=['test_repository_matches_its_baseline']
+            or 'FAILED (failures=1)' not in text):
+        raise ValueError('the archived batch did not fail solely on resolved shape exemptions')
+    return {'manifest':ident,'candidate':candidate,'removed_exemptions':stale,
+            'requires_fresh_full_validation':True}
 
 
 def _verify_disk_retry(campaign, job_id, attempt_id, base, job, started, result, evidence):
@@ -1529,6 +1580,10 @@ class Queue:
         """Return an isolated archived full-check cohort to fresh validation."""
         return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='full-check')
 
+    def readmit_shape_baseline_proposals(self, job_ids, checkpoint, evidence):
+        """Requeue the exact batch after verifying a stale print-shape baseline."""
+        return self._readmit_shared_batch(job_ids, checkpoint, evidence, mode='shape')
+
     def _readmit_shared_batch(self, job_ids, checkpoint, evidence, *, mode):
         """Keep leases and compare-and-swap all protected attempts together."""
         if (not isinstance(job_ids, list) or not 1 <= len(job_ids) <= 96
@@ -1538,12 +1593,13 @@ class Queue:
         kind = {'library': 'isolated-batch-library-revalidation',
                 'native-exit-one': 'isolated-native-exit-one-revalidation',
                 'parse-screen': 'isolated-parse-screen-revalidation',
-                'full-check': 'isolated-full-check-revalidation'}[mode]
+                'full-check': 'isolated-full-check-revalidation',
+                'shape': 'stale-shape-baseline-revalidation'}[mode]
         cached = mode == 'library' and isinstance(evidence, dict) and evidence.get('kind') == 'stale-schema-test-cache-revalidation'
         if not cached and (not isinstance(evidence, dict) or evidence.get('kind') != kind):
             raise ValueError('matching isolated batch revalidation evidence is required')
         verify_archived_replay = mode in ('parse-screen', 'full-check')
-        origin = evidence.get('source_checkpoint', checkpoint) if verify_archived_replay or mode == 'library' else checkpoint
+        origin = evidence.get('source_checkpoint', checkpoint) if verify_archived_replay or mode in ('library','shape') else checkpoint
         if not isinstance(origin, str) or not origin or Path(origin).name != origin:
             raise ValueError('invalid batch readmission origin')
         reports = evidence.get('reports')
@@ -1588,11 +1644,17 @@ class Queue:
                                for rule in rules)):
                     raise ValueError('original per-rule dispositions do not all pass')
                 rejections[name] = rejection
+                if mode=='shape':
+                    address, data = _proof_file(reports[name])
+                    if (str(address)!=original['evidence'].get('report')
+                            or json.loads(data).get('passed') is not True):
+                        raise ValueError('shape readmission original passing report differs')
             campaign = Path(self.path).parent
             selected = {name: row[1] for name, row in rows.items()}
             verifier = {'library': retire_library_readmission, 'native-exit-one': retire_native_exit_readmission,
-                        'parse-screen': retire_parse_readmission, 'full-check': retire_parse_readmission}[mode]
-            proof = verifier.verify(campaign, selected, origin, rejections, evidence, _proof_file, _gates)
+                        'parse-screen': retire_parse_readmission, 'full-check': retire_parse_readmission}.get(mode)
+            proof = (_verify_shape_readmission(campaign, selected, origin, rejections, evidence) if mode=='shape'
+                     else verifier.verify(campaign, selected, origin, rejections, evidence, _proof_file, _gates))
             if origin != checkpoint:
                 proof['source_checkpoint'] = origin
             with self._transaction() as db:
@@ -1602,7 +1664,7 @@ class Queue:
                 _verify_readmission_origin(db, checkpoint, origin)
                 previous_readmissions = set()
                 for event in db.execute("SELECT data FROM events WHERE kind IN "
-                                        "('readmitted-batch','readmitted-native-batch','readmitted-library-batch','readmitted-native-exit-one-batch','readmitted-parse-screen-batch')"):
+                                        "('readmitted-batch','readmitted-native-batch','readmitted-library-batch','readmitted-native-exit-one-batch','readmitted-parse-screen-batch','readmitted-shape-baseline')"):
                     previous = json.loads(event[0])
                     previous_readmissions.add((previous.get('job_id'), previous.get('manifest')))
                 for name in job_ids:
@@ -1620,7 +1682,7 @@ class Queue:
                 for name in job_ids:
                     db.execute("UPDATE jobs SET status='provisional-pass',adjudication=NULL WHERE id=?", (name,))
                     event = {'library': 'readmitted-library-batch', 'native-exit-one': 'readmitted-native-exit-one-batch',
-                             'parse-screen': 'readmitted-parse-screen-batch',
+                             'parse-screen': 'readmitted-parse-screen-batch','shape':'readmitted-shape-baseline',
                              'full-check': 'readmitted-native-batch'}[mode]
                     self._event(db, event, {'job_id': name, 'attempt_id': snapshots[name][1],
                                 'checkpoint': checkpoint, 'manifest': proof['manifest'], 'proof': proof,

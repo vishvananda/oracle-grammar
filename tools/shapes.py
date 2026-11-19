@@ -18,7 +18,8 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
-BASELINE = ROOT/'tools'/'shape_baseline.json'
+BASELINE_PATH = 'tools/shape_baseline.json'
+BASELINE = ROOT/BASELINE_PATH
 IRREGULAR = {('has', 'have'), ('is', 'are'), ('was', 'were'), ('does', 'do')}
 NOT_AGREEMENT = {('it', 'its')}
 GENDERED = {'he', 'she', 'him', 'her', 'his', 'hers', 'himself', 'herself'}
@@ -67,7 +68,7 @@ def found(root=ROOT):
 def check(root=ROOT):
     """Errors for shapes outside the baseline and baseline entries now fixed."""
     current = found(root)
-    baseline = json.loads((root/'tools'/'shape_baseline.json').read_text())
+    baseline = json.loads((root/BASELINE_PATH).read_text())
     errors = []
     for rule, labels in sorted(current.items()):
         new = sorted(set(labels) - set(baseline.get(rule, ())))
@@ -80,6 +81,23 @@ def check(root=ROOT):
             errors.append(f'{rule}: shape {", ".join(fixed)} is gone; remove it from '
                           'tools/shape_baseline.json')
     return errors
+
+
+def remaining_exemptions(current, baseline):
+    """Keep only existing exemptions that the current grammar still uses."""
+    return {rule: sorted(set(labels) & set(current.get(rule, ())))
+            for rule, labels in baseline.items() if set(labels) & set(current.get(rule, ()))}
+
+
+def prune_fixed(root):
+    """Delete resolved exemptions while leaving detection of new shapes to hygiene."""
+    path = root/BASELINE_PATH
+    baseline = json.loads(path.read_text())
+    updated = remaining_exemptions(found(root), baseline)
+    if updated == baseline:
+        return False
+    path.write_text(json.dumps(updated, indent=1, sort_keys=True)+'\n')
+    return True
 
 
 if __name__ == '__main__':
