@@ -35,7 +35,7 @@ spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
 /* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
 awaken_land ::= "awaken" number
 
-kicker_branch_program ::= kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception
+kicker_branch_program ::= kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional
    cost was paid, this effect doesn't affect combat damage that would be dealt by red
    creatures": the paid prevention spares damage those sources deal. */
@@ -210,3 +210,10 @@ spell_kicker_distributed_override ::= kicker_branch_header NEWLINE prevent_distr
    the same controlled population and preserve independent result scopes. */
 /* @sem Ability::CostBranch{keyword:Cleave, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$controlled_singular_population})}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($controlled_singular_population, $modifier_with_keyword)})}}]}})} */
 spell_cleave_count_controlled ::= "cleave" cost NEWLINE "draw" "a" "card" "for" "each" controlled_singular_population "[" modifier_with_keyword "]" "."
+
+/* The count is scoped to either of the two explicit exile producers. */
+/* @sem Program::Program{instructions:[If{condition:$condition_cast_kicked, then:_{instructions:[Effect{result:@next, operation:$exile_target_players_graveyard}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:CountObjects(Matching{objects:Transition{result:@prior, phase:After}, filter:$card_filter}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:$exile_single_graveyard_targets}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:CountObjects(Matching{objects:Transition{result:@prior, phase:After}, filter:$card_filter}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]} */
+kicker_exile_receipt_override ::= exile_single_graveyard_targets "." "if" condition_cast_kicked "," "instead" exile_target_players_graveyard "." "create" "a" token_recipe "for" "each" card_filter "card" "exiled" "this" "way" "."
+
+/* @sem Operation::Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($count_plural), filter:Any, constraints:[CommonProperty(Owners)]})), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_single_graveyard_targets ::= "exile" "up" "to" count_plural "target" "cards" "from" "a" "single" "graveyard"

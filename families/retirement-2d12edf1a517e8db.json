@@ -1,0 +1,957 @@
+{
+  "family": "retirement-2d12edf1a517e8db",
+  "cases": [
+    {
+      "name": "Bladecoil Serpent",
+      "text": "When this creature enters, for each {B}{B} spent to cast it, each opponent discards a card.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Discard",
+                      "args": {
+                        "players": {
+                          "kind": "OpponentsOf",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Divide",
+                          "args": {
+                            "numerator": {
+                              "kind": "ManaSpent",
+                              "args": {
+                                "object": {
+                                  "kind": "EventSubject"
+                                },
+                                "filter": {
+                                  "colors": [
+                                    "Black"
+                                  ],
+                                  "snow": false
+                                },
+                                "aggregation": "Count"
+                              }
+                            },
+                            "denominator": {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            "rounding": "Down"
+                          }
+                        },
+                        "random": false
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Cabal Conditioning",
+      "text": "Any number of target players each discard a number of cards equal to the greatest mana value among permanents you control.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": "AnyNumber",
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "All"
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Discard",
+                      "args": {
+                        "players": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "amount": {
+                          "kind": "Aggregate",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Shared": "Battlefield"
+                                },
+                                "kind": "Permanent",
+                                "filter": {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "property": "ManaValue",
+                            "aggregation": "Maximum"
+                          }
+                        },
+                        "random": false
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Liliana's Triumph",
+      "text": "Each opponent sacrifices a creature of their choice. If you control a Liliana planeswalker, each opponent also discards a card.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Sacrifice",
+                      "args": {
+                        "players": {
+                          "kind": "OpponentsOf",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            }
+                          }
+                        },
+                        "choose": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Controls",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "Subtype",
+                              "args": "Liliana"
+                            },
+                            {
+                              "kind": "CardType",
+                              "args": "Planeswalker"
+                            }
+                          ]
+                        },
+                        "minimum": 1
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "OpponentsOf",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Nath of the Gilt-Leaf",
+      "text": "At the beginning of your upkeep, you may have target opponent discard a card at random.\nWhenever an opponent discards a card, you may create a 1/1 green Elf Warrior creature token.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": true
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Discard": {
+                "players": {
+                  "kind": "OpponentsOf",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "cards": {
+                  "kind": "Any"
+                },
+                "source_only": false,
+                "kind": "Any",
+                "grouping": "Card"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "CreateTokens",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "tokens": [
+                                  {
+                                    "amount": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    },
+                                    "words": "CreatingEffect",
+                                    "recipe": {
+                                      "Defined": {
+                                        "name": "FromSubtypes",
+                                        "colors": [
+                                          "Green"
+                                        ],
+                                        "chosen_color": false,
+                                        "chosen_creature_type": false,
+                                        "supertypes": [],
+                                        "card_types": [
+                                          "Creature"
+                                        ],
+                                        "subtypes": [
+                                          "Elf",
+                                          "Warrior"
+                                        ],
+                                        "power_toughness": [
+                                          {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          },
+                                          {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        ],
+                                        "abilities": [],
+                                        "abilities_of": null
+                                      }
+                                    }
+                                  }
+                                ],
+                                "entry": {
+                                  "controller": null,
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Unrelated Example",
+      "text": "Each opponent discard a card.",
+      "reject": true
+    },
+    {
+      "name": "Liliana's Triumph",
+      "text": "Each opponent sacrifices a creature of their choice. If you control a Liliana planeswalker, each opponent also discards two cards.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Sacrifice",
+                      "args": {
+                        "players": {
+                          "kind": "OpponentsOf",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            }
+                          }
+                        },
+                        "choose": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Controls",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "Subtype",
+                              "args": "Liliana"
+                            },
+                            {
+                              "kind": "CardType",
+                              "args": "Planeswalker"
+                            }
+                          ]
+                        },
+                        "minimum": 1
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "OpponentsOf",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Nath of the Gilt-Leaf",
+      "text": "At the beginning of your upkeep, you may have target opponent discard two cards at random.\nWhenever an opponent discards a card, you may create a 1/1 green Elf Warrior creature token.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Elf",
+          "Warrior"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Black"
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          4,
+          4
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                },
+                                "random": true
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Discard": {
+                "players": {
+                  "kind": "OpponentsOf",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "cards": {
+                  "kind": "Any"
+                },
+                "source_only": false,
+                "kind": "Any",
+                "grouping": "Card"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "CreateTokens",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "tokens": [
+                                  {
+                                    "amount": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    },
+                                    "words": "CreatingEffect",
+                                    "recipe": {
+                                      "Defined": {
+                                        "name": "FromSubtypes",
+                                        "colors": [
+                                          "Green"
+                                        ],
+                                        "chosen_color": false,
+                                        "chosen_creature_type": false,
+                                        "supertypes": [],
+                                        "card_types": [
+                                          "Creature"
+                                        ],
+                                        "subtypes": [
+                                          "Elf",
+                                          "Warrior"
+                                        ],
+                                        "power_toughness": [
+                                          {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          },
+                                          {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        ],
+                                        "abilities": [],
+                                        "abilities_of": null
+                                      }
+                                    }
+                                  }
+                                ],
+                                "entry": {
+                                  "controller": null,
+                                  "tapped": false,
+                                  "counters": [],
+                                  "states": []
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Cabal Conditioning",
+      "text": "Any number of target players each discard a number of cards equal to the greatest power among permanents you control.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 6
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": "AnyNumber",
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "All"
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Discard",
+                      "args": {
+                        "players": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "amount": {
+                          "kind": "Aggregate",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Shared": "Battlefield"
+                                },
+                                "kind": "Permanent",
+                                "filter": {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "property": "Power",
+                            "aggregation": "Maximum"
+                          }
+                        },
+                        "random": false
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

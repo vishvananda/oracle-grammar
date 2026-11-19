@@ -2,8 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats
-    | continuous_lose_all_become
+continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -34,7 +33,7 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
-continuous_live ::= continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled
+continuous_live ::= continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$rule_duration, evaluation:LiveObjects} */
 continuous_live_trailing ::= affected rule_changes ("↓")? rule_duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
@@ -248,7 +247,7 @@ base_artifact_creature ::= ("a" | "an") becomes_types "artifact" "creature" "wit
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$value, toughness:$value_2}] */
 base_artifact_creature_native ::= ("a" | "an") becomes_types "artifact" "creature" "with" "base" "power" "and" "toughness" value "/" value
 
-base_changes ::= pilot_animation_change | change_color_set | change_becomes_base | base_changes_and | base_changes_keywords
+base_changes ::= pilot_animation_change | change_color_set | change_becomes_base | base_changes_and | base_changes_keywords | change_no_longer_snow
 /* @sem Change::[...$change_becomes_base, ...$changes] */
 base_changes_and ::= change_becomes_base "and" changes
 /* @sem Change::[...$change_becomes_base, ...$grants] */
@@ -654,7 +653,7 @@ static_change ::= change_landwalk_lacking | change_color_of_mana | change_loses_
    the protection names the object it keeps attached. */
 /* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
 change_protection_keeps ::= "has" "protection" "from" protectable_color "." "this" "effect" "doesn't" "remove" affected
-protectable_color ::= protectable_chosen_color | protectable_white | protectable_blue | protectable_black | protectable_red | protectable_green
+protectable_color ::= protectable_colors_among | protectable_chosen_color | protectable_white | protectable_blue | protectable_black | protectable_red | protectable_green
 /* @sem Operand::Term{family:ProtectableColor, form:TheChosenColor} */
 protectable_chosen_color ::= "the" "chosen" "color"
 /* @sem Operand::Term{family:ProtectableColor, form:Colors, operands:[Vocabulary{family:Color, form:White}]} */
@@ -1099,7 +1098,7 @@ attached_other_auras ::= "can't" "be" "enchanted" "by" "other" "Auras"
 /* @sem Change::GrantAbility(@holder($granted_mechanic)) */
 grant_native_mechanic ::= granted_mechanic
 
-granted_mechanic ::= bare_rebound | bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast | bare_undying | mechanic_banding
+granted_mechanic ::= granted_defined_mechanic | bare_rebound | bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast | bare_undying | mechanic_banding
 /* @sem Ability::Mechanic{mechanic:Affinity, filter:$filter_plural} */
 granted_affinity ::= "affinity" "for" filter_plural
 /* Source belongs to the receiving spell, not the static granting permanent. */
@@ -1142,7 +1141,7 @@ mechanic_each_cast_spell ::= "each" card_filter "spell" "you" "cast"
 
 /* Existing lowercase Clues vocabulary folds the sentence-initial spelling.
    Keep that declared spelling local to these typed mechanic grants. */
-mechanic_grant_subject ::= mechanic_clues | mechanic_modified_clues
+mechanic_grant_subject ::= mechanic_clues | mechanic_modified_clues | mechanic_filtered_permanents
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:Subtype(Clue)} */
 mechanic_clues ::= "clues"
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Subtype(Clue), $modifiers)} */
@@ -2342,7 +2341,7 @@ change_attachment_permission ::= "can" "be" "attached" "only" "to" attachment_el
 /* @sem Ability::Mechanic{mechanic:$granted_valued_name, amount:$value} */
 granted_valued_mechanic ::= granted_valued_name value
 
-granted_valued_name ::= mechanic_renown_name | mechanic_afterlife_name | mechanic_fabricate_name | granted_frenzy_name
+granted_valued_name ::= mechanic_afflict_name | granted_absorb_name | mechanic_renown_name | mechanic_afterlife_name | mechanic_fabricate_name | granted_frenzy_name
 
 /* @sem Mechanic::Frenzy */
 granted_frenzy_name ::= "frenzy"
@@ -2738,7 +2737,7 @@ entry_opponents_union ::= filter_plural "and" filter_plural "your" "opponents" "
 
 /* The doubled characteristics are evaluated on each affected object when the
    effect starts. The possessive and of-phrases supply independent subjects. */
-double_characteristics ::= double_possessive_characteristics | double_of_characteristics
+double_characteristics ::= double_source_characteristics | double_possessive_characteristics | double_of_characteristics
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($double_possessive_subject), changes:$double_stat_change, duration:$duration, evaluation:Snapshot} */
 double_possessive_characteristics ::= "double" double_possessive_subject double_stat_change duration
@@ -5570,3 +5569,108 @@ static_once_your_turn_cast_hand ::= "once" "during" "each" "of" "your" "turns" "
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpecialAction{body:Program{instructions:[Effect{result:@next, operation:$cast_hand_alternative_life_plural}]}, limit:EachTurn(1)})]}) */
 static_once_your_turn_cast_hand_plural ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" cast_hand_alternative_life_plural "."
+
+/* A base power is an independent characteristic change. */
+/* @sem Change::[SetPower($number_digits)] */
+change_has_base_power_singular ::= "has" "base" "power" number_digits
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$change_has_base_power_singular, duration:EndOfTurn, evaluation:Snapshot} */
+continuous_standalone_base_power ::= affected change_has_base_power_singular "until" "end" "of" "turn"
+
+/* The characteristic and the granted keyword share the same end-of-turn window. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[...$singular_base_stats, $grant], duration:EndOfTurn, evaluation:Snapshot} */
+continuous_base_and_keyword_end_turn ::= affected singular_base_stats "until" "end" "of" "turn" "and" "gains" grant "until" "end" "of" "turn"
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}] */
+singular_base_stats ::= "has" "base" "power" "and" "toughness" value "/" value
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$sector_block_restriction, duration:$this_duration, evaluation:LiveObjects} */
+continuous_sector_blocking ::= affected "in" "each" "sector" "can" "be" "blocked" this_duration sector_block_restriction
+
+/* The restriction compares each blocker with the affected creature's sector. */
+/* @sem Change::[Rule(Prohibit(BeBlocked(Not(InSector(Affected)))))] */
+sector_block_restriction ::= "only" "by" "creatures" "in" "the" "same" "sector"
+
+/* Removing a supertype is a characteristic change with indefinite duration. */
+/* @sem Change::[RemoveSupertype(Snow)] */
+change_no_longer_snow ::= "is" "no" "longer" "snow"
+
+/* The player making the optional choice also chooses the target. The target
+   and characteristic change remain independent operands of the duration. */
+/* @sem Instruction::[Optional{decider:$choice_decider, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun, chooser:$choice_decider}), index:0})), changes:$choice_pump, duration:$duration, evaluation:Snapshot}}]}}] */
+clause_player_may_have_choice_change ::= choice_decider "may" "have" "target" noun "of" "their" "choice" choice_pump duration
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+choice_pump ::= "get" signed "/" signed
+
+/* @sem PlayerRef::ControllerOf(EventSubject) */
+choice_decider ::= "that" "creature's" "controller"
+
+/* A shared stat pair retains the object whose current characteristics are read. */
+/* @sem Change::[SetBasePowerToughness{power:ObjectProperty{object:$stat_pair_possessive, property:Power, information:CurrentOrLastKnown}, toughness:ObjectProperty{object:$stat_pair_possessive, property:Toughness, information:CurrentOrLastKnown}}] */
+stat_pair_change ::= "equal" "to" stat_pair_possessive "power" "and" "toughness"
+
+stat_pair_possessive ::= self_possessive | named_creature_possessive
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$stat_pair_change, duration:$duration, evaluation:Snapshot} */
+have_base_stats_population ::= "the" "base" "power" "and" "toughness" "of" affected "become" stat_pair_change duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_possessive)), changes:$stat_pair_change, duration:$duration, evaluation:Snapshot} */
+have_base_stats_self ::= self_possessive "base" "power" "and" "toughness" "become" stat_pair_change duration
+
+/* One local definition supplies both printed X operands. */
+/* @sem Change::[SetBasePowerToughness{power:AnnouncedX, toughness:AnnouncedX}] */
+base_stats_x_change ::= "X" "/" "X"
+
+/* @sem Operation::@where(Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$base_stats_x_change, duration:$duration, evaluation:Snapshot}, $value) */
+have_base_stats_defined ::= "the" "base" "power" "and" "toughness" "of" affected "become" base_stats_x_change duration "," "where" "X" "is" value
+
+/* Retained creature types and the explicit power and toughness are independent. */
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature)] */
+retained_creature_animation ::= "a" value "/" value becomes_types "creature"
+
+/* @sem Operation::CreateContinuousEffect{source:$object_ref, affected:Objects(One($object_ref)), changes:$retained_creature_animation, duration:$duration, evaluation:Snapshot} */
+have_animation_retained ::= object_ref "become" retained_creature_animation duration
+
+/* Both sticker totals measure the same stated population. */
+/* @sem Change::[SetPower(Stickers{objects:$affected, measure:TotalPower}), SetToughness(Stickers{objects:$affected, measure:TotalToughness})] */
+sticker_stat_change ::= "base" "power" "become" "equal" "to" "the" "total" "power" "of" "all" "stickers" "on" affected "and" "its" "base" "toughness" "become" "equal" "to" "those" "stickers'" "total" "toughness"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$sticker_stat_change, duration:Indefinite, evaluation:Snapshot} */
+have_sticker_stats ::= affected "'s" sticker_stat_change
+
+/* The source is the ability holder, independently of any event subject. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:$double_stat_change, duration:$duration, evaluation:Snapshot} */
+double_source_characteristics ::= "double" "this" "creature's" double_stat_change duration
+
+/* Leading duration modifies a live combat requirement. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$combat_required_change, duration:$duration, evaluation:LiveObjects} */
+duration_combat_requirement ::= duration "," affected combat_required_change
+
+combat_required_change ::= combat_required_player | combat_required_named_player | combat_required_other_player
+
+/* @sem Change::[Rule(RequireCombat{action:Attack(Players(All)), amount:AtLeast($counter_amount)})] */
+combat_required_player ::= "attacks" counter_amount "player" "each" "combat" "if" "able"
+
+/* @sem Change::[Rule(RequireCombat{action:Attack(Players($players_singular)), amount:AtLeast(Constant(1))})] */
+combat_required_named_player ::= "attacks" players_singular "each" "combat" "if" "able"
+
+/* @sem Change::[Rule(RequireCombat{action:Attack(Any), amount:AtLeast($counter_amount)}), Rule(RequireCombat{action:Attack(Players(OthersThan(AbilityController))), amount:AtLeast($counter_amount)})] */
+combat_required_other_player ::= "attack" "each" "combat" "if" "able" "and" "attack" counter_amount "player" "other" "than" "you" "if" "able"
+
+/* A plural filter selects the holders of the granted mechanic. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural} */
+mechanic_filtered_permanents ::= filter_plural
+
+/* Color populations and granted mechanics retain their current operands. */
+/* @sem Operand::Term{family:ProtectableColor, form:ColorsOfPermanents, operands:[Objects($affected)]} */
+protectable_colors_among ::= "each" "color" "among" affected
+
+/* @sem Mechanic::Absorb */
+granted_absorb_name ::= "absorb"
+
+/* @sem Mechanic::Soulshift */
+granted_soulshift_name ::= "soulshift"
+
+/* @sem Ability::Mechanic{mechanic:$granted_soulshift_name, amount:$value} */
+granted_defined_mechanic ::= granted_soulshift_name "X" "," "where" "X" "is" value
