@@ -122,6 +122,36 @@ class RecoveredCohortTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'checkpoint changed'):
             driver.reviewed_replay_jobs(self.queue,'head',2)
 
+    def test_ready_caller_priority_respects_other_blockers_and_already_selected_jobs(self):
+        root = Path(self.temp.name)
+        source = root/'source'
+        grammar = source/'grammar/syntax'
+        grammar.mkdir(parents=True)
+        (grammar/'mined.ebnf').write_text(
+            'm_first ::= "a" t_pair t_single t_blocked\n'
+            'm_other ::= t_pair\n'
+            'outside ::= "kept" t_blocked\n'
+            'mined_clause ::= m_first | m_other | t_single | t_pair | t_blocked\n'
+            't_pair ::= "pair"\n'
+            't_single ::= "single"\n'
+            't_blocked ::= "blocked"\n')
+        (root/'checkpoints').mkdir()
+        r.write(root/'checkpoints/head.json',{'source':str(source)})
+        self.queue.add_jobs([
+            {'id':'first','rules':['m_first'],'kind':'author'},
+            {'id':'other','rules':['m_other'],'kind':'author'},
+            {'id':'parked','rules':['t_pair','t_single','t_blocked'],'kind':'author'},
+        ])
+        with closing(self.queue._connect()) as db:
+            db.execute("UPDATE jobs SET status='provisional-pass' WHERE id IN ('first','other')")
+            db.execute("UPDATE jobs SET status='needs-review' WHERE id='parked'")
+            db.commit()
+        self.assertEqual(driver.dependency_caller_jobs(self.queue,'head',[],1),['first'])
+        self.assertEqual(driver.dependency_caller_jobs(self.queue,'head',['first'],1),['other'])
+        self.assertEqual(driver.dependency_caller_jobs(self.queue,'head',['first','other'],2),[])
+        self.assertEqual(driver.with_reviewed_replays(self.queue,'head',0,2,['fifo','last'],
+                                                     callers=['first']),['first','fifo'])
+
     def test_union_opt_in_dispatches_only_the_current_attempt_recovery_group(self):
         self.prepare(['fresh', 'a', 'b', 'stale', 'other'])
         self.event('a', 'isolated'); self.event('b', 'isolated')

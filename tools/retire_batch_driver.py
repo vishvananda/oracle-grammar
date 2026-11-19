@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run the existing batch pipeline behind one durable campaign batch lease."""
 import argparse
+from collections import Counter, defaultdict
 from contextlib import closing
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ import time
 sys.dont_write_bytecode = True
 
 import retire as r
+import mined
 import retire_campaign as campaign
 import retire_dispatch as dispatch
 from retire_library_readmission import LIBRARY_REJECTION
@@ -214,12 +216,48 @@ def reviewed_replay_jobs(queue, checkpoint, limit):
             ORDER BY c.seq DESC,j.rowid LIMIT ?""", (limit,))]
 
 
-def with_reviewed_replays(queue, checkpoint, slots, limit, fifo, *, mechanical=()):
+def dependency_caller_jobs(queue, checkpoint, covered, limit):
+    """Prioritize ready jobs whose seeded callers keep parked rules reachable."""
+    if limit <= 0:
+        return []
+    with closing(queue._connect()) as db:
+        db.execute('BEGIN')
+        latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+        if not latest or latest[0] != checkpoint:
+            raise ValueError('checkpoint changed during caller dependency selection')
+        owners = {rule:(job,status) for rule,job,status in db.execute(
+            "SELECT r.rule,j.id,j.status FROM rules r JOIN jobs j ON j.id=r.job_id "
+            "WHERE j.status<>'accepted'")}
+    parked = {rule for rule,(_,status) in owners.items() if status in ('needs-review','integration-rejected')}
+    if not parked:
+        return []
+    source = Path(campaign.checkpoint(Path(queue.path).parent,checkpoint)['source'])
+    blockers = defaultdict(set)
+    for module in mined.grammar_files(source):
+        for caller,entries in mined.definitions(module.read_text().splitlines()).items():
+            branches = mined.alternatives(entries)
+            if branches is not None and (mined.fallback(caller) or len(set().union(*branches)) != 1):
+                continue
+            for _,line in entries:
+                for callee in parked.intersection(mined.uses(line.partition('::=')[2] if '::=' in line else line)):
+                    caller_job,status = owners.get(caller,(None,None))
+                    if caller_job != owners[callee][0]:
+                        blockers[callee].add(caller_job if status=='provisional-pass' else None)
+    ready = Counter()
+    for callers in blockers.values():
+        if None not in callers:
+            remaining = callers.difference(covered)
+            if len(remaining) <= limit:
+                ready.update(remaining)
+    return sorted(ready,key=lambda job:(-ready[job],job))[:limit]
+
+
+def with_reviewed_replays(queue, checkpoint, slots, limit, fifo, *, mechanical=(), callers=()):
     slots = min(slots, max(0, limit-len(mechanical)))
-    if not slots:
+    if not slots and not callers:
         return fifo
-    reviewed = reviewed_replay_jobs(queue, checkpoint, slots)
-    return list(dict.fromkeys([*mechanical, *reviewed, *fifo]))[:limit]
+    reviewed = reviewed_replay_jobs(queue, checkpoint, slots) if slots else []
+    return list(dict.fromkeys([*mechanical, *reviewed, *callers, *fifo]))[:limit]
 
 
 def recovered_replay_fill(queue, checkpoint, selected, slots, limit):
@@ -288,6 +326,9 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         recovered_replay_slots = config.get('recovered_reviewed_replay_slots', 0)
                         if type(recovered_replay_slots) is not int or not 0 <= recovered_replay_slots <= 96:
                             raise ValueError('recovered_reviewed_replay_slots must be between 0 and 96')
+                        dependency_slots = config.get('dependency_caller_slots', 0)
+                        if type(dependency_slots) is not int or not 0 <= dependency_slots <= 96:
+                            raise ValueError('dependency_caller_slots must be between 0 and 96')
                         ready = jobs.get('provisional-pass', 0)
                         lane = mechanical_lane(queue, limit, mechanical_minimum) if mechanical_priority and ready else None
                         large_mechanical = lane is not None and lane['combine']
@@ -309,23 +350,31 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             also_reviewed = (recovered_replay_fill(queue, progress['checkpoint'],
                                              recovered+also_mechanical, recovered_replay_slots, limit)
                                              if cohort else [])
+                            if cohort:
+                                protected = recovered+also_mechanical+also_reviewed
+                            else:
+                                protected = chosen_lane['mechanical'] if chosen_lane and not large_mechanical else []
+                            caller_room = 0 if large_mechanical else min(dependency_slots, limit-len(protected))
+                            callers = dependency_caller_jobs(queue, progress['checkpoint'], protected, caller_room)
                             status('running', progress, lane=chosen_lane['lane'] if chosen_lane else
                                    'recovered-with-reviewed' if also_reviewed else
                                    'recovered-with-mechanical' if also_mechanical else
-                                   'recovered' if cohort else 'fifo')
+                                   'recovered' if cohort else 'fifo', dependency_callers=callers)
                             if chosen_lane:
                                 selected = chosen_lane['jobs']
                                 if not chosen_lane['combine']:
                                     selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots,
-                                                                   limit, selected, mechanical=chosen_lane['mechanical'])
+                                                                   limit, selected, mechanical=chosen_lane['mechanical'],
+                                                                   callers=callers)
                                 dispatch._batch(run, selected,
                                                 combine_selected=chosen_lane['combine'] or fresh_union)
                             elif cohort:
-                                dispatch._batch(run, recovered+also_mechanical+also_reviewed,
+                                dispatch._batch(run, protected+callers,
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)
-                            elif fresh_union or replay_slots:
+                            elif fresh_union or replay_slots or callers:
                                 fifo = [row['id'] for row in queue.get_jobs('provisional-pass', limit=limit)]
-                                selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots, limit, fifo)
+                                selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots,
+                                                               limit, fifo, callers=callers)
                                 dispatch._batch(run, selected, combine_selected=fresh_union)
                             else:
                                 dispatch._batch(run)
