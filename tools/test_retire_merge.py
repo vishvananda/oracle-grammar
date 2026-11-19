@@ -83,6 +83,21 @@ class MergeTests(unittest.TestCase):
         with self.assertRaisesRegex(MergeConflict, 'conflicting comments on root'):
             merge_text(base, base.replace('Original.', '@prefer 1'), base.replace('one', 'one | two'))
 
+    def test_independent_modal_flavor_labels_keep_their_relative_order(self):
+        prefix = '/* @sem $program_sentence */\nmode_flavor_labelled ::= "•" ('
+        suffix = ') "—" program_sentence\n'
+        base = prefix + '"A" | SELF_NAME | "B"' + suffix
+        current = base.replace('"A" |', '"A" | "X" "Y" |')
+        proposal = base.replace('"B"', '"B" | "Z"')
+        merged = merge_text(base, current, proposal)
+        self.assertEqual(merged, prefix + '"A"\n    | "X" "Y"\n    | SELF_NAME\n    | "B"\n    | "Z"' + suffix)
+        for unsafe in (proposal.replace('$program_sentence', 'Other'),
+                       proposal.replace(' | SELF_NAME', ''),
+                       proposal.replace('"Z"', 'other_label'),
+                       proposal.replace('"A" | SELF_NAME', 'SELF_NAME | "A"')):
+            with self.subTest(proposal=unsafe), self.assertRaises(MergeConflict):
+                merge_text(base, current, unsafe)
+
     def test_preview_and_canonical_seeded(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

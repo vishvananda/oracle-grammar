@@ -62,6 +62,72 @@ def _bare(block):
     return [name for group in result for name in group] if result is not None else None
 
 
+_MODE_FLAVOR = re.compile(
+    r'(?P<head>.*?^mode_flavor_labelled ::= "•" \()(?P<labels>.*)(?P<tail>\) "—" program_sentence\n)\Z',
+    re.S | re.M,
+)
+
+
+def _mode_labels(block):
+    match = _MODE_FLAVOR.fullmatch(block)
+    if match is None:
+        return None
+    phrases = []
+    for phrase in match['labels'].split('|'):
+        if phrase.strip() == 'SELF_NAME':
+            phrases.append('SELF_NAME')
+            continue
+        words = mined.QUOTED.findall(phrase)
+        if not words or mined.QUOTED.sub('', phrase).strip():
+            return None
+        phrases.append(' '.join(words))
+    if len(phrases) != len(set(phrases)):
+        return None
+    return match['head'], phrases, match['tail']
+
+
+def _label_slots(base, changed):
+    """Return ordered insertions between unchanged labels."""
+    positions = set(base)
+    slots = [[] for _ in range(len(base) + 1)]
+    position = 0
+    for phrase in changed:
+        if phrase not in positions:
+            if phrase == 'SELF_NAME':
+                return None
+            slots[position].append(phrase)
+        elif position == len(base) or phrase != base[position]:
+            return None
+        else:
+            position += 1
+    return slots if position == len(base) else None
+
+
+def _merge_mode_labels(base, current, proposed):
+    """Merge independent literal labels while retaining both original orders."""
+    parsed = [_mode_labels(block) for block in (base, current, proposed)]
+    if any(parts is None for parts in parsed):
+        return None
+    (head, before, tail), (current_head, now, current_tail), (new_head, new, new_tail) = parsed
+    if head != current_head or head != new_head or tail != current_tail or tail != new_tail:
+        return None
+    present, added = _label_slots(before, now), _label_slots(before, new)
+    if present is None or added is None:
+        return None
+    labels = []
+    for index, (left, right) in enumerate(zip(present, added, strict=True)):
+        labels.extend(dict.fromkeys(left + right))
+        if index < len(before):
+            labels.append(before[index])
+    if len(labels) != len(set(labels)):
+        return None
+    for source in (now, new):
+        originals = set(source)
+        if [phrase for phrase in labels if phrase in originals] != source:
+            return None
+    return head + '\n    | '.join(labels) + tail
+
+
 def _merge_block(name, base, current, proposed):
     if proposed == base or proposed == current:
         return current
@@ -96,6 +162,10 @@ def _merge_block(name, base, current, proposed):
         if not remaining:
             raise MergeConflict(f'dispatcher {name} would be empty')
         return prefix + name + ' ::= ' + ' | '.join(remaining) + '\n'
+    if name == 'mode_flavor_labelled':
+        labels = _merge_mode_labels(base, current, proposed)
+        if labels is not None:
+            return labels
     raise MergeConflict(f'concurrent semantic edits to {name}')
 
 
