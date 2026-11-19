@@ -104,9 +104,27 @@ def verify(run):
     manifest = read(run/'manifest.json')
     require(manifest['format'] == 3, 'unsupported manifest; use the campaign frozen runner')
     require(manifest['tooling'] == tooling(), 'workflow implementation changed; freeze a new run')
+    _verify_files(run, manifest)
+    return manifest
+
+
+def verify_archive(run, expected_manifest):
+    """Verify archived inputs using the manifest checksum recorded by the coordinator."""
+    data = (run/'manifest.json').read_bytes()
+    require(hashlib.sha256(data).hexdigest() == expected_manifest, 'archived manifest hash differs')
+    manifest = json.loads(data)
+    require(manifest['format'] == 3, 'unsupported manifest; use the campaign frozen runner')
+    files = _verify_files(run, manifest)
+    runner = {path.removeprefix('runner/'): digest for path, digest in files.items() if path.startswith('runner/')}
+    require(set(runner) == set(TOOLING) and runner == manifest['tooling'],
+            'archived workflow does not match its frozen runner')
+    return manifest
+
+
+def _verify_files(run, manifest):
     actual = tree(run/'frozen')
     require(actual == manifest['files'], 'frozen input changed or a file was added/removed')
-    return manifest
+    return actual
 
 
 def tooling():

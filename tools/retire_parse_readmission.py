@@ -222,14 +222,13 @@ def _frozen(campaign, checkpoint, manifest, validation, reads, archived=None):
             if hashes[key] not in (None, spec['sha256']):
                 raise ValueError('archive pin differs from the recorded validation manifest')
             hashes[key] = spec['sha256']
-    parent, frozen = r.read(inputs/'manifest.json'), r.read(run/'manifest.json')
+    parent = r.verify_archive(inputs, hashes['checkpoint_manifest_sha256'])
+    frozen = r.verify_archive(run, hashes['validation_manifest_sha256'])
     trees = [{k.removeprefix('grammar/'):v for k,v in value.get('files', {}).items()
               if k.startswith('grammar/')} for value in (parent, frozen)]
     if (parent.get('commit') != checkpoint or frozen.get('commit') != manifest.get('commit')
             or type(parent.get('population')) is not int or parent['population'] <= 0
             or frozen.get('population') != parent['population'] or frozen.get('source') != parent.get('source')
-            or r.digest(inputs/'manifest.json') != hashes['checkpoint_manifest_sha256']
-            or r.digest(run/'manifest.json') != hashes['validation_manifest_sha256']
             or not trees[0] or trees[1] != manifest.get('grammar')
             or _grammar_tree(inputs/'frozen/grammar') != trees[0]
             or _grammar_tree(run/'frozen/grammar') != trees[1]):
@@ -244,7 +243,6 @@ def _frozen(campaign, checkpoint, manifest, validation, reads, archived=None):
             raise ValueError('parse frozen helper identity differs')
     if r.read(inputs/'frozen/build.json')['compiler'] != r.read(run/'frozen/build.json')['compiler']:
         raise ValueError('parse frozen compilers differ')
-    r.verify(inputs); r.verify(run)
     data = worker.payload(run)
     baseline = Path(cp['baseline']).resolve()
     if not baseline.is_relative_to(campaign.resolve()) or r.digest(baseline) != validation.get('baseline_sha256'):
@@ -254,7 +252,9 @@ def _frozen(campaign, checkpoint, manifest, validation, reads, archived=None):
             if (old is None or parsed is None or entry is None or json.loads(old) != json.loads(parsed)
                     or entry.get('parse') != json.loads(old) or entry.get('flags') != r.flags(json.loads(old))):
                 raise ValueError('parse baseline population or print overlay differs')
-    reads.files.extend((p, r.digest(p)) for p in (cp_path, inputs/'manifest.json', run/'manifest.json', baseline))
+    reads.files.extend(((cp_path, r.digest(cp_path)), (baseline, validation['baseline_sha256']),
+                        (inputs/'manifest.json', hashes['checkpoint_manifest_sha256']),
+                        (run/'manifest.json', hashes['validation_manifest_sha256'])))
     return cp, inputs, run, data, trees
 
 
@@ -548,7 +548,10 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
     for label in ('full', 'remaining'):
         library._replay(campaign, checkpoint, included, expected[label], control_trees[label],
                         paths['isolation'].parent, reports, canonical_mechanical=True, input_cache=input_cache.trial())
-    reads.recheck(); r.verify(inputs); r.verify(run)
+    reads.recheck()
+    pins = dict(reads.files)
+    for root in (inputs, run):
+        r.verify_archive(root, pins[root/'manifest.json'])
     if (_grammar_tree(inputs/'frozen/grammar') != trees[0] or _grammar_tree(run/'frozen/grammar') != trees[1]
             or any(_grammar_tree(Path(isolation['controls'][label]['identity']['path']).parent/'grammar') != tree
                    for label, tree in control_trees.items())):
@@ -572,8 +575,10 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
 
 
 def recheck(proof):
+    artifacts = proof['verified_artifacts']
     for path in proof['verified_frozen_inputs']:
-        r.verify(Path(path))
-    if (any(r.digest(Path(path)) != digest for path, digest in proof['verified_artifacts'].items())
+        root = Path(path)
+        r.verify_archive(root, artifacts.get(str(root/'manifest.json')))
+    if (any(r.digest(Path(path)) != digest for path, digest in artifacts.items())
             or any(_grammar_tree(Path(path)) != tree for path, tree in proof['verified_grammars'].items())):
         raise ValueError('parse readmission artifacts changed before transaction')

@@ -53,6 +53,10 @@ class ParseReadmissionTests(BatchReadmissionTests):
             for name in r.HELPERS:
                 (frozen/'bin'/name).write_text(name); binaries[name] = r.digest(frozen/'bin'/name)
             r.write(frozen/'build.json', {'source_sha256': '0'*64, 'compiler': {'rustc': 'test'}, 'binaries': binaries})
+            runner = frozen/'runner'
+            runner.mkdir()
+            for name in r.TOOLING:
+                (runner/name).write_bytes(Path(r.__file__).with_name(name).read_bytes())
             r.write(root/'manifest.json', {'format': 3, 'commit': commit, 'population': 3, 'source': '0'*64,
                                           'tooling': r.tooling(), 'files': r.tree(frozen)})
             trees.append(r.tree(frozen/'grammar'))

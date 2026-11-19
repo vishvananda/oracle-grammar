@@ -3,6 +3,7 @@ from argparse import Namespace
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -83,6 +84,33 @@ class RetirementTests(unittest.TestCase):
         with patch.object(r, 'tooling', return_value={}):
             with self.assertRaisesRegex(ValueError, 'implementation changed'):
                 r.verify(self.run)
+
+    def test_archived_manifest_pins_the_embedded_runner_across_workflow_versions(self):
+        frozen = self.run/'frozen'
+        runner = frozen/'runner'
+        runner.mkdir()
+        for name in r.TOOLING:
+            shutil.copyfile(Path(r.__file__).parent/name, runner/name)
+        path = self.run/'manifest.json'
+        manifest = r.read(path)
+        manifest['files'] = r.tree(frozen)
+        r.write(path, manifest)
+        checksum = r.digest(path)
+
+        with patch.object(r, 'tooling', return_value={}):
+            self.assertEqual(r.verify_archive(self.run, checksum), manifest)
+            with self.assertRaisesRegex(ValueError, 'implementation changed'):
+                r.verify(self.run)
+
+        (runner/'retire.py').write_text('changed')
+        with self.assertRaisesRegex(ValueError, 'frozen input changed'):
+            r.verify_archive(self.run, checksum)
+        manifest['files'] = r.tree(frozen)
+        r.write(path, manifest)
+        with self.assertRaisesRegex(ValueError, 'archived manifest hash differs'):
+            r.verify_archive(self.run, checksum)
+        with self.assertRaisesRegex(ValueError, 'does not match its frozen runner'):
+            r.verify_archive(self.run, r.digest(path))
 
     def test_live_worker_blocks_assembly_and_another_claim(self):
         job = self.perform('m_a')
