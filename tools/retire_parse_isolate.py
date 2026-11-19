@@ -291,7 +291,11 @@ def _parse_hints(checkpoint, run, full, proposals, eligible):
     try:
         native = r.read(full/'checks/native.json')['reading_preservation']
         deltas = native['additions']
-        if not 1 <= len(deltas) <= 8 or native.get('missing') or native.get('merged_faces'):
+        missing = native.get('missing', [])
+        if (not 1 <= len(deltas) <= 24 or native.get('merged_faces')
+                or not isinstance(missing, list)
+                or any(not isinstance(item, dict) or not isinstance(item.get('name'), str)
+                       for item in missing)):
             return []
         names = {delta['name'] for delta in deltas}
         rows = [row for row in r.rows(full/'checks/rows.jsonl') if row['name'] in names]
@@ -323,7 +327,7 @@ def _parse_hints(checkpoint, run, full, proposals, eligible):
         matches = [index for index in eligible if proposals[index][0]['kind'] == 'author'
                    and ((wanted and _new_productions(*proposals[index][1][:2],wanted))
                         or _proposal_added_alternative(*proposals[index][1][:2],edges))]
-        return matches if len(matches) <= 8 else []
+        return matches if len(matches) <= 12 else []
     except (OSError, ValueError, KeyError, TypeError):
         return []
 

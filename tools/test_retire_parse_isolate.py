@@ -53,9 +53,13 @@ class SurvivorTests(unittest.TestCase):
                   patch.object(isolate,'_probe_lines',return_value=lines) as probe):
                 self.assertEqual(isolate._parse_hints(checkpoint,run,full,proposals,[0,1,2]),[1])
                 self.assertEqual(probe.call_count,1)
+                isolate.r.write(native,{'reading_preservation':{'additions':additions,
+                                                                'missing':[{'name':'Other','reading':0}]}})
+                self.assertEqual(isolate._parse_hints(checkpoint,run,full,proposals,[0,1,2]),[1])
+                self.assertEqual(probe.call_count,2)
                 isolate.r.write(native,{'reading_preservation':{'additions':additions,'missing':[1]}})
                 self.assertEqual(isolate._parse_hints(checkpoint,run,full,proposals,[0,1,2]),[])
-                self.assertEqual(probe.call_count,1)
+                self.assertEqual(probe.call_count,2)
 
     def test_parse_hint_uses_the_traced_alternative_when_meanings_share_routes(self):
         with TemporaryDirectory() as temporary:
