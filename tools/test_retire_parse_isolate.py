@@ -9,6 +9,45 @@ import retire_parse_isolate as isolate
 
 
 class SurvivorTests(unittest.TestCase):
+    def test_parse_hint_routes_only_new_productions_on_the_added_meaning(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            helpers = root/'helpers'
+            helpers.mkdir()
+            binary = helpers/'probe'
+            binary.write_bytes(b'pinned probe')
+            run = root/'inputs'
+            (run/'frozen').mkdir(parents=True)
+            isolate.r.write(run/'frozen/build.json', {'binaries': {'probe': isolate.r.digest(binary)}})
+            full = root/'full'
+            (full/'checks').mkdir(parents=True)
+            isolate.r.jsonl(full/'checks/rows.jsonl', [{'name':'Face', 'text':'Text.',
+                                                       'all':[[{'route':'retained'}],[{'route':'added'}]]}])
+            native = full/'checks/native.json'
+            additions = [{'name':'Face','added_current_indices':[1],'retained_current_indices':[0]}]
+            isolate.r.write(native,{'reading_preservation':{'additions':additions,'missing':[]}})
+            checkpoint = {'helpers':str(helpers),'cpu_pool':str(root/'cpu'),'cpu_capacity':32}
+            proposals = []
+            for index, name in enumerate(('retained', 'new_phrase', 'old_phrase')):
+                directory = root/str(index)/'evaluation'
+                module = directory/'grammar/syntax/example.ebnf'
+                module.parent.mkdir(parents=True)
+                module.write_text(f'{name} ::= "text"\n')
+                proposals.append(({'kind':'author'},(run,directory)))
+            frozen = run/'inputs/frozen/grammar/syntax'
+            frozen.mkdir(parents=True)
+            (frozen/'example.ebnf').write_text('old_phrase ::= "text"\n')
+            lines = [b'[probe diagnostic]', b'[{"route":"added"}]',
+                     b'  rules ["common.1","new_phrase#2","old_phrase"]',
+                     b'[{"route":"retained"}]', b'  rules ["common.2","retained"]']
+            with (patch.object(isolate.cpu,'reserve',return_value=nullcontext(())),
+                  patch.object(isolate,'_probe_lines',return_value=lines) as probe):
+                self.assertEqual(isolate._parse_hints(checkpoint,run,full,proposals,[0,1,2]),[1])
+                self.assertEqual(probe.call_count,1)
+                isolate.r.write(native,{'reading_preservation':{'additions':additions,'missing':[1]}})
+                self.assertEqual(isolate._parse_hints(checkpoint,run,full,proposals,[0,1,2]),[])
+                self.assertEqual(probe.call_count,1)
+
     def test_print_hint_requires_a_unique_new_production_in_the_changed_trace(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)

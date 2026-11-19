@@ -194,7 +194,7 @@ def _controls(roots):
             for label, root in roots.items()}
 
 
-def _probe_rules(binary, grammar, name, text, fds):
+def _probe_lines(binary, grammar, name, text, fds):
     env = {k:v for k,v in os.environ.items() if not k.startswith(('ORACLE_GRAMMAR_', 'PROBE_'))}
     env['ORACLE_GRAMMAR_DIR'] = str(grammar)
     with tempfile.TemporaryFile() as output:
@@ -202,10 +202,19 @@ def _probe_rules(binary, grammar, name, text, fds):
                        check=True, timeout=12, pass_fds=fds)
         output.seek(0)
         result = output.read(1024*1024+1)
-    r.require(len(result) <= 1024*1024, 'print trace exceeds the hint budget')
-    traces = [json.loads(line.removeprefix(b'  rules ')) for line in result.splitlines()
+    r.require(len(result) <= 1024*1024, 'parse trace exceeds the hint budget')
+    return result.splitlines()
+
+
+def _route_names(line):
+    return {key.split('.',1)[0].split('#',1)[0]
+            for key in json.loads(line.removeprefix(b'  rules '))}
+
+
+def _probe_rules(binary, grammar, name, text, fds):
+    traces = [_route_names(line) for line in _probe_lines(binary,grammar,name,text,fds)
               if line.startswith(b'  rules ')]
-    return {key.split('.',1)[0].split('#',1)[0] for trace in traces for key in trace}
+    return set().union(*traces)
 
 
 def _new_productions(run, directory, wanted):
@@ -222,6 +231,15 @@ def _new_productions(run, directory, wanted):
     return found
 
 
+def _trace_binary(checkpoint, run):
+    binary = Path(checkpoint['helpers'])/'probe'
+    expected = r.read(run/'frozen/build.json')['binaries']['probe']
+    r.require(binary.is_absolute() and binary.is_file() and not binary.is_symlink()
+              and binary.stat().st_size <= 1024*1024*1024 and r.digest(binary) == expected,
+              'probe differs from the frozen helper')
+    return binary, expected
+
+
 def _print_hint(checkpoint, run, full, proposals, eligible, failures):
     """Rank a new route for a singleton wording loss. The actual trial still has to fail."""
     if len(failures) != 1 or not isinstance(failures[0], dict) or failures[0].get('lost') != ['exact_default']:
@@ -235,12 +253,7 @@ def _print_hint(checkpoint, run, full, proposals, eligible, failures):
     if not all(isinstance(text,str) and 0 < len(text) <= 4096 for text in (original,printed)) or original == printed:
         return None
     try:
-        binary = Path(checkpoint['helpers'])/'probe'
-        build = r.read(run/'frozen/build.json')
-        expected = build['binaries']['probe']
-        if (not binary.is_absolute() or not binary.is_file() or binary.is_symlink()
-                or binary.stat().st_size > 1024*1024*1024 or r.digest(binary) != expected):
-            return None
+        binary, expected = _trace_binary(checkpoint,run)
         with cpu.reserve(Path(checkpoint['cpu_pool']),1,checkpoint['cpu_capacity'],background=True) as fds:
             grammar = full/'grammar'
             wanted = _probe_rules(binary,grammar,name,printed,fds)-_probe_rules(binary,grammar,name,original,fds)
@@ -251,6 +264,60 @@ def _print_hint(checkpoint, run, full, proposals, eligible, failures):
         return matches[0] if len(matches) == 1 else None
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
         return None
+
+
+def _added_trace_rules(lines, row, delta):
+    meanings = []
+    for line in lines:
+        if line.startswith(b'[{'):
+            meanings.append((json.loads(line),set()))
+        elif line.startswith(b'  rules ') and meanings:
+            meanings[-1][1].update(_route_names(line))
+
+    def rules(indices):
+        readings = row['all']
+        wanted = set()
+        for index in indices:
+            r.require(type(index) is int and 0 <= index < len(readings), 'invalid trace reading index')
+            trace, = [route for meaning,route in meanings if meaning == readings[index]]
+            r.require(trace, 'empty trace for native reading')
+            wanted.update(trace)
+        return wanted
+
+    return rules(delta['added_current_indices'])-rules(delta['retained_current_indices'])
+
+
+def _parse_hints(checkpoint, run, full, proposals, eligible):
+    """Prioritize proposals named by added native routes; focused trials still decide exclusions."""
+    try:
+        native = r.read(full/'checks/native.json')['reading_preservation']
+        deltas = native['additions']
+        if not 1 <= len(deltas) <= 8 or native.get('missing') or native.get('merged_faces'):
+            return []
+        names = {delta['name'] for delta in deltas}
+        rows = [row for row in r.rows(full/'checks/rows.jsonl') if row['name'] in names]
+        if len(names) != len(deltas) or len(rows) != len(names) or {row['name'] for row in rows} != names:
+            return []
+        binary, expected = _trace_binary(checkpoint,run)
+        evidence = {row['name']:row for row in rows}
+        wanted = set()
+        with cpu.reserve(Path(checkpoint['cpu_pool']),1,checkpoint['cpu_capacity'],background=True) as fds:
+            for delta in deltas:
+                row = evidence[delta['name']]
+                if not 0 < len(row['text']) <= 4096:
+                    continue
+                try:
+                    lines = _probe_lines(binary,full/'grammar',row['name'],row['text'],fds)
+                    wanted.update(_added_trace_rules(lines,row,delta))
+                except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+                    continue
+        if not wanted or r.digest(binary) != expected:
+            return []
+        matches = [index for index in eligible if proposals[index][0]['kind'] == 'author'
+                   and _new_productions(*proposals[index][1][:2],wanted)]
+        return matches if len(matches) <= 8 else []
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
 
 
 def _completed_prefix(selection, seen):
@@ -335,9 +402,14 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         r.require(failed == r.read(folder/'validation.json')['full_checks']['failures'],
                   'focused full audit did not reproduce the exact failures')
     routed = [by_job[job] for job in hints]
-    focused_hint = (_print_hint(checkpoint, run, roots['full'], proposals, eligible, failed)
-                    if full_check and not routed else None)
-    automatic = [focused_hint] if focused_hint is not None else []
+    automatic = []
+    if not routed:
+        if full_check:
+            focused_hint = _print_hint(checkpoint, run, roots['full'], proposals, eligible, failed)
+            if focused_hint is not None:
+                automatic.append(focused_hint)
+        else:
+            automatic = _parse_hints(checkpoint,run,roots['full'],proposals,eligible)
     try:
         remaining = (_survivors(eligible, trial, pinned, routed[0]) if len(routed) == 1
                      else _survivors(eligible, trial, pinned, suspects=routed or automatic))
