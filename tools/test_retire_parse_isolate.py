@@ -9,6 +9,24 @@ import retire_parse_isolate as isolate
 
 
 class SurvivorTests(unittest.TestCase):
+    def test_completed_prefix_reuses_the_longest_exact_order_and_checks_its_bytes(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            seen = {}
+            for index, selection in enumerate(((0,), (0, 1, 4), (0, 4))):
+                trial = root/str(index)
+                grammar = trial/'grammar'
+                grammar.mkdir(parents=True)
+                (grammar/'rules.ebnf').write_text(str(selection))
+                seen[selection] = {'root': trial, 'tree': isolate.r.tree(grammar)}
+            self.assertEqual(isolate._completed_prefix([0, 1, 2, 4, 5], seen),
+                             (root/'0/grammar', [1, 2, 4, 5]))
+            self.assertEqual(isolate._completed_prefix([0, 1, 4, 5], seen),
+                             (root/'1/grammar', [5]))
+            (root/'1/grammar/rules.ebnf').write_text('tampered')
+            with self.assertRaisesRegex(ValueError, 'cached grammar prefix changed'):
+                isolate._completed_prefix([0, 1, 4, 5], seen)
+
     def test_retry_hints_require_a_failing_singleton_with_the_pinned_prefix(self):
         jobs = [{'job_id': str(i)} for i in range(6)]
         failure = {'result': {'failures': ['regression']}}

@@ -192,6 +192,16 @@ def _controls(roots):
             for label, root in roots.items()}
 
 
+def _completed_prefix(selection, seen):
+    for count in range(len(selection)-1, 0, -1):
+        cached = seen.get(tuple(selection[:count]))
+        if cached is not None:
+            grammar = cached['root']/'grammar'
+            r.require(r.tree(grammar) == cached['tree'], 'cached grammar prefix changed')
+            return grammar, selection[count:]
+    return None
+
+
 def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(), full_check=False,
             witness_retry=0, unavailable=()):
     r.require(3 <= max_trials <= 96 and 0 <= witness_retry <= 96-max_trials,
@@ -240,14 +250,10 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         frozen = inputs/'frozen/grammar'
         remainder = selection
         with cpu.reserve(Path(cp['cpu_pool']), 1, cp['cpu_capacity'], background=True):
-            ready = seen.get(tuple(prefix))
             if full_check and label == 'full':
                 frozen, remainder = run/'frozen/grammar', []
-            elif prefix and ready and selection[:len(prefix)] == prefix:
-                saved = ready['root']
-                frozen = saved/'grammar'
-                r.require(r.tree(frozen) == r.read(saved/'identity.json')['tree'], 'cached grammar prefix changed')
-                remainder = selection[len(prefix):]
+            elif (ready := _completed_prefix(selection, seen)) is not None:
+                frozen, remainder = ready
             tree = _materialize(root, frozen, selection, remainder, proposals, cached)
         if label == 'full':
             r.require(tree == manifest['grammar'], 'complete ordered replay differs from rejected batch')
@@ -255,7 +261,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         r.require(r.tree(root/'grammar') == tree, 'focused grammar changed during validation')
         if label:
             roots[label] = root
-        seen[key] = {'root': root, 'result': result}
+        seen[key] = {'root': root, 'tree': tree, 'result': result}
         r.write(scratch/'progress.json', [{'indices': list(key), 'folder': str(item['root']), **item['result']}
                                         for key, item in seen.items()])
         return result
