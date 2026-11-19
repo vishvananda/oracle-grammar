@@ -1091,41 +1091,54 @@ def _witness_control(checkpoint, losses, logs):
 def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
     checkpoint = context['checkpoint']
     control = context['control']
+    previous = context.get('early_print_recheck')
+    losses = None
     try:
-        data = control['data'] if control is not None else w.payload(Path(checkpoint['inputs']))
-        losses = _early_default_print(checkpoint, grammar, data, logs)
-        # A bounded sample can reject a large failing union. The full
-        # population still validates every candidate that leaves staging.
-        sampled = losses is not None and len(losses) > RETAINED_NATIVE_PROBE_LIMIT
-        witnesses = losses[:RETAINED_NATIVE_PROBE_LIMIT//2] if sampled else losses
-        focus = _witness_control(checkpoint, witnesses, logs)
+        if previous is None:
+            data = control['data'] if control is not None else w.payload(Path(checkpoint['inputs']))
+            losses = _early_default_print(checkpoint, grammar, data, logs)
+            result = logs/'default-print-screen/result.json'
+            if result.is_file():
+                proof['default_print_screen_sha256'] = r.digest(result)
+            # The independent closure can veto a trial. Every provisional
+            # batch still runs full allowed-population validation.
+            sampled = losses is not None and len(losses) > RETAINED_NATIVE_PROBE_LIMIT
+            witnesses = losses[:RETAINED_NATIVE_PROBE_LIMIT//2] if sampled else losses
+            focus = _witness_control(checkpoint, witnesses, logs)
+            if focus is None:
+                return
+            cp, focused, spec = focus
+            if sampled:
+                names = set(focused['names'])
+                losses = [item for item in losses if item['face'] in names]
+        else:
+            cp = dict(checkpoint, native_regression_controls=previous, native_control_threads=2)
+            focused, spec = _control_setup(cp), previous
+            proof['early_print_rechecked_profile'] = previous
     except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
         proof['default_print_screen_error'] = str(error)
         return
-    if (logs/'default-print-screen/result.json').is_file():
-        proof['default_print_screen_sha256'] = r.digest(logs/'default-print-screen/result.json')
-    if focus is None:
-        return
-    cp, focused, spec = focus
-    if sampled:
-        names = set(focused['names'])
-        losses = [item for item in losses if item['face'] in names]
     try:
         _control_check(cp, focused, grammar, logs/'native-focused')
+        result = logs/'native-focused/result.json'
+        if previous is not None and result.is_file():
+            proof['early_print_recheck_sha256'] = r.digest(result)
     except _NativeControlFailure as error:
         failures = _retained_native_failure(focused, error.report)
         if failures is None:
             return
-        observed = failures['failures']
-        if any('gate' in failure for failure in losses):
-            observed = [failure for failure in observed if isinstance(failure, dict)]
-        if observed != losses:
-            return
+        if losses is not None:
+            observed = failures['failures']
+            if any('gate' in failure for failure in losses):
+                observed = [failure for failure in observed if isinstance(failure, dict)]
+            if observed != losses:
+                return
         if not input_cache.unchanged() or r.tree(grammar) != proof['trial_grammar']:
             raise _UncertainPromotion('Early print witness inputs changed during staging')
         proof.update(retained_native_failure=failures, early_print_control=spec,
                      verified_native_snapshot={key: focused[key] for key in ('profile_sha256','manifest_sha256','threads')})
-        hints = _retained_print_hints(cp, grammar, logs/'default-print-screen/rows.jsonl', drafts, failures,
+        rows = logs/('default-print-screen' if previous is None else 'native-focused')/'rows.jsonl'
+        hints = _retained_print_hints(cp, grammar, rows, drafts, failures,
                                      reading_checks=logs/'native-focused')
         if hints:
             proof['retained_print_hints'] = hints
@@ -1267,7 +1280,8 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                 for item in items:
                     item['library_control'] = str(logs/'library-control')
                 library_controls.check(checkpoint, context['library_control'], trial/'grammar', logs/'library-control')
-            if context.get('early_default_print') and len(entries) >= MIN_EARLY_PRINT_GROUP:
+            if ((context.get('early_default_print') and len(entries) >= MIN_EARLY_PRINT_GROUP)
+                    or (context.get('early_print_recheck') is not None and len(entries) > 1)):
                 _check_early_default(context, proof, input_cache, trial/'grammar', logs, trace_drafts)
             if (not input_cache.unchanged() or r.tree(source/'grammar') != prefix_tree
                     or r.tree(trial/'grammar') != proof['trial_grammar']
@@ -1622,6 +1636,8 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
         names = native['faces'] if 'faces' in native else [native['face']]
         witness = {'names': names, 'control': diagnostic['control']}
         context.setdefault('native_suspects', {}).update((index, witness) for index in culprits)
+        if 'early_print_control' in proof:
+            context = dict(context, early_print_recheck=proof['early_print_control'])
     return _retry_without(context, entries, whole_proof, sorted([*withheld, *culprits]), size,
                           route=route)
 

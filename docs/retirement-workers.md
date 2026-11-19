@@ -125,7 +125,9 @@ Private batch trials can set `background_cpu` in their checkpoint copy to wait
 for an idle bundle while leaving available tokens open to foreground checks.
 The early default-print screen requests the audit thread count and can start
 with as little as half the shared pool when the requested count is larger.
-It passes the actual lease size to the helper and records that size.
+It passes the actual lease size to the helper and records that size. Once an
+early veto is confirmed, survivor retries replay its verified witness cohort.
+Every provisional candidate still runs the full allowed-population audit.
 An optional `repository_check_threads` can reserve a smaller bundle for the
 repository gates while keeping the full-population audit and rule-scan budget.
 For the current explicitly allowed population, that means all 32,755

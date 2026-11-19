@@ -301,6 +301,40 @@ class BatchTests(unittest.TestCase):
                     batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
                 self.assertEqual(proof['retained_native_failure']['failures'],confirmed)
 
+    def test_early_print_retry_replays_the_previous_witnesses_without_rescreening(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            grammar = root/'grammar'
+            grammar.mkdir()
+            profile = {'path':str(root/'profile.json'), 'sha256':'profile'}
+            control = dict(names=['A'], occurrences=1, profile_sha256='profile',
+                           manifest_sha256='manifest', threads=2)
+            context = {'checkpoint':{}, 'control':None, 'early_print_recheck':profile}
+            proof = {'trial_grammar':{}}
+            successful = {'faces':1,'failures':[]}
+            result = root/'native-focused/result.json'
+            result.parent.mkdir()
+            batch.r.write(result, successful)
+            with (patch.object(batch, '_control_setup', return_value=control) as setup,
+                  patch.object(batch, '_control_check', return_value=successful) as native,
+                  patch.object(batch, '_early_default_print') as broad,
+                  patch.object(batch, '_retained_print_hints', return_value=[]) as hints):
+                batch._check_early_default(context, proof, batch._ProposalInputCache(), grammar, root, [])
+                broad.assert_not_called()
+                self.assertEqual(proof['early_print_rechecked_profile'], profile)
+                self.assertEqual(proof['early_print_recheck_sha256'], batch.r.digest(result))
+                setup.assert_called_once_with({'native_regression_controls':profile, 'native_control_threads':2})
+                self.assertIs(native.call_args.args[1], control)
+                failure = {'face':'A','lost':['exact_default']}
+                native.side_effect = batch._NativeControlFailure(result, {'faces':1,'failures':[failure]})
+                proof = {'trial_grammar':{}}
+                with self.assertRaises(batch._NativeControlFailure):
+                    batch._check_early_default(context, proof, batch._ProposalInputCache(), grammar, root, [])
+                self.assertEqual(proof['early_print_control'], profile)
+                self.assertEqual(proof['retained_native_failure']['failures'], [failure])
+                self.assertEqual(hints.call_args.args[2], root/'native-focused/rows.jsonl')
+                broad.assert_not_called()
+
     def test_edited_family_gold_is_independently_reconstructed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
