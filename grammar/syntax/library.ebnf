@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_general | clause_search_any_number | clause_search_graveyard_pair
+clause_search ::= clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_any_number}, ...$search_plural_follow] */
@@ -1555,3 +1555,25 @@ revealed_top_card_loss ::= players_singular "loses" revealed_top_card_mana_value
 
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$revealed_top_card_loss}]}, otherwise:Program{}}] */
 clause_optional_reveal_top_card_loss ::= "you" "may" "reveal" "the" "top" "card" "of" "your" "library" "." "if" "you" "do" "," revealed_top_card_loss
+
+/* Both references to the milled cards belong to this same mill instruction. */
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$mill_take_choice}, count:Exactly(Constant(1)), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number}}]}, otherwise:Program{}}] */
+instructions_mill_take_and_test ::= "mill" card_count "." "you" "may" "put" mill_take_choice "milled" "this" "way" "into" "your" "hand" "." "you" "gain" number "life" "if" "a" filter_phrase "card" "is" "milled" "this" "way"
+
+/* @sem ConjureDestination::Library{position:Shuffled, arrival:CardArrival{counters:[], states:[]}} */
+conjure_shuffled_library ::= "into" "your" "library" "," "then" "shuffle"
+
+/* A fraction is measured against the current size of the searched library. */
+/* @sem Expr::Divide{numerator:CountObjects(Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), denominator:$search_fraction_denominator, rounding:$rounding_words} */
+search_library_fraction ::= "the" "top" search_fraction_denominator "of" "your" "library" "," rounding_words
+
+search_fraction_denominator ::= ordinal_third | library_depth_fourth | library_depth_fifth
+
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, top:$search_library_fraction, choices:[$search_fraction_choice]} */
+search_fraction ::= "search" search_library_fraction "," "for" search_fraction_choice
+
+search_fraction_choice ::= search_choice | foreign_choice_count
+
+/* The selected cards remain the referent across the sentence boundary. */
+/* @sem Instruction::[Effect{result:@mark, operation:$search_fraction}, Effect{result:@next, operation:$found_action}, ...$search_follow] */
+clause_search_sentence_follow ::= search_fraction "." found_action search_follow

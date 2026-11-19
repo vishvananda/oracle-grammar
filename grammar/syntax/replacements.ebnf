@@ -1,6 +1,6 @@
 /* Replacement effects, prevention and delayed triggers. */
 
-replacement_clause ::= replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase
+replacement_clause ::= replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -1199,7 +1199,7 @@ conditional_damage_as_long ::= "as" "long" "as" condition "," conditional_damage
 /* @sem Ability::Conditional{condition:$static_turn_window, then:[$conditional_damage_replacement]} */
 conditional_damage_during ::= static_turn_window "," conditional_damage_replacement
 
-conditional_damage_replacement ::= replacement_prevent_all | replacement_prevent_targeting_spells | replacement_prevent_banded | replacement_leave_loyalty
+conditional_damage_replacement ::= replacement_unblocked_to_controller | replacement_other_controlled_entry_counter | replacement_controlled_noncombat_bonus | replacement_draw_one_or_more_extra | replacement_draw_search_hand | replacement_prevent_all | replacement_prevent_targeting_spells | replacement_prevent_banded | replacement_leave_loyalty
 
 /* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Spell, sources:TargetsAny(Objects(One($object_ref_2))), recipients:Objects(SameObject($object_ref)), kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
 replacement_prevent_targeting_spells ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" object_ref "by" "spells" "that" "target" object_ref "."
@@ -1715,3 +1715,95 @@ entry_redirect_uncast ::= "if" self_explicit_ref "would" "enter" "and" entry_unc
 /* The quoted ability is scoped to the entering holder. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:AllOf([SameObject($self_explicit_ref), State(Escaped)])}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(Changes([GrantAbility(@scope($triggered_ability))]))}}]}}) */
 entry_escaped_granted_trigger ::= self_explicit_ref "escapes" "with" '"' triggered_ability '"'
+
+/* Replacement phrases compose under the existing conditional ability frame. */
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Permanent, sources:AllOf([State(Unblocked), $filter_plural]), recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Objects($affected))}}]}} */
+replacement_unblocked_to_controller ::= "all" "damage" "that" "would" "be" "dealt" "to" "you" "by" "unblocked" filter_plural "is" "dealt" "to" affected "instead" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:AllOf([Not(SameObject($object_ref)), $filter_phrase, ControlledBy(One(AbilityController))])}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})}}]}} */
+replacement_other_controlled_entry_counter ::= "each" "other" filter_phrase "you" "control" "enters" "with" counter_amount "additional" counter_kind "counter" "on" object_ref "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Any, sources:ControlledBy(One(AbilityController)), recipients:ObjectsAndPlayers{objects:$filter_phrase, players:OpponentsOf(AbilityController)}, kind:Noncombat, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Add([EventAmount, $value]))}}]}} */
+replacement_controlled_noncombat_bonus ::= "if" "a" "source" "you" "control" "would" "deal" "noncombat" "damage" "to" "an" "opponent" "or" "a" filter_phrase "," "it" "deals" "that" "much" "damage" "plus" value "instead" "."
+
+/* The one-card threshold and one additional draw are both fixed here. */
+/* @sem Ability::Replacement{active:Battlefield, event:Player{event:DrawCards, players:One(AbilityController)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Add([EventAmount, Constant(1)])}}]}} */
+replacement_draw_one_or_more_extra ::= "if" "you" "would" "draw" "one" "or" "more" "cards" "," "you" "draw" "that" "many" "cards" "plus" "one" "instead" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Player{event:Draw, players:One(AbilityController)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:ChooseAction{actor:One(AbilityController), options:[Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$search_draw_replacement_card}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}, Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Constant(1)}}]}]}}]}} */
+replacement_draw_search_hand ::= "if" "you" "would" "draw" "a" "card" "," "you" "may" "instead" search_draw_replacement_card "," "put" "that" "card" "into" "your" "hand" "," "then" "shuffle" "."
+
+/* A paired effect keeps the source and the static subject independently typed. */
+/* @sem Ability::Conditional{condition:$combat_prevention_guard, then:[$replacement_combat_prevention_source, Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+conditional_prevent_combat_and_static ::= "as" "long" "as" combat_prevention_guard "," replacement_combat_prevention_source "and" affected static_changes "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+replacement_combat_prevention_source ::= "prevent" "all" "combat" "damage" object_ref "would" "deal"
+
+combat_prevention_guard ::= condition | combat_prevention_an_counter
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})} */
+combat_prevention_an_counter ::= object_ref "has" "an" counter_kind "counter" "on" "it"
+
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$draw_replacement_search_choice]} */
+search_draw_replacement_card ::= "search" "your" "library" "for" draw_replacement_search_choice
+
+draw_replacement_search_choice ::= search_choice_any | search_choice_filtered | search_choice_modified | search_named_one
+
+/* Graveyard-scoped replacement phrases retain their own event and response. */
+/* @sem ReplacementEvent::Enter{objects:$filter_phrase} */
+graveyard_each_entry_event ::= "each" filter_phrase "enters"
+
+/* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})} */
+graveyard_entry_additional_counter ::= "with" counter_amount "additional" counter_kind "counter" "on" "it"
+
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Replacement{active:Battlefield, event:$graveyard_each_entry_event, body:_{instructions:[Effect{result:@next, operation:$graveyard_entry_additional_counter}]}}} */
+graveyard_creature_entry_replacement ::= "as" "long" "as" "this" "creature" "is" "in" "your" "graveyard" "," graveyard_each_entry_event graveyard_entry_additional_counter "."
+
+/* @sem Program::_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:ChooseAction{actor:One(AbilityController), options:[Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$operation}]}, Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:Learn}}]}]}}]} */
+graveyard_learn_may_instead ::= "you" "may" "instead" operation
+
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Replacement{active:Battlefield, event:Player{event:Learn, players:One(AbilityController)}, body:$graveyard_learn_may_instead}} */
+graveyard_card_learn_replacement ::= "as" "long" "as" "this" "card" "is" "in" "your" "graveyard" "," "if" "you" "would" "learn" "," graveyard_learn_may_instead "."
+
+/* A proposed zone change can be replaced by revealing its subject and
+   redirecting it to its owner's shuffled library. */
+/* @sem Ability::Replacement{active:Everywhere, event:$replacement_self_zone_event, body:Program{instructions:$replacement_reveal_shuffle_body}} */
+replacement_reveal_shuffle ::= "if" replacement_self_zone_event "," replacement_reveal_shuffle_body "instead" "."
+
+/* @sem ReplacementEvent::ZoneChange{objects:SameObject($self_ref_named), to:Graveyard} */
+replacement_self_graveyard_event ::= self_ref_named "would" "be" "put" "into" "a" "graveyard" "from" "anywhere"
+
+/* @sem ReplacementEvent::ZoneChange{objects:SameObject($self_ref_named), to:Exile} */
+replacement_self_exile_event ::= self_ref_named "would" "be" "put" "into" "exile" "from" "anywhere"
+
+replacement_self_zone_event ::= replacement_self_graveyard_event | replacement_self_exile_event
+
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:$replacement_revealed_source}}, Effect{result:@next, operation:ModifyEvent{change:SetDestination(OwnersLibraryShuffled)}}] */
+replacement_reveal_shuffle_body ::= "reveal" replacement_revealed_source "and" "shuffle" "it" "into" "its" "owner's" "library"
+
+/* @sem ObjectSet::One($self_ref_named) */
+replacement_revealed_source ::= self_ref_named
+
+/* The event fixes ownership to the enchanted player; the redirect names that same owner. */
+/* @sem Ability::Replacement{active:Battlefield, event:$enchanted_player_card_event, body:_{instructions:[Effect{result:@next, operation:Reveal{objects:One(EventSubject)}}, Effect{result:@next, operation:ModifyEvent{change:$enchanted_owner_library_change}}]}} */
+replacement_enchanted_player_card_reveal ::= "if" enchanted_player_card_event "," "instead" "that" "card" "is" "revealed" "and" enchanted_owner_library_change "."
+
+/* @sem EventSpec::ZoneChange{objects:AllOf([$temporary_graveyard_card, OwnedBy(One(EnchantedBy(Source))), Not(Token)]), to:$enchanted_player_card_zone} */
+enchanted_player_card_event ::= temporary_graveyard_card "would" "be" "put" "into" "enchanted" "player's" enchanted_player_card_zone "from" "anywhere"
+
+enchanted_player_card_zone ::= enchanted_player_graveyard | enchanted_player_hand
+
+/* @sem EventZone::Graveyard */
+enchanted_player_graveyard ::= "graveyard"
+
+/* @sem EventZone::Hand */
+enchanted_player_hand ::= "hand"
+
+enchanted_owner_library_change ::= enchanted_owner_library_bottom | enchanted_owner_library_top
+
+/* @sem EventChange::SetDestination(OwnersLibraryBottom) */
+enchanted_owner_library_bottom ::= "put" "on" "the" "bottom" "of" "that" "player's" "library"
+
+/* @sem EventChange::SetDestination(OwnersLibraryTop) */
+enchanted_owner_library_top ::= "put" "on" "the" "top" "of" "that" "player's" "library"

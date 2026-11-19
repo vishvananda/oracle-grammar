@@ -1,0 +1,1268 @@
+{
+  "family": "conditional-replacement-phrases",
+  "cases": [
+    {
+      "name": "Aether Revolt",
+      "text": "As long as a permanent left the battlefield under your control this turn, if a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 2 instead.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "Object": {
+                        "event": "LeavesBattlefield",
+                        "objects": {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "ObjectsAndPlayers": {
+                          "objects": {
+                            "kind": "ControlledBy",
+                            "args": {
+                              "kind": "OpponentsOf",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          },
+                          "players": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Noncombat",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetAmount": {
+                                  "kind": "Add",
+                                  "args": [
+                                    {
+                                      "kind": "EventAmount"
+                                    },
+                                    {
+                                      "kind": "Constant",
+                                      "args": 2
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Archmage Ascension",
+      "text": "As long as this enchantment has six or more quest counters on it, if you would draw a card, you may instead search your library for a card, put that card into your hand, then shuffle.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Counters",
+                  "args": {
+                    "kind": {
+                      "Named": "QuestCounter"
+                    },
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 6
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Player": {
+                      "event": "Draw",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "Cancel"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 7,
+                          "operation": {
+                            "kind": "ChooseAction",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "options": [
+                                {
+                                  "kind": "Program",
+                                  "args": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 1,
+                                          "operation": {
+                                            "kind": "ModifyEvent",
+                                            "args": {
+                                              "change": "Cancel"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "kind": "Group",
+                                        "args": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 2,
+                                                "operation": {
+                                                  "kind": "Search",
+                                                  "args": {
+                                                    "searcher": {
+                                                      "kind": "AbilityController"
+                                                    },
+                                                    "library_owner": {
+                                                      "kind": "AbilityController"
+                                                    },
+                                                    "top": null,
+                                                    "choices": [
+                                                      {
+                                                        "filter": {
+                                                          "kind": "Any"
+                                                        },
+                                                        "count": {
+                                                          "AsManyAsCan": {
+                                                            "kind": "Constant",
+                                                            "args": 1
+                                                          }
+                                                        },
+                                                        "constraints": []
+                                                      }
+                                                    ],
+                                                    "also": [],
+                                                    "either": false,
+                                                    "outside": false
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 3,
+                                                "operation": {
+                                                  "kind": "Move",
+                                                  "args": {
+                                                    "objects": {
+                                                      "kind": "Selected",
+                                                      "args": 2
+                                                    },
+                                                    "destination": {
+                                                      "OwnersHand": {
+                                                        "counters": [],
+                                                        "states": []
+                                                      }
+                                                    },
+                                                    "qualifiers": []
+                                                  }
+                                                }
+                                              }
+                                            },
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 4,
+                                                "operation": {
+                                                  "kind": "Shuffle",
+                                                  "args": {
+                                                    "players": {
+                                                      "kind": "One",
+                                                      "args": {
+                                                        "kind": "AbilityController"
+                                                      }
+                                                    },
+                                                    "excluding": null
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "kind": "Program",
+                                  "args": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 5,
+                                          "operation": {
+                                            "kind": "ModifyEvent",
+                                            "args": {
+                                              "change": "Cancel"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 6,
+                                          "operation": {
+                                            "kind": "Draw",
+                                            "args": {
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              },
+                                              "amount": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ],
+                              "villainous": false
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Quantum Riddler",
+      "text": "As long as you have one or fewer cards in hand, if you would draw one or more cards, you draw that many cards plus one instead.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Hand",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "LessOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Player": {
+                      "event": "DrawCards",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "Cancel"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Draw",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "amount": {
+                                "kind": "Add",
+                                "args": [
+                                  {
+                                    "kind": "EventAmount"
+                                  },
+                                  {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Vampire Socialite",
+      "text": "As long as an opponent lost life this turn, each other Vampire you control enters with an additional +1/+1 counter on it.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ExistsPlayer",
+              "args": {
+                "players": {
+                  "kind": "OpponentsOf",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "binding": 0,
+                "condition": {
+                  "kind": "Compare",
+                  "args": {
+                    "left": {
+                      "kind": "EventHistory",
+                      "args": {
+                        "event": {
+                          "Player": {
+                            "event": "LosesLife",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "Bound",
+                                "args": 0
+                              }
+                            },
+                            "objects": null
+                          }
+                        },
+                        "window": "ThisTurn",
+                        "measure": "Occurrences"
+                      }
+                    },
+                    "test": {
+                      "kind": "Compare",
+                      "args": {
+                        "comparison": "GreaterOrEqual",
+                        "value": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Enter": {
+                      "objects": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "Not",
+                            "args": {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Source"
+                              }
+                            }
+                          },
+                          {
+                            "kind": "AllOf",
+                            "args": [
+                              {
+                                "kind": "Subtype",
+                                "args": "Vampire"
+                              },
+                              {
+                                "kind": "ControlledBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "AddCounters": {
+                                  "kind": {
+                                    "PowerToughness": [
+                                      1,
+                                      1
+                                    ]
+                                  },
+                                  "amount": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Veteran Bodyguard",
+      "text": "As long as this creature is untapped, all damage that would be dealt to you by unblocked creatures is dealt to this creature instead.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "Tapped"
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Permanent",
+                      "sources": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "State",
+                            "args": "Unblocked"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        ]
+                      },
+                      "recipients": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "RedirectDamage": {
+                                  "kind": "Objects",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Woolly Razorback",
+      "text": "As long as this creature has an ice counter on it, prevent all combat damage it would deal and it has defender.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Counters",
+                  "args": {
+                    "kind": {
+                      "Named": "IceCounter"
+                    },
+                    "comparison": "Greater",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Permanent",
+                      "sources": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      },
+                      "recipients": "Any",
+                      "kind": "Combat",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "GrantKeyword",
+                      "args": {
+                        "kind": "Defender"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Incomplete replacement refuses",
+      "text": "As long as this creature is untapped, all damage that would be dealt to you by unblocked creatures is dealt.",
+      "types": [
+        "Creature"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Refuse a plural search with a singular receipt",
+      "text": "As long as this enchantment has six or more quest counters on it, if you would draw a card, you may instead search your library for up to two cards, put that card into your hand, then shuffle.",
+      "reject": true
+    },
+    {
+      "name": "Aether Revolt",
+      "text": "As long as a permanent left the battlefield under your control this turn, if a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 3 instead.\nWhenever you get one or more {E}, this enchantment deals that much damage to any target.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "Object": {
+                        "event": "LeavesBattlefield",
+                        "objects": {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "ObjectsAndPlayers": {
+                          "objects": {
+                            "kind": "ControlledBy",
+                            "args": {
+                              "kind": "OpponentsOf",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          },
+                          "players": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Noncombat",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetAmount": {
+                                  "kind": "Add",
+                                  "args": [
+                                    {
+                                      "kind": "EventAmount"
+                                    },
+                                    {
+                                      "kind": "Constant",
+                                      "args": 3
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "GetsEnergy",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "DamageRecipient",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "amount": {
+                          "kind": "EventAmount"
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Quantum Riddler",
+      "text": "Flying\nWhen this creature enters, draw a card.\nAs long as you have two or fewer cards in hand, if you would draw one or more cards, you draw that many cards plus one instead.\nWarp {1}{U}",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Sphinx"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          4,
+          6
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Hand",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "LessOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Player": {
+                      "event": "DrawCards",
+                      "players": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "Cancel"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Draw",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "amount": {
+                                "kind": "Add",
+                                "args": [
+                                  {
+                                    "kind": "EventAmount"
+                                  },
+                                  {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        },
+        {
+          "kind": "Mechanic",
+          "args": {
+            "mechanic": "Warp",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 1
+                    },
+                    {
+                      "Color": "Blue"
+                    }
+                  ]
+                }
+              ]
+            },
+            "amount": null,
+            "filter": null
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

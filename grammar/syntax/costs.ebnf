@@ -1,7 +1,7 @@
 /* Costs and mana symbols. */
 cost ::= cost_standard | cost_pay_mana_or_words
 
-cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice
+cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another
 
 /* "Remove three quest counters from this enchantment and sacrifice it": "it" is the
    source the counters come off. */
@@ -14,7 +14,7 @@ cost_parts_one ::= cost_part
 /* @sem CostPart::[$cost_part, ...$cost_parts_later] */
 cost_parts_more ::= cost_part "," cost_parts_later
 
-cost_parts_later ::= cost_parts_one_later | cost_parts_more_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_sacrifice_self_and_many | cost_exile_many_and_self
+cost_parts_later ::= cost_parts_one_later | cost_parts_more_later | cost_sacrifice_three_later | cost_sacrifice_many_and_self | cost_sacrifice_self_and_many | cost_exile_many_and_self | cost_sacrifice_self_and_another_later | cost_remove_counters_and_sacrifice_later
 
 /* @sem CostPart::[CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:Exactly($count)}, CostPart::Sacrifice{objects:One(ObjectRef::Source)}] */
 cost_sacrifice_many_and_self ::= "↑" "sacrifice" count filter_plural "and" self_text
@@ -585,7 +585,7 @@ cost_unattach_named_source ::= "unattach" self_ref_named
 /* @sem CostPart::Constrained{part:$cost_constraint_payment, constraints:[$cost_selection_constraint]} */
 cost_constrained_selection ::= cost_constraint_payment cost_selection_constraint
 
-cost_constraint_payment ::= cost_discard_many | cost_discard_filtered_many | cost_reveal_hand_many | cost_tap_population | cost_sacrifice_many | cost_sacrifice_any_population | cost_tap_any_other_controlled
+cost_constraint_payment ::= cost_discard_many | cost_discard_filtered_many | cost_reveal_hand_many | cost_tap_population | cost_sacrifice_many | cost_sacrifice_any_population | cost_tap_any_other_controlled | cost_exile_battlefield_at_least
 
 /* @sem CostPart::Reveal{count:Exactly($card_count), filter:Any} */
 cost_reveal_hand_many ::= "reveal" card_count "from" "your" "hand"
@@ -593,7 +593,7 @@ cost_reveal_hand_many ::= "reveal" card_count "from" "your" "hand"
 /* @sem CostPart::ChangeTapState{selections:[_{objects:$affected, choose:Exactly($value)}], tapped:true} */
 cost_tap_population ::= "tap" value affected
 
-cost_selection_constraint ::= cost_constraint_different_names | cost_constraint_same_name | cost_constraint_shared_color | cost_constraint_shared_creature_type | cost_constraint_total_power
+cost_selection_constraint ::= cost_constraint_different_names | cost_constraint_same_name | cost_constraint_shared_color | cost_constraint_shared_creature_type | cost_constraint_total_power | cost_constraint_total_mana_value
 
 /* @sem SelectionConstraint::DifferentNames */
 cost_constraint_different_names ::= "with" "different" "names"
@@ -1126,3 +1126,52 @@ cost_type_choice ::= choose_creature_type_plain | choose_land_type | choose_basi
 /* A generic amount and one blue mana are independently reduced when the condition holds. */
 /* @sem ActivationLimits::ActivationLimits{modifiers:[ActivationRule(Cost{modifier:Reduce{reductions:[_{amount:$braced_amount}, _{color:Blue, amount:Constant(1)}], spill_into_generic:true}, condition:$condition})]} */
 limit_conditional_blue_reduction ::= "this" "ability" "costs" braced_amount "{" "U" "}" "less" "to" "activate" "if" condition
+
+/* A reduction while a condition holds. */
+/* @sem Ability::Casting(If{condition:$casting_target_card_condition, rule:ReduceCost([_{amount:$braced_amount}])}) */
+casting_reduction_if_target_card ::= "this" "spell" "costs" braced_amount "less" "to" "cast" "if" casting_target_card_condition "."
+
+/* The pronoun refers to the spell whose cost is being reduced. */
+/* @sem Condition::TargetsMatch(_{object:Source, kind:Card, filter:@and($filter_phrase, $modifier_mana_value_numeric)}) */
+casting_target_card_condition ::= "it" "targets" "a" filter_phrase "card" modifier_mana_value_numeric
+
+/* X is fixed by the current count of the stated counters and recipient. */
+/* @sem ActivationLimits::ActivationLimits{modifiers:[Change::ActivationRule(XIs(NumberTest::Compare{comparison:Equal, value:$activation_counter_count}))]} */
+limit_x_counter_count ::= "x" "is" activation_counter_count
+
+/* A tap payment with a color and untapped restriction on an independently named object. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$payment_tap, limits:$limit_color_untapped_once, announcement:@announcement, body:$program_sentence} */
+activated_tap_color_untapped_once ::= payment_tap ":" program_sentence limit_color_untapped_once "."
+
+/* @sem ActivationLimits::ActivationLimits{once_each_turn:true, condition:Condition::ObjectMatches{object:$object_ref, filter:AllOf([$adjective_color, Not(Tapped)])}} */
+limit_color_untapped_once ::= "activate" "only" "if" object_ref "is" adjective_color "and" "untapped" "and" "only" "once" "each" "turn"
+
+/* The source and the separately selected permanent are paid together. */
+/* @sem CostPart::[CostPart::Sacrifice{objects:One($self_explicit_ref)}, CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Expr::Constant(1))}] */
+cost_sacrifice_self_and_another ::= "sacrifice" self_explicit_ref "and" "another" filter_phrase
+
+/* @sem $cost_sacrifice_self_and_another */
+cost_sacrifice_self_and_another_later ::= "↑" cost_sacrifice_self_and_another
+
+/* A conditional reduction belongs to the activated ability's own limits. */
+/* @sem Change::[ActivationRule(Cost{modifier:Reduce{reductions:$activation_mana_reductions, spill_into_generic:true}, condition:$condition})] */
+conditional_activation_reduction ::= "this" "ability" "costs" activation_mana_reductions "less" "to" "activate" "if" condition
+
+/* @sem Vec<ManaReduction>::[ManaReduction{amount:$braced_amount}, ...$colored_reductions] */
+activation_mana_reductions ::= braced_amount colored_reductions
+
+/* @sem ActivationLimits::ActivationLimits{modifiers:$conditional_activation_reduction} */
+limit_conditional_reduction ::= conditional_activation_reduction
+
+/* @sem ActivationLimits::ActivationLimits{once_each_turn:true, modifiers:$conditional_activation_reduction} */
+limit_conditional_reduction_once ::= conditional_activation_reduction "." "activate" "only" "once" "each" "turn"
+
+/* @sem $cost_remove_counters_and_sacrifice */
+cost_remove_counters_and_sacrifice_later ::= "↑" cost_remove_counters_and_sacrifice
+
+/* A lower-bounded battlefield selection can pay a constrained exile cost. */
+/* @sem CostPart::Move{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:AtLeast($value)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_battlefield_at_least ::= "exile" value "or" "more" filter_plural
+
+/* @sem SelectionConstraint::TotalProperty{property:ManaValue, comparison:Equal, amount:$number} */
+cost_constraint_total_mana_value ::= "with" "total" "mana" "value" number

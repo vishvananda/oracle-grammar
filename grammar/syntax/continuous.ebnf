@@ -489,7 +489,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add | static_controlled_each_change | static_scalar_pump_override | static_attached_retained_color_type | static_extreme_population | static_untap_with_named_counter | static_unless_shares_most_common_color | static_untap_with_nonmana_ability | static_each_object_state
+static_ability ::= static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add | static_controlled_each_change | static_scalar_pump_override | static_attached_retained_color_type | static_extreme_population | static_untap_with_named_counter | static_unless_shares_most_common_color | static_untap_with_nonmana_ability | static_each_object_state | scalar_static_alternative
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -709,8 +709,8 @@ trait_copy_other_plural ::= "they're" "still" other_subtype_plural_word
 /* @sem ObjectRef::$object_ref */
 trait_copy_source ::= ("has" | "have") "the" "power" "," "toughness" "," "and" "creature" "types" "of" object_ref
 
-/* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
-static_conditional ::= affected static_changes "as" "long" "as" condition "."
+/* @sem Ability::Conditional{condition:$static_state_condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_conditional ::= affected static_changes "as" "long" "as" static_state_condition "."
 
 /* A static that holds while its card is in your graveyard functions there. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})} */
@@ -718,8 +718,8 @@ static_in_graveyard ::= "as" "long" "as" "this" "card" "is" "in" "your" "graveya
 /* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})} */
 static_in_graveyard_and ::= "as" "long" "as" "this" "card" "is" "in" "your" "graveyard" "and" condition "," affected static_changes "."
 
-/* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
-static_conditional_first ::= "as" "long" "as" condition "," affected static_changes "."
+/* @sem Ability::Conditional{condition:$static_state_condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_conditional_first ::= "as" "long" "as" static_state_condition "," affected static_changes "."
 /* @sem Ability::Conditional{condition:$condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes_closed})]} */
 static_conditional_first_closed ::= "as" "long" "as" condition "," affected static_changes_closed
 
@@ -1959,8 +1959,8 @@ static_may_exert ::= "you" "may" "exert" affected "as" "it" "attacks" "." "when"
 static_you_control ::= "you" "control" affected "."
 
 /* Looking at your library's top card any time. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:AffectedPlayer})]}) */
-static_look_at_top_card ::= "you" "may" "look" "at" "the" "top" "card" "of" "your" "library" "any" "time" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_private_visibility]}) */
+static_look_at_top_card ::= "you" "may" "look" "at" top_private_visibility "any" "time" "."
 
 /* Playing with your library's top card revealed. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:Everyone})]}) */
@@ -3132,7 +3132,7 @@ every_basic_land_type_addition ::= "every" "basic" "land" "type" "in" "addition"
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($ordinal_cast_subject), changes:[GrantAbility(@holder($spell_mechanic))]} */
 static_first_cast_mechanic ::= ordinal_cast_subject "has" spell_mechanic "."
 
-ordinal_cast_subject ::= ordinal_cast_any | ordinal_cast_mana_source
+ordinal_cast_subject ::= ordinal_cast_any | ordinal_cast_mana_source | ordinal_cast_origin_exception
 
 /* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:NthCast{ordinal:Constant(1), spells:Any, by:One(AbilityController), scope:Turn}} */
 ordinal_cast_any ::= "the" "first" "spell" "you" "cast" "each" "turn"
@@ -4723,3 +4723,92 @@ change_pump_each_affected_attack ::= "gets" signed "/" signed "for" "each" affec
 /* The named object is included independently of the other controlled population. */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($object_ref), AllOf([Not(SameObject($object_ref)), $filter_plural, ControlledBy(One(AbilityController))])])} */
 named_and_other_controlled_population ::= object_ref "and" "other" filter_plural "you" "control"
+
+/* @sem Change::PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:AffectedPlayer}) */
+top_private_visibility ::= "the" "top" "card" "of" "your" "library"
+
+/* Library visibility applies separately to each affected player's own library. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($hands_revealed_players), changes:[PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:Everyone})]}) */
+static_players_top_revealed ::= hands_revealed_players "play" "with" "the" "top" "card" "of" "their" "libraries" "revealed" "."
+
+/* Two visible populations share the same viewer and timing. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_private_visibility, PlayerRule($face_down_visibility)]}) */
+static_top_and_face_down_visibility ::= "you" "may" "look" "at" top_private_visibility "and" "at" face_down_visibility "any" "time" "."
+
+/* @sem PlayerRule::Visibility{objects:$affected, audience:AffectedPlayer} */
+face_down_visibility ::= "face-down" affected
+
+/* Once-per-turn permissions share a singular spell filter and library location. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_once_cast_change]}) */
+static_top_once_cast ::= "once" "each" "turn" "," "you" "may" top_once_cast_change "."
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$top_singular_spell_filter}, terms:_{limit:EachTurn(1), cost:Normal}}) */
+top_once_cast_change ::= "cast" top_singular_spell_filter "from" "the" "top" "of" "your" "library"
+
+top_singular_spell_filter ::= top_singular_power_spell | top_singular_instant_sorcery_spell
+
+/* @sem ObjectFilter::AllOf([$filter_phrase, Property{property:Power, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}]) */
+top_singular_power_spell ::= "a" filter_phrase "spell" "with" "power" value "or" "less"
+
+/* @sem ObjectFilter::AnyOf([CardType(Instant), CardType(Sorcery)]) */
+top_singular_instant_sorcery_spell ::= "an" "instant" "or" "sorcery" "spell"
+
+/* Consequences are paired with the spell population they actually describe. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_cast_consequence_change]}) */
+static_top_cast_consequence ::= "you" "may" top_cast_consequence_change "."
+
+top_cast_consequence_change ::= top_cast_flash_change | top_cast_keyword_change
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$top_nontype_spells}, terms:$top_cast_flash_terms}) */
+top_cast_flash_change ::= "cast" top_nontype_spells "from" "the" "top" "of" "your" "library" "." top_cast_flash_terms
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$top_creature_power_spells}, terms:$top_cast_keyword_terms}) */
+top_cast_keyword_change ::= "cast" top_creature_power_spells "from" "the" "top" "of" "your" "library" "." top_cast_keyword_terms
+
+/* @sem $adjective_nontype */
+top_nontype_spells ::= adjective_nontype "spells"
+
+/* @sem ObjectFilter::AllOf([CardType(Creature), Property{property:Power, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}]) */
+top_creature_power_spells ::= "creature" "spells" "with" "power" value "or" "greater"
+
+/* @sem PlayTerms::PlayTerms{cost:Normal, flash:true} */
+top_cast_flash_terms ::= "if" "you" "cast" "a" "spell" "this" "way" "," "you" "may" "cast" "it" "as" "though" "it" "had" "flash"
+
+/* @sem PlayTerms::PlayTerms{cost:Normal, effects:[List([Term{family:SpellEffect, form:AddAbilityUntil, operands:[Ability(Keyword($keyword_value)), Duration(EndOfTurn)]}])]} */
+top_cast_keyword_terms ::= "if" "you" "cast" "a" "creature" "spell" "this" "way" "," "it" "gains" keyword_value "until" "end" "of" "turn"
+
+static_state_condition ::= condition | condition_opponent_controls_an
+
+/* Both clauses describe the named scalar subject; the second changes replace
+   the first when the type test holds. Each bonus retains its own operands. */
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$scalar_static_subject, filter:$scalar_otherwise_kind}, then:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$scalar_singular_bonus_2}], otherwise:[Static{kind:Ordinary, affected:Objects(One($scalar_static_subject)), changes:$scalar_singular_bonus}]} */
+scalar_static_alternative ::= scalar_static_subject scalar_singular_bonus "." "if" "it's" scalar_otherwise_kind "," "it" scalar_singular_bonus "instead" "."
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+scalar_singular_bonus ::= "gets" signed "/" signed
+
+/* A turn condition wraps the shared static change and its scoped activation. */
+/* @sem Ability::Conditional{condition:$static_turn_window, then:[$static_additive_quoted_activation]} */
+static_turn_additive_quoted_activation ::= static_turn_window "," static_additive_quoted_activation
+
+/* A source's retained creature characteristics apply in every nonbattlefield zone. */
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature)] */
+retained_typed_base_description ::= "a" value "/" value becomes_types "creature" "in" "addition" "to" "its" "other" "types"
+
+/* @sem Ability::Scoped{zones:[Hand, Library, Graveyard, Exile, Stack, Command], ability:Static(_{kind:Ordinary, affected:Objects(AnyZone(SameObject($self_explicit_ref))), changes:$retained_typed_base_description})} */
+source_off_battlefield_retained_creature ::= "as" "long" "as" self_explicit_ref "isn't" "on" "the" "battlefield" "," "it's" retained_typed_base_description "."
+
+/* The excluded origin belongs to the candidate spell's caster. */
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:NthCast{ordinal:Constant(1), spells:$ordinal_cast_excluded_origin, by:One(AbilityController), scope:Turn}} */
+ordinal_cast_origin_exception ::= "the" "first" "spell" "you" "cast" ordinal_cast_excluded_origin "each" "turn"
+
+/* @sem ObjectFilter::Not(Cast{from:Players{zone:$ordinal_cast_private_zone, players:One(CasterOf(Candidate))}}) */
+ordinal_cast_excluded_origin ::= "from" "anywhere" "other" "than" "your" ordinal_cast_private_zone
+
+ordinal_cast_private_zone ::= ordinal_cast_hand | ordinal_cast_graveyard
+
+/* @sem ZoneName::Hand */
+ordinal_cast_hand ::= "hand"
+
+/* @sem ZoneName::Graveyard */
+ordinal_cast_graveyard ::= "graveyard"
