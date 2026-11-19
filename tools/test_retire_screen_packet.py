@@ -163,7 +163,7 @@ class PreparedPacketTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cohort inputs differ'):
             tasker._packet_data(str(self.inputs), r.digest(self.inputs/'manifest.json'))
 
-    def test_large_task_preparation_binds_and_verifies_compact_packet(self):
+    def test_large_task_binds_compact_packet_to_selected_frozen_runner(self):
         frozen = self.inputs/'frozen'
         names = ['A', 'A', *(f'S{i}' for i in range(127))]
         gold = [{'faces': [{'name': name, 'abilities': []}]} for name in names]
@@ -175,11 +175,17 @@ class PreparedPacketTests(unittest.TestCase):
         r.jsonl(frozen/'gold.jsonl', gold)
         r.write(frozen/'oracle.json', oracle)
         manifest = r.read(self.inputs/'manifest.json')
+        frozen_runner = frozen/'runner'
+        frozen_runner.mkdir()
+        for name in manifest['tooling']:
+            (frozen_runner/name).write_bytes((self.campaign/'runner'/name).read_bytes())
         manifest['files'] = r.tree(frozen)
         r.write(self.inputs/'manifest.json', manifest)
         tasker._packet_data.cache_clear()
         self.cohort = {'names': sorted(set(names)), 'sampled': False}
-        result = self.prepare()
+        current_tooling = {**manifest['tooling'], 'retire.py': 'new version'}
+        with patch.object(r, 'tooling', return_value=current_tooling):
+            result = self.prepare()
         run = Path(result['run'])
         task = r.read(run/'tasks/job-123.json')
         support = r.read(run/'support.json')

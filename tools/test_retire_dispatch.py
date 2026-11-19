@@ -982,6 +982,8 @@ class DispatchCanaries(unittest.TestCase):
             r.write(frozen/'build.json', build)
             (frozen/'bin').mkdir()
             for name in r.HELPERS: shutil.copy2(helpers/name, frozen/'bin'/name)
+            (frozen/'runner').mkdir()
+            for name in r.TOOLING: shutil.copy2(tools/name, frozen/'runner'/name)
             names = [f'Face{i:03d}' for i in range(501)]
             r.write(frozen/'index.json', {str(i): {'name': name, 'text': 'one', 'record': i, 'face': 0,
                                                    'flags': [True]*4, 'parse': {'readings': 1}} for i, name in enumerate(names)})

@@ -50,7 +50,8 @@ def validate_runner(campaign, runner=None):
 
 def _identity(checkpoint, campaign, runner):
     source, inputs, helpers = (Path(checkpoint[k]).resolve() for k in ('source', 'inputs', 'helpers'))
-    manifest = r.read(inputs/'manifest.json')
+    manifest_bytes = (inputs/'manifest.json').read_bytes()
+    manifest = json.loads(manifest_bytes)
     r.require(manifest['format'] == 3 and manifest['commit'] == checkpoint['commit'],
               'checkpoint and frozen manifest commits differ')
     r.require(git(source, 'rev-parse', 'HEAD') == checkpoint['commit'], 'source commit differs')
@@ -69,7 +70,7 @@ def _identity(checkpoint, campaign, runner):
     for name in r.TOOLING:
         r.require(r.digest(runner/name) == manifest['tooling'][name],
                   'frozen runner tooling mismatch: '+name)
-    return source, inputs, helpers, manifest
+    return source, inputs, helpers, manifest, hashlib.sha256(manifest_bytes).hexdigest()
 
 
 def _checkout(source, destination, commit):
@@ -206,7 +207,7 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
     r.require(job['rules'] and len(set(job['rules'])) == len(job['rules']), 'invalid assigned rules')
     r.require(isinstance(job.get('goal'), str) and job['goal'].strip(), 'task goal is required')
     selected_runner = validate_runner(campaign, runner)
-    source, inputs, helpers, manifest = _identity(checkpoint, campaign, selected_runner)
+    source, inputs, helpers, manifest, manifest_hash = _identity(checkpoint, campaign, selected_runner)
     build_file = inputs/'frozen/build.json'
     r.require(r.digest(build_file) == manifest['files']['build.json'], 'frozen build manifest changed')
     helper_hashes = r.read(build_file)['binaries']
@@ -218,11 +219,10 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
     packet = _packet(inputs, job, cohort_detail)
     compact = None
     if job.get('target_faces') and cohort_detail['closure_occurrence_count'] > screen_packet.MIN_FULL_OCCURRENCES:
-        r.verify(inputs)
+        r.verify_archive(inputs, manifest_hash)
         with _PACKET_LOCK:
-            by_name, records, oracle_index = _packet_data(str(inputs), r.digest(inputs/'manifest.json'))
-            compact = screen_packet.build(by_name, records, oracle_index, job, cohort_detail,
-                                          r.digest(inputs/'manifest.json'))
+            by_name, records, oracle_index = _packet_data(str(inputs), manifest_hash)
+            compact = screen_packet.build(by_name, records, oracle_index, job, cohort_detail, manifest_hash)
     run.mkdir(parents=True, exist_ok=False)
     created_checkout = False
     try:
