@@ -82,7 +82,7 @@ player_search_many_choice ::= search_choice_many | search_choice_many_any
 
 /* After milling, you may put one matching card of those milled into your hand. */
 /* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$mill_take_choice}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}] */
-clause_mill_take ::= "mill" card_count "." "you" "may" "put" mill_take_choice "from" "among" "them" "into" "your" "hand"
+clause_mill_take ::= "mill" card_count "." "you" "may" "put" mill_take_choice mill_take_origin "into" "your" "hand"
 mill_take_choice ::= mill_take_filtered | mill_take_modified
 /* @sem $search_filter */
 mill_take_filtered ::= ("a" | "an") search_filter
@@ -1541,3 +1541,17 @@ found_plural_hand ::= "put" "them" "into" "your" "hand"
 /* Two independent choices share the searched zones and the selected receipt. */
 /* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, $search_choice_modified], also:[Graveyard]} */
 search_library_graveyard_pair ::= "search" "your" "library" "and" "graveyard" "for" search_choice_filtered "and" search_choice_modified
+
+/* @sem () */
+mill_take_origin ::= "from" "among" "them" | "milled" "this" "way"
+
+/* The single revealed top card remains the current top card throughout this
+   immediate payment-dependent branch. Keep the anaphor inside this scope. */
+/* @sem Expr::ObjectProperty{object:Query{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), index:0}, property:ManaValue, information:CurrentOrLastKnown} */
+revealed_top_card_mana_value ::= "life" "equal" "to" "that" "card's" "mana" "value"
+
+/* @sem Operation::LoseLife{players:$players_singular, amount:$revealed_top_card_mana_value} */
+revealed_top_card_loss ::= players_singular "loses" revealed_top_card_mana_value
+
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$revealed_top_card_loss}]}, otherwise:Program{}}] */
+clause_optional_reveal_top_card_loss ::= "you" "may" "reveal" "the" "top" "card" "of" "your" "library" "." "if" "you" "do" "," revealed_top_card_loss

@@ -139,3 +139,15 @@ program_copy_targeting_ability ::= "copy" "that" "ability" "." "you" "may" "choo
 
 /* @sem Ability::Triggered{event:$event_target_ability_singular, limits:TriggerLimits{per_turn:1}, announcement:@announcement, body:$program_copy_targeting_ability} */
 triggered_targeted_ability_copy_once ::= "whenever" event_target_ability_singular "," program_copy_targeting_ability "this" "ability" "triggers" "only" "once" "each" "turn" "."
+
+/* Copies of a previously named spell use the current requested count. */
+/* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:@plural_amount($value), targets:May}}] */
+clause_copy_ref_times_new_targets ::= "copy" object_ref value "times" "." "you" "may" "choose" "new" "targets" "for" "the" "copies"
+
+/* Keep the optional retarget and its subsequent reference-copy as separate
+   typed instructions while retaining their ordinary sentence order. */
+/* @prefer always */
+/* @sem Instruction::[...$clause_retarget_optional_stack, ...$retarget_copy_step] */
+instructions_retarget_then_copy ::= clause_retarget_optional_stack "." "then" retarget_copy_step
+
+retarget_copy_step ::= clause_copy_ref_new_targets | clause_copy_ref_times_new_targets

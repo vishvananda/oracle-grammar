@@ -117,7 +117,7 @@ token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power
 
-token_copy ::= token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural
+token_copy ::= token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -133,7 +133,7 @@ token_copy_plural ::= count "tokens" "that" "are" "copies" "of"
 token_copy_modified ::= token_copy_quantity object_ref "," "except" copy_exceptions_plain
 
 /* The word `tapped` follows the count, so the count and description stay one phrase. */
-token_group_tapped ::= token_defined_tapped | token_defined_each_tapped | token_named_tapped
+token_group_tapped ::= token_defined_tapped | token_defined_each_tapped | token_named_tapped | token_copy_plain_tapped | token_copy_modified_tapped | token_copy_characteristics_tapped
 
 /* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe} */
 token_defined ::= token_amount token_recipe
@@ -284,7 +284,7 @@ tt_enchantment_creature ::= "enchantment" "creature"
 /* @sem CardType::[Land, Creature] */
 tt_land_creature ::= "land" "creature"
 
-token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird
+token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf
 
 /* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Blood], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Discard{count:Expr::Constant(1), filter:Any}, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
 tn_blood ::= "Blood"
@@ -648,3 +648,27 @@ tn_spellgorger_weird ::= "Spellgorger" "Weird"
    the created batch. Both noun forms must denote the same filter. */
 /* @sem Instruction::[Effect{result:@mark, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_phrase, $filter_plural), ControlledBy(OpponentsOf(AbilityController))])}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}, Effect{result:@next, operation:FightEach{fighters:Created(@marked), others:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_phrase, $filter_plural), ControlledBy(OpponentsOf(AbilityController))])}}}] */
 create_each_opponent_and_fight ::= "for" "each" filter_phrase "your" "opponents" "control" "," "create" "a" token_recipe "." "each" "of" "those" "tokens" "fights" "a" "different" "one" "of" "those" filter_plural
+
+/* Named rules-defined token recipes compose with the ordinary arrival and amount. */
+/* @sem TokenRecipe::Named(Mutavault) */
+tn_mutavault ::= "Mutavault"
+/* @sem TokenRecipe::Named(Tarmogoyf) */
+tn_tarmogoyf ::= "Tarmogoyf"
+
+/* Tapped copy creation shares the copy target and exception operands. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
+token_copy_plain_tapped ::= "a" "tapped" "token" "that's" "a" "copy" "of" object_ref
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_exceptions_plain}} */
+token_copy_modified_tapped ::= "a" "tapped" "token" "that's" "a" "copy" "of" object_ref "," "except" copy_exceptions_plain
+
+/* A commander copy selects from the owned commander population. */
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:CopyOne{objects:AnyZone(AllOf([State(Commander), OwnedBy(One(AbilityController))])), exceptions:[$copy_not_legendary]}} */
+token_copy_commander ::= token_copy_single "your" "commander" "," "except" copy_not_legendary
+/* @sem CopyException::RemoveSupertypes([Legendary]) */
+copy_not_legendary ::= "it's" "not" "legendary"
+
+/* A copy exception specifies the copied token's replacement characteristics. */
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::Colors{mode:Set, colors:Listed($token_colors)}, CopyException::SetTypes{card_types:[Creature], subtypes:$token_subtypes}] */
+copy_token_characteristics ::= "it's" "a" value "/" value token_colors token_subtypes
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_token_characteristics}} */
+token_copy_characteristics_tapped ::= "a" "tapped" "token" "that's" "a" "copy" "of" object_ref "," "except" copy_token_characteristics

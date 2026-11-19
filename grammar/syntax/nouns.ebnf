@@ -414,7 +414,7 @@ noun_commas_last ::= noun ","
 
 filter_tail ::= filter_head | filter_modified | filter_compound_or | filter_compound_or_modified
 
-filter_modified ::= filter_nonlist_modified | filter_list_modified | filter_creature_list_modified
+filter_modified ::= filter_singular_relative_modified | filter_nonlist_modified | filter_list_modified | filter_creature_list_modified
 
 /* @sem @and($filter_nonlist_head, $modifiers) */
 filter_nonlist_modified ::= filter_nonlist_head modifiers
@@ -605,7 +605,7 @@ adjective ::= quality_unscoped | noun_atomic
 
 /* An adjective that is not also a noun, so `or` between two of them is one slot. */
 quality ::= quality_unscoped | adjective_equipped
-quality_unscoped ::= adjective_modified | adjective_party | adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_tapped | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked
+quality_unscoped ::= adjective_transformed | adjective_modified | adjective_party | adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_tapped | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked
     | adjective_noncommander | adjective_nontoken | adjective_legendary | adjective_nonlegendary | adjective_basic | adjective_nonbasic
     | adjective_color | adjective_noncolor | adjective_nontype | subtype_negated
     | adjective_colorless | adjective_snow | adjective_nonsnow | adjective_enchanted | adjective_attacking_or_blocking | adjective_stickered
@@ -710,7 +710,7 @@ modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_t
 
 modifier_nonattachment ::= modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
 
-modifier_nonnumeric ::= modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell | modifier_stat_compared | modifier_stat_compared_holder | modifier_source_name | modifier_not_named_self | modifier_referenced_name | modifier_banded_with | modifier_with_toxic_family | modifier_named_counters_on_them | modifier_blocked_this_turn | modifier_with_level_up | modifier_shares_card_type | modifier_name_first_printed_in_homelands | modifier_bare_sticker_vowel | modifier_bare_sticker_consonant | modifier_attacking_last_chosen_player | modifier_attacking_enchanted_player | modifier_attacking_your_opponents
+modifier_nonnumeric ::= modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell | modifier_stat_compared | modifier_stat_compared_holder | modifier_source_name | modifier_not_named_self | modifier_referenced_name | modifier_banded_with | modifier_with_toxic_family | modifier_named_counters_on_them | modifier_blocked_this_turn | modifier_with_level_up | modifier_shares_card_type | modifier_name_first_printed_in_homelands | modifier_bare_sticker_vowel | modifier_bare_sticker_consonant | modifier_attacking_last_chosen_player | modifier_attacking_enchanted_player | modifier_attacking_your_opponents | modifier_enchanted_or_equipped
 
 /* Band membership refers to the explicitly described object; it is neither
    a target nor a new group of creatures chosen by this effect. */
@@ -1541,8 +1541,7 @@ card_description_union ::= subtyped_card_description "or" subtyped_card_descript
 target_card_union_your_graveyard ::= "target" card_description_union "from" "your" "graveyard"
 
 /* A current graveyard population constrained by its arrival this turn. */
-/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:@and($filter_phrase, ObjectFilter::ArrivedThisTurn{})} */
-graveyard_cards_arrived_this_turn ::= "all" filter_phrase "cards" "in" "your" "graveyard" "that" "were" "put" "there" "from" "anywhere" "this" "turn"
+graveyard_cards_arrived_this_turn ::= graveyard_arrival_all_cards | graveyard_arrival_filtered_cards
 
 /* Exile populations preserve the linked source and the owner independently. */
 /* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)} */
@@ -2112,3 +2111,54 @@ craft_exiled_card ::= "the" "exiled" "card" "used" "to" "craft" object_ref
 
 /* @sem ObjectFilter::AllOf([HasActivatedAbility(Any), HasActivatedAbility(Not(Mana))]) */
 modifier_with_nonmana_activated_ability ::= "with" "an" "activated" "ability" "that" "isn't" "a" "mana" "ability"
+
+/* @sem ObjectFilter::State(Transformed) */
+adjective_transformed ::= "transformed"
+
+/* A spell with one target, that target being a player. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([OnStack(SingleTarget), TargetsAny(Players(All))])}), index:0} */
+retarget_player_only_spell ::= "target" "spell" "that" "targets" "only" "a" "player"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:@and(ObjectFilter::Any, $graveyard_arrival_origin)} */
+graveyard_arrival_all_cards ::= "all" "cards" "in" "your" "graveyard" graveyard_arrival_origin
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:@and($filter_phrase, $graveyard_arrival_origin)} */
+graveyard_arrival_filtered_cards ::= "all" filter_phrase "cards" "in" "your" "graveyard" graveyard_arrival_origin
+
+graveyard_arrival_origin ::= graveyard_arrival_anywhere | graveyard_arrival_battlefield | graveyard_arrival_exile
+
+/* @sem ObjectFilter::ArrivedThisTurn{} */
+graveyard_arrival_anywhere ::= "that" "were" "put" "there" "from" "anywhere" "this" "turn"
+
+/* @sem ObjectFilter::ArrivedThisTurn{from:Battlefield} */
+graveyard_arrival_battlefield ::= "that" "were" "put" "there" "from" "the" "battlefield" "this" "turn"
+
+/* @sem ObjectFilter::ArrivedThisTurn{from:Exile} */
+graveyard_arrival_exile ::= "that" "were" "put" "there" "from" "exile" "this" "turn"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase} */
+counter_kind_source_population ::= "a" filter_phrase
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase} */
+counter_kind_other_population ::= "each" "other" filter_phrase
+
+/* The disjunction qualifies each member of the described population. */
+/* @sem ObjectFilter::AnyOf([State(Enchanted), State(Equipped)]) */
+modifier_enchanted_or_equipped ::= "that" "are" "enchanted" "or" "equipped"
+
+/* A relative singular kind clause restricts each member of the preceding population. */
+/* @sem ObjectFilter::AnyOf([$noun_atomic, $noun_atomic_2]) */
+modifier_relative_singular_union ::= "that's" "a" noun_atomic "or" "a" noun_atomic
+
+/* Singular relative clauses cannot modify a plural head. */
+/* @sem @and($filter_nonlist_head, $singular_relative_modifiers) */
+filter_singular_relative_modified ::= filter_nonlist_head singular_relative_modifiers
+
+singular_relative_modifiers ::= modifier_relative_singular_union | singular_relative_modifiers_more
+
+/* @sem @and($modifier_nonattachment, $singular_relative_modifiers) */
+singular_relative_modifiers_more ::= modifier_nonattachment singular_relative_modifiers
+
+/* A singular counter-qualified filter keeps the noun and counter as operands. */
+/* @sem @and($filter_phrase, ObjectFilter::Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})) */
+counter_filter_an ::= filter_phrase "with" "an" counter_kind "counter" "on" "it"
