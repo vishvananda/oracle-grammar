@@ -185,6 +185,18 @@ def recover(campaign, output, batch, max_trials, *, apply, mode='print'):
     return receipt
 
 
+def recover_pending(campaign, output, max_trials, *, apply, include_parse, include_library):
+    for batch, mode in pending_failed_batches(campaign, output, include_parse=include_parse,
+                                               include_library=include_library):
+        if (campaign/'drain.json').exists():
+            return
+        with r.locked(output/f'{batch}.lock', blocking=False) as owned:
+            if not owned or (output/batch).exists():
+                continue
+            receipt = recover(campaign, output, batch, max_trials, apply=apply, mode=mode)
+        print(json.dumps({'batch': batch, **receipt}), flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('campaign', type=Path)
@@ -205,14 +217,9 @@ def main():
                                                     'include_parse': args.include_parse,
                                                     'include_library': args.include_library})
         while not (campaign/'drain.json').exists():
-            for batch, mode in pending_failed_batches(campaign, output, include_parse=args.include_parse,
-                                                      include_library=args.include_library):
-                if (campaign/'drain.json').exists():
-                    return
-                with r.locked(output/f'{batch}.lock'):
-                    receipt = recover(campaign, output, batch, args.max_trials, apply=args.apply, mode=mode)
-                print(json.dumps({'batch': batch, **receipt}), flush=True)
-            if not args.watch:
+            recover_pending(campaign, output, args.max_trials, apply=args.apply,
+                             include_parse=args.include_parse, include_library=args.include_library)
+            if not args.watch or (campaign/'drain.json').exists():
                 return
             time.sleep(10)
 

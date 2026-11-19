@@ -48,6 +48,16 @@ class PendingFullPrintTests(unittest.TestCase):
         (self.output/self.batch).mkdir()
         self.assertEqual(self.pending(), [])
 
+    def test_watcher_skips_recovery_owned_or_completed_after_discovery(self):
+        with (patch.object(recover, 'pending_failed_batches', return_value=[(self.batch, 'print')]),
+              patch.object(recover, 'recover') as attempt):
+            options = {'apply':True, 'include_parse':False, 'include_library':False}
+            with r.locked(self.output/f'{self.batch}.lock'):
+                recover.recover_pending(self.campaign, self.output, 48, **options)
+            (self.output/self.batch).mkdir()
+            recover.recover_pending(self.campaign, self.output, 48, **options)
+            attempt.assert_not_called()
+
     def test_readmitted_or_changed_attempt_is_not_replayed(self):
         self.db.execute("UPDATE jobs SET attempt_id='new-b' WHERE id='b'")
         self.db.commit()
