@@ -206,13 +206,16 @@ def _probe_lines(binary, grammar, name, text, fds):
     return result.splitlines()
 
 
-def _route_names(line):
-    return {key.split('.',1)[0].split('#',1)[0]
-            for key in json.loads(line.removeprefix(b'  rules '))}
+def _route_keys(line):
+    return set(json.loads(line.removeprefix(b'  rules ')))
+
+
+def _route_names(keys):
+    return {key.split('.',1)[0].split('#',1)[0] for key in keys}
 
 
 def _probe_rules(binary, grammar, name, text, fds):
-    traces = [_route_names(line) for line in _probe_lines(binary,grammar,name,text,fds)
+    traces = [_route_names(_route_keys(line)) for line in _probe_lines(binary,grammar,name,text,fds)
               if line.startswith(b'  rules ')]
     return set().union(*traces)
 
@@ -284,13 +287,13 @@ def _print_hints(checkpoint, run, full, proposals, eligible, failures):
         return []
 
 
-def _added_trace_rules(lines, row, delta):
+def _trace_delta(lines, row, delta):
     meanings = []
     for line in lines:
         if line.startswith(b'[{'):
             meanings.append((json.loads(line),set()))
         elif line.startswith(b'  rules ') and meanings:
-            meanings[-1][1].update(_route_names(line))
+            meanings[-1][1].update(_route_keys(line))
 
     def rules(indices, *, require_route):
         readings = row['all']
@@ -302,9 +305,43 @@ def _added_trace_rules(lines, row, delta):
             wanted.update(trace)
         return wanted
 
-    added = rules(delta['added_current_indices'],require_route=True)
-    retained = rules(delta['retained_current_indices'],require_route=False)
-    return added-retained
+    return (rules(delta['added_current_indices'],require_route=True),
+            rules(delta['retained_current_indices'],require_route=False))
+
+
+_SIMPLE_ALTERNATIVES = re.compile(r'[a-z_][a-z_0-9]*(?: \| [a-z_][a-z_0-9]*)+')
+_INDEXED_ROUTE = re.compile(r'([a-z_][a-z_0-9]*)\.([0-9]{1,4})')
+
+
+def _alternatives(grammar, heads):
+    rules = {}
+    for path in (grammar/'syntax').glob('*.ebnf'):
+        if path.name == 'mined.ebnf':
+            continue
+        for line in path.read_text().splitlines():
+            head, _, body = line.partition(' ::= ')
+            if head in heads and _SIMPLE_ALTERNATIVES.fullmatch(body):
+                rules[head] = body.split(' | ')
+    return rules
+
+
+def _added_alternatives(before, after, keys):
+    routes = [(match[1],int(match[2])) for key in keys if (match:=_INDEXED_ROUTE.fullmatch(key))]
+    heads = {head for head,_ in routes}
+    previous, candidate = _alternatives(before,heads), _alternatives(after,heads)
+    return {(head,candidate[head][index]) for head,index in routes
+            if head in previous and index < len(candidate.get(head,()))
+            and candidate[head][index] not in previous[head]}
+
+
+def _proposal_added_alternative(run, directory, wanted):
+    if not wanted:
+        return False
+    heads = {head for head,_ in wanted}
+    previous = _alternatives(run/'inputs/frozen/grammar',heads)
+    proposed = _alternatives(directory/'grammar',heads)
+    return any(head in previous and name not in previous[head] and name in proposed.get(head,())
+               for head,name in wanted)
 
 
 def _parse_hints(checkpoint, run, full, proposals, eligible):
@@ -320,7 +357,7 @@ def _parse_hints(checkpoint, run, full, proposals, eligible):
             return []
         binary, expected = _trace_binary(checkpoint,run)
         evidence = {row['name']:row for row in rows}
-        wanted = set()
+        wanted, shared_routes = set(), set()
         with cpu.reserve(Path(checkpoint['cpu_pool']),1,checkpoint['cpu_capacity'],background=True) as fds:
             for delta in deltas:
                 row = evidence[delta['name']]
@@ -328,13 +365,22 @@ def _parse_hints(checkpoint, run, full, proposals, eligible):
                     continue
                 try:
                     lines = _probe_lines(binary,full/'grammar',row['name'],row['text'],fds)
-                    wanted.update(_added_trace_rules(lines,row,delta))
+                    added, retained = _trace_delta(lines,row,delta)
+                    names = _route_names(added)-_route_names(retained)
+                    wanted.update(names)
+                    if not names:
+                        # Two readings can share the same route trace. A branch
+                        # used by both can still be new to the staged grammar.
+                        shared_routes.update(added)
                 except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
                     continue
-        if not wanted or r.digest(binary) != expected:
+        if not (wanted or shared_routes) or r.digest(binary) != expected:
             return []
+        edges = (_added_alternatives(Path(checkpoint['inputs'])/'frozen/grammar',full/'grammar',shared_routes)
+                 if shared_routes else set())
         matches = [index for index in eligible if proposals[index][0]['kind'] == 'author'
-                   and _new_productions(*proposals[index][1][:2],wanted)]
+                   and ((wanted and _new_productions(*proposals[index][1][:2],wanted))
+                        or _proposal_added_alternative(*proposals[index][1][:2],edges))]
         return matches if len(matches) <= 8 else []
     except (OSError, ValueError, KeyError, TypeError):
         return []

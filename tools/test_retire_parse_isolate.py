@@ -14,9 +14,9 @@ class SurvivorTests(unittest.TestCase):
         delta = {'retained_current_indices':[0],'added_current_indices':[1]}
         lines = [b'[{"route":"retained"}]', b'  rules []', b'[{"route":"added"}]',
                  b'  rules ["new_phrase"]']
-        self.assertEqual(isolate._added_trace_rules(lines,row,delta),{'new_phrase'})
+        self.assertEqual(isolate._trace_delta(lines,row,delta),({'new_phrase'},set()))
         with self.assertRaisesRegex(ValueError,'empty trace for added native reading'):
-            isolate._added_trace_rules(lines[:-1],row,delta)
+            isolate._trace_delta(lines[:-1],row,delta)
 
     def test_parse_hint_routes_only_new_productions_on_the_added_meaning(self):
         with TemporaryDirectory() as temporary:
@@ -56,6 +56,30 @@ class SurvivorTests(unittest.TestCase):
                 isolate.r.write(native,{'reading_preservation':{'additions':additions,'missing':[1]}})
                 self.assertEqual(isolate._parse_hints(checkpoint,run,full,proposals,[0,1,2]),[])
                 self.assertEqual(probe.call_count,1)
+
+    def test_parse_hint_uses_the_traced_alternative_when_meanings_share_routes(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            prior = root/'prior'
+            combined = root/'combined'
+            proposals = [(root/f'origin-{n}',root/f'report-{n}') for n in range(3)]
+            contexts = {
+                prior: 'copy_part ::= old_word | old_other',
+                combined: 'copy_part ::= new_word | old_word | unseen_word | old_other',
+                proposals[0][1]: 'copy_part ::= old_word | old_other | new_word',
+                proposals[1][1]: 'copy_part ::= old_other | old_word',
+                proposals[2][1]: 'copy_part ::= unseen_word | old_word | old_other',
+                **{run/'inputs/frozen': 'copy_part ::= old_word | old_other' for run,_ in proposals},
+            }
+            for origin, production in contexts.items():
+                grammar = origin/'grammar/syntax'
+                grammar.mkdir(parents=True)
+                (grammar/'copy.ebnf').write_text(production+'\n')
+            edges = isolate._added_alternatives(prior/'grammar',combined/'grammar',
+                                                 {'copy_part.0','copy_part.1','copy_part.9'})
+            self.assertEqual(edges,{('copy_part','new_word')})
+            self.assertEqual([i for i,proposal in enumerate(proposals)
+                              if isolate._proposal_added_alternative(*proposal,edges)], [0])
 
     def test_print_hint_requires_a_unique_new_production_in_the_changed_trace(self):
         with TemporaryDirectory() as temporary:
