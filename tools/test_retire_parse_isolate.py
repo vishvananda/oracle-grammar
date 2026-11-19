@@ -84,8 +84,32 @@ class SurvivorTests(unittest.TestCase):
             with (patch.object(isolate.cpu, 'reserve', return_value=nullcontext(())),
                   patch.object(isolate, '_probe_rules', side_effect=[
                       {'new_phrase','same'}, {'same'}, {'new_phrase'}, set()])):
-                self.assertEqual(isolate._print_hint(checkpoint, run, full, proposals, [0, 1], failures), 1)
-                self.assertIsNone(isolate._print_hint(checkpoint, run, full, proposals, [0], failures))
+                self.assertEqual(isolate._print_hints(checkpoint, run, full, proposals, [0, 1], failures), [1])
+                self.assertEqual(isolate._print_hints(checkpoint, run, full, proposals, [0], failures), [])
+
+    def test_multiple_print_losses_route_new_and_removed_productions(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root/'probe'
+            probe.write_bytes(b'pinned probe')
+            full = root/'full'
+            (full/'checks').mkdir(parents=True)
+            isolate.r.jsonl(full/'checks/rows.jsonl', [
+                {'name':'New route', 'text':'Old.', 'first':'New.', 'readings':1},
+                {'name':'Removed route', 'text':'Exact.', 'first':'Other.', 'readings':1},
+            ])
+            failures = [{'face':name, 'lost':['exact_default']} for name in ('New route','Removed route')]
+            checkpoint = {'inputs':str(root/'accepted'),'cpu_pool':str(root/'cpu'),'cpu_capacity':32}
+            proposals = [({'kind':'author','rules':['m_removed']},(root,root/'one')),
+                         ({'kind':'author','rules':['m_other']},(root,root/'two'))]
+            with (patch.object(isolate.cpu,'reserve',return_value=nullcontext(())),
+                  patch.object(isolate,'_trace_binary',return_value=(probe,isolate.r.digest(probe))),
+                  patch.object(isolate,'_probe_rules',side_effect=[
+                      {'new_phrase'},{'old_phrase'},{'shared_typing'},{'shared_typing'},{'m_removed'},
+                  ]),
+                  patch.object(isolate,'_new_productions',side_effect=lambda run,directory,wanted:
+                               wanted if directory.name=='two' else set())):
+                self.assertEqual(isolate._print_hints(checkpoint,root,full,proposals,[0,1],failures),[0,1])
 
     def test_completed_prefix_reuses_the_longest_exact_order_and_checks_its_bytes(self):
         with TemporaryDirectory() as temporary:

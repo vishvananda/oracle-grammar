@@ -240,30 +240,48 @@ def _trace_binary(checkpoint, run):
     return binary, expected
 
 
-def _print_hint(checkpoint, run, full, proposals, eligible, failures):
-    """Rank a new route for a singleton wording loss. The actual trial still has to fail."""
-    if len(failures) != 1 or not isinstance(failures[0], dict) or failures[0].get('lost') != ['exact_default']:
-        return None
-    name = failures[0]['face']
-    rows = [row for row in r.rows(full/'checks/rows.jsonl') if row['name'] == name]
-    if len(rows) != 1 or rows[0].get('readings') != 1 or 'matching_readings' in rows[0]:
-        return None
-    row = rows[0]
+def _print_face_hints(checkpoint, binary, grammar, row, proposals, eligible, fds):
     original, printed = row.get('text'), row.get('first')
-    if not all(isinstance(text,str) and 0 < len(text) <= 4096 for text in (original,printed)) or original == printed:
-        return None
+    if (row.get('readings') != 1 or 'matching_readings' in row
+            or not all(isinstance(text, str) and 0 < len(text) <= 4096 for text in (original, printed))
+            or original == printed):
+        return []
+    name = row['name']
+    spelled = _probe_rules(binary, grammar, name, printed, fds)
+    retained = _probe_rules(binary, grammar, name, original, fds)
+    wanted = spelled - retained
+    matches = [i for i in eligible if wanted and proposals[i][0]['kind'] == 'author'
+               and _new_productions(*proposals[i][1][:2], wanted)]
+    if len(matches) == 1 or not checkpoint.get('inputs'):
+        return matches if len(matches) == 1 else []
+    accepted = Path(checkpoint['inputs'])/'frozen/grammar'
+    before = _probe_rules(binary, accepted, name, original, fds)
+    removed = {route for route in before-retained if mined.SEEDED.fullmatch(route)}
+    return [i for i in eligible if removed.intersection(proposals[i][0]['rules'])]
+
+
+def _print_hints(checkpoint, run, full, proposals, eligible, failures):
+    """Use changed print traces to prioritize audited focused trials."""
+    if not 1 <= len(failures) <= 8 or any(not isinstance(item, dict)
+            or item.get('lost') != ['exact_default'] or not isinstance(item.get('face'), str) for item in failures):
+        return []
+    names = {item['face'] for item in failures}
+    rows = [row for row in r.rows(full/'checks/rows.jsonl') if row['name'] in names]
+    if len(names) != len(failures) or len(rows) != len(names) or {row['name'] for row in rows} != names:
+        return []
     try:
-        binary, expected = _trace_binary(checkpoint,run)
-        with cpu.reserve(Path(checkpoint['cpu_pool']),1,checkpoint['cpu_capacity'],background=True) as fds:
-            grammar = full/'grammar'
-            wanted = _probe_rules(binary,grammar,name,printed,fds)-_probe_rules(binary,grammar,name,original,fds)
-        if not wanted or r.digest(binary) != expected:
-            return None
-        matches = [i for i in eligible if proposals[i][0]['kind'] == 'author'
-                   and _new_productions(*proposals[i][1][:2],wanted)]
-        return matches[0] if len(matches) == 1 else None
-    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
-        return None
+        binary, expected = _trace_binary(checkpoint, run)
+        matches = set()
+        with cpu.reserve(Path(checkpoint['cpu_pool']), 1, checkpoint['cpu_capacity'], background=True) as fds:
+            for row in rows:
+                try:
+                    matches.update(_print_face_hints(checkpoint, binary, full/'grammar',
+                                                     row, proposals, eligible, fds))
+                except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+                    continue
+        return sorted(matches) if 0 < len(matches) <= 8 and r.digest(binary) == expected else []
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
 
 
 def _added_trace_rules(lines, row, delta):
@@ -407,9 +425,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     automatic = []
     if not routed:
         if full_check:
-            focused_hint = _print_hint(checkpoint, run, roots['full'], proposals, eligible, failed)
-            if focused_hint is not None:
-                automatic.append(focused_hint)
+            automatic = _print_hints(checkpoint, run, roots['full'], proposals, eligible, failed)
         else:
             automatic = _parse_hints(checkpoint,run,roots['full'],proposals,eligible)
     try:
