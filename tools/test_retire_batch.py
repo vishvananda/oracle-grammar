@@ -145,6 +145,26 @@ class BatchTests(unittest.TestCase):
                     {'name':'A','why':'expected Some(1) readings, got 2'}, ())
             self.assertEqual(routes,{'added'})
 
+    def test_retained_print_hints_are_bounded_and_require_a_unique_new_route(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root/'probe'
+            probe.write_bytes(b'frozen helper')
+            rows = root/'rows.jsonl'
+            failures = [{'face': name, 'lost': ['exact_default']} for name in 'ABCDE']
+            batch.r.jsonl(rows, [{'name': name, 'text': 'Old.', 'first': 'New.', 'readings': 1}
+                                 for name in 'ABCDE'])
+            checkpoint = {'inputs': str(root), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
+            drafts = [(1, root, root/'old'), (4, root, root/'added')]
+            with (patch.object(batch, '_trace_binary', return_value=(probe,batch.r.digest(probe))),
+                  patch.object(batch, '_probe_rules', side_effect=lambda _, __, name, text, ___:
+                               {'baseline','fresh'} if text == 'New.' else {'baseline'}) as traced,
+                  patch.object(batch, '_new_productions', side_effect=lambda run, directory, names:
+                               names if directory.name == 'added' else set())):
+                self.assertEqual(batch._retained_print_hints(
+                    checkpoint, root/'grammar', rows, drafts, {'failures':failures}), [4])
+                self.assertEqual(traced.call_count,6)
+
     def test_edited_family_gold_is_independently_reconstructed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

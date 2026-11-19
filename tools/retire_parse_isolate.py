@@ -14,7 +14,7 @@ import mined
 import retire as r
 import retire_author as author
 import retire_batch as batch
-from retire_batch import (_new_productions, _probe_lines, _probe_rules, _route_names,
+from retire_batch import (_new_productions, _print_trace_delta, _probe_lines, _probe_rules, _route_names,
                           _trace_binary, _traced_meanings)
 import retire_cpu as cpu
 import retire_merge as merge
@@ -196,21 +196,16 @@ def _controls(roots):
 
 
 def _print_face_hints(checkpoint, binary, grammar, row, proposals, eligible, fds):
-    original, printed = row.get('text'), row.get('first')
-    if (row.get('readings') != 1 or 'matching_readings' in row
-            or not all(isinstance(text, str) and 0 < len(text) <= 4096 for text in (original, printed))
-            or original == printed):
+    delta = _print_trace_delta(row, lambda name, text: _probe_rules(binary, grammar, name, text, fds))
+    if delta is None:
         return []
-    name = row['name']
-    spelled = _probe_rules(binary, grammar, name, printed, fds)
-    retained = _probe_rules(binary, grammar, name, original, fds)
-    wanted = spelled - retained
+    retained, wanted = delta
     matches = [i for i in eligible if wanted and proposals[i][0]['kind'] == 'author'
                and _new_productions(*proposals[i][1][:2], wanted)]
     if len(matches) == 1 or not checkpoint.get('inputs'):
         return matches if len(matches) == 1 else []
     accepted = Path(checkpoint['inputs'])/'frozen/grammar'
-    before = _probe_rules(binary, accepted, name, original, fds)
+    before = _probe_rules(binary, accepted, row['name'], row['text'], fds)
     removed = {route for route in before-retained if mined.SEEDED.fullmatch(route)}
     return [i for i in eligible if removed.intersection(proposals[i][0]['rules'])]
 

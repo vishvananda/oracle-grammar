@@ -810,6 +810,17 @@ def _probe_rules(binary, grammar, name, text, fds):
     return set().union(*traces)
 
 
+def _print_trace_delta(row, trace):
+    original, printed = row.get('text'), row.get('first')
+    if (row.get('readings') != 1 or 'matching_readings' in row
+            or not all(isinstance(text, str) and 0 < len(text) <= 4096 for text in (original, printed))
+            or original == printed):
+        return None
+    spelled = trace(row['name'], printed)
+    retained = trace(row['name'], original)
+    return retained, spelled-retained
+
+
 def _new_productions(run, directory, wanted):
     found = set()
     for path in (directory/'grammar/syntax').glob('*.ebnf'):
@@ -889,6 +900,37 @@ def _retained_family_hints(checkpoint, source, grammar, drafts, evidence):
                                if wanted and _new_productions(run, directory, wanted)]
                     if len(matches) == 1:
                         hints.update(matches)
+        return sorted(hints) if r.digest(binary) == expected else []
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+
+
+def _retained_print_hints(checkpoint, grammar, rows_path, drafts, evidence):
+    """Use at most three exact default losses to select likely author proposals."""
+    failures = evidence['failures']
+    if not failures or any(not isinstance(item, dict) or item.get('lost') != ['exact_default']
+                           for item in failures):
+        return []
+    names = {item['face'] for item in failures}
+    try:
+        rows = [row for row in r.rows(rows_path) if row['name'] in names]
+        if len(rows) != len(failures) or {row['name'] for row in rows} != names:
+            return []
+        binary, expected = _trace_binary(checkpoint, Path(checkpoint['inputs']))
+        hints = set()
+        with retire_cpu.reserve(Path(checkpoint['cpu_pool']), 1, checkpoint['cpu_capacity'],
+                                wait=False, background=True) as fds:
+            for row in sorted(rows, key=lambda item: (len(item['text']), item['name']))[:3]:
+                try:
+                    delta = _print_trace_delta(row, lambda name, text: _probe_rules(binary, grammar, name, text, fds))
+                except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+                    continue
+                if delta is None or not delta[1]:
+                    continue
+                matches = [index for index, run, directory in drafts
+                           if _new_productions(run, directory, delta[1])]
+                if len(matches) == 1:
+                    hints.update(matches)
         return sorted(hints) if r.digest(binary) == expected else []
     except (OSError, ValueError, KeyError, TypeError):
         return []
@@ -1042,7 +1084,18 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                                     proof['retained_family_hints'] = hints
                     raise
             if control is not None:
-                _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs)
+                try:
+                    _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs)
+                except _NativeControlFailure as error:
+                    if len(entries) > 1:
+                        witness = _retained_native_failure(control, error.report)
+                        if witness is not None:
+                            proof['retained_native_failure'] = witness
+                            hints = _retained_print_hints(checkpoint, trial/'grammar',
+                                logs/'native-control/rows.jsonl', trace_drafts, witness)
+                            if hints:
+                                proof['retained_print_hints'] = hints
+                    raise
             if context['library_control'] is not None:
                 for item in items:
                     item['library_control'] = str(logs/'library-control')
@@ -1091,10 +1144,6 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
             if conflict is not None:
                 key = 'stale_rule_conflict' if conflict.get('stale_reference') else 'removed_rule_conflict'
                 proof[key] = conflict
-        elif isinstance(error, _NativeControlFailure) and len(entries) > 1:
-            failure = _retained_native_failure(control, error.report)
-            if failure is not None:
-                proof['retained_native_failure'] = failure
         for item in items:
             item.update(status='integration-rejected', reason=str(error))
     try:
@@ -1205,7 +1254,7 @@ def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, 
             index, _ = entry
             if index in hints and probe([entry]) == 'reproduced':
                 confirmed.append(index)
-                if len(confirmed) >= limit:
+                if len(confirmed) >= limit or (stop_after is not None and stop_after(index)):
                     break
         if confirmed:
             return confirmed
@@ -1365,9 +1414,11 @@ def _isolate_retained_native(context, entries, failure, folder, *, limit, initia
         return outcome
 
     inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
-    verify_full = not multiple or not _matches_verified_native_trial(context, entries, failure, initial_trial)
+    verified = _matches_verified_native_trial(context, entries, failure, initial_trial)
+    hints = initial_trial.get('retained_print_hints', ()) if verified else ()
+    verify_full = not multiple or not verified
     return _isolate_retained(entries, test, folder, inputs, verify_full=verify_full,
-                             limit=limit if multiple else 1, stop_after=full_witnesses.__contains__)
+                             limit=limit if multiple else 1, stop_after=full_witnesses.__contains__, hints=hints)
 
 
 def _retry_retained_control(context, entries, proof, whole_proof, size, withheld=()):
