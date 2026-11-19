@@ -139,6 +139,23 @@ class SurvivorTests(unittest.TestCase):
                                wanted if directory.name=='two' else set())):
                 self.assertEqual(isolate._print_hints(checkpoint,root,full,proposals,[0,1],failures),[0,1])
 
+    def test_broad_print_recovery_traces_only_eight_faces(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            probe = root/'probe'
+            probe.write_bytes(b'pinned probe')
+            full = root/'full'
+            (full/'checks').mkdir(parents=True)
+            names = [f'Face {index}' for index in range(26)]
+            isolate.r.jsonl(full/'checks/rows.jsonl', [{'name':name} for name in names])
+            failures = [{'face':name, 'lost':['exact_default']} for name in names]
+            cp = {'cpu_pool':str(root/'cpu'),'cpu_capacity':32}
+            with (patch.object(isolate.cpu,'reserve',return_value=nullcontext(())),
+                  patch.object(isolate,'_trace_binary',return_value=(probe,isolate.r.digest(probe))),
+                  patch.object(isolate,'_print_face_hints',return_value=[1]) as trace):
+                self.assertEqual(isolate._print_hints(cp,root,full,[],[1],failures),[1])
+                self.assertEqual([call.args[3]['name'] for call in trace.call_args_list],names[:8])
+
     def test_completed_prefix_reuses_the_longest_exact_order_and_checks_its_bytes(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)

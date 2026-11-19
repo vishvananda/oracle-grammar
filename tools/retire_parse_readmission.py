@@ -22,6 +22,7 @@ ARTIFACTS = ('commands.jsonl', 'gold.jsonl', 'oracle.json', 'slice.json', 'befor
 PRINT_ONLY_REJECTION = 'full allowed-population checks failed'
 PARSE_SCREEN_REJECTION = 'full allowed-population parse screen failed'
 VALIDATION_INPUTS = 'validation-inputs'
+MAX_FOCUSED_PRINT_FAILURES = 32
 
 
 def _lease_held(path):
@@ -37,7 +38,7 @@ def _lease_held(path):
 
 
 def _focused_print_losses(failures):
-    return (isinstance(failures, list) and 1 <= len(failures) <= 16
+    return (isinstance(failures, list) and 1 <= len(failures) <= MAX_FOCUSED_PRINT_FAILURES
             and all(isinstance(row, dict) and set(row) == {'face', 'lost'}
                     and isinstance(row['face'], str) and row['face']
                     and row['lost'] == ['exact_default'] for row in failures))

@@ -212,8 +212,7 @@ def _print_face_hints(checkpoint, binary, grammar, row, proposals, eligible, fds
 
 def _print_hints(checkpoint, run, full, proposals, eligible, failures):
     """Use changed print traces to prioritize audited focused trials."""
-    if not 1 <= len(failures) <= 8 or any(not isinstance(item, dict)
-            or item.get('lost') != ['exact_default'] or not isinstance(item.get('face'), str) for item in failures):
+    if not readmission._focused_print_losses(failures):
         return []
     names = {item['face'] for item in failures}
     rows = [row for row in r.rows(full/'checks/rows.jsonl') if row['name'] in names]
@@ -223,7 +222,7 @@ def _print_hints(checkpoint, run, full, proposals, eligible, failures):
         binary, expected = _trace_binary(checkpoint, run)
         matches = set()
         with cpu.reserve(Path(checkpoint['cpu_pool']), 1, checkpoint['cpu_capacity'], background=True) as fds:
-            for row in rows:
+            for row in rows[:8]:
                 try:
                     matches.update(_print_face_hints(checkpoint, binary, full/'grammar',
                                                      row, proposals, eligible, fds))

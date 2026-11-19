@@ -68,10 +68,18 @@ class PendingFullPrintTests(unittest.TestCase):
             self.assertFalse(awaiting_print_recovery(self.campaign))
         self.assertFalse(awaiting_print_recovery(self.campaign))
 
+    def test_broader_exact_default_failures_can_use_the_same_recovery(self):
+        for count in (26, 32):
+            with self.subTest(count=count):
+                self.validation['full_checks']['failures'] = [
+                    {'face': f'Face {index}', 'lost': ['exact_default']} for index in range(count)]
+                r.write(self.folder/'validation.json', self.validation)
+                self.assertEqual(self.pending(), [self.batch])
+
     def test_mixed_and_large_failures_are_left_for_review(self):
         for failures in ([{'face': 'One', 'lost': ['exact_default', 'exact']}],
                          [{'face': 'One', 'gate': 'native'}],
-                         [{'face': str(i), 'lost': ['exact_default']} for i in range(17)]):
+                         [{'face': str(i), 'lost': ['exact_default']} for i in range(33)]):
             with self.subTest(failures=failures):
                 self.validation['full_checks']['failures'] = failures
                 r.write(self.folder/'validation.json', self.validation)
