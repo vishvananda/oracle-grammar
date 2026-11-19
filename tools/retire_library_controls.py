@@ -11,6 +11,9 @@ import retire as r
 import retire_cpu
 
 
+MAX_PROTECTED_TESTS = 8
+
+
 def _file(path, limit):
     if (not path.is_absolute() or '..' in path.parts or any(part.is_symlink() for part in (path, *path.parents))
             or not path.is_file() or path.stat().st_size > limit):
@@ -42,7 +45,7 @@ def setup(checkpoint, source):
     if not isinstance(document, dict) or set(document) != {'source_sha256', 'compiler', 'binary', 'tests'}:
         raise ValueError('invalid library control profile')
     tests, binary = document['tests'], document['binary']
-    if (not isinstance(tests, list) or not 1 <= len(tests) <= 8 or
+    if (not isinstance(tests, list) or not 1 <= len(tests) <= MAX_PROTECTED_TESTS or
             any(not isinstance(t, str) or not re.fullmatch(r'[A-Za-z0-9_]+(?:::[A-Za-z0-9_]+)+', t) for t in tests)
             or len(set(tests)) != len(tests)):
         raise ValueError('library control requires 1–8 unique exact test names')

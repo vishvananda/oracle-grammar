@@ -8,6 +8,7 @@ import time
 
 import retire as r
 import retire_batch as batches
+import retire_library_controls as library_controls
 import retire_library_isolate as library
 import retire_parse_isolate as isolation
 import retire_tasks as tasks
@@ -28,16 +29,20 @@ def _profile_names(spec):
     return set(names)
 
 
+def _isolation_document(folder, result):
+    proof = result['evidence']['isolation']
+    path = Path(proof['path'])
+    r.require(path.is_relative_to(folder) and path.resolve() == path and r.digest(path) == proof['sha256'],
+              'isolation evidence changed')
+    return r.read(path)
+
+
 def _retain_recovery_faces(campaign, folder, result):
     """Add the isolated population after checking the accepted baseline."""
     config_path = campaign/'config.json'
     if not config_path.is_file() or 'native_regression_controls' not in r.read(config_path):
         return
-    proof = result['evidence']['isolation']
-    path = Path(proof['path'])
-    r.require(path.is_relative_to(folder) and path.resolve() == path and r.digest(path) == proof['sha256'],
-              'isolation evidence changed')
-    names = _profile_names(r.read(path)['profile'])
+    names = _profile_names(_isolation_document(folder, result)['profile'])
     queue = Queue(campaign/'queue.sqlite')
     for attempt in range(3):
         before = r.read(config_path)['native_regression_controls']
@@ -76,6 +81,52 @@ def _retain_recovery_faces(campaign, folder, result):
     raise ValueError('the accepted checkpoint or retained profile changed during validation')
 
 
+def _retain_library_tests(campaign, folder, result):
+    """Protect failed library tests as soon as they pass on the accepted grammar."""
+    config_path = campaign/'config.json'
+    if not config_path.is_file() or not r.read(config_path).get('library_regression_controls'):
+        return
+    names = _isolation_document(folder, result)['failed_tests']
+    queue = Queue(campaign/'queue.sqlite')
+    for attempt in range(3):
+        before = r.read(config_path)['library_regression_controls']
+        head = queue.progress()['checkpoint']
+        cp = r.read(campaign/'checkpoints'/f'{head}.json')
+        cp.update(library_regression_controls=before, background_cpu=True)
+        original = library_controls.setup(cp, cp['source'])
+        profile = r.read(original['profile'])
+        added = sorted(set(names) - set(profile['tests']))
+        if not added:
+            return
+        tests = [*profile['tests'], *added]
+        r.require(len(tests) <= library_controls.MAX_PROTECTED_TESTS,
+                  'retained library profile has no room for every isolated test')
+        grammar = Path(cp['source'])/'grammar'
+        accepted = r.tree(grammar)
+        r.require(cp['commit'] == head and accepted and accepted == r.tree(Path(cp['inputs'])/'frozen/grammar'),
+                  'accepted grammar changed')
+        additions = folder/f'library-additions-{attempt}.json'
+        r.write(additions, dict(profile, tests=added))
+        additions.chmod(0o444)
+        cp['library_regression_controls'] = isolation._spec(additions)
+        control = library_controls.setup(cp, cp['source'])
+        check = library_controls.check(cp, control, grammar, folder/f'library-baseline-{attempt}')
+        r.require(check['passed'] and r.tree(grammar) == accepted,
+                  'the accepted grammar did not pass the recovered library tests')
+        with r.locked(campaign/'campaign-tuning.lock', blocking=True):
+            config = r.read(config_path)
+            if config.get('library_regression_controls') != before or queue.progress()['checkpoint'] != head:
+                continue
+            target = folder/'retained-library-profile.json'
+            r.write(target, dict(profile, tests=tests))
+            target.chmod(0o444)
+            config['library_regression_controls'] = isolation._spec(target)
+            r.write(config_path, config)
+            return {'checkpoint': head, 'added': added, 'previous': before,
+                    'profile': config['library_regression_controls']}
+    raise ValueError('the accepted checkpoint or library profile changed during validation')
+
+
 def _recover_native(campaign, folder, batch, max_trials, *, apply, full_check):
     unavailable = unavailable_recovery_jobs(campaign, batch)
     retry_trials = min(max_trials, 96-max_trials)
@@ -112,6 +163,12 @@ def recover(campaign, output, batch, max_trials, *, apply, mode='print'):
         if mode == 'library':
             result = library.isolate(campaign, batch, path, max_trials)
             if apply:
+                try:
+                    retained = _retain_library_tests(campaign, folder, result)
+                except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+                    retained = {'deferred': str(error)}
+                if retained:
+                    r.write(folder/'retained-library-extension.json', retained)
                 library.readmit_result(campaign, path, result)
         else:
             r.require(mode in ('print', 'parse'), 'unsupported batch recovery mode')

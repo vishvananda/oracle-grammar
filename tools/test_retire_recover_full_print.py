@@ -241,3 +241,41 @@ class PendingFullPrintTests(unittest.TestCase):
         isolate.assert_called_once_with(self.campaign, self.batch, path, 32)
         readmit.assert_called_once_with(self.campaign, path, result)
         self.assertEqual(receipt['status'], 'readmitted')
+
+    def test_library_recovery_retains_only_verified_new_tests(self):
+        folder = self.output/self.batch
+        folder.mkdir()
+        source, inputs = self.campaign/'source', self.campaign/'inputs'
+        for path in (source/'grammar', inputs/'frozen/grammar'):
+            path.mkdir(parents=True)
+            (path/'root.ebnf').write_text('root ::= "accepted"\n')
+        (self.campaign/'checkpoints').mkdir()
+        r.write(self.campaign/'checkpoints/head.json', {'commit':'head', 'source':str(source), 'inputs':str(inputs)})
+        config = self.campaign/'config.json'
+        original = folder/'original-library-profile.json'
+        r.write(original, {'tests':['tests::existing'], 'binary':{'path':'verified-binary'}})
+        before = {'library_regression_controls':recover.isolation._spec(original)}
+        r.write(config, before)
+        proof = folder/'isolation.json'
+        r.write(proof, {'failed_tests':['tests::existing', 'tests::recovered']})
+        result = {'evidence':{'isolation':recover.isolation._spec(proof)}}
+
+        def setup(cp, _source):
+            return {'profile':Path(cp['library_regression_controls']['path'])}
+
+        with (patch.object(recover, 'Queue') as queue,
+              patch.object(recover.library_controls, 'setup', side_effect=setup),
+              patch.object(recover.library_controls, 'check') as check):
+            queue.return_value.progress.return_value = {'checkpoint':'head'}
+            check.return_value = {'passed':False}
+            with self.assertRaisesRegex(ValueError, 'accepted grammar'):
+                recover._retain_library_tests(self.campaign, folder, result)
+            self.assertEqual(r.read(config), before)
+            check.return_value = {'passed':True}
+            extension = recover._retain_library_tests(self.campaign, folder, result)
+            self.assertIsNone(recover._retain_library_tests(self.campaign, folder, result))
+        self.assertEqual(extension['added'], ['tests::recovered'])
+        self.assertEqual(r.read(config)['library_regression_controls'], extension['profile'])
+        self.assertEqual(r.read(Path(extension['profile']['path'])),
+                         {'tests':['tests::existing', 'tests::recovered'], 'binary':{'path':'verified-binary'}})
+        self.assertEqual(r.read(check.call_args.args[1]['profile'])['tests'], ['tests::recovered'])
