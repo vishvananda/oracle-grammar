@@ -14,6 +14,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 
 import dev
@@ -762,7 +763,11 @@ def _rule_reference_conflict(source, entries, log):
     return result
 
 
-def _merge_trial_proposal(trial, scratch, proposal, mechanical, input_cache):
+class _PrintShapeFailure(ValueError):
+    pass
+
+
+def _merge_trial_proposal(trial, scratch, proposal, mechanical, input_cache, shape_baseline=None):
     run, task, directory, hooks = proposal
     if mechanical:
         if hooks:
@@ -771,6 +776,11 @@ def _merge_trial_proposal(trial, scratch, proposal, mechanical, input_cache):
     else:
         changes = merger.merge_grammar(run/'inputs/frozen', trial, directory, task['rules'], hooks,
                                       canonical_removal=input_cache.canonical_seeded_removal)
+        if shape_baseline is not None:
+            diagnostics = [error for text in changes.values()
+                           for error in shapes.introduced(shapes.production_shapes(text), shape_baseline)]
+            if diagnostics:
+                raise _PrintShapeFailure(diagnostics)
         for name, text in changes.items():
             target = trial/name
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -1100,7 +1110,15 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                             'support_sha256': report['support_sha256'], 'fixture_sha256': report.get('fixture_sha256'),
                             'kind': proposal.get('kind', 'author')}
                 try:
-                    _merge_trial_proposal(trial, folder, (run, task, directory, hooks), mechanical, input_cache)
+                    _merge_trial_proposal(trial, folder, (run, task, directory, hooks), mechanical, input_cache,
+                                          context.get('shape_baseline'))
+                except _PrintShapeFailure as error:
+                    if not input_cache.unchanged():
+                        raise _UncertainPromotion('proposal inputs changed during print-shape diagnosis')
+                    path = logs/'print-shape.json'
+                    r.write(path, {'proposal_index': index, 'diagnostics': error.args[0]})
+                    proof['print_shape_failed_at'] = [index]
+                    raise ValueError(f'print shape check failed: {path}') from error
                 except merger.MergeConflict as error:
                     # The merge preview raises before it writes to the trial.
                     # Continue over the same prefix a retry would use.
@@ -1237,7 +1255,8 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
         for name, path in (('family_log_sha256', logs/'family.log'),
                            ('native_result_sha256', logs/'native-control/result.json'),
                            ('native_focused_result_sha256', logs/'native-focused/result.json'),
-                           ('library_result_sha256', logs/'library-control/result.json')):
+                           ('library_result_sha256', logs/'library-control/result.json'),
+                           ('print_shape_sha256', logs/'print-shape.json')):
             if path.is_file():
                 proof[name] = r.digest(path)
         r.write(logs/'trial.json', proof)
@@ -1549,6 +1568,8 @@ def _diagnosed_proposals(proof):
     for route, key in (('stale', 'stale_rule_conflict'), ('dependency', 'removed_rule_conflict')):
         if proof.get(key):
             return route, proof[key]['without_proposal_indices']
+    if proof.get('print_shape_failed_at'):
+        return 'print_shape', proof['print_shape_failed_at']
     return 'family', proof.get('new_families_failed_at', ())
 
 
@@ -1557,6 +1578,7 @@ def _retry_without(context, entries, whole_proof, failed_indices, size, *, route
     manifest, folder = context['manifest'], context['folder']
     label = {'dependency': 'without-conflicting-removal', 'family': 'without-failed-families',
              'merge': 'without-merge-conflict', 'stale': 'without-stale-rule-reference',
+             'print_shape': 'without-print-shape-regression',
              'retained_family': 'without-retained-family-regression',
              'retained_native': 'without-retained-native-regression'}[route]
     subgroup = context.get('subgroup_attempt')
@@ -1686,13 +1708,14 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
     ident = uuid.uuid4().hex
     folder = campaign/'.cache/batches'/ident
     folder.mkdir(parents=True)
+    started = time.time()
     source = Path(checkpoint['integration_workspace']).resolve() if checkpoint.get('integration_workspace') else folder/'source'
     branch = 'retire-batch-'+ident
     state = _prepare_workspace(origin, checkpoint, source, branch) if checkpoint.get('integration_workspace') else None
     if state is None:
         _git(origin, 'worktree', 'add', '-b', branch, str(source), checkpoint['commit'])
     manifest = {'id': ident, 'folder': str(folder), 'source': str(source), 'branch': branch, 'base_commit': checkpoint['commit'],
-                'status': 'staging', 'jobs': [], 'fixtures': [], 'rules': [],
+                'status': 'staging', 'started_unix': started, 'jobs': [], 'fixtures': [], 'rules': [],
                 'family_check_threads': family_threads, 'stage_group_size': group_size,
                 'combine_selected': combine_selected}
     registry_path = source/'tests/families.json'
@@ -1747,7 +1770,8 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
                'control': control, 'library_control': library_control, 'gold_cache': _GoldIndexCache(),
                'baseline': baseline, 'baseline_names': baseline_names,
                'registry_path': registry_path, 'registry_hash': registry_hash,
-               'early_default_print': combine_selected and checkpoint.get('early_default_print', False)}
+               'early_default_print': combine_selected and checkpoint.get('early_default_print', False),
+               'shape_baseline': r.read(source/shapes.BASELINE_PATH) if (source/shapes.BASELINE_PATH).is_file() else None}
     indexed = list(enumerate(proposals))
     try:
         for first in range(0, len(indexed), group_size):

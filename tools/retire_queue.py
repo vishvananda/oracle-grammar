@@ -221,7 +221,8 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
             ('family check failed', 'family.log', 'family_log_sha256'),
             ('native regression control failed', 'native-control/result.json', 'native_result_sha256'),
             ('native regression control failed', 'native-focused/result.json', 'native_focused_result_sha256'),
-            ('library regression control failed', 'library-control/result.json', 'library_result_sha256')):
+            ('library regression control failed', 'library-control/result.json', 'library_result_sha256'),
+            ('print shape check failed', 'print-shape.json', 'print_shape_sha256')):
         failure = trial_path.parent/relative
         if trial.get('reason') == f'{reason}: {failure}':
             path, _ = _proof_file(evidence.get('failure'))
@@ -410,6 +411,30 @@ def _verify_diagnostic_recovery(campaign, commit, parent, jobids, evidence):
     return manifest, validation, included
 
 
+def _verify_shape_survivors(campaign, origin, included, selected, baseline, evidence):
+    from retire_batch import _ProposalInputCache
+
+    indices = [index for index, job in enumerate(included) if job['job_id'] in selected]
+    if len(indices) != len(included)-1:
+        raise ValueError('one shape-producing proposal must be excluded')
+    survivor = evidence['survivor']
+    grammar = Path(survivor['grammar'])
+    if (grammar.name != 'grammar' or grammar != grammar.resolve()
+            or not grammar.is_relative_to((campaign/'.cache').resolve())
+            or not grammar.is_dir()):
+        raise ValueError('shape survivor grammar is outside campaign evidence')
+    expected = survivor['tree']
+    if (retire_library_readmission._grammar_tree(grammar) != expected
+            or shapes.introduced(shapes.found(grammar.parent), baseline)):
+        raise ValueError('shape survivor grammar changed or introduces a print shape')
+    retire_library_readmission._replay(campaign, origin, included, indices, expected, grammar.parent,
+                                       evidence['reports'], canonical_mechanical=True,
+                                       input_cache=_ProposalInputCache())
+    if retire_library_readmission._grammar_tree(grammar) != expected:
+        raise ValueError('shape survivor grammar changed during independent replay')
+    return next(item['job_id'] for item in included if item['job_id'] not in selected)
+
+
 def _verify_shape_readmission(campaign, selected, origin, rejections, evidence):
     values = {key: _proof_file(evidence.get(key)) for key in ('manifest', 'validation', 'repository_log')}
     manifest = json.loads(values['manifest'][1])
@@ -425,13 +450,15 @@ def _verify_shape_readmission(campaign, selected, origin, rejections, evidence):
             raise ValueError('shape readmission batch artifacts differ')
     included = [item for item in manifest['jobs'] if item['status']=='included']
     attempts = {item['job_id']:item['attempt_id'] for item in included}
+    shape_removal = evidence.get('kind') == 'isolated-shape-revalidation'
+    chosen = {job: attempt for job, attempt in attempts.items() if not shape_removal or job in selected}
     expected = {'status':'integration-rejected','checkpoint':None,
                 'evidence':{'manifest':ident,'validation': validation}}
     if (manifest['status']!='provisional' or manifest.get('base_commit')!=origin
             or validation.get('source_checkpoint')!=origin or validation.get('candidate')!=candidate
             or validation.get('status')!='failed' or validation.get('reason')!='repository gates failed'
             or validation.get('repository_check_returncode')!=1
-            or len(attempts)!=len(included) or attempts!=selected
+            or len(attempts)!=len(included) or chosen!=selected
             or validation.get('included_jobs')!=list(attempts)
             or any(rejection!=expected for rejection in rejections.values())):
         raise ValueError('shape readmission does not cover the exact rejected batch')
@@ -448,13 +475,23 @@ def _verify_shape_readmission(campaign, selected, origin, rejections, evidence):
         stale = shapes.check(Path(temporary))
     text = log.decode()
     header = re.search(r'^== hygiene \([^\n]+\)\n(.*?)\n\n== tools \(',text,re.M | re.S)
-    if (not stale or any(not msg.endswith('is gone; remove it from '+shapes.BASELINE_PATH) for msg in stale)
-            or header is None or header[1].splitlines()!=[*stale,f'{len(stale)} hygiene checks failed']
+    if (not stale or header is None or header[1].splitlines()!=[*stale,f'{len(stale)} hygiene checks failed']
             or re.findall(r'^FAIL: (\S+)',text,re.M)!=['test_repository_matches_its_baseline']
             or 'FAILED (failures=1)' not in text):
-        raise ValueError('the archived batch did not fail solely on resolved shape exemptions')
-    return {'manifest':ident,'candidate':candidate,'removed_exemptions':stale,
-            'requires_fresh_full_validation':True}
+        raise ValueError('the archived batch did not fail solely on print shapes')
+    proof = {'manifest':ident,'candidate':candidate,'requires_fresh_full_validation':True}
+    if shape_removal:
+        if not all(': new print-blowup shape ' in message for message in stale):
+            raise ValueError('shape survivor recovery requires newly introduced shapes')
+        baseline = json.loads(subprocess.check_output(
+            ['git', '-C', config['source_repo'], 'show', f'{origin}:{shapes.BASELINE_PATH}'], timeout=30))
+        proof['excluded_proposal'] = _verify_shape_survivors(campaign, origin, included, selected, baseline, evidence)
+        proof['introduced_shapes'] = stale
+    else:
+        if not all(message.endswith('is gone; remove it from '+shapes.BASELINE_PATH) for message in stale):
+            raise ValueError('the archived batch did not fail solely on resolved shape exemptions')
+        proof['removed_exemptions'] = stale
+    return proof
 
 
 def _verify_disk_retry(campaign, job_id, attempt_id, base, job, started, result, evidence):
@@ -1742,7 +1779,8 @@ class Queue:
                 'full-check': 'isolated-full-check-revalidation',
                 'shape': 'stale-shape-baseline-revalidation'}[mode]
         cached = mode == 'library' and isinstance(evidence, dict) and evidence.get('kind') == 'stale-schema-test-cache-revalidation'
-        if not cached and (not isinstance(evidence, dict) or evidence.get('kind') != kind):
+        allowed_kinds = (kind, 'isolated-shape-revalidation') if mode == 'shape' else (kind,)
+        if not cached and (not isinstance(evidence, dict) or evidence.get('kind') not in allowed_kinds):
             raise ValueError('matching isolated batch revalidation evidence is required')
         verify_archived_replay = mode in ('parse-screen', 'full-check')
         origin = evidence.get('source_checkpoint', checkpoint) if verify_archived_replay or mode in ('library','shape') else checkpoint

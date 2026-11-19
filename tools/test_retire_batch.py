@@ -51,6 +51,22 @@ def optimized_fixture(root):
 
 
 class BatchTests(unittest.TestCase):
+    def test_staged_author_checks_shape_before_writing_merged_module(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            trial = Path(temporary)
+            path = 'grammar/syntax/example.ebnf'
+            text = 'new_action ::= subject ("become" | "becomes") type\n'
+            task = {'rules': ['m_test']}
+            with patch.object(batch.merger, 'merge_grammar', return_value={path: text}), \
+                 patch.object(batch.mined, 'remove', return_value=(['m_test'], [])), \
+                 patch.object(batch.a, 'apply_hooks'):
+                args = (trial, trial, (trial, task, trial, []), False, batch._ProposalInputCache())
+                with self.assertRaisesRegex(batch._PrintShapeFailure, r'agreement become\|becomes'):
+                    batch._merge_trial_proposal(*args, {})
+                self.assertFalse((trial/path).exists())
+                batch._merge_trial_proposal(*args, {'new_action': ['agreement become|becomes']})
+                self.assertEqual((trial/path).read_text(), text)
+
     def test_focused_isolation_handles_multiple_retained_families(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

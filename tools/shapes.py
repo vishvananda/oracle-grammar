@@ -46,35 +46,48 @@ def inflections(words):
     return pairs
 
 
+def production_shapes(text):
+    """Return print-expanding shapes keyed by production."""
+    shapes = {}
+    for line in text.splitlines():
+        m = RULE.match(line)
+        if not m:
+            continue
+        labels = set()
+        for words in alternations(m.group(2)):
+            labels |= {f'agreement {pair}' for pair in inflections(words)}
+            gendered = sorted(set(words) & GENDERED)
+            if gendered and len(set(words)) > 1:
+                labels.add('pronoun ' + '|'.join(sorted(set(words))))
+        if labels:
+            shapes[m.group(1)] = sorted(labels)
+    return shapes
+
+
 def found(root=ROOT):
     """{rule: sorted shape labels} for every grammar production."""
     shapes = {}
     for path in sorted((root/'grammar').rglob('*.ebnf')):
-        for line in path.read_text().splitlines():
-            m = RULE.match(line)
-            if not m:
-                continue
-            labels = set()
-            for words in alternations(m.group(2)):
-                labels |= {f'agreement {pair}' for pair in inflections(words)}
-                gendered = sorted(set(words) & GENDERED)
-                if gendered and len(set(words)) > 1:
-                    labels.add('pronoun ' + '|'.join(sorted(set(words))))
-            if labels:
-                shapes[m.group(1)] = sorted(labels)
+        shapes.update(production_shapes(path.read_text()))
     return shapes
 
 
-def check(root=ROOT):
-    """Errors for shapes outside the baseline and baseline entries now fixed."""
-    current = found(root)
-    baseline = json.loads((root/BASELINE_PATH).read_text())
+def introduced(current, baseline):
+    """Report print-expanding shapes that have no existing exemption."""
     errors = []
     for rule, labels in sorted(current.items()):
         new = sorted(set(labels) - set(baseline.get(rule, ())))
         if new:
             errors.append(f'{rule}: new print-blowup shape {", ".join(new)} '
                           '(docs/print-shapes.md)')
+    return errors
+
+
+def check(root=ROOT):
+    """Errors for shapes outside the baseline and baseline entries now fixed."""
+    current = found(root)
+    baseline = json.loads((root/BASELINE_PATH).read_text())
+    errors = introduced(current, baseline)
     for rule, labels in sorted(baseline.items()):
         fixed = sorted(set(labels) - set(current.get(rule, ())))
         if fixed:

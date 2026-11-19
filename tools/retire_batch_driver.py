@@ -216,6 +216,19 @@ def reviewed_replay_jobs(queue, checkpoint, limit):
             ORDER BY c.seq DESC,j.rowid LIMIT ?""", (limit,))]
 
 
+def verified_ready_lane(queue, checkpoint, limit, minimum, mechanical=(), recovered=()):
+    """Fill a batch with mechanical work and independently replayed drafts."""
+    if not minimum:
+        return None
+    excluded = set(recovered)
+    ready = [job for job in mechanical if job not in excluded]
+    reviewed = reviewed_replay_jobs(queue, checkpoint, limit+len(excluded))
+    ready.extend(job for job in reviewed if job not in excluded and job not in ready)
+    if len(ready) >= minimum:
+        return {'lane': 'verified-ready', 'jobs': ready[:limit], 'combine': True}
+    return None
+
+
 def dependency_caller_jobs(queue, checkpoint, covered, limit):
     """Prioritize ready jobs whose seeded callers keep parked rules reachable."""
     if limit <= 0:
@@ -275,7 +288,9 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
     runner = _runner(run, runner)
     started = time.time()
     queue = Queue(run/'queue.sqlite')
-    state = {'pid': os.getpid(), 'runner': str(runner), 'started_unix': started}
+    previous_lane = (r.read(run/'batch-driver.json').get('last_batch') or {}).get('lane') if (run/'batch-driver.json').is_file() else None
+    state = {'pid': os.getpid(), 'runner': str(runner), 'started_unix': started,
+             'last_batch': {'lane': previous_lane} if previous_lane else None}
     def status(phase, progress=None, **extra):
         state.update(phase=phase, updated_unix=time.time(), **extra)
         if progress is not None:
@@ -333,14 +348,26 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         lane = mechanical_lane(queue, limit, mechanical_minimum) if mechanical_priority and ready else None
                         large_mechanical = lane is not None and lane['combine']
                         cohort = recovered_cohort(queue, progress['checkpoint']) if routing and ready and not large_mechanical else []
+                        verified_minimum = config.get('verified_ready_minimum', 0)
+                        if type(verified_minimum) is not int or not 0 <= verified_minimum <= 96:
+                            raise ValueError('verified_ready_minimum must be between 0 and 96')
+                        verified = None
+                        if ready and not large_mechanical and previous_lane != 'verified-ready':
+                            verified = verified_ready_lane(queue, progress['checkpoint'], limit,
+                                                           min(verified_minimum, limit),
+                                                           lane['mechanical'] if lane else (),
+                                                           cohort['jobs'] if cohort else ())
+                        if verified:
+                            lane, cohort = verified, []
+                        standalone_lane = large_mechanical or verified is not None
                         pending = jobs.get('pending', 0)
                         running = jobs.get('running', 0)
-                        if ready and (large_mechanical or cohort or flush or ready >= limit or not pending
+                        if ready and (standalone_lane or cohort or flush or ready >= limit or not pending
                                       or time.monotonic()-last_batch >= wait):
                             _runner(run, runner)
                             folders = run/'.cache/batches'
                             before = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
-                            chosen_lane = lane if large_mechanical or (lane and not cohort) else None
+                            chosen_lane = lane if standalone_lane or (lane and not cohort) else None
                             recovered = cohort['jobs'] if cohort else []
                             also_mechanical = []
                             if cohort and lane and len(recovered) < limit:
@@ -353,8 +380,8 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             if cohort:
                                 protected = recovered+also_mechanical+also_reviewed
                             else:
-                                protected = chosen_lane['mechanical'] if chosen_lane and not large_mechanical else []
-                            caller_room = 0 if large_mechanical else min(dependency_slots, limit-len(protected))
+                                protected = chosen_lane['mechanical'] if chosen_lane and not standalone_lane else []
+                            caller_room = 0 if standalone_lane else min(dependency_slots, limit-len(protected))
                             callers = dependency_caller_jobs(queue, progress['checkpoint'], protected, caller_room)
                             status('running', progress, lane=chosen_lane['lane'] if chosen_lane else
                                    'recovered-with-reviewed' if also_reviewed else
@@ -379,6 +406,8 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             else:
                                 dispatch._batch(run)
                             observation = _batch_observation(run, before, queue, progress['checkpoint'])
+                            previous_lane = state['lane']
+                            observation['lane'] = previous_lane
                             new_progress = queue.progress()
                             if observation['outcome'] == 'passed':
                                 if new_progress['checkpoint'] != observation['candidate']:

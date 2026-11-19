@@ -373,6 +373,31 @@ class DriverTests(unittest.TestCase):
         cohort.assert_not_called()
         batch.assert_called_once_with(self.run, ['m1', 'm2'], combine_selected=True)
 
+    def test_verified_lane_excludes_the_recovered_cohort_and_alternates(self):
+        config = r.read(self.run/'config.json')
+        config.update(verified_ready_minimum=2, recovered_cohorts_first=True)
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(pending=1, ready=5)
+        cohort = {'jobs': ['a'], 'manifest': 'batch', 'checkpoint': 'parent'}
+        def complete(run, jobs, *, combine_selected):
+            self.outcome(drain=True)(run)
+        with patch.object(driver, 'recovered_cohort', return_value=cohort), \
+                patch.object(driver, 'reviewed_replay_jobs', return_value=['a','b','c']), \
+                patch.object(driver.dispatch, '_batch', side_effect=complete) as batch:
+            driver.run_driver(self.run, self.runner)
+            batch.assert_called_once_with(self.run, ['b','c'], combine_selected=True)
+        state = r.read(self.run/'batch-driver.json')
+        self.assertEqual(state['last_batch']['lane'], 'verified-ready')
+        (self.run/'batch-driver-drain.json').unlink()
+        (self.run/'.cache/batches/id').rename(self.run/'.cache/batches/previous')
+        self.queue.value = progress(pending=1, ready=3)
+        with patch.object(driver, 'recovered_cohort', return_value=cohort), \
+                patch.object(driver, 'reviewed_replay_jobs') as reviewed, \
+                patch.object(driver.dispatch, '_batch', side_effect=complete) as batch:
+            driver.run_driver(self.run, self.runner)
+            reviewed.assert_not_called()
+            batch.assert_called_once_with(self.run, ['a'], combine_selected=True)
+
     def test_mechanical_minimum_validates_bounds_and_type(self):
         config = r.read(self.run/'config.json')
         for value in (0, 97, True):
