@@ -2,6 +2,7 @@ from contextlib import closing
 import concurrent.futures
 import fcntl
 import hashlib
+import io
 import json
 from unittest.mock import patch
 import subprocess
@@ -12,6 +13,23 @@ from pathlib import Path
 import retire_queue
 from retire_queue import Queue, _git_source_identity
 from test_retire_batch_readmission import mutation_during_readmission_verification
+
+
+class CompletedProcessTests(unittest.TestCase):
+    def test_pid_reuse_requires_kernel_start_after_recorded_completion(self):
+        fields = ' '.join(['S', *['0'] * 18, '20000'])
+        with (patch('retire_queue.Path.read_text', return_value=f'123 (worker (other)) {fields}'),
+              patch('retire_queue.Path.open', return_value=io.StringIO('cpu 0\nbtime 1000\n')),
+              patch('retire_queue.os.sysconf', return_value=100),
+              patch('retire_queue.os.kill', side_effect=PermissionError())):
+            Queue._require_absent_pid(123, finished=1001)
+        for completion in (None, 1190, 1201):
+            with (patch('retire_queue.Path.read_text', return_value=f'123 (worker) {fields}'),
+                  patch('retire_queue.Path.open', return_value=io.StringIO('btime 1000\n')),
+                  patch('retire_queue.os.sysconf', return_value=100),
+                  patch('retire_queue.os.kill', return_value=None)):
+                with self.assertRaisesRegex(ValueError, 'still present'):
+                    Queue._require_absent_pid(123, finished=completion)
 
 
 class QueueTests(unittest.TestCase):

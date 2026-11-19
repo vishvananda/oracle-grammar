@@ -41,6 +41,24 @@ _REVIEWED_EVENTS = (*REVIEWED_RETRY_EVENTS.values(), SPLIT_REVIEWED_AUTHOR)
 _REVIEWED_EVENT_SLOTS = ','.join('?' for _ in _REVIEWED_EVENTS)
 
 
+def _pid_started_after(pid, finished):
+    """Distinguish a recycled Linux PID from a completed attempt's process."""
+    if type(finished) is not int or finished <= 0:
+        return False
+    try:
+        # The parenthesized process name may include whitespace or parentheses.
+        stat_fields = Path(f'/proc/{pid}/stat').read_text().rsplit(')', 1)[1].split()
+        ticks = int(stat_fields[19])
+        with Path('/proc/stat').open() as stream:
+            boot = next(int(line.split()[1]) for line in stream if line.startswith('btime '))
+        started = boot + ticks / os.sysconf('SC_CLK_TCK')
+    except (IndexError, OSError, StopIteration, ValueError, ZeroDivisionError):
+        return False
+    # The kernel and SQLite wall-clock timestamps have whole-second precision.
+    # Leave headroom for clock adjustments when comparing their observations.
+    return started > finished + 60
+
+
 def _json(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
@@ -1376,7 +1394,9 @@ class Queue:
                 pid = start.get('pid')
                 if type(pid) is not int or pid <= 0:
                     raise ValueError('attempt process identity is unknown')
-                self._require_absent_pid(pid)
+                completion = db.execute("SELECT unixepoch(at) FROM events WHERE kind='finished' "
+                                        "AND json_extract(data,'$.attempt_id')=?", (attempt_id,)).fetchall()
+                self._require_absent_pid(pid, finished=completion[0][0] if len(completion)==1 else None)
                 _verify_readmission_origin(db, checkpoint, row[4])
                 source = evidence.get('source_checkpoint', checkpoint)
                 _verify_readmission_origin(db, checkpoint, source)
@@ -1620,6 +1640,11 @@ class Queue:
                 rows = {name: db.execute(query, (name,)).fetchone() for name in job_ids}
                 owners = {name: [x[0] for x in db.execute('SELECT rule FROM rules WHERE job_id=? ORDER BY rule', (name,))]
                           for name in job_ids}
+                attempts = [row[1] for row in rows.values() if row]
+                slots = ','.join('?' for _ in attempts)
+                finished = dict(db.execute("SELECT json_extract(data,'$.attempt_id'), min(unixepoch(at)) "
+                    "FROM events WHERE kind='finished' "
+                    f"AND json_extract(data,'$.attempt_id') IN ({slots}) GROUP BY 1 HAVING count(*)=1", attempts))
             snapshots, rejections, pids = {}, {}, {}
             for name, row in rows.items():
                 if not row or row[0] != 'integration-rejected' or not row[1] or not row[6] or row[7] != name:
@@ -1629,7 +1654,7 @@ class Queue:
                 pid = (json.loads(row[5]) if row[5] else {}).get('pid')
                 if type(pid) is not int or pid <= 0:
                     raise ValueError('attempt process identity is unknown')
-                self._require_absent_pid(pid)
+                self._require_absent_pid(pid, finished=finished.get(row[1]))
                 pids[name] = pid
                 rules = job['rules']
                 if not rules or len(set(rules)) != len(rules) or sorted(rules) != owners[name]:
@@ -1677,7 +1702,7 @@ class Queue:
                         raise ValueError('ownership changed during batch proof verification')
                     if (name, proof['manifest']) in previous_readmissions:
                         raise ValueError('batch readmission already used for this job')
-                    self._require_absent_pid(pids[name])
+                    self._require_absent_pid(pids[name], finished=finished.get(current[1]))
                 if verify_archived_replay:
                     verifier.recheck(proof)
                 for name in job_ids:
@@ -1832,15 +1857,16 @@ class Queue:
                             "proof": proof, "evidence": evidence})
 
     @staticmethod
-    def _require_absent_pid(pid):
+    def _require_absent_pid(pid, *, finished=None):
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
-            pass
+            return
         except OSError as exc:
-            if exc.errno != errno.ESRCH:
-                raise ValueError("attempt process state is unknown") from exc
-        else:
+            if exc.errno == errno.ESRCH or _pid_started_after(pid, finished):
+                return
+            raise ValueError("attempt process state is unknown") from exc
+        if not _pid_started_after(pid, finished):
             raise ValueError("attempt process is still present")
 
     def retry_unstarted(self, job_id, attempt_id, evidence):
