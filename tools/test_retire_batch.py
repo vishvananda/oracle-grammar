@@ -138,10 +138,10 @@ class BatchTests(unittest.TestCase):
                 self.assertTrue(all([index] in recorded for index in result))
                 initial['retained_family_hints'] = [1,2,3]
                 self.assertEqual(batch._isolate_retained_family(
-                    context,entries,witnesses,root/'hinted',limit=3,initial_trial=initial),[2,3])
+                    context,entries,witnesses,root/'hinted',limit=3,initial_trial=initial),[2,3,0])
                 self.assertEqual([batch.r.read(path)['proposal_indices']
                                   for path in sorted((root/'hinted').glob('*/probe.json'))],
-                                 [[],[1],[2],[3]])
+                                 [[],[1],[2],[3],[0,1],[0]])
                 initial['attempts'][0] = 'different-attempt'
                 self.assertEqual(batch._isolate_retained_family(
                     context,entries,witnesses,root/'fresh',limit=3,initial_trial=initial),result)
@@ -182,6 +182,34 @@ class BatchTests(unittest.TestCase):
                     checkpoint, root/'grammar', rows, drafts, {'failures':failures}), [4])
                 self.assertEqual(traced.call_count,6)
                 reserve.assert_called_once_with(root/'cpu', 1, 32, background=True)
+
+    def test_retained_print_screen_can_rank_both_kinds_of_witness(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            rows = root/'print-rows.jsonl'
+            batch.r.jsonl(rows, [{'name':'Print', 'text':'Old.', 'first':'New.', 'readings':1}])
+            batch.r.jsonl(root/'rows.jsonl', [{'name':'Parse', 'text':'Both.', 'all':[[{'reading':0}],[{'reading':1}]]}])
+            batch.r.write(root/'native.json', {'reading_preservation': {'additions': [
+                {'name':'Parse', 'retained_current_indices':[0], 'added_current_indices':[1]},
+            ]}})
+            binary = root/'probe'
+            binary.write_bytes(b'frozen helper')
+            failures = ['native readings changed or failed validation', {'face':'Print','lost':['exact_default']},
+                        {'face':'Parse','gate':'parse/reading-count/text'}]
+            drafts = [(1, root, root/'print_rule'), (4, root, root/'parse_rule')]
+            traces = [b'[{"reading":0}]', b'  rules ["old_rule.0"]',
+                      b'[{"reading":1}]', b'  rules ["parse_rule.0"]']
+            checkpoint = {'inputs':str(root), 'cpu_pool':str(root/'cpu'), 'cpu_capacity':32}
+            with (patch.object(batch,'_trace_binary',return_value=(binary,batch.r.digest(binary))),
+                  patch.object(batch,'_print_trace_delta',return_value=(set(),{'print_rule'})),
+                  patch.object(batch,'_probe_lines',return_value=traces),
+                  patch.object(batch,'_new_productions',side_effect=lambda run,directory,names:
+                               names.intersection({directory.name}))):
+                self.assertEqual(batch._retained_print_hints(checkpoint,root/'grammar',rows,drafts,
+                                                            {'failures':failures},reading_checks=root), [1,4])
+                (root/'native.json').unlink()
+                self.assertEqual(batch._retained_print_hints(checkpoint,root/'grammar',rows,drafts,
+                                                            {'failures':failures},reading_checks=root), [1])
 
     def test_early_print_verdict_only_covers_prior_exact_defaults(self):
         lost = {'name':'A', 'text':'Written.', 'status':'equal', 'readings':1, 'exact':True, 'default':'Other.'}
@@ -802,9 +830,12 @@ class BatchTests(unittest.TestCase):
                                                   ('profile_sha256', 'manifest_sha256', 'threads')},
                      'proposal_indices': list(range(6)), 'jobs': [f'j{i}' for i in range(6)],
                      'attempts': [f'a{i}' for i in range(6)], 'prefix_grammar': batch.r.tree(grammar)}
-            for verified, contributors in ((True, {1, 4}), (False, {1, 4}), (True, {1})):
+            for verified, contributors, hints in ((True, {1, 4}, []), (False, {1, 4}, []),
+                                                   (True, {1}, []), (True, {1, 4}, [1])):
                 seen = []
-                evidence = trial if verified else {**trial, 'attempts': ['stale']}
+                evidence = {**trial, 'retained_print_hints': hints}
+                if not verified:
+                    evidence['attempts'] = ['stale']
 
                 def probe(_context, group, focused, _failures, logs, _inputs, *, partial):
                     selected = {i for i, _ in group}
@@ -821,11 +852,13 @@ class BatchTests(unittest.TestCase):
                                  return_value={'names': ['A', 'B'], 'closure_occurrence_count': 2}),
                     patch.object(batch, '_probe_retained_native', side_effect=probe),
                 ):
-                    output = source/f'{verified}-{len(contributors)}'
+                    output = source/f'{verified}-{len(contributors)}-{len(hints)}'
                     found = batch._isolate_retained_native(context, entries, failure, output,
                                                            limit=2, initial_trial=evidence)
                 self.assertEqual(found, sorted(contributors))
                 self.assertEqual(seen[0], set())
+                if hints:
+                    self.assertEqual(seen[1], {1})
                 self.assertIn({1}, seen)
                 self.assertEqual({4} in seen, len(contributors) == 2)
                 self.assertEqual({0, 2, 3, 4, 5} in seen, len(contributors) == 2)

@@ -865,6 +865,23 @@ def _traced_meanings(lines):
     return meanings
 
 
+def _trace_delta(lines, row, delta):
+    meanings = _traced_meanings(lines)
+
+    def rules(indices, *, require_route):
+        readings = row['all']
+        wanted = set()
+        for index in indices:
+            r.require(type(index) is int and 0 <= index < len(readings), 'invalid trace reading index')
+            trace, = [route for meaning, route in meanings if meaning == readings[index]]
+            r.require(trace or not require_route, 'empty trace for added native reading')
+            wanted.update(trace)
+        return wanted
+
+    return (rules(delta['added_current_indices'], require_route=True),
+            rules(delta['retained_current_indices'], require_route=False))
+
+
 def _added_family_routes(binary, grammars, fixture, failure, fds):
     counts = re.fullmatch(r'expected Some\((\d{1,2})\) readings, got (\d{1,2})', failure['why'])
     if counts is None:
@@ -916,19 +933,39 @@ def _retained_family_hints(checkpoint, source, grammar, drafts, evidence):
         return []
 
 
-def _retained_print_hints(checkpoint, grammar, rows_path, drafts, evidence):
-    """Use at most three exact default losses to select likely author proposals."""
-    failures = evidence['failures']
-    if not failures or any(not isinstance(item, dict) or item.get('lost') != ['exact_default']
-                           for item in failures):
+def _retained_added_readings(checks, faces):
+    if checks is None or not faces:
         return []
-    names = {item['face'] for item in failures}
+    native = r.read(checks/'native.json')['reading_preservation']
+    deltas = [delta for delta in native['additions'] if delta['name'] in faces]
+    names = {delta['name'] for delta in deltas}
+    if native.get('merged_faces') or not deltas or len(names) != len(deltas):
+        return []
+    rows = [row for row in r.rows(checks/'rows.jsonl') if row['name'] in names]
+    if len(rows) != len(names) or {row['name'] for row in rows} != names:
+        return []
+    by_name = {row['name']: row for row in rows}
+    return [(by_name[delta['name']], delta) for delta in deltas[:3]
+            if 0 < len(by_name[delta['name']]['text']) <= 4096]
+
+
+def _retained_print_hints(checkpoint, grammar, rows_path, drafts, evidence, *, reading_checks=None):
+    """Use bounded print and added-reading traces to rank independently checked proposals."""
+    failures = [item for item in evidence['failures'] if isinstance(item, dict)]
+    names = {item['face'] for item in failures if 'exact_default' in item.get('lost', [])}
+    parse_faces = {item['face'] for item in failures if item.get('gate') == 'parse/reading-count/text'}
     try:
-        rows = [row for row in r.rows(rows_path) if row['name'] in names]
-        if len(rows) != len(failures) or {row['name'] for row in rows} != names:
+        rows = [row for row in r.rows(rows_path) if row['name'] in names] if names else []
+        if len(rows) != len(names) or {row['name'] for row in rows} != names:
+            rows = []
+        try:
+            readings = _retained_added_readings(reading_checks, parse_faces)
+        except (OSError, ValueError, KeyError, TypeError):
+            readings = []
+        if not rows and not readings:
             return []
         binary, expected = _trace_binary(checkpoint, Path(checkpoint['inputs']))
-        hints = set()
+        routes = []
         # Focused isolation also needs CPU tokens. Keep the bounded route
         # hint available while a foreground bundle is draining the pool.
         with retire_cpu.reserve(Path(checkpoint['cpu_pool']), 1, checkpoint['cpu_capacity'],
@@ -938,12 +975,21 @@ def _retained_print_hints(checkpoint, grammar, rows_path, drafts, evidence):
                     delta = _print_trace_delta(row, lambda name, text: _probe_rules(binary, grammar, name, text, fds))
                 except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
                     continue
-                if delta is None or not delta[1]:
+                if delta is not None and delta[1]:
+                    routes.append(delta[1])
+            for row, delta in readings:
+                try:
+                    lines = _probe_lines(binary, grammar, row['name'], row['text'], fds)
+                    added, retained = _trace_delta(lines, row, delta)
+                    routes.append(_route_names(added) - _route_names(retained))
+                except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
                     continue
-                matches = [index for index, run, directory in drafts
-                           if _new_productions(run, directory, delta[1])]
-                if len(matches) == 1:
-                    hints.update(matches)
+        hints = set()
+        for wanted in routes:
+            matches = [index for index, run, directory in drafts
+                       if wanted and _new_productions(run, directory, wanted)]
+            if len(matches) == 1:
+                hints.update(matches)
         return sorted(hints) if r.digest(binary) == expected else []
     except (OSError, ValueError, KeyError, TypeError):
         return []
@@ -1079,7 +1125,8 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
             raise _UncertainPromotion('Early print witness inputs changed during staging')
         proof.update(retained_native_failure=failures, early_print_control=spec,
                      verified_native_snapshot={key: focused[key] for key in ('profile_sha256','manifest_sha256','threads')})
-        hints = _retained_print_hints(cp, grammar, logs/'default-print-screen/rows.jsonl', drafts, failures)
+        hints = _retained_print_hints(cp, grammar, logs/'default-print-screen/rows.jsonl', drafts, failures,
+                                     reading_checks=logs/'native-focused')
         if hints:
             proof['retained_print_hints'] = hints
         raise
@@ -1371,17 +1418,18 @@ def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, 
 
     if probe([]) != 'passed' or (verify_full and probe(entries) != 'reproduced'):
         return []
+    culprits = []
     if hints:
-        confirmed = []
         for entry in entries:
             index, _ = entry
             if index in hints and probe([entry]) == 'reproduced':
-                confirmed.append(index)
-                if len(confirmed) >= limit or (stop_after is not None and stop_after(index)):
-                    break
-        if confirmed:
-            return confirmed
-    culprits = []
+                culprits.append(index)
+                if len(culprits) >= limit or (stop_after is not None and stop_after(index)):
+                    return culprits
+    if culprits:
+        entries = [entry for entry in entries if entry[0] not in culprits]
+        if not entries or probe(entries) != 'reproduced':
+            return culprits
     while entries:
         culprit = _locate_retained_culprit(entries, probe)
         if culprit is None:

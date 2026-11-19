@@ -15,7 +15,7 @@ import retire as r
 import retire_author as author
 import retire_batch as batch
 from retire_batch import (_new_productions, _print_trace_delta, _probe_lines, _probe_rules, _route_names,
-                          _trace_binary, _traced_meanings)
+                          _trace_binary, _trace_delta)
 import retire_cpu as cpu
 import retire_merge as merge
 import retire_native_outcome as native
@@ -231,23 +231,6 @@ def _print_hints(checkpoint, run, full, proposals, eligible, failures):
         return sorted(matches) if 0 < len(matches) <= 8 and r.digest(binary) == expected else []
     except (OSError, ValueError, KeyError, TypeError):
         return []
-
-
-def _trace_delta(lines, row, delta):
-    meanings = _traced_meanings(lines)
-
-    def rules(indices, *, require_route):
-        readings = row['all']
-        wanted = set()
-        for index in indices:
-            r.require(type(index) is int and 0 <= index < len(readings), 'invalid trace reading index')
-            trace, = [route for meaning,route in meanings if meaning == readings[index]]
-            r.require(trace or not require_route, 'empty trace for added native reading')
-            wanted.update(trace)
-        return wanted
-
-    return (rules(delta['added_current_indices'],require_route=True),
-            rules(delta['retained_current_indices'],require_route=False))
 
 
 _SIMPLE_ALTERNATIVES = re.compile(r'[a-z_][a-z_0-9]*(?: \| [a-z_][a-z_0-9]*)+')
