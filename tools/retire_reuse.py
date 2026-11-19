@@ -225,8 +225,11 @@ def _copy_reviewed_snapshot(archived, proof, report, task, allowed_files, frozen
     r.require(task['checkout'] == str(checkout) and checkout.resolve() == checkout,
               'reviewed draft checkout differs')
     _copy_reviewed_grammar(archived, checkout, path.parent/'grammar', report, frozen)
+    edits = path.parent/'edits.json'
+    if not edits.exists() and not edits.is_symlink():
+        edits = checkout/_relative(task['edits'])
     for key, original, digest in (('fixture', path.parent/'family.json', 'fixture_sha256'),
-                                  ('edits', checkout/_relative(task['edits']), 'edits_sha256')):
+                                  ('edits', edits, 'edits_sha256')):
         relative = _relative(task[key])
         r.require(str(relative) in allowed_files and original.resolve() == original,
                   'reviewed draft fixture or operand edits exceed the write scope')

@@ -458,15 +458,24 @@ class TaskTests(unittest.TestCase):
         shutil.copy2(self.source/actions, inputs/'frozen'/actions)
         r.write(inputs/'manifest.json', {**manifest,'commit':head,'files':r.tree(inputs/'frozen')})
         checkpoint = {**self.checkpoint,'commit':head,'inputs':inputs}
-        for tampered in (False, True):
-            with self.subTest(tampered=tampered):
-                if tampered:
-                    edits.write_text('changed')
+        original_edits = edits.read_bytes()
+        saved_edits = result/'edits.json'
+        for case, reuse in (('legacy', True), ('legacy-tampered', False),
+                            ('archived', True), ('archive-tampered', False)):
+            with self.subTest(case=case):
+                if case == 'legacy-tampered':
+                    edits.write_bytes(b'changed')
+                elif case == 'archived':
+                    edits.unlink()
+                    saved_edits.write_bytes(original_edits)
+                elif case == 'archive-tampered':
+                    edits.write_bytes(original_edits)
+                    saved_edits.write_bytes(b'changed')
                 claim = {'attempt_id':str(uuid.uuid4()),'base_commit':head,'job':self.job,'reviewed_repair':proof}
                 prepared = tasker.prepare_task(self.campaign,claim,checkpoint,self.job,self.cohort)
                 checkout = Path(prepared['checkout'])
                 packet = r.read(Path(prepared['run'])/'packet.json')
-                if tampered:
+                if not reuse:
                     self.assertIn('reviewed_reuse_conflict', packet)
                     self.assertNotIn('reuse', packet)
                     self.assertEqual((checkout/actions).read_text(), current)
@@ -477,7 +486,7 @@ class TaskTests(unittest.TestCase):
                     self.assertEqual((checkout/actions).read_text(), current.replace('"base"', '"checked"'))
                     self.assertNotIn('m_one ::=', (checkout/seeded).read_text())
                     self.assertEqual(r.digest(checkout/task['fixture']),r.digest(family))
-                    self.assertEqual(r.digest(checkout/task['edits']),r.digest(edits))
+                    self.assertEqual((checkout/task['edits']).read_bytes(),original_edits)
 
     def test_missing_modules_marked_for_discovery(self):
         self.job['allowedwritepaths'] = ['grammar/syntax/nonexistent.ebnf']
