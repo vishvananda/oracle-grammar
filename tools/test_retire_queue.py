@@ -46,6 +46,42 @@ class QueueTests(unittest.TestCase):
     def passed(self, claim):
         return {rule: {"status": "pass", "evidence": "diagnosed"} for rule in claim["job"]["rules"]}
 
+    def test_shape_repair_requires_the_excluded_attempt(self):
+        root = self.path.parent
+        ident = 'a' * 32
+        folder = root/'.cache/batches'/ident
+        folder.mkdir(parents=True)
+        def artifact(name, text):
+            path = folder/name
+            path.write_text(text)
+            return {'path': str(path), 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()}
+        validation = {'status': 'failed', 'reason': 'repository gates failed',
+                      'source_checkpoint': 'base', 'candidate': 'candidate'}
+        manifest = {'id': ident, 'base_commit': 'base', 'commit': 'candidate',
+                    'jobs': [{'job_id': 'culprit', 'attempt_id': 'attempt', 'status': 'included'}]}
+        log = ''.join(f"{gate} {'FAILED' if gate in {'hygiene','tools'} else 'passed'} 1 s\n"
+                      for gate in sorted(retire_queue._GATE_NAMES))
+        rejection = {'status': 'integration-rejected', 'checkpoint': None,
+                     'evidence': {'manifest': ident, 'validation': validation}}
+        readmission = {'job_id': 'survivor', 'checkpoint': 'base', 'manifest': ident,
+                       'previous_adjudication': rejection,
+                       'proof': {'manifest': ident, 'candidate': 'candidate', 'excluded_proposal': 'culprit',
+                                 'introduced_shapes': ['agreement'], 'requires_fresh_full_validation': True},
+                       'evidence': {'kind':'isolated-shape-revalidation','source_checkpoint':'base',
+                                    'manifest':artifact('manifest.json', json.dumps(manifest)),
+                                    'validation':artifact('validation.json', json.dumps(validation)),
+                                    'repository_log':artifact('repository-check.log', log)}}
+        with self.queue._transaction() as db:
+            self.queue._event(db, 'readmitted-shape-baseline', readmission)
+            seq, = db.execute("SELECT seq FROM events WHERE kind='readmitted-shape-baseline'").fetchone()
+            evidence = {'kind':'isolated-shape-repair','readmission_event_seq':seq}
+            verify = retire_queue._verify_isolated_repair
+            verify(db, root, 'base', ('culprit', 'attempt'), rejection, evidence, full_check=True)
+            with self.assertRaisesRegex(ValueError, 'rejected attempt'):
+                verify(db, root, 'base', ('culprit', 'another'), rejection, evidence, full_check=True)
+            with self.assertRaisesRegex(ValueError, 'excluded proposal'):
+                verify(db, root, 'base', ('survivor', 'attempt'), rejection, evidence, full_check=True)
+
     def test_concurrent_claims_and_limit(self):
         self.add(30)
         with concurrent.futures.ThreadPoolExecutor(max_workers=30) as pool:

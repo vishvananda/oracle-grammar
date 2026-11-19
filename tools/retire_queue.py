@@ -262,8 +262,51 @@ def _verify_rewritten_review(db, campaign, assignment, start, result, evidence, 
 
 
 
+def _verify_shape_repair(db, campaign, checkpoint, assignment, rejection, evidence):
+    """Bind a shape-only repair to a survivor readmission that excluded this attempt."""
+    job, attempt = assignment
+    seq = evidence.get('readmission_event_seq')
+    if set(evidence) != {'kind', 'readmission_event_seq'} or type(seq) is not int or seq <= 0:
+        raise ValueError('shape repair must identify a completed survivor readmission')
+    row = db.execute("SELECT data FROM events WHERE seq=? AND kind='readmitted-shape-baseline'", (seq,)).fetchone()
+    if row is None:
+        raise ValueError('shape repair survivor readmission is missing')
+    readmitted = json.loads(row[0])
+    original, proof = readmitted['evidence'], readmitted['proof']
+    batch = readmitted.get('manifest')
+    if (original.get('kind') != 'isolated-shape-revalidation'
+            or not isinstance(batch, str) or not re.fullmatch(r'[0-9a-f]{32}', batch)
+            or proof.get('manifest') != batch or proof.get('excluded_proposal') != job
+            or readmitted.get('job_id') == job or not proof.get('introduced_shapes')
+            or proof.get('requires_fresh_full_validation') is not True
+            or readmitted.get('previous_adjudication') != rejection):
+        raise ValueError('shape repair does not match the verified excluded proposal')
+    folder = campaign/'.cache/batches'/batch
+    manifest_path, manifest_bytes = _proof_file(original.get('manifest'))
+    validation_path, validation_bytes = _proof_file(original.get('validation'))
+    log_path, log = _proof_file(original.get('repository_log'))
+    manifest, validation = json.loads(manifest_bytes), json.loads(validation_bytes)
+    origin = manifest.get('base_commit')
+    matches = [item for item in manifest.get('jobs', []) if item.get('job_id') == job]
+    if (manifest_path != folder/'manifest.json' or validation_path != folder/'validation.json'
+            or log_path != folder/'repository-check.log' or manifest.get('id') != batch
+            or rejection.get('evidence') != {'manifest': batch, 'validation': validation}
+            or validation.get('status') != 'failed' or validation.get('reason') != 'repository gates failed'
+            or validation.get('source_checkpoint') != origin or original.get('source_checkpoint') != origin
+            or validation.get('candidate') != manifest.get('commit') or proof.get('candidate') != manifest.get('commit')
+            or {name for name, state in _gates(log).items() if state == 'FAILED'} != {'hygiene', 'tools'}
+            or len(matches) != 1 or matches[0].get('attempt_id') != attempt
+            or matches[0].get('status') != 'included'):
+        raise ValueError('shape repair does not identify the rejected attempt')
+    _verify_readmission_origin(db, checkpoint, readmitted['checkpoint'])
+    _verify_readmission_origin(db, checkpoint, origin)
+
+
 def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evidence, *, full_check=False):
     """Bind a repair to an excluded proposal in a verified survivor readmission."""
+    if full_check and evidence.get('kind') == 'isolated-shape-repair':
+        _verify_shape_repair(db, campaign, checkpoint, assignment, rejection, evidence)
+        return
     job, attempt = assignment
     seq = evidence.get('readmission_event_seq')
     if set(evidence) != {'readmission_event_seq', 'isolation'} or type(seq) is not int or seq <= 0:
