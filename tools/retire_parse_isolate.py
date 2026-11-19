@@ -3,11 +3,13 @@
 import argparse
 from contextlib import closing
 import json
+import os
 from pathlib import Path
 import re
 import shutil
 import sqlite3
 import subprocess
+import tempfile
 
 import mined
 import retire as r
@@ -192,6 +194,65 @@ def _controls(roots):
             for label, root in roots.items()}
 
 
+def _probe_rules(binary, grammar, name, text, fds):
+    env = {k:v for k,v in os.environ.items() if not k.startswith(('ORACLE_GRAMMAR_', 'PROBE_'))}
+    env['ORACLE_GRAMMAR_DIR'] = str(grammar)
+    with tempfile.TemporaryFile() as output:
+        subprocess.run([str(binary), name, text], env=env, stdout=output, stderr=subprocess.DEVNULL,
+                       check=True, timeout=12, pass_fds=fds)
+        output.seek(0)
+        result = output.read(1024*1024+1)
+    r.require(len(result) <= 1024*1024, 'print trace exceeds the hint budget')
+    traces = [json.loads(line.removeprefix(b'  rules ')) for line in result.splitlines()
+              if line.startswith(b'  rules ')]
+    return {key.split('.',1)[0].split('#',1)[0] for trace in traces for key in trace}
+
+
+def _new_productions(run, directory, wanted):
+    found = set()
+    for path in (directory/'grammar/syntax').glob('*.ebnf'):
+        if path.name == 'mined.ebnf':
+            continue
+        source = path.read_text()
+        if not any(name+' ::=' in source for name in wanted):
+            continue
+        base = run/'inputs/frozen/grammar/syntax'/path.name
+        previous = mined.definitions(base.read_text().splitlines()) if base.exists() else {}
+        found.update((wanted & mined.definitions(source.splitlines()).keys()) - previous.keys())
+    return found
+
+
+def _print_hint(checkpoint, run, full, proposals, eligible, failures):
+    """Rank a new route for a singleton wording loss. The actual trial still has to fail."""
+    if len(failures) != 1 or not isinstance(failures[0], dict) or failures[0].get('lost') != ['exact_default']:
+        return None
+    name = failures[0]['face']
+    rows = [row for row in r.rows(full/'checks/rows.jsonl') if row['name'] == name]
+    if len(rows) != 1 or rows[0].get('readings') != 1 or 'matching_readings' in rows[0]:
+        return None
+    row = rows[0]
+    original, printed = row.get('text'), row.get('first')
+    if not all(isinstance(text,str) and 0 < len(text) <= 4096 for text in (original,printed)) or original == printed:
+        return None
+    try:
+        binary = Path(checkpoint['helpers'])/'probe'
+        build = r.read(run/'frozen/build.json')
+        expected = build['binaries']['probe']
+        if (not binary.is_absolute() or not binary.is_file() or binary.is_symlink()
+                or binary.stat().st_size > 1024*1024*1024 or r.digest(binary) != expected):
+            return None
+        with cpu.reserve(Path(checkpoint['cpu_pool']),1,checkpoint['cpu_capacity'],background=True) as fds:
+            grammar = full/'grammar'
+            wanted = _probe_rules(binary,grammar,name,printed,fds)-_probe_rules(binary,grammar,name,original,fds)
+        if not wanted or r.digest(binary) != expected:
+            return None
+        matches = [i for i in eligible if proposals[i][0]['kind'] == 'author'
+                   and _new_productions(*proposals[i][1][:2],wanted)]
+        return matches[0] if len(matches) == 1 else None
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+        return None
+
+
 def _completed_prefix(selection, seen):
     for count in range(len(selection)-1, 0, -1):
         cached = seen.get(tuple(selection[:count]))
@@ -274,9 +335,12 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         r.require(failed == r.read(folder/'validation.json')['full_checks']['failures'],
                   'focused full audit did not reproduce the exact failures')
     routed = [by_job[job] for job in hints]
+    focused_hint = (_print_hint(checkpoint, run, roots['full'], proposals, eligible, failed)
+                    if full_check and not routed else None)
+    automatic = [focused_hint] if focused_hint is not None else []
     try:
         remaining = (_survivors(eligible, trial, pinned, routed[0]) if len(routed) == 1
-                     else _survivors(eligible, trial, pinned, suspects=routed))
+                     else _survivors(eligible, trial, pinned, suspects=routed or automatic))
     except FocusedTrialLimit as exhausted:
         if not exhausted.suspects or not witness_retry:
             raise

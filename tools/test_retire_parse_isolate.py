@@ -9,6 +9,36 @@ import retire_parse_isolate as isolate
 
 
 class SurvivorTests(unittest.TestCase):
+    def test_print_hint_requires_a_unique_new_production_in_the_changed_trace(self):
+        with TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            helpers = root/'helpers'
+            helpers.mkdir()
+            binary = helpers/'probe'
+            binary.write_bytes(b'pinned probe')
+            run = root/'inputs'
+            (run/'frozen').mkdir(parents=True)
+            isolate.r.write(run/'frozen/build.json', {'binaries': {'probe': isolate.r.digest(binary)}})
+            full = root/'full'
+            (full/'checks').mkdir(parents=True)
+            isolate.r.jsonl(full/'checks/rows.jsonl', [
+                {'name': 'Face', 'text': 'Old.', 'first': 'New.', 'readings': 1},
+            ])
+            checkpoint = {'helpers': str(helpers), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
+            failures = [{'face': 'Face', 'lost': ['exact_default']}]
+            proposals = []
+            for index, grammar in enumerate(('unchanged ::= "word"','new_phrase ::= "new"')):
+                directory = root/str(index)/'evaluation'
+                module = directory/'grammar/syntax/example.ebnf'
+                module.parent.mkdir(parents=True)
+                module.write_text(grammar+'\n')
+                proposals.append(({'kind': 'author'}, (run, directory)))
+            with (patch.object(isolate.cpu, 'reserve', return_value=nullcontext(())),
+                  patch.object(isolate, '_probe_rules', side_effect=[
+                      {'new_phrase','same'}, {'same'}, {'new_phrase'}, set()])):
+                self.assertEqual(isolate._print_hint(checkpoint, run, full, proposals, [0, 1], failures), 1)
+                self.assertIsNone(isolate._print_hint(checkpoint, run, full, proposals, [0], failures))
+
     def test_completed_prefix_reuses_the_longest_exact_order_and_checks_its_bytes(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)
