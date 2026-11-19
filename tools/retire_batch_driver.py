@@ -222,6 +222,16 @@ def with_reviewed_replays(queue, checkpoint, slots, limit, fifo, *, mechanical=(
     return list(dict.fromkeys([*mechanical, *reviewed, *fifo]))[:limit]
 
 
+def recovered_replay_fill(queue, checkpoint, selected, slots, limit):
+    """Append independently verified drafts to an underfilled recovery batch."""
+    room = min(limit-len(selected), slots)
+    if room <= 0:
+        return []
+    seen = set(selected)
+    ranked = reviewed_replay_jobs(queue, checkpoint, room+len(seen))
+    return [job for job in ranked if job not in seen][:room]
+
+
 def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
     run = Path(run).resolve()
     runner = _runner(run, runner)
@@ -275,6 +285,9 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         replay_slots = config.get('reviewed_replay_slots', 0)
                         if type(replay_slots) is not int or not 0 <= replay_slots <= 96:
                             raise ValueError('reviewed_replay_slots must be between 0 and 96')
+                        recovered_replay_slots = config.get('recovered_reviewed_replay_slots', 0)
+                        if type(recovered_replay_slots) is not int or not 0 <= recovered_replay_slots <= 96:
+                            raise ValueError('recovered_reviewed_replay_slots must be between 0 and 96')
                         ready = jobs.get('provisional-pass', 0)
                         lane = mechanical_lane(queue, limit, mechanical_minimum) if mechanical_priority and ready else None
                         large_mechanical = lane is not None and lane['combine']
@@ -293,7 +306,11 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                                 existing = set(recovered)
                                 unselected = [job for job in lane['mechanical'] if job not in existing]
                                 also_mechanical = unselected[:limit-len(recovered)]
+                            also_reviewed = (recovered_replay_fill(queue, progress['checkpoint'],
+                                             recovered+also_mechanical, recovered_replay_slots, limit)
+                                             if cohort else [])
                             status('running', progress, lane=chosen_lane['lane'] if chosen_lane else
+                                   'recovered-with-reviewed' if also_reviewed else
                                    'recovered-with-mechanical' if also_mechanical else
                                    'recovered' if cohort else 'fifo')
                             if chosen_lane:
@@ -304,7 +321,7 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                                 dispatch._batch(run, selected,
                                                 combine_selected=chosen_lane['combine'] or fresh_union)
                             elif cohort:
-                                dispatch._batch(run, recovered+also_mechanical,
+                                dispatch._batch(run, recovered+also_mechanical+also_reviewed,
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)
                             elif fresh_union or replay_slots:
                                 fifo = [row['id'] for row in queue.get_jobs('provisional-pass', limit=limit)]

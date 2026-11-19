@@ -373,6 +373,24 @@ class DriverTests(unittest.TestCase):
             driver.run_driver(self.run, self.runner)
         self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'recovered-with-mechanical')
 
+    def test_recovered_replay_fill_respects_mechanical_order_and_free_slots(self):
+        config = r.read(self.run/'config.json')
+        config.update(mechanical_cohorts_first=True, recovered_cohorts_first=True,
+                      recovered_union_trial=True, recovered_reviewed_replay_slots=2,
+                      mechanical_batch_minimum=4)
+        r.write(self.run/'config.json', config)
+        self.queue.value = progress(ready=8)
+        self.queue.ready = [{'id': 'mechanical', 'job': {'kind': 'mechanical'}}]
+        cohort = {'jobs': ['early', 'later'], 'manifest': 'batch', 'checkpoint': 'old'}
+        with patch.object(driver, 'recovered_cohort', return_value=cohort), \
+                patch.object(driver, 'reviewed_replay_jobs', return_value=['later', 'draft', 'extra']) as reviewed, \
+                patch.object(driver.dispatch, '_batch', side_effect=RuntimeError('selected')) as batch, \
+                self.assertRaisesRegex(RuntimeError, 'selected'):
+            driver.run_driver(self.run, self.runner)
+        reviewed.assert_called_once_with(self.queue, 'parent', 4)
+        batch.assert_called_once_with(self.run, ['early', 'later', 'mechanical', 'draft'], combine_selected=True)
+        self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'recovered-with-reviewed')
+
     def test_fresh_union_keeps_fifo_or_mechanical_priority_with_the_batch_limit(self):
         for prioritize_mechanical, expected in (
             (False, ['a1', 'm1', 'a2', 'a3']),
