@@ -145,6 +145,12 @@ derivation and matching semantic shapes as scheduling hints. Mechanical jobs
 stay first; every fourth author claim uses FIFO. Stale checkpoint ranks are
 ignored, and publication never changes a job's payload, ownership or acceptance.
 
+The batch driver's optional `reviewed_replay_slots` reserves places in an
+ordinary batch for provisionally passing attempts that independently replayed
+reviewed drafts. The newest accepted base takes precedence. Mechanical jobs
+already selected for a mixed batch keep their places, and recovered cohorts use
+their existing routing. Each selected job runs the same staging and batch gates.
+
 An optional hash-bound `native_regression_controls` profile lists allowed face
 names. Staging verifies the base against that closed population, then checks each
 family-passing trial before admitting it. This catches known cross-family

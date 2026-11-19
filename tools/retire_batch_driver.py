@@ -197,6 +197,31 @@ def mechanical_lane(queue, limit, minimum=None):
     return None
 
 
+def reviewed_replay_jobs(queue, checkpoint, limit):
+    """Prioritize ready attempts that independently replayed a reviewed draft."""
+    with closing(queue._connect()) as db:
+        db.execute('BEGIN')
+        latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+        if not latest or latest[0] != checkpoint:
+            raise ValueError('checkpoint changed during reviewed replay selection')
+        return [row[0] for row in db.execute("""SELECT j.id FROM jobs j
+            JOIN attempts a ON a.id=j.attempt_id AND a.job_id=j.id
+            JOIN checkpoints c ON c.commit_id=a.base_commit
+            WHERE j.status='provisional-pass'
+                AND json_extract(a.result,'$.status')='provisional-pass'
+                AND json_extract(a.result,'$.evidence.reviewed_replay.kind')='independently-reviewed-draft'
+                AND json_extract(a.result,'$.evidence.reviewed_replay.rebased_onto')=a.base_commit
+            ORDER BY c.seq DESC,j.rowid LIMIT ?""", (limit,))]
+
+
+def with_reviewed_replays(queue, checkpoint, slots, limit, fifo, *, mechanical=()):
+    slots = min(slots, max(0, limit-len(mechanical)))
+    if not slots:
+        return fifo
+    reviewed = reviewed_replay_jobs(queue, checkpoint, slots)
+    return list(dict.fromkeys([*mechanical, *reviewed, *fifo]))[:limit]
+
+
 def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
     run = Path(run).resolve()
     runner = _runner(run, runner)
@@ -247,6 +272,9 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         mechanical_minimum = config.get('mechanical_batch_minimum', limit)
                         if type(mechanical_minimum) is not int or not 1 <= mechanical_minimum <= 96:
                             raise ValueError('mechanical_batch_minimum must be between 1 and 96')
+                        replay_slots = config.get('reviewed_replay_slots', 0)
+                        if type(replay_slots) is not int or not 0 <= replay_slots <= 96:
+                            raise ValueError('reviewed_replay_slots must be between 0 and 96')
                         ready = jobs.get('provisional-pass', 0)
                         lane = mechanical_lane(queue, limit, mechanical_minimum) if mechanical_priority and ready else None
                         large_mechanical = lane is not None and lane['combine']
@@ -269,14 +297,19 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                                    'recovered-with-mechanical' if also_mechanical else
                                    'recovered' if cohort else 'fifo')
                             if chosen_lane:
-                                dispatch._batch(run, chosen_lane['jobs'],
+                                selected = chosen_lane['jobs']
+                                if not chosen_lane['combine']:
+                                    selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots,
+                                                                   limit, selected, mechanical=chosen_lane['mechanical'])
+                                dispatch._batch(run, selected,
                                                 combine_selected=chosen_lane['combine'] or fresh_union)
                             elif cohort:
                                 dispatch._batch(run, recovered+also_mechanical,
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)
-                            elif fresh_union:
-                                selected = queue.get_jobs('provisional-pass', limit=limit)
-                                dispatch._batch(run, [row['id'] for row in selected], combine_selected=True)
+                            elif fresh_union or replay_slots:
+                                fifo = [row['id'] for row in queue.get_jobs('provisional-pass', limit=limit)]
+                                selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots, limit, fifo)
+                                dispatch._batch(run, selected, combine_selected=fresh_union)
                             else:
                                 dispatch._batch(run)
                             observation = _batch_observation(run, before, queue, progress['checkpoint'])

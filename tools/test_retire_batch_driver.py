@@ -106,6 +106,22 @@ class RecoveredCohortTests(unittest.TestCase):
                          {'lane': 'mechanical-first', 'jobs': ['m0', 'm1', 'm2', 'm3', 'a0'],
                           'mechanical': ['m0', 'm1', 'm2', 'm3'], 'combine': False})
 
+    def test_reviewed_replay_priority_uses_current_attempt_and_accepted_bases(self):
+        self.prepare(['fresh','older','unrelated','mismatched','latest','stale'])
+        self.queue.add_checkpoint('next','proof',expected_parent='head')
+        with closing(self.queue._connect()) as db:
+            for job,base,replayed in [('older','head','head'),('latest','next','next'),
+                                     ('unrelated','unaccepted','unaccepted'),('mismatched','next','head'),
+                                     ('stale','head','head')]:
+                result = {'status':'provisional-pass','evidence':{'reviewed_replay':{
+                    'kind':'independently-reviewed-draft','rebased_onto':replayed}}}
+                db.execute('UPDATE attempts SET base_commit=?,result=? WHERE id=?',
+                           (base,json.dumps(result),'attempt_'+job))
+            db.execute("UPDATE jobs SET status='needs-review' WHERE id='stale'")
+        self.assertEqual(driver.reviewed_replay_jobs(self.queue,'next',2),['latest','older'])
+        with self.assertRaisesRegex(ValueError,'checkpoint changed'):
+            driver.reviewed_replay_jobs(self.queue,'head',2)
+
     def test_union_opt_in_dispatches_only_the_current_attempt_recovery_group(self):
         self.prepare(['fresh', 'a', 'b', 'stale', 'other'])
         self.event('a', 'isolated'); self.event('b', 'isolated')
@@ -296,6 +312,21 @@ class DriverTests(unittest.TestCase):
         with patch.object(driver.dispatch, '_batch', side_effect=selected):
             driver.run_driver(self.run, self.runner)
         self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'mechanical-first')
+
+    def test_small_mechanical_lane_reserves_only_configured_reviewed_replay_slots(self):
+        config = r.read(self.run/'config.json')
+        config.update(mechanical_cohorts_first=True,fresh_union_trial=True,reviewed_replay_slots=1)
+        r.write(self.run/'config.json',config)
+        self.queue.value = progress(ready=6)
+        self.queue.ready = [{'id': name,'job': {'kind': kind}} for name,kind in
+                            [('a1','author'),('m1','mechanical'),('m2','mechanical'),
+                             ('a2','author'),('a3','author'),('reviewed','author')]]
+        with patch.object(driver,'reviewed_replay_jobs',return_value=['reviewed']) as reviewed, \
+                patch.object(driver.dispatch,'_batch',side_effect=RuntimeError('staging reached')) as batch, \
+                self.assertRaisesRegex(RuntimeError,'staging reached'):
+            driver.run_driver(self.run,self.runner)
+        reviewed.assert_called_once_with(self.queue,'parent',1)
+        batch.assert_called_once_with(self.run,['m1','m2','reviewed','a1'],combine_selected=True)
 
     def test_configured_mechanical_minimum_dispatches_before_general_batch_is_ready(self):
         config = r.read(self.run/'config.json')
