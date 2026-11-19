@@ -839,10 +839,13 @@ def _family_split_cases(evidence, archived, family, selected, deferred):
         failures = result['failures']
         failed = {failure['name'] for failure in failures}
         exact = {case['name'] for case in cases if case.get('exact') is True}
+        default = {case['name'] for case in cases if case.get('default') is True}
         localized = all(failure['why'].startswith(('unexpected refusal: NoParse {',
                                                   'unexpected refusal: Binding('))
                         or (failure['name'] in exact and failure['why'] in (
                             'a reading has no exact keyed print', 'a card reading has no exact keyed print'))
+                        or (failure['name'] in default and failure['why'] in (
+                            'a reading has no verified default print', 'a card reading has no verified default print'))
                         for failure in failures)
     except (ValueError, IndexError, KeyError, TypeError, AttributeError) as exc:
         raise ValueError('invalid archived family veto') from exc

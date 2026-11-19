@@ -104,7 +104,7 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         new = self.root/'new-evaluation'
         old.mkdir()
         new.mkdir()
-        positive = {'name':'A','text':'A.','expected':['meaning'],'exact':True}
+        positive = {'name':'A','text':'A.','expected':['meaning'],'exact':True,'default':True}
         refusal = {'name':'Refusal','text':'Incomplete.','reject':True}
         family = {'family':'archived','cases':[positive,refusal,{'name':'B','expected':['held'],'exact':True},
                                              {'name':'C','expected':['held']}, {'name':'D','expected':['held']}]}
@@ -157,9 +157,16 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
             self.q.split_reviewed_author('parent',self.attempt,'head',
                                          {**evidence,'family_gate':{**evidence['family_gate'],'path':str(outside)}})
         data['passed'] -= 1
-        data['failures'].append({'name':'A','why':'a card reading has no exact keyed print'})
+        data['failures'].append({'name':'A','why':'a card reading has no verified default print'})
+        positive['default'] = False
+        with self.assertRaisesRegex(ValueError,'does not isolate'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',gate_evidence())
+        positive['default'] = True
         evidence = gate_evidence()
         repaired([refusal])
+        with self.assertRaisesRegex(ValueError,'omitted an archived positive case or refusal'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        repaired([dict(positive, default=False),refusal])
         with self.assertRaisesRegex(ValueError,'omitted an archived positive case or refusal'):
             self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
         self.assertEqual(self.q.audit(), before)
