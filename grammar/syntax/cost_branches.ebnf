@@ -205,3 +205,8 @@ prevent_distributed_this_turn ::= "prevent" "the" "next" number "damage" "that" 
 
 /* @sem Ability::CostBranch{keyword:Kicker, cost:$kicker_branch_header, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$prevent_distributed_this_way}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$prevent_distributed_this_turn}]}})} */
 spell_kicker_distributed_override ::= kicker_branch_header NEWLINE prevent_distributed_this_turn "." "if" "this" "spell" "was" "kicked" "," prevent_distributed_this_way "instead" "."
+
+/* The bracketed filter applies only to the unpaid count. Both spells count
+   the same controlled population and preserve independent result scopes. */
+/* @sem Ability::CostBranch{keyword:Cleave, cost:$cost, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$controlled_singular_population})}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($controlled_singular_population, $modifier_with_keyword)})}}]}})} */
+spell_cleave_count_controlled ::= "cleave" cost NEWLINE "draw" "a" "card" "for" "each" controlled_singular_population "[" modifier_with_keyword "]" "."

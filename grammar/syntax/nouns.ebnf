@@ -287,7 +287,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
+target_object ::= target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -928,7 +928,7 @@ bound_less ::= "less"
 bound_greater ::= "greater"
 
 /* Players. */
-players_singular ::= players_coin_tails | players_empty_hand | players_unqualified_singular | players_voted_same | players_voted_different | players_chosen_extreme_life
+players_singular ::= players_coin_tails | players_empty_hand | players_unqualified_singular | players_voted_same | players_voted_different | players_chosen_extreme_life | players_tapped_for_mana_this_turn
 
 /* A Curse's player: the player this Aura enchants. */
 /* @sem PlayerSet::One(PlayerRef::EnchantedBy(ObjectRef::Source)) */
@@ -2567,3 +2567,15 @@ private_spell_population ::= filter_phrase "spell" "from" "your" "hand" "or" "gr
 /* A disjunction of five plural populations joined by the Oracle and/or form. */
 /* @sem ObjectFilter::AnyOf([$filter_plural, $filter_plural_2, $filter_plural_3, $filter_phrase, $filter_plural_4]) */
 plural_five_and_or ::= filter_plural "," filter_plural "," filter_plural "," filter_phrase "," "and" "/" "or" filter_plural
+
+/* One target must match either kind and be controlled by the ability controller. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([$noun, $noun_2]), ControlledBy(One(AbilityController))])}), index:0} */
+target_controlled_kind_union ::= "target" noun "or" noun "you" "control"
+
+/* Players are selected by their own mana-tap history, independently of the action they perform. */
+/* @sem PlayerSet::Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:TapsForMana, players:One(Bound(0)), objects:$filter_phrase}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_amount}}} */
+players_tapped_for_mana_this_turn ::= "each" "player" "who" "tapped" counter_amount filter_phrase "for" "mana" "this" "turn"
+
+/* A counted battlefield population retains its noun and controller together. */
+/* @sem ObjectFilter::@and($noun, $modifier_you_control) */
+controlled_singular_population ::= noun modifier_you_control

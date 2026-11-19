@@ -267,7 +267,7 @@ clause_delayed_combat_then ::= may_body "at" "end" "of" "combat" postfix_join co
 /* @sem () */
 postfix_join ::= "," "then"
 
-condition_consequent ::= may_body | clause_you | clause_you_life | clause_third | clause_they | clause_may
+condition_consequent ::= clause_operation | may_body | clause_you | clause_you_life | clause_third | clause_they | clause_may
 
 /* A then-condition owns its conjunction or a closed dependent instruction,
    never an arbitrary program extending across independent later sentences. */
@@ -2152,3 +2152,42 @@ replacement_optional_skip_step_followup ::= "you" "may" "skip" "that" "step" "in
 
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_begin_your_draw_step, body:$replacement_optional_skip_step_followup} */
 replacement_step_skip_followup ::= "if" replacement_begin_your_draw_step "," replacement_optional_skip_step_followup "."
+
+/* The target owns the observed hand and the selected card; the library
+   destination is parameterized independently of the card filter. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One($hand_library_owner)}, kind:Card, filter:Any}}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:@and($hand_pick_source, ObjectFilter::OwnedBy(One($hand_library_owner)))}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:One(Result{result:@marked, phase:After, index:0}), destination:$hand_selected_library, qualifiers:[]}}] */
+instructions_look_hand_choose_library ::= "look" "at" hand_library_owner "hand" "and" "choose" hand_pick_source "." hand_selected_library
+
+hand_selected_library ::= hand_selected_library_top | hand_selected_library_bottom
+
+/* @sem MovementDestination::Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+hand_selected_library_top ::= "put" "that" "card" "on" "top" "of" "that" "player's" "library"
+
+/* @sem MovementDestination::Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+hand_selected_library_bottom ::= "put" "that" "card" "on" "the" "bottom" "of" "that" "player's" "library"
+
+hand_library_owner ::= target_possessive | hand_library_other_player
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OthersThan(AbilityController)}), index:0} */
+hand_library_other_player ::= "target" "other" "player's"
+
+/* The choice is restricted to creature cards, so the following characteristic
+   phrase and discard both refer to the same single chosen-card receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One($hand_player)}, kind:Card, filter:Any}}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(2)), zone:Hand}, filter:@and(ObjectFilter::AllOf([AnyOf([$adjective_color, $adjective_color_2]), CardType(Creature)]), ObjectFilter::OwnedBy(One($hand_player)))}, count:AsManyAsCan(Constant(1))}}] */
+hand_reveal_choose_two_color_creature ::= hand_player "reveals" "their" "hand" "." "you" "choose" "a" adjective_color "or" adjective_color "creature" "card" "from" "it"
+
+/* @sem Instruction::[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:$creature_card_stat, information:CurrentOrLastKnown}}}, Effect{result:@next, operation:$hand_subset_discard_single}] */
+chosen_creature_life_then_discard ::= "you" "gain" "life" "equal" "to" "that" "creature" "card's" creature_card_stat "," "then" hand_subset_discard_single
+
+creature_card_stat ::= stat_power | stat_toughness
+
+/* @sem Instruction::[...$hand_reveal_choose_two_color_creature, ...$chosen_creature_life_then_discard] */
+instructions_hand_creature_life_discard ::= hand_reveal_choose_two_color_creature "." chosen_creature_life_then_discard
+
+/* The chosen card goes into its owner's shuffled library. */
+/* @sem Operation::Move{objects:One(Result{result:@marked, phase:After, index:0}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
+hand_shuffle_chosen_owner ::= "that" "player" "shuffles" "that" "card" "into" "their" "library"
+
+/* The revealed hand owner shuffles the single card chosen from that hand. */
+/* @sem Instruction::[...$instructions_hand_choice, Effect{result:@next, operation:$hand_shuffle_chosen_owner}] */
+instructions_hand_pick_shuffle ::= instructions_hand_choice "." hand_shuffle_chosen_owner

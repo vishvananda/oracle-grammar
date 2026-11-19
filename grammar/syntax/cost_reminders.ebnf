@@ -1,10 +1,10 @@
 /* Payment spelling and reminder text do not add game actions or targets. */
-keyword_cost_parts ::= keyword_mana_parts | keyword_word_parts | keyword_choice_parts
+keyword_cost_parts ::= keyword_mana_parts | keyword_word_parts | keyword_choice_parts | keyword_reduced_mana_parts
 /* @sem CostPart::[Mana($mana_symbols)] */
 keyword_mana_parts ::= mana_symbols
 /* @sem $keyword_word_cost_parts */
 keyword_word_parts ::= ("―" | "—") keyword_word_cost_parts "."
-keyword_word_cost_parts ::= keyword_word_cost_one | keyword_word_cost_more | keyword_mixed_cost
+keyword_word_cost_parts ::= keyword_word_cost_one | keyword_word_cost_more | keyword_mixed_cost | keyword_mana_life_parts
 /* @sem CostPart::[$keyword_word_cost] */
 keyword_word_cost_one ::= keyword_word_cost
 /* @sem CostPart::[$keyword_word_cost, ...$cost_parts_later] */
@@ -72,7 +72,7 @@ keyword_after_mana_one ::= "↑" keyword_word_cost
 keyword_after_mana_more ::= "↑" keyword_word_cost "," cost_parts_later
 
 /* Worded keyword costs exclude bare mana shorthand; leaves own their meanings. */
-keyword_word_cost ::= cost_words_owned | keyword_word_cost_capital | keyword_nonmana_mined_cost
+keyword_word_cost ::= cost_words_owned | keyword_word_cost_capital | keyword_nonmana_mined_cost | keyword_draw_cost
 
 /* Capital spelling changes the price token, never its payer or meaning. */
 /* @sem $cost_words_owned */
@@ -101,3 +101,13 @@ equip_target_color_reduction ::= "this" "ability" "costs" "{" "1" "}" "less" "to
 /* A choice retains each complete payment as its own cost. */
 /* @sem CostPart::[Choice([$cost, $cost_2])] */
 keyword_choice_parts ::= cost "or" cost
+
+/* These parts are shared by mechanics with worded payments. */
+/* @sem CostPart::Draw{count:$card_count} */
+keyword_draw_cost ::= "draw" card_count
+
+/* @sem CostPart::[Mana($mana_symbols), Life($value)] */
+keyword_mana_life_parts ::= "pay" mana_symbols "and" value "life"
+
+/* @sem CostPart::[ManaReducedForEach{mana:$mana_symbols, reduction:$generic_reduction_symbols, per:$count_each}] */
+keyword_reduced_mana_parts ::= mana_symbols "." "this" "cost" "is" "reduced" "by" generic_reduction_symbols "for" "each" count_each "."

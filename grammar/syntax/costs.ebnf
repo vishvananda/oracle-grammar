@@ -1,7 +1,7 @@
 /* Costs and mana symbols. */
 cost ::= cost_standard | cost_pay_mana_or_words
 
-cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified
+cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self
 
 /* "Remove three quest counters from this enchantment and sacrifice it": "it" is the
    source the counters come off. */
@@ -70,7 +70,7 @@ cost_reveal_self_hand ::= "reveal" self_explicit_ref "from" "your" "hand"
 cost_exile_self ::= "exile" self_text
 
 /* An ability paid by moving this card out of a zone works only from that zone. */
-activated_from_zone ::= activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited | activated_exile_self_limited
+activated_from_zone ::= activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited | activated_exile_self_limited | activated_discard_self_limited | activated_discard_self_after_limited
 
 /* Returning this card explicitly from the graveyard scopes the whole
    activation there, including any preceding action and its announced targets. */
@@ -584,7 +584,7 @@ cost_unattach_named_source ::= "unattach" self_ref_named
 /* @sem CostPart::Constrained{part:$cost_constraint_payment, constraints:[$cost_selection_constraint]} */
 cost_constrained_selection ::= cost_constraint_payment cost_selection_constraint
 
-cost_constraint_payment ::= cost_discard_many | cost_discard_filtered_many | cost_reveal_hand_many | cost_tap_population | cost_sacrifice_many | cost_sacrifice_any_population | cost_tap_any_other_controlled | cost_exile_battlefield_at_least
+cost_constraint_payment ::= cost_discard_many | cost_discard_filtered_many | cost_reveal_hand_many | cost_tap_population | cost_sacrifice_many | cost_sacrifice_any_population | cost_tap_any_other_controlled | cost_exile_battlefield_at_least | cost_exile_graveyard_selection
 
 /* @sem CostPart::Reveal{count:Exactly($card_count), filter:Any} */
 cost_reveal_hand_many ::= "reveal" card_count "from" "your" "hand"
@@ -592,7 +592,7 @@ cost_reveal_hand_many ::= "reveal" card_count "from" "your" "hand"
 /* @sem CostPart::ChangeTapState{selections:[_{objects:$affected, choose:Exactly($value)}], tapped:true} */
 cost_tap_population ::= "tap" value affected
 
-cost_selection_constraint ::= cost_constraint_different_names | cost_constraint_same_name | cost_constraint_shared_color | cost_constraint_shared_creature_type | cost_constraint_total_power | cost_constraint_total_mana_value
+cost_selection_constraint ::= cost_constraint_different_names | cost_constraint_same_name | cost_constraint_shared_color | cost_constraint_shared_creature_type | cost_constraint_total_power | cost_constraint_total_mana_value | cost_constraint_distinct_card_types
 
 /* @sem SelectionConstraint::DifferentNames */
 cost_constraint_different_names ::= "with" "different" "names"
@@ -646,7 +646,7 @@ cost_owner_hand_destination ::= "to" "its" "owner's" "hand"
 /* @sem CostPart::Move{selections:[$graveyard_exile_selection], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
 cost_exile_graveyard_selection ::= "exile" graveyard_exile_selection
 
-graveyard_exile_selection ::= graveyard_exile_at_least | graveyard_exile_other
+graveyard_exile_selection ::= graveyard_exile_at_least | graveyard_exile_other | graveyard_exile_any_other
 /* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, choose:AtLeast($value)} */
 graveyard_exile_at_least ::= value "or" "more" filter_phrase "cards" "from" "your" "graveyard"
 /* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Not(SameObject(Source))}, choose:Exactly($value)} */
@@ -1383,3 +1383,35 @@ limited_free_top_one ::= "the" "top"
 
 /* @sem Expr::Constant(2) */
 limited_free_top_two ::= "the" "top" "two" "cards"
+
+/* The threshold counts card types among the cards selected for the payment. */
+/* @sem SelectionConstraint::DistinctCount{property:CardTypes, comparison:GreaterOrEqual, amount:$value} */
+cost_constraint_distinct_card_types ::= "with" value "or" "more" "card" "types" "among" "them"
+
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Not(SameObject(Source))}, choose:AnyNumber} */
+graveyard_exile_any_other ::= "any" "number" "of" "other" "cards" "from" "your" "graveyard"
+
+/* The history threshold and sorcery timing both restrict this activation. */
+/* @sem ActivationLimits::ActivationLimits{sorcery:true, condition:$controlled_color_noncombat_history} */
+limit_controlled_color_damage_sorcery ::= "activate" "only" "if" controlled_color_noncombat_history "and" "only" "as" "a" "sorcery"
+
+/* @sem Condition::Compare{left:EventHistory{event:Damage(_{source_kind:Any, sources:AllOf([$adjective_color, ControlledBy(One(AbilityController))]), recipients:Any, kind:Noncombat, grouping:SourceRecipient, subject:Source}), window:ThisTurn, measure:TotalAmount}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+controlled_color_noncombat_history ::= adjective_color "sources" "you" "controlled" "dealt" value "or" "more" "noncombat" "damage" "this" "turn"
+
+/* The alternative payment is measured against the spell being cast. */
+/* @sem CostPart::LifeEqualToOwnManaValue */
+cast_life_mana_value_cost ::= "paying" "life" "equal" "to" "its" "mana" "value" "rather" "than" "paying" "its" "mana" "cost"
+
+/* @sem CostPart::LifeEqualToOwnManaValue */
+cast_life_mana_values_cost ::= "paying" "life" "equal" "to" "their" "mana" "values" "rather" "than" "paying" "their" "mana" "costs"
+
+/* The final payment can instead sacrifice the ability holder. */
+/* @sem CostPart::[$cost_sacrifice_item, $cost_sacrifice_item_2, CostPart::Sacrifice{objects:One($self_explicit_ref)}] */
+cost_sacrifice_two_and_self ::= "sacrifice" cost_sacrifice_item "," cost_sacrifice_item "," "and" self_explicit_ref
+
+/* The self-discard payment scopes the activation to hand, including its limit. */
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:$activation_limits, announcement:@announcement, body:$program_sentence})} */
+activated_discard_self_limited ::= "discard" self_text ":" program_sentence activation_limits "."
+
+/* @sem Ability::Scoped{zones:[Hand], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[...$cost_parts, CostPart::Discard{count:Expr::Constant(1), filter:SameObject(ObjectRef::Source)}]}, limits:$activation_limits, announcement:@announcement, body:$program_sentence})} */
+activated_discard_self_after_limited ::= cost_parts "," "↑" "discard" self_text ":" program_sentence activation_limits "."
