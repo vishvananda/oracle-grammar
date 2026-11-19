@@ -89,12 +89,24 @@ class DispatchCanaries(unittest.TestCase):
     def test_other_mechanical_failure_shapes_keep_their_disposition(self):
         job = {'kind': 'mechanical', 'rules': ['m_one']}
         exact = {'face': 'Affected', 'lost': ['exact_default']}
-        self.assertTrue(dispatch._repairable_mechanical_print(job, {'passed': False, 'failures': [exact]}))
+        self.assertTrue(dispatch._repairable_mechanical_failure(job, {'passed': False, 'failures': [exact]}))
         for failures in ([{'face': 'Affected', 'gate': 'parse/reading-count/text'}],
                          [exact, {'face': 'Another', 'lost': ['default']}], [exact]*17):
-            self.assertFalse(dispatch._repairable_mechanical_print(job, {'passed': False, 'failures': failures}))
-        self.assertFalse(dispatch._repairable_mechanical_print({**job, 'mechanical_chunks': [0]},
-                                                               {'passed': False, 'failures': [exact]}))
+            self.assertFalse(dispatch._repairable_mechanical_failure(job, {'passed': False, 'failures': failures}))
+        self.assertFalse(dispatch._repairable_mechanical_failure({**job, 'mechanical_chunks': [0]},
+                                                                 {'passed': False, 'failures': [exact]}))
+
+    def test_mechanical_native_rejection_routes_to_independent_verification(self):
+        job = {'kind': 'mechanical', 'rules': ['m_one']}
+        with tempfile.TemporaryDirectory() as directory:
+            commands = Path(directory)/'commands.jsonl'
+            report = {'passed': False, 'directory': directory, 'failures': ['native command failed']}
+            records = [{'program': 'score', 'returncode': 0}, {'program': 'validate-readings', 'returncode': 1}]
+            r.jsonl(commands, records)
+            self.assertTrue(dispatch._repairable_mechanical_failure(job, report))
+            records[-1]['returncode'] = 2
+            r.jsonl(commands, records)
+            self.assertFalse(dispatch._repairable_mechanical_failure(job, report))
 
     def test_reviewed_hooks_preserve_the_raw_root_and_reproduce_the_evaluated_tree(self):
         with tempfile.TemporaryDirectory() as temporary:

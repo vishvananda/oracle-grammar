@@ -261,17 +261,30 @@ def _automatic_evaluation(command, log_path, evaluations, fd, record_start, *, c
     return paths, report
 
 
-def _repairable_mechanical_print(job, report):
+def _repairable_mechanical_failure(job, report):
     failures = report.get('failures')
-    return (job['kind'] == 'mechanical' and len(job['rules']) == 1
-            and 'mechanical_chunks' not in job and report.get('passed') is False
-            and isinstance(failures, list) and 1 <= len(failures) <= 16
-            and all(isinstance(row, dict) and set(row) == {'face', 'lost'}
-                    and isinstance(row['face'], str) and row['face']
-                    and row['lost'] in (['exact'], ['exact_default']) for row in failures))
+    if (job['kind'] != 'mechanical' or len(job['rules']) != 1
+            or 'mechanical_chunks' in job or report.get('passed') is not False
+            or not isinstance(failures, list) or not 1 <= len(failures) <= 16):
+        return False
+    if all(isinstance(row, dict) and set(row) == {'face', 'lost'}
+           and isinstance(row['face'], str) and row['face']
+           and row['lost'] in (['exact'], ['exact_default']) for row in failures):
+        return True
+    # The queue verifier recomputes the named reading losses before assigning work.
+    if len(failures) != 1 or not isinstance(failures[0], str):
+        return False
+    try:
+        path = Path(report['directory'])/'commands.jsonl'
+        if not path.is_absolute() or path.is_symlink() or path.stat().st_size > 1024*1024:
+            return False
+        commands = [(row.get('program'), row.get('returncode')) for row in r.rows(path)]
+        return commands == [('score', 0), ('validate-readings', 1)]
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return False
 
 
-def _escalate_mechanical_print(queue, checkpoint, job, attempt, report):
+def _escalate_mechanical_failure(queue, checkpoint, job, attempt, report):
     """Schedule authoring once the mechanical worker has released its lease."""
     try:
         evidence = retire_rehabilitation.mechanical_print_escalation(Path(checkpoint['inputs']), report)
@@ -300,7 +313,7 @@ def perform(run, claim, contexts, runner=None):
     usage_collected=False
     replay=None
     rebase_veto=None
-    mechanical_print_failure=None
+    mechanical_failure=None
     with lease(run/'leases'/job['id']) as fd:
         try:
             data,scan,inverted = contexts.get(cp)
@@ -385,8 +398,8 @@ def perform(run, claim, contexts, runner=None):
             r.write(evidence,result)
             queue.finish(attempt,'provisional-pass' if passed else 'needs-review',
                          {'receipt':str(evidence),**result},outcome)
-            if _repairable_mechanical_print(job, report):
-                mechanical_print_failure = paths[0]
+            if _repairable_mechanical_failure(job, report):
+                mechanical_failure = paths[0]
         except Exception as error:
             result={'attempt':attempt,'job':job['id'],'kind':job['kind'],
                     'status':'operational-failure','error':str(error),
@@ -410,8 +423,8 @@ def perform(run, claim, contexts, runner=None):
                 r.write(working/'archive.json',archive)
             except Exception as error:
                 r.write(working/'archive.json',{'status':'retained','reason':str(error)})
-    if mechanical_print_failure is not None:
-        decision = _escalate_mechanical_print(queue, cp, job['id'], attempt, mechanical_print_failure)
+    if mechanical_failure is not None:
+        decision = _escalate_mechanical_failure(queue, cp, job['id'], attempt, mechanical_failure)
         r.write(working/'mechanical-escalation.json', decision)
     return job['id']
 
