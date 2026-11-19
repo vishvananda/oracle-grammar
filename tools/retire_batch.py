@@ -780,6 +780,120 @@ def _merge_trial_proposal(trial, scratch, proposal, mechanical, input_cache):
     a.apply_hooks(trial/'grammar', hooks)
 
 
+def _probe_lines(binary, grammar, name, text, fds, *, compositional=False, types=()):
+    env = {k:v for k,v in os.environ.items() if not k.startswith(('ORACLE_GRAMMAR_', 'PROBE_'))}
+    env['ORACLE_GRAMMAR_DIR'] = str(grammar)
+    env['PROBE_TYPES'] = ' '.join(types)
+    command = [str(binary), name, text]
+    if compositional:
+        command.append('--without=m_,t_')
+    with tempfile.TemporaryFile() as output:
+        subprocess.run(command, env=env, stdout=output, stderr=subprocess.DEVNULL,
+                       check=True, timeout=24, pass_fds=fds)
+        output.seek(0)
+        result = output.read(1024*1024+1)
+    r.require(len(result) <= 1024*1024, 'parse trace exceeds the hint budget')
+    return result.splitlines()
+
+
+def _route_keys(line):
+    return set(json.loads(line.removeprefix(b'  rules ')))
+
+
+def _route_names(keys):
+    return {key.split('.',1)[0].split('#',1)[0] for key in keys}
+
+
+def _probe_rules(binary, grammar, name, text, fds):
+    traces = [_route_names(_route_keys(line)) for line in _probe_lines(binary,grammar,name,text,fds)
+              if line.startswith(b'  rules ')]
+    return set().union(*traces)
+
+
+def _new_productions(run, directory, wanted):
+    found = set()
+    for path in (directory/'grammar/syntax').glob('*.ebnf'):
+        if path.name == 'mined.ebnf':
+            continue
+        source = path.read_text()
+        if not any(name+' ::=' in source for name in wanted):
+            continue
+        base = run/'inputs/frozen/grammar/syntax'/path.name
+        previous = mined.definitions(base.read_text().splitlines()) if base.exists() else {}
+        found.update((wanted & mined.definitions(source.splitlines()).keys()) - previous.keys())
+    return found
+
+
+def _trace_binary(checkpoint, run):
+    binary = Path(checkpoint['helpers'])/'probe'
+    expected = r.read(run/'frozen/build.json')['binaries']['probe']
+    r.require(binary.is_absolute() and binary.is_file() and not binary.is_symlink()
+              and binary.stat().st_size <= 1024*1024*1024 and r.digest(binary) == expected,
+              'probe differs from the frozen helper')
+    return binary, expected
+
+
+def _traced_meanings(lines):
+    meanings = []
+    for line in lines:
+        if line.startswith(b'[{'):
+            meanings.append((json.loads(line),set()))
+        elif line.startswith(b'  rules ') and meanings:
+            meanings[-1][1].update(_route_keys(line))
+    return meanings
+
+
+def _added_family_routes(binary, grammars, fixture, failure, fds):
+    counts = re.fullmatch(r'expected Some\((\d{1,2})\) readings, got (\d{1,2})', failure['why'])
+    if counts is None:
+        return set()
+    expected, observed = map(int, counts.groups())
+    if not 1 <= expected < observed <= 16:
+        return set()
+    cases = [case for case in r.read(fixture)['cases'] if case.get('name') == failure['name']
+             and 'context' not in case and case.get('compositional', True)
+             and isinstance(case.get('text'), str) and 0 < len(case['text']) <= 4096]
+    if len(cases) != 1:
+        return set()
+    case, = cases
+    before, after = [_traced_meanings(_probe_lines(binary, grammar, case['name'], case['text'], fds,
+                                                  compositional=True, types=case.get('types', [])))
+                     for grammar in grammars]
+    old, new = ([meaning for meaning, _ in traces] for traces in (before, after))
+    if len(old) != expected or len(new) != observed or any(meaning not in new for meaning in old):
+        return set()
+    additions = set().union(*(routes for meaning, routes in after if meaning not in old))
+    return _route_names(additions - set().union(*(routes for _, routes in before)))
+
+
+def _retained_family_hints(checkpoint, source, grammar, drafts, evidence):
+    """Rank hints from an actual failed trial. Exact singleton checks establish causality."""
+    witnesses = evidence.get('fixtures', [evidence])
+    if not 1 <= sum(len(item['failures']) for item in witnesses) <= RETAINED_FAMILY_PROBE_LIMIT:
+        return []
+    try:
+        binary, expected = _trace_binary(checkpoint, Path(checkpoint['inputs']))
+        hints = set()
+        with retire_cpu.reserve(Path(checkpoint['cpu_pool']), 1, checkpoint['cpu_capacity'],
+                                wait=False, background=True) as fds:
+            for item in witnesses:
+                fixture = source/item['fixture']
+                if r.digest(fixture) != item['sha256']:
+                    return []
+                for failure in item['failures']:
+                    try:
+                        wanted = _added_family_routes(binary, (source/'grammar', grammar), fixture, failure, fds)
+                    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+                        continue
+                    matches = [index for index, run, directory in drafts
+                               if wanted and _new_productions(run, directory, wanted)]
+                    if len(matches) == 1:
+                        hints.update(matches)
+        return sorted(hints) if r.digest(binary) == expected else []
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
+
+
 def _retained_family_failure(failed_indices, proof, source, logs):
     checks = proof.get('family_checks', [])
     if not 1 <= len(failed_indices) <= RETAINED_FAMILY_PROBE_LIMIT:
@@ -838,7 +952,7 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
         with tempfile.TemporaryDirectory(dir=folder) as temporary:
             trial = Path(temporary)
             shutil.copytree(source/'grammar', trial/'grammar')
-            additions, prepared = [], []
+            additions, prepared, trace_drafts = [], [], []
             for offset, ((index, proposal), item) in enumerate(zip(entries, items, strict=True)):
                 run, task, directory, hooks = _proposal(proposal, input_cache=input_cache)
                 mechanical = proposal.get('kind', 'author') == 'mechanical'
@@ -873,6 +987,8 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                     r.write(temporary_family, family)
                     additions.append((temporary_family, fixture))
                 prepared.append((task, fixture, item, metadata))
+                if not mechanical:
+                    trace_drafts.append((index, run, directory))
             if merge_conflicts:
                 if not input_cache.unchanged():
                     raise _UncertainPromotion('proposal inputs changed during merge diagnosis')
@@ -910,12 +1026,20 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
             if fixtures:
                 try:
                     _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
-                except _FamilyCheckFailure:
+                except _FamilyCheckFailure as error:
                     if (not input_cache.unchanged() or r.tree(trial/'grammar') != proof['trial_grammar']
                             or any(r.digest(path) != record['sha256']
                                    for (path, _), record in zip(additions, proof['new_fixtures'], strict=True))):
                         raise _UncertainPromotion('failed family trial inputs changed during verification')
                     proof['verified_family_snapshot'] = True
+                    if error.failed_fixtures:
+                        witness = _retained_family_failure(error.failed_fixtures, proof, source, logs)
+                        if witness is not None:
+                            proof['retained_family_failure'] = witness
+                            if len(entries) > 1:
+                                hints = _retained_family_hints(checkpoint, source, trial/'grammar', trace_drafts, witness)
+                                if hints:
+                                    proof['retained_family_hints'] = hints
                     raise
             if control is not None:
                 _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs)
@@ -962,10 +1086,6 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                 proof['new_families_failed_at'] = [
                     index for (index, _), (_, fixture, _, _) in zip(entries, prepared, strict=True)
                     if fixture and str(fixture) in failed]
-            else:
-                evidence = _retained_family_failure(error.failed_fixtures, proof, source, logs)
-                if evidence is not None:
-                    proof['retained_family_failure'] = evidence
         elif isinstance(error, _FamilyCheckFailure) and len(entries) > 1:
             conflict = _rule_reference_conflict(source, entries, logs/'family.log')
             if conflict is not None:
@@ -1065,7 +1185,7 @@ def _locate_retained_culprit(entries, probe):
     return entries[0][0]
 
 
-def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, limit=1, stop_after=None):
+def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, limit=1, stop_after=None, hints=()):
     """Find independent regressions before the fully gated retry."""
     folder.mkdir()
     results = {}
@@ -1079,6 +1199,16 @@ def _isolate_retained(entries, test, folder, input_cache, *, verify_full=False, 
 
     if probe([]) != 'passed' or (verify_full and probe(entries) != 'reproduced'):
         return []
+    if hints:
+        confirmed = []
+        for entry in entries:
+            index, _ = entry
+            if index in hints and probe([entry]) == 'reproduced':
+                confirmed.append(index)
+                if len(confirmed) >= limit:
+                    break
+        if confirmed:
+            return confirmed
     culprits = []
     while entries:
         culprit = _locate_retained_culprit(entries, probe)
@@ -1114,9 +1244,11 @@ def _isolate_retained_family(context, entries, failure, folder, *, limit, initia
     # A hash-checked staging failure already ran this exact union and these
     # retained fixtures. Still require the accepted base, singleton witnesses,
     # and a fresh full staging trial for the remaining union.
-    verify_full = multiple and not _matches_verified_family_trial(context, entries, failure, initial_trial)
+    verified = _matches_verified_family_trial(context, entries, failure, initial_trial)
+    hints = initial_trial.get('retained_family_hints', ()) if verified else ()
+    verify_full = multiple and not verified
     return _isolate_retained(entries, test, folder, inputs, verify_full=verify_full,
-                             limit=limit if multiple else 1)
+                             limit=limit if multiple else 1, hints=hints)
 
 
 def _retained_native_failure(control, report):

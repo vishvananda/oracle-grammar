@@ -3,7 +3,6 @@
 import argparse
 from contextlib import closing
 import json
-import os
 from pathlib import Path
 import re
 import shutil
@@ -15,6 +14,8 @@ import mined
 import retire as r
 import retire_author as author
 import retire_batch as batch
+from retire_batch import (_new_productions, _probe_lines, _probe_rules, _route_names,
+                          _trace_binary, _traced_meanings)
 import retire_cpu as cpu
 import retire_merge as merge
 import retire_native_outcome as native
@@ -194,55 +195,6 @@ def _controls(roots):
             for label, root in roots.items()}
 
 
-def _probe_lines(binary, grammar, name, text, fds):
-    env = {k:v for k,v in os.environ.items() if not k.startswith(('ORACLE_GRAMMAR_', 'PROBE_'))}
-    env['ORACLE_GRAMMAR_DIR'] = str(grammar)
-    with tempfile.TemporaryFile() as output:
-        subprocess.run([str(binary), name, text], env=env, stdout=output, stderr=subprocess.DEVNULL,
-                       check=True, timeout=24, pass_fds=fds)
-        output.seek(0)
-        result = output.read(1024*1024+1)
-    r.require(len(result) <= 1024*1024, 'parse trace exceeds the hint budget')
-    return result.splitlines()
-
-
-def _route_keys(line):
-    return set(json.loads(line.removeprefix(b'  rules ')))
-
-
-def _route_names(keys):
-    return {key.split('.',1)[0].split('#',1)[0] for key in keys}
-
-
-def _probe_rules(binary, grammar, name, text, fds):
-    traces = [_route_names(_route_keys(line)) for line in _probe_lines(binary,grammar,name,text,fds)
-              if line.startswith(b'  rules ')]
-    return set().union(*traces)
-
-
-def _new_productions(run, directory, wanted):
-    found = set()
-    for path in (directory/'grammar/syntax').glob('*.ebnf'):
-        if path.name == 'mined.ebnf':
-            continue
-        source = path.read_text()
-        if not any(name+' ::=' in source for name in wanted):
-            continue
-        base = run/'inputs/frozen/grammar/syntax'/path.name
-        previous = mined.definitions(base.read_text().splitlines()) if base.exists() else {}
-        found.update((wanted & mined.definitions(source.splitlines()).keys()) - previous.keys())
-    return found
-
-
-def _trace_binary(checkpoint, run):
-    binary = Path(checkpoint['helpers'])/'probe'
-    expected = r.read(run/'frozen/build.json')['binaries']['probe']
-    r.require(binary.is_absolute() and binary.is_file() and not binary.is_symlink()
-              and binary.stat().st_size <= 1024*1024*1024 and r.digest(binary) == expected,
-              'probe differs from the frozen helper')
-    return binary, expected
-
-
 def _print_face_hints(checkpoint, binary, grammar, row, proposals, eligible, fds):
     original, printed = row.get('text'), row.get('first')
     if (row.get('readings') != 1 or 'matching_readings' in row
@@ -288,12 +240,7 @@ def _print_hints(checkpoint, run, full, proposals, eligible, failures):
 
 
 def _trace_delta(lines, row, delta):
-    meanings = []
-    for line in lines:
-        if line.startswith(b'[{'):
-            meanings.append((json.loads(line),set()))
-        elif line.startswith(b'  rules ') and meanings:
-            meanings[-1][1].update(_route_keys(line))
+    meanings = _traced_meanings(lines)
 
     def rules(indices, *, require_route):
         readings = row['all']

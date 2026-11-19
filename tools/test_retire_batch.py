@@ -120,6 +120,12 @@ class BatchTests(unittest.TestCase):
                 self.assertNotIn(list(range(4)),recorded)
                 self.assertEqual(len(recorded),9)
                 self.assertTrue(all([index] in recorded for index in result))
+                initial['retained_family_hints'] = [1,2,3]
+                self.assertEqual(batch._isolate_retained_family(
+                    context,entries,witnesses,root/'hinted',limit=3,initial_trial=initial),[2,3])
+                self.assertEqual([batch.r.read(path)['proposal_indices']
+                                  for path in sorted((root/'hinted').glob('*/probe.json'))],
+                                 [[],[1],[2],[3]])
                 initial['attempts'][0] = 'different-attempt'
                 self.assertEqual(batch._isolate_retained_family(
                     context,entries,witnesses,root/'fresh',limit=3,initial_trial=initial),result)
@@ -127,6 +133,17 @@ class BatchTests(unittest.TestCase):
                                             for path in (root/'fresh').glob('*/probe.json')])
             checks[1]['kind'] = 'new-proposal'
             self.assertIsNone(batch._retained_family_failure((0,1),{'family_checks':checks},source,report_dir))
+
+    def test_family_trace_candidates_keep_only_routes_new_to_added_readings(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fixture = Path(temporary)/'family.json'
+            batch.r.write(fixture, {'cases':[{'name':'A','text':'Whenever something happens.'}]})
+            previous = [b'[{"read":1}]',b'  rules ["retained.0"]']
+            observed = previous+[b'[{"read":2}]',b'  rules ["retained.0","added.2"]']
+            with patch.object(batch,'_probe_lines',side_effect=[previous,observed]):
+                routes = batch._added_family_routes(Path('probe'), ('baseline','candidate'), fixture,
+                    {'name':'A','why':'expected Some(1) readings, got 2'}, ())
+            self.assertEqual(routes,{'added'})
 
     def test_edited_family_gold_is_independently_reconstructed(self):
         with tempfile.TemporaryDirectory() as temporary:
