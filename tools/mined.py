@@ -46,8 +46,12 @@ def code(lines):
 
 def definitions(lines):
     """Each definition's (index, line) pairs outside comments, by owner."""
+    return _definitions(code(lines))
+
+
+def _definitions(records):
     found = {}
-    for index, line, owner, _ in code(lines):
+    for index, line, owner, _ in records:
         if owner is not None:
             found.setdefault(owner, []).append((index, line))
     return found
@@ -81,19 +85,20 @@ def fallback(rule):
 
 def uses(line):
     """Seeded names a line uses outside quoted words and comments."""
+    if 'm_' not in line and 't_' not in line:
+        return []
     return SEEDED.findall(QUOTED.sub('', re.sub(r'/\*.*?\*/', '', line)))
 
 
-def keep_used(texts, removing):
+def _keep_used(modules, removing):
     """Move out of `removing` each rule a kept rule cannot lose; map it to that user."""
     kept, changed = {}, True
     while changed:
         changed = False
-        for lines in texts.values():
-            for owner, entries in definitions(lines).items():
+        for rules in modules:
+            for owner, (entries, names) in rules.items():
                 if owner in removing:
                     continue
-                names = alternatives(entries)
                 if names is not None and (fallback(owner) or set().union(*names) - removing):
                     continue
                 for _, line in entries:
@@ -117,14 +122,13 @@ def rewritten(owner, entries, names, removing):
     return '\n'.join(text)
 
 
-def rewrite(lines, removing):
+def _rewrite(lines, records, rules, removing):
     """Drop removed definitions and their comments; a gap they leave keeps one blank line."""
     drop, replace = set(), {}
-    for index, _, owner, comment in code(lines):
+    for index, _, owner, comment in records:
         if owner in removing:
             drop.update([*comment, index])
-    for owner, entries in definitions(lines).items():
-        names = alternatives(entries)
+    for owner, (entries, names) in rules.items():
         if owner in removing or names is None or not removing & set().union(*names):
             continue
         replace[entries[0][0]] = rewritten(owner, entries, names, removing)
@@ -144,10 +148,14 @@ def rewrite(lines, removing):
 
 def remove(root, names):
     """Remove seeded `names`; return (removed, kept) where kept maps a rule to its user."""
-    texts = {path: path.read_text().split('\n') for path in grammar_files(root)}
+    modules = {}
     defined = set()
-    for lines in texts.values():
-        for _, line, owner, _ in code(lines):
+    for path in grammar_files(root):
+        lines = path.read_text().split('\n')
+        records = list(code(lines))
+        rules = {owner: (entries, alternatives(entries)) for owner, entries in _definitions(records).items()}
+        modules[path] = lines, records, rules
+        for _, line, owner, _ in records:
             if DEFINITION.match(line):
                 if owner in defined and SEEDED.fullmatch(owner):
                     raise ValueError(f'{owner} is defined twice')
@@ -156,15 +164,14 @@ def remove(root, names):
     if unknown:
         raise ValueError('not seeded rules: ' + ', '.join(unknown[:8]))
     removing = set(names)
-    kept = keep_used(texts, removing)
-    for lines in texts.values():
-        for owner, entries in definitions(lines).items():
-            names = alternatives(entries)
+    kept = _keep_used([rules for _, _, rules in modules.values()], removing)
+    for _, _, rules in modules.values():
+        for owner, (_, names) in rules.items():
             if (owner not in removing and names is not None
                     and not set().union(*names) - removing and fallback(owner) not in defined):
                 raise ValueError(f'{owner} would lose every alternative and has no never_ rule')
-    for path, lines in texts.items():
-        out = rewrite(lines, removing)
+    for path, (lines, records, rules) in modules.items():
+        out = _rewrite(lines, records, rules, removing)
         if out != lines:
             path.write_text('\n'.join(out))
     return sorted(removing), kept
