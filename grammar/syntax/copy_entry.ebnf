@@ -1,7 +1,7 @@
 /* Copiable exceptions compose; the last quoted sentence closes the outer one. */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$entry_copy_tail})}}]}}]}}) */
 entry_copy_ability ::= "you" "may" "have" self_explicit_ref "enter" "as" "a" "copy" "of" entry_copy_objects entry_copy_tail
-entry_copy_objects ::= entry_copy_battlefield | entry_copy_graveyard_arrived
+entry_copy_objects ::= entry_copy_battlefield | entry_copy_graveyard_arrived | entry_copy_exile_counter
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_choice} */
 entry_copy_battlefield ::= entry_copy_choice
 /* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AllOf([$filter_phrase, ArrivedThisTurn{from:Battlefield}])} */
@@ -108,3 +108,12 @@ copy_entry_population ::= copy_entry_creature_disjunction | filter_plural
 
 /* @sem Instruction::[Effect{result:@next, operation:CreateReplacement{event:Enter{objects:$copy_entry_population}, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:One($chosen_nonlegendary_creature), exceptions:[]})}}]}}}] */
 clause_next_entries_copy_target ::= chosen_nonlegendary_creature "." "the" "next" "time" "one" "or" "more" copy_entry_population "enter" this_duration "," "they" "enter" "as" "copies" "of" "the" "chosen" "creature"
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([$entry_copy_exile_card_type, Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})])} */
+entry_copy_exile_counter ::= entry_copy_exile_card_type "card" "in" "exile" "with" "a" counter_kind "counter" "on" "it"
+
+entry_copy_exile_card_type ::= entry_copy_exile_creature | entry_copy_exile_artifact
+/* @sem $noun_creature */
+entry_copy_exile_creature ::= "a" noun_creature
+/* @sem $noun_artifact */
+entry_copy_exile_artifact ::= "an" noun_artifact

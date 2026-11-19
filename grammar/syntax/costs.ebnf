@@ -40,7 +40,7 @@ cost_symbols ::= cost_mana | cost_tap | cost_untap_symbol
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between
+cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -440,7 +440,7 @@ casting_reduction_if_targets ::= object_ref target_cast_cost_adjustment "if" "it
 casting_reduction_x ::= "this" "spell" "costs" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" value "."
 
 /* An alternative cost, perhaps only while a condition holds, before or after it. */
-casting_alternative_cost ::= casting_alternative_plain | casting_alternative_if | casting_alternative_if_after | casting_alternative_if_preposed
+casting_alternative_cost ::= casting_alternative_plain | casting_alternative_if | casting_alternative_if_after | casting_alternative_if_preposed | casting_alternative_if_prefix
 
 /* @sem Ability::Casting(AlternativeCost($alternative_payment)) */
 casting_alternative_plain ::= "you" "may" alternative_payment rather_than_mana_cost "."
@@ -464,7 +464,7 @@ your_cast_spells_any ::= "spells" "you" "cast"
 your_cast_spells_kind ::= spell_adjectives "spells" "you" "cast"
 
 /* One payment, two joined by `and`, or mana the player pays: `you may pay {1}{U}`. */
-alternative_payment ::= alternative_discard_filtered_and_another | alternative_discard_filtered_and_others | alternative_words | alternative_words_two | alternative_mana | alternative_mana_and_words | alternative_other_players_gain_life
+alternative_payment ::= alternative_discard_filtered_and_another | alternative_discard_filtered_and_others | alternative_words | alternative_words_two | alternative_mana | alternative_mana_and_words | alternative_other_players_gain_life | alternative_have_gain_life
 
 /* @sem Cost::Cost{parts:[$cost_words]} */
 alternative_words ::= cost_words
@@ -1093,3 +1093,36 @@ cost_choose_number_between ::= choose_number_between
 activation_live_reduction ::= "this" "ability" "costs" braced_amount "less" "to" "activate" "for" "each" activation_live_count
 
 activation_live_count ::= count_each_land_type | count_each_permanent | count_each_card_hand | count_each_card_graveyard
+
+/* A conditional casting reduction with the condition stated first. */
+/* @sem Ability::Casting(If{condition:$condition, rule:ReduceCost([_{amount:$braced_amount}])}) */
+casting_reduction_if_first ::= "if" condition "," "this" "spell" "costs" braced_amount "less" "to" "cast" "."
+
+/* The acting player pays by performing the same move available as an effect. */
+/* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$move_object_owners_library}]}} */
+cost_performed_library_move ::= move_object_owners_library
+
+/* @sem Ability::Casting(If{condition:$condition, rule:AlternativeCost($alternative_payment)}) */
+casting_alternative_if_prefix ::= "if" condition "," rather_than_mana_cost "," "you" "may" alternative_payment "."
+
+/* The acting player is also the recipient of the life. */
+/* @sem Cost::Cost{parts:[PlayerAction{player:$alternative_life_actor, body:Program{instructions:[Effect{result:@next, operation:GainLife{players:One($alternative_life_actor), amount:$value}}]}}]} */
+alternative_have_gain_life ::= "have" alternative_life_actor "gain" value "life"
+
+/* A self-zone activation restriction also fixes the activation's zone. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$limit_self_in_your_graveyard, announcement:@announcement, body:$program_sentence})} */
+activated_self_graveyard_restriction ::= cost ":" program_sentence limit_self_in_your_graveyard "."
+
+/* A player-action payment retains its actor and the coin operation. */
+/* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$cost_coin_series}]}} */
+cost_flip_coin_series ::= cost_coin_series
+
+/* A chosen type can itself be a cost action by the casting player. */
+/* @sem CostPart::PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$cost_type_choice}]}} */
+cost_choose_type_action ::= cost_type_choice
+
+cost_type_choice ::= choose_creature_type_plain | choose_land_type | choose_basic_land_type | choose_planeswalker_type
+
+/* A generic amount and one blue mana are independently reduced when the condition holds. */
+/* @sem ActivationLimits::ActivationLimits{modifiers:[ActivationRule(Cost{modifier:Reduce{reductions:[_{amount:$braced_amount}, _{color:Blue, amount:Constant(1)}], spill_into_generic:true}, condition:$condition})]} */
+limit_conditional_blue_reduction ::= "this" "ability" "costs" braced_amount "{" "U" "}" "less" "to" "activate" "if" condition

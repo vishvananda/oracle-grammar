@@ -828,7 +828,7 @@ entry_word_sultai ::= "Sultai"
 entry_word_temur ::= "Temur"
 
 /* Entering tapped and the color chosen as it enters are one entry replacement. */
-entering_tapped_choose_color ::= entering_tapped_any_color | entering_tapped_other_color
+entering_tapped_choose_color ::= entering_tapped_any_color | entering_tapped_other_color | entering_tapped_choose_craft_type
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}]}}) */
 entering_tapped_any_color ::= object_ref "enters" "tapped" "." "as" "it" "enters" "," "choose" "a" "color" "."
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[$entering_color_other]}}}]}}) */
@@ -1697,3 +1697,21 @@ replacement_destroyed_object_program ::= "if" replacement_destroyed_object_event
 
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:$next_chosen_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}] */
 instructions_prevent_chosen_source ::= "prevent" "all" "damage" "that" "would" "be" "dealt" next_chosen_to this_duration "by" counter_amount next_chosen_sources
+
+/* The entry choice keeps the craft-linked object in its own operand. */
+/* @sem Instruction::Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{options:[Objects(Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)}))], count:Exactly(Constant(1))}}} */
+entry_choose_craft_type ::= "choose" "a" "card" "type" "shared" "among" "two" "exiled" "cards" "used" "to" "craft" object_ref
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, $entry_choose_craft_type]}}) */
+entering_tapped_choose_craft_type ::= object_ref "enters" "tapped" "." "as" "it" "enters" "," entry_choose_craft_type "."
+
+/* A qualifying entry can be redirected to a specified destination. */
+/* @sem ObjectFilter::AnyOf([Not(Cast{}), ManaSpent{comparison:Equal, value:Constant(0)}]) */
+entry_uncast_or_free ::= "it" "wasn't" "cast" "or" "no" "mana" "was" "spent" "to" "cast" "it"
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:AllOf([SameObject($self_explicit_ref), $entry_uncast_or_free])}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}}) */
+entry_redirect_uncast ::= "if" self_explicit_ref "would" "enter" "and" entry_uncast_or_free "," "exile" "it" "instead" "."
+
+/* The quoted ability is scoped to the entering holder. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:AllOf([SameObject($self_explicit_ref), State(Escaped)])}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(Changes([GrantAbility(@scope($triggered_ability))]))}}]}}) */
+entry_escaped_granted_trigger ::= self_explicit_ref "escapes" "with" '"' triggered_ability '"'
