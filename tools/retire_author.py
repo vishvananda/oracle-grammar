@@ -261,17 +261,29 @@ def helper(run, folder, grammar, program, arguments):
     return process.returncode
 
 
-def edited_record_pair(gold_records, oracle_records, name):
+def edited_record(records, face_key, name, record_faces=None):
+    """Identify one record by target face and, when supplied, its complete face list."""
+    if record_faces is not None:
+        r.require(isinstance(record_faces, list) and all(type(face) is str for face in record_faces)
+                  and record_faces.count(name) == 1, 'invalid edited record face list')
+        record_faces = sorted(record_faces)
+    matches = []
+    for record in records:
+        names = [face['name'] for face in record[face_key]]
+        if name in names and (record_faces is None or sorted(names) == record_faces):
+            matches.append((record, names))
+    r.require(len(matches) == 1 and matches[0][1].count(name) == 1,
+              'edited face must uniquely identify a record; supply record_faces for a shared face name')
+    return matches[0]
+
+
+def edited_record_pair(gold_records, oracle_records, name, record_faces=None):
     """Pair a unique target across original independent face orderings."""
-    gold = [record for record in gold_records if any(face['name'] == name for face in record['faces'])]
-    oracle = [record for record in oracle_records if any(face['name'] == name for face in record['cards'])]
-    r.require(len(gold) == len(oracle) == 1, 'edited face must uniquely identify gold and Oracle records')
-    gold_names = [face['name'] for face in gold[0]['faces']]
-    oracle_names = [face['name'] for face in oracle[0]['cards']]
-    r.require(gold_names.count(name) == oracle_names.count(name) == 1
-              and sorted(gold_names) == sorted(oracle_names),
-              'edited gold and Oracle records have ambiguous or different face identities')
-    return copy.deepcopy(gold[0]), copy.deepcopy(oracle[0])
+    gold, gold_names = edited_record(gold_records, 'faces', name, record_faces)
+    oracle, oracle_names = edited_record(oracle_records, 'cards', name, record_faces)
+    r.require(sorted(gold_names) == sorted(oracle_names),
+              'edited gold and Oracle records have different face identities')
+    return copy.deepcopy(gold), copy.deepcopy(oracle)
 
 
 def edited_family_case(face, row, flags, *, allow_seeded):
@@ -295,7 +307,8 @@ def edited_checks(run, directory, grammar, task, root, data):
         name = edit['face']
         r.require(name in task['target_faces'], 'operand edit is outside the assigned face population')
         r.require(isinstance(edit['text'], str) and len(edit['text']) <= 16384, 'invalid edited text')
-        gold, oracle = edited_record_pair(data[1], data[2], name)
+        record_faces = edit.get('record_faces')
+        gold, oracle = edited_record_pair(data[1], data[2], name, record_faces)
         names = [f['name'] for f in gold['faces']]
         face = next(f for f in gold['faces'] if f['name'] == name)
         r.require(1 <= len(edit['set']) <= 8, 'bound each edit to eight primitive operands')
@@ -323,7 +336,10 @@ def edited_checks(run, directory, grammar, task, root, data):
                   == native['readings']['canonical']
                   and native['source_gold']['valid'] == len(names),
                   'edited operands or synthesized readings failed native validation')
-        results.append({'face': name, 'mutations': edit['set'], 'flags': flags})
+        result = {'face': name, 'mutations': edit['set'], 'flags': flags}
+        if record_faces is not None:
+            result['record_faces'] = sorted(record_faces)
+        results.append(result)
         cases.append(edited_family_case(face, row, flags, allow_seeded=task.get('family_case_modes') is True))
     folder = directory/'edited-family'
     folder.mkdir()

@@ -98,6 +98,8 @@ unassigned seeded clauses retained; that check does not establish phrase coverag
 Create {task['edits']} containing 2-8 current-operand edit tests. Each is:
 {{"face":"assigned target face", "text":"complete edited Oracle text",
 "set":[{{"path":[0,"args",...],"value":"new primitive"}}]}}.
+If a face name occurs in multiple records, add "record_faces", an array with
+every face name in the intended record, including the target.
 Paths index into that face's immutable gold abilities. The runner edits the IR
 itself and then prints/reparses it against the edited text. Use semantic operand
 changes (filter, amount, recipient etc.), not identifier renaming or unchanged

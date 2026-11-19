@@ -224,9 +224,8 @@ def _family(directory, report, run, modes=False, *, gold_cache=None):
         face, row = faces[0], matches[0]
         originals = (index.get(edit['face'], []) if index is not None else
                      [card for card in original if any(f['name'] == edit['face'] for f in card['faces'])])
-        if len(originals) != 1:
-            raise ValueError('edited operand lacks original gold')
-        expected = copy.deepcopy(originals[0])
+        original_record, _ = a.edited_record(originals, 'faces', edit['face'], edit.get('record_faces'))
+        expected = copy.deepcopy(original_record)
         expected_face = next(f for f in expected['faces'] if f['name'] == edit['face'])
         for mutation in edit['mutations']:
             a.edit_leaf(expected_face['abilities'], mutation['path'], mutation['value'])

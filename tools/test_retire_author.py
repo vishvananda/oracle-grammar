@@ -83,6 +83,19 @@ class AuthoringTests(unittest.TestCase):
             a.edited_record_pair(gold, oracle + oracle, 'Back')
         with self.assertRaises(ValueError):
             a.edited_record_pair(gold, [{'cards': [{'name': 'Back'}, {'name': 'Other'}]}], 'Back')
+        single_gold = {'faces': [{'name': 'Back'}]}
+        single_oracle = {'cards': [{'name': 'Back', 'text': 'standalone'}]}
+        gold = [single_gold, *gold]
+        oracle = [*oracle, single_oracle]
+        with self.assertRaisesRegex(ValueError, 'supply record_faces'):
+            a.edited_record_pair(gold, oracle, 'Back')
+        self.assertEqual(a.edited_record_pair(gold, oracle, 'Back', ['Back']), (single_gold, single_oracle))
+        both = a.edited_record_pair(gold, oracle, 'Back', ['Front', 'Back'])
+        self.assertEqual(both, (gold[1], oracle[0]))
+        with self.assertRaises(ValueError):
+            a.edited_record_pair([single_gold, *gold], oracle, 'Back', ['Back'])
+        with self.assertRaises(ValueError):
+            a.edited_record_pair(gold, oracle, 'Back', ['Front'])
 
     def test_author_family_cannot_disable_compositional_checks(self):
         family = {'cases': [{'expected': []}, {'reject': True}, {}, {'compositional': True}]}
@@ -107,7 +120,8 @@ class AuthoringTests(unittest.TestCase):
                 gold = [{'faces': [face]}]
                 oracle = [{'cards': [{'name': 'Example', 'text': 'Original'}]}]
                 r.write(root/task['edits'], [
-                    {'face': 'Example', 'set': [{'path': [0, 'amount'], 'value': value}], 'text': f'Value {value}'}
+                    {'face': 'Example', 'record_faces': ['Example'],
+                     'set': [{'path': [0, 'amount'], 'value': value}], 'text': f'Value {value}'}
                     for value in (2, 3)])
                 calls = []
 
@@ -138,7 +152,8 @@ class AuthoringTests(unittest.TestCase):
                         with self.assertRaisesRegex(ValueError, 'edited operand family checks failed'):
                             a.edited_checks(*args)
                     else:
-                        self.assertEqual(len(a.edited_checks(*args)), 2)
+                        result = a.edited_checks(*args)
+                        self.assertEqual([edit['record_faces'] for edit in result], [['Example'], ['Example']])
                 self.assertEqual(calls, ['score', 'validate-readings']*2+['family-check'])
 
     def test_family_failure_skips_cohort_and_edited_but_success_runs_all(self):

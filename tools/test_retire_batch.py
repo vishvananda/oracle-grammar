@@ -155,6 +155,16 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(modes['cases'][-1]['expected'], edited['faces'][0]['abilities'])
             self.assertEqual(modes['cases'][-1]['context'], edited['faces'][0]['characteristics'])
             self.assertEqual(modes['cases'][:-1], family['cases'][:-1])
+            shared = {'faces': [*original['faces'], {'name': 'Other', 'abilities': []}]}
+            (frozen/'gold.jsonl').write_text(json.dumps(shared)+'\n'+json.dumps(original)+'\n')
+            with self.assertRaisesRegex(ValueError, 'supply record_faces'):
+                batch._family(evaluation, report, root)
+            report['edited'][0]['record_faces'] = ['Example']
+            self.assertEqual(batch._family(evaluation, report, root), family)
+            report['edited'][0]['record_faces'] = ['Other', 'Example']
+            with self.assertRaisesRegex(ValueError, 'differs from the declared operand mutations'):
+                batch._family(evaluation, report, root)
+            report['edited'][0]['record_faces'] = ['Example']
             authored = json.loads((evaluation/'family.json').read_text())
             authored['cases'][0]['compositional'] = False
             (evaluation/'family.json').write_text(json.dumps(authored))
