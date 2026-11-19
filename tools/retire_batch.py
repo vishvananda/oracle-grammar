@@ -37,6 +37,7 @@ DEFAULT_PARSE_SCREEN_THREADS = 6
 MAX_ROUTED_EXCLUSIONS = 12
 RETAINED_NATIVE_PROBE_LIMIT = 16
 RETAINED_FAMILY_PROBE_LIMIT = 4
+MIN_EARLY_PRINT_GROUP = 16
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
                   'bin/score', 'bin/validate-readings')
 BASE_CONTROL_ARTIFACTS = {'before.jsonl', 'commands.jsonl', 'gold.jsonl', 'native-failures.jsonl',
@@ -975,6 +976,90 @@ def _check_trial_native(context, items, proof, input_cache, grammar, logs, *, fo
         raise
 
 
+def _default_print_losses(rows, expected):
+    losses = []
+    for row, before in zip(rows, expected, strict=True):
+        if (row['status'] != 'equal' or row['name'] != before['name'] or row['text'] != before['text']
+                or row['readings'] != before['parse']['readings']):
+            return None
+        if before['flags'][3] and not r.flags(row)[3]:
+            losses.append({'face': row['name'], 'lost': ['exact_default']})
+    return losses
+
+
+def _early_default_print(checkpoint, grammar, data, logs):
+    run = Path(checkpoint['inputs'])
+    manifest = r.verify(run)
+    names = sorted({entry['name'] for entry in data[0].values() if entry['flags'][3]})
+    if not names:
+        return None
+    folder = logs/'default-print-screen'
+    folder.mkdir()
+    selected = w.subset(folder, names, data)
+    expected = [entry for entry in data[0].values() if entry['name'] in selected]
+    rows = folder/'rows.jsonl'
+    threads = checkpoint['audit_threads']
+    with _audit_cpu(checkpoint, threads, checkpoint['cpu_capacity']):
+        r.execute(run, folder, grammar, 'score', [folder/'gold.jsonl', folder/'oracle.json',
+                  folder/'slice.json', rows, '--render'], threads)
+    if r.verify(run) != manifest:
+        raise ValueError('The early print inputs changed')
+    losses = _default_print_losses(r.rows(rows), expected)
+    r.write(folder/'result.json', {'status': 'inconclusive' if losses is None else 'checked',
+            'occurrences': len(expected), 'protected_occurrences': sum(entry['flags'][3] for entry in expected),
+            'rows_sha256': r.digest(rows), 'failures': losses})
+    return losses
+
+
+def _witness_control(checkpoint, losses, logs):
+    if not losses or not 1 <= len(losses) <= RETAINED_NATIVE_PROBE_LIMIT:
+        return None
+    names = sorted({item['face'] for item in losses})
+    if len(names) != len(losses):
+        return None
+    closure = tasks.close_cohort(Path(checkpoint['inputs']), {'names': names},
+                                 max_occurrences=RETAINED_NATIVE_PROBE_LIMIT)
+    profile = logs/'default-print-profile.json'
+    r.write(profile, {'cards': closure['names']})
+    profile.chmod(0o444)
+    spec = {'path': str(profile), 'sha256': r.digest(profile)}
+    cp = dict(checkpoint, native_regression_controls=spec, native_control_threads=2)
+    return cp, _control_setup(cp), spec
+
+
+def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
+    checkpoint = context['checkpoint']
+    control = context['control']
+    try:
+        data = control['data'] if control is not None else w.payload(Path(checkpoint['inputs']))
+        losses = _early_default_print(checkpoint, grammar, data, logs)
+        focus = _witness_control(checkpoint, losses, logs)
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        proof['default_print_screen_error'] = str(error)
+        return
+    if (logs/'default-print-screen/result.json').is_file():
+        proof['default_print_screen_sha256'] = r.digest(logs/'default-print-screen/result.json')
+    if focus is None:
+        return
+    cp, focused, spec = focus
+    try:
+        _control_check(cp, focused, grammar, logs/'native-focused')
+    except _NativeControlFailure as error:
+        failures = _retained_native_failure(focused, error.report)
+        if failures is None or failures['failures'] != losses:
+            return
+        if not input_cache.unchanged() or r.tree(grammar) != proof['trial_grammar']:
+            raise _UncertainPromotion('Early print witness inputs changed during staging')
+        proof.update(retained_native_failure=failures, early_print_control=spec,
+                     verified_native_snapshot={key: focused[key] for key in ('profile_sha256','manifest_sha256','threads')})
+        hints = _retained_print_hints(cp, grammar, logs/'default-print-screen/rows.jsonl', drafts, failures)
+        if hints:
+            proof['retained_print_hints'] = hints
+        raise
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as error:
+        proof['default_print_screen_error'] = str(error)
+
+
 def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
     """Merge and gate one ordered trial; publish nothing until every gate passes."""
     source, folder, manifest = context['source'], context['folder'], context['manifest']
@@ -1100,6 +1185,8 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                 for item in items:
                     item['library_control'] = str(logs/'library-control')
                 library_controls.check(checkpoint, context['library_control'], trial/'grammar', logs/'library-control')
+            if context.get('early_default_print') and len(entries) >= MIN_EARLY_PRINT_GROUP:
+                _check_early_default(context, proof, input_cache, trial/'grammar', logs, trace_drafts)
             if (not input_cache.unchanged() or r.tree(source/'grammar') != prefix_tree
                     or r.tree(trial/'grammar') != proof['trial_grammar']
                     or r.digest(context['registry_path']) != context['registry_hash']
@@ -1438,7 +1525,12 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
         culprits = _isolate_retained_family(context, selection, family, folder, limit=size-len(withheld),
                                             initial_trial=proof)
     else:
-        culprits = _isolate_retained_native(context, selection, native, folder, limit=size-len(withheld),
+        diagnostic = context
+        if 'early_print_control' in proof:
+            cp = dict(context['checkpoint'], native_regression_controls=proof['early_print_control'],
+                      native_control_threads=2)
+            diagnostic = dict(context, checkpoint=cp, control=_control_setup(cp))
+        culprits = _isolate_retained_native(diagnostic, selection, native, folder, limit=size-len(withheld),
                                             initial_trial=proof)
     if not culprits or not set(culprits) <= {index for index, _ in selection}:
         return False
@@ -1654,7 +1746,8 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
     context = {'source': source, 'folder': folder, 'manifest': manifest, 'checkpoint': checkpoint,
                'control': control, 'library_control': library_control, 'gold_cache': _GoldIndexCache(),
                'baseline': baseline, 'baseline_names': baseline_names,
-               'registry_path': registry_path, 'registry_hash': registry_hash}
+               'registry_path': registry_path, 'registry_hash': registry_hash,
+               'early_default_print': combine_selected and checkpoint.get('early_default_print', False)}
     indexed = list(enumerate(proposals))
     try:
         for first in range(0, len(indexed), group_size):

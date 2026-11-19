@@ -165,6 +165,44 @@ class BatchTests(unittest.TestCase):
                     checkpoint, root/'grammar', rows, drafts, {'failures':failures}), [4])
                 self.assertEqual(traced.call_count,6)
 
+    def test_early_print_verdict_only_covers_prior_exact_defaults(self):
+        lost = {'name':'A', 'text':'Written.', 'status':'equal', 'readings':1, 'exact':True, 'default':'Other.'}
+        exact = dict(lost, name='B')
+        before = [
+            {'name':'A', 'text':'Written.', 'parse':{'readings':1}, 'flags':[True,True,True,True]},
+            {'name':'B', 'text':'Written.', 'parse':{'readings':1}, 'flags':[True,True,True,False]},
+        ]
+        self.assertEqual(batch._default_print_losses([lost,exact], before),
+                         [{'face':'A','lost':['exact_default']}])
+        self.assertIsNone(batch._default_print_losses([lost,dict(exact,readings=2)], before))
+        with self.assertRaises(ValueError):
+            batch._default_print_losses([lost], before)
+
+    def test_early_print_veto_requires_native_confirmation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            grammar = root/'grammar'
+            grammar.mkdir()
+            failure = {'face':'A','lost':['exact_default']}
+            lost = {'faces':1,'failures':[failure]}
+            profile = {'path':str(root/'profile'),'sha256':'profile'}
+            control = dict(names=['A'], occurrences=1, profile_sha256='profile',
+                           manifest_sha256='manifest', threads=2)
+            context = {'checkpoint':{},'control':{'data':[]}}
+            proof = {'trial_grammar':{}}
+            with (patch.object(batch, '_early_default_print', return_value=[failure]),
+                  patch.object(batch, '_witness_control', return_value=({},control,profile)),
+                  patch.object(batch, '_retained_print_hints', return_value=[3]),
+                  patch.object(batch, '_control_check', return_value={'faces':1,'failures':[]}) as native):
+                batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
+                self.assertNotIn('early_print_control',proof)
+                native.side_effect = batch._NativeControlFailure(root/'native-focused/result.json',lost)
+                with self.assertRaises(batch._NativeControlFailure):
+                    batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
+                self.assertEqual(proof['early_print_control'],profile)
+                self.assertEqual(proof['retained_print_hints'],[3])
+                self.assertEqual(proof['retained_native_failure']['failures'],[failure])
+
     def test_edited_family_gold_is_independently_reconstructed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

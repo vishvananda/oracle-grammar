@@ -545,6 +545,9 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     screen=config.get('full_parse_screen',False)
     r.require(type(screen) is bool,'full_parse_screen must be boolean')
     cp['full_parse_screen']=screen
+    print_screen=config.get('early_default_print',False)
+    r.require(type(print_screen) is bool,'early_default_print must be boolean')
+    cp['early_default_print']=print_screen
     cp['parse_screen_threads']=config.get('parse_screen_threads',retire_batch.DEFAULT_PARSE_SCREEN_THREADS)
     retire_batch._parse_screen_threads(cp)
     cp['stage_group_size']=config.get('stage_group_size',1)
