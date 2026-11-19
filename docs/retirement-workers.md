@@ -37,6 +37,8 @@ recorded process before verifying the archive. It can reuse a verified archive
 when removal was interrupted. The latest applied pass records its removals and
 retention reasons in `CAMPAIGN/.cache/storage/worktree-cleanup.json`. Attempt
 reports, frozen inputs and audit evidence remain available for replay.
+Reviewed replays can read operand fixtures directly from the checkout archive
+when the fixture matches the independent evaluation's digest.
 
 When jobs from a failed parse or print batch move to new attempts, recovery
 replays the remaining current rejections as a group. If a selected attempt

@@ -11,6 +11,9 @@ import uuid
 import retire as r
 from retire_queue import Queue
 
+MAX_EDIT_BYTES = 1024 * 1024
+MAX_EDIT_ARCHIVE_BYTES = 64 * 1024 * 1024
+
 
 def _git(checkout, *args):
     return subprocess.check_output(['git', '-C', str(checkout), *args])
@@ -137,6 +140,46 @@ def _verify_archive(path, manifest, files, modes, patch):
             r.require(_file_hash(stored) == _file_hash(data)
                       and archive.getmember('files/'+name).mode == modes[name],
                       'candidate archive content or mode differs: '+name)
+
+
+def archived_edits(run, taskid, checked_sha256):
+    """Read hash-bound edit fixtures from a removed checkout without restoring it."""
+    run = Path(run)
+    r.require(run.resolve() == run and run.parent.name == 'attempts' and run.parents[1].name == '.cache',
+              'invalid archived attempt path')
+    r.require(len(_safe_name(taskid).parts) == 1, 'invalid archived task identity')
+    task_path = run/'tasks'/f'{taskid}.json'
+    task = r.read(task_path)
+    relative = str(_safe_name(task['edits']))
+    r.require(relative in task['write_files'], 'the edit fixture is outside the archived assignment')
+    receipt = r.read(run/'archive.json')
+    archive_path = run.parents[1]/'archives'/f'{run.name}.tar.gz'
+    r.require(archive_path.resolve() == archive_path and receipt['archive'] == str(archive_path)
+              and receipt['checkout_removed'] is True, 'archived checkout identity differs')
+    with archive_path.open('rb') as stream:
+        content = stream.read(MAX_EDIT_ARCHIVE_BYTES+1)
+    r.require(len(content) <= MAX_EDIT_ARCHIVE_BYTES and _file_hash(content) == receipt['sha256'],
+              'archived checkout hash or size differs')
+    members, total = {}, 0
+    expected = {'manifest.json', 'files/'+relative}
+    with tarfile.open(fileobj=io.BytesIO(content), mode='r|gz') as archive:
+        for index, item in enumerate(archive):
+            total += item.size
+            r.require(index < 8192 and 0 <= total <= 4*MAX_EDIT_ARCHIVE_BYTES, 'checkout archive exceeds read bound')
+            if item.name in expected:
+                r.require(item.isfile() and 0 <= item.size <= MAX_EDIT_BYTES and item.name not in members,
+                          'invalid edit archive member')
+                members[item.name] = archive.extractfile(item).read()
+    r.require(members.keys() == expected, 'archived edit or manifest is missing')
+    manifest = json.loads(members['manifest.json'])
+    r.require(manifest['format'] == 1 and manifest['task'] == taskid and manifest['attempt'] == run.name
+              and manifest['descriptor_sha256'] == r.digest(task_path), 'archived descriptor identity differs')
+    data = members['files/'+relative]
+    r.require(manifest['files'][relative]['sha256'] == _file_hash(data) == checked_sha256,
+              'archived edits differ from the independent evaluation')
+    edits = json.loads(data)
+    r.require(isinstance(edits, list), 'archived edit fixtures must be an array')
+    return edits
 
 
 def archive_checkout(run, taskid, terminal_receipt):

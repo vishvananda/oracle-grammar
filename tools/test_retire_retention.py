@@ -125,6 +125,29 @@ class RetentionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             retention._snapshot(self.checkout, task)
 
+    def test_archived_edits_require_the_independent_digest_and_do_not_restore_checkout(self):
+        task = r.read(self.descriptor)
+        edit_name = 'fixtures/edits.json'
+        task['edits'] = edit_name
+        task['write_files'].append(edit_name)
+        r.write(self.descriptor, task)
+        r.write(self.run/'support.json', {'tasks': {self.taskid: r.digest(self.descriptor)}})
+        edit_path = self.checkout/edit_name
+        edit_path.parent.mkdir()
+        edits = [{'face':'Card', 'set':[{'path':['count'], 'value':2}]}]
+        r.write(edit_path, edits)
+        checked = r.digest(edit_path)
+        self.finish()
+        archive = retention.archive_checkout(self.run, self.taskid, self.receipt)
+        r.write(self.run/'archive.json', archive)
+        self.assertEqual(retention.archived_edits(self.run, self.taskid, checked), edits)
+        self.assertFalse(self.checkout.exists())
+        with self.assertRaisesRegex(ValueError, 'independent evaluation'):
+            retention.archived_edits(self.run, self.taskid, '0'*64)
+        r.write(self.run/'archive.json', dict(archive, sha256='0'*64))
+        with self.assertRaisesRegex(ValueError, 'checkout hash'):
+            retention.archived_edits(self.run, self.taskid, checked)
+
     def test_refuses_running_and_unmatched_receipts(self):
         with self.assertRaises(ValueError):
             retention.archive_checkout(self.run, self.taskid, self.receipt)
