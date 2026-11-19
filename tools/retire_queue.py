@@ -727,6 +727,59 @@ def _verify_split_dispositions(original, owned, selected, repaired):
         raise ValueError('the selected subset was not proposed in the original assignment')
 
 
+def _family_split_cases(evidence, archived, family, selected, deferred):
+    """Preserve the passing compositional cases and every archived refusal."""
+    if (archived.get('family_returncode') != 1 or archived.get('scope') == 'author-target-preview'
+            or archived.get('failures') != ['family regression tests failed']):
+        raise ValueError('the original report lacks a single compositional family veto')
+    gate, data = _proof_file(evidence.get('family_gate'))
+    if gate.resolve() != gate or gate != Path(archived['directory'])/'family-check.log':
+        raise ValueError('family veto proof is outside the original evaluation')
+    cases = family['cases']
+    try:
+        result = json.loads(data.splitlines()[0])
+        failures = result['failures']
+        failed = {failure['name'] for failure in failures}
+        pure_refusals = all(failure['why'].startswith('unexpected refusal: NoParse {') for failure in failures)
+    except (ValueError, IndexError, KeyError, TypeError, AttributeError) as exc:
+        raise ValueError('invalid archived family veto') from exc
+    targets = set(selected['target_faces'])
+    if (result.get('compositional') is not True or result.get('family') != family.get('family')
+            or result.get('cases') != len(cases) or type(result.get('passed')) is not int
+            or result['passed'] + len(failures) != len(cases) or len(failed) != len(failures)
+            or not failed or not pure_refusals or failed & targets or not failed <= set(deferred['target_faces'])
+            or any(sum(case['name'] == name for case in cases) != 1 for name in failed)):
+        raise ValueError('archived family veto does not isolate the deferred side')
+    positive = [case for case in cases if case['name'] in targets and case.get('expected') is not None
+                and case.get('compositional', True) is True and not case.get('reject')]
+    required = [*positive, *(case for case in cases if case.get('reject') is True)]
+    return {case['name'] for case in positive}, required
+
+
+def _verify_family_split_coverage(campaign, evidence, checkpoint_evidence, selected, deferred, positive):
+    checkpoint = evidence['source_checkpoint']
+    inputs, unused, _, digest = retire_rehabilitation.verify_scan(campaign, checkpoint, checkpoint_evidence,
+                                                                  evidence.get('scan'))
+    dependencies = json.loads(retire_rehabilitation._read(inputs/'scan/rules.json', digest)[0])['needed']
+    targets = set(selected['target_faces'])
+    if any(rule in unused or not positive.intersection(dependencies.get(rule, ())) for rule in selected['rules']):
+        raise ValueError('each selected rule needs an archived passing family case')
+    selected_faces = {name for rule in selected['rules'] for name in dependencies[rule]}
+    deferred_faces = {name for rule in deferred['rules'] for name in dependencies.get(rule, ())}
+    if selected_faces != targets or selected_faces & deferred_faces:
+        raise ValueError('the accepted scan does not separate the selected and deferred faces')
+
+
+def _verify_family_split_fixture(report, preserved):
+    path = Path(report['directory'])/'family.json'
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != report['fixture_sha256']:
+        raise ValueError('the repaired family fixture changed')
+    current = json.loads(data)['cases']
+    if any(case not in current for case in preserved):
+        raise ValueError('the repaired family omitted an archived passing case or refusal')
+
+
 class RehabilitationIneligible(ValueError):
     """A parked job is safely ineligible or changed while being checked."""
 
@@ -843,7 +896,8 @@ class Queue:
         """Queue an independently evaluated subset and preserve its deferred siblings."""
         kind = evidence.get('kind') if isinstance(evidence, dict) else None
         integration = kind == 'reviewed-integration-repair-split'
-        repaired = kind == 'reviewed-author-repair-split'
+        family_split = kind == 'reviewed-family-repair-split'
+        repaired = family_split or kind == 'reviewed-author-repair-split'
         if (not (integration or repaired or kind == 'reviewed-author-split')
                 or not isinstance(evidence.get('source_checkpoint'), str) or not evidence['source_checkpoint']
                 or not isinstance(attempt_id, str) or not attempt_id):
@@ -892,11 +946,17 @@ class Queue:
                 original = result['evidence']
                 _verify_split_dispositions(original, set(result['outcomes']), selected['rules'], repaired)
                 origin_job = origin['job_id']
-                archived, _ = _verify_original_report(campaign, origin_job, attempt_id, base, original,
-                                                      evidence.get('original_report'), passed=not repaired)
-                if archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':
+                archived, family = _verify_original_report(campaign, origin_job, attempt_id, base, original,
+                                                           evidence.get('original_report'), passed=not repaired)
+                if family_split:
+                    positive, preserved = _family_split_cases(evidence, archived, family, selected, deferred)
+                    (accepted,), = db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (source,))
+                    _verify_family_split_coverage(campaign, evidence, json.loads(accepted), selected, deferred, positive)
+                elif archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':
                     raise ValueError('the original report lacks a full author evaluation')
-                _, task = _verify_reviewed_repair(campaign, source, selected, evidence)
+                repaired_report, task = _verify_reviewed_repair(campaign, source, selected, evidence)
+                if family_split:
+                    _verify_family_split_fixture(repaired_report, preserved)
                 descriptor = campaign/'.cache/attempts'/attempt_id/'tasks'/f'{origin_job}.json'
                 old = descriptor.read_bytes()
                 if hashlib.sha256(old).hexdigest() != archived['descriptor_sha256']:

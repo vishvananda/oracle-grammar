@@ -93,6 +93,59 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.get_attempt(self.attempt), self.original)
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
+    def test_family_veto_split_preserves_cases_and_requires_separate_dependencies(self):
+        self.park()
+        old = self.root/'old-evaluation'
+        new = self.root/'new-evaluation'
+        old.mkdir()
+        new.mkdir()
+        positive = {'name':'A','text':'A.','expected':['meaning'],'exact':True}
+        refusal = {'name':'Refusal','text':'Incomplete.','reject':True}
+        family = {'family':'archived','cases':[positive,refusal,{'name':'B','expected':['held']}]}
+        self.original_report.update(directory=str(old),family_returncode=1,
+                                    failures=['family regression tests failed'])
+        self.archive.return_value = self.original_report,family
+        gate = old/'family-check.log'
+        data = {'family':'archived','cases':3,'passed':2,'compositional':True,
+                'failures':[{'name':'B','why':'unexpected refusal: NoParse { furthest: 0, tokens: 1 }'}]}
+        gate.write_text(json.dumps(data)+'\n')
+        evidence = {**self.evidence,'kind':'reviewed-family-repair-split','scan':{'proof':'accepted'},
+                    'family_gate':{'path':str(gate),'sha256':sha256(gate.read_bytes()).hexdigest()}}
+        scan = self.root/'scan/rules.json'
+        scan.parent.mkdir()
+        check = self.enterContext(patch.object(retire_rehabilitation,'verify_scan'))
+
+        def dependencies(value):
+            scan.write_text(json.dumps({'needed':value}))
+            check.return_value = self.root,set(),'manifest',sha256(scan.read_bytes()).hexdigest()
+
+        def repaired(cases):
+            fixture = new/'family.json'
+            fixture.write_text(json.dumps({'cases':cases}))
+            self.review.return_value = ({'directory':str(new),'fixture_sha256':sha256(fixture.read_bytes()).hexdigest()},
+                                        {'cohort':['A','B']})
+
+        before = self.q.audit()
+        dependencies({'m_good':['A'],'m_deferred':['A','B']})
+        repaired([positive,refusal])
+        with self.assertRaisesRegex(ValueError,'does not separate'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        dependencies({'m_good':['A'],'m_deferred':['B']})
+        repaired([positive])
+        with self.assertRaisesRegex(ValueError,'omitted an archived passing case or refusal'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        repaired([positive,refusal])
+        outside = self.root/'family-check.log'
+        outside.write_bytes(gate.read_bytes())
+        with self.assertRaisesRegex(ValueError,'outside the original evaluation'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',
+                                         {**evidence,'family_gate':{**evidence['family_gate'],'path':str(outside)}})
+        self.assertEqual(self.q.audit(), before)
+        receipt = self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        self.assertEqual(receipt['rules'], ['m_good'])
+        self.assertEqual(self.q.get_attempt(self.attempt), self.original)
+        self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
+
     def test_repair_can_split_an_inherited_review_using_the_original_attempt(self):
         self.park()
         rules = ['m_initial', 'm_repaired', 'm_held']
