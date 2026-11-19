@@ -84,7 +84,7 @@ class PendingFullPrintTests(unittest.TestCase):
             receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True)
         proof = self.output/self.batch/'proof'
         isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=True,
-                                        witness_retry=32, unavailable=set())
+                                        witness_retry=32, unavailable=set(), preferred=[])
         verify.assert_called_once_with(self.campaign, proof, result, full_check=True)
         self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'stale evidence'})
         self.assertEqual(self.pending(), [])
@@ -108,6 +108,7 @@ class PendingFullPrintTests(unittest.TestCase):
                 patch.object(recover.isolation, 'readmit_result', side_effect=verify) as readmit:
             receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True)
         self.assertEqual([call.kwargs['unavailable'] for call in isolate.call_args_list], [set(), {'b'}])
+        self.assertEqual(isolate.call_args_list[1].kwargs['preferred'], ['a'])
         self.assertEqual(readmit.call_count, 2)
         self.assertEqual(receipt, {'status': 'readmitted', 'rules': 1, 'jobs': 1,
                                    'proof': str(retry/'result.json')})
@@ -118,7 +119,7 @@ class PendingFullPrintTests(unittest.TestCase):
             receipt = recover.recover(self.campaign, self.output, self.batch, 52, apply=True, mode='parse')
         proof = self.output/self.batch/'proof'
         isolate.assert_called_once_with(self.campaign, self.batch, proof, 52, full_check=False,
-                                        witness_retry=44, unavailable=set())
+                                        witness_retry=44, unavailable=set(), preferred=[])
         readmit.assert_not_called()
         self.assertEqual(receipt, {'status': 'needs-review', 'reason': 'focused trial limit reached'})
 
@@ -204,7 +205,7 @@ class PendingFullPrintTests(unittest.TestCase):
             receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True, mode='parse')
         proof = self.output/self.batch/'proof'
         isolate.assert_called_once_with(self.campaign, self.batch, proof, 32, full_check=False,
-                                        witness_retry=32, unavailable=set())
+                                        witness_retry=32, unavailable=set(), preferred=[])
         readmit.assert_called_once_with(self.campaign, proof, result, full_check=False)
         self.assertEqual(receipt['status'], 'readmitted')
 

@@ -343,7 +343,7 @@ def _completed_prefix(selection, seen):
 
 
 def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(), full_check=False,
-            witness_retry=0, unavailable=()):
+            witness_retry=0, unavailable=(), preferred=()):
     r.require(3 <= max_trials <= 96 and 0 <= witness_retry <= 96-max_trials,
               'invalid focused trial budget')
     folder, manifest, jobs, checkpoint, inputs, run, names, archived = _archived(campaign, batch_id, full_check=full_check)
@@ -354,6 +354,8 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     unavailable = set(unavailable)
     r.require(unavailable < by_job.keys() and not unavailable.intersection(hints),
               'unavailable proposals must be an included subset disjoint from suspects')
+    r.require(len(preferred) == len(set(preferred)) and set(preferred) <= by_job.keys()-unavailable,
+              'preferred proposals must be distinct eligible proposals')
     r.require(_allowed(campaign, scratch) and not scratch.exists(), 'private isolation directory already exists or is outside scratch')
     scratch.mkdir(parents=True)
     profile = scratch/'profile.json'
@@ -416,16 +418,23 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         r.require(failed == r.read(folder/'validation.json')['full_checks']['failures'],
                   'focused full audit did not reproduce the exact failures')
     routed = [by_job[job] for job in hints]
+    preferred_indices = sorted(by_job[job] for job in preferred)
+    remaining = (preferred_indices if preferred_indices and set(pinned) <= set(preferred_indices)
+                 and len(seen) < limit and not trial(preferred_indices)['failures'] else [])
     automatic = []
-    if not routed:
+    if not remaining and not routed:
         if full_check:
             automatic = _print_hints(checkpoint, run, roots['full'], proposals, eligible, failed)
         else:
             automatic = _parse_hints(checkpoint,run,roots['full'],proposals,eligible)
-    r.write(scratch/'routing.json',{'explicit':hints,'automatic':[jobs[i]['job_id'] for i in automatic]})
+    routing = {'explicit':hints,'automatic':[jobs[i]['job_id'] for i in automatic]}
+    if preferred:
+        routing.update(preferred=list(preferred), preferred_passed=bool(remaining))
+    r.write(scratch/'routing.json', routing)
     try:
-        remaining = (_survivors(eligible, trial, pinned, routed[0]) if len(routed) == 1
-                     else _survivors(eligible, trial, pinned, suspects=routed or automatic))
+        if not remaining:
+            remaining = (_survivors(eligible, trial, pinned, routed[0]) if len(routed) == 1
+                         else _survivors(eligible, trial, pinned, suspects=routed or automatic))
     except FocusedTrialLimit as exhausted:
         if not exhausted.suspects or not witness_retry:
             raise

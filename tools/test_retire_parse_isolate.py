@@ -249,7 +249,12 @@ class SurvivorTests(unittest.TestCase):
                 original_trials = trials.copy()
                 trials.clear()
                 refreshed = campaign/'.cache/refreshed'
-                survivors = isolate.isolate(campaign, 'batch', refreshed, 3, unavailable=['1', '2'])
+                survivors = isolate.isolate(campaign, 'batch', refreshed, 3,
+                                            unavailable=['2'], preferred=['0', '3'])
+                refreshed_trials = trials.copy()
+                trials.clear()
+                fallback = isolate.isolate(campaign, 'batch', campaign/'.cache/fallback', 10,
+                                           unavailable=['2'], preferred=['0', '1'])
             self.assertEqual(result['jobs'], ['0', '2', '3'])
             self.assertEqual(original_trials, [[], [0, 1, 2, 3], [0, 1], [0], [1], [0, 2, 3]])
             proof = isolate.r.read(scratch/'isolation.json')
@@ -257,6 +262,9 @@ class SurvivorTests(unittest.TestCase):
             self.assertEqual(proof['controls']['base'], str(scratch/'base'))
             self.assertEqual(proof['controls']['full'], str(scratch/'full'))
             self.assertEqual(survivors['jobs'], ['0', '3'])
-            self.assertEqual(trials, [[], [0, 1, 2, 3], [0, 3]])
+            self.assertEqual(refreshed_trials, [[], [0, 1, 2, 3], [0, 3]])
+            self.assertTrue(isolate.r.read(refreshed/'routing.json')['preferred_passed'])
+            self.assertEqual(fallback['jobs'], ['0', '3'])
+            self.assertEqual(trials[:3], [[], [0, 1, 2, 3], [0, 1]])
             proof = isolate.r.read(refreshed/'isolation.json')
             self.assertEqual(proof['excluded_jobs'], ['1', '2'])

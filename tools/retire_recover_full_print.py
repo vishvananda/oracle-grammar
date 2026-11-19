@@ -130,11 +130,12 @@ def _retain_library_tests(campaign, folder, result):
 def _recover_native(campaign, folder, batch, max_trials, *, apply, full_check):
     unavailable = unavailable_recovery_jobs(campaign, batch)
     retry_trials = min(max_trials, 96-max_trials)
+    preferred = []
     for name in ('proof', 'proof-retry'):
         path = folder/name
         result = isolation.isolate(campaign, batch, path, max_trials, full_check=full_check,
                                    witness_retry=retry_trials if retry_trials >= 3 else 0,
-                                   unavailable=unavailable)
+                                   unavailable=unavailable, preferred=preferred)
         if not apply:
             return path, result
         if name == 'proof':
@@ -152,6 +153,7 @@ def _recover_native(campaign, folder, batch, max_trials, *, apply, full_check):
             unavailable = unavailable_recovery_jobs(campaign, batch)
             if not unavailable.intersection(result['jobs']):
                 raise
+            preferred = [job for job in result['jobs'] if job not in unavailable]
         else:
             return path, result
 
