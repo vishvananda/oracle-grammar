@@ -386,7 +386,9 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
         frozen = inputs/'frozen/grammar'
         remainder = selection
         with cpu.reserve(Path(cp['cpu_pool']), 1, cp['cpu_capacity'], background=True):
-            if full_check and label == 'full':
+            if label == 'full':
+                # The archived candidate already has the exact audited grammar.
+                # Readmission still independently replays both proposal selections.
                 frozen, remainder = run/'frozen/grammar', []
             elif (ready := _completed_prefix(selection, seen)) is not None:
                 frozen, remainder = ready
