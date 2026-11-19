@@ -155,6 +155,22 @@ class BatchTests(unittest.TestCase):
             self.assertEqual(modes['cases'][-1]['expected'], edited['faces'][0]['abilities'])
             self.assertEqual(modes['cases'][-1]['context'], edited['faces'][0]['characteristics'])
             self.assertEqual(modes['cases'][:-1], family['cases'][:-1])
+            rows = evaluation/'edited-0/rows.jsonl'
+            row, = batch.r.rows(rows)
+            source_context = {
+                'characteristics': original['faces'][0]['characteristics'],
+                'station_present': True, 'station_nonanimating': True,
+                'station_animation': None, 'printed_power_toughness': {'kind': 'Absent'},
+            }
+            batch.r.jsonl(rows, [dict(row, source_context=source_context)])
+            with self.assertRaisesRegex(ValueError, 'source context differs from the checked report'):
+                batch._family(evaluation, report, root)
+            report['edited'][0]['source_context'] = source_context
+            contextual = batch._family(evaluation, report, root)['cases'][-1]
+            self.assertEqual(contextual['source_context'], source_context)
+            self.assertNotIn('context', contextual)
+            del report['edited'][0]['source_context']
+            batch.r.jsonl(rows, [row])
             shared = {'faces': [*original['faces'], {'name': 'Other', 'abilities': []}]}
             (frozen/'gold.jsonl').write_text(json.dumps(shared)+'\n'+json.dumps(original)+'\n')
             with self.assertRaisesRegex(ValueError, 'supply record_faces'):

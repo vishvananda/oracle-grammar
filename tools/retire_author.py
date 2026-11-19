@@ -290,6 +290,13 @@ def edited_family_case(face, row, flags, *, allow_seeded):
     """Use the same contextual print and reparse contract in both lanes."""
     case = {'name': face['name'], 'text': row['text'], 'context': face['characteristics'],
             'expected': face['abilities'], 'readings': None, 'exact': bool(flags[1]), 'default': True}
+    if 'source_context' in row:
+        source = row['source_context']
+        r.require(isinstance(source, dict) and source.get('station_present') is True
+                  and source.get('characteristics') == case['context'],
+                  'edited source context differs from the card characteristics')
+        del case['context']
+        case['source_context'] = source
     if allow_seeded:
         case['compositional'] = False
     return case
@@ -322,7 +329,7 @@ def edited_checks(run, directory, grammar, task, root, data):
         r.write(folder/'slice.json', {'cards': names})
         r.execute(run/'inputs', folder, grammar, 'score',
                   [folder/'gold.jsonl', folder/'oracle.json', folder/'slice.json',
-                   folder/'rows.jsonl', '--render', '--round-trip'], 2)
+                   folder/'rows.jsonl', '--render', '--round-trip', '--source-context'], 2)
         rows = r.rows(folder/'rows.jsonl')
         row = next(row for row in rows if row['name'] == name)
         flags = r.flags(row)
@@ -339,8 +346,11 @@ def edited_checks(run, directory, grammar, task, root, data):
         result = {'face': name, 'mutations': edit['set'], 'flags': flags}
         if record_faces is not None:
             result['record_faces'] = sorted(record_faces)
+        case = edited_family_case(face, row, flags, allow_seeded=task.get('family_case_modes') is True)
+        if 'source_context' in case:
+            result['source_context'] = case['source_context']
         results.append(result)
-        cases.append(edited_family_case(face, row, flags, allow_seeded=task.get('family_case_modes') is True))
+        cases.append(case)
     folder = directory/'edited-family'
     folder.mkdir()
     fixture = folder/'family.json'

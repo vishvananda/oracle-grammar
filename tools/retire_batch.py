@@ -223,6 +223,8 @@ def _family(directory, report, run, modes=False, *, gold_cache=None):
         if len(faces) != 1 or len(matches) != 1 or matches[0]['status'] != 'equal':
             raise ValueError('edited operand artifacts are incomplete')
         face, row = faces[0], matches[0]
+        if row.get('source_context') != edit.get('source_context'):
+            raise ValueError('edited source context differs from the checked report')
         originals = (index.get(edit['face'], []) if index is not None else
                      [card for card in original if any(f['name'] == edit['face'] for f in card['faces'])])
         original_record, _ = a.edited_record(originals, 'faces', edit['face'], edit.get('record_faces'))

@@ -110,8 +110,8 @@ class AuthoringTests(unittest.TestCase):
             a.validate_author_family({'cases': [{'expected': []}, {'reject': True}]})
 
     def test_edited_operands_require_the_contextual_family_after_score_and_native(self):
-        for allow_seeded, family_exit in ((True, 1), (False, 0)):
-            with self.subTest(allow_seeded=allow_seeded), tempfile.TemporaryDirectory() as temporary:
+        for allow_seeded, family_exit, station in ((True, 1, False), (False, 0, False), (True, 0, True)):
+            with self.subTest(allow_seeded=allow_seeded, station=station), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 directory = root/'evaluation'
                 directory.mkdir()
@@ -119,6 +119,11 @@ class AuthoringTests(unittest.TestCase):
                 face = {'name': 'Example', 'abilities': [{'amount': 1}], 'characteristics': {'types': ['Creature']}}
                 gold = [{'faces': [face]}]
                 oracle = [{'cards': [{'name': 'Example', 'text': 'Original'}]}]
+                source_context = {
+                    'characteristics': face['characteristics'], 'station_present': True,
+                    'printed_power_toughness': {'kind': 'Absent'},
+                    'station_nonanimating': True, 'station_animation': None,
+                }
                 r.write(root/task['edits'], [
                     {'face': 'Example', 'record_faces': ['Example'],
                      'set': [{'path': [0, 'amount'], 'value': value}], 'text': f'Value {value}'}
@@ -129,8 +134,11 @@ class AuthoringTests(unittest.TestCase):
                     calls.append(program)
                     if program == 'score':
                         text = r.read(folder/'oracle.json')[0]['cards'][0]['text']
-                        r.jsonl(folder/'rows.jsonl', [{'name': 'Example', 'text': text,
-                                                       'status': 'equal', 'exact': True}])
+                        self.assertIn('--source-context', arguments)
+                        row = {'name': 'Example', 'text': text, 'status': 'equal', 'exact': True}
+                        if station:
+                            row['source_context'] = source_context
+                        r.jsonl(folder/'rows.jsonl', [row])
                     else:
                         r.write(folder/'native.json', {'readings': {'total': 1, 'valid': 1, 'canonical': 1},
                                                        'source_gold': {'valid': 1}})
@@ -140,7 +148,11 @@ class AuthoringTests(unittest.TestCase):
                     self.assertEqual(arguments, [folder/'family.json', '--compositional'])
                     cases = r.read(arguments[0])['cases']
                     self.assertEqual([case['expected'] for case in cases], [[{'amount': 2}], [{'amount': 3}]])
-                    self.assertEqual([case['context'] for case in cases], [face['characteristics']]*2)
+                    if station:
+                        self.assertEqual([case['source_context'] for case in cases], [source_context]*2)
+                        self.assertTrue(all('context' not in case for case in cases))
+                    else:
+                        self.assertEqual([case['context'] for case in cases], [face['characteristics']]*2)
                     self.assertTrue(all(case['exact'] and case['default'] for case in cases))
                     self.assertEqual(['compositional' in case for case in cases], [allow_seeded]*2)
                     self.assertEqual([case.get('compositional') for case in cases], [False if allow_seeded else None]*2)
@@ -154,6 +166,8 @@ class AuthoringTests(unittest.TestCase):
                     else:
                         result = a.edited_checks(*args)
                         self.assertEqual([edit['record_faces'] for edit in result], [['Example'], ['Example']])
+                        self.assertEqual([edit.get('source_context') for edit in result],
+                                         [source_context if station else None]*2)
                 self.assertEqual(calls, ['score', 'validate-readings']*2+['family-check'])
 
     def test_family_failure_skips_cohort_and_edited_but_success_runs_all(self):

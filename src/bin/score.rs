@@ -22,6 +22,8 @@ struct Options {
     render: bool,
     /// Read Oracle verbatim and compare meaning separately from presentation.
     raw: bool,
+    /// Retain the validated source layout needed to recheck an edited Station card.
+    source_context: bool,
     /// Reparse every enumerated text of each IR equal card, not only the ones kept.
     round_trip: bool,
     /// Totals only: a sealed slice must not print or store its cards.
@@ -38,6 +40,7 @@ fn options() -> Result<Options, String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let render = args.iter().any(|a| a == "--render");
     let raw = args.iter().any(|a| a == "--raw");
+    let source_context = args.iter().any(|a| a == "--source-context");
     let round_trip = args.iter().any(|a| a == "--round-trip");
     let aggregate = args.iter().any(|a| a == "--aggregate");
     let totals = args
@@ -52,7 +55,7 @@ fn options() -> Result<Options, String> {
         .collect();
     let plain: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
     let [unified, oracle, slice, out] = plain.as_slice() else {
-        return Err("usage: score <unified.jsonl> <oracle.json> <slice.json> <out.jsonl> [--raw] [--render] [--round-trip] [--aggregate] [--totals=FILE] [--without=PREFIX,...]".into());
+        return Err("usage: score <unified.jsonl> <oracle.json> <slice.json> <out.jsonl> [--raw] [--source-context] [--render] [--round-trip] [--aggregate] [--totals=FILE] [--without=PREFIX,...]".into());
     };
     if !without.is_empty() && (raw || render || round_trip) {
         return Err(
@@ -66,6 +69,7 @@ fn options() -> Result<Options, String> {
         out: (*out).clone(),
         render,
         raw,
+        source_context,
         round_trip,
         aggregate,
         totals,
@@ -306,6 +310,9 @@ fn judge(
     };
     let mut stuck = None;
     let mut row = json!({"name": name, "text": text});
+    if options.source_context && source_context.station_present && source_error.is_none() {
+        row["source_context"] = face["_source_context"].clone();
+    }
     if options.raw {
         row["input_mode"] = json!("raw");
     }
