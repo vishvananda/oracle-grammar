@@ -1,0 +1,965 @@
+{
+  "family": "retirement-35316b41b2f1dadc",
+  "cases": [
+    {
+      "name": "Bag of Tricks",
+      "text": "{4}{G}, {T}: Roll a d8. Reveal cards from the top of your library until you reveal a creature card with mana value equal to the result. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 4
+                    },
+                    {
+                      "Color": "Green"
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "RollDie": {
+                            "sides": 8,
+                            "times": null
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "RevealUntil",
+                            "args": {
+                              "library": {
+                                "kind": "AbilityController"
+                              },
+                              "filter": {
+                                "kind": "AllOf",
+                                "args": [
+                                  {
+                                    "kind": "CardType",
+                                    "args": "Creature"
+                                  },
+                                  {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "Equal",
+                                          "value": {
+                                            "kind": "DieResult",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "count": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "at_most": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "filter": {
+                                    "kind": "AllOf",
+                                    "args": [
+                                      {
+                                        "kind": "CardType",
+                                        "args": "Creature"
+                                      },
+                                      {
+                                        "kind": "Property",
+                                        "args": {
+                                          "property": "ManaValue",
+                                          "test": {
+                                            "kind": "Compare",
+                                            "args": {
+                                              "comparison": "Equal",
+                                              "value": {
+                                                "kind": "DieResult",
+                                                "args": 0
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "destination": {
+                                "Battlefield": {
+                                  "controller": {
+                                    "Player": {
+                                      "kind": "AbilityController"
+                                    }
+                                  },
+                                  "arrival": {
+                                    "controller": null,
+                                    "tapped": false,
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Invalid die result reveal",
+      "text": "Roll a d8. Reveal cards from the top of your library until you reveal a creature card with mana value equal to the result. Put that card onto the battlefield and the rest on the bottom of your graveyard in a random order.",
+      "reject": true
+    },
+    {
+      "name": "Invalid die table",
+      "text": "Choose target creature an opponent controls, then roll a d20.\n1—9 | Return it to its owner’s hand.\n10—19 | Nonsense.\n20 | Gain control of it until the end of your next turn.",
+      "reject": true
+    },
+    {
+      "name": "Imaginary Compass",
+      "text": "{4}{G}, {T}: Roll a d8. Reveal cards from the top of your library until you reveal a land card with mana value equal to the result. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 4
+                    },
+                    {
+                      "Color": "Green"
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "RollDie": {
+                            "sides": 8,
+                            "times": null
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "RevealUntil",
+                            "args": {
+                              "library": {
+                                "kind": "AbilityController"
+                              },
+                              "filter": {
+                                "kind": "AllOf",
+                                "args": [
+                                  {
+                                    "kind": "CardType",
+                                    "args": "Land"
+                                  },
+                                  {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "Equal",
+                                          "value": {
+                                            "kind": "DieResult",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "count": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "at_most": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "filter": {
+                                    "kind": "AllOf",
+                                    "args": [
+                                      {
+                                        "kind": "CardType",
+                                        "args": "Land"
+                                      },
+                                      {
+                                        "kind": "Property",
+                                        "args": {
+                                          "property": "ManaValue",
+                                          "test": {
+                                            "kind": "Compare",
+                                            "args": {
+                                              "comparison": "Equal",
+                                              "value": {
+                                                "kind": "DieResult",
+                                                "args": 0
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "destination": {
+                                "Battlefield": {
+                                  "controller": {
+                                    "Player": {
+                                      "kind": "AbilityController"
+                                    }
+                                  },
+                                  "arrival": {
+                                    "controller": null,
+                                    "tapped": false,
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Bag of Tricks",
+      "text": "{4}{G}, {T}: Roll a d8. Reveal cards from the top of your library until you reveal a land card with mana value equal to the result. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 4
+                    },
+                    {
+                      "Color": "Green"
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "RollDie": {
+                            "sides": 8,
+                            "times": null
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "RevealUntil",
+                            "args": {
+                              "library": {
+                                "kind": "AbilityController"
+                              },
+                              "filter": {
+                                "kind": "AllOf",
+                                "args": [
+                                  {
+                                    "kind": "CardType",
+                                    "args": "Land"
+                                  },
+                                  {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "Equal",
+                                          "value": {
+                                            "kind": "DieResult",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "count": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "at_most": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "filter": {
+                                    "kind": "AllOf",
+                                    "args": [
+                                      {
+                                        "kind": "CardType",
+                                        "args": "Land"
+                                      },
+                                      {
+                                        "kind": "Property",
+                                        "args": {
+                                          "property": "ManaValue",
+                                          "test": {
+                                            "kind": "Compare",
+                                            "args": {
+                                              "comparison": "Equal",
+                                              "value": {
+                                                "kind": "DieResult",
+                                                "args": 0
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "destination": {
+                                "Battlefield": {
+                                  "controller": {
+                                    "Player": {
+                                      "kind": "AbilityController"
+                                    }
+                                  },
+                                  "arrival": {
+                                    "controller": null,
+                                    "tapped": false,
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Bag of Tricks",
+      "text": "{5}{G}, {T}: Roll a d8. Reveal cards from the top of your library until you reveal a creature card with mana value equal to the result. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 5
+                    },
+                    {
+                      "Color": "Green"
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "RollDie": {
+                            "sides": 8,
+                            "times": null
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "RevealUntil",
+                            "args": {
+                              "library": {
+                                "kind": "AbilityController"
+                              },
+                              "filter": {
+                                "kind": "AllOf",
+                                "args": [
+                                  {
+                                    "kind": "CardType",
+                                    "args": "Creature"
+                                  },
+                                  {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "Equal",
+                                          "value": {
+                                            "kind": "DieResult",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "count": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "at_most": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "filter": {
+                                    "kind": "AllOf",
+                                    "args": [
+                                      {
+                                        "kind": "CardType",
+                                        "args": "Creature"
+                                      },
+                                      {
+                                        "kind": "Property",
+                                        "args": {
+                                          "property": "ManaValue",
+                                          "test": {
+                                            "kind": "Compare",
+                                            "args": {
+                                              "comparison": "Equal",
+                                              "value": {
+                                                "kind": "DieResult",
+                                                "args": 0
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "destination": {
+                                "Battlefield": {
+                                  "controller": {
+                                    "Player": {
+                                      "kind": "AbilityController"
+                                    }
+                                  },
+                                  "arrival": {
+                                    "controller": null,
+                                    "tapped": false,
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

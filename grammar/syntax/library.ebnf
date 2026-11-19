@@ -661,7 +661,7 @@ cost_hand_on_top ::= clause_hand_on_top
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:AnyNumber, constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
 clause_hand_any_number_battlefield ::= "put" "any" "number" "of" card_filter "cards" "from" "your" "hand" "onto" "the" "battlefield"
 
-a_card ::= a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another | a_card_or
+a_card ::= a_card_mana_equal_player_counters | a_card_maximum_mana | a_card_prevalent_type | a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another | a_card_or
 
 /* "A Mount creature card or a Plains card": either kind, each with its own noun. */
 /* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
@@ -1808,3 +1808,29 @@ look_exiled_free_permission ::= duration "," "you" "may" "cast" "the" "exiled" "
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@back(2), phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, effects:[List([Term{family:SpellEffect, form:Undaunted}])]}})], duration:WhileExiled(Result{result:@back(2), phase:After, index:0}), evaluation:LiveObjects} */
 look_exiled_undaunted_permission ::= "for" "as" "long" "as" "that" "card" "remains" "exiled" "," "you" "may" "cast" "it" "." "that" "spell" "has" "undaunted"
+
+/* Reveal until a card's mana value matches the most recent die roll. The
+   selected card and the remainder share the same observed receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:$value_die_result}}]), count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:$value_die_result}}])}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:$rest_bottom}] */
+instructions_reveal_until_die_value ::= "reveal" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "reveal" "a" card_filter "card" "with" "mana" "value" "equal" "to" value_die_result "." "put" "that" "card" until_destination "and" rest_bottom
+
+/* Card predicates compose with seek and other single-card choices. */
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:CountCounters(_{recipients:Players(One($player_ref)), kind:$counter_kind, information:CurrentOrLastKnown})}} */
+a_card_mana_equal_player_counters ::= "a" "card" "with" "mana" "value" "equal" "to" "the" "number" "of" counter_kind "counters" player_ref "has"
+
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value_counters_on_object}}}), property:ManaValue, aggregation:Maximum}}} */
+a_card_maximum_mana ::= "a" "card" "with" "the" "highest" "mana" "value" "among" "cards" "in" "your" "library" "with" "mana" "value" "X" "or" "less" "," "where" "X" "is" value_counters_on_object
+
+/* @sem ObjectFilter::AllOf([$card_filter, MostCommonCreatureTypeIn(AbilityController)]) */
+a_card_prevalent_type ::= "a" card_filter "card" "of" "the" "most" "prevalent" "creature" "type" "in" "your" "library"
+
+/* The player chooses from their own graveyard; the count remains an operand. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$player_ref, objects:Zone{scope:Players{zone:Graveyard, players:One($player_ref)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count_many)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_player_exiles_graveyard_many ::= player_ref "exiles" card_count_many "from" "their" "graveyard"
+
+/* Complete private-library populations and a slice leaving the bottom card. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any} */
+all_private_library_cards ::= "all" "the" "cards" "from" player_possessive "library"
+
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}, count:Subtract(CountObjects(Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}), Constant(1)), from:Top} */
+library_except_bottom ::= "all" "but" "the" "bottom" "card" "of" player_possessive "library"
