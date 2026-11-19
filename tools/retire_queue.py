@@ -775,8 +775,10 @@ class Queue:
         integration = kind == 'reviewed-integration-repair-split'
         repaired = kind == 'reviewed-author-repair-split'
         if (not (integration or repaired or kind == 'reviewed-author-split')
-                or evidence.get('source_checkpoint') != checkpoint or not isinstance(attempt_id, str) or not attempt_id):
-            raise ValueError('reviewed author split evidence must bind the current attempt and checkpoint')
+                or not isinstance(evidence.get('source_checkpoint'), str) or not evidence['source_checkpoint']
+                or not isinstance(attempt_id, str) or not attempt_id):
+            raise ValueError('reviewed author split evidence must bind the attempt and proof checkpoint')
+        source = evidence['source_checkpoint']
         notes = evidence.get('review_notes')
         if not isinstance(notes, str) or not notes.strip() or len(notes) > 2048:
             raise ValueError('reviewed author split requires concise review notes')
@@ -799,7 +801,10 @@ class Queue:
                     raise ValueError('the parked author process identity is unknown')
                 self._require_absent_pid(pid)
                 _verify_readmission_origin(db, checkpoint, base)
-                selected, deferred = _reviewed_split_jobs(parent, checkpoint, origin, evidence)
+                # Keep the child ID that its independently evaluated report binds.
+                # The pending child still rebases and rechecks on the claim checkpoint.
+                _verify_readmission_origin(db, checkpoint, source)
+                selected, deferred = _reviewed_split_jobs(parent, source, origin, evidence)
                 result = json.loads(raw)
                 if integration and result['status'] != 'provisional-pass':
                     raise ValueError('integration split requires an originally passing proposal')
@@ -809,7 +814,7 @@ class Queue:
                                                       evidence.get('original_report'), passed=not repaired)
                 if archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':
                     raise ValueError('the original report lacks a full author evaluation')
-                _, task = _verify_reviewed_repair(campaign, checkpoint, selected, evidence)
+                _, task = _verify_reviewed_repair(campaign, source, selected, evidence)
                 descriptor = campaign/'.cache/attempts'/attempt_id/'tasks'/f'{job_id}.json'
                 old = descriptor.read_bytes()
                 if hashlib.sha256(old).hexdigest() != archived['descriptor_sha256']:

@@ -48,6 +48,8 @@ reuse the existing production merge to place the draft on the worker's current
 checkpoint. It reapplies only the assigned seeded removals. A merge conflict
 leaves the worker with a clean checkout and the previous review notes. Every
 restored draft still goes through fresh author, coordinator and integration checks.
+This applies to a reviewed subset of a split job as well. Its original proof
+and child identity survive a checkpoint advance while the split is in review.
 
 The coordinator stages disjoint proposals in a private integration workspace.
 It merges ordinary productions conservatively, replays the union of assigned

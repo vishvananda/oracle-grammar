@@ -93,6 +93,26 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.get_attempt(self.attempt), self.original)
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
+    def test_split_preserves_the_verified_child_when_checkpoint_advances(self):
+        self.park()
+        self.q.add_checkpoint('new', 'accepted newer grammar', expected_parent='head')
+        before = self.q.audit()
+        with self.assertRaisesRegex(ValueError, 'outside the accepted checkpoint chain'):
+            self.q.split_reviewed_author('parent', self.attempt, 'new',
+                                         {**self.evidence, 'source_checkpoint':'unaccepted'})
+        with self.assertRaisesRegex(ValueError, 'checkpoint changed'):
+            self.q.split_reviewed_author('parent', self.attempt, 'head', self.evidence)
+        self.assertEqual(self.q.audit(), before)
+        receipt = self.q.split_reviewed_author('parent', self.attempt, 'new', self.evidence)
+        child = self.review.call_args.args[2]
+        self.assertEqual(self.review.call_args.args[1], 'head')
+        self.assertEqual((receipt['checkpoint'], receipt['job_id']), ('new', child['id']))
+        self.assertEqual(child['review_checkpoint'], 'head')
+        self.assertEqual(self.q.reviewed_draft(child['id']),
+                         {'source_checkpoint':'head', 'report':self.evidence['report']})
+        self.assertEqual(self.q.get_attempt(self.attempt), self.original)
+        self.assertEqual(self.q.claim('terra')['base_commit'], 'new')
+
     def test_selected_rule_and_coverage_must_match_without_writes(self):
         self.park()
         before = self.q.audit()
