@@ -74,32 +74,65 @@ def setup(checkpoint, source):
     return control
 
 
+def _invoke(control, directory, command, environment, log_name):
+    verify(control)
+    log = directory/log_name
+    with log.open('w') as stream:
+        code = subprocess.run(command, env=environment, stdout=stream, stderr=stream, check=False,
+                              pass_fds=tuple(r._LEASES)).returncode
+    verify(control)
+    return code, log
+
+
+def _test_record(name, command, code, log, passed):
+    return {'test': name, 'returncode': code, 'passed': bool(passed),
+            'log': str(log), 'log_sha256': r.digest(log), 'command': command}
+
+
+def _run_group(control, directory, env):
+    """Share the read-only engine across exactly the named Rust tests."""
+    names = control['tests']
+    command = [str(control['binary']), '--exact', *names, '--test-threads', '1']
+    code, log = _invoke(control, directory, command, env, 'group.log')
+    text = log.read_text()
+    started = re.findall(r'^running (\d+) tests?$', text, re.M)
+    completed = re.findall(r'^test (\S+) \.\.\. (.+)$', text, re.M)
+    summaries = re.findall(r'^test result: ok\. (\d+) passed; 0 failed;', text, re.M)
+    count = str(len(names))
+    if (code or started != [count] or summaries != [count] or len(completed) != len(names)
+            or dict(completed) != dict.fromkeys(names, 'ok')):
+        return None
+    return [_test_record(name, command, code, log, True) for name in names]
+
+
+def _run_serial(control, directory, env):
+    results = []
+    for index, test in enumerate(control['tests']):
+        command = [str(control['binary']), '--exact', test, '--nocapture']
+        code, log = _invoke(control, directory, command, env, f'test-{index:03d}.log')
+        text = log.read_text()
+        passed = (code == 0 and len(re.findall(r'^running 1 test\s*$', text, re.M)) == 1
+                  and len(re.findall(r'^test '+re.escape(test)+r' \.\.\.', text, re.M)) == 1
+                  and re.search(r'^test result: ok\. 1 passed; 0 failed;', text, re.M) is not None)
+        results.append(_test_record(test, command, code, log, passed))
+        if not passed:
+            break
+    return results
+
+
 def check(checkpoint, control, grammar, directory):
     verify(control)
     directory.mkdir()
-    results = []
     with retire_cpu.reserve(Path(checkpoint['cpu_pool']), 2, checkpoint.get('cpu_capacity', 32),
                             background=checkpoint.get('background_cpu', False)) as fds:
         r._LEASES.extend(fds)
         try:
             env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}
             env.update(ORACLE_GRAMMAR_DIR=str(grammar), ORACLE_GRAMMAR_THREADS='2', RUST_TEST_THREADS='2', RAYON_NUM_THREADS='2')
-            for index, test in enumerate(control['tests']):
-                verify(control)
-                log = directory/f'test-{index:03d}.log'
-                command = [str(control['binary']), '--exact', test, '--nocapture']
-                with log.open('w') as stream:
-                    code = subprocess.run(command, env=env, stdout=stream, stderr=stream, check=False,
-                                          pass_fds=tuple(r._LEASES)).returncode
-                text = log.read_text()
-                passed = (code == 0 and len(re.findall(r'^running 1 test\s*$', text, re.M)) == 1
-                          and len(re.findall(r'^test '+re.escape(test)+r' \.\.\.', text, re.M)) == 1
-                          and re.search(r'^test result: ok\. 1 passed; 0 failed;', text, re.M) is not None)
-                results.append({'test': test, 'returncode': code, 'passed': bool(passed),
-                                'log': str(log), 'log_sha256': r.digest(log), 'command': command})
-                verify(control)
-                if not passed:
-                    break
+            results = _run_group(control, directory, env) if len(control['tests']) > 1 else None
+            # Keep the exact isolated failure and its original diagnostic path.
+            if results is None:
+                results = _run_serial(control, directory, env)
         finally:
             for fd in fds:
                 r._LEASES.remove(fd)

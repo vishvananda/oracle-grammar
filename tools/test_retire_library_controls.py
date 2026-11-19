@@ -99,6 +99,28 @@ class LibraryControlsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             controls.setup(self.cp, self.source)
 
+    def test_unmatched_group_rechecks_the_original_isolated_tests(self):
+        control = controls.setup(self.cp, self.source)
+        def run(command, **kwargs):
+            log = kwargs['stdout']
+            if '--test-threads' in command:
+                log.write('running 2 tests\ntest tests::one ... ok\ntest tests::extra ... ok\n'
+                          'test result: ok. 2 passed; 0 failed;\n')
+                return subprocess.CompletedProcess(command, 0)
+            name = command[2]
+            if name == 'tests::two':
+                log.write(f'running 1 test\ntest {name} ... FAILED\n')
+                return subprocess.CompletedProcess(command, 101)
+            log.write(f'running 1 test\ntest {name} ... ok\ntest result: ok. 1 passed; 0 failed;\n')
+            return subprocess.CompletedProcess(command, 0)
+        with patch.object(controls.subprocess, 'run', side_effect=run) as invoked:
+            with self.assertRaisesRegex(ValueError, 'control failed'):
+                controls.check(self.cp, control, self.grammar, self.root/'veto')
+        self.assertEqual(invoked.call_count, 3)
+        result = r.read(self.root/'veto/result.json')
+        self.assertEqual([(row['test'], row['passed'], Path(row['log']).name) for row in result['tests']],
+                         [('tests::one', True, 'test-000.log'), ('tests::two', False, 'test-001.log')])
+
     def test_exact_test_invocations_two_cpu_tokens_and_zero_tests_fail(self):
         control = controls.setup(self.cp, self.source)
         calls = []
@@ -109,13 +131,15 @@ class LibraryControlsTests(unittest.TestCase):
             self.assertEqual(kwargs['env']['RUST_TEST_THREADS'], '2')
             for fd in kwargs['pass_fds']:
                 os.fstat(fd)
-            test = command[2]
-            kwargs['stdout'].write(f'running 1 test\ntest {test} ... ok\ntest result: ok. 1 passed; 0 failed;\n')
+            self.assertEqual(command[1:], ['--exact', 'tests::one', 'tests::two', '--test-threads', '1'])
+            kwargs['stdout'].write('running 2 tests\ntest tests::two ... ok\ntest tests::one ... ok\n'
+                                   'test result: ok. 2 passed; 0 failed;\n')
             return subprocess.CompletedProcess(command, 0)
         with patch.object(controls.subprocess, 'run', side_effect=run):
             result = controls.check(self.cp, control, self.grammar, self.root/'pass')
         self.assertTrue(result['passed'])
-        self.assertEqual([call[2] for call in calls], ['tests::one', 'tests::two'])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual([item['test'] for item in result['tests']], control['tests'])
         def zero(command, **kwargs):
             kwargs['stdout'].write('running 0 tests\ntest result: ok. 0 passed; 0 failed;\n')
             return subprocess.CompletedProcess(command, 0)
