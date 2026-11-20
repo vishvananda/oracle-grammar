@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed
+chapter_program ::= chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -140,3 +140,50 @@ optional_opponent_draw_then_draw ::= "you" "may" "have" "target" "opponent" "dra
 /* The second move follows the actual exile arrival. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@prior, phase:After, index:0}), zone:Exile}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[Transformed]}}, qualifiers:[]}}]} */
 saga_exile_return_transformed ::= "exile" "this" "Saga" "," "then" "return" "it" "to" "the" "battlefield" "transformed" "under" "your" "control"
+
+/* Scoped chapter phrases retain target, chooser, owner and selection identities. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:@and($chapter_snow_permanent_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))})), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]} */
+chapter_return_graveyard_targets ::= "return" "up" "to" number "target" chapter_snow_permanent_filter "cards" "from" "your" "graveyard" "to" "your" "hand"
+
+/* @sem Program::Program{instructions:[ForEachPlayer{players:All, binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:Any}), count:AsManyAsCan($number)}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]} */
+chapter_choose_graveyards_shuffle ::= "choose" number "cards" "in" "each" "graveyard" "." "their" "owners" "shuffle" "those" "cards" "into" "their" "libraries"
+
+/* Outside the battlefield, the noun keeps its card-type restriction. */
+/* @sem @and($adjective_snow, $card_permanent) */
+chapter_snow_permanent_filter ::= adjective_snow card_permanent
+
+/* Each chapter keeps its own announcement, including the return's graveyard targets. */
+/* @prefer always */
+/* @sem Ability::[Ability::Saga{chapters:[...$chapter_1, @scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_return_graveyard_targets}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_choose_graveyards_shuffle})]}] */
+saga_graveyard_recovery_chapters ::= chapter_1 NEWLINE "II" "—" chapter_return_graveyard_targets "." NEWLINE "III" "—" chapter_choose_graveyards_shuffle "."
+
+/* A chapter can modify all owned cards of a printed kind in every zone.
+   The bound and both printed adjustments remain independent operands. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:EffectOn{subject:Objects(AnyZone(AllOf([$filter_phrase, OwnedBy(One(AbilityController)), $modifier_mana_value_bound]))), effects:[Term{family:PerpetualEffect, form:AdjustPT, operands:[Integer($number), Integer($number_2)]}]}}]} */
+chapter_owned_cards_perpetual ::= "all" filter_phrase "cards" "you" "own" modifier_mana_value_bound "perpetually" "get" "+" NUMBER "/" "+" NUMBER
+
+/* The battlefield move consumes the card placed in hand by this seek. */
+/* @sem Program::Program{instructions:[...$clause_seek_card, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]} */
+chapter_seek_battlefield ::= clause_seek_card "and" "put" "it" "onto" "the" "battlefield"
+
+/* The plural chapter subject fixes agreement while retaining each operand. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController)), $modifier_mana_value_bound])}), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}]} */
+chapter_controlled_plural_keyword ::= filter_plural "you" "control" modifier_mana_value_bound "gain" keyword_name duration
+
+/* These complete chapter phrases preserve both the choice and the separate shuffle group. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Mill{players:One(AbilityController), amount:$card_count}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$card_filter}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]} */
+chapter_mill_then_return ::= "mill" card_count "," "then" "you" "may" "return" "a" card_filter "card" "from" "your" "graveyard" "to" "your" "hand"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$private_card_transfer_filter}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Union([Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any})]), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]} */
+chapter_return_then_shuffle ::= "return" "all" private_card_transfer_filter "cards" "from" "your" "graveyard" "to" "the" "battlefield" "," "then" "shuffle" "your" "graveyard" "into" "your" "library"
+
+/* A controller chooses one matching card from each player's graveyard. */
+/* @sem Program::Program{instructions:[ForEachPlayer{players:All, binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:$random_an_card_filter}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:_{}}}}]}}]} */
+chapter_exile_each_graveyard ::= "exile" "an" random_an_card_filter "card" "from" "each" "graveyard"
+
+/* The linked cast is scoped with the lore-counted mana sentence; its filter
+   and mana production are independent current operands. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:CountCounters(_{recipients:Objects(One(Source)), kind:Named(LoreCounter), information:CurrentOrLastKnown}), production:$mana_unit, choice:Once}}}, Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$random_an_card_filter, InSet(Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}))])}), count:Exactly(Constant(1)), terms:_{cost:Normal, spend_as:AnyType}}}]}}]} */
+chapter_lore_mana_linked_cast ::= "add" mana_unit "for" "each" "lore" "counter" "on" "this" "Saga" "." "you" "may" "cast" "an" random_an_card_filter "card" "exiled" "with" "this" "Saga" "," "and" "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "that" "spell"

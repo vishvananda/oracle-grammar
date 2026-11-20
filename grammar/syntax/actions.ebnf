@@ -6887,3 +6887,51 @@ exile_current_it ::= "exile" "it"
 
 /* @sem Instruction::[@resolution(Instruction::If{condition:$condition_it_card, then:Program{instructions:[Effect{result:@next, operation:$exile_current_it}, Effect{result:@next, operation:$cast_that_card_permission}]}, otherwise:Program{}})] */
 instructions_conditional_exile_cast ::= exile_current_it "if" condition_it_card "." cast_that_card_permission
+
+/* A common controller is a constraint on the announced target group. */
+/* @sem @target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly($number), filter:$plural, constraints:[CommonProperty(Controllers)]}) */
+same_controller_target_group ::= number "target" plural "controlled" "by" "the" "same" "player"
+
+/* @sem Instruction::[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(ControllerOf(Target{slot:$same_controller_target_group, index:0})), objects:Targets($same_controller_target_group), choose:AsManyAsCan($value)})}] */
+instructions_common_controller_sacrifice ::= "choose" same_controller_target_group "." "that" "player" "sacrifices" value "of" "them" "of" "their" "choice"
+
+/* A quoted activated ability belongs to each affected holder. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(EventSubject)), $plural, ControlledBy(One(AbilityController))])}), changes:[GrantAbility($granted_activated_unpunctuated)], duration:$duration, evaluation:Snapshot}}] */
+instructions_other_controlled_grant_quoted ::= "other" plural "you" "control" "gain" granted_activated_unpunctuated duration
+
+/* The callback retains the announced target and can compose with an instruction. */
+/* @sem Instruction::[Effect{result:@next, operation:$return_other_target_owners_hand}, If{condition:ObjectMatches{object:Target{slot:@last_slot, index:0}, filter:ControlledBy(One(AbilityController))}, then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+instructions_return_other_controlled_callback ::= return_other_target_owners_hand "." "if" "you" "controlled" "it" "," conjoined
+
+/* @sem Operation::Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:AllOf([Not(SameObject(EventSubject)), $noun])}), index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+return_other_target_owners_hand ::= "return" "up" "to" "one" "other" "target" noun "to" "its" "owner's" "hand"
+
+/* Both sentences refer to the same shield counter and announced target. */
+/* @sem Instruction::[Effect{result:@next, operation:$put_shield_noncommander_target}, Effect{result:@next, operation:$control_target_while_shielded}] */
+instructions_shield_control_target ::= put_shield_noncommander_target "." control_target_while_shielded
+
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Not(State(Commander)), CardType(Creature), ControlledBy(OthersThan(AbilityController))])}), index:0})), kind:Named(ShieldCounter), amount:Constant(1)}]} */
+put_shield_noncommander_target ::= "put" "a" "shield" "counter" "on" "target" "noncommander" "creature" "you" "don't" "control"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@last_slot, index:0})), changes:[SetController(AbilityController)], duration:WhileMatches{object:Target{slot:@last_slot, index:0}, filter:Counters(_{kind:Named(ShieldCounter), comparison:Greater, value:Constant(0)})}, evaluation:Snapshot} */
+control_target_while_shielded ::= "you" "gain" "control" "of" "that" "creature" "for" "as" "long" "as" "it" "has" "a" "shield" "counter" "on" "it"
+
+/* The amount is the before receipt of this specific linked-card return. */
+/* @sem Instruction::[Effect{result:@mark, operation:$move_linked_cards_hand}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:CountObjects(Transition{result:@marked, phase:Before})}}] */
+instructions_linked_return_life ::= move_linked_cards_hand "and" "you" "lose" "that" "much" "life"
+
+/* A postposed empty-hand condition gates this linked-card permission. */
+/* @sem Instruction::[If{condition:$linked_play_empty_hands, then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$play_free}]}}]}, otherwise:Program{}}] */
+clause_may_play_linked_if_empty_hands ::= "you" "may" play_free "if" linked_play_empty_hands
+
+/* Every member of the named population has an empty hand. */
+/* @sem Condition::Compare{left:CountPlayers(Intersection([$players_singular, Matching{binding:0, condition:Compare{left:CountObjects(Zone(_{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any})), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}}])), test:NumberTest::Compare{comparison:Equal, value:CountPlayers($players_singular)}} */
+linked_play_empty_hands ::= players_singular "has" "no" "cards" "in" "hand"
+
+/* The random opponent and the subsequent attack requirement form one scoped
+   choice: the required defender is the player chosen by this instruction. */
+/* @sem Vec<Instruction>::[Effect{result:@next, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:ChooseAtRandom(_{kind:Player, options:[Players(OpponentsOf(AbilityController))]})}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[Rule(RequireCombat{action:Attack(Players(One(Chosen))), amount:AtLeast(Constant(1))})], duration:EndOfCombat, evaluation:LiveObjects}}] */
+random_opponent_combat ::= "mill" card_count "and" "choose" "an" "opponent" "at" "random" "." "this" "creature" "attacks" "that" "player" "this" "combat" "if" "able"
+
+/* @sem Instruction::[...$random_opponent_combat, Effect{result:@next, operation:$source_keyword_card_types_pump}] */
+instructions_random_opponent_card_types ::= random_opponent_combat "." source_keyword_card_types_pump

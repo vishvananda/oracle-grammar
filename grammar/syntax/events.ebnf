@@ -4294,3 +4294,66 @@ event_control_loss_third ::= players_singular "loses" "control" "of" object_ref
 whenever_filtered_card_leaves_your_graveyard ::= "whenever" "an" graveyard_vowel_card_filter "card" "leaves" "your" "graveyard"
 
 graveyard_vowel_card_filter ::= filter_instant_or_sorcery | spell_instant | noun_artifact | noun_enchantment
+
+/* Life lost in this body is the amount of this trigger's life-loss event. */
+/* @sem Ability::Triggered{event:$event_you_lose_life, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$gain_per_life_lost_event}]}} */
+triggered_gain_per_life_lost ::= "whenever" event_you_lose_life "," gain_per_life_lost_event "."
+
+/* @sem Operation::GainLife{players:One(AbilityController), amount:@times($count, Expr::EventAmount)} */
+gain_per_life_lost_event ::= "you" "gain" count "life" "for" "each" "1" "life" "you" "lost"
+
+/* Attachment choices retain the source and the host filter as separate operands. */
+/* @sem Ability::AsEvent{object:$self_explicit_ref, event:BecomesAttachedTo($attached_choice_host), actions:List([$attach_choose_creature_name, $attach_second_choice])} */
+as_attached_two_choices ::= "as" self_explicit_ref "becomes" "attached" "to" attached_choice_host "," attach_choose_creature_name "and" attach_second_choice "."
+
+attach_second_choice ::= attach_choose_creature_type | attach_choose_color
+
+/* @sem Operand::Term{family:AttachAction, form:ChooseACardName, operands:[Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}]} */
+attach_choose_creature_name ::= "choose" "a" "creature" "card" "name"
+
+/* @sem Operand::Term{family:AttachAction, form:ChooseACreatureType} */
+attach_choose_creature_type ::= "a" "creature" "type"
+
+/* @sem Operand::Term{family:AttachAction, form:ChooseAColor, operands:[Term{family:ChoosableColor, form:AnyColor}]} */
+attach_choose_color ::= "a" "color"
+
+attached_choice_host ::= attached_choice_creature | attached_choice_land | attached_choice_artifact
+
+/* @sem $noun_creature */
+attached_choice_creature ::= "a" noun_creature
+
+/* @sem $noun_land */
+attached_choice_land ::= "a" noun_land
+
+/* @sem $noun_artifact */
+attached_choice_artifact ::= "an" noun_artifact
+
+/* The location and event frame a counter-driven return program. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$graveyard_local_event, intervening_if:ObjectMatches{object:Source, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_symbol_counter_program})} */
+graveyard_symbol_counter_trigger ::= graveyard_local_event "," "if" "this" "card" "is" "in" "your" "graveyard" "," graveyard_symbol_counter_program "."
+
+/* @sem Program::Program{instructions:[$graveyard_symbol_counter_put, $graveyard_counter_return_perpetual]} */
+graveyard_symbol_counter_program ::= graveyard_symbol_counter_put "." graveyard_counter_return_perpetual
+
+/* @sem Instruction::Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Source)), kind:$counter_kind, amount:CountManaSymbols{objects:One(EventSubject), colors:[$graveyard_count_symbol]}}]}} */
+graveyard_symbol_counter_put ::= "put" "a" counter_kind "counter" "on" "this" "card" "for" "each" graveyard_count_symbol "in" "that" "spell's" "mana" "cost"
+
+/* @sem Instruction::If{condition:Compare{left:CountCounters(_{recipients:Objects(Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:SameObject(Source)})), kind:$counter_kind, information:CurrentOrLastKnown}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, then:_{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[Pump{power:$signed, toughness:$signed_2}]}}]}, otherwise:_{}} */
+graveyard_counter_return_perpetual ::= "if" "this" "card" "has" number "or" "more" counter_kind "counters" "on" "it" "," "return" "it" "to" "the" "battlefield" "and" "it" "perpetually" "gets" signed "/" signed
+
+graveyard_count_symbol ::= graveyard_symbol_white | graveyard_symbol_blue | graveyard_symbol_black | graveyard_symbol_red | graveyard_symbol_green
+
+/* @sem ManaColor::White */
+graveyard_symbol_white ::= "{" "W" "}"
+
+/* @sem ManaColor::Blue */
+graveyard_symbol_blue ::= "{" "U" "}"
+
+/* @sem ManaColor::Black */
+graveyard_symbol_black ::= "{" "B" "}"
+
+/* @sem ManaColor::Red */
+graveyard_symbol_red ::= "{" "R" "}"
+
+/* @sem ManaColor::Green */
+graveyard_symbol_green ::= "{" "G" "}"
