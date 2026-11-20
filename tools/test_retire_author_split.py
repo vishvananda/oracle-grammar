@@ -199,6 +199,66 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.get_attempt(self.attempt), self.original)
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
+    def test_numbered_family_cases_require_pinned_oracle_words_and_preserve_labels(self):
+        self.park()
+        old = self.root/'old'
+        new = self.root/'new'
+        frozen = self.root/'frozen'
+        scan = self.root/'scan'
+        for directory in (old, new, frozen, scan):
+            directory.mkdir()
+        oracle = frozen/'oracle.json'
+        data = json.dumps([{'cards': [
+            {'name':'A','text':'{3}: Do the first thing. Then draw a card.\nDo the second thing.'},
+            {'name':'B','text':'Do the held thing.'}]}]).encode()
+        oracle.write_bytes(data)
+        manifest = self.root/'manifest.json'
+        manifest.write_text(json.dumps({'files':{'oracle.json':sha256(data).hexdigest()}}))
+        pinned = sha256(manifest.read_bytes()).hexdigest()
+        with closing(self.q._connect()) as db, db:
+            db.execute("UPDATE checkpoints SET evidence=? WHERE commit_id='head'",
+                       (json.dumps({'validation':{'validation_manifest_sha256':pinned}}),))
+        dependencies = scan/'rules.json'
+        dependencies.write_text(json.dumps({'needed':{'m_good':['A'],'m_deferred':['B']}}))
+        self.enterContext(patch.object(retire_rehabilitation, 'verify_scan',
+                                       return_value=(self.root,set(),pinned,sha256(dependencies.read_bytes()).hexdigest())))
+        first = {'name':'A 0','text':'Do the first thing.','expected':['first'],'exact':True,'default':True}
+        second = {'name':'A 1','text':'Do the second thing.','expected':['second'],'exact':True,'default':True}
+        held = {'name':'B 0','text':'Unrelated words.','expected':['held']}
+        refusal = {'name':'Synthetic refusal','text':'Do the.','reject':True}
+        family = {'family':'archive','cases':[first,second,held,refusal]}
+        self.original_report.update(directory=str(old), family_returncode=1, failures=['family regression tests failed'])
+        self.archive.return_value = self.original_report, family
+        gate = old/'family-check.log'
+        gate.write_text(json.dumps({'family':'archive','cases':4,'passed':3,'compositional':True,
+                                    'failures':[{'name':'B 0','why':'unexpected refusal: NoParse { furthest: 0 }'}]}))
+        evidence = {**self.evidence,'kind':'reviewed-family-repair-split','numbered_family_cases':True,
+                    'family_gate':{'path':str(gate),'sha256':sha256(gate.read_bytes()).hexdigest()}}
+        fixture = new/'family.json'
+
+        def repaired(cases):
+            fixture.write_text(json.dumps({'cases':cases}))
+            self.review.return_value = ({'directory':str(new),'fixture_sha256':sha256(fixture.read_bytes()).hexdigest()},
+                                        {'cohort':['A','B']})
+
+        repaired([first,second,refusal])
+        with self.assertRaisesRegex(ValueError,'does not isolate'):
+            self.q.split_reviewed_author('parent', self.attempt, 'head', evidence)
+        held['text'] = 'Do the held thing.'
+        with self.assertRaisesRegex(ValueError,'does not isolate'):
+            self.q.split_reviewed_author('parent', self.attempt, 'head', {**evidence,'numbered_family_cases':False})
+        oracle.write_bytes(data+b' ')
+        with self.assertRaisesRegex(ValueError,'rehabilitation input hash differs'):
+            self.q.split_reviewed_author('parent', self.attempt, 'head', evidence)
+        oracle.write_bytes(data)
+        repaired([dict(first, name='A'),second,refusal])
+        with self.assertRaisesRegex(ValueError,'omitted an archived positive case or refusal'):
+            self.q.split_reviewed_author('parent', self.attempt, 'head', evidence)
+        repaired([first,second,refusal])
+        receipt = self.q.split_reviewed_author('parent', self.attempt, 'head', evidence)
+        self.assertEqual(receipt['rules'], ['m_good'])
+        self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
+
     def test_repair_can_split_an_inherited_review_using_the_original_attempt(self):
         self.park()
         rules = ['m_initial', 'm_repaired', 'm_held']

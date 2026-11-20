@@ -102,6 +102,21 @@ def verify_rule_receipts(inputs, rules, manifest_hash, scan_hash):
             raise ValueError('unused rule scan receipt differs')
 
 
+def approved_family_texts(inputs, manifest_hash, names):
+    """Load verbatim Oracle text for the assigned faces from the verified bundle."""
+    manifest = json.loads(_read(inputs/'manifest.json', manifest_hash)[0])
+    expected = manifest['files'].get('oracle.json')
+    if not isinstance(expected, str) or not re.fullmatch(r'[0-9a-f]{64}', expected):
+        raise ValueError('the frozen Oracle input lacks a checksum')
+    cards = json.loads(_read(inputs/'frozen/oracle.json', expected)[0])
+    result = {name: set() for name in names}
+    for record in cards:
+        for face in record['cards']:
+            if face['name'] in result and isinstance(face.get('text'), str):
+                result[face['name']].add(face['text'])
+    return result
+
+
 def deferred_author_faces(inputs, scan_hash, unused, job):
     """Derive the exact remaining author scope from the accepted rule scan."""
     needed = json.loads(_read(inputs/'scan/rules.json', scan_hash)[0]).get('needed')

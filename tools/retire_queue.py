@@ -825,7 +825,22 @@ def _verify_split_dispositions(original, owned, selected, repaired):
         raise ValueError('the selected subset was not proposed in the original assignment')
 
 
-def _family_split_cases(evidence, archived, family, selected, deferred):
+def _archived_case_face(case, assigned, approved):
+    label = case['name']
+    if label in assigned:
+        return label
+    name, _, number = label.rpartition(' ')
+    text = case.get('text')
+    if (not approved or name not in assigned or not re.fullmatch(r'[0-9]{1,3}', number)
+            or not isinstance(text, str) or not text.endswith('.')):
+        return None
+    # Workers sometimes number separate fixtures for a face. Keep their original
+    # case name and match its words to a whole text or clause in that exact face.
+    pattern = re.compile(r'(?:^|\n|: |\. )' + re.escape(text) + r'(?=$|\s)')
+    return name if any(pattern.search(oracle) for oracle in approved.get(name, ())) else None
+
+
+def _family_split_cases(evidence, archived, family, selected, deferred, *, approved=None):
     """Replay every selected compositional case and every archived refusal."""
     if (archived.get('family_returncode') != 1 or archived.get('scope') == 'author-target-preview'
             or archived.get('failures') != ['family regression tests failed']):
@@ -850,17 +865,21 @@ def _family_split_cases(evidence, archived, family, selected, deferred):
     except (ValueError, IndexError, KeyError, TypeError, AttributeError) as exc:
         raise ValueError('invalid archived family veto') from exc
     targets = set(selected['target_faces'])
-    positive = [case for case in cases if case['name'] in targets and case.get('expected') is not None
+    residual = set(deferred['target_faces']) - targets
+    located = [(case, _archived_case_face(case, targets | residual, approved)) for case in cases]
+    faces = {case['name']: face for case, face in located}
+    positive = [(case, face) for case, face in located
+                if face in targets and case.get('expected') is not None
                 and case.get('compositional', True) is True and not case.get('reject')]
-    positive_names = {case['name'] for case in positive}
-    known_failures = (set(deferred['target_faces']) - targets) | positive_names
+    positive_names = {face for _, face in positive}
+    known_failures = residual | positive_names
     if (result.get('compositional') is not True or result.get('family') != family.get('family')
             or result.get('cases') != len(cases) or type(result.get('passed')) is not int
             or result['passed'] + len(failures) != len(cases) or len(failed) != len(failures)
-            or not failed or not localized or not failed <= known_failures
+            or not failed or not localized or not {faces.get(label) for label in failed} <= known_failures
             or any(sum(case['name'] == name for case in cases) != 1 for name in failed)):
         raise ValueError('archived family veto does not isolate replayable cases')
-    required = [*positive, *(case for case in cases if case.get('reject') is True)]
+    required = [*(case for case, _ in positive), *(case for case in cases if case.get('reject') is True)]
     return positive_names, required
 
 
@@ -1063,10 +1082,20 @@ class Queue:
                 archived, family = _verify_original_report(campaign, origin_job, attempt_id, base, original,
                                                            evidence.get('original_report'), **options)
                 if family_split or unremoved:
-                    positive, preserved = (_family_split_cases(evidence, archived, family, selected, deferred)
-                                           if family_split else (None, []))
                     (accepted,), = db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (source,))
-                    _verify_family_split_coverage(campaign, evidence, json.loads(accepted), selected, deferred, positive)
+                    ledger = json.loads(accepted)
+                    approved = None
+                    if family_split and evidence.get('numbered_family_cases') is True:
+                        inputs, _, manifest, _ = retire_rehabilitation.verify_scan(
+                            campaign, source, ledger, evidence.get('scan'))
+                        pinned = ledger.get('validation', {}).get('validation_manifest_sha256', ledger.get('manifest'))
+                        if manifest != pinned:
+                            raise ValueError('the numbered family proof differs from the accepted archive')
+                        approved = retire_rehabilitation.approved_family_texts(inputs, manifest, parent['target_faces'])
+                    positive, preserved = (_family_split_cases(evidence, archived, family, selected, deferred,
+                                                               approved=approved)
+                                           if family_split else (None, []))
+                    _verify_family_split_coverage(campaign, evidence, ledger, selected, deferred, positive)
                 elif archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':
                     raise ValueError('the original report lacks a full author evaluation')
                 repaired_report, task = _verify_reviewed_repair(campaign, source, selected, evidence)

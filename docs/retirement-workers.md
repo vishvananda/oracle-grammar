@@ -221,6 +221,9 @@ subsets. The fresh replay keeps all selected positive family cases,
 including any that previously failed, and every archived refusal.
 Exact keyed and verified default-print failures qualify when the archived
 case explicitly required that gate and the replay passes the original case.
+A numbered fixture label can be matched to its assigned face when its exact
+text appears as a complete clause in that face's frozen Oracle wording. The
+replay keeps the archived label, wording and expectations.
 
 A deferred author assignment can carry an independently verified draft for
 all its remaining rules. The queue ties the draft to the current checkpoint
