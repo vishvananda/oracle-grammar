@@ -5,7 +5,9 @@ import os
 from pathlib import Path
 import time
 
-MAX_CAPACITY = 32
+# Author helpers use the first 32 tokens; integration may reserve the rest.
+SHARED_CAPACITY = 32
+MAX_CAPACITY = 48
 POLL_SECONDS = 0.2
 
 
@@ -25,7 +27,9 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
     marked priority gates new allocations until it acquires all tokens. Existing
     reservations continue and unused capacity is available afterward.
     Background requests sample for a complete bundle without keeping that gate
-    while they wait. Foreground requests keep their existing priority.
+    while they wait. Foreground requests keep their existing priority. A
+    capacity above the shared range scans from its top token down, so wider
+    integration leases use their exclusive tokens before shared ones.
     """
     if (isinstance(capacity, bool) or not isinstance(capacity, int)
             or not 1 <= capacity <= MAX_CAPACITY):
@@ -64,7 +68,9 @@ def reserve(root: Path, threads: int, capacity: int = MAX_CAPACITY, wait: bool =
             # Serialize scans so no waiter can hold part of a competing bundle.
             fcntl.flock(allocator, fcntl.LOCK_EX)
             try:
-                for number in range(capacity):
+                # A lease wider than the shared range takes its own tokens first.
+                order = range(capacity-1, -1, -1) if capacity > SHARED_CAPACITY else range(capacity)
+                for number in order:
                     fd = os.open(root / f'token-{number:02}.lock', os.O_CREAT | os.O_RDWR, 0o600)
                     try:
                         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)

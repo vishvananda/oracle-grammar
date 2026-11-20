@@ -788,9 +788,26 @@ class BatchTests(unittest.TestCase):
 
     def test_validate_rejects_unsafe_audit_thread_budgets(self):
         manifest = {'status': 'provisional'}
-        for threads, capacity in ((15, 32), (25, 32), (16, 15), (True, 32), (16, 33)):
+        for threads, capacity in ((15, 32), (33, 48), (16, 15), (True, 32), (16, 49), (25, 24)):
             with self.subTest(threads=threads, capacity=capacity), self.assertRaises(ValueError):
                 batch._validate(manifest, {'audit_threads': threads, 'cpu_capacity': capacity}, 12)
+        for extra in ({'integration_cpu_capacity': 31}, {'integration_cpu_capacity': 49},
+                      {'audit_minimum_threads': 7}, {'audit_minimum_threads': 25}):
+            with self.subTest(extra=extra), self.assertRaises(ValueError):
+                batch._validate(manifest, {'audit_threads': 24, 'cpu_capacity': 32, **extra}, 12)
+
+    def test_integration_capacity_reserves_tokens_above_the_author_range(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            pool = Path(temporary)/'cpu'
+            checkpoint = {'cpu_pool': str(pool), 'cpu_capacity': 32, 'integration_cpu_capacity': 40}
+            self.assertEqual(batch._integration_capacity(checkpoint), 40)
+            self.assertEqual(batch._integration_capacity({'cpu_capacity': 32}), 32)
+            with batch.retire_cpu.reserve(pool, 32, 32, wait=False):
+                with batch._audit_cpu(checkpoint, 24, 40, minimum_threads=8) as granted:
+                    self.assertEqual(granted, 8)
+                with self.assertRaises(BlockingIOError):
+                    with batch.retire_cpu.reserve(pool, 24, 40, wait=False, minimum_threads=9):
+                        pass
 
     def test_validate_rejects_invalid_repository_budgets(self):
         for threads in (False, 7, 25, '12'):

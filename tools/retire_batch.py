@@ -262,11 +262,26 @@ def _failed_fixtures(fixtures, reports, returncode):
     return tuple(index for index, report in enumerate(reports) if report['failures'])
 
 
+MAX_AUDIT_THREADS = 32
+
+
+def _integration_capacity(checkpoint):
+    """Return the token range for integration; it may exceed the shared author range."""
+    shared = checkpoint.get('cpu_capacity', 32)
+    capacity = checkpoint.get('integration_cpu_capacity', shared)
+    if (type(shared) is not int or type(capacity) is not int
+            or not 1 <= shared <= capacity <= retire_cpu.MAX_CAPACITY):
+        raise ValueError('integration_cpu_capacity must be from cpu_capacity to the CPU pool size')
+    return capacity
+
+
 def _family_check_threads(checkpoint):
     threads = checkpoint.get('family_check_threads', FAMILY_CHECK_THREADS)
-    capacity = checkpoint.get('cpu_capacity', 32)
-    if (type(capacity) is not int or not 1 <= capacity <= 32
-            or type(threads) is not int or not 1 <= threads <= min(16, capacity)):
+    try:
+        capacity = _integration_capacity(checkpoint)
+    except ValueError:
+        capacity = 0
+    if type(threads) is not int or not 1 <= threads <= min(16, capacity):
         raise ValueError('family_check_threads must be an integer from 1 to min(16, cpu_capacity)')
     return threads
 
@@ -290,7 +305,7 @@ def _helper(checkpoint, source, fixture, log, grammar_dir=None, *, threads=None)
         current['tail'] = grammar/'tail/mined.ebnf'
     overrides = [f'--module={name}={current.get(name, os.devnull)}' for name in sorted(declared | current.keys())]
     lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads,
-                                checkpoint.get('cpu_capacity', 32), background=checkpoint.get('background_cpu', False))
+                                _integration_capacity(checkpoint), background=checkpoint.get('background_cpu', False))
              if checkpoint.get('cpu_pool') else nullcontext(()))
     with lease as fds:
         r._LEASES.extend(fds)
@@ -436,9 +451,11 @@ def _control_input_identity(path, error):
 
 def _native_control_threads(checkpoint):
     threads = checkpoint.get('native_control_threads', DEFAULT_NATIVE_CONTROL_THREADS)
-    capacity = checkpoint.get('cpu_capacity', 32)
-    if (type(capacity) is not int or not 1 <= capacity <= 32
-            or type(threads) is not int or not 1 <= threads <= min(16, capacity)):
+    try:
+        capacity = _integration_capacity(checkpoint)
+    except ValueError:
+        capacity = 0
+    if type(threads) is not int or not 1 <= threads <= min(16, capacity):
         raise ValueError('native_control_threads must be an integer from 1 to min(16, cpu_capacity)')
     return threads
 
@@ -501,7 +518,7 @@ def _control_check(checkpoint, control, grammar, directory):
         raise ValueError('native control thread identity changed after setup')
     _control_verify(control)
     directory.mkdir()
-    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, checkpoint.get('cpu_capacity', 32),
+    lease = (retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, _integration_capacity(checkpoint),
                                 background=checkpoint.get('background_cpu', False))
              if checkpoint.get('cpu_pool') else nullcontext(()))
     with lease as fds:
@@ -605,7 +622,7 @@ def _reuse_accepted_control(campaign, checkpoint, control, grammar, directory, g
                 return None
             r.jsonl(trial/'rows.jsonl', rows)
             threads = control['threads']
-            with _audit_cpu(checkpoint, threads, checkpoint.get('cpu_capacity', 32)):
+            with _audit_cpu(checkpoint, threads, _integration_capacity(checkpoint)):
                 r.execute(control['run'], trial, grammar, 'validate-readings',
                           [trial/'gold.jsonl', trial/'rows.jsonl', trial/'native.json',
                            trial/'native-failures.jsonl', '--preserve-from', trial/'before.jsonl'], threads)
@@ -1142,7 +1159,7 @@ def _retained_parse_candidates(checkpoint, control, grammar, directory):
     output = directory/'rows.jsonl'
     threads = min(4, control['threads'])
     args = [directory/'gold.jsonl', directory/'oracle.json', directory/'slice.json', output]
-    with _audit_cpu(checkpoint, threads, checkpoint.get('cpu_capacity', 32)):
+    with _audit_cpu(checkpoint, threads, _integration_capacity(checkpoint)):
         r.execute(control['run'], directory, grammar, 'score', args, threads)
     rows = r.rows(output)
     names = set()
@@ -1211,7 +1228,7 @@ def _early_score(checkpoint, grammar, data, folder, names, *, render):
     r.write(slice_path, {'cards': names})
     rows = folder/'rows.jsonl'
     threads = checkpoint['audit_threads'] if render else _parse_screen_threads(checkpoint)
-    capacity = checkpoint['cpu_capacity']
+    capacity = _integration_capacity(checkpoint)
     # This screen can use fewer workers without changing its ordered results.
     # Start when half of the requested bundle is free so a large screen does
     # not block smaller diagnostics while other processes finish their leases.
@@ -2210,9 +2227,11 @@ def validate(manifest, checkpoint, slots=12, *, scan=False):
 
 def _parse_screen_threads(checkpoint):
     threads = checkpoint.get('parse_screen_threads', DEFAULT_PARSE_SCREEN_THREADS)
-    capacity = checkpoint.get('cpu_capacity', 32)
-    if (type(capacity) is not int or not 1 <= capacity <= 32
-            or type(threads) is not int or not 1 <= threads <= min(16, capacity)):
+    try:
+        capacity = _integration_capacity(checkpoint)
+    except ValueError:
+        capacity = 0
+    if type(threads) is not int or not 1 <= threads <= min(16, capacity):
         raise ValueError('parse_screen_threads must be an integer from 1 to min(16, cpu_capacity)')
     return threads
 
@@ -2241,7 +2260,7 @@ def _audit_parse_screen(checkpoint, manifest, output, data, evidence):
     identity = {**evidence, **result}
     _screen_identity(source, manifest, baseline, input_run, output, identity)
     try:
-        with _audit_cpu(checkpoint, threads, checkpoint.get('cpu_capacity', 32)):
+        with _audit_cpu(checkpoint, threads, _integration_capacity(checkpoint)):
             result['parse_screen'] = retire_parse_screen.run(output, folder, source/'grammar', data, threads)
     finally:
         _screen_identity(source, manifest, baseline, input_run, output, identity)
@@ -2272,7 +2291,7 @@ def _run_repository_driver(source, folder, threads, descriptors, evidence):
 def _parallel_repository_driver(checkpoint, source, folder, threads, inherited, evidence):
     # The background thread owns separate descriptors and never changes r._LEASES.
     # Only the foreground native audit publishes its lease in that process-local list.
-    with retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, checkpoint.get('cpu_capacity', 32),
+    with retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, _integration_capacity(checkpoint),
                             background=checkpoint.get('background_cpu', False)) as descriptors:
         _run_repository_driver(source, folder, threads, inherited+descriptors, evidence)
 
@@ -2289,10 +2308,14 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
         raise ValueError('parse_screen_before_repository requires an enabled full parse screen')
     _parse_screen_threads(checkpoint)
     threads = checkpoint.get('audit_threads', 24)
-    capacity = checkpoint.get('cpu_capacity', 32)
-    if (type(threads) is not int or not 16 <= threads <= 24
-            or type(capacity) is not int or not threads <= capacity <= 32):
-        raise ValueError('audit threads must be 16–24 and within CPU capacity')
+    capacity = _integration_capacity(checkpoint)
+    if type(threads) is not int or not 16 <= threads <= min(MAX_AUDIT_THREADS, capacity):
+        raise ValueError('audit threads must be 16–32 and within CPU capacity')
+    # The full print gives ordered rows for any worker count. Starting with part
+    # of the bundle avoids holding the pool gate while author helpers finish.
+    minimum = checkpoint.get('audit_minimum_threads', threads)
+    if type(minimum) is not int or not 8 <= minimum <= threads:
+        raise ValueError('audit_minimum_threads must be from 8 to audit_threads')
     repository_threads = checkpoint.get('repository_check_threads', threads)
     if type(repository_threads) is not int or not 8 <= repository_threads <= threads:
         raise ValueError('repository_check_threads must be between 8 and audit_threads')
@@ -2301,7 +2324,7 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
         raise ValueError('parallel_repository_checks must be boolean')
     candidate_spec = checkpoint.get('candidate_validation_helpers')
     overlap = (overlap and parse_first and checkpoint.get('cpu_pool') and candidate_spec is None
-               and threads+repository_threads <= capacity)
+               and minimum+repository_threads <= capacity)
     source = Path(manifest['source']).resolve()
     if (_git(source, 'rev-parse', 'HEAD') != manifest['commit']
             or _git(source, 'status', '--porcelain')
@@ -2320,7 +2343,8 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
                 'baseline_sha256': r.digest(baseline),
                 'checkpoint_manifest_sha256': r.digest(input_run/'manifest.json'), 'inputs': str(output),
                 'source_checkpoint': checkpoint['commit'], 'audit_threads': threads,
-                'cpu_capacity': capacity, 'repository_check_threads': repository_threads}
+                'cpu_capacity': capacity, 'repository_check_threads': repository_threads,
+                'audit_minimum_threads': minimum}
     executor = pending = None
     repository_evidence = {}
     try:
@@ -2340,12 +2364,10 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
             if screened['parse_screen']['failures']:
                 evidence.update(screened, repository_check_skipped=retire_parse_screen.REPOSITORY_SKIPPED)
                 raise ValueError('full allowed-population parse screen failed')
-        if overlap:
-            evidence['parallel_repository_checks'] = True
-            executor = ThreadPoolExecutor(max_workers=1)
-            pending = executor.submit(_parallel_repository_driver, checkpoint, source, folder, repository_threads,
-                                      tuple(r._LEASES), repository_evidence)
-        else:
+        # Capture inherited leases before the audit adds its own tokens. The
+        # repository driver must never keep the audit's descriptors open.
+        inherited = tuple(r._LEASES)
+        if not overlap:
             with _audit_cpu(checkpoint, repository_threads, capacity):
                 gate_threads = _run_repository_driver(source, folder, repository_threads, tuple(r._LEASES), evidence)
                 if candidate_spec is not None:
@@ -2366,10 +2388,18 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
         checks = folder/'full-checks'
         checks.mkdir()
         with ExitStack() as audit_lease:
-            audit_lease.enter_context(_audit_cpu(checkpoint, threads, capacity))
+            # The critical-path print reserves first; overlapping repository
+            # gates then wait for their own bundle instead of delaying it.
+            granted = audit_lease.enter_context(_audit_cpu(checkpoint, threads, capacity, minimum_threads=minimum))
+            evidence['granted_audit_threads'] = granted
+            if overlap:
+                evidence['parallel_repository_checks'] = True
+                executor = ThreadPoolExecutor(max_workers=1)
+                pending = executor.submit(_parallel_repository_driver, checkpoint, source, folder,
+                                          repository_threads, inherited, repository_evidence)
             try:
                 report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()],
-                                  data, threads)
+                                  data, granted)
             except subprocess.CalledProcessError as error:
                 report = retire_native_outcome.preservation_failure(error, output, checks, data)
             evidence['full_checks'] = report

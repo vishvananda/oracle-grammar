@@ -58,7 +58,7 @@ class NativeControlThreadTests(unittest.TestCase):
 
     def test_invalid_threads_and_capacity_refuse_before_native_execution(self):
         invalid = [(value, 32) for value in (True, False, 0, -1, 17, 1.5, '12', None)]
-        invalid += [(12, 8), (6, True), (6, 0), (6, 33)]
+        invalid += [(12, 8), (6, True), (6, 0), (6, 49)]
         for threads, capacity in invalid:
             with self.subTest(threads=threads, capacity=capacity), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary); cp = control_fixture(root, 'base')

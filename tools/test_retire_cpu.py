@@ -51,7 +51,7 @@ class LeaseTests(unittest.TestCase):
         return process
 
     def test_validation(self):
-        for threads, capacity in [(0, 2), (3, 2), (1, 0), (1, 33), (True, 2)]:
+        for threads, capacity in [(0, 2), (3, 2), (1, 0), (1, 49), (True, 2)]:
             with self.subTest(threads=threads, capacity=capacity):
                 with self.assertRaises(ValueError):
                     with retire_cpu.reserve(self.root, threads, capacity):
@@ -88,6 +88,16 @@ class LeaseTests(unittest.TestCase):
         self.assertEqual(child.exitcode, 0)
         with retire_cpu.reserve(self.root, 24, 32, wait=False, minimum_threads=16) as tokens:
             self.assertEqual(len(tokens), 24)
+
+    def test_wide_integration_lease_takes_its_exclusive_tokens_first(self):
+        def held(tokens):
+            return sorted(int(Path(os.readlink(f'/proc/self/fd/{fd}')).stem.split('-')[1]) for fd in tokens)
+        with retire_cpu.reserve(self.root, 8, 40, wait=False) as wide:
+            self.assertEqual(held(wide), list(range(32, 40)))
+            with retire_cpu.reserve(self.root, 4, 32, wait=False) as shared:
+                self.assertEqual(held(shared), [0, 1, 2, 3])
+            with retire_cpu.reserve(self.root, 12, 40, wait=False) as spill:
+                self.assertEqual(held(spill), list(range(20, 32)))
 
     def test_scalable_bundle_enforces_its_minimum(self):
         for minimum in (False, 0, 3):

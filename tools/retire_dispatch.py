@@ -564,6 +564,11 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     policy=priority_policy(config)
     cp=dict(cp,audit_threads=config.get('audit_threads',24))
     cp['repository_check_threads']=config.get('repository_check_threads',cp['audit_threads'])
+    # Integration may use tokens above the shared author range; saved
+    # checkpoints keep the shared range for background recovery services.
+    cp['integration_cpu_capacity']=config.get('integration_cpu_capacity',cp.get('cpu_capacity',32))
+    cp['audit_minimum_threads']=config.get('audit_minimum_threads',cp['audit_threads'])
+    retire_batch._integration_capacity(cp)
     screen=config.get('full_parse_screen',False)
     r.require(type(screen) is bool,'full_parse_screen must be boolean')
     cp['full_parse_screen']=screen
@@ -635,6 +640,7 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     inputs=Path(result['inputs'])
     next_cp=dict(cp,commit=commit,source=str(source),inputs=str(inputs),baseline=result['rows'],helpers=next_helpers)
     next_cp.pop('candidate_validation_helpers',None)
+    next_cp.pop('integration_cpu_capacity',None)
     campaign_api.save_checkpoint(run,next_cp)
     queue.advance_and_accept(commit,cp['commit'],included,{'manifest':manifest['id'],'validation':result})
     reclassify(run,next_cp)

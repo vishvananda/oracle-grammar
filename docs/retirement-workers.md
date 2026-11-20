@@ -127,7 +127,7 @@ retry verifies a fresh passing test run on the same IR crate, replays every
 proposal from the rejected batch, and requires a full audit before acceptance.
 
 One full audit runs at a time, reserving 16 tokens by default from a shared
-32-token CPU pool; a 24-thread option is also supported. Worker helpers reserve two
+32-token CPU pool; up to 32 threads are supported within the integration capacity. Worker helpers reserve two
 tokens through verified wrappers; batch trial family checks reserve six. A pending large allocation temporarily stops
 new small allocations; after it acquires its tokens, workers may use the remaining
 capacity. Checkpoint rule scans use the same reservation mechanism. Ordered
@@ -157,6 +157,12 @@ With `parallel_repository_checks` enabled, syntax-only candidates can run the
 repository gates and full audit together after the initial parse screen passes.
 Each uses its own CPU lease. When both reservations fit the configured capacity,
 the coordinator waits for both results before scanning or accepting the candidate.
+`integration_cpu_capacity` (up to 48) lets batch integration use tokens above
+the author range. Author helpers always reserve within the first `cpu_capacity`
+tokens, so the audit and repository gates no longer wait behind author leases.
+`audit_minimum_threads` lets the full audit start with fewer tokens than it
+requested; the evidence records the granted count. Overlap needs room for that
+minimum plus the repository bundle.
 For the current explicitly allowed population, that means all 32,755
 occurrences: preserve every native reading and every baseline-successful
 verified, exact keyed, default and exact-default print gate. The population and
