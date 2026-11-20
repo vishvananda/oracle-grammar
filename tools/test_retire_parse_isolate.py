@@ -208,6 +208,33 @@ class SurvivorTests(unittest.TestCase):
         self.assertEqual(isolate._survivors([0, 1, 2, 3, 4], trial, [0], suspects=[1, 2, 4]), [0, 1, 3])
         self.assertEqual(trials, [[0, 1], [0, 2], [0, 4], [0, 1, 3]])
 
+    def test_one_exact_default_loss_checks_the_survivor_union_before_other_branches(self):
+        checked = set()
+        candidates = list(range(48))
+
+        def trial(indices):
+            checked.add(tuple(indices))
+            return {'failures': [{'face': 'Fixture', 'lost': ['exact_default']}] if 18 in indices else []}
+
+        remaining = isolate._survivors(candidates, trial, [])
+        self.assertEqual(remaining, [index for index in candidates if index != 18])
+        self.assertIn(tuple(remaining), checked)
+        self.assertLessEqual(len(checked), 9)
+
+    def test_same_print_loss_uses_full_split_after_the_first_exclusion(self):
+        checked = []
+        candidates = list(range(8))
+
+        def trial(indices):
+            checked.append(tuple(indices))
+            return {'failures': [{'face': 'Fixture', 'lost': ['exact_default']}]
+                    if {1, 5, 6}.intersection(indices) else []}
+
+        remaining = isolate._survivors(candidates, trial, [0])
+        self.assertEqual(remaining, [0, 2, 3, 4, 7])
+        self.assertIn((0, 2, 3, 4, 5, 6, 7), checked)
+        self.assertEqual(checked[-1], tuple(remaining))
+
     def test_second_failure_crosses_halves_after_first_culprit_is_removed(self):
         checked = []
 

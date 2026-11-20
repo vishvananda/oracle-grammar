@@ -149,14 +149,17 @@ def _check(checkpoint, control, root):
     return result
 
 
-def _isolate(scope, trial, prefix):
+def _isolate(scope, trial, prefix, *, first_only=False):
     if not scope or not trial(sorted(prefix+scope))['failures']:
         return []
     if len(scope) == 1:
         return scope
     middle = len(scope)//2
     left, right = scope[:middle], scope[middle:]
-    separate = _isolate(left, trial, prefix) + _isolate(right, trial, prefix)
+    separate = _isolate(left, trial, prefix, first_only=first_only)
+    if first_only and separate:
+        return separate
+    separate += _isolate(right, trial, prefix, first_only=first_only)
     # Both halves can pass separately. Keep the larger half and verify the recombined survivors.
     return separate or (left if len(left) < len(right) else right)
 
@@ -170,8 +173,15 @@ def _survivors(indices, trial, pinned, suspect=None, *, suspects=()):
             return without
     witnessed = {index for index in suspects if index not in pinned and trial(sorted([*pinned, index]))['failures']}
     remaining = [index for index in remaining if index not in witnessed]
-    while remaining and trial(remaining)['failures']:
-        excluded = _isolate([i for i in remaining if i not in pinned], trial, pinned)
+    tried_single_print = False
+    while remaining and (failures := trial(remaining)['failures']):
+        # A single exact-default loss can be caused by one proposal. Try the
+        # surviving union as soon as there is an exclusion worth testing.
+        # A second failure uses the exhaustive split even on the same face.
+        first_only = (not tried_single_print and len(failures) == 1 and isinstance(failures[0], dict)
+                      and failures[0].get('lost') == ['exact_default'])
+        tried_single_print |= first_only
+        excluded = _isolate([i for i in remaining if i not in pinned], trial, pinned, first_only=first_only)
         r.require(excluded, 'focused failure could not be separated from the protected prefix')
         remaining = [i for i in remaining if i not in excluded]
     return remaining
