@@ -840,6 +840,60 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(run.call_count, 2)
                 self.assertFalse((refreshed/'reuse.json').exists())
 
+    def test_native_baseline_reuses_audited_occurrences_and_revalidates_readings(self):
+        from contextlib import closing
+        with tempfile.TemporaryDirectory() as tmp:
+            campaign = Path(tmp)
+            ident = 'a' * 32
+            archive = campaign/'.cache/batches'/ident
+            inputs, grammar = archive/'validation-inputs', campaign/'grammar'
+            inputs.mkdir(parents=True)
+            grammar.mkdir()
+            source = grammar/'syntax.ebnf'
+            source.write_text('sample ::= "sample"\n')
+            batch.r.write(inputs/'manifest.json', {'files': {'grammar/syntax.ebnf': batch.r.digest(source)}})
+            rows = [{'name':name, 'status':'equal', 'readings':1, 'text':text, 'exact': True}
+                    for name, text in (('Sample', 'First.'), ('Outside','Outside.'), ('Sample','Second.'))]
+            index = {str(i): {'name':row['name'], 'text':row['text'], 'parse':row, 'flags':batch.r.flags(row)}
+                     for i, row in enumerate(rows)}
+            control = {'run':inputs, 'manifest_sha256':batch.r.digest(inputs/'manifest.json'),
+                       'names':['Sample'], 'occurrences':2, 'threads':2, 'profile_sha256':'profile',
+                       'data':(index, [{'faces':[{'name':'Sample'}]}], [{'cards':[{'name':'Sample'}]}])}
+            path = archive/'full-checks/rows.jsonl'
+            path.parent.mkdir()
+            batch.r.jsonl(path, rows)
+            checkpoint = {'commit':'head','baseline':str(path)}
+            validation = {'status':'passed', 'scope':'combined-batch','candidate':'head','source_checkpoint':'parent',
+                          'repository_check_returncode':0,'full_checks':{'faces':3,'failures':[]},
+                          'inputs':str(inputs),'rows':str(path),'rows_sha256':batch.r.digest(path),
+                          'validation_manifest_sha256':control['manifest_sha256']}
+            batch.r.write(archive/'validation.json',validation)
+            with closing(batch.sqlite3.connect(campaign/'queue.sqlite')) as db, db:
+                db.execute('create table checkpoints(commit_id text,parent text,evidence text)')
+                db.execute('insert into checkpoints values (?,?,?)',
+                           ('head','parent',json.dumps({'manifest':ident,'validation':validation})))
+            result = {'faces':2,'failures':[]}
+
+            def native(run, directory, current, program, args, threads):
+                self.assertEqual((run, current, program, threads), (inputs, grammar, 'validate-readings', 2))
+                self.assertEqual(batch.r.rows(directory/'rows.jsonl'), [rows[0], rows[2]])
+                self.assertEqual(batch.r.rows(directory/'before.jsonl'), [rows[0], rows[2]])
+                self.assertEqual(args[-2:], ['--preserve-from',directory/'before.jsonl'])
+                batch.r.write(directory/'native.json', {'fresh':True})
+
+            with patch.object(batch, '_control_verify'), patch.object(batch.r, 'execute', side_effect=native) as run, \
+                    patch.object(batch.w, 'native_failures', return_value=[]) as native_failures, \
+                    patch.object(batch, '_control_check', return_value=result) as rescore:
+                directory = campaign/'baseline'
+                self.assertEqual(batch._control_baseline(campaign,checkpoint,control,grammar,directory), result)
+                self.assertEqual(batch.r.read(directory/'accepted-audit.json')['sha256'], validation['rows_sha256'])
+                native_failures.assert_called_once_with({'fresh':True}, 2)
+                run.assert_called_once()
+                rescore.assert_not_called()
+                path.write_bytes(path.read_bytes()+b'\n')
+                self.assertEqual(batch._control_baseline(campaign,checkpoint,control,grammar,campaign/'fresh'), result)
+                rescore.assert_called_once()
+
     def test_native_focus_requires_a_named_and_complete_rejection(self):
         control = {'occurrences': 2, 'names': ['A', 'B']}
         print_loss = {'face': 'A', 'lost': ['exact_default']}

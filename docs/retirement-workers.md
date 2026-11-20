@@ -190,6 +190,8 @@ family-passing trial before admitting it. This catches known cross-family
 reading and default-print regressions early; the full audit still runs.
 Repeated staging on the same accepted grammar, input snapshot, helpers and
 control profile can reuse the passing baseline report and its verified files.
+When the accepted full audit already has the required score rows, staging
+extracts the exact control cohort and reruns native validation on those rows.
 Each trial runs its own controls against its candidate grammar.
 Set `early_retained_parse` to screen large staging trials for reading
 changes before replaying all families. A focused native replay must

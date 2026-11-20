@@ -2,7 +2,7 @@
 from argparse import Namespace
 from collections import OrderedDict
 import copy
-from contextlib import contextmanager, nullcontext
+from contextlib import closing, contextmanager, nullcontext
 import fcntl
 import hashlib
 import json
@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -534,6 +535,75 @@ def _restore_control_baseline(campaign, index, identity, directory, occurrences)
         return False
 
 
+def _accepted_control_rows(campaign, checkpoint, control):
+    """Read exact score rows from the immutable, accepted full audit."""
+    uri = (campaign/'queue.sqlite').as_uri()+'?mode=ro'
+    with closing(sqlite3.connect(uri, uri=True)) as db:
+        parent, raw = db.execute('SELECT parent,evidence FROM checkpoints WHERE commit_id=?',
+                                 (checkpoint['commit'],)).fetchone()
+    ledger = json.loads(raw)
+    ident, validation = ledger['manifest'], ledger['validation']
+    r.require(re.fullmatch(r'[0-9a-f]{32}', ident) is not None, 'invalid accepted batch identity')
+    folder = campaign/'.cache/batches'/ident
+    path = folder/'full-checks/rows.jsonl'
+    checks = validation['full_checks']
+    population = len(control['data'][0])
+    r.require(parent and path.resolve() == path and path.is_file() and path.stat().st_size <= 1024**3
+              and r.read(folder/'validation.json') == validation
+              and validation['status'] == 'passed' and validation['scope'] == 'combined-batch'
+              and validation['candidate'] == checkpoint['commit'] and validation['source_checkpoint'] == parent
+              and validation['repository_check_returncode'] == 0
+              and checks == {'faces': population, 'failures': []}
+              and control['run'] == folder/'validation-inputs' == Path(validation['inputs'])
+              and validation['validation_manifest_sha256'] == control['manifest_sha256']
+              and Path(checkpoint['baseline']) == path == Path(validation['rows']),
+              'accepted score rows do not match this checkpoint')
+    wanted = set(control['names'])
+    digest = hashlib.sha256()
+    selected = []
+    total = 0
+    with path.open('rb') as stream:
+        for line in stream:
+            digest.update(line)
+            row = json.loads(line)
+            if row['name'] in wanted:
+                selected.append(row)
+            total += 1
+    sha = digest.hexdigest()
+    r.require(total == population and sha == validation['rows_sha256'], 'accepted score rows changed')
+    return selected, {'batch': ident, 'rows': str(path), 'sha256': sha, 'population': population}
+
+
+def _reuse_accepted_control(campaign, checkpoint, control, grammar, directory, grammar_hashes):
+    try:
+        rows, proof = _accepted_control_rows(campaign, checkpoint, control)
+        with tempfile.TemporaryDirectory(dir=directory.parent) as temporary:
+            trial = Path(temporary)/directory.name
+            trial.mkdir()
+            names = w.subset(trial, control['names'], control['data'])
+            count = control['occurrences']
+            if len(rows) != count or w.compare(rows, control['data'][0], names):
+                return None
+            r.jsonl(trial/'rows.jsonl', rows)
+            threads = control['threads']
+            with _audit_cpu(checkpoint, threads, checkpoint.get('cpu_capacity', 32)):
+                r.execute(control['run'], trial, grammar, 'validate-readings',
+                          [trial/'gold.jsonl', trial/'rows.jsonl', trial/'native.json',
+                           trial/'native-failures.jsonl', '--preserve-from', trial/'before.jsonl'], threads)
+            if w.native_failures(r.read(trial/'native.json'), count):
+                return None
+            _control_verify(control)
+            if r.tree(grammar) != grammar_hashes:
+                return None
+            result = {'faces': count, 'failures': []}
+            r.write(trial/'result.json', result)
+            r.write(trial/'accepted-audit.json', proof)
+            os.rename(trial, directory)
+            return result
+    except (OSError, ValueError, KeyError, TypeError, sqlite3.Error, subprocess.CalledProcessError):
+        return None
+
+
 def _control_baseline(campaign, checkpoint, control, grammar, directory):
     _control_verify(control)
     frozen = r.read(control['run']/'manifest.json')['files']
@@ -542,6 +612,9 @@ def _control_baseline(campaign, checkpoint, control, grammar, directory):
                            if name.startswith('grammar/')}
             or any(path.is_symlink() for path in grammar.rglob('*'))):
         return _control_check(checkpoint, control, grammar, directory)
+    reused = _reuse_accepted_control(campaign, checkpoint, control, grammar, directory, grammar_hashes)
+    if reused is not None:
+        return reused
     identity = {'grammar': grammar_hashes, 'checkpoint': control['manifest_sha256'],
                 'profile': control['profile_sha256'], 'threads': control['threads'],
                 'tooling': {name: r.digest(Path(__file__).with_name(name))
