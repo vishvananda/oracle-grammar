@@ -1201,10 +1201,15 @@ class ReviewedRepairRetryTests(unittest.TestCase):
     def test_print_repair_can_follow_an_earlier_reviewed_retry(self):
         self.check_isolated_repair(full_check=True)
 
-    def check_isolated_repair(self, *, full_check):
-        reason = 'full allowed-population checks failed' if full_check else 'full allowed-population parse screen failed'
-        route = 'full_check_failure' if full_check else 'staging_failure'
-        kind = 'readmitted-native-batch' if full_check else 'readmitted-parse-screen-batch'
+    def test_library_repair_binds_the_exact_excluded_proposal_and_failed_tests(self):
+        self.check_isolated_repair(full_check=False, library=True)
+
+    def check_isolated_repair(self, *, full_check, library=False):
+        reason = ('repository gates failed' if library else
+                  'full allowed-population checks failed' if full_check else 'full allowed-population parse screen failed')
+        route = 'library_failure' if library else 'full_check_failure' if full_check else 'staging_failure'
+        kind = ('readmitted-library-batch' if library else
+                'readmitted-native-batch' if full_check else 'readmitted-parse-screen-batch')
         self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
         candidate = self.queue.claim('retried')
         attempt = candidate['attempt_id']
@@ -1218,7 +1223,10 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.write(manifest, {'id': 'batch', 'base_commit': 'base', 'jobs': [
             {'job_id': 'repair', 'attempt_id': attempt, 'status': 'included'}]})
         isolation = manifest.parent/'isolation.json'
-        self.write(isolation, {'parent': 'base', 'excluded_jobs': ['repair', 'other']})
+        isolated = {'parent': 'base', 'excluded_jobs': ['repair', 'other']}
+        if library:
+            isolated.update(kind='isolated-library-test-regression', failed_tests=['tests::retained'])
+        self.write(isolation, isolated)
         manifest_spec = {'path': str(manifest), 'sha256': self.digest(manifest)}
         isolation_spec = {'path': str(isolation), 'sha256': self.digest(isolation)}
         evidence = {'manifest': manifest_spec, 'isolation': isolation_spec}
@@ -1229,6 +1237,10 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         if full_check:
             evidence['kind'] = 'isolated-full-check-revalidation'
             verified['proof_scope'] = 'archived full-check isolation'
+        if library:
+            evidence['kind'] = 'isolated-batch-library-revalidation'
+            del verified['verified_artifacts']
+            verified['failed_tests'] = isolated['failed_tests']
         with self.queue._transaction() as db:
             for excluded in (['other'], ['repair', 'other']):
                 self.queue._event(db, kind, {
@@ -1237,13 +1249,17 @@ class ReviewedRepairRetryTests(unittest.TestCase):
             if full_check:
                 self.queue._event(db, kind, {'manifest': 'batch', 'previous_adjudication': old,
                                             'evidence': evidence, 'proof': {**verified, 'proof_scope': 'other'}})
+            if library:
+                self.queue._event(db, kind, {'manifest': 'batch', 'previous_adjudication': old,
+                                            'evidence': evidence, 'proof': {**verified, 'failed_tests': ['tests::other']}})
             seqs = [row[0] for row in db.execute(
                 'SELECT seq FROM events WHERE kind=? ORDER BY seq', (kind,))]
         invalid = [-1, seqs[0], *seqs[2:]]
         for seq in invalid:
             proof = {**self.evidence, 'source_checkpoint': 'base', route: {
                 'readmission_event_seq': seq, 'isolation': isolation_spec}}
-            with self.assertRaisesRegex(ValueError, 'completed survivor readmission|verified excluded proposals|full-check isolation'):
+            with self.assertRaisesRegex(ValueError, 'completed survivor readmission|verified excluded proposals|'
+                                                   'full-check isolation|library-test isolation'):
                 self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
         self.assertEqual(self.queue.coverage()['counts'], {'integration-rejected': 1})
         proof = {**self.evidence, 'source_checkpoint': 'base', route: {
@@ -1251,7 +1267,7 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.queue.retry_reviewed_repair('repair', attempt, 'base', proof)
         self.assertEqual(self.queue.coverage()['counts'], {'pending': 1})
         self.assertEqual(self.queue.reviewed_draft('repair')['report'], proof['report'])
-        if full_check:
+        if full_check or library:
             fresh = self.queue.claim('print-retry')
             fresh_attempt = fresh['attempt_id']
             self.queue.mark_started(fresh_attempt, pid=2_000_000_000)

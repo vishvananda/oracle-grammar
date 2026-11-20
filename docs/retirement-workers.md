@@ -230,6 +230,8 @@ subsets. The fresh replay keeps all selected positive family cases,
 including any that previously failed, and every archived refusal.
 Exact keyed and verified default-print failures qualify when the archived
 case explicitly required that gate and the replay passes the original case.
+A proposal excluded by a verified library-test recovery can retry its
+independently checked repair against the recorded failed tests and attempt.
 A numbered fixture label can be matched to its assigned face when its exact
 text appears as a complete clause in that face's frozen Oracle wording. The
 replay keeps the archived label, wording and expectations.

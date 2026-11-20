@@ -35,11 +35,12 @@ REVIEWED_RETRY_EVENTS = {
     'legacy_diagnostic_prompt': 'retry-preview-reviewed-repair',
     'staging_failure': 'retry-staging-reviewed-repair',
     'full_check_failure': 'retry-full-check-reviewed-repair',
+    'library_failure': 'retry-full-check-reviewed-repair',
 }
 SPLIT_REVIEWED_AUTHOR = 'split-reviewed-author'
 DEFERRED_REVIEWED_AUTHOR = 'queued-deferred-reviewed-author'
 RETRY_UNBLOCKED_AUTHOR = 'retry-unblocked-author'
-_REVIEWED_EVENTS = (*REVIEWED_RETRY_EVENTS.values(), SPLIT_REVIEWED_AUTHOR, DEFERRED_REVIEWED_AUTHOR)
+_REVIEWED_EVENTS = (*dict.fromkeys(REVIEWED_RETRY_EVENTS.values()), SPLIT_REVIEWED_AUTHOR, DEFERRED_REVIEWED_AUTHOR)
 _REVIEWED_EVENT_SLOTS = ','.join('?' for _ in _REVIEWED_EVENTS)
 
 
@@ -312,7 +313,7 @@ def _verify_shape_repair(db, campaign, checkpoint, assignment, rejection, eviden
     _verify_readmission_origin(db, checkpoint, origin)
 
 
-def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evidence, *, full_check=False):
+def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evidence, *, full_check=False, library=False):
     """Bind a repair to an excluded proposal in a verified survivor readmission."""
     if full_check and evidence.get('kind') == 'isolated-shape-repair':
         _verify_shape_repair(db, campaign, checkpoint, assignment, rejection, evidence)
@@ -320,11 +321,12 @@ def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evi
     job, attempt = assignment
     seq = evidence.get('readmission_event_seq')
     if set(evidence) != {'readmission_event_seq', 'isolation'} or type(seq) is not int or seq <= 0:
-        raise ValueError('parse repair must identify a completed survivor readmission')
-    kind = 'readmitted-native-batch' if full_check else 'readmitted-parse-screen-batch'
+        raise ValueError('isolated repair must identify a completed survivor readmission')
+    kind = ('readmitted-library-batch' if library else
+            'readmitted-native-batch' if full_check else 'readmitted-parse-screen-batch')
     row = db.execute('SELECT data FROM events WHERE seq=? AND kind=?', (seq, kind)).fetchone()
     if row is None:
-        raise ValueError('parse repair survivor readmission is missing')
+        raise ValueError('isolated repair survivor readmission is missing')
     readmitted = json.loads(row[0])
     isolation_path, isolation_bytes = _proof_file(evidence['isolation'])
     isolation = json.loads(isolation_bytes)
@@ -335,7 +337,12 @@ def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evi
     validation = rejection.get('evidence', {}).get('validation', {})
     batch, origin = manifest.get('id'), manifest.get('base_commit')
     excluded = isolation.get('excluded_jobs')
-    reason = 'full allowed-population checks failed' if full_check else 'full allowed-population parse screen failed'
+    reason = ('repository gates failed' if library else
+              'full allowed-population checks failed' if full_check else 'full allowed-population parse screen failed')
+    if library and (original.get('kind') != 'isolated-batch-library-revalidation'
+                    or isolation.get('kind') != 'isolated-library-test-regression'
+                    or not proof.get('failed_tests') or isolation.get('failed_tests') != proof['failed_tests']):
+        raise ValueError('library repair requires a verified library-test isolation')
     if full_check and (original.get('kind') != 'isolated-full-check-revalidation'
                        or proof.get('proof_scope') != 'archived full-check isolation'):
         raise ValueError('print repair requires a verified full-check isolation')
@@ -346,7 +353,8 @@ def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evi
             or readmitted.get('manifest') != batch
             or readmitted.get('previous_adjudication') != rejection
             or original.get('isolation') != evidence['isolation']
-            or proof.get('verified_artifacts', {}).get(str(isolation_path)) != evidence['isolation']['sha256']
+            or (not library and
+                proof.get('verified_artifacts', {}).get(str(isolation_path)) != evidence['isolation']['sha256'])
             or proof.get('manifest') != batch
             or not isinstance(excluded, list) or not 1 <= len(excluded) <= 96 or job not in excluded
             or proof.get('excluded_jobs') != excluded
@@ -354,11 +362,11 @@ def _verify_isolated_repair(db, campaign, checkpoint, assignment, rejection, evi
             or isolation.get('parent') != origin
             or validation.get('source_checkpoint') != origin
             or validation.get('reason') != reason):
-        raise ValueError('parse repair does not match the verified excluded proposals')
+        raise ValueError('isolated repair does not match the verified excluded proposals')
     matches = [item for item in manifest.get('jobs', []) if item.get('job_id') == job]
     if (len(matches) != 1 or matches[0].get('attempt_id') != attempt
             or matches[0].get('status') != 'included'):
-        raise ValueError('parse repair does not identify the rejected attempt')
+        raise ValueError('isolated repair does not identify the rejected attempt')
     _verify_readmission_origin(db, checkpoint, origin)
 
 
@@ -1663,13 +1671,14 @@ class Queue:
         rewritten = staging and isinstance(staging_proof, dict) and 'rewritten_draft' in staging_proof
         if isolated_parse and rewritten:
             raise ValueError('staging repair proof mixes distinct retry cases')
-        recovery = 'rewritten' if rewritten else 'parse' if isolated_parse else 'ordinary'
         full_check = route == 'full_check_failure'
+        library = route == 'library_failure'
+        recovery = 'library' if library else 'rewritten' if rewritten else 'parse' if isolated_parse else 'ordinary'
         if interrupted and 'timeout' in evidence:
             raise ValueError('interrupted diagnostic recovery requires a fresh independent report')
         if legacy and 'timeout' not in evidence:
             raise ValueError('legacy full diagnostic recovery requires a protected passing timeout')
-        if (staging or full_check) and 'timeout' in evidence:
+        if (staging or full_check or library) and 'timeout' in evidence:
             raise ValueError('an integration rejection requires a fresh independent repair')
         event = REVIEWED_RETRY_EVENTS[route]
         with self._retry_lease(job_id):
@@ -1693,7 +1702,8 @@ class Queue:
                 retries = {(kind, slot) for kind, slot in db.execute(
                     "SELECT kind, CASE WHEN json_type(data,'$.evidence.staging_failure.rewritten_draft') IS NOT NULL "
                     "THEN 'rewritten' WHEN json_type(data,'$.evidence.staging_failure.readmission_event_seq') "
-                    "IS NOT NULL THEN 'parse' ELSE 'ordinary' END "
+                    "IS NOT NULL THEN 'parse' WHEN json_type(data,'$.evidence.library_failure') IS NOT NULL "
+                    "THEN 'library' ELSE 'ordinary' END "
                     f"FROM events WHERE kind IN ({_REVIEWED_EVENT_SLOTS}) AND json_extract(data,'$.job_id')=?",
                     (*_REVIEWED_EVENTS, job_id))}
                 split = (SPLIT_REVIEWED_AUTHOR, 'ordinary') in retries
@@ -1705,8 +1715,8 @@ class Queue:
                     raise ValueError('diagnostic recovery requires a previously retried author repair')
                 if staging and (not reviewed or row[0] != 'integration-rejected'):
                     raise ValueError('staging recovery requires a previously retried integration rejection')
-                if full_check and row[0] != 'integration-rejected':
-                    raise ValueError('full-check recovery requires an integration rejection')
+                if (full_check or library) and row[0] != 'integration-rejected':
+                    raise ValueError('isolated batch recovery requires an integration rejection')
                 pid = start.get('pid')
                 if type(pid) is not int or pid <= 0:
                     raise ValueError('attempt process identity is unknown')
@@ -1728,6 +1738,9 @@ class Queue:
                 if full_check:
                     _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), json.loads(row[3]),
                                             evidence['full_check_failure'], full_check=True)
+                if library:
+                    _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), json.loads(row[3]),
+                                            evidence['library_failure'], library=True)
                 timed_out_attempt = None
                 if interrupted:
                     state = retire_timeout_recovery.TimeoutState(row[4], job, row[5], row[6])
