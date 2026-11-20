@@ -606,7 +606,7 @@ static_negative_x ::= "-" "X"
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($object_ref), changes:$static_changes}}] */
 clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 
-static_changes ::= static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types
+static_changes ::= shared_artifact_stat_type | shared_base_keywords | shared_base_keywords_named | static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types
 static_changes_plain ::= static_change | static_changes_and
 
 /* @sem Instruction::[Effect{result:@next, operation:$copy_effect_duration}] */
@@ -708,8 +708,7 @@ trait_copy_other_plural ::= "they're" "still" other_subtype_plural_word
 /* @sem ObjectRef::$object_ref */
 trait_copy_source ::= ("has" | "have") "the" "power" "," "toughness" "," "and" "creature" "types" "of" object_ref
 
-/* @sem Ability::Conditional{condition:$static_state_condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
-static_conditional ::= affected static_changes "as" "long" "as" static_state_condition "."
+static_conditional ::= static_conditional_artifact_following | static_conditional_general
 
 /* A static that holds while its card is in your graveyard functions there. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})} */
@@ -2745,7 +2744,7 @@ double_possessive_characteristics ::= "double" double_possessive_subject double_
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$double_stat_change, duration:$duration, evaluation:Snapshot} */
 double_of_characteristics ::= "double" "the" double_stat_change "of" affected duration
 
-double_possessive_subject ::= double_event_possessive | double_equipped_possessive
+double_possessive_subject ::= double_possessive_target_creature | double_event_possessive | double_equipped_possessive
 
 /* @sem ObjectSet::One(EventSubject) */
 double_event_possessive ::= "its"
@@ -4774,7 +4773,7 @@ top_cast_flash_terms ::= "if" "you" "cast" "a" "spell" "this" "way" "," "you" "m
 /* @sem PlayTerms::PlayTerms{cost:Normal, effects:[List([Term{family:SpellEffect, form:AddAbilityUntil, operands:[Ability(Keyword($keyword_value)), Duration(EndOfTurn)]}])]} */
 top_cast_keyword_terms ::= "if" "you" "cast" "a" "creature" "spell" "this" "way" "," "it" "gains" keyword_value "until" "end" "of" "turn"
 
-static_state_condition ::= condition | condition_opponent_controls_an
+static_state_condition ::= shared_intensity_threshold | shared_enchanted_threshold | condition | condition_opponent_controls_an
 
 /* Both clauses describe the named scalar subject; the second changes replace
    the first when the type test holds. Each bonus retains its own operands. */
@@ -5773,3 +5772,29 @@ grant_chosen_color_hexproof ::= "hexproof" "from" "that" "color"
 
 /* @sem Mechanic::Rampage */
 granted_rampage_name ::= "rampage"
+
+/* @sem Ability::Conditional{condition:$static_state_condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})]} */
+static_conditional_general ::= affected static_changes "as" "long" "as" static_state_condition "."
+
+/* @prefer always */
+/* @sem Ability::Conditional{condition:$static_state_condition, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$shared_artifact_stat_type})]} */
+static_conditional_artifact_following ::= affected shared_artifact_stat_type "as" "long" "as" static_state_condition "."
+
+/* Composable static characteristic and keyword phrases retain all operands. */
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, AddCardType(Artifact), AddCardType(Creature), CreatureTypes{mode:Set, types:Listed($becomes_types)}] */
+shared_artifact_stat_type ::= "is" "a" value "/" value becomes_types "artifact" "creature"
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, GrantKeyword($keyword_value), GrantKeyword($keyword_value_2)] */
+shared_base_keywords ::= "has" "base" "power" "and" "toughness" value "/" value "," keyword_value "," "and" keyword_value
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, GrantKeyword($keyword_value), GrantKeyword($keyword_value_2), SetName($referenced_card_name)] */
+shared_base_keywords_named ::= "has" "base" "power" "and" "toughness" value "/" value "," "has" keyword_value "and" keyword_value "," "and" "is" "named" referenced_card_name
+
+/* @sem Condition::ObjectMatches{object:Source, filter:Property{property:Intensity, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}} */
+shared_intensity_threshold ::= "this" "creature's" "intensity" "is" value "or" "more"
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:AttachedCount{attachments:$filter_plural, comparison:GreaterOrEqual, value:$value}} */
+shared_enchanted_threshold ::= object_ref "is" "enchanted" "by" value "or" "more" filter_plural
+
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0}) */
+double_possessive_target_creature ::= "target" "creature's"

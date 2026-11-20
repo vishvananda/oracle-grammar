@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x
+token_group ::= token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group
 
 token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural
 
@@ -133,7 +133,7 @@ token_copy_plural ::= count "tokens" "that" "are" "copies" "of"
 token_copy_modified ::= token_copy_quantity object_ref "," "except" copy_exceptions_plain
 
 /* The word `tapped` follows the count, so the count and description stay one phrase. */
-token_group_tapped ::= token_defined_tapped | token_defined_each_tapped | token_named_tapped | token_copy_plain_tapped | token_copy_plural_tapped | token_copy_modified_tapped | token_copy_characteristics_tapped
+token_group_tapped ::= token_defined_tapped | token_defined_each_tapped | token_named_tapped | token_copy_plain_tapped | token_copy_plural_tapped | token_copy_modified_tapped | token_copy_characteristics_tapped | token_defined_x_tapped
 
 /* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe} */
 token_defined ::= token_amount token_recipe
@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors
+token_recipe ::= token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors
 
 token_recipe_base ::= token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural
 
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather
+created_token_name ::= created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -767,3 +767,36 @@ token_recipe_explicit_name_plural ::= token_stat "/" token_stat token_colors tok
 
 /* @sem String::'Blue Horror' */
 created_name_blue_horror ::= "Blue" "Horror"
+
+/* @sem TokenSpec::TokenSpec{amount:$token_x_prior_counters, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_x_tapped ::= "X" "tapped" token_recipe "," "where" "X" "is" token_x_prior_counters
+
+/* @sem Expr::CountCounters(_{recipients:Objects($affected), information:CurrentOrLastKnown}) */
+token_x_prior_counters ::= "the" "number" "of" "counters" affected "had" "on" "it"
+
+/* The definition of X supplies the amount independently of the token recipe. */
+/* @sem TokenSpec::TokenSpec{amount:$value_mana_spent, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_x_where ::= "X" token_recipe "," "where" "X" "is" value_mana_spent
+
+/* @sem TokenRecipe::Defined(_{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+token_recipe_explicit_plural ::= token_stat "/" token_stat token_colors token_subtypes token_types "tokens" "named" created_token_name
+
+/* @sem String::'Kobolds of Kher Keep' */
+created_name_kobolds ::= "Kobolds" "of" "Kher" "Keep"
+
+/* These two forms keep the exile and its property consumer in one scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($target_card_a_graveyard), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:ObjectProperty{object:$target_card_a_graveyard, property:$receipt_stat, information:CurrentOrLastKnown}, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+instructions_exile_target_token_stat ::= "exile" target_card_a_graveyard "," "then" "create" "X" token_recipe "," "where" "X" "is" "the" "exiled" "card's" receipt_stat
+
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($target_card_your_graveyard), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+instructions_exile_own_target_token_stat ::= "exile" target_card_your_graveyard "." "create" "X" token_recipe "," "where" "X" "is" "the" "exiled" "card's" receipt_stat
+
+/* The count and token recipe are independent; the quoted ability belongs to the token. */
+/* @sem TokenSpec::TokenSpec{amount:PlayerNumber{player:AbilityController, number:DescentsThisTurn}, words:CreatingEffect, recipe:$token_descents_recipe} */
+token_descents_group ::= "X" token_descents_recipe "where" "X" "is" "the" "number" "of" "times" "you" "descended" "this" "turn"
+
+/* @sem TokenRecipe::@token_abilities($token_recipe_base, $token_comma_static_ability) */
+token_descents_recipe ::= token_recipe_base "with" token_comma_static_ability
+
+/* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})] */
+token_comma_static_ability ::= '"' affected static_changes "," '"'

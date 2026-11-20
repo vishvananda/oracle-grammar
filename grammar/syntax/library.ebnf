@@ -909,7 +909,7 @@ exiled_card_ref ::= "it" | "that" "card"
 exiled_that_card ::= "that" "card"
 
 /* One player's top card establishes one actual resulting incarnation. */
-exile_top_card_receipt ::= exile_top_card_player | exile_top_card_named
+exile_top_card_receipt ::= exile_top_card_player | exile_top_card_named | exile_top_card_you
 /* @sem Operation::@exiled_card_result(Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
 exile_top_card_player ::= player_ref "exiles" "the" "top" "card" "of" "their" "library"
 /* "Exile the top card of that player's library": the card the event or target's player
@@ -954,7 +954,7 @@ clause_each_exiles_graveyard ::= optional_player_population "exiles" card_count 
 /* After a player exiles their top card, "it's a <type> card" counts the exiled
    card with that type, as in Audacious Swap, Dimensional Infiltrator and Mind's
    Dilation. */
-instructions_exiled_top_type ::= instructions_exiled_top_type_only | instructions_exiled_top_type_otherwise
+instructions_exiled_top_type ::= instructions_exiled_top_type_only | instructions_exiled_top_type_otherwise | instructions_exiled_top_object_otherwise
 
 /* @sem Vec<Instruction>::[Effect{result:@mark, operation:$exile_top_card_receipt}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:$clause}, otherwise:Program{}}] */
 instructions_exiled_top_type_only ::= exile_top_card_receipt "." "if" "it's" ("a" | "an") card_filter "card" "," clause
@@ -1834,3 +1834,28 @@ all_private_library_cards ::= "all" "the" "cards" "from" player_possessive "libr
 
 /* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}, count:Subtract(CountObjects(Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}), Constant(1)), from:Top} */
 library_except_bottom ::= "all" "but" "the" "bottom" "card" "of" player_possessive "library"
+
+/* A single exiled top card supplies the object for both conditional branches.
+   Keep the producer and consumers in the same instruction span. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_card_receipt}, If{condition:ObjectMatches{object:Result{result:@marked, phase:After, index:0}, filter:$card_filter}, then:Program{instructions:$exiled_top_branch}, otherwise:Program{instructions:$exiled_top_branch_2}}] */
+instructions_exiled_top_object_otherwise ::= exile_top_card_receipt "." "if" "it's" "a" card_filter "card" "," exiled_top_branch "." "otherwise" "," exiled_top_branch
+
+/* @sem Operation::@exiled_card_result(Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
+exile_top_card_you ::= "exile" "the" "top" "card" "of" "your" "library"
+
+exiled_top_branch ::= exiled_top_to_hand | exiled_top_put_counter
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:InZone{objects:One(Result{result:@marked, phase:After, index:0}), zone:Exile}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+exiled_top_to_hand ::= "put" "it" "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Result{result:@marked, phase:After, index:0})), kind:$counter_kind, amount:Constant(1)}]}}] */
+exiled_top_put_counter ::= "put" "a" counter_kind "counter" "on" "it"
+
+/* The test consumes the observation produced by this very reveal. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:$reveal_top}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:CardType(Creature)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:$clause}, otherwise:Program{}}]}}] */
+clause_optional_reveal_matching ::= "you" "may" reveal_top "." "if" "a" "creature" "card" "is" "revealed" "this" "way" "," clause
+
+/* The revealed-card permission consumes the exact reveal receipt, and all
+   three follow-up actions use the targeted spell's controller. */
+/* @sem Instruction::[Effect{result:@next, operation:Counter{objects:One($target_stack_spell), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}, Group(Program{instructions:[Effect{result:@mark, operation:RevealUntil{library:ControllerOf(Target{slot:@next_slot, index:0}), filter:$card_filter, count:Constant(1)}}, Effect{result:@next, operation:PlayCards{actor:One(ControllerOf(Target{slot:@next_slot, index:0})), action:CastSpell, cards:Matching{objects:Observed(@marked), filter:$card_filter}, count:UpTo(Constant(1)), cost:Free}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf(Target{slot:@next_slot, index:0}))}}]})] */
+instructions_counter_reveal_cast ::= "counter" target_stack_spell "." "its" "controller" "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" "an" card_filter "card" "." "that" "player" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost" "." "then" "the" "player" "shuffles"

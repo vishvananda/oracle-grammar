@@ -163,3 +163,16 @@ clause_copy_twice_new_targets ::= "copy" target_your_triggered_ability "twice" "
 /* A conditional replacement changes the copy count for the named target. */
 /* @sem Instruction::[If{condition:$condition, then:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$target_stack_spell, times:Constant(2), targets:May}}]}, otherwise:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May}}]}}] */
 clause_copy_conditional_twice ::= "copy" target_stack_spell "." "if" condition "," "copy" object_ref "twice" "instead" "." "you" "may" "choose" "new" "targets" "for" "the" "copies"
+
+/* @sem EventSpec::ZoneChange{objects:CardType(Creature), from:Battlefield, to:Graveyard} */
+event_a_creature_dies_for_copy ::= "a" "creature" "dies"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[CopyOf{object:EventSubject, exceptions:[CopyException::AddCurrentAbility]}], duration:Indefinite, evaluation:Snapshot} */
+copy_dying_creature_keep_current_ability ::= "this" "creature" "becomes" "a" "copy" "of" "that" "creature" "," "except" "it" "has" "this" "ability"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$pay_mana, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:$copy_dying_creature_keep_current_ability}]}, otherwise:Program{}}]} */
+paid_dying_creature_copy ::= "you" "may" pay_mana "." "if" "you" "do" "," copy_dying_creature_keep_current_ability "."
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_a_creature_dies_for_copy, limits:TriggerLimits{}, announcement:@announcement, body:$paid_dying_creature_copy} */
+triggered_paid_dying_creature_copy ::= "whenever" event_a_creature_dies_for_copy "," paid_dying_creature_copy
