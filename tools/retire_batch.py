@@ -1242,7 +1242,9 @@ def _early_default_print(checkpoint, grammar, data, logs):
         r.write(folder/'result.json', {'occurrences': len(expected),
                 'rows_sha256': r.digest(folder/'rows.jsonl'), 'failures': parse_losses, 'threads': granted})
     losses = []
-    if protected:
+    # Confirm parse regressions before spending a full rendering pass on
+    # this trial. Full validation still checks every reading and print.
+    if protected and not parse_losses:
         folder = logs/'default-print-screen'
         rows, expected, granted = _early_score(checkpoint, grammar, data, folder, sorted(protected), render=True)
         losses = _early_render_losses(rows, expected)
@@ -1325,7 +1327,8 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
             raise _UncertainPromotion('Early print witness inputs changed during staging')
         proof.update(retained_native_failure=failures, early_print_control=spec,
                      verified_native_snapshot={key: focused[key] for key in ('profile_sha256','manifest_sha256','threads')})
-        rows = logs/('default-print-screen' if previous is None else 'native-focused')/'rows.jsonl'
+        broad_rows = logs/'default-print-screen/rows.jsonl'
+        rows = broad_rows if previous is None and broad_rows.is_file() else logs/'native-focused/rows.jsonl'
         hints = _retained_print_hints(cp, grammar, rows, drafts, failures,
                                      reading_checks=logs/'native-focused')
         if hints:

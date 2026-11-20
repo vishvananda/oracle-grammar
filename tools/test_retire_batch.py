@@ -228,32 +228,40 @@ class BatchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             batch._early_render_losses([lost], before)
 
-    def test_early_screen_catches_a_reading_change_outside_the_default_print_cohort(self):
-        entry = dict(text='Written.', parse={'readings':1}, flags=[True,True,True,True])
-        protected = dict(entry, name='A')
-        remaining = dict(entry, name='B', flags=[True,True,True,False])
+    def test_early_screen_confirms_unprotected_parse_losses_before_rendering(self):
+        protected = {'name':'A', 'text':'Written.', 'parse':{'readings':1}, 'flags':[True]*4}
+        remaining = dict(protected, name='B', flags=[True,True,True,False])
         data = ({'0':protected, '1':remaining}, [], [])
         first = {'name':'A', 'text':'Written.', 'status':'equal', 'readings':1,
                  'exact':True, 'default':'Other.'}
-        second = {'name':'B', 'text':'Written.', 'status':'equal', 'readings':2}
+        second = {'name':'B', 'text':'Written.', 'status':'equal'}
 
-        def score(checkpoint, grammar, payload, folder, names, *, render):
-            folder.mkdir()
-            rows = [first] if render else [second]
-            batch.r.jsonl(folder/'rows.jsonl', rows)
-            self.assertEqual(names, ['A'] if render else ['B'])
-            return rows, [protected] if render else [remaining], 2
+        for readings in (2, 1):
+            with self.subTest(readings=readings), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                rendered = []
 
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            with (patch.object(batch.r, 'verify', return_value={'population':2}),
-                  patch.object(batch, '_early_score', side_effect=score)):
-                result = batch._early_default_print({'inputs': str(root)}, root, data, root)
-            self.assertEqual(result, [{'face':'A','lost':['exact_default']},
-                                      {'face':'B','gate':'parse/reading-count/text'}])
-            receipt = batch.r.read(root/'unprotected-parse-screen/result.json')
-            self.assertEqual(receipt['occurrences'], 1)
-            self.assertEqual(receipt['failures'], result[1:])
+                def score(checkpoint, grammar, payload, folder, names, *, render):
+                    rendered.append(render)
+                    folder.mkdir()
+                    rows = [first] if render else [dict(second,readings=readings)]
+                    batch.r.jsonl(folder/'rows.jsonl', rows)
+                    self.assertEqual(names, ['A'] if render else ['B'])
+                    return rows, [protected] if render else [remaining], 2
+
+                with (patch.object(batch.r, 'verify', return_value={'population':2}),
+                      patch.object(batch, '_early_score', side_effect=score)):
+                    result = batch._early_default_print({'inputs': str(root)}, root, data, root)
+                receipt = batch.r.read(root/'unprotected-parse-screen/result.json')
+                self.assertEqual(receipt['occurrences'], 1)
+                if readings == 2:
+                    self.assertEqual(rendered, [False])
+                    self.assertEqual(result, [{'face':'B','gate':'parse/reading-count/text'}])
+                    self.assertEqual(receipt['failures'], result)
+                else:
+                    self.assertEqual(rendered, [False, True])
+                    self.assertEqual(result, [{'face':'A','lost':['exact_default']}])
+                    self.assertEqual(receipt['failures'], [])
 
     def test_early_score_counts_every_occurrence_of_a_shared_face_name(self):
         with tempfile.TemporaryDirectory() as temporary:
