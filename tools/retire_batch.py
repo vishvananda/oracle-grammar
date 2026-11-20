@@ -1034,6 +1034,60 @@ def _check_trial_native(context, items, proof, input_cache, grammar, logs, *, fo
         raise
 
 
+def _retained_parse_candidates(checkpoint, control, grammar, directory):
+    """Find cheap reading-count or recognition witnesses in the retained inputs."""
+    _control_verify(control)
+    directory.mkdir()
+    selected = w.subset(directory, control['names'], control['data'])
+    expected = [entry for entry in control['data'][0].values() if entry['name'] in selected]
+    r.require(len(expected) == control['occurrences'], 'retained parse cohort differs')
+    output = directory/'rows.jsonl'
+    threads = min(4, control['threads'])
+    args = [directory/'gold.jsonl', directory/'oracle.json', directory/'slice.json', output]
+    with _audit_cpu(checkpoint, threads, checkpoint.get('cpu_capacity', 32)):
+        r.execute(control['run'], directory, grammar, 'score', args, threads)
+    rows = r.rows(output)
+    names = set()
+    for row, old in zip(rows, expected, strict=True):
+        r.require(row['name'] == old['name'] and row['text'] == old['text'],
+                  'retained parse screen occurrence differs')
+        if row['status'] != 'equal' or row.get('readings') != old['parse']['readings']:
+            names.add(row['name'])
+    _control_verify(control)
+    return sorted(names)
+
+
+def _check_retained_parse(context, items, proof, input_cache, grammar, logs, drafts):
+    control, checkpoint = context['control'], context['checkpoint']
+    directory = logs/'retained-parse-screen'
+    try:
+        names = _retained_parse_candidates(checkpoint, control, grammar, directory)
+        focus = _focused_native_control(control, names[:RETAINED_NATIVE_PROBE_LIMIT//2]) if names else None
+        metadata = directory/'result.json'
+        r.write(metadata, {'faces': control['occurrences'], 'suspect_faces': names,
+                           'rows_sha256': r.digest(directory/'rows.jsonl')})
+        proof['retained_parse_screen_sha256'] = r.digest(metadata)
+    except (OSError, ValueError, TypeError, KeyError, subprocess.SubprocessError) as error:
+        proof['retained_parse_screen_error'] = str(error)
+        return
+    if focus is None:
+        return
+    try:
+        _check_trial_native(context, items, proof, input_cache, grammar, directory, focused=focus)
+    except _NativeControlFailure as error:
+        witness = _retained_native_failure(focus, error.report)
+        if witness is None or not any(isinstance(item, dict) and item.get('gate') == 'parse/reading-count/text'
+                                      and item['face'] in names for item in witness['failures']):
+            return
+        proof['retained_native_failure'] = witness
+        native = directory/'native-focused'
+        proof['retained_parse_native_sha256'] = r.digest(native/'result.json')
+        hints = _retained_print_hints(checkpoint, grammar, native/'rows.jsonl', drafts, witness)
+        if hints:
+            proof['retained_print_hints'] = hints
+        raise
+
+
 def _early_render_losses(rows, expected):
     losses = []
     for row, before in zip(rows, expected, strict=True):
@@ -1243,6 +1297,9 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                 if focused is not None:
                     proof['native_focused_names'] = focused['names']
                     _check_trial_native(context, items, proof, input_cache, trial/'grammar', logs, focused=focused)
+            if (control is not None and checkpoint.get('early_retained_parse') is True
+                    and len(entries) >= MIN_EARLY_PRINT_GROUP):
+                _check_retained_parse(context, items, proof, input_cache, trial/'grammar', logs, trace_drafts)
             for item in items:
                 item.update(family_logs=str(logs), family_checks=family_checks)
             if fixtures:

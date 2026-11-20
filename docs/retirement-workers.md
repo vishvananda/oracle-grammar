@@ -187,6 +187,10 @@ reading and default-print regressions early; the full audit still runs.
 Repeated staging on the same accepted grammar, input snapshot, helpers and
 control profile can reuse the passing baseline report and its verified files.
 Each trial runs its own controls against its candidate grammar.
+Set `early_retained_parse` to screen large staging trials for reading
+changes before replaying all families. A focused native replay must
+confirm the change before the screen can reject a trial. Survivors still
+run the family checks and complete native and print controls.
 When those controls isolate a rejected proposal, its individual retry checks
 the complete retained native profile against the new prefix before replaying
 the family registry. A passing retry still runs every staging gate.

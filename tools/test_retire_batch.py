@@ -838,6 +838,65 @@ class BatchTests(unittest.TestCase):
             with self.subTest(faces=faces, failures=failures):
                 self.assertIsNone(batch._retained_native_failure(control, {'faces': faces, 'failures': failures}))
 
+    def test_retained_parse_candidates_bind_occurrences_and_reading_counts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            previous = {'name':'Card', 'text':'Original wording.', 'parse':{'readings':1}}
+            control = {'run':root, 'names':['Card'], 'occurrences':1, 'threads':2, 'data':({'0':previous}, [], [])}
+            current = {'name':'Card', 'text':'Original wording.', 'status':'equal', 'readings':2}
+
+            def score(_run, _folder, _grammar, program, args, threads):
+                self.assertEqual((program, threads, len(args)), ('score', 2, 4))
+                batch.r.jsonl(args[-1], [current])
+
+            with (patch.object(batch, '_control_verify'),
+                  patch.object(batch.w, 'subset', return_value={'Card'}),
+                  patch.object(batch.r, 'execute', side_effect=score)):
+                self.assertEqual(batch._retained_parse_candidates({}, control, root/'grammar', root/'first'), ['Card'])
+                current['readings'] = 1
+                self.assertEqual(batch._retained_parse_candidates({}, control, root/'grammar', root/'second'), [])
+                current['text'] = 'Another occurrence.'
+                with self.assertRaisesRegex(ValueError, 'occurrence differs'):
+                    batch._retained_parse_candidates({}, control, root/'grammar', root/'third')
+
+    def test_retained_parse_trial_requires_confirmed_native_reading_failure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            control = {'occurrences':1, 'names':['Card']}
+            context = {'control':control, 'checkpoint':{}}
+            reading = {'face':'Card', 'gate':'parse/reading-count/text'}
+            wording = {'face':'Card', 'lost':['exact_default']}
+            for number, failure in enumerate((None, wording, reading)):
+                trial = root/str(number)
+                trial.mkdir()
+                proof = {}
+
+                def screen(_checkpoint, _control, _grammar, directory):
+                    directory.mkdir()
+                    batch.r.jsonl(directory/'rows.jsonl', [{'name':'Card'}])
+                    return ['Card']
+
+                def verify(_context, _items, _proof, _cache, _grammar, directory, *, focused):
+                    if failure:
+                        native = directory/'native-focused'
+                        native.mkdir()
+                        report = {'faces':1, 'failures':[failure]}
+                        batch.r.write(native/'result.json', report)
+                        raise batch._NativeControlFailure(native/'result.json', report)
+
+                with (patch.object(batch, '_retained_parse_candidates', side_effect=screen),
+                      patch.object(batch, '_focused_native_control', return_value=control),
+                      patch.object(batch, '_check_trial_native', side_effect=verify),
+                      patch.object(batch, '_retained_print_hints', return_value=[])):
+                    args = (context, [], proof, None, root/'grammar', trial, [])
+                    if failure == reading:
+                        with self.assertRaises(batch._NativeControlFailure):
+                            batch._check_retained_parse(*args)
+                        self.assertEqual(proof['retained_native_failure']['failures'], [reading])
+                    else:
+                        batch._check_retained_parse(*args)
+                        self.assertNotIn('retained_native_failure', proof)
+
     def test_native_focus_accepts_a_bounded_group_with_the_same_print_loss(self):
         names = [f'Card {index:02d}' for index in range(17)]
         control = {'occurrences': len(names), 'names': names}
