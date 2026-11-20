@@ -38,6 +38,7 @@ REVIEWED_RETRY_EVENTS = {
 }
 SPLIT_REVIEWED_AUTHOR = 'split-reviewed-author'
 DEFERRED_REVIEWED_AUTHOR = 'queued-deferred-reviewed-author'
+RETRY_UNBLOCKED_AUTHOR = 'retry-unblocked-author'
 _REVIEWED_EVENTS = (*REVIEWED_RETRY_EVENTS.values(), SPLIT_REVIEWED_AUTHOR, DEFERRED_REVIEWED_AUTHOR)
 _REVIEWED_EVENT_SLOTS = ','.join('?' for _ in _REVIEWED_EVENTS)
 
@@ -1204,13 +1205,22 @@ class Queue:
                 self._event(db, 'rehabilitated-unused', {**result, 'evidence': evidence})
                 return result
 
-    def queue_deferred_author(self, job_id, checkpoint, evidence, *, reviewed=None):
-        """Schedule the first standalone author attempt for an inherited review."""
+    def queue_deferred_author(self, job_id, checkpoint, evidence, *, reviewed=None, unblocked=None):
+        """Schedule an inherited review or retry once after witnessed dependencies retire."""
+        if unblocked is not None and (reviewed is not None or not isinstance(unblocked, dict)
+                                     or set(unblocked) != {'attempt_id', 'scan'}
+                                     or not isinstance(unblocked['attempt_id'], str) or not unblocked['attempt_id']):
+            raise ValueError('an unblocked retry requires its original attempt and accepted scan')
+        previous_attempt = unblocked['attempt_id'] if unblocked is not None else None
+
         def current(db):
             row = db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?',
                              (job_id,)).fetchone()
-            if not row or tuple(row[:2]) != ('needs-review', None):
-                raise RehabilitationIneligible('the deferred job already has a standalone disposition')
+            if not row or tuple(row[:2]) != ('needs-review', previous_attempt):
+                raise RehabilitationIneligible('the deferred job already has a different disposition')
+            if previous_attempt and db.execute("SELECT 1 FROM events WHERE kind=? AND json_extract(data,'$.job_id')=?",
+                                               (RETRY_UNBLOCKED_AUTHOR, job_id)).fetchone():
+                raise RehabilitationIneligible('the assignment already received a dependency retry')
             resolved = retire_rehabilitation.resolve_origin(db, job_id, row)
             if resolved is None or resolved[0].get('id') != job_id or resolved[0].get('kind') != 'author':
                 raise RehabilitationIneligible('the deferred job has no verified author origin')
@@ -1222,6 +1232,8 @@ class Queue:
             head = db.execute(latest).fetchone()
             if not head or head[0] != checkpoint:
                 raise RehabilitationIneligible('the accepted checkpoint changed')
+            parent = (db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (initial[2],)).fetchone()
+                      if previous_attempt else None)
         job, origin, base, started, original_result = initial
         rules = job['rules']
         pid = json.loads(started or '{}').get('pid')
@@ -1231,6 +1243,15 @@ class Queue:
         inputs, unused, manifest_hash, scan_hash = retire_rehabilitation.verify_scan(
             campaign, checkpoint, json.loads(head[1]), evidence)
         targets = retire_rehabilitation.deferred_author_faces(inputs, scan_hash, unused, job)
+        neighbors = {}
+        if previous_attempt:
+            if not parent or base == checkpoint:
+                raise RehabilitationIneligible('the original attempt needs an older accepted checkpoint')
+            before = (base, json.loads(parent[0]), unblocked['scan'])
+            after = (checkpoint, json.loads(head[1]), evidence)
+            neighbors = retire_rehabilitation.retired_author_neighbors(campaign, before, after, targets, rules)
+            if not neighbors:
+                raise RehabilitationIneligible('no assigned face lost a seeded dependency')
         if reviewed is not None and (not isinstance(reviewed, dict)
                                      or set(reviewed) != {'report', 'original_report'}):
             raise ValueError('deferred draft requires both independent reports')
@@ -1251,6 +1272,13 @@ class Queue:
                         f'meanings checked in earlier attempts. The original attempt evidence is under {archive}.')
                 payload = dict(job, target_faces=targets, goal=goal)
                 event, recorded = 'queued-deferred-author', evidence
+                if previous_attempt:
+                    witnesses = self._unblocked_author_witnesses(db, targets, neighbors)
+                    names = ', '.join(sorted(witnesses)[:12])
+                    payload['goal'] += ' The accepted grammar has since retired dependencies of the assigned faces, including '+names+'.'
+                    event = RETRY_UNBLOCKED_AUTHOR
+                    recorded = {'scan': evidence, 'previous_scan': unblocked['scan'], 'previous_checkpoint': base,
+                                'previous_result_sha256': origin['result_sha256'], 'retired_dependencies': witnesses}
                 if reviewed is not None:
                     recorded = dict(evidence, source_checkpoint=checkpoint, report=reviewed['report'])
                     _, task = _verify_reviewed_repair(campaign, checkpoint, payload, recorded)
@@ -1265,11 +1293,26 @@ class Queue:
                             or not set(json.loads(data)['cohort']) <= set(task['cohort'])):
                         raise ValueError('the deferred draft omits its original cohort')
                     event = DEFERRED_REVIEWED_AUTHOR
-                db.execute("UPDATE jobs SET payload=?,status='pending' WHERE id=?", (_json(payload), job_id))
+                db.execute("UPDATE jobs SET payload=?,status='pending',attempt_id=NULL WHERE id=?", (_json(payload), job_id))
                 receipt = {'job_id': job_id, 'origin_attempt': origin['attempt_id'], 'checkpoint': checkpoint,
                            'rules': rules, 'target_faces': targets, 'manifest_sha256': manifest_hash, 'scan_sha256': scan_hash}
                 self._event(db, event, {**receipt, 'evidence': recorded})
                 return receipt
+
+    def _unblocked_author_witnesses(self, db, targets, neighbors):
+        config = json.loads(db.execute("SELECT value FROM metadata WHERE key='config'").fetchone()[0])
+        workers = config.get('max_workers', 12)
+        active = db.execute("SELECT payload FROM jobs WHERE status IN ('pending','running') "
+                            "LIMIT ?", (workers,)).fetchall()
+        if (len(active) >= workers
+                or any(set(targets).intersection(json.loads(raw).get('target_faces', [])) for raw, in active)):
+            raise RehabilitationIneligible('the worker pool or assigned faces are already occupied')
+        accepted = {name for name, in db.execute("SELECT r.rule FROM rules r JOIN jobs j ON j.id=r.job_id "
+                                               "WHERE j.status='accepted'")}
+        witnesses = {name: faces for name, faces in neighbors.items() if name in accepted}
+        if not witnesses:
+            raise RehabilitationIneligible('the changed dependencies have no accepted retirement')
+        return witnesses
 
     def escalate_mechanical_failure(self, job_id, attempt_id, checkpoint, evidence):
         """Schedule a fresh author attempt for a failure on the accepted chain."""

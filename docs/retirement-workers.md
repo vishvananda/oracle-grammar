@@ -159,6 +159,15 @@ derivation and matching semantic shapes as scheduling hints. Mechanical jobs
 stay first; every fourth author claim uses FIFO. Stale checkpoint ranks are
 ignored, and publication never changes a job's payload, ownership or acceptance.
 
+When inherited work leaves idle Terra slots, run `retire_deferred_frontier.py
+CAMPAIGN --plan-unblocked` to rank previously parked author assignments. Save
+the JSON plan and use `--unblocked-plan PLAN --apply` to fill idle slots.
+The plan pins the checkpoint and original attempts. The queue
+recomputes the witnesses from two accepted scans of the same approved
+population. At least one seeded dependency of an assigned face must have a
+recorded retirement, and active jobs must have disjoint target faces. Each
+assignment gets one such retry and keeps its original attempt in the ledger.
+
 The batch driver's optional `reviewed_replay_slots` reserves places in an
 ordinary batch for provisionally passing attempts that independently replayed
 reviewed drafts. The newest accepted base takes precedence. Mechanical jobs

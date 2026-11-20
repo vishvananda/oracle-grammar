@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from retire_deferred_frontier import plan_unblocked
 from retire_queue import Queue, RehabilitationIneligible
 
 
@@ -48,7 +49,8 @@ class RehabilitationTests(unittest.TestCase):
         inputs = self.root/'checkpoints'/commit/'inputs'
         write(self.root/'checkpoints'/f'{commit}.json', {'commit': commit, 'inputs': str(inputs)})
         manifest = inputs/'manifest.json'
-        write(manifest, {'format': 3, 'commit': commit, 'population': 2})
+        population = {name: 'f'*64 for name in ('allowed.json', 'gold.jsonl', 'oracle.json')}
+        write(manifest, {'format': 3, 'commit': commit, 'population': 2, 'files': population})
         scan = inputs/'scan/rules.json'
         write(scan, {'summary': {'faces': 2, 'equal': 2, 'at_risk': 0, 'unused_rules': len(unused)},
                      'unused': unused, 'needed': needed or {}})
@@ -60,7 +62,8 @@ class RehabilitationTests(unittest.TestCase):
             identity = hashlib.sha256(rule.encode()).hexdigest()[:20]
             write(inputs/'jobs'/identity/'job.json', {'rule': rule, 'scan': spec(scan)['sha256'],
                                                        'snapshot': spec(manifest)['sha256']})
-        self.queue.add_checkpoint(commit, {'inputs': str(inputs)}, expected_parent=parent)
+        self.queue.add_checkpoint(commit, {'inputs': str(inputs), 'manifest': spec(manifest)['sha256']},
+                                  expected_parent=parent)
         self.proof = {'kind': 'checkpoint-unused-rehabilitation', 'scan': spec(scan),
                       'scan_complete': spec(marker), 'manifest': spec(manifest), 'commands': spec(commands)}
 
@@ -140,6 +143,51 @@ class RehabilitationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'separate mechanical verification'):
             self.queue.queue_deferred_author(deferred, 'mixed', self.proof)
         self.assertEqual(self.queue.coverage()['counts'], {'pending': 1, 'needs-review': 2})
+
+    def test_dependency_retry_requires_an_accepted_neighbor_and_runs_once(self):
+        self.new_checkpoint('blocked', [], 'new', {'m_retry':['target'], 'm_neighbor':['target']})
+        base_proof = self.proof
+        self.queue.add_jobs([
+            {'id':'retry', 'kind':'author', 'rules':['m_retry'], 'target_faces':['target']},
+            {'id':'neighbor', 'kind':'mechanical', 'rules':['m_neighbor'], 'target_faces':[]},
+        ])
+        attempt = self.queue.claim('author', kinds=['author'])['attempt_id']
+        neighbor = self.queue.claim('mechanical', kinds=['mechanical'])['attempt_id']
+        with patch.object(self.queue, '_require_absent_pid'):
+            self.queue.mark_started(attempt, pid=4567)
+            (self.lease.parent/'retry').touch()
+            held = {'m_retry':{'status':'needs-review', 'reason':'blocked', 'evidence':'before'}}
+            self.queue.finish(attempt, 'needs-review', 'parked', held)
+            self.queue.finish(neighbor, 'provisional-pass', 'candidate',
+                              {'m_neighbor':{'status':'pass', 'evidence':'neighbor trial'}})
+            prior = self.queue.get_attempt(attempt)
+            self.new_checkpoint('unblocked', [], 'blocked', {'m_retry':['target']})
+            evidence = {'attempt_id':attempt, 'scan':base_proof}
+            self.assertEqual(plan_unblocked(self.root)['candidates'], [])
+            with self.assertRaisesRegex(RehabilitationIneligible,'no accepted retirement'):
+                self.queue.queue_deferred_author('retry', 'unblocked', self.proof, unblocked=evidence)
+            self.queue.accept_jobs(['neighbor'], 'unblocked', 'neighbor passed batch validation')
+            candidate, = plan_unblocked(self.root)['candidates']
+            self.assertEqual((candidate['job'], candidate['unblocked']), ('retry', {'target':['m_neighbor']}))
+            self.assertEqual(plan_unblocked(self.root, protected=['retry'])['candidates'], [])
+            self.queue.add_jobs([{'id':'busy', 'kind':'author', 'rules':['m_busy'], 'target_faces':['target']}])
+            other = self.queue.claim('busy', kinds=['author'])['attempt_id']
+            with self.assertRaisesRegex(RehabilitationIneligible,'occupied'):
+                self.queue.queue_deferred_author('retry', 'unblocked', self.proof, unblocked=evidence)
+            self.queue.finish(other, 'needs-review', 'unrelated disposition',
+                              {'m_busy':{'status':'needs-review','reason':'held','evidence':'test'}})
+            out = self.queue.queue_deferred_author('retry', 'unblocked', self.proof, unblocked=evidence)
+            self.assertEqual(out['origin_attempt'], attempt)
+            self.assertEqual(self.queue.get_attempt(attempt), prior)
+            claimed = self.queue.claim('author', kinds=['author'])
+            self.assertEqual(claimed['base_commit'], 'unblocked')
+            self.assertEqual(claimed['job']['rules'], ['m_retry'])
+            self.assertIn('m_neighbor', claimed['job']['goal'])
+            self.queue.finish(claimed['attempt_id'], 'needs-review', 'still parked', held)
+            self.assertEqual(plan_unblocked(self.root)['candidates'], [])
+            with self.assertRaisesRegex(RehabilitationIneligible,'already received'):
+                self.queue.queue_deferred_author('retry', 'unblocked', self.proof,
+                                                 unblocked={**evidence,'attempt_id':claimed['attempt_id']})
 
     def test_deferred_author_replays_only_a_reviewed_draft_covering_the_original_cohort(self):
         deferred = self.queue.rehabilitate_unused('family', 'new', self.proof)['review_job']

@@ -142,6 +142,32 @@ def deferred_author_targets(needed, unused, job):
     return sorted(targets)
 
 
+def verified_dependency_scan(campaign, checkpoint, ledger, evidence):
+    """Read dependencies and the exact approved population from the accepted archive."""
+    inputs, unused, manifest_hash, scan_hash = verify_scan(campaign, checkpoint, ledger, evidence)
+    pinned = ledger.get('validation', {}).get('validation_manifest_sha256', ledger.get('manifest'))
+    if manifest_hash != pinned:
+        raise ValueError('the dependency scan differs from the accepted archive')
+    manifest = json.loads(_read(inputs/'manifest.json', manifest_hash)[0])
+    population = tuple(manifest['files'].get(name) for name in ('allowed.json', 'gold.jsonl', 'oracle.json'))
+    if any(not isinstance(value, str) or not re.fullmatch(r'[0-9a-f]{64}', value) for value in population):
+        raise ValueError('the dependency scan lacks the approved population identity')
+    needed = json.loads(_read(inputs/'scan/rules.json', scan_hash)[0])['needed']
+    return population, needed, unused
+
+
+def retired_author_neighbors(campaign, before, after, targets, assigned):
+    """Find old dependencies absent from the new scan on the same approved population."""
+    old_population, old_needed, _ = verified_dependency_scan(campaign, *before)
+    new_population, new_needed, unused = verified_dependency_scan(campaign, *after)
+    if old_population != new_population:
+        raise ValueError('the two dependency scans use different approved populations')
+    remaining = set(new_needed) | unused | set(assigned)
+    targets = set(targets)
+    return {name: sorted(targets.intersection(faces)) for name, faces in old_needed.items()
+            if name not in remaining and targets.intersection(faces)}
+
+
 def resolve_origin(db, job_id, row):
     """Find the original immutable terminal attempt for a parked job."""
     status, attempt_id, payload_raw, adjudication = row
