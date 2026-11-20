@@ -85,6 +85,29 @@ class SurvivorTests(unittest.TestCase):
             self.assertEqual([i for i,proposal in enumerate(proposals)
                               if isolate._proposal_added_alternative(*proposal,edges)], [0])
 
+            (combined/'checks').mkdir()
+            isolate.r.jsonl(combined/'checks/rows.jsonl', [
+                {'name':'Face','text':'Text.','all':[[{'reading':0}],[{'reading':1}]]},
+            ])
+            isolate.r.write(combined/'checks/native.json', {'reading_preservation':{'additions':[
+                {'name':'Face','retained_current_indices':[0],'added_current_indices':[1]},
+            ]}})
+            # The unique route of the added reading belongs to an existing
+            # alternative. The newly introduced branch lies on both traces.
+            routes = [b'[{"reading":0}]', b'  rules ["copy_part.0","known_route.0"]',
+                      b'[{"reading":1}]', b'  rules ["copy_part.0","existing_alternate.0"]']
+            archive=(prior/'frozen')
+            archive.mkdir()
+            (archive/'grammar').symlink_to(prior/'grammar', target_is_directory=True)
+            binary=root/'probe'
+            binary.write_bytes(b'frozen helper')
+            config={'inputs':str(prior),'cpu_pool':str(root/'cpu'),'cpu_capacity':32}
+            candidates=[({'kind':'author'},entry) for entry in proposals]
+            with (patch.object(isolate,'_trace_binary',return_value=(binary,isolate.r.digest(binary))),
+                  patch.object(isolate.cpu,'reserve',return_value=nullcontext(())),
+                  patch.object(isolate,'_probe_lines',return_value=routes)):
+                self.assertEqual(isolate._parse_hints(config,prior,combined,candidates,[0,1,2]),[0])
+
     def test_print_hint_requires_a_unique_new_production_in_the_changed_trace(self):
         with TemporaryDirectory() as temporary:
             root = Path(temporary)

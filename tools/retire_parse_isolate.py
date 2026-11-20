@@ -311,10 +311,9 @@ def _parse_hints(checkpoint, run, full, proposals, eligible):
                     added, retained = _trace_delta(lines,row,delta)
                     names = _route_names(added)-_route_names(retained)
                     wanted.update(names)
-                    if not names:
-                        # Two readings can share the same route trace. A branch
-                        # used by both can still be new to the staged grammar.
-                        shared_routes.update(added)
+                    # An existing alternative may start parsing when a new
+                    # branch is used by both the retained and added readings.
+                    shared_routes.update(added & retained)
                 except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
                     continue
         if not (wanted or shared_routes) or r.digest(binary) != expected:

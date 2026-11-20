@@ -1069,20 +1069,25 @@ def _retained_print_hints(checkpoint, grammar, rows_path, drafts, evidence, *, r
                 except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
                     continue
                 if delta is not None and delta[1]:
-                    routes.append(delta[1])
+                    routes.append((delta[1], set()))
             for row, delta in readings:
                 try:
                     lines = _probe_lines(binary, grammar, row['name'], row['text'], fds)
                     added, retained = _trace_delta(lines, row, delta)
-                    routes.append(_route_names(added) - _route_names(retained))
+                    added_names, retained_names = _route_names(added), _route_names(retained)
+                    routes.append((added_names-retained_names, added_names&retained_names))
                 except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
                     continue
         hints = set()
-        for wanted in routes:
-            matches = [index for index, run, directory in drafts
-                       if wanted and _new_productions(run, directory, wanted)]
-            if len(matches) == 1:
-                hints.update(matches)
+        for preferred, shared in routes:
+            # A new leaf used by both readings can expose an existing alternate
+            # interpretation. Only use the shared trace if the split is unclear.
+            for wanted in (preferred, shared):
+                matches = [index for index, run, directory in drafts
+                           if wanted and _new_productions(run, directory, wanted)]
+                if len(matches) == 1:
+                    hints.update(matches)
+                    break
         return sorted(hints) if r.digest(binary) == expected else []
     except (OSError, ValueError, KeyError, TypeError):
         return []

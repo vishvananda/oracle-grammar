@@ -208,6 +208,11 @@ class BatchTests(unittest.TestCase):
                                names.intersection({directory.name}))):
                 self.assertEqual(batch._retained_print_hints(checkpoint,root/'grammar',rows,drafts,
                                                             {'failures':failures},reading_checks=root), [1,4])
+                shared = [b'[{"reading":0}]', b'  rules ["old_rule.0","parse_rule.0"]',
+                          b'[{"reading":1}]', b'  rules ["old_alternate.0","parse_rule.0"]']
+                with patch.object(batch,'_probe_lines',return_value=shared):
+                    self.assertEqual(batch._retained_print_hints(checkpoint,root/'grammar',rows,drafts,
+                                                                {'failures':failures},reading_checks=root), [1,4])
                 (root/'native.json').unlink()
                 self.assertEqual(batch._retained_print_hints(checkpoint,root/'grammar',rows,drafts,
                                                             {'failures':failures},reading_checks=root), [1])
