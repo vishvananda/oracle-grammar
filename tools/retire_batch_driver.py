@@ -16,6 +16,7 @@ import retire as r
 import mined
 import retire_campaign as campaign
 import retire_dispatch as dispatch
+import retire_speculative as speculative
 from retire_library_readmission import LIBRARY_REJECTION
 from retire_parse_readmission import PARSE_SCREEN_REJECTION, PRINT_ONLY_REJECTION, awaiting_print_recovery
 from retire_queue import Queue
@@ -265,6 +266,13 @@ def stale_lane(queue, checkpoint, config, since_stale, limit):
     if len(jobs) < minimum:
         return None
     return {'lane': 'stale-provisional', 'jobs': jobs, 'combine': True}
+
+
+def _speculative_wait(config):
+    seconds = config.get('speculative_wait_seconds', 1800)
+    if type(seconds) not in (int, float) or not 0 <= seconds <= 3600:
+        raise ValueError('speculative_wait_seconds must be between 0 and 3600')
+    return seconds
 
 
 def _preflight_document(path, limit, *, sha256=None):
@@ -535,8 +543,16 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                                     selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots,
                                                                    limit, selected, preferred=protected,
                                                                    callers=callers)
+                                staged = None
+                                if chosen_lane['lane'] == 'preflight-verified' and config.get('speculative_staging') is True:
+                                    current = {row['id']: row['attempt_id'] for row in queue.get_jobs('provisional-pass')}
+                                    staged = speculative.ready(run, progress['checkpoint'],
+                                                               [(job, current.get(job)) for job in selected],
+                                                               wait_seconds=_speculative_wait(config))
+                                    state['speculative_manifest'] = staged
+                                options = {'staged': staged} if staged is not None else {}
                                 batch_id = dispatch._batch(run, selected,
-                                                combine_selected=chosen_lane['combine'] or fresh_union)
+                                                combine_selected=chosen_lane['combine'] or fresh_union, **options)
                             elif cohort:
                                 batch_id = dispatch._batch(run, protected+callers,
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)

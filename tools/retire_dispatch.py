@@ -554,10 +554,12 @@ def batch(run, selected_job_ids=None, *, wait=False, combine_selected=False):
         return
 
 
-def _batch(run, selected_job_ids=None, *, combine_selected=False):
+def _batch(run, selected_job_ids=None, *, combine_selected=False, staged=None):
     """Stage and adjudicate one batch, returning its allocated manifest ID."""
     if type(combine_selected) is not bool or (combine_selected and not selected_job_ids):
         raise ValueError('combine_selected requires an explicit nonempty selection')
+    if staged is not None and not combine_selected:
+        raise ValueError('a speculative stage requires the combined selection it staged')
     queue=Queue(run/'queue.sqlite')
     cp=campaign_api.checkpoint(run,queue.progress()['checkpoint'])
     config=r.read(run/'config.json')
@@ -604,8 +606,10 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     # Pure deletions still run the full print audit before acceptance.
     cp['early_default_print']=print_screen and (
         not skip_mechanical_print or any(item['kind'] != 'mechanical' for item in items))
-    manifest=(retire_batch.stage(run,cp,items,combine_selected=True) if combine_selected
-              else retire_batch.stage(run,cp,items))
+    manifest=retire_batch.adopt_staged(run,cp,items,staged) if staged is not None else None
+    if manifest is None:
+        manifest=(retire_batch.stage(run,cp,items,combine_selected=True) if combine_selected
+                  else retire_batch.stage(run,cp,items))
     included=[row['job_id'] for row in manifest['jobs'] if row['status']=='included']
     rejected=[row['job_id'] for row in manifest['jobs'] if row['status']!='included']
     if rejected:

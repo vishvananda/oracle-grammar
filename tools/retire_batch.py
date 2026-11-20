@@ -2208,6 +2208,55 @@ def _stage(campaign, checkpoint, proposals, *, combine_selected=False):
     return manifest
 
 
+def _control_identity(spec):
+    return None if spec is None else spec.get('sha256')
+
+
+def adopt_staged(campaign, checkpoint, proposals, batch_id):
+    """Reuse a candidate staged on this checkpoint before it was accepted, or return None.
+
+    The speculative stage ran the ordinary staging gates on the exact commit,
+    inputs and helpers that the accepted checkpoint now records. Its selection
+    must still be the current attempts in the same order, under the same
+    regression controls, and its private branch must be one commit above it.
+    """
+    campaign = Path(campaign).resolve()
+    if not isinstance(batch_id, str) or not re.fullmatch(r'[0-9a-f]{32}', batch_id):
+        return None
+    folder = campaign/'.cache/batches'/batch_id
+    path = folder/'manifest.json'
+    if path.is_symlink() or not path.is_file():
+        return None
+    manifest = r.read(path)
+    speculative = manifest.get('speculative')
+    expected = [(item['job_id'], item['attempt_id']) for item in proposals]
+    staged = [(job.get('job_id'), job.get('attempt_id')) for job in manifest.get('jobs', ())]
+    if (not isinstance(speculative, dict) or manifest.get('id') != batch_id
+            or manifest.get('status') != 'provisional' or manifest.get('adopted')
+            or manifest.get('base_commit') != checkpoint['commit']
+            or speculative.get('parent_candidate') != checkpoint['commit']
+            or Path(speculative.get('inputs', '')).resolve() != Path(checkpoint['inputs']).resolve()
+            or Path(speculative.get('helpers', '')).resolve() != Path(checkpoint['helpers']).resolve()
+            or manifest.get('combine_selected') is not True or staged != expected
+            or (manifest.get('native_regression_controls') or {}).get('profile_sha256')
+            != _control_identity(checkpoint.get('native_regression_controls'))
+            or (manifest.get('library_regression_controls') or {}).get('profile_sha256')
+            != _control_identity(checkpoint.get('library_regression_controls'))):
+        return None
+    source = Path(manifest['source'])
+    try:
+        if (source.resolve() != (folder/'source').resolve()
+                or _git(source, 'rev-parse', 'HEAD') != manifest['commit']
+                or _git(source, 'rev-parse', manifest['commit']+'^') != checkpoint['commit']
+                or _git(source, 'status', '--porcelain') or r.tree(source/'grammar') != manifest['grammar']):
+            return None
+    except (OSError, subprocess.CalledProcessError, KeyError):
+        return None
+    manifest['adopted'] = {'checkpoint': checkpoint['commit'], 'unix': time.time()}
+    r.write(path, manifest)
+    return manifest
+
+
 def _screen_identity(source, manifest, baseline, input_run, output, evidence):
     if (r.digest(baseline) != evidence['baseline_sha256']
             or r.digest(input_run/'manifest.json') != evidence['checkpoint_manifest_sha256']

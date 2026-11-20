@@ -152,6 +152,15 @@ Set `stale_provisional_hours` (1 to 240) so older work gets a turn. Every
 `stale_provisional_batch_size` provisional jobs whose attempts finished at
 least that many hours ago, oldest first. It does so only when at least
 `stale_provisional_minimum` such jobs qualify.
+With `speculative_staging`, `retire_speculative.py CAMPAIGN` stages the next
+preflight selection on the candidate still in its full audit, once that
+candidate's parse screen has passed. It uses background CPU and the
+candidate's own validation inputs. If the candidate is accepted and the driver
+then picks the same selection, it adopts the staged branch rather than staging
+again. Adoption requires the same attempts in the same order, the same
+regression controls and an unchanged private branch. The driver waits up to
+`speculative_wait_seconds` for a stage still in progress. Any mismatch falls
+back to ordinary staging, and the full audit always runs.
 Set `parse_screen_before_repository` with `full_parse_screen` to run the
 complete parse and native-reading screen before the repository gates. A
 confirmed parse regression can go straight to focused recovery. A passing

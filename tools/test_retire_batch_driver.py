@@ -290,6 +290,21 @@ class DriverTests(unittest.TestCase):
         stage.assert_called_once_with(self.run, ['second', 'first'], combine_selected=True)
         self.assertEqual(r.read(self.run/'batch-driver.json')['last_batch']['lane'], 'preflight-verified')
 
+    def test_preflight_lane_adopts_a_matching_speculative_stage(self):
+        _, spec = self.preflight()
+        r.write(self.run/'batch-preflight-ready.json', spec)
+        config = r.read(self.run/'config.json')
+        r.write(self.run/'config.json', dict(config, speculative_staging=True, speculative_wait_seconds=5))
+        self.queue.value = progress(pending=1, ready=2)
+        def complete(run, jobs, *, combine_selected, staged):
+            self.assertEqual(staged, 'c'*32)
+            return self.outcome(drain=True)(run)
+        with patch.object(driver.speculative, 'ready', return_value='c'*32) as ready, \
+                patch.object(driver.dispatch, '_batch', side_effect=complete) as stage:
+            driver.run_driver(self.run, self.runner)
+        ready.assert_called_once_with(self.run, 'parent', [('second', 'b'), ('first', 'a')], wait_seconds=5)
+        stage.assert_called_once_with(self.run, ['second', 'first'], combine_selected=True, staged='c'*32)
+
     def test_preflight_receipt_respects_explicit_configuration_and_rejects_symlinks(self):
         path, spec = self.preflight()
         envelope = self.run/'batch-preflight-ready.json'
