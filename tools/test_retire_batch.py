@@ -1685,7 +1685,11 @@ class BatchTests(unittest.TestCase):
                                          [2, 6] if mode == 'retained-family-after-deletion' else [6])
                         self.assertNotIn('j6', retry['jobs'])
                         self.assertIn('without-retained-family-regression', [name for name, _ in calls])
-                        self.assertIn('proposal-006', [name for name, _ in calls])
+                        self.assertIn('family-focused', [name for name, _ in calls])
+                        self.assertNotIn('proposal-006', [name for name, _ in calls])
+                        solo = next(row for row in result['jobs'] if row['job_id'] == 'j6')
+                        solo_proof = batch.r.read(Path(solo['trial_proof']['path']))
+                        self.assertEqual(solo_proof['family_check_scope'], 'retained-witness')
                     continue
                 if mode == 'merge-conflicts':
                     self.assertNotIn('fallback_trials', result)
@@ -1938,6 +1942,51 @@ class BatchTests(unittest.TestCase):
             self.assertEqual([label for label, _ in calls[3:]], [f'proposal-{i:03d}' for i in range(5)])
             self.assertEqual(len(context['manifest']['jobs']), 8)
             self.assertEqual(context['native_suspects'], {4: {'names': ['B'], 'control': context['control']}})
+            self.assertEqual(context['family_suspects'], {1: {'culprit': 1}, 2: {'culprit': 2}})
+
+    def test_solo_recheck_only_vetoes_a_reproduced_retained_family(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source, logs = root/'source', root/'logs'
+            source.mkdir()
+            fixtures = []
+            for name in ('prior.json', 'retained.json'):
+                path = source/name
+                path.write_text('{}')
+                fixtures.append({'fixture': name,'sha256': batch.r.digest(path),
+                                 'failures': [{'name': name,'why': 'previous refusal'}]})
+            checks = [{'fixture': 'unrelated.json','kind': 'baseline','log': 'family-000.log'},
+                      {'fixture': 'prior.json','kind': 'prior-proposal','log': 'family-001.log'},
+                      {'fixture': 'retained.json','kind': 'baseline','log': 'family-002.log'}]
+            context = {'source': source,'checkpoint': {},
+                       'family_suspects': {2: {'fixtures': fixtures}}}
+            expected = fixtures[1]['failures']
+
+            def recheck(checkpoint, checked_source, paths, log, *, grammar_dir, threads):
+                self.assertEqual(paths, [source/row['fixture'] for row in fixtures])
+                self.assertEqual(threads, 2)
+                batch.r.write(log, {'families': [{}, {'failures': seen}]})
+                batch.r.write(log.parent/'family-000.log', {'failures': []})
+                batch.r.write(log.parent/'family-001.log', {'failures': seen})
+                raise batch._FamilyCheckFailure(log, (1,))
+
+            for seen in ([{'name': 'retained.json','why': 'unrelated diagnostic'}], expected):
+                folder = logs/str(seen == expected)
+                folder.mkdir(parents=True)
+                proof = {'family_checks': checks}
+                with patch.object(batch, '_helper', side_effect=recheck):
+                    if seen != expected:
+                        batch._recheck_retained_family(context, 2, proof, source/'grammar', folder)
+                        self.assertEqual(proof, {'family_checks': checks})
+                        self.assertFalse((folder/'family.log').exists())
+                        continue
+                    with self.assertRaises(batch._FamilyCheckFailure) as caught:
+                        batch._recheck_retained_family(context, 2, proof, source/'grammar', folder)
+                self.assertEqual(caught.exception.failed_fixtures, (1,))
+                self.assertEqual(proof['family_check_scope'], 'retained-witness')
+                self.assertEqual(proof['family_checks'], [dict(checks[1],log='family-000.log'),
+                                                         dict(checks[2],log='family-001.log')])
+                self.assertEqual(batch.r.read(folder/'family-001.log')['failures'], expected)
 
     def test_stale_rule_reference_routes_only_a_unique_new_symbolic_use(self):
         with tempfile.TemporaryDirectory() as temporary:

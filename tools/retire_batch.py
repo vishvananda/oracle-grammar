@@ -1301,6 +1301,42 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
         proof['default_print_screen_error'] = str(error)
 
 
+def _recheck_retained_family(context, index, proof, grammar, logs):
+    """Repeat a known retained failure after the rest of its group has moved."""
+    failure = context.get('family_suspects', {}).get(index)
+    if failure is None:
+        return
+    source = context['source']
+    witnesses = failure.get('fixtures', [failure])
+    checks = {row['fixture']: row for row in proof['family_checks'] if row['kind'] != 'new-proposal'}
+    fixtures = [source/row['fixture'] for row in witnesses]
+    if any(row['fixture'] not in checks or r.digest(path) != row['sha256']
+           for row, path in zip(witnesses, fixtures, strict=True)):
+        return
+    focused = logs/'family-focused'
+    focused.mkdir()
+    checkpoint = context['checkpoint']
+    try:
+        _helper(checkpoint, source, fixtures, focused/'family.log', grammar_dir=grammar,
+                threads=min(2, _family_check_threads(checkpoint)))
+    except _FamilyCheckFailure as error:
+        observed = error.failed_fixtures
+        if not observed or any(not 0 <= pos < len(witnesses)
+                               or r.read(focused/f'family-{pos:03d}.log')['failures'] != witnesses[pos]['failures']
+                               for pos in observed):
+            return
+        if any(r.digest(path) != row['sha256'] for row, path in zip(witnesses, fixtures, strict=True)):
+            raise _UncertainPromotion('retained family changed during focused staging check')
+        shutil.copyfile(focused/'family.log', logs/'family.log')
+        selected = []
+        for pos, row in enumerate(witnesses):
+            name = f'family-{pos:03d}.log'
+            shutil.copyfile(focused/name, logs/name)
+            selected.append(dict(checks[row['fixture']], log=name))
+        proof.update(family_checks=selected, family_check_scope='retained-witness')
+        raise _FamilyCheckFailure(logs/'family.log', observed) from error
+
+
 def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
     """Merge and gate one ordered trial; publish nothing until every gate passes."""
     source, folder, manifest = context['source'], context['folder'], context['manifest']
@@ -1404,8 +1440,12 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                 item.update(family_logs=str(logs), family_checks=family_checks)
             if fixtures:
                 try:
+                    if len(entries) == 1:
+                        _recheck_retained_family(context, entries[0][0], proof, trial/'grammar', logs)
                     _helper(checkpoint, source, fixtures, logs/'family.log', grammar_dir=trial/'grammar')
                 except _FamilyCheckFailure as error:
+                    for item in items:
+                        item['family_checks'] = proof['family_checks']
                     if (not input_cache.unchanged() or r.tree(trial/'grammar') != proof['trial_grammar']
                             or any(r.digest(path) != record['sha256']
                                    for (path, _), record in zip(additions, proof['new_fixtures'], strict=True))):
@@ -1789,7 +1829,9 @@ def _retry_retained_control(context, entries, proof, whole_proof, size, withheld
                                             initial_trial=proof)
     if not culprits or not set(culprits) <= {index for index, _ in selection}:
         return False
-    if native is not None:
+    if family is not None:
+        context.setdefault('family_suspects', {}).update((index, family) for index in culprits)
+    else:
         names = native['faces'] if 'faces' in native else [native['face']]
         witness = {'names': names, 'control': diagnostic['control']}
         context.setdefault('native_suspects', {}).update((index, witness) for index in culprits)
