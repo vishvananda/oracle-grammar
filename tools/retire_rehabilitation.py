@@ -262,7 +262,8 @@ def mechanical_failure(inputs, run, rules, report, evidence):
     manifest = r.read(inputs/'manifest.json')
     if evidence['index'].get('sha256') != manifest['files'].get('index.json'):
         raise ValueError('mechanical diagnostic index differs from the frozen manifest')
-    frozen = r.verify(inputs)
+    manifest_hash = evidence['scan']['manifest']['sha256']
+    frozen = r.verify_archive(inputs, manifest_hash)
     with tempfile.TemporaryDirectory(prefix='retire-mechanical-proof-') as scratch:
         root = Path(scratch)
         batch._mechanical_removal(run, directory, rules, root)
@@ -299,6 +300,6 @@ def mechanical_failure(inputs, run, rules, report, evidence):
         faces.update(item['name'] for key in ('missing', 'additions') for item in preserved[key])
         if not 1 <= len(faces) <= 500 or not faces <= names or sum(entry['name'] in faces for entry in index.values()) == 0:
             raise ValueError('mechanical failure lacks named target evidence')
-    if r.verify(inputs) != frozen:
+    if r.verify_archive(inputs, manifest_hash) != frozen:
         raise ValueError('mechanical frozen inputs changed during review')
     return sorted(faces)

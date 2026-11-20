@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import retire
+import retire_rehabilitation
 from retire_deferred_frontier import plan_unblocked
 from retire_queue import Queue, RehabilitationIneligible
 
@@ -290,6 +292,44 @@ class RehabilitationTests(unittest.TestCase):
         self.assertEqual(accepted['job']['target_faces'], ['Target'])
         self.assertEqual(self.queue.coverage()['total_rules'], 4)
         self.assertEqual(self.queue.coverage()['accepted_rules'], 0)
+
+    def test_mechanical_escalation_verifies_the_archived_runner(self):
+        inputs = self.root/'archived-inputs'
+        frozen = inputs/'frozen'
+        for name in retire.TOOLING:
+            write(frozen/'runner'/name, 'archived implementation')
+        index = frozen/'index.json'
+        write(index, {'0': {'name': 'Target'}})
+        files = retire.tree(frozen)
+        manifest = inputs/'manifest.json'
+        write(manifest, {'format': 3, 'files': files,
+                         'tooling': {name: files['runner/'+name] for name in retire.TOOLING}})
+        with self.assertRaisesRegex(ValueError, 'workflow implementation changed'):
+            retire.verify(inputs)
+
+        run = self.root/'attempt'
+        write(run/'tasks/old.json', {'rules': ['m_extra'], 'kind': 'mechanical', 'cohort': ['Target']})
+        (run/'inputs').symlink_to(inputs, target_is_directory=True)
+        directory = run/'evaluation'
+        args = [str(frozen/'bin/validate-readings'), *(str(directory/name) for name in (
+            'gold.jsonl', 'rows.jsonl', 'native.json', 'native-failures.jsonl')),
+            '--preserve-from', str(directory/'before.jsonl')]
+        report = {'task': 'old', 'directory': str(directory),
+                  'failures': [str(subprocess.CalledProcessError(1, args))]}
+        evidence = {'index': spec(index), 'scan': {'manifest': spec(manifest)}}
+        native = {'reading_preservation': {'missing': [{'name': 'Target'}], 'additions': []}}
+        artifacts = {'commands.jsonl': b'{"program":"score","returncode":0}\n'
+                                      b'{"program":"validate-readings","returncode":1}\n',
+                     'native.json': json.dumps(native).encode(), 'slice.json': b'{"cards":["Target"]}'}
+        with patch('retire_batch._mechanical_removal') as removal, \
+             patch('retire_rehabilitation.recheck_mechanical_failure', return_value=artifacts), \
+             patch('retire_native_outcome.preservation_failure', return_value={'failures': ['native veto']}):
+            self.assertEqual(retire_rehabilitation.mechanical_failure(inputs, run, ['m_extra'], report, evidence),
+                             ['Target'])
+            write(manifest, {**retire.read(manifest), 'changed': True})
+            with self.assertRaisesRegex(ValueError, 'archived manifest hash differs'):
+                retire_rehabilitation.mechanical_failure(inputs, run, ['m_extra'], report, evidence)
+            removal.assert_called_once()
 
     def test_parked_singleton_mechanical_and_terminal_failed(self):
         self.queue.add_jobs([{'id': 'unused-mechanical', 'kind': 'mechanical', 'rules': ['m_other']}])
