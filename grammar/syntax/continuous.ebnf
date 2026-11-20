@@ -126,7 +126,7 @@ affected_other ::= contextual_other_filter
 /* @sem ObjectFilter::@other_filter(ObjectFilter::@and(ObjectFilter::Not(ObjectFilter::SameObject(@other_reference(ObjectFilter::$filter_plural))), $filter_plural)) */
 contextual_other_filter ::= "other" filter_plural
 
-duration ::= duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep
+duration ::= until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep
     | until_next_end_step | while_you_control | while_on_battlefield
 
 /* "For as long as you control this creature": the effect ends when you stop
@@ -778,7 +778,7 @@ static_definition_during_turn ::= static_turn_window "," static_definition
 /* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
 static_definition_if ::= "as" "long" "as" condition "," static_definition
 
-replacement_ability ::= replacement_entry_history_where | replacement_entry_three_choices | replacement_entry_unless_spent | replacement_entry_condition | replacement_enters_counter_choice | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_spent_enters_counters | replacement_enters_counters_for_each | replacement_enters_counters_equal | replacement_enters_exile_counters
+replacement_ability ::= replacement_entry_mana_counters | replacement_entry_history_where | replacement_entry_three_choices | replacement_entry_unless_spent | replacement_entry_condition | replacement_enters_counter_choice | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_spent_enters_counters | replacement_enters_counters_for_each | replacement_enters_counters_equal | replacement_enters_exile_counters
     | replacement_each_enters_counters | replacement_each_enters_counters_for_each | replacement_each_enters_counters_equal | replacement_each_enters_counters_where
 
 /* Dying permanents matching the filter go to exile instead; `it` is the dying
@@ -1097,7 +1097,7 @@ attached_other_auras ::= "can't" "be" "enchanted" "by" "other" "Auras"
 /* @sem Change::GrantAbility(@holder($granted_mechanic)) */
 grant_native_mechanic ::= granted_mechanic
 
-granted_mechanic ::= granted_defined_mechanic | bare_rebound | bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast | bare_undying | mechanic_banding
+granted_mechanic ::= granted_echo_defined | granted_annihilator_defined | granted_defined_mechanic | bare_rebound | bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast | bare_undying | mechanic_banding
 /* @sem Ability::Mechanic{mechanic:Affinity, filter:$filter_plural} */
 granted_affinity ::= "affinity" "for" filter_plural
 /* Source belongs to the receiving spell, not the static granting permanent. */
@@ -1107,7 +1107,7 @@ granted_replicate_mana_cost ::= "replicate" "." "the" "replicate" "cost" "is" "e
 /* Cast-time grants have distinct native spell-object and casting-player
    readings. Keep both; neither is an equality alias for the other. Source in
    each granted cost is the receiving spell, not the granting permanent. */
-static_mechanic_grant ::= static_spell_mana_grant_with_cost_reduction | static_spell_mana_grant | static_spell_keyword_cost_reduction | static_spell_mechanic_grant | static_object_mechanic_grant
+static_mechanic_grant ::= static_each_other_bloodthirst | static_spell_mana_grant_with_cost_reduction | static_spell_mana_grant | static_spell_keyword_cost_reduction | static_spell_mechanic_grant | static_object_mechanic_grant
 /* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:$spell_mana_grant_subject, abilities:List([$spell_mana_grant_effect])})]} */
 static_spell_mana_grant ::= spell_mana_grant_subject ("has" | "have") spell_mana_grant_effect "."
 
@@ -5671,8 +5671,8 @@ granted_absorb_name ::= "absorb"
 /* @sem Mechanic::Soulshift */
 granted_soulshift_name ::= "soulshift"
 
-/* @sem Ability::Mechanic{mechanic:$granted_soulshift_name, amount:$value} */
-granted_defined_mechanic ::= granted_soulshift_name "X" "," "where" "X" "is" value
+/* @sem Ability::Mechanic{mechanic:$granted_defined_name, amount:$value} */
+granted_defined_mechanic ::= granted_defined_name "X" "," "where" "X" "is" value
 
 /* Qualified populations remain independent of the following change and duration. */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(AbilityController)), $filter_phrase_2])} */
@@ -5798,3 +5798,66 @@ shared_enchanted_threshold ::= object_ref "is" "enchanted" "by" value "or" "more
 
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0}) */
 double_possessive_target_creature ::= "target" "creature's"
+
+/* The first clause supplies the fallback effect; the later conditional program
+   replaces it, retaining its subject, changes and duration as operands. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$replacement_fallback_pump, duration:$until_end_of_turn, evaluation:Snapshot}}]} */
+replacement_continuous_base ::= object_ref replacement_fallback_pump until_end_of_turn
+
+/* @sem Instruction::[If{condition:$replacement_object_condition, then:$program, otherwise:$replacement_continuous_base}] */
+instructions_conditional_continuous_instead ::= replacement_continuous_base "." "if" replacement_object_condition "," "instead" program
+
+/* @sem Change::[Change::Pump{power:$signed, toughness:$signed_2}] */
+replacement_fallback_pump ::= "gets" signed "/" signed
+
+/* The grant and delayed sacrifice refer to the same battlefield arrival. */
+/* @sem Instruction::[Effect{result:@mark, operation:$returned_creature_move}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@marked, phase:After, index:0})), changes:$grants, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:One(Result{result:@marked, phase:After, index:0})})}]}}}] */
+clause_return_grant_sacrifice ::= returned_creature_move "." "that" "creature" "gains" grants "." "at" "the" "beginning" "of" "the" "next" "end" "step" "," "sacrifice" "it"
+
+/* The creature anaphor is licensed by the explicit creature target. */
+/* @sem Operation::Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($noun_creature, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+returned_creature_move ::= "return" "target" noun_creature "card" "from" "your" "graveyard" "to" "the" "battlefield"
+
+/* Defined native mechanics retain the written X expression. */
+granted_defined_name ::= granted_soulshift_name | mechanic_bushido_name
+
+/* @sem Ability::Mechanic{mechanic:AnnihilatorX, amount:$value} */
+granted_annihilator_defined ::= "annihilator" "X" "," "where" "X" "is" value
+
+/* @sem Ability::Mechanic{mechanic:Echo, cost:_{parts:[ManaWithX{mana:[X], x:$value}]}} */
+granted_echo_defined ::= "echo" "{" "X" "}" "," "where" "X" "is" value
+
+/* A distributive grant retains the singular subject and its current amount. */
+/* @prefer always */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($objects_each_other), changes:[GrantAbility(@holder($granted_bloodthirst))]} */
+static_each_other_bloodthirst ::= objects_each_other "has" granted_bloodthirst "."
+
+/* @sem Ability::Mechanic{mechanic:Bloodthirst, amount:$value} */
+granted_bloodthirst ::= "bloodthirst" value
+
+/* Incoming other permanents retain their prospective controller and mana source. */
+/* @sem ObjectFilter::AllOf([Not(SameObject(Source)), $filter_plural, ControlledBy(One(AbilityController))]) */
+entry_other_controlled ::= "other" filter_plural "you" "control"
+
+/* @sem Expr::ManaSpentFrom{object:EventSubject, sources:$filter_phrase} */
+entry_mana_source_count ::= "for" "each" "mana" "from" "a" filter_phrase "spent" "to" "cast" "them"
+
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_other_controlled}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$entry_mana_source_count})}}]}} */
+replacement_entry_mana_counters ::= entry_other_controlled "enter" "with" "an" "additional" counter_kind "counter" "on" "them" entry_mana_source_count "."
+
+/* A type replacement can compose with a base-stat setting and a keyword. */
+/* @sem Change::[...$base_subtypes, GrantKeyword($keyword_value)] */
+subtype_base_keyword_changes ::= base_subtypes "and" keyword_value
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$subtype_base_keyword_changes, duration:$duration, evaluation:Snapshot} */
+subtype_base_keyword_effect ::= affected "becomes" subtype_base_keyword_changes duration
+
+/* An independently expressed loss retains its explicit source reference. */
+/* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}] */
+subtype_and_loss_changes ::= "a" becomes_types
+
+/* @sem Operation::CreateContinuousEffect{source:$object_ref, affected:Objects($affected), changes:[...$subtype_and_loss_changes, ...$change_loses_keyword], duration:Indefinite, evaluation:Snapshot} */
+subtype_loss_effect ::= affected "becomes" subtype_and_loss_changes "," "and" object_ref change_loses_keyword
+
+/* @sem Duration::UntilNext{point:UpkeepBegins, players:One($next_upkeep_player)} */
+until_beginning_next_upkeep ::= "until" "the" "beginning" "of" next_upkeep_player "next" "upkeep"
