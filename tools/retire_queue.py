@@ -243,6 +243,32 @@ def _verify_staging_repair(campaign, job, attempt, source, rejection, evidence):
     raise ValueError('staging repair does not bind a recorded diagnostic failure or merge conflict')
 
 
+def _verify_retained_family_after_native(db, campaign, job, attempt, proof):
+    """Allow one distinct family repair after a verified solo native veto."""
+    seq = proof['after_native_event_seq']
+    if type(seq) is not int or seq <= 0:
+        raise ValueError('retained family repair requires the earlier native recovery event')
+    prior = db.execute(
+        "SELECT data FROM events WHERE seq=? AND kind='retry-staging-reviewed-repair' "
+        "AND json_extract(data,'$.job_id')=?", (seq, job)).fetchone()
+    if prior is None:
+        raise ValueError('retained family repair requires the earlier native recovery event')
+    recorded = json.loads(prior[0])
+    earlier = recorded['evidence']
+    previous = earlier['staging_failure']
+    _, before = _proof_file(previous.get('trial'))
+    _, after = _proof_file(proof.get('trial'))
+    native, family = json.loads(before), json.loads(after)
+    if (recorded['attempt_id'] == attempt or set(previous) != {'manifest', 'trial', 'failure'}
+            or not native.get('reason', '').startswith('native regression control failed: ')
+            or not family.get('reason', '').startswith('family check failed: ')
+            or not family.get('retained_family_failure')):
+        raise ValueError('the two staging repairs must address distinct native and retained family vetoes')
+    source = earlier.get('source_checkpoint', recorded['checkpoint'])
+    _verify_staging_repair(campaign, job, recorded['attempt_id'], source,
+                           recorded['previous_adjudication'], previous)
+
+
 def _verify_rewritten_review(db, campaign, assignment, start, result, evidence, reviewed):
     """Recover the same checked draft after an author rewrote it and staging vetoed it."""
     job, attempt, source = assignment
@@ -1777,11 +1803,13 @@ class Queue:
         staging_proof = evidence.get('staging_failure')
         isolated_parse = staging and isinstance(staging_proof, dict) and 'readmission_event_seq' in staging_proof
         rewritten = staging and isinstance(staging_proof, dict) and 'rewritten_draft' in staging_proof
-        if isolated_parse and rewritten:
+        retained_after_native = staging and isinstance(staging_proof, dict) and 'after_native_event_seq' in staging_proof
+        if sum((isolated_parse, rewritten, retained_after_native)) > 1:
             raise ValueError('staging repair proof mixes distinct retry cases')
         full_check = route == 'full_check_failure'
         library = route == 'library_failure'
-        recovery = 'library' if library else 'rewritten' if rewritten else 'parse' if isolated_parse else 'ordinary'
+        recovery = ('library' if library else 'rewritten' if rewritten else 'parse' if isolated_parse
+                    else 'retained-family' if retained_after_native else 'ordinary')
         if interrupted and 'timeout' in evidence:
             raise ValueError('interrupted diagnostic recovery requires a fresh independent report')
         if legacy and 'timeout' not in evidence:
@@ -1811,7 +1839,8 @@ class Queue:
                     "SELECT kind, CASE WHEN json_type(data,'$.evidence.staging_failure.rewritten_draft') IS NOT NULL "
                     "THEN 'rewritten' WHEN json_type(data,'$.evidence.staging_failure.readmission_event_seq') "
                     "IS NOT NULL THEN 'parse' WHEN json_type(data,'$.evidence.library_failure') IS NOT NULL "
-                    "THEN 'library' ELSE 'ordinary' END "
+                    "THEN 'library' WHEN json_type(data,'$.evidence.staging_failure.after_native_event_seq') "
+                    "IS NOT NULL THEN 'retained-family' ELSE 'ordinary' END "
                     f"FROM events WHERE kind IN ({_REVIEWED_EVENT_SLOTS}) AND json_extract(data,'$.job_id')=?",
                     (*_REVIEWED_EVENTS, job_id))}
                 split = (SPLIT_REVIEWED_AUTHOR, 'ordinary') in retries
@@ -1843,6 +1872,8 @@ class Queue:
                         _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), rejection, staging_proof)
                     else:
                         _verify_staging_repair(campaign, job_id, attempt_id, source, rejection, staging_proof)
+                    if retained_after_native:
+                        _verify_retained_family_after_native(db, campaign, job_id, attempt_id, staging_proof)
                 if full_check:
                     _verify_isolated_repair(db, campaign, source, (job_id, attempt_id), json.loads(row[3]),
                                             evidence['full_check_failure'], full_check=True)

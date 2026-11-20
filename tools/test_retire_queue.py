@@ -1096,7 +1096,48 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
         self.check_staging_repair(merge=True)
 
-    def check_staging_repair(self, *, focused=False, merge=False):
+    def test_distinct_retained_family_repair_can_follow_one_native_staging_retry(self):
+        self.queue.retry_reviewed_repair('repair', self.claim['attempt_id'], 'base', self.evidence)
+        self.check_staging_repair(focused=True, verify_exhausted=False)
+        native, = [event for event in self.queue.audit() if event['kind']=='retry-staging-reviewed-repair']
+
+        def stage(label):
+            claim = self.queue.claim(label)
+            attempt = claim['attempt_id']
+            self.queue.mark_started(attempt, pid=2_000_000_000)
+            self.queue.finish(attempt, 'provisional-pass', {'report': 'independent-pass'},
+                              {'seeded_test': {'status': 'pass', 'reason': 'verified','evidence': 'draft'}})
+            self.queue.reject_jobs(['repair'], {'manifest': label, 'reason': 'merge or staging rejected'})
+            return attempt
+
+        attempt = stage('family-rejection')
+        folder = self.campaign/'.cache/batches/family-rejection/proposal-000'
+        folder.mkdir(parents=True)
+        failure, trial, manifest = folder/'family.log', folder/'trial.json', folder.parent/'manifest.json'
+        failure.write_text('independent retained family veto')
+        reason = f'family check failed: {failure}'
+
+        def spec(path):
+            return {'path': str(path), 'sha256': self.digest(path)}
+
+        self.write(trial, {'jobs':['repair'],'attempts':[attempt],'status':'failed','reason':reason,
+                           'family_log_sha256':self.digest(failure),
+                           'retained_family_failure':{'fixture':'retained.json'}})
+        self.write(manifest, {'id':'family-rejection','base_commit':'base','jobs':[
+            {'job_id':'repair','attempt_id':attempt,'status':'integration-rejected',
+             'reason':reason,'trial_proof':spec(trial)}]})
+        evidence = {**self.evidence,'staging_failure':{'manifest':spec(manifest),'trial':spec(trial),
+                    'failure':spec(failure),'after_native_event_seq':native['seq']+1}}
+        with self.assertRaisesRegex(ValueError, 'earlier native recovery event'):
+            self.queue.retry_reviewed_repair('repair',attempt,'base',evidence)
+        evidence['staging_failure']['after_native_event_seq'] = native['seq']
+        self.queue.retry_reviewed_repair('repair',attempt,'base',evidence)
+        self.assertEqual(self.queue.coverage()['counts'],{'pending':1})
+        fresh = stage('another-family-rejection')
+        with self.assertRaisesRegex(ValueError,'already used'):
+            self.queue.retry_reviewed_repair('repair',fresh,'base',evidence)
+
+    def check_staging_repair(self, *, focused=False, merge=False, verify_exhausted=True):
         candidate = self.queue.claim('retried')
         attempt = candidate['attempt_id']
         self.queue.mark_started(attempt, pid=2_000_000_000)
@@ -1144,6 +1185,8 @@ class ReviewedRepairRetryTests(unittest.TestCase):
         self.assertEqual(event['previous_adjudication']['evidence'],rejection)
         with self.assertRaisesRegex(ValueError, 'attempt or checkpoint changed'):
             self.queue.retry_reviewed_repair('repair',attempt,'base',proof)
+        if not verify_exhausted:
+            return
         fresh = self.queue.claim('staging-retry')
         fresh_attempt = fresh['attempt_id']
         self.queue.mark_started(fresh_attempt, pid=2_000_000_000)
