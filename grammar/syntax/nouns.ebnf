@@ -83,7 +83,7 @@ objects_four_targets ::= target_object "," target_object "," target_object "," "
 /* @sem ObjectSet::One($object_ref) */
 object_one ::= object_ref
 
-object_ref ::= combat_blocker_ref | combat_attacker_ref | target_optional_stack_spell | ordered_top_card | last_linked_card | last_linked_creature | current_card_ref | linked_exiled_card | mined_ref | self_ref | it_ref | target_object | attached_ref | target_card
+object_ref ::= combat_blocker_ref | combat_attacker_ref | target_optional_stack_spell | ordered_top_card | last_linked_card | last_linked_creature | current_card_ref | linked_exiled_card | mined_ref | self_ref | it_ref | target_object | attached_ref | target_card | activation_exiled_this_way
 
 /* Earlier's link belongs to the current ability holder. The binder checks its
    explicit anchor rather than accepting a target or a named outer creator. */
@@ -604,10 +604,7 @@ adjective ::= quality_unscoped | noun_atomic
 
 /* An adjective that is not also a noun, so `or` between two of them is one slot. */
 quality ::= quality_unscoped | adjective_equipped
-quality_unscoped ::= quality_state_three | adjective_transformed | adjective_modified | adjective_party | adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_tapped | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked
-    | adjective_noncommander | adjective_nontoken | adjective_legendary | adjective_nonlegendary | adjective_basic | adjective_nonbasic
-    | adjective_color | adjective_noncolor | adjective_nontype | subtype_negated
-    | adjective_colorless | adjective_snow | adjective_nonsnow | adjective_enchanted | adjective_attacking_or_blocking | adjective_stickered
+quality_unscoped ::= quality_state_three | adjective_transformed | adjective_modified | adjective_party | adjective_face_down | adjective_historic | adjective_outlaw | adjective_non_outlaw | adjective_monocolored | adjective_multicolored | adjective_tapped | adjective_untapped | adjective_attacking | adjective_nonattacking | adjective_blocking | adjective_blocked | adjective_noncommander | adjective_nontoken | adjective_legendary | adjective_nonlegendary | adjective_basic | adjective_nonbasic | adjective_color | adjective_noncolor | adjective_nontype | subtype_negated | adjective_colorless | adjective_snow | adjective_nonsnow | adjective_enchanted | adjective_attacking_or_blocking | adjective_stickered
 
 /* @sem ObjectFilter::State(HasSticker) */
 adjective_stickered ::= "stickered"
@@ -2939,3 +2936,33 @@ target_card_exile_counter ::= "target" card_filter "card" "in" "exile" modifier_
 /* A three-head union can be reused by scoped population instructions. */
 /* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3]) */
 filter_three_and_heads ::= filter_phrase "," filter_phrase "," "and" filter_phrase
+
+/* A shared qualifier applies to the entire union of the two populations. */
+/* @sem @and(ObjectFilter::AnyOf([@and($noun_atomic, $plural_simple), $plural]), $modifiers) */
+plural_compound_and_modified ::= noun_atomic plural_simple "and" plural modifiers
+
+/* The activation binder proves the singular exile payment before selecting it. */
+/* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
+activation_exiled_this_way ::= "the" "card" "exiled" "this" "way"
+
+/* These populations retain their own identity and selection scope. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:AnyNumber, filter:AllOf([Not(SameObject(Source)), $adjective_nontype, ControlledBy(One(AbilityController))])})) */
+source_other_targets ::= "any" "number" "of" "other" "target" adjective_nontype "permanents" "you" "control"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:History{event:Convoked($object_ref), window:ThisGame}} */
+convoked_creature_set ::= "each" "creature" "that" "convoked" object_ref
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(CountPlayers(OpponentsOf(AbilityController))), filter:AllOf([$noun, ControlledBy(OpponentsOf(AbilityController))]), constraints:[DifferentControllers]})) */
+opponent_distinct_targets ::= "target" noun "that" "player" "controls"
+
+/* Sacrifice descriptions retain the scope of each qualifying phrase. */
+sacrifice_description ::= sacrifice_alternative_other | sacrifice_color_or_type_head | sacrifice_named
+
+/* @sem ObjectFilter::AnyOf([$filter_simple, @and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_simple_2)]) */
+sacrifice_alternative_other ::= filter_simple "or" "another" filter_simple
+
+/* @sem ObjectFilter::AllOf([ObjectFilter::AnyOf([$adjective_color, $noun_atomic]), $filter_simple]) */
+sacrifice_color_or_type_head ::= adjective_color "or" noun_atomic filter_simple
+
+/* @sem ObjectFilter::AllOf([$filter_simple, Name($created_token_name)]) */
+sacrifice_named ::= filter_simple "named" created_token_name

@@ -165,7 +165,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal
+prevent_clause ::= next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -2393,3 +2393,31 @@ discard_cards_spell_mana_value ::= "cards" modifier_same_mana_value_as_spell
 /* The selection and move stay together so the resulting receipt retains its producer. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}), count:AnyNumber}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 exile_any_own_graveyard ::= "exile" "any" "number" "of" filter_phrase "cards" "from" "your" "graveyard"
+
+/* A measured damage event replaces its amount; following instructions compose separately. */
+/* @sem Operation::CreateReplacement{event:Measured{event:Damage(_{source_kind:Any, sources:Any, recipients:ObjectsAndPlayers{objects:Any, players:All}, kind:Any, grouping:SourceRecipient, subject:Recipient}), comparison:GreaterOrEqual, amount:$number}, limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount($number_2)}}]}} */
+replacement_damage_fixed_amount ::= "if" "any" "source" "would" "deal" number "or" "more" "damage" "to" "a" "permanent" "or" "player" this_duration "," "it" "deals" number "damage" "to" "that" "permanent" "or" "player" "instead"
+
+/* A color choice and its prevention effect form one scoped instruction. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:Chosen(Color), recipients:$chosen_prevention_recipient, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}] */
+chosen_color_prevention ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "to" chosen_prevention_recipient this_duration "by" "sources" "of" "the" "color" "of" "your" "choice"
+
+chosen_prevention_recipient ::= prevent_to | chosen_prevention_player_or_noun
+
+/* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:$noun, players:All}), index:0} */
+chosen_prevention_player_or_noun ::= "target" "player" "or" noun
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:Chosen(Color), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}] */
+chosen_color_prevention_sources ::= "prevent" "all" prevent_damage "that" "sources" "of" "the" "color" "of" "your" "choice" "would" "deal" this_duration
+
+/* The owner and returned card both refer to the immediately preceding exile receipt. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$exile_objects}, Instruction::Effect{result:@next, operation:Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:One(OwnerOf(Result{result:@marked, phase:After, index:0}))}, start:Immediately, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Move{objects:@exile_followup(InZone{objects:One(ObjectRef::Result{result:@marked, phase:After, index:0}), zone:Exile}), destination:$battlefield_control, qualifiers:[]}}]}}}] */
+clause_exile_return_owner_end ::= exile_objects return_join "return" "that" "card" "to" "the" "battlefield" battlefield_control "at" "the" "beginning" "of" "that" "player's" "next" "end" "step"
+
+/* The singular chosen permanent is the prior choice receipt; the pronoun
+   denotes the same target whose combat damage is prevented. */
+/* @sem Instruction::[If{condition:ObjectMatches{object:$target_object, filter:Shares{property:Colors, with:Result{result:@prior, phase:After, index:0}}}, then:Program{instructions:[Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Permanent, sources:SameObject($target_object), recipients:Any, kind:Combat, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}]}, otherwise:Program{}}] */
+chosen_color_combat_prevention ::= "prevent" "all" "combat" "damage" target_object "would" "deal" this_duration "if" "it" "shares" "a" "color" "with" "that" "permanent"
+
+/* @sem Instruction::[...$choose_single_battlefield_permanent, ...$chosen_color_combat_prevention] */
+choose_permanent_color_prevention ::= choose_single_battlefield_permanent "." chosen_color_combat_prevention

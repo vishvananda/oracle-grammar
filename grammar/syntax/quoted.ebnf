@@ -14,7 +14,7 @@ program_sentence_action_once ::= "you" "may" program "." action_once_suffix
 /* @sem () */
 action_once_suffix ::= "do" "this" "only" "once" "each" "turn" "."
 
-ordinary_program_sentence ::= program_sentence_mana_life_persists | program_sentence_search_and_move | program_sentence_die_table | program_sentence_added_die_table | program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment | program_tap_x_attack_rewards
+ordinary_program_sentence ::= program_sentence_mana_life_persists | program_sentence_search_and_move | program_sentence_die_table | program_sentence_added_die_table | program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment | program_tap_x_attack_rewards | explored_self_optional_copy | program_sentence_counter_choice_reflexive_modal
 
 /* @sem $program */
 program_sentence_plain ::= program "."
@@ -344,3 +344,13 @@ closed_player_rule_pair ::= '"' player_rule_ability "and" player_rule_ability ".
 /* The quantity and the following intrinsic abilities independently qualify the recipe. */
 /* @sem TokenSpec::TokenSpec{amount:$value, words:CreatingEffect, recipe:@token_abilities($token_recipe_quote_base, $token_description_after_quoted)} */
 token_equal_then_quoted ::= "a" "number" "of" token_recipe_quote_base "equal" "to" value token_description_after_quoted
+
+/* The anaphor in this continuation names the source introduced by the first clause. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$source_explores}, $optional_source_copy]} */
+explored_self_optional_copy ::= source_explores "." "then" optional_source_copy "."
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Explore{object:Source}} */
+source_explores ::= "this" "creature" "explores"
+
+/* @sem Instruction::Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), $noun, ControlledBy(One(AbilityController))])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[CopyOf{object:Result{result:@prior, phase:After, index:0}, exceptions:[]}], duration:$duration, evaluation:Snapshot}}]}} */
+optional_source_copy ::= "you" "may" "have" "it" "become" "a" "copy" "of" "another" noun "you" "control" duration

@@ -1,0 +1,518 @@
+{
+  "family": "temporary player rules and shared windows",
+  "cases": [
+    {
+      "name": "Celestine Reef",
+      "text": "Creatures without flying or islandwalk can't attack.\nWhenever chaos ensues, until a player planeswalks, you can't lose the game and your opponents can't win the game.",
+      "types": [
+        "Plane"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "HasKeyword",
+                          "args": {
+                            "kind": "Flying"
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "HasKeyword",
+                          "args": {
+                            "kind": "Landwalk",
+                            "args": {
+                              "kind": "Subtype",
+                              "args": "Island"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Rule",
+                "args": {
+                  "Prohibit": {
+                    "Attack": "Any"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "ChaosEnsues",
+                "players": {
+                  "kind": "All"
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "Prohibit": {
+                                "LoseGame": {
+                                  "reason": null
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "UntilEvent": {
+                            "Player": {
+                              "event": "PlaneswalksAway",
+                              "players": {
+                                "kind": "All"
+                              },
+                              "objects": null
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "OpponentsOf",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "Prohibit": "WinGame"
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "UntilEvent": {
+                            "Player": {
+                              "event": "PlaneswalksAway",
+                              "players": {
+                                "kind": "All"
+                              },
+                              "objects": null
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Channel",
+      "text": "Until end of turn, any time you could activate a mana ability, you may pay 1 life. If you do, add {C}.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "LifeForManaAbility": {
+                                "life": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "mana": {
+                                  "kind": "Vocabulary",
+                                  "args": {
+                                    "family": "ManaProduceSymbol",
+                                    "form": "ManaProduceC"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Piracy",
+      "text": "Until end of turn, you may tap lands you don't control for mana. Spend this mana only to cast spells.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "TapOthersForMana": {
+                                "permanents": {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                },
+                                "modifier": {
+                                  "kind": "Term",
+                                  "args": {
+                                    "family": "ManaUseModifier",
+                                    "form": "CanOnlySpendOnSpells",
+                                    "operands": [
+                                      {
+                                        "kind": "Filter",
+                                        "args": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Synthetic Test",
+      "text": "Until end of turn, you may tap lands you control for mana. Spend this mana only to cast spells.",
+      "reject": true
+    },
+    {
+      "name": "Channel",
+      "text": "Until end of turn, any time you could activate a mana ability, you may pay 2 life. If you do, add {C}.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "LifeForManaAbility": {
+                                "life": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                },
+                                "mana": {
+                                  "kind": "Vocabulary",
+                                  "args": {
+                                    "family": "ManaProduceSymbol",
+                                    "form": "ManaProduceC"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Piracy",
+      "text": "Until end of turn, you may tap artifacts you don't control for mana. Spend this mana only to cast spells.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "TapOthersForMana": {
+                                "permanents": {
+                                  "kind": "CardType",
+                                  "args": "Artifact"
+                                },
+                                "modifier": {
+                                  "kind": "Term",
+                                  "args": {
+                                    "family": "ManaUseModifier",
+                                    "form": "CanOnlySpendOnSpells",
+                                    "operands": [
+                                      {
+                                        "kind": "Filter",
+                                        "args": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

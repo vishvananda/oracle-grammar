@@ -35,7 +35,7 @@ spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
 /* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
 awaken_land ::= "awaken" number
 
-kicker_branch_program ::= kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they
+kicker_branch_program ::= kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional
    cost was paid, this effect doesn't affect combat damage that would be dealt by red
    creatures": the paid prevention spares damage those sources deal. */
@@ -256,3 +256,8 @@ retirement_target_damage_conditional ::= "target" noun_creature retirement_singu
 
 /* @sem $grants */
 retirement_singular_gain ::= "gains" grants
+
+/* A promised gift is fixed at casting time. The repeated source denotes
+   the same object in both sentences. */
+/* @sem Program::Program{instructions:[If{condition:$condition_gift_promised, then:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:Source, parts:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), amount:$number}, _{recipients:Players(One(ControllerOf(Target{slot:@last_slot, index:0}))), amount:$number_2}], preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$number, preventable:true}}]}}]} */
+conditional_damage_to_creature_controller ::= SELF_NAME "deals" number "damage" "to" "target" "creature" "." "if" condition_gift_promised "," SELF_NAME "also" "deals" number "damage" "to" "that" "creature's" "controller" "."
