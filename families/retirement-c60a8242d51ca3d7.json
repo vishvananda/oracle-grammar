@@ -1,0 +1,679 @@
+{
+  "family": "retirement-f8cceea7d054d739",
+  "cases": [
+    {
+      "name": "Near-Death Experience",
+      "text": "At the beginning of your upkeep, if you have exactly 1 life, you win the game.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "PlayerNumber",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "number": "Life"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "WinGame"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Glorious Enforcer",
+      "text": "Flying, lifelink\nAt the beginning of each combat, if you have more life than an opponent, this creature gains double strike until end of turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Lifelink"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "CombatBegins",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "PlayerNumber",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "number": "Life"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Greater",
+                    "value": {
+                      "kind": "AmongPlayers",
+                      "args": {
+                        "players": {
+                          "kind": "OpponentsOf",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "number": "Life",
+                        "aggregation": "Minimum"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "GrantKeyword",
+                            "args": {
+                              "kind": "DoubleStrike"
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "Snapshot"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Chalice of Life",
+      "text": "{T}: You gain 1 life. Then if you have at least 10 life more than your starting life total, transform this artifact.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "PlayerNumber",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "number": "Life"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Add",
+                              "args": [
+                                {
+                                  "kind": "StartingLife",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                {
+                                  "kind": "Constant",
+                                  "args": 10
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": {
+                                  "Transform": {
+                                    "object": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Timely Reinforcements",
+      "text": "If you have less life than an opponent, you gain 6 life.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "PlayerNumber",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "number": "Life"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Less",
+                            "value": {
+                              "kind": "AmongPlayers",
+                              "args": {
+                                "players": {
+                                  "kind": "OpponentsOf",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "number": "Life",
+                                "aggregation": "Maximum"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "GainLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 6
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Incomplete life comparison",
+      "text": "At the beginning of your upkeep, if you have exactly life, you win the game.",
+      "types": [
+        "Enchantment"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Near-Death Experience",
+      "text": "At the beginning of your upkeep, if you have exactly 2 life, you win the game.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "PlayerNumber",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "number": "Life"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 2
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "WinGame"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Chalice of Life",
+      "text": "{T}: You gain 1 life. Then if you have at least 12 life more than your starting life total, transform this artifact.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 3
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "PlayerNumber",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "number": "Life"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Add",
+                              "args": [
+                                {
+                                  "kind": "StartingLife",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                {
+                                  "kind": "Constant",
+                                  "args": 12
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": {
+                                  "Transform": {
+                                    "object": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

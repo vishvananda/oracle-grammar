@@ -261,3 +261,19 @@ retirement_singular_gain ::= "gains" grants
    the same object in both sentences. */
 /* @sem Program::Program{instructions:[If{condition:$condition_gift_promised, then:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:Source, parts:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), amount:$number}, _{recipients:Players(One(ControllerOf(Target{slot:@last_slot, index:0}))), amount:$number_2}], preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$number, preventable:true}}]}}]} */
 conditional_damage_to_creature_controller ::= SELF_NAME "deals" number "damage" "to" "target" "creature" "." "if" condition_gift_promised "," SELF_NAME "also" "deals" number "damage" "to" "that" "creature's" "controller" "."
+
+/* Entwine for an announced number of modes. The options are shared by both
+   branches, while the paid branch selects every option. */
+/* @sem Ability::CostBranch{keyword:Entwine, cost:$keyword_payment, paid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:@length($entwine_opponent_graveyard_modes), maximum:@length($entwine_opponent_graveyard_modes)}, options:$entwine_opponent_graveyard_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}, unpaid:Spell{announcement:_{modes:ModeSelection{count:ModeCount{minimum:$number_words, maximum:$number_words}, options:$entwine_opponent_graveyard_modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}}} */
+spell_entwine_opponent_graveyards ::= "choose" number_words "—" NEWLINE entwine_opponent_graveyard_modes NEWLINE "entwine" keyword_payment
+
+/* This list scopes the possessive graveyard spelling to its modal setting;
+   surrounding modes remain independently compositional. */
+/* @sem Mode::[$entwine_opponent_sacrifice_mode, $entwine_opponent_graveyard_mode, ...$modes] */
+entwine_opponent_graveyard_modes ::= entwine_opponent_sacrifice_mode NEWLINE entwine_opponent_graveyard_mode NEWLINE modes
+
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:OpponentsOf(AbilityController), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$sacrifice_choice_filter}, choose:AsManyAsCan($counter_amount)})}]}, weight:1}) */
+entwine_opponent_sacrifice_mode ::= "•" "each" "opponent" "sacrifices" counter_amount sacrifice_choice_filter "of" "their" "choice" "."
+
+/* @sem @scope(Mode::Mode{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Players{zone:Graveyard, players:OpponentsOf(AbilityController)}, kind:Card, filter:Any}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, weight:1}) */
+entwine_opponent_graveyard_mode ::= "•" "exile" "all" "opponents'" "graveyards" "."

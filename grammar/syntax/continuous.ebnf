@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves
+continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -107,7 +107,7 @@ counter_group_reference ::= "they" | "those" "creatures" | "those" "permanents"
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:$number, preventable:true}}, Instruction::Effect{result:@next, operation:Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$changes, duration:$duration, evaluation:Snapshot}}] */
 clause_damage_and_change ::= object_ref "deals" number "damage" "to" recipients "and" changes duration
 
-affected ::= cross_spells | owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference | affected_chosen_planeswalker_plural | affected_without_keyword_pair | affected_without_keyword_pair_reverse | controlled_not_owned_each | affected_each_counter_an | affected_nth_chosen_type | objects_each_counter_qualified | affected_all_attacking_defender | named_and_other_controlled_population
+affected ::= affected_landwalk_family_plural | cross_spells | owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference | affected_chosen_planeswalker_plural | affected_without_keyword_pair | affected_without_keyword_pair_reverse | controlled_not_owned_each | affected_each_counter_an | affected_nth_chosen_type | objects_each_counter_qualified | affected_all_attacking_defender | named_and_other_controlled_population
 
 counter_choice_reference ::= counter_choice_singular_reference | counter_choice_group_reference
 /* @sem ObjectSet::@counter_reference_single */
@@ -173,7 +173,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump | change_become_artifact_creature_singular | change_become_colored_base_retained | change_become_named_artifact_retained
+change ::= pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump | change_become_artifact_creature_singular | change_become_colored_base_retained | change_become_named_artifact_retained | change_granted_controller_activation
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -486,7 +486,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add | static_controlled_each_change | static_scalar_pump_override | static_attached_retained_color_type | static_extreme_population | static_untap_with_named_counter | static_unless_shares_most_common_color | static_untap_with_nonmana_ability | static_each_object_state | scalar_static_alternative | static_graveyard_permissions | static_graveyard_card_grant_during_turn | static_each_qualified_pump | scalar_subject_static_kind | static_attacked_population | static_linked_exile_threshold | static_loss_and_quoted_activation | static_pump_compound_population | static_team_subtype_keyword
+static_ability ::= static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add | static_controlled_each_change | static_scalar_pump_override | static_attached_retained_color_type | static_extreme_population | static_untap_with_named_counter | static_unless_shares_most_common_color | static_untap_with_nonmana_ability | static_each_object_state | scalar_static_alternative | static_graveyard_permissions | static_graveyard_card_grant_during_turn | static_each_qualified_pump | scalar_subject_static_kind | static_attacked_population | static_linked_exile_threshold | static_loss_and_quoted_activation | static_pump_compound_population | static_team_subtype_keyword | static_landwalk_family_exception
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -646,7 +646,7 @@ copy_model_qualified ::= that_noun
 /* @sem Change::[...$static_change, ...$static_changes_plain] */
 static_changes_and ::= static_change ("and" | "," "and"?) static_changes_plain
 
-static_change ::= shared_literal_fold_5c131527dd27 | change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base | vehicle_artifact_with_crew_change | static_remove_singular_card_type | change_set_only_card_type | change_have_chosen_abilities | change_have_base_toughness | static_add_creature_type_a | static_add_creature_type_an | change_pump_for_each | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_turn_face_up_ban | change_pump_life_players | change_pump_stored_results | static_have_grants_and_dungeon_pump | change_is_every_land_type_add | change_are_nth_chosen_land_type | shared_equal_count_pump | shared_pump_and_singular_color | shared_pump_and_blockers | change_every_creature_type_singular | change_set_artifact_with_activation | change_pump_each_affected_attack | change_gained_limited | change_gained_craft | change_gained_shared_keywords | change_gained_abilities_plural | change_gained_craft_traits | change_linked_card_equal_stats | change_loses_land_types_and_abilities | change_isnt_creature | change_sticker_abilities | static_pump_for_each_singular | static_pump_for_each_plural
+static_change ::= shared_literal_fold_5c131527dd27 | change_landwalk_lacking | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_loses_creature_types | change_lose_creature_types | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | blocks_as_though_landwalk | blocks_as_though_had_reach | trait_copy_change | change_pump | change_grant | rule_change | change_protection_keeps | mined_change | change_unblockable_except_by | change_has_base_power_toughness | change_skip_controllers_untap | change_cant_block_kind | change_block_additional | change_block_permission | change_attachment_permission | change_is_goaded | change_cant_block_or_be_blocked_by | change_cant_attack_alone | change_combat_activation_its | change_combat_activation_their | change_gained_abilities | change_gained_nonmana | change_gained_spending | change_gained_chosen_nonloyalty | static_are_color | static_are_colorless | static_are_retained_creature_type | static_is_colorless_basic_land | static_add_plural_card_type | static_add_singular_card_type | static_is_artifact_creature | static_base_stats_each_affected | change_is_colored_creature_base | change_is_named_base_grant | change_creature_base_in_addition | change_artifact_creature_mana_value | change_is_colored_creature_type | change_chosen_type_add_plural | change_chosen_land_type_singular | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | static_is_chosen_color | static_are_chosen_color | change_add_land_type_singular | private_land_type_add | change_add_land_card_type_plural | change_retained_typed_artifact_base | change_named_two_color_creature_base | vehicle_artifact_with_crew_change | static_remove_singular_card_type | change_set_only_card_type | change_have_chosen_abilities | change_have_base_toughness | static_add_creature_type_a | static_add_creature_type_an | change_pump_for_each | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_turn_face_up_ban | change_pump_life_players | change_pump_stored_results | static_have_grants_and_dungeon_pump | change_is_every_land_type_add | change_are_nth_chosen_land_type | shared_equal_count_pump | shared_pump_and_singular_color | shared_pump_and_blockers | change_every_creature_type_singular | change_set_artifact_with_activation | change_pump_each_affected_attack | change_gained_limited | change_gained_craft | change_gained_shared_keywords | change_gained_abilities_plural | change_gained_craft_traits | change_linked_card_equal_stats | change_loses_land_types_and_abilities | change_isnt_creature | change_sticker_abilities | static_pump_for_each_singular | static_pump_for_each_plural | change_selected_copy
 /* "Enchanted creature has protection from black. This effect doesn't remove this Aura.":
    the protection names the object it keeps attached. */
 /* @sem Change::[GrantAbility(ProtectionExcept{from:Term{family:Protectable, form:FromColor, operands:[$protectable_color]}, keeps:$affected})] */
@@ -6233,3 +6233,83 @@ opponents_cannot_win_rule ::= "can't" "win" "the" "game"
 temporary_controller_mana_rule ::= duration "," temporary_mana_player_rule
 
 temporary_mana_player_rule ::= life_for_mana_rule | tap_others_mana_rule
+
+/* Copy references preserve the preceding selection; exception phrases retain their
+   individual ability scopes and current operands. */
+selected_copy_ref ::= selected_copy_creature | selected_copy_last_card
+
+/* @sem ObjectRef::Earlier{what:Selected} */
+selected_copy_creature ::= "the" "chosen" "creature"
+
+/* @sem ObjectRef::Earlier{what:Selected} */
+selected_copy_last_card ::= "the" "last" "chosen" "card"
+
+/* @sem Change::[CopyOf{object:$selected_copy_ref, exceptions:[]}] */
+change_selected_copy ::= "is" "a" "copy" "of" selected_copy_ref
+
+/* A landwalk family restriction and its corresponding blocking exception compose
+   independently with the affected population and other static changes. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, HasKeywordFamily(Landwalk)])} */
+affected_landwalk_family_plural ::= filter_plural "with" "landwalk" "abilities"
+
+/* @sem Change::[Rule(BlockedAsThoughLacking(Term{family:CheckHasable, form:AnyLandwalk}))] */
+change_any_landwalk_lacking ::= "can" "be" "blocked" "as" "though" "they" "didn't" "have" "those" "abilities"
+
+/* The demonstrative refers to the landwalk abilities in this population. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected_landwalk_family_plural), changes:$change_any_landwalk_lacking}) */
+static_landwalk_family_exception ::= affected_landwalk_family_plural change_any_landwalk_lacking "."
+
+/* Temporary grants use the same card population and mechanic as static grants. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$graveyard_grant_filter} */
+graveyard_grant_population ::= "each" graveyard_grant_filter "card" "in" "your" "graveyard"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($graveyard_grant_population), changes:[GrantAbility($graveyard_granted_ability)], duration:$duration, evaluation:Snapshot} */
+temporary_graveyard_grant ::= graveyard_grant_population "gains" graveyard_granted_ability duration
+
+/* A defined X can feed either one stat or both from the same current expression. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:$graveyard_three_count, toughness:$value}], duration:$duration, evaluation:Snapshot} */
+defined_pump_power ::= affected "gets" "+" "X" "/" "+" value duration "," "where" "X" "is" graveyard_three_count
+
+/* @sem Expr::CountObjects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AnyOf([$filter_phrase, CardType(Instant), CardType(Sorcery)])}) */
+graveyard_three_count ::= "the" "number" "of" filter_phrase "," "instant" "," "and" "sorcery" "cards" "in" "your" "graveyard"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:$greatest_union_power, toughness:$greatest_union_power}], duration:$duration, evaluation:Snapshot} */
+defined_pump_both ::= affected "gets" "+" "X" "/" "+" "X" duration "," "where" "X" "is" greatest_union_power
+
+/* @sem Expr::Aggregate{objects:Union([$affected, Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}]), property:Power, aggregation:Maximum} */
+greatest_union_power ::= "the" "greatest" "power" "among" affected "and" filter_phrase "cards" "in" "your" "graveyard"
+
+/* @sem Change::[Rule(BlockCapacity(Additional($number)))] */
+additional_blocks_this_turn ::= "that" "creature" "can" "block" "up" "to" number "additional" "creatures" "this" "turn"
+
+/* The characteristic snapshot and block capacity have different evaluations. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($block_capacity_target)), changes:[Pump{power:$signed, toughness:$signed_2}], duration:EndOfTurn, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($block_capacity_target)), changes:$additional_blocks_this_turn, duration:EndOfTurn, evaluation:LiveObjects}}] */
+instructions_pump_then_additional_blocks ::= block_capacity_target "gets" signed "/" signed "until" "end" "of" "turn" "." additional_blocks_this_turn
+
+/* A three-type controlled population can share a keyword and a quoted trigger. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($three_controlled_types), changes:[GrantKeyword($keyword_name), $three_types_quoted_trigger]} */
+three_types_keyword_trigger ::= three_controlled_types "have" keyword_name "and" three_types_quoted_trigger
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([AnyOf([$subtype_plural, $subtype_plural_2, $subtype_plural_3]), ControlledBy(One(AbilityController))])} */
+three_controlled_types ::= subtype_plural "," subtype_plural "," "and" subtype_plural "you" "control"
+
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$quoted_remove_owned_counter_draw_tokens})) */
+three_types_quoted_trigger ::= '"' event_clause "," quoted_remove_owned_counter_draw_tokens "." '"'
+
+/* The granted activation is scoped to its holder; its activator remains the granting controller. */
+/* @sem Change::[GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{modifiers:[ActivationRule(OnlyBy(One(Prior(GrantedBy))))]}, announcement:@announcement, body:$program}))] */
+change_granted_controller_activation ::= "gains" '"' cost ":" program "." '"' "only" "you" "may" "activate" "this" "ability"
+
+/* The attack condition and static population have independent type operands. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$controlled_type_pump_subject, ControlledBy(One(AbilityController))])}), changes:[Pump{power:$signed, toughness:$signed_2}]} */
+controlled_type_plural_pump ::= controlled_type_pump_subject "you" "control" "get" signed "/" signed
+
+/* @sem Ability::Conditional{condition:$controlled_type_attack_history, then:[$controlled_type_plural_pump]} */
+conditional_controlled_type_attack_pump ::= "as" "long" "as" controlled_type_attack_history "," controlled_type_plural_pump "."
+
+/* Sentence-initial capitalization is local to the pump subject. */
+controlled_type_pump_subject ::= subtype_plural | subtype_marked_merfolk | controlled_type_marked_goblins
+
+/* @sem ObjectFilter::Subtype(Goblin) */
+controlled_type_marked_goblins ::= "↑" "goblins"

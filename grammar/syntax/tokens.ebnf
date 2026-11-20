@@ -284,7 +284,7 @@ tt_enchantment_creature ::= "enchantment" "creature"
 /* @sem CardType::[Land, Creature] */
 tt_land_creature ::= "land" "creature"
 
-token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites | tn_baneslayer_angel | tn_vibranium
+token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites | tn_baneslayer_angel | tn_vibranium | tn_walker
 
 /* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Blood], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Discard{count:Expr::Constant(1), filter:Any}, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
 tn_blood ::= "Blood"
@@ -893,3 +893,14 @@ singular_counted_token_recipe ::= token_stat "/" token_stat token_colors token_s
 /* The pronoun is valid only within the source-regeneration trigger below. */
 /* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:ObjectProperty{object:Source, property:RegenerationsThisTurn, information:CurrentOrLastKnown}, words:CreatingEffect, recipe:$singular_counted_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
 create_for_source_regenerations ::= "create" "a" singular_counted_token_recipe "for" "each" "time" "it" "regenerated" "this" "turn"
+
+/* @sem TokenRecipe::Defined{name:Explicit(Walker), colors:[Black], card_types:[Creature], subtypes:[Zombie], power_toughness:[Constant(2), Constant(2)]} */
+tn_walker ::= "Walker"
+
+/* Coin-outcome counts apply to the complete token recipe. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[_{amount:CountCoinOutcomes{source:CoinCountSource::Latest, outcome:Won}, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}) */
+create_coin_wins_attacking ::= "for" "each" "flip" "you" "win" "," "create" "a" token_recipe "that's" "tapped" "and" "attacking"
+
+/* Both receipt references are scoped to their mill and exile producers. */
+/* @sem Instruction::[Effect{result:@next, operation:Mill{players:All, amount:$card_count_many}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@prior, phase:After}, filter:$filter_phrase}, count:UpTo($count_plural)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Aggregate{objects:Transition{result:@prior, phase:After}, property:$receipt_stat, aggregation:Sum}, Aggregate{objects:Transition{result:@prior, phase:After}, property:$receipt_stat, aggregation:Sum}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+instructions_mill_exile_stat_token ::= "each" "player" "mills" card_count_many "." "exile" "up" "to" count_plural filter_phrase "cards" "put" "into" "graveyards" "this" "way" "." "create" counter_amount "X" "/" "X" token_colors token_subtypes token_types "token" "," "where" "X" "is" "the" "total" receipt_stat "of" "the" "cards" "exiled" "this" "way"

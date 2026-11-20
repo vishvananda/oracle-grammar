@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters
+chapter_program ::= chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -128,3 +128,15 @@ chapter_1_quoted_token ::= "i" "—" chapter_quoted_token_program
 /* @prefer always */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$plural_target_count_any, filter:$filter_plural}))), kind:$counter_kind, amount:Constant(1)}]}}]} */
 chapter_each_target_counter ::= "put" "a" counter_kind "counter" "on" "each" "of" plural_target_count_any "target" filter_plural
+
+/* The player order and the chosen population are separate from the exile. */
+/* @sem Program::Program{instructions:[ForEachPlayer{players:All, binding:0, starting_with:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Property{property:ManaValue, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_digits}}, ControlledBy(OpponentsOf(AbilityController))])}, count:UpTo(Constant(1))}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]} */
+ordered_opponent_permanent_exile ::= "starting" "with" "you" "," "each" "player" "chooses" "up" "to" "one" "permanent" "with" "mana" "value" number_digits "or" "greater" "from" "among" "permanents" "your" "opponents" "control" "." "exile" "those" "permanents"
+
+/* The player performing the optional action remains the announced opponent. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}), index:0}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(Target{slot:0, index:0}), amount:$card_count}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count_2}}]}, otherwise:_{}}]} */
+optional_opponent_draw_then_draw ::= "you" "may" "have" "target" "opponent" "draw" card_count "." "if" "you" "do" "," "draw" card_count
+
+/* The second move follows the actual exile arrival. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@prior, phase:After, index:0}), zone:Exile}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[Transformed]}}, qualifiers:[]}}]} */
+saga_exile_return_transformed ::= "exile" "this" "Saga" "," "then" "return" "it" "to" "the" "battlefield" "transformed" "under" "your" "control"

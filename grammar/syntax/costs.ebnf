@@ -1493,3 +1493,11 @@ cost_exile_card_hand ::= "exile" "a" "card" "from" "your" "hand"
 
 /* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$sacrifice_description}, choose:Exactly(Expr::Constant(1))} */
 cost_sacrifice_description ::= "sacrifice" ("a" | "an") sacrifice_description
+
+/* This paired reduction keeps the paid sacrifice and the earlier sacrifice history
+   as separate operands, including their independently printed amounts. */
+/* @sem Ability::[Casting(ReduceForEachPaid{reductions:[_{amount:$braced_amount}], cost:_{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$paired_sacrifice_population}, choose:Exactly(Constant(1))}]}}), Casting(ReduceCost([_{amount:Multiply([$braced_amount_2, EventHistory{event:Player{event:Sacrifices, players:One(AbilityController), objects:$noun_either}, window:ThisTurn, measure:Occurrences}])}]))] */
+casting_paired_sacrifice_reductions ::= optional_cost_opening "sacrifice" "any" "number" "of" paired_sacrifice_population reduce_for_each_opening braced_amount "less" "to" "cast" "for" "each" "permanent" "sacrificed" "this" "way" "and" braced_amount "less" "to" "cast" "for" "each" "other" noun_either "you've" "sacrificed" "this" "turn" "."
+
+/* @sem ObjectFilter::AnyOf([$plural_2, $plural]) */
+paired_sacrifice_population ::= plural "and" "/" "or" plural

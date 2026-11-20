@@ -38,7 +38,7 @@ verb_base ::= verb_operation_base
 /* @sem Instruction::Effect{result:@next, operation:$verb_operation_third} */
 verb_third ::= verb_operation_third
 
-verb_operation_base ::= draw_selected_discard_base | shuffle_base | energy_get_base | create_base | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | gain_life_base | lose_life_base | lose_game_base | win_game_base | scry_where_value | surveil_defined_base
+verb_operation_base ::= draw_selected_discard_base | shuffle_base | energy_get_base | create_base | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | gain_life_base | lose_life_base | lose_game_base | win_game_base | scry_where_value | surveil_defined_base | cast_one_graveyard_spell
 verb_operation_third ::= discard_event_damage_third | choose_number_third | sacrifice_keep_chosen_third | sacrifice_choose_keep_third | draw_selected_discard_third | shuffle_third | energy_get_third | create_third | create_tapped_third | create_attacking_third | mill_third | scry_third | surveil_third | draw_third | discard_random_third | discard_third | gain_life_third | lose_life_third | sacrifice_choice_third | lose_game_third | win_game_third | discard_per_vote_third | turn_keyword_third | surveil_defined_third | choose_color_third | create_spell_mana_value_third
 
 /* Choice and following conjoined verbs share the clause's actual player set,
@@ -57,7 +57,7 @@ sacrifice_that_many_third ::= "sacrifices" "that" "many" filter_plural "of" "the
 /* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verb_operation_imperative) */
 operation_imperative ::= verb_operation_imperative
 
-verb_operation_imperative ::= create_copy_singular_attacking | create_attacking_copies_each | shuffle_base | create_copy_tapped_attacking | create_copy_each_leading | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | draw_selected_discard_base | scry_where_value | surveil_defined_base | create_copy_affected_permanent | create_each_named_tapped_mana
+verb_operation_imperative ::= create_copy_singular_attacking | create_attacking_copies_each | shuffle_base | create_copy_tapped_attacking | create_copy_each_leading | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | draw_selected_discard_base | scry_where_value | surveil_defined_base | create_copy_affected_permanent | create_each_named_tapped_mana | create_coin_wins_attacking
 
 /* "Each opponent attacking that player does the same": every opponent attacking the
    player an attack trigger names repeats the first sentence's action. */
@@ -350,7 +350,7 @@ continuous_beyond_first ::= affected ("gets" | "get") signed "/" signed duration
 
 /* Only explicit action families own this two-sentence contrast. Neither slot
    uses program, clause, operation, or a CDE with an arbitrary change list. */
-clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start
+clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start | instead_draw_scry_then_draw
 
 /* The replacing action may come first and its condition trail: "That creature gets
    -13/-13 until end of turn instead if a creature died this turn". Both slots are
@@ -1369,3 +1369,19 @@ conjure_spellbook_library_depth ::= "conjure" random_named_spellbook "into" "the
 
 /* @sem ConjuredCard::Spellbook{book:Slivers, pick:Random} */
 random_named_spellbook ::= "a" "random" "card" "from" "the" "Slivers" "Spellbook"
+
+/* A replacement may prepend scry to a draw, while retaining both draw operands. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[...$instead_scry_action, ...$instead_draw_action_2]}, otherwise:Program{instructions:$instead_draw_action}}] */
+instead_draw_scry_then_draw ::= instead_draw_action "." NEWLINE? "if" condition "," "instead" instead_scry_action "," "then" instead_draw_action
+
+/* The spell filter is independent of the card population and the duration. */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}, from:Graveyard, action:CastSpell, filter:$filter_phrase}, terms:_{limit:Total(1), cost:Normal}}) */
+graveyard_one_spell_permission ::= "may" "cast" "a" filter_phrase "spell" "from" "your" "graveyard"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[$graveyard_one_spell_phrase], duration:$this_duration, evaluation:LiveObjects} */
+cast_one_graveyard_spell ::= graveyard_one_spell_phrase this_duration
+
+graveyard_one_spell_phrase ::= graveyard_one_spell_permission | graveyard_one_vowel_spell_permission
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}, from:Graveyard, action:CastSpell, filter:$filter_phrase}, terms:_{limit:Total(1), cost:Normal}}) */
+graveyard_one_vowel_spell_permission ::= "may" "cast" "an" filter_phrase "spell" "from" "your" "graveyard"

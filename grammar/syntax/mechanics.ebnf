@@ -107,8 +107,7 @@ level_from ::= "LEVEL" NUMBER "⁺" NEWLINE NUMBER "/" NUMBER
 level_from_abilities ::= "LEVEL" NUMBER "⁺" NEWLINE NUMBER "/" NUMBER NEWLINE level_stage_abilities
 
 /* Spree: each mode adds its cost. */
-/* @sem Ability::[Ability::Spree{modes:$spree_modes}] */
-line_spree ::= "spree" NEWLINE spree_modes
+line_spree ::= line_spree_leading_loss | line_spree_plain
 
 spree_modes ::= spree_modes_one | spree_modes_more
 
@@ -118,8 +117,7 @@ spree_modes_one ::= spree_mode
 /* @sem SpreeMode::[$spree_mode, ...$spree_modes] */
 spree_modes_more ::= spree_mode NEWLINE spree_modes
 
-/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:$program}}) */
-spree_mode ::= "+" cost "—" program "."
+spree_mode ::= spree_mode_lose_abilities | spree_mode_choose_grant | spree_mode_plain
 
 /* Tiered: one mode, by name, adding its cost. The names mean nothing to the rules. */
 /* @sem Ability::[Ability::Tiered{modes:$tier_modes}] */
@@ -882,3 +880,21 @@ draft_pregame_reveal_and_exile ::= "before" "you" "shuffle" "your" "deck" "to" "
 
 /* @sem Operand::Term{family:PregameAction, form:ExileNumberDraftedCardsNotInDeck, operands:[Number($value), Filter($filter_phrase)]} */
 draft_exile_multiple ::= "exile" value "or" "more" filter_phrase "cards" "you" "drafted" "that" "aren't" "in" "your" "deck"
+
+/* Keep the explicit all-population wording in a leading mode. */
+/* @sem Ability::[Ability::Spree{modes:[$spree_mode_lose_abilities, ...$spree_modes]}] */
+line_spree_leading_loss ::= "spree" NEWLINE spree_mode_lose_abilities NEWLINE spree_modes
+
+/* @sem Ability::[Ability::Spree{modes:$spree_modes}] */
+line_spree_plain ::= "spree" NEWLINE spree_modes
+
+/* @prefer always */
+/* Mode-specific shapes keep the chosen population and keyword in the current IR. */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[RemoveAllAbilities], duration:$duration, evaluation:Snapshot}}]}}}) */
+spree_mode_lose_abilities ::= "+" cost "—" "all" filter_plural "lose" "all" "abilities" duration "."
+
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::ControlledBy(One(AbilityController)))}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}]}}}) */
+spree_mode_choose_grant ::= "+" cost "—" "choose" "a" filter_phrase "you" "control" "." "it" "gains" keyword_name duration "."
+
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:$program}}) */
+spree_mode_plain ::= "+" cost "—" program "."
