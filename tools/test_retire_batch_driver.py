@@ -232,6 +232,47 @@ class DriverTests(unittest.TestCase):
         self.addCleanup(self.validate.stop)
         self.addCleanup(self.create_queue.stop)
 
+    def preflight(self):
+        path = self.run/'projected.json'
+        assignments = [{'job': 'second', 'attempt': 'b'}, {'job': 'first', 'attempt': 'a'}]
+        r.write(path, {'kind': 'prospective-retirement-batch', 'checkpoint': 'parent', 'jobs': assignments})
+        self.queue.ready = [{'id': 'first', 'attempt_id': 'a', 'job': {'kind': 'author'}},
+                            {'id': 'second', 'attempt_id': 'b', 'job': {'kind': 'author'}}]
+        return path, {'path': str(path), 'sha256': r.digest(path)}
+
+    def test_preflight_requires_the_current_parent_attempts_and_digest(self):
+        path, spec = self.preflight()
+        result = {'lane': 'preflight-verified', 'jobs': ['second', 'first'], 'combine': True}
+        self.assertEqual(driver.preflight_ready_lane(self.queue, 'parent', 2, spec), result)
+        self.assertIsNone(driver.preflight_ready_lane(self.queue, 'other-parent', 2, spec))
+        self.assertIsNone(driver.preflight_ready_lane(self.queue, 'parent', 1, spec))
+        self.queue.ready[1]['attempt_id'] = 'retried'
+        self.assertIsNone(driver.preflight_ready_lane(self.queue, 'parent', 2, spec))
+        self.queue.ready[1]['attempt_id'] = 'b'
+        path.write_text(path.read_text() + '\n')
+        self.assertIsNone(driver.preflight_ready_lane(self.queue, 'parent', 2, spec))
+
+    def test_preflight_only_changes_selection_and_uses_normal_staging(self):
+        _, spec = self.preflight()
+        r.write(self.run/'batch-preflight-ready.json', spec)
+        self.queue.value = progress(pending=1, ready=2)
+        def complete(run, jobs, *, combine_selected):
+            self.outcome(drain=True)(run)
+        with patch.object(driver.dispatch, '_batch', side_effect=complete) as stage:
+            driver.run_driver(self.run, self.runner)
+        stage.assert_called_once_with(self.run, ['second', 'first'], combine_selected=True)
+        self.assertEqual(r.read(self.run/'batch-driver.json')['last_batch']['lane'], 'preflight-verified')
+
+    def test_preflight_receipt_respects_explicit_configuration_and_rejects_symlinks(self):
+        path, spec = self.preflight()
+        envelope = self.run/'batch-preflight-ready.json'
+        r.write(envelope, spec)
+        self.assertEqual(driver._preflight_receipt(self.run, {}), spec)
+        self.assertEqual(driver._preflight_receipt(self.run, {'batch_preflight_selection': {}}), {})
+        envelope.unlink()
+        envelope.symlink_to(path)
+        self.assertIsNone(driver._preflight_receipt(self.run, {}))
+
     def outcome(self, *, validation='passed', drain=False):
         def call(run):
             self.assertEqual(len(r._LEASES), 1)

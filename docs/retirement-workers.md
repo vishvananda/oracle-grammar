@@ -134,6 +134,13 @@ with as little as half the shared pool when the requested count is larger.
 It passes the actual lease size to the helper and records that size. Once an
 early veto is confirmed, survivor retries replay its verified witness cohort.
 Every candidate that clears the screens runs the full allowed-population audit.
+The projection coordinator can publish `batch-preflight-ready.json` in the
+campaign directory while the current audit runs. It pins a routing receipt by
+absolute path and SHA-256. An explicit `batch_preflight_selection` in config
+takes precedence. The receipt's `checkpoint` must be the current accepted
+parent, and every job must still have the listed provisional attempt. The
+selected jobs enter ordinary combined staging and audit. Stale selections fall
+back to the normal lanes, and a full mechanical batch keeps priority.
 Set `parse_screen_before_repository` with `full_parse_screen` to run the
 complete parse and native-reading screen before the repository gates. A
 confirmed parse regression can go straight to focused recovery. A passing

@@ -3,6 +3,7 @@
 import argparse
 from collections import Counter, defaultdict
 from contextlib import closing
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -231,6 +232,50 @@ def verified_ready_lane(queue, checkpoint, limit, minimum, mechanical=(), recove
     return None
 
 
+def _preflight_document(path, limit, *, sha256=None):
+    try:
+        if path.resolve() != path or path.is_symlink() or not path.is_file():
+            return None
+        with path.open('rb') as stream:
+            data = stream.read(limit+1)
+        if len(data) > limit or (sha256 is not None and hashlib.sha256(data).hexdigest() != sha256):
+            return None
+        return json.loads(data)
+    except (OSError, ValueError, RecursionError):
+        return None
+
+
+def _preflight_receipt(run, config):
+    explicit = config.get('batch_preflight_selection')
+    if explicit is not None:
+        return explicit
+    # The planning service publishes this envelope atomically. Publishing it
+    # leaves concurrent campaign and retained-control configuration alone.
+    return _preflight_document(run/'batch-preflight-ready.json', 4096)
+
+
+def preflight_ready_lane(queue, checkpoint, limit, spec):
+    """Route an exact projected selection through ordinary staging only at its parent."""
+    if (not isinstance(spec, dict) or set(spec) != {'path', 'sha256'} or not isinstance(spec['path'], str)
+            or not isinstance(spec['sha256'], str) or len(spec['sha256']) != 64):
+        return None
+    plan = _preflight_document(Path(spec['path']), 128*1024, sha256=spec['sha256'])
+    if (not isinstance(plan, dict) or plan.get('kind') != 'prospective-retirement-batch'
+            or plan.get('checkpoint') != checkpoint):
+        return None
+    entries = plan.get('jobs')
+    if not isinstance(entries, list) or not 1 <= len(entries) <= limit:
+        return None
+    if any(not isinstance(entry, dict) or set(entry) != {'job', 'attempt'}
+           or not all(isinstance(value, str) and value for value in entry.values()) for entry in entries):
+        return None
+    jobs = [entry['job'] for entry in entries]
+    current = {row['id']: row['attempt_id'] for row in queue.get_jobs('provisional-pass')}
+    if len(set(jobs)) != len(jobs) or any(current.get(entry['job']) != entry['attempt'] for entry in entries):
+        return None
+    return {'lane': 'preflight-verified', 'jobs': jobs, 'combine': True}
+
+
 def unused_author_jobs(queue, checkpoint, limit, covered):
     """Prioritize provisional author jobs whose entire assignment is now unused."""
     if limit <= 0:
@@ -397,11 +442,14 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         if type(verified_limit) is not int or not 1 <= verified_limit <= 96:
                             raise ValueError('verified_ready_batch_size must be between 1 and 96')
                         verified = None
-                        if ready and not large_mechanical and previous_lane != 'verified-ready':
-                            verified = verified_ready_lane(queue, progress['checkpoint'], verified_limit,
-                                                           min(verified_minimum, verified_limit),
-                                                           lane['mechanical'] if lane else (),
-                                                           cohort['jobs'] if cohort else ())
+                        if ready and not large_mechanical:
+                            verified = preflight_ready_lane(queue, progress['checkpoint'], verified_limit,
+                                                            _preflight_receipt(run, config))
+                            if verified is None and previous_lane != 'verified-ready':
+                                verified = verified_ready_lane(queue, progress['checkpoint'], verified_limit,
+                                                               min(verified_minimum, verified_limit),
+                                                               lane['mechanical'] if lane else (),
+                                                               cohort['jobs'] if cohort else ())
                         if verified:
                             lane, cohort = verified, []
                         standalone_lane = large_mechanical or verified is not None
