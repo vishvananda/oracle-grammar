@@ -3,6 +3,7 @@
 This module never launches workers or decides whether their evidence is sound.
 SQLite transactions serialize claims, checkpoint advancement, and adjudication.
 """
+import ast
 import errno
 import fcntl
 import hashlib
@@ -849,11 +850,64 @@ def _archived_case_face(case, assigned, approved):
     return name if any(pattern.search(oracle) for oracle in approved.get(name, ())) else None
 
 
+def _verify_legacy_family_native_veto(evidence, archived, refused_residual):
+    """Older evaluators continued after a family veto and recorded native losses too."""
+    failures = archived['failures']
+    directory = Path(archived['directory'])
+    error = 'the archived native veto does not isolate residual family refusals'
+    if len(failures) != 2 or not refused_residual or not isinstance(failures[1], str):
+        raise ValueError(error)
+    command = failures[1]
+    prefix, suffix = "Command '", "' returned non-zero exit status 1."
+    if not command.startswith(prefix) or not command.endswith(suffix) or len(command) > 16384:
+        raise ValueError(error)
+    try:
+        args = ast.literal_eval(command[len(prefix):-len(suffix)])
+    except (ValueError, SyntaxError, RecursionError) as exc:
+        raise ValueError(error) from exc
+    expected = [str(directory/name) for name in ('gold.jsonl', 'rows.jsonl', 'native.json', 'native-failures.jsonl')]
+    expected.extend(('--preserve-from', str(directory/'before.jsonl')))
+    if (not isinstance(args, list) or not args or not isinstance(args[0], str)
+            or not Path(args[0]).is_absolute() or Path(args[0]).name != 'validate-readings' or args[1:] != expected):
+        raise ValueError(error)
+    proof = evidence.get('legacy_native_gate')
+    if not isinstance(proof, dict):
+        raise ValueError(error)
+    artifacts = {}
+    for filename in ('commands.jsonl', 'native.json'):
+        path, data = _proof_file(proof.get(filename))
+        if path != directory/filename or path != path.resolve():
+            raise ValueError(error)
+        artifacts[filename] = data
+    try:
+        commands = [json.loads(line) for line in artifacts['commands.jsonl'].splitlines()]
+        outcomes = [(row['program'], row['returncode']) for row in commands]
+        report = json.loads(artifacts['native.json'])
+        preserve = report['reading_preservation']
+        readings = report['readings']
+        source, canonical = report['source_gold'], report['canonical_gold']
+        missing = preserve['missing']
+        losses = {(row['name'], row['reading']) for row in missing}
+        expected_outcomes = [('family-check', 1), ('score', 0), ('validate-readings', 1)]
+        if (outcomes != expected_outcomes or any(type(code) is not int for _, code in outcomes)
+                or preserve['passed'] is not False or preserve['additions'] != [] or preserve['merged_faces'] != 0
+                or not (preserve['occurrences'] == source['faces'] == source['valid']
+                        == canonical['faces'] == canonical['valid'] == canonical['idempotent'])
+                or not (preserve['old_readings'] - len(losses) == readings['total']
+                        == readings['valid'] == readings['canonical'])
+                or not losses or len(losses) != len(missing)
+                or any(name not in refused_residual or type(index) is not int or index < 0 for name, index in losses)):
+            raise ValueError(error)
+    except (KeyError, TypeError) as exc:
+        raise ValueError(error) from exc
+
+
 def _family_split_cases(evidence, archived, family, selected, deferred, *, approved=None):
     """Replay every selected compositional case and every archived refusal."""
+    report_failures = archived.get('failures')
     if (archived.get('family_returncode') != 1 or archived.get('scope') == 'author-target-preview'
-            or archived.get('failures') != ['family regression tests failed']):
-        raise ValueError('the original report lacks a single compositional family veto')
+            or not isinstance(report_failures, list) or report_failures[:1] != ['family regression tests failed']):
+        raise ValueError('the original report lacks a compositional family veto')
     gate, data = _proof_file(evidence.get('family_gate'))
     if gate.resolve() != gate or gate != Path(archived['directory'])/'family-check.log':
         raise ValueError('family veto proof is outside the original evaluation')
@@ -888,6 +942,10 @@ def _family_split_cases(evidence, archived, family, selected, deferred, *, appro
             or not failed or not localized or not {faces.get(label) for label in failed} <= known_failures
             or any(sum(case['name'] == name for case in cases) != 1 for name in failed)):
         raise ValueError('archived family veto does not isolate replayable cases')
+    if len(report_failures) != 1:
+        refused_residual = {faces[failure['name']] for failure in failures
+                            if failure['why'].startswith('unexpected refusal:') and faces[failure['name']] in residual}
+        _verify_legacy_family_native_veto(evidence, archived, refused_residual)
     required = [*(case for case, _ in positive), *(case for case in cases if case.get('reject') is True)]
     return positive_names, required
 

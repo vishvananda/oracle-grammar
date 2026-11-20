@@ -3,6 +3,7 @@ from contextlib import closing
 from hashlib import sha256
 import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -258,6 +259,45 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         receipt = self.q.split_reviewed_author('parent', self.attempt, 'head', evidence)
         self.assertEqual(receipt['rules'], ['m_good'])
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
+
+    def test_legacy_native_veto_must_agree_with_residual_family_refusals(self):
+        directory = self.root/'evaluation'
+        directory.mkdir()
+        args = ['/frozen/bin/validate-readings', *(str(directory/name) for name in (
+            'gold.jsonl','rows.jsonl','native.json','native-failures.jsonl')),
+            '--preserve-from',str(directory/'before.jsonl')]
+        archived = {'directory':str(directory),'family_returncode':1,
+                    'failures':['family regression tests failed',str(subprocess.CalledProcessError(1,args))]}
+        positive = {'name':'A','expected':['meaning']}
+        refusal = {'name':'Incomplete','reject':True}
+        family = {'family':'archived','cases':[positive,refusal,{'name':'B','expected':['held']}]}
+        selected, recovered = {'target_faces':['A']}, {'target_faces':['A','B']}
+        gate = {'family':'archived','compositional':True,'cases':3,'passed':2,
+                'failures':[{'name':'B','why':'unexpected refusal: NoParse { furthest: 0 }'}]}
+        gold = {'faces':2,'valid':2,'idempotent':2}
+        native = {'reading_preservation':{'occurrences':2,'old_readings':2,'merged_faces':0,'passed':False,
+                                         'missing':[{'name':'B','reading':0}],'additions':[]},
+                  'source_gold':gold,'canonical_gold':gold,'readings':{'total':1,'valid':1,'canonical':1}}
+
+        def artifact(name, content):
+            path = directory/name
+            path.write_text(content)
+            return {'path':str(path),'sha256':sha256(path.read_bytes()).hexdigest()}
+
+        commands = '\n'.join(json.dumps({'program':name,'returncode':code}) for name,code in (
+            ('family-check',1),('score',0),('validate-readings',1)))
+        evidence = {'family_gate':artifact('family-check.log',json.dumps(gate)),
+                    'legacy_native_gate':{'commands.jsonl':artifact('commands.jsonl',commands)}}
+        preserve = native['reading_preservation']
+        for changes in ({'missing':[{'name':'A','reading':0}]}, {'additions':[{'name':'B','reading':1}]},
+                        {'old_readings':3}):
+            evidence['legacy_native_gate']['native.json'] = artifact(
+                'native.json',json.dumps(dict(native,reading_preservation={**preserve,**changes})))
+            with self.assertRaisesRegex(ValueError,'does not isolate residual family refusals'):
+                retire_queue._family_split_cases(evidence,archived,family,selected,recovered)
+        evidence['legacy_native_gate']['native.json'] = artifact('native.json',json.dumps(native))
+        positives, preserved = retire_queue._family_split_cases(evidence,archived,family,selected,recovered)
+        self.assertEqual((positives,preserved), ({'A'},[positive,refusal]))
 
     def test_repair_can_split_an_inherited_review_using_the_original_attempt(self):
         self.park()
