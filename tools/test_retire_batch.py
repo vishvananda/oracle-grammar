@@ -261,16 +261,30 @@ class BatchTests(unittest.TestCase):
             data = ({'0':{'name':'Shared', 'text':'One.'}, '1':{'name':'Companion', 'text':'Two.'},
                      '2':{'name':'Shared', 'text':'Three.'}}, [], [])
             selected = [data[0]['0'], data[0]['2']]
-            checkpoint = {'inputs':str(root), 'cpu_capacity':32}
+            checkpoint = {'inputs':str(root), 'cpu_capacity':32, 'parse_screen_threads':12}
             output = root/'screen'
-            with (patch.object(batch, '_audit_cpu', return_value=batch.nullcontext(6)),
+            with (patch.object(batch, '_audit_cpu', return_value=batch.nullcontext(6)) as lease,
                   patch.object(batch.r, 'execute') as execute,
                   patch.object(batch.r, 'rows', return_value=selected)):
                 self.assertEqual(batch._early_score(checkpoint, root, data, output, ['Shared'], render=False),
                                  (selected, selected, 6))
             self.assertEqual(batch.r.read(output/'slice.json'), {'cards':['Shared']})
+            lease.assert_called_once_with(checkpoint, 12, 32, minimum_threads=6)
             execute.assert_called_once_with(root, output, root, 'score',
                 [root/'frozen/gold.jsonl', root/'frozen/oracle.json', output/'slice.json', output/'rows.jsonl'], 6)
+
+    def test_early_print_uses_the_granted_worker_count(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            checkpoint = {'inputs': str(root), 'cpu_capacity': 32, 'audit_threads': 16}
+            with (patch.object(batch, '_audit_cpu', return_value=batch.nullcontext(10)) as lease,
+                  patch.object(batch.r, 'execute') as execute,
+                  patch.object(batch.r, 'rows', return_value=[])):
+                self.assertEqual(batch._early_score(checkpoint, root, ({}, [], []), root/'print', [], render=True),
+                                 ([], [], 10))
+            lease.assert_called_once_with(checkpoint, 16, 32, minimum_threads=8)
+            self.assertEqual(execute.call_args.args[-1], 10)
+            self.assertEqual(execute.call_args.args[-2][-1], '--render')
 
     def test_early_witness_can_confirm_reading_and_wording_for_the_same_face(self):
         reading = {'face': 'A', 'gate': 'parse/reading-count/text'}

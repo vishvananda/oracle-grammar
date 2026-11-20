@@ -1206,7 +1206,10 @@ def _early_score(checkpoint, grammar, data, folder, names, *, render):
     rows = folder/'rows.jsonl'
     threads = checkpoint['audit_threads'] if render else _parse_screen_threads(checkpoint)
     capacity = checkpoint['cpu_capacity']
-    minimum = min(threads, (capacity+1)//2)
+    # This screen can use fewer workers without changing its ordered results.
+    # Start when half of the requested bundle is free so a large screen does
+    # not block smaller diagnostics while other processes finish their leases.
+    minimum = (threads+1)//2
     args = [run/'frozen/gold.jsonl', run/'frozen/oracle.json', slice_path, rows]
     if render:
         args.append('--render')
