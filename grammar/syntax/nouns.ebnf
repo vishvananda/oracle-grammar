@@ -952,7 +952,7 @@ players_or_controller ::= "that" "player" "or" "that" "planeswalker's" "controll
 /* @sem PlayerSet::One($player_ref) */
 player_one ::= player_ref
 
-player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner | attacking_player | damage_source_controller | extreme_life_player | extreme_hand_player | that_attacking_player
+player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner | attacking_player | damage_source_controller | extreme_life_player | extreme_hand_player | that_attacking_player | that_attacking_event_player
 
 /* "That source's controller": the controller of the event's damage source. */
 /* @sem PlayerRef::ControllerOf(EventSubject) */
@@ -1455,7 +1455,7 @@ filter_activated_or_tapped ::= noun "that" "was" "activated" "this" "turn" "or" 
 target_event_subject_choice ::= "target" adjective_nontype "permanent" "of" "that" "player's" "choice" "that" "one" "of" "your" "opponents" "controls"
 
 /* Stack selections are shared operands for counter effects. */
-counter_stack_objects ::= counter_targeting_spell_or_ability | counter_targeting_instant_or_subtype | counter_one_linked_name | counter_one_sourced_ability | counter_one_mixed_stack | counter_many_stack | counter_many_spells | counter_one_cast_from_zone | counter_one_ability_or_filtered_spell
+counter_stack_objects ::= receipt_counter_spells | counter_other_typed_spells | counter_targeting_spell_or_ability | counter_targeting_instant_or_subtype | counter_one_linked_name | counter_one_sourced_ability | counter_one_mixed_stack | counter_many_stack | counter_many_spells | counter_one_cast_from_zone | counter_one_ability_or_filtered_spell
 
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([$counter_ability_kind, AbilityOf($counter_source_filter)])}), index:0}) */
 counter_one_sourced_ability ::= "target" counter_ability_kind "ability" "from" counter_source_filter "source"
@@ -2832,3 +2832,19 @@ recipients_attached_controller ::= "enchanted" attached_possessive_noun "control
 
 /* @sem () */
 attached_possessive_noun ::= "artifact's" | "creature's" | "land's" | "permanent's" | "enchantment's" | "planeswalker's"
+
+/* The source exclusion and spell type are independent stack filters. */
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:AllOf([Not(SameObject(Source)), $counter_other_spell_type])} */
+counter_other_typed_spells ::= "all" "other" counter_other_spell_type "spells"
+
+counter_other_spell_type ::= spell_instant | spell_sorcery
+
+/* @sem ObjectFilter::OnStack(Activated) */
+counter_stack_activated ::= "activated" "ability"
+
+/* @sem ObjectFilter::OnStack(Triggered) */
+counter_stack_triggered ::= "triggered" "ability"
+
+/* The named attacker is the player in the enclosing attack event. */
+/* @sem PlayerRef::EventSubject */
+that_attacking_event_player ::= "that" "attacking" "player"

@@ -428,7 +428,7 @@ dig_rest_put ::= ("then")? "put" look_rest
 dig_rest_and ::= "and" look_rest
 
 /* Looked-at cards are revealed as they are taken; revealed ones are already shown. */
-dig_look_take ::= dig_reveal_one | dig_reveal_upto | dig_reveal_any | dig_reveal_top | dig_top_one | dig_put_take
+dig_look_take ::= dig_reveal_each_to_hand | dig_reveal_one | dig_reveal_upto | dig_reveal_any | dig_reveal_top | dig_top_one | dig_put_take
 
 /* A revealed card put back on top stays in the library; the reorder is its receipt. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1))}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@back(3)), end:Top, order:Chosen}}] */
@@ -451,7 +451,7 @@ dig_reveal_any ::= "you" "may" "reveal" "any" "number" "of" search_filter_many "
 dig_found_many ::= "them" | "those" "cards" | "the" "revealed" "cards"
 
 /* "You may put a card" takes at most one; "put a card" takes one if there is one. */
-dig_put_take ::= dig_put_same_name | dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all | dig_put_one_each
+dig_put_take ::= dig_put_conditional_entry | dig_put_same_name | dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all | dig_put_one_each
 
 /* "A creature card and/or a land card": up to one card of each kind. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:UpTo(Constant(2)), constraints:[OneForEach([$card_filter, $card_filter_2])]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
@@ -1114,6 +1114,7 @@ play_that_card_permission ::= duration "," "you" "may" "play" "that" "card"
 /* Permission to cast the prior card. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any})], duration:$duration, evaluation:LiveObjects} */
 cast_that_card_permission ::= duration "," "you" "may" "cast" "that" "card"
+    | "you" "may" "cast" "that" "card" duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:$exiled_spending}})], duration:$duration, evaluation:LiveObjects} */
 cast_that_card_permission_spending ::= duration "," "you" "may" "cast" "that" "card" "and" exiled_spending
 
@@ -2096,3 +2097,58 @@ recycle_hand_cards ::= "the" "cards" "in" "your" "hand"
 
 /* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any} */
 recycle_hand_cards_from ::= "the" "cards" "from" "your" "hand"
+
+/* A player iteration binds the actor, payer, and owner of the acted-on cards. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:$bound_optional_library_action}}] */
+clause_each_player_optional_library_action ::= players_singular "may" bound_optional_library_action
+
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:Bound(0), cost:Cost{parts:[PlayerAction{player:Bound(0), body:Program{instructions:[Effect{result:@next, operation:$bound_ante_top}]}}]}, optional:true}}] */
+bound_optional_library_action ::= bound_ante_top
+
+/* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Ante(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+bound_ante_top ::= "ante" "the" "top" "card" "of" "their" "library"
+
+/* The follow-up selects players who took the immediately preceding optional
+   player action; the two phrases share its result within this scope. */
+/* @sem Instruction::[...$clause_each_player_optional_library_action, ForEachPlayer{players:Matching{binding:0, condition:PlayerTook{player:Bound(0), result:@prior}}, binding:0, body:Program{instructions:[Effect{result:@next, operation:SetLifeTotal{players:One(Bound(0)), amount:$value}}]}}] */
+instructions_player_optional_life ::= clause_each_player_optional_library_action "." "if" "a" "player" "does" "," "that" "player's" "life" "total" "becomes" value
+
+/* An optional look guards the subsequent test; the test and reveal both name the
+   same single top card of the controller's library. */
+/* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:$top_card_look}}]} */
+optional_top_look_payment ::= top_card_look
+
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$optional_top_look_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$looked_top_conditional_reveal}, otherwise:Program{}}] */
+instructions_optional_top_look_test ::= "you" "may" optional_top_look_payment looked_top_conditional_reveal
+
+/* @sem Instruction::[If{condition:ObjectMatches{object:Query{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), index:0}, filter:$card_filter}, then:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]}, otherwise:Program{}}] */
+looked_top_conditional_reveal ::= "if" "it's" "a" card_filter "card" "," "you" "may" "reveal" "it" "and" program
+
+/* Reveal both disjoint choices, then move the cards just revealed. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$filter_phrase}, count:UpTo($counter_amount), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Difference{objects:InZone{objects:Observed(@marked), zone:Library}, excluding:Union([Selected(@prior)])}, filter:$filter_phrase_2}, count:UpTo($counter_amount_2), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Reveal{objects:Union([Selected(@back(3)), Selected(@prior)])}}, Effect{result:@next, operation:Move{objects:Union([Selected(@back(4)), Selected(@back(3))]), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+dig_reveal_each_to_hand ::= "you" "may" "reveal" counter_amount filter_phrase "card" "and" "/" "or" counter_amount filter_phrase "card" "from" "among" "them" "and" "put" "the" "revealed" "cards" "into" "your" "hand"
+
+/* The retained bottom count belongs to each player's own library. */
+/* @sem Instruction::[ForEachPlayer{players:$optional_player_population, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:Subtract(CountObjects(Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}), $card_count), from:Top}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
+clause_each_exiles_except_bottom ::= optional_player_population "exiles" "all" "but" "the" "bottom" card_count "of" "their" "library" "face" "down"
+
+/* The amount is the enclosing event's amount; the library belongs to the named player. */
+/* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:$players_singular}, kind:Card, filter:Any}, count:EventAmount, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+player_exiles_event_amount ::= players_singular "exiles" "that" "many" "cards" "from" "the" "top" "of" "their" "library"
+
+/* The permission is tied to this exact exile producer and its arrival receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:Either, filter:Any})], duration:$receipt_span_duration, evaluation:LiveObjects}}, ...$clause] */
+instructions_exile_top_play_then ::= exile_top_cards_of_your_library "." "you" "may" "play" "cards" "exiled" "this" "way" receipt_span_duration "." NEWLINE clause
+
+/* A single top-card exile, its damage measurement and its play permission share
+   one producer. The fixed singleton prevents a plural receipt from being used as
+   the antecedent of "that card". */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Bound(0))), amount:ObjectProperty{object:Result{result:@prior, phase:After, index:0}, property:$stat, information:CurrentOrLastKnown}, preventable:true}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@back(3), phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects}}] */
+exile_single_top_damage_play ::= "exile" "the" "top" "card" "of" "your" "library" "," "then" SELF_NAME "deals" "damage" "equal" "to" "that" "card's" stat "to" "that" "permanent" "or" "player" "." "you" "may" "play" "the" "exiled" "cards" duration
+
+/* A selected observed card's conditional arrival applies equally to the choice and move. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:$dig_conditional_entry}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_conditional_entry, qualifiers:[]}}] */
+dig_put_conditional_entry ::= "you" "may" "put" a_card "from" "among" "them" dig_conditional_entry
+
+/* @sem MovementDestination::Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[When{filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$number_digits}}, entry:BattlefieldArrival{tapped:false, counters:[[$counter_kind, $count_plural]], states:[]}}]}} */
+dig_conditional_entry ::= "onto" "the" "battlefield" "." "if" "that" "card" "has" "mana" "value" number_digits "or" "less" "," "it" "enters" "with" count_plural "additional" counter_kind "counters" "on" "it"

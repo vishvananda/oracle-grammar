@@ -1193,6 +1193,7 @@ post_grant_card_pronoun ::= it_ref
    or re-queries the old graveyard target. */
 /* @sem Instruction::[Effect{result:@mark, operation:$post_grant_move}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@marked, phase:After, index:0})), changes:$grants, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:$post_grant_turn_point, players:One(AbilityController)}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Result{result:@marked, phase:After, index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
 clause_post_move_grant_exile ::= post_grant_move "." "it" "gains" grants "." "exile" "it" "at" "the" "beginning" "of" "your" "next" post_grant_turn_point
+    | post_grant_move "." "it" "gains" grants "." "at" "the" "beginning" "of" "your" "next" post_grant_turn_point "," "exile" "it"
 
 post_grant_turn_point ::= post_grant_upkeep | post_grant_end_step
 /* @sem TurnPoint::UpkeepBegins */
@@ -6074,3 +6075,25 @@ temporary_combat_requirement ::= temporary_attack_or_block | temporary_attack_yo
 /* Temporary reduction uses the same owner and amount operands as static reductions. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($generic_reduction_symbols)})], duration:$this_duration, evaluation:LiveObjects} */
 temporary_activation_reduction ::= "activated" "abilities" "of" activation_owner "cost" generic_reduction_symbols "less" "to" "activate" this_duration
+
+/* Singular changes without an expiration retain the affected target's identity. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_up_to_one_other)), changes:$singular_loss, duration:Indefinite, evaluation:Snapshot} */
+indefinite_singular_snapshot ::= target_up_to_one_other singular_loss
+
+/* @sem Change::[RemoveAllAbilities] */
+singular_loss ::= "loses" "all" "abilities"
+
+/* The repeated doubling is a snapshot of the same target's current power. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($repeated_power_target)), changes:[Pump{power:Multiply([ObjectProperty{object:$repeated_power_target, property:Power, information:CurrentOrLastKnown}, Subtract([Exponentiate(Constant(2), $number), Constant(1)])]), toughness:Constant(0)}], duration:$duration, evaluation:Snapshot} */
+repeated_target_power ::= duration "," "double" repeated_power_target "power" number "times"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$repeated_power_noun}), index:0} */
+repeated_power_target ::= "target" repeated_power_noun
+
+/* @sem ObjectFilter::CardType(Creature) */
+repeated_power_creature ::= "creature's"
+
+/* @sem ObjectFilter::CardType(Artifact) */
+repeated_power_artifact ::= "artifact's"
+
+repeated_power_noun ::= repeated_power_creature | repeated_power_artifact

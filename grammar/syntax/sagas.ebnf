@@ -9,7 +9,7 @@ chapters_one ::= chapter_first
 /* @sem Ability::[...$chapter_first, ...$chapter_tail] */
 chapters_more ::= chapter_first NEWLINE chapter_tail
 
-chapter_first ::= chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
+chapter_first ::= chapter_1_quoted_token | chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
 
 chapter_tail ::= chapter | chapter_tail_more
 
@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters
+chapter_program ::= chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -119,3 +119,12 @@ chapter_distribute_counters ::= distribute_counters_chapter_targets
 
 /* @sem Operation::PutCounters{placements:[_{recipients:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo($count_plural), filter:$filter_plural, distribute:$count_plural}))), kind:$counter_kind, amount:DistributedShare(@share)}]} */
 distribute_counters_chapter_targets ::= "distribute" count_plural counter_kind "counters" "among" "any" "number" "of" "target" filter_plural
+
+/* A quoted intrinsic ability supplies the final sentence punctuation. */
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_quoted_token_program})] */
+chapter_1_quoted_token ::= "i" "—" chapter_quoted_token_program
+
+/* A chapter distributes one counter to each selected target. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:$plural_target_count_any, filter:$filter_plural}))), kind:$counter_kind, amount:Constant(1)}]}}]} */
+chapter_each_target_counter ::= "put" "a" counter_kind "counter" "on" "each" "of" plural_target_count_any "target" filter_plural
