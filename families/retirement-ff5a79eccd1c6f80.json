@@ -1,0 +1,573 @@
+{
+  "family": "retirement-d8e2aef9a4c54913",
+  "cases": [
+    {
+      "name": "Hall of Gemstone",
+      "text": "At the beginning of each player's upkeep, that player chooses a color. Until end of turn, lands tapped for mana produce mana of the chosen color instead of any other color.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ChooseValue",
+                      "args": {
+                        "choosers": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "kind": "Color",
+                        "terms": {
+                          "options": [
+                            {
+                              "kind": "Term",
+                              "args": {
+                                "family": "ChoosableColor",
+                                "form": "AnyColor",
+                                "operands": []
+                              }
+                            }
+                          ],
+                          "except": [],
+                          "count": {
+                            "Exactly": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          },
+                          "secret": false,
+                          "unchosen": false,
+                          "random": false,
+                          "ordered": false
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "ProduceMana": {
+                            "sources": {
+                              "kind": "CardType",
+                              "args": "Land"
+                            },
+                            "by": null
+                          }
+                        },
+                        "limit": "UntilExpired",
+                        "duration": "EndOfTurn",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 1,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": {
+                                      "ReplaceColoredMana": {
+                                        "Amount": {
+                                          "color": "Chosen",
+                                          "amount": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Mercenaries",
+      "text": "{3}: The next time this creature would deal damage to you this turn, prevent that damage. Any player may activate this ability.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 3
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": {
+                "kind": "All"
+              },
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Damage": {
+                            "source_kind": "Permanent",
+                            "sources": {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Source"
+                              }
+                            },
+                            "recipients": {
+                              "Players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            },
+                            "kind": "Any",
+                            "grouping": "SourceRecipient",
+                            "subject": "Recipient"
+                          }
+                        },
+                        "limit": "NextOccurrence",
+                        "duration": "EndOfTurn",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": "PreventDamage"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Pale Moon",
+      "text": "Until end of turn, if a player taps a nonbasic land for mana, it produces colorless mana instead of any other type.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "ProduceMana": {
+                            "sources": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "Not",
+                                  "args": {
+                                    "kind": "Supertype",
+                                    "args": "Basic"
+                                  }
+                                },
+                                {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                }
+                              ]
+                            },
+                            "by": null
+                          }
+                        },
+                        "limit": "UntilExpired",
+                        "duration": "EndOfTurn",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": {
+                                      "ReplaceMana": {
+                                        "Amount": {
+                                          "color": "Colorless",
+                                          "amount": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "incomplete replacement refusal",
+      "text": "Until end of turn, if a player taps a nonbasic land for mana, it produces colorless mana instead of",
+      "types": [
+        "Instant"
+      ],
+      "reject": true
+    },
+    {
+      "name": "drawing is not damage",
+      "text": "The next time you would draw a card this turn, prevent that damage.",
+      "types": [
+        "Instant"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Mercenaries",
+      "text": "{4}: The next time this creature would deal damage to you this turn, prevent that damage. Any player may activate this ability.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Mercenary"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          3,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 4
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": {
+                "kind": "All"
+              },
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Damage": {
+                            "source_kind": "Permanent",
+                            "sources": {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Source"
+                              }
+                            },
+                            "recipients": {
+                              "Players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            },
+                            "kind": "Any",
+                            "grouping": "SourceRecipient",
+                            "subject": "Recipient"
+                          }
+                        },
+                        "limit": "NextOccurrence",
+                        "duration": "EndOfTurn",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": "PreventDamage"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Mercenaries",
+      "text": "{3}: The next time this creature would deal damage to you this combat, prevent that damage. Any player may activate this ability.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Mercenary"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          3,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 3
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": {
+                "kind": "All"
+              },
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateReplacement",
+                      "args": {
+                        "event": {
+                          "Damage": {
+                            "source_kind": "Permanent",
+                            "sources": {
+                              "kind": "SameObject",
+                              "args": {
+                                "kind": "Source"
+                              }
+                            },
+                            "recipients": {
+                              "Players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            },
+                            "kind": "Any",
+                            "grouping": "SourceRecipient",
+                            "subject": "Recipient"
+                          }
+                        },
+                        "limit": "NextOccurrence",
+                        "duration": "EndOfCombat",
+                        "body": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 0,
+                                "operation": {
+                                  "kind": "ModifyEvent",
+                                  "args": {
+                                    "change": "PreventDamage"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

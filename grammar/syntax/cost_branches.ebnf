@@ -35,7 +35,7 @@ spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
 /* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
 awaken_land ::= "awaken" number
 
-kicker_branch_program ::= kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception
+kicker_branch_program ::= kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional
    cost was paid, this effect doesn't affect combat damage that would be dealt by red
    creatures": the paid prevention spares damage those sources deal. */
@@ -217,3 +217,42 @@ kicker_exile_receipt_override ::= exile_single_graveyard_targets "." "if" condit
 
 /* @sem Operation::Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($count_plural), filter:Any, constraints:[CommonProperty(Owners)]})), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
 exile_single_graveyard_targets ::= "exile" "up" "to" count_plural "target" "cards" "from" "a" "single" "graveyard"
+
+/* A repeated population is checked against its antecedent in both directions. */
+/* @sem PlayerRef::AbilityController */
+retirement_population_controller_you ::= "you" "control"
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0} */
+retirement_population_controller_target ::= "target" "player" "controls"
+
+retirement_population_controller ::= retirement_population_controller_you | retirement_population_controller_target
+
+/* @sem Change::[Change::Pump{power:$signed, toughness:$signed_2}] */
+retirement_plural_pump ::= "get" signed "/" signed
+
+/* @sem $grants */
+retirement_plural_gain ::= "gain" grants
+
+retirement_plural_changes ::= retirement_plural_pump | retirement_plural_gain
+
+/* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_plural, $filter_plural_2), ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes_2, duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_plural, $filter_plural_2), ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes, duration:EndOfTurn, evaluation:Snapshot}}]}}]} */
+retirement_population_override ::= filter_plural retirement_population_controller retirement_plural_changes "until" "end" "of" "turn" "." "if" "this" "spell" "was" "kicked" "," "those" filter_plural retirement_plural_changes "until" "end" "of" "turn" "instead" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_plural, $filter_plural_2), ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes, duration:EndOfTurn, evaluation:Snapshot}}, If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_plural, $filter_plural_2), ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes_2, duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{}}]} */
+retirement_population_add_those ::= filter_plural retirement_population_controller retirement_plural_changes "until" "end" "of" "turn" "." "if" "this" "spell" "was" "kicked" "," "those" filter_plural "also" retirement_plural_changes "until" "end" "of" "turn" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes, duration:EndOfTurn, evaluation:Snapshot}}, If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes_2, duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{}}]} */
+retirement_population_add_they ::= filter_plural retirement_population_controller retirement_plural_changes "until" "end" "of" "turn" "." "if" "this" "spell" "was" "kicked" "," "they" retirement_plural_changes "until" "end" "of" "turn" "."
+
+/* The announced target is also the source of the subsequent delayed event. */
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:SameObject(Target{slot:0, index:0}), recipients:Any, kind:Combat, grouping:Source, subject:Source}) */
+retirement_target_combat_event ::= "whenever" "that" "creature" "deals" "combat" "damage"
+
+/* @sem Instruction::[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:EventAmount}}] */
+retirement_damage_life ::= "you" "gain" "life" "equal" "to" "that" "damage"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun_creature}), index:0})), changes:$retirement_singular_gain, duration:EndOfTurn, evaluation:Snapshot}}, If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:CreateTrigger{event:$retirement_target_combat_event, duration:EndOfTurn, body:_{instructions:$retirement_damage_life}, announcement:_{}}}]}, otherwise:Program{}}]} */
+retirement_target_damage_conditional ::= "target" noun_creature retirement_singular_gain "until" "end" "of" "turn" "." retirement_target_combat_event "this" "turn" "," "if" "this" "spell" "was" "kicked" "," retirement_damage_life "."
+
+/* @sem $grants */
+retirement_singular_gain ::= "gains" grants

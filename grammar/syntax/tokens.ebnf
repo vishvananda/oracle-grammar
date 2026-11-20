@@ -284,7 +284,7 @@ tt_enchantment_creature ::= "enchantment" "creature"
 /* @sem CardType::[Land, Creature] */
 tt_land_creature ::= "land" "creature"
 
-token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites
+token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites | tn_baneslayer_angel
 
 /* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Blood], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Discard{count:Expr::Constant(1), filter:Any}, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
 tn_blood ::= "Blood"
@@ -800,3 +800,16 @@ token_descents_recipe ::= token_recipe_base "with" token_comma_static_ability
 
 /* @sem Ability::[Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes})] */
 token_comma_static_ability ::= '"' affected static_changes "," '"'
+
+/* Keep the mill and receipt consumer in one inverse contract. */
+/* @sem ObjectFilter::$filter_phrase */
+mill_receipt_card ::= filter_phrase "card"
+
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count_many}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$mill_receipt_card}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+instructions_mill_receipt_tokens ::= "mill" card_count_many "." "for" "each" mill_receipt_card "milled" "this" "way" "," "create" "a" token_recipe
+
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:All, amount:$card_count_many}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$mill_receipt_card}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}})}] */
+instructions_all_mill_receipt_tokens ::= "each" "player" "mills" card_count_many "." "for" "each" mill_receipt_card "put" "into" "a" "graveyard" "this" "way" "," "you" "create" "a" "tapped" token_recipe
+
+/* @sem TokenRecipe::Named('Baneslayer Angel') */
+tn_baneslayer_angel ::= "Baneslayer" "Angel"

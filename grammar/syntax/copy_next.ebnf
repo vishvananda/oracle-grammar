@@ -176,3 +176,16 @@ paid_dying_creature_copy ::= "you" "may" pay_mana "." "if" "you" "do" "," copy_d
 /* @prefer always */
 /* @sem Ability::Triggered{event:$event_a_creature_dies_for_copy, limits:TriggerLimits{}, announcement:@announcement, body:$paid_dying_creature_copy} */
 triggered_paid_dying_creature_copy ::= "whenever" event_a_creature_dies_for_copy "," paid_dying_creature_copy
+
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:$spell_targets_only_self} */
+event_cast_spell_targeting_only_source ::= "you" "cast" spell_targets_only_self
+
+/* @sem Operation::CopyOnStack{actor:One(AbilityController), object:EventSubject, times:Constant(1), targets:May} */
+copy_cast_event_with_new_targets ::= "copy" "that" "spell" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$pay_mana, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:$copy_cast_event_with_new_targets}]}, otherwise:Program{}}]} */
+paid_source_targeting_spell_copy ::= "you" "may" pay_mana "." "if" "you" "do" "," copy_cast_event_with_new_targets "."
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_cast_spell_targeting_only_source, limits:TriggerLimits{}, announcement:@announcement, body:$paid_source_targeting_spell_copy} */
+triggered_paid_source_targeting_spell_copy ::= "whenever" event_cast_spell_targeting_only_source "," paid_source_targeting_spell_copy

@@ -79,13 +79,13 @@ player_rule_one ::= player_rule_ability
 /* @sem Ability::[$player_rule_ability, ...$player_rule_list] */
 player_rule_more ::= player_rule_ability "and" player_rule_list
 
-player_prohibitions ::= player_prohibition | player_prohibitions_more | zone_cast_prohibitions | player_prohibit_shared_cast_land | player_prohibit_pay_life_pair | player_qualified_prohibition
+player_prohibitions ::= player_prohibition | player_prohibitions_more | zone_cast_prohibitions | player_prohibit_shared_cast_land | player_prohibit_pay_life_pair | player_qualified_prohibition | player_blocker_limit | player_attack_destinations
 /* @sem Change::[Change::PlayerRule(Prohibit($player_prohibited_action))] */
 player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
 player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
 
-continuous_player_prohibition ::= continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn
+continuous_player_prohibition ::= continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
 continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
@@ -424,3 +424,15 @@ uniform_defined_cards ::= "X" "cards" "," "where" "X" "is" "twice" value_control
 /* @prefer always */
 /* @sem Operation::Mill{players:@subject, amount:$uniform_defined_cards} */
 uniform_mill_defined ::= "mill" uniform_defined_cards
+
+/* The maximum number of blocking creatures is a player rule. */
+/* @sem Change::[PlayerRule(BlockerLimit($value))] */
+player_blocker_limit ::= "block" "with" "more" "than" value "creature"
+
+/* Each named destination contributes its own prohibition. */
+/* @sem Change::[PlayerRule(Prohibit(AttackInto($recipients))), PlayerRule(Prohibit(AttackInto(Objects($affected))))] */
+player_attack_destinations ::= "attack" recipients "or" affected
+
+/* This anaphor and its possessive deadline identify the event subject. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(EventSubject)), changes:$player_prohibitions, duration:DuringNextTurn(EventSubject), evaluation:LiveObjects} */
+continuous_event_subject_next_turn ::= "that" "player" "can't" player_prohibitions "during" "their" "next" "turn"

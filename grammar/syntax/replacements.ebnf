@@ -1,6 +1,6 @@
 /* Replacement effects, prevention and delayed triggers. */
 
-replacement_clause ::= replacement_player_draw_skip_shared | replacement_spell_or_permanent_bonus | replacement_draw_reveal_pay | replacement_extra_draw_discard_shared | team_counter_replacement | owned_extra_token_replacement | filtered_extra_token_replacement | combat_counter_mill_replacement | basic_tap_mana_replacement | replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle | replacement_counter_creature_double | replacement_you_extra_draw | replacement_you_gain_draw | replacement_you_lose_program | replacement_you_dice_extra | replacement_you_create_extra | replacement_owned_zone_redirect | replacement_zone_redirect | replacement_scry_amount | replacement_planar_extra | replacement_d6_exchange | replacement_life_transform
+replacement_clause ::= replacement_player_draw_skip_shared | replacement_spell_or_permanent_bonus | replacement_draw_reveal_pay | replacement_extra_draw_discard_shared | team_counter_replacement | owned_extra_token_replacement | filtered_extra_token_replacement | combat_counter_mill_replacement | basic_tap_mana_replacement | replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle | replacement_counter_creature_double | replacement_you_extra_draw | replacement_you_gain_draw | replacement_you_lose_program | replacement_you_dice_extra | replacement_you_create_extra | replacement_owned_zone_redirect | replacement_zone_redirect | replacement_scry_amount | replacement_planar_extra | replacement_d6_exchange | replacement_life_transform | replacement_object_damage_player | replacement_prevention_followup
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -593,8 +593,7 @@ mana_list_forests ::= "forests"
 
 /* Additional counters add to other entry instructions, just like the existing
    unqualified entry count. This wording does not create a replacement amount. */
-/* @sem Expr::$counter_amount */
-entry_counter_amount ::= counter_amount "additional"?
+entry_counter_amount ::= entry_counter_normal | entry_counter_twice
 
 /* A creature-cast trigger changes the actual cast spell's entry instructions.
    It is distinct from a SourceEntering replacement on an ability holder. */
@@ -2263,3 +2262,81 @@ replacement_transform_or_lose ::= "instead" operation "and" operation "." "then"
 
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_life_threshold, body:$replacement_transform_or_lose} */
 replacement_life_transform ::= "if" replacement_life_threshold "," replacement_transform_or_lose "."
+
+/* @sem Expr::$counter_amount */
+entry_counter_normal ::= counter_amount "additional"?
+
+/* @sem Expr::Multiply([Constant(2), $number]) */
+entry_counter_twice ::= "twice" number
+
+/* Entry changes are shared by each position in a three-way choice. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry(ChooseChanges([$entry_creature_form, $entry_creature_form_2, $entry_creature_form_3]))}}]}}) */
+entry_choose_creature_forms ::= "as" object_ref "enters" "," "it" "becomes" "your" "choice" "of" entry_creature_form "," entry_creature_form "," "or" entry_creature_form "."
+
+entry_creature_form ::= entry_creature_plain | entry_creature_keyword | entry_artifact_creature_plain | entry_artifact_creature_keyword | entry_wall_artifact_creature_keyword
+
+/* @sem Change::[Copiable([SetBasePowerToughness{power:$value, toughness:$value_2}]), Copiable([AddCardType(Creature)])] */
+entry_creature_plain ::= "a" value "/" value "creature"
+
+/* @sem Change::[Copiable([SetBasePowerToughness{power:$value, toughness:$value_2}]), Copiable([AddCardType(Creature)]), Copiable([GrantKeyword($keyword_value)])] */
+entry_creature_keyword ::= "a" value "/" value "creature" "with" keyword_value
+
+/* @sem Change::[Copiable([SetBasePowerToughness{power:$value, toughness:$value_2}]), Copiable([AddCardType(Artifact)]), Copiable([AddCardType(Creature)])] */
+entry_artifact_creature_plain ::= "a" value "/" value "artifact" "creature"
+
+/* @sem Change::[Copiable([SetBasePowerToughness{power:$value, toughness:$value_2}]), Copiable([AddCardType(Artifact)]), Copiable([AddCardType(Creature)]), Copiable([GrantKeyword($keyword_value)])] */
+entry_artifact_creature_keyword ::= "a" value "/" value "artifact" "creature" "with" keyword_value
+
+/* @sem Change::[Copiable([SetBasePowerToughness{power:$value, toughness:$value_2}]), Copiable([CreatureTypes{mode:Add, types:Listed([Wall])}]), Copiable([AddCardType(Artifact)]), Copiable([AddCardType(Creature)]), Copiable([GrantKeyword($keyword_value)])] */
+entry_wall_artifact_creature_keyword ::= "a" value "/" value "Wall" "artifact" "creature" "with" keyword_value "in" "addition" "to" "its" "other" "types"
+
+/* The chosen host filter remains an operand of the entry change. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry($entry_attachment_choice)}}]}}) */
+entry_choose_attachment ::= "as" object_ref "enters" "," entry_attachment_choice "."
+
+/* @sem BattlefieldState::AttachedToChosen($filter_phrase) */
+entry_attachment_choice ::= "choose" "a" filter_phrase "it" "could" "be" "attached" "to" "." "if" "you" "do" "," "it" "enters" "attached" "to" "that" "creature"
+
+/* A conditional turn replacement retains the optional cancellation and its consequence. */
+/* @sem ReplacementEvent::Player{event:BeginTurn, players:One(AbilityController)} */
+replacement_begin_your_turn ::= "you" "would" "begin" "your" "turn"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:$program, otherwise:_{}}]} */
+replacement_optional_skip_turn ::= "you" "may" "skip" "that" "turn" "instead" "." "if" "you" "do" "," program
+
+/* @sem Ability::Conditional{condition:$condition, then:[Replacement{active:Battlefield, event:$replacement_begin_your_turn, body:$replacement_optional_skip_turn}]} */
+conditional_replacement_begin_turn ::= "if" replacement_begin_your_turn "while" condition "," replacement_optional_skip_turn "."
+
+/* @sem ReplacementEvent::Damage(DamageEvent{source_kind:Any, sources:ObjectFilter::Any, recipients:$replacement_damage_to, kind:DamageKind::Noncombat, grouping:SourceRecipient, subject:Recipient}) */
+damage_dealt_noncombat_event ::= "noncombat" "damage" "would" "be" "dealt" "to" replacement_damage_to
+
+/* The follow-up is scoped to this prevention producer, so its receipt cannot
+   refer to an unrelated action. */
+/* @sem Ability::Replacement{active:Battlefield, event:$prevention_followup_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, ...$prevention_followup]}} */
+replacement_prevention_followup ::= "if" prevention_followup_event "," "prevent" "that" "damage" prevention_followup "."
+
+prevention_followup_event ::= damage_dealt_event | damage_dealt_noncombat_event
+
+/* @sem Instruction::[Effect{result:@next, operation:Mill{players:One(AbilityController), amount:Multiply([$prevention_mill_factor, EventAmount])}}] */
+prevention_followup_mill ::= "and" "mill" prevention_mill_factor "that" "many" "cards"
+
+/* @sem Instruction::[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Performed(@prior)}}] */
+prevention_followup_life ::= "." "you" "gain" "life" "equal" "to" "the" "damage" "prevented" "this" "way"
+
+/* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Source)), kind:$counter_kind, amount:EventAmount}]}}] */
+prevention_followup_counters ::= "." "put" "a" counter_kind "counter" "on" "this" "creature" "for" "each" "1" "damage" "prevented" "this" "way"
+
+prevention_followup ::= prevention_followup_mill | prevention_followup_life | prevention_followup_counters
+
+/* @sem Expr::Constant(2) */
+prevention_mill_factor ::= "twice"
+
+/* A stated player recipient is repeated by the replacement text. */
+/* @sem DamageKind::Combat */
+event_damage_kind_combat ::= "combat" "damage"
+
+/* @sem ReplacementEvent::Damage(DamageEvent{source_kind:Permanent, sources:SameObject($object_ref), recipients:Players(All), kind:$event_damage_kind_combat, grouping:SourceRecipient, subject:Recipient}) */
+damage_event_object_player ::= object_ref "would" "deal" event_damage_kind_combat "to" "a" "player"
+
+/* @sem Ability::Replacement{active:Battlefield, event:$damage_event_object_player, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([$damage_factor, EventAmount]))}}]}} */
+replacement_object_damage_player ::= "if" damage_event_object_player "," "it" "deals" damage_factor "that" "damage" "to" "that" "player" "instead" "."

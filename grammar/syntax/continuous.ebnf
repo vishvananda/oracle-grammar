@@ -126,8 +126,7 @@ affected_other ::= contextual_other_filter
 /* @sem ObjectFilter::@other_filter(ObjectFilter::@and(ObjectFilter::Not(ObjectFilter::SameObject(@other_reference(ObjectFilter::$filter_plural))), $filter_plural)) */
 contextual_other_filter ::= "other" filter_plural
 
-duration ::= until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep
-    | until_next_end_step | while_you_control | while_on_battlefield
+duration ::= until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep | until_next_end_step | while_you_control | while_on_battlefield | until_player_planeswalks
 
 /* "For as long as you control this creature": the effect ends when you stop
    controlling that object. */
@@ -247,7 +246,7 @@ base_artifact_creature ::= ("a" | "an") becomes_types "artifact" "creature" "wit
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$value, toughness:$value_2}] */
 base_artifact_creature_native ::= ("a" | "an") becomes_types "artifact" "creature" "with" "base" "power" "and" "toughness" value "/" value
 
-base_changes ::= pilot_animation_change | change_color_set | change_becomes_base | base_changes_and | base_changes_keywords | change_no_longer_snow
+base_changes ::= pilot_animation_change | change_color_set | change_becomes_base | base_changes_and | base_changes_keywords | change_no_longer_snow | change_gains_all_creature_types
 /* @sem Change::[...$change_becomes_base, ...$changes] */
 base_changes_and ::= change_becomes_base "and" changes
 /* @sem Change::[...$change_becomes_base, ...$grants] */
@@ -356,7 +355,7 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | grant_chosen_color_hexproof | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability
+grant ::= grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | grant_chosen_color_hexproof | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability | grant_activated_abilities_from | grant_unpunctuated_static
 
 /* "Gains all creature types", "a 2/2 creature with all creature types": every creature
    type replaces the old ones (CR 205.3m), like a changeling's characteristic. */
@@ -778,8 +777,7 @@ static_definition_during_turn ::= static_turn_window "," static_definition
 /* @sem Ability::Conditional{condition:$condition, then:[$static_definition]} */
 static_definition_if ::= "as" "long" "as" condition "," static_definition
 
-replacement_ability ::= replacement_entry_mana_counters | replacement_entry_history_where | replacement_entry_three_choices | replacement_entry_unless_spent | replacement_entry_condition | replacement_enters_counter_choice | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_spent_enters_counters | replacement_enters_counters_for_each | replacement_enters_counters_equal | replacement_enters_exile_counters
-    | replacement_each_enters_counters | replacement_each_enters_counters_for_each | replacement_each_enters_counters_equal | replacement_each_enters_counters_where
+replacement_ability ::= replacement_entry_mana_counters | replacement_entry_history_where | replacement_entry_three_choices | replacement_entry_unless_spent | replacement_entry_condition | replacement_enters_counter_choice | replacement_die_exile | replacement_entry_state | kicker_entry_conditional | kicker_entry_conditional_quoted | entry_optional_payment | replacement_enters_tapped | replacement_enters_counters | replacement_enters_counters_where | replacement_enters_counters_if | replacement_spent_enters_counters | replacement_enters_counters_for_each | replacement_enters_counters_equal | replacement_enters_exile_counters | replacement_each_enters_counters | replacement_each_enters_counters_for_each | replacement_each_enters_counters_equal | replacement_each_enters_counters_where
 
 /* Dying permanents matching the filter go to exile instead; `it` is the dying
    permanent, not this source. */
@@ -3799,7 +3797,7 @@ instructions_attacker_controller_payment ::= "for" "each" "attacking" "creature"
 /* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$turn_graveyard_permission]})]} */
 once_each_turn_graveyard_permission ::= "once" "during" "each" "of" "your" "turns" "," turn_graveyard_permission
 
-turn_graveyard_permission ::= turn_graveyard_artifact_tapped | turn_graveyard_permanent_perpetual
+turn_graveyard_permission ::= turn_graveyard_artifact_tapped | turn_graveyard_permanent_perpetual | turn_graveyard_arrival_cast
 
 /* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:CardType(Artifact)}, terms:_{limit:EachTurn(1), cost:Normal, effects:[List([$cast_artifact_entry_effect])]}}) */
 turn_graveyard_artifact_tapped ::= "you" "may" "cast" "an" "artifact" "spell" "from" "your" "graveyard" "." cast_artifact_entry_effect
@@ -5861,3 +5859,55 @@ subtype_loss_effect ::= affected "becomes" subtype_and_loss_changes "," "and" ob
 
 /* @sem Duration::UntilNext{point:UpkeepBegins, players:One($next_upkeep_player)} */
 until_beginning_next_upkeep ::= "until" "the" "beginning" "of" next_upkeep_player "next" "upkeep"
+
+/* Spell-cost rules share the cost modifier and the quantified spell filter. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$ordered_cast_spell, modifier:$spell_cost_change})]}) */
+static_ordered_spell_cost ::= ordered_cast_spell "costs" spell_cost_change "to" "cast" "."
+
+ordered_cast_spell ::= ordered_filtered_cast_spell | ordered_unfiltered_cast_spell
+
+/* @sem ObjectFilter::NthCast{ordinal:$cast_order, spells:$filter_phrase, by:One(AbilityController), scope:Turn} */
+ordered_filtered_cast_spell ::= "the" cast_order filter_phrase "spell" "you" "cast" "each" "turn"
+
+/* @sem ObjectFilter::NthCast{ordinal:$cast_order, spells:Any, by:One(AbilityController), scope:Turn} */
+ordered_unfiltered_cast_spell ::= "the" cast_order "spell" "you" "cast" "each" "turn"
+
+/* @sem Expr::Constant(1) */
+cast_order_first ::= "first"
+
+/* @sem Expr::Constant(2) */
+cast_order_second ::= "second"
+
+cast_order ::= cast_order_first | cast_order_second
+
+/* The type choice's domain is resolved by context; both readings are available. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$chosen_cast_filter, modifier:$spell_cost_change})]}) */
+static_chosen_spell_cost ::= "spells" "you" "cast" chosen_cast_filter "cost" spell_cost_change "to" "cast" "."
+
+chosen_cast_filter ::= chosen_cast_card_type | chosen_cast_creature_type
+
+/* @sem ObjectFilter::Chosen(CardType) */
+chosen_cast_card_type ::= "of" "the" "chosen" "type"
+
+/* @sem ObjectFilter::Chosen(CreatureType) */
+chosen_cast_creature_type ::= "of" "the" "chosen" "type"
+
+/* The cast filter and the population's origin history are independent. */
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_nonbattlefield_graveyard_cards, from:Graveyard, action:CastSpell, filter:$filter_phrase}, terms:_{limit:EachTurn(1), cost:Normal}}) */
+turn_graveyard_arrival_cast ::= "you" "may" "cast" "a" filter_phrase "spell" "from" "among" recent_nonbattlefield_graveyard_cards "."
+
+/* @sem ObjectSet::Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([ArrivedThisTurn{}, Not(ArrivedThisTurn{from:Battlefield})])}) */
+recent_nonbattlefield_graveyard_cards ::= "cards" "in" "your" "graveyard" "that" "were" "put" "there" "from" "anywhere" "other" "than" "the" "battlefield" "this" "turn"
+
+/* @sem Change::GainAbilitiesOf{objects:$affected, kinds:List([Term{family:CheckHasable, form:ActivatedAbility}])} */
+grant_activated_abilities_from ::= "all" "activated" "abilities" "of" affected
+
+/* @sem Change::GrantAbility(@holder(Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$static_changes})) */
+grant_unpunctuated_static ::= '"' affected static_changes '"'
+
+/* @sem Change::[$grant_all_creature_types] */
+change_gains_all_creature_types ::= "gains" grant_all_creature_types
+
+/* A shared protection source grants a live player rule and a snapshot object grant. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(GrantKeyword(Protection(Players($players_singular))))], duration:$duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[GrantKeyword(Protection(Players($players_singular)))], duration:$duration, evaluation:Snapshot}}] */
+clause_you_and_objects_protection ::= duration "," "you" "and" filter_plural "gain" "protection" "from" players_singular
