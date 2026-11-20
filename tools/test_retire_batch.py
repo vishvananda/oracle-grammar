@@ -1130,6 +1130,34 @@ class BatchTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 batch._control_setup(cp)
 
+    def test_native_control_reuses_hashes_only_for_unchanged_frozen_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cp = control_fixture(root, 'base')
+            control = batch._control_setup(cp)
+            with patch.object(batch.r, 'digest', wraps=batch.r.digest) as digest:
+                batch._control_verify(dict(control, names=['A']))
+                self.assertEqual([call.args[0].name for call in digest.call_args_list],
+                                 ['profile.json', 'manifest.json'])
+            binary = Path(cp['inputs'])/'frozen/bin/score'
+            prior = binary.stat()
+            binary.write_bytes(b'spoof')
+            os.utime(binary, ns=(prior.st_atime_ns, prior.st_mtime_ns))
+            with self.assertRaisesRegex(ValueError, 'frozen input changed: bin/score'):
+                batch._control_verify(control)
+
+    def test_native_control_rejects_a_replaced_input_even_with_the_same_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            cp = control_fixture(root, 'base')
+            control = batch._control_setup(cp)
+            gold = Path(cp['inputs'])/'frozen/gold.jsonl'
+            replacement = root/'gold.jsonl'
+            shutil.copy2(gold, replacement)
+            os.replace(replacement, gold)
+            with self.assertRaisesRegex(ValueError, 'frozen input changed: gold.jsonl'):
+                batch._control_verify(control)
+
     def test_native_control_rejects_unknown_duplicate_and_disallowed_faces(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

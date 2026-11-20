@@ -411,9 +411,26 @@ def _control_verify(control):
     run = control['run']
     if r.digest(run/'manifest.json') != control['manifest_sha256']:
         raise ValueError('native control checkpoint manifest changed')
+    verified = control.setdefault('_verified_inputs', {})
     for name, digest in control['input_sha256'].items():
-        if r.digest(run/'frozen'/name) != digest:
-            raise ValueError('native control frozen input changed: '+name)
+        path = run/'frozen'/name
+        error = 'native control frozen input changed: '+name
+        identity = _control_input_identity(path, error)
+        receipt = (path, digest, identity)
+        if name not in verified:
+            if r.digest(path) != digest or _control_input_identity(path, error) != identity:
+                raise ValueError(error)
+            verified[name] = receipt
+        elif verified[name] != receipt:
+            raise ValueError(error)
+
+
+def _control_input_identity(path, error):
+    """Detect replacement and writes even when a file's mtime was restored."""
+    entry = path.stat(follow_symlinks=False)
+    if not stat.S_ISREG(entry.st_mode):
+        raise ValueError(error)
+    return (entry.st_dev, entry.st_ino, entry.st_size, entry.st_mtime_ns, entry.st_ctime_ns)
 
 
 def _native_control_threads(checkpoint):
