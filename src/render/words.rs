@@ -65,6 +65,24 @@ impl Words {
         }
     }
 
+    /// The types every word for the card weighs against.
+    pub(crate) fn types(&self) -> &[String] {
+        &self.types
+    }
+
+    /// What these tables hold for one rule and one of its alternatives, to compare grammars.
+    pub(crate) fn entries(&self, rule: RuleId, index: usize) -> (Option<&[String]>, bool) {
+        (
+            self.named.get(&(rule, index)).map(Vec::as_slice),
+            self.pronouns.contains(&(rule, index)),
+        )
+    }
+
+    /// A rule's own types, if it is a word for the card.
+    pub(crate) fn own_types(&self, rule: RuleId) -> Option<&[String]> {
+        self.own.get(&rule).map(Vec::as_slice)
+    }
+
     /// The card's best word for itself in its context.
     pub fn best(&self, context: &[String]) -> u32 {
         weigh(context, &self.types)

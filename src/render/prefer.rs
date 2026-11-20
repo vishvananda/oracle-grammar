@@ -16,6 +16,7 @@ pub(super) fn preferred(grammar: &Grammar, alternative: &Alternative, value: &Va
         .and_then(Value::as_str)
         .unwrap_or_default();
     let mut most = 0;
+    crate::print_trace::rule(*rule);
     for prefer in &grammar.rules[*rule as usize].prefer {
         if prefer == "always"
             || prefer == &format!("value({kind})")

@@ -155,7 +155,11 @@ fn keyword_line(
 ) -> bool {
     let alone = (at == 0 || text[..at].ends_with('\n'))
         && (text.len() == at + length || text[at + length..].starts_with('\n'));
-    index > 0 && alone && vocabulary.contains(lower_first(&text[at..at + length]).as_str())
+    index > 0 && alone && {
+        let word = lower_first(&text[at..at + length]);
+        crate::print_trace::vocabulary_query(&word);
+        vocabulary.contains(word.as_str())
+    }
 }
 
 /// Digits in groups of three after a comma, as in `1,000`, and their length.
@@ -204,6 +208,7 @@ pub fn tokenize(
     let tokens = scan(text, names, vocabulary)?;
     let rendered = detokenize(&tokens, names);
     if rendered == text {
+        crate::print_trace::tokens(&tokens);
         Ok(tokens)
     } else {
         Err(format!("noncanonical spacing or case: {rendered:?}"))
@@ -258,6 +263,9 @@ fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<T
                 let word = &rest[..end];
                 let lower = lower_first(word);
                 let initial = starts_sentence(&tokens);
+                if word != lower {
+                    crate::print_trace::vocabulary_query(&lower);
+                }
                 let folded = initial && word != lower && vocabulary.contains(lower.as_str());
                 let inner = matches!(tokens.last(), Some(Token::Mark(',')))
                     && word != lower

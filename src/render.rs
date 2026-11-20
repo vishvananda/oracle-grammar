@@ -273,6 +273,7 @@ impl<'a> Renderer<'a> {
         value: &Value,
         (id, reach): (u32, &Reach),
     ) -> Found {
+        crate::print_trace::rule(rule);
         if !self.grammar.net.reaches(reach, rule) {
             return Rc::clone(&self.nothing);
         }
@@ -678,6 +679,7 @@ impl<'a> Matcher<'a> {
         (value, id, reach): (&Value, u32, &Reach),
         at: usize,
     ) -> Rc<Vec<usize>> {
+        crate::print_trace::rule(rule);
         if !self.grammar.net.reaches(reach, rule) {
             return Rc::clone(&self.nothing);
         }

@@ -397,7 +397,9 @@ impl Values {
         let mut state = Digest::default();
         digest(value, &mut state);
         let id = *self.ids.entry(state.key()).or_insert_with(|| {
-            self.reaches.push(Rc::new(net.reach(value)));
+            let reach = net.reach(value);
+            crate::print_trace::lookup(value, reach.rules.iter().chain(&reach.fits));
+            self.reaches.push(Rc::new(reach));
             count(self.reaches.len() - 1)
         });
         (id, Rc::clone(&self.reaches[id as usize]))

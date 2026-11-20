@@ -175,6 +175,18 @@ impl Engine {
         Self::load_with(&modules)
     }
 
+    /// The grammar in another input directory, read whole as `ORACLE_GRAMMAR_DIR` names one.
+    pub fn load_from_dir(root: &std::path::Path) -> Result<Self, String> {
+        let mut modules = Vec::new();
+        for (name, path, _) in SYNTAX_MODULES {
+            let path = root.join(path);
+            let text = std::fs::read_to_string(&path)
+                .map_err(|error| format!("{}: {error}", path.display()))?;
+            modules.push(((*name).to_string(), text));
+        }
+        Self::load_with(&modules)
+    }
+
     pub fn load_with(replaced: &[(String, String)]) -> Result<Self, String> {
         let schema = card::schema()?;
         let modules = syntax(replaced)?;

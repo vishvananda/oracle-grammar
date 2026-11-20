@@ -1030,6 +1030,14 @@ fn unordered_items(args: Vec<Value>) -> Result<Value, String> {
     }
 }
 
+/// Whether a symbol matches a value that is not itself a symbol node exactly when its
+/// first argument does: `unify_symbol` reaches its transparent arm for this name before
+/// any other arm can match.
+pub(crate) fn passes_through(name: &str) -> bool {
+    let name = crate::bind::damage_relative::ordinary_name(name);
+    transparent_symbol(name) && !matches!(name, "remember_object" | "remember_operand")
+}
+
 fn transparent_symbol(name: &str) -> bool {
     matches!(
         name,
@@ -1153,6 +1161,31 @@ fn unify_items<'p, 'v>(
             }
             solutions
         }
+    }
+}
+
+#[cfg(test)]
+mod passes_through_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn a_transparent_symbol_matches_what_its_argument_matches() {
+        let inner = Pattern::Value(json!({"kind": "Sacrifice", "args": 1}));
+        for name in [
+            "sacrificed_result",
+            "created_result",
+            "scope",
+            "measured_sacrifice",
+        ] {
+            assert!(passes_through(name));
+            let symbol = Pattern::Symbol(name.into(), vec![inner.clone()]);
+            let same = json!({"kind": "Sacrifice", "args": 1});
+            let other = json!({"kind": "Sacrifice", "args": 2});
+            assert!(!symbol.unify(&same, Bindings::new()).is_empty());
+            assert!(symbol.unify(&other, Bindings::new()).is_empty());
+        }
+        assert!(!passes_through("remember_object") && !passes_through("next"));
     }
 }
 

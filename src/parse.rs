@@ -63,6 +63,8 @@ pub struct Parser<'a> {
     diagnostics: bool,
     pub expected: Vec<String>,
     pub expected_truncated: bool,
+    /// The deepest rule call so far, which a print trace keeps as headroom evidence.
+    deepest: usize,
     audit: bool,
     /// Rules that read nothing, to measure what a card depends on.
     off: Option<&'a RuleSet>,
@@ -182,6 +184,12 @@ pub fn take_tags(value: &mut Value, out: &mut Vec<String>) {
     }
 }
 
+impl Drop for Parser<'_> {
+    fn drop(&mut self) {
+        crate::print_trace::parse_work(self.counters.steps, self.deepest);
+    }
+}
+
 /// A partial match of one alternative.
 #[derive(Clone)]
 struct Partial {
@@ -205,6 +213,7 @@ impl<'a> Parser<'a> {
             diagnostics: false,
             expected: Vec::new(),
             expected_truncated: false,
+            deepest: 0,
             audit: false,
             off: None,
         }
@@ -308,6 +317,7 @@ impl<'a> Parser<'a> {
         if depth > self.limits.depth {
             return Err("depth limit".into());
         }
+        self.deepest = self.deepest.max(depth);
         if self.off.is_some_and(|off| off.contains(&rule)) {
             return Ok(Rc::clone(&self.nothing));
         }

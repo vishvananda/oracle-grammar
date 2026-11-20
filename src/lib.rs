@@ -11,6 +11,8 @@ pub mod mine;
 pub mod model;
 pub mod parse;
 pub mod pattern;
+pub mod print_reuse;
+pub mod print_trace;
 pub mod reader;
 pub mod render;
 pub mod replay;

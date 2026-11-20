@@ -54,6 +54,7 @@ impl<'a> Replay<'a> {
             return false;
         }
         self.left = at;
+        crate::print_trace::rule(rule);
         let grammar = self.grammar;
         let definition = &grammar.rules[rule as usize];
         let Some(alternative) = definition.alternatives.get(index) else {

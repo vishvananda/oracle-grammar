@@ -24,10 +24,12 @@ pub(super) fn of(
     let supported = |ty: &Ty| matches!(ty, Ty::Named(name) if matches!(name.as_str(), "Ability" | "Condition" | "Instruction" | "Program"));
     // Pass-through rules do not own a type or a node. Their derivation carries
     // the semantic production below the aliases, including its checked type.
+    crate::print_trace::rule(rule);
     let ty = grammar.rules[rule as usize].ty.as_ref().or_else(|| {
         let Node::Rule { rule, .. } = derivation.node.as_deref()? else {
             return None;
         };
+        crate::print_trace::rule(*rule);
         grammar.rules[*rule as usize].ty.as_ref()
     });
     let legacy_ability = |ty: &Ty| matches!(ty, Ty::Named(name) if name == "Ability");
@@ -78,6 +80,7 @@ fn semantic_roots(
         let Node::Rule { rule, kids, .. } = node else {
             continue;
         };
+        crate::print_trace::rule(*rule);
         let definition = &grammar.rules[*rule as usize];
         let named = match &definition.ty {
             Some(Ty::Named(name)) => Some(name.as_str()),

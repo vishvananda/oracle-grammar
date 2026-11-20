@@ -11,6 +11,8 @@ use std::io::Write;
 
 #[path = "score/card.rs"]
 mod card;
+#[path = "score/reuse.rs"]
+mod reuse;
 #[path = "score/source.rs"]
 mod source;
 
@@ -34,6 +36,8 @@ struct Options {
     without: Vec<String>,
     /// The rules those prefixes name, once the grammar is loaded.
     off: RuleSet,
+    /// Traces to write, and a previous run whose rows may carry over.
+    reuse: reuse::Flags,
 }
 
 fn options() -> Result<Options, String> {
@@ -53,6 +57,7 @@ fn options() -> Result<Options, String> {
         .filter(|prefix| !prefix.is_empty())
         .map(str::to_string)
         .collect();
+    let reuse = reuse::flags(&args)?;
     let plain: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
     let [unified, oracle, slice, out] = plain.as_slice() else {
         return Err("usage: score <unified.jsonl> <oracle.json> <slice.json> <out.jsonl> [--raw] [--source-context] [--render] [--round-trip] [--aggregate] [--totals=FILE] [--without=PREFIX,...]".into());
@@ -75,10 +80,11 @@ fn options() -> Result<Options, String> {
         totals,
         without,
         off: RuleSet::default(),
+        reuse,
     })
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct Score {
     cards: u64,
     recognized: u64,
@@ -104,6 +110,8 @@ struct Score {
 /// One card's row, what it adds to the totals, and where it stuck if nothing read it.
 struct Judged {
     row: Value,
+    /// A row carried over from a previous run, written as it was read.
+    raw: Option<String>,
     score: Score,
     stuck: Option<String>,
 }
@@ -431,7 +439,12 @@ fn judge(
             }
         }
     }
-    Ok(Judged { row, score, stuck })
+    Ok(Judged {
+        row,
+        raw: None,
+        score,
+        stuck,
+    })
 }
 
 impl Score {
@@ -454,13 +467,44 @@ impl Score {
     }
 }
 
+/// A judged card, what its print consulted, and its identity for the trace file.
+type Traced = (Judged, reuse::Packed, String);
+
+fn judge_traced(
+    engine: &Engine,
+    face: &Value,
+    oracle: &source::Sources,
+    options: &Options,
+    previous: Option<&reuse::Previous<'_>>,
+) -> Result<Traced, String> {
+    let print = || judge(engine, face, oracle, options);
+    if previous.is_none() && options.reuse.trace_out.is_none() {
+        return Ok((print()?, reuse::Packed::default(), String::new()));
+    }
+    let name = face["name"].as_str().unwrap_or_default();
+    let input = source::input(engine, oracle, face)?;
+    let context = serde_json::to_string(&input.context).map_err(|e| e.to_string())?;
+    let key = reuse::face_key(face, &input.text, &format!("{context}{:?}", input.error));
+    let text = if options.raw {
+        input.text.clone()
+    } else {
+        engine.presentation_free(&input.text)
+    };
+    let (judged, saved) = match previous {
+        Some(previous) => previous.judge(&key, name, &text, print)?,
+        None => reuse::traced(print)?,
+    };
+    Ok((judged, reuse::Packed::new(&saved), key))
+}
+
 fn judge_faces(
     engine: &Engine,
     faces: &[Value],
     oracle: &source::Sources,
     options: &Options,
-) -> Result<Vec<Result<Judged, String>>, String> {
-    let work = |face: &Value| judge(engine, face, oracle, options);
+    previous: Option<&reuse::Previous<'_>>,
+) -> Result<Vec<Result<Traced, String>>, String> {
+    let work = |face: &Value| judge_traced(engine, face, oracle, options, previous);
     if options.raw || !options.render || !options.round_trip {
         return corpus::parallel(faces, work);
     }
@@ -491,19 +535,57 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let oracle = source::load(&options.oracle)?;
     let faces = source::faces(&options.unified, &wanted)?;
-    let judged = judge_faces(&engine, &faces, &oracle, &options)?;
+    let old = match &options.reuse.spec {
+        Some(spec) => Engine::load_from_dir(std::path::Path::new(&spec.grammar)).ok(),
+        None => None,
+    };
+    // A previous run that cannot be used only costs a full print.
+    let previous = match (&options.reuse.spec, &old) {
+        (Some(spec), Some(old)) => match reuse::Previous::load(spec, old, &engine, &options) {
+            Ok(previous) => Some(previous),
+            Err(why) => {
+                if let Some(path) = &options.reuse.report {
+                    reuse::unavailable(path, &why)?;
+                }
+                None
+            }
+        },
+        (Some(_), None) => {
+            if let Some(path) = &options.reuse.report {
+                reuse::unavailable(path, "the previous grammar does not load")?;
+            }
+            None
+        }
+        _ => None,
+    };
+    let judged = judge_faces(&engine, &faces, &oracle, &options, previous.as_ref())?;
     let mut out = std::io::BufWriter::new(std::fs::File::create(&options.out)?);
     let mut score = Score::default();
     let mut stuck: BTreeMap<String, u64> = BTreeMap::new();
-    for card in judged {
-        let card = card?;
+    let mut traces = Vec::new();
+    for (card, face) in judged.into_iter().zip(&faces) {
+        let (card, saved, key) = card?;
         score.add(&card.score);
-        if let Some(prefix) = card.stuck {
-            *stuck.entry(prefix).or_default() += 1;
+        if let Some(prefix) = &card.stuck {
+            *stuck.entry(prefix.clone()).or_default() += 1;
         }
         if !options.aggregate {
-            writeln!(out, "{}", card.row)?;
+            match &card.raw {
+                Some(raw) => writeln!(out, "{raw}")?,
+                None => writeln!(out, "{}", card.row)?,
+            }
         }
+        if options.reuse.trace_out.is_some() {
+            let name = face["name"].as_str().unwrap_or_default().to_string();
+            traces.push((name, key, saved, card.score, card.stuck));
+        }
+    }
+    out.flush()?;
+    if let Some(path) = &options.reuse.trace_out {
+        reuse::write_traces(path, &engine, &options, &traces)?;
+    }
+    if let (Some(path), Some(previous)) = (&options.reuse.report, &previous) {
+        previous.report(path)?;
     }
     let pct = |n: u64| 100.0 * n as f64 / score.cards.max(1) as f64;
     println!("cards            {}", score.cards);
