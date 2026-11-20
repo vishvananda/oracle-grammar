@@ -2338,7 +2338,7 @@ change_attachment_permission ::= "can" "be" "attached" "only" "to" attachment_el
 /* @sem Ability::Mechanic{mechanic:$granted_valued_name, amount:$value} */
 granted_valued_mechanic ::= granted_valued_name value
 
-granted_valued_name ::= granted_rampage_name | mechanic_toxic_name | mechanic_afflict_name | granted_absorb_name | mechanic_renown_name | mechanic_afterlife_name | mechanic_fabricate_name | granted_frenzy_name
+granted_valued_name ::= granted_rampage_name | mechanic_toxic_name | mechanic_afflict_name | granted_absorb_name | mechanic_renown_name | mechanic_afterlife_name | mechanic_fabricate_name | granted_frenzy_name | mechanic_rampage_choice
 
 /* @sem Mechanic::Frenzy */
 granted_frenzy_name ::= "frenzy"
@@ -3960,7 +3960,7 @@ conditional_a_card_type ::= added_land | added_creature
 /* @sem ObjectSet::One(Chosen) */
 affected_chosen_creature ::= "the" "chosen" "creature"
 
-static_affected ::= affected | affected_chosen_creature | static_abilityless_population
+static_affected ::= affected | affected_chosen_creature | static_abilityless_population | affected_other_controlled_subtype_list
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(One(Source)), changes:$change_chosen_land_type_add_singular} */
 static_self_chosen_land_type_add ::= land_type_add_subject change_chosen_land_type_add_singular "."
@@ -6345,3 +6345,29 @@ spell_cost_chosen_creature_type ::= "of" "the" "chosen" "type"
 
 /* @sem ObjectFilter::Shares{property:CreatureTypes, with:$object_ref} */
 spell_cost_shared_creature_type ::= "that" "share" "a" "creature" "type" "with" object_ref
+
+/* Filtered spells receive a colored-only reduction, retaining each mana color. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:Reduce{reductions:$colored_cost_reductions}})]}) */
+static_filtered_colored_spell_cost ::= cast_spells_filter "you" "cast" "cost" colored_cost_reductions "less" "to" "cast" "." "this" "effect" "reduces" "only" "the" "amount" "of" "colored" "mana" "you" "pay" "."
+
+/* The implicit choice and its copy share one linked exile population and one
+   attachment host. Keeping the pair together proves the result reference. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([InSet(Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)})), $attachment_linked_card_type])}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventOther)), changes:[CopyOf{object:Result{result:@prior, phase:After, index:0}, exceptions:[]}], duration:WhileMatches{object:Source, filter:AttachedTo(SameObject(EventOther))}, evaluation:Snapshot}}] */
+attachment_linked_card_copy ::= "for" "as" "long" "as" self_equipment "remains" "attached" "to" "it" "," "that" "creature" "becomes" "a" "copy" "of" attachment_linked_card_type "card" "exiled" "with" self_equipment
+
+/* @sem Ability::Triggered{event:$attachment_equipment_becomes_creature, limits:_{}, announcement:@announcement, body:Program{instructions:$attachment_linked_card_copy}} */
+triggered_attachment_linked_copy ::= attachment_equipment_becomes_creature "," attachment_linked_card_copy "."
+
+attachment_linked_card_type ::= attachment_linked_consonant_type | attachment_linked_artifact_type
+
+/* @sem $attachment_linked_consonant_noun */
+attachment_linked_consonant_type ::= "a" attachment_linked_consonant_noun
+
+attachment_linked_consonant_noun ::= noun_creature | noun_land
+
+/* @sem $noun_artifact */
+attachment_linked_artifact_type ::= "an" noun_artifact
+
+/* The exclusion and controller qualify the entire subtype union. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), AllOf([$plural_subtype_list, ControlledBy(One(AbilityController))])])} */
+affected_other_controlled_subtype_list ::= "other" plural_subtype_list "you" "control"

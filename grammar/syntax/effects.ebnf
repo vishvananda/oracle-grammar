@@ -350,7 +350,7 @@ continuous_beyond_first ::= affected ("gets" | "get") signed "/" signed duration
 
 /* Only explicit action families own this two-sentence contrast. Neither slot
    uses program, clause, operation, or a CDE with an arbitrary change list. */
-clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start | instead_draw_scry_then_draw | instead_counter_conditional
+clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start | instead_draw_scry_then_draw | instead_counter_conditional | instead_sacrifice_postposed_line
 
 /* The replacing action may come first and its condition trail: "That creature gets
    -13/-13 until end of turn instead if a creature died this turn". Both slots are
@@ -459,8 +459,7 @@ instead_investigate_operation ::= investigate_once | investigate_twice
 instead_seek_action ::= "seek" "a" card_filter "card"
 /* @sem @apply($players_singular, $instead_sacrifice_instruction) */
 instead_sacrifice_action ::= players_singular instead_sacrifice_instruction
-/* @sem Instruction::[Effect{result:@next, operation:$sacrifice_choice_third}] */
-instead_sacrifice_instruction ::= sacrifice_choice_third
+instead_sacrifice_instruction ::= instead_sacrifice_choice_instruction | instead_sacrifice_all_instruction
 
 /* @sem Instruction::[Effect{result:@next, operation:$draw_base}] */
 instead_draw_instruction ::= draw_base
@@ -1412,3 +1411,21 @@ sacrifice_chosen_verb ::= "sacrifices" "that" "many" affected "of" "their" "choi
 
 /* @sem @apply($players_unqualified_singular, $sacrifice_counted_third) */
 sacrifice_counted_named ::= players_unqualified_singular sacrifice_counted_third
+
+/* @prefer always */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_sacrifice_action_2}, otherwise:Program{instructions:$instead_sacrifice_action}}] */
+instead_sacrifice_postposed_line ::= instead_sacrifice_action "." NEWLINE instead_sacrifice_action "instead" "if" condition
+
+/* @sem Instruction::[Effect{result:@next, operation:$sacrifice_choice_third}] */
+instead_sacrifice_choice_instruction ::= sacrifice_choice_third
+
+/* @sem Instruction::[Effect{result:@next, operation:$sacrifice_all_controlled_third}] */
+instead_sacrifice_all_instruction ::= sacrifice_all_controlled_third
+
+/* Each player sacrifices their own qualifying permanents; the action retains the subject. */
+/* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:@subject, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}}) */
+sacrifice_all_controlled_third ::= "sacrifices" "all" filter_plural "they" "control"
+
+/* A same-line replacement nested under a leading condition. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_action_2}, otherwise:Program{instructions:$instead_action}}] */
+instead_postposed_inline ::= instead_action "." instead_action "instead" "if" condition

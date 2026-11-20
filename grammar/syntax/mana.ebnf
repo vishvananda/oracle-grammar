@@ -312,3 +312,23 @@ tap_others_spending ::= "spend" "this" "mana" "only" "to" "cast" mana_cast_filte
    alternatives tied to the restriction's two current filters. */
 /* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_two_distinct_colors, restriction:CastSpell(AnyOf([$noun, $noun_2]))}}] */
 mana_distinct_colors_cast_union ::= "add" mana_two_distinct_colors "." "spend" "this" "mana" "only" "to" "cast" noun "or" noun "spells"
+
+/* The pronoun refers to the singular recipient of this mana production. */
+/* @sem Vec<Instruction>::@restricted_mana($mana_player_clause, $mana_persists_they) */
+mana_player_persistent ::= mana_player_clause "." mana_persists_they
+
+/* @sem Instruction::[Effect{result:@next, operation:$add_mana_player}] */
+mana_player_clause ::= add_mana_player
+
+/* @sem ManaUse::Persists($until_end_of_turn) */
+mana_persists_they ::= until_end_of_turn "," "they" "don't" "lose" "this" "mana" "as" "steps" "and" "phases" "end"
+
+/* The receipt amount is anchored to the sole removal cost of this activation. */
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:$players_singular, mana:Repeat{amount:PaidCountersRemoved{payment:Activation, component:[0]}, production:$mana_production, choice:Once}}}] */
+mana_player_paid_counters ::= players_singular "adds" "that" "much" mana_production
+
+/* @sem Vec<Instruction>::@restricted_mana($mana_player_paid_counters, $mana_spending) */
+mana_player_paid_restricted ::= mana_player_paid_counters "." mana_spending
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_remove_kind_at_least_among]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[...$mana_player_paid_restricted, ...$instructions]}} */
+activated_counter_payment_mana ::= cost_remove_kind_at_least_among ":" mana_player_paid_restricted "." instructions "."

@@ -689,7 +689,7 @@ prevention_choice_next ::= "the" "next" "time" "a" "source" "of" "your" "choice"
 /* @sem ReplacementLimit::UntilExpired */
 prevention_choice_all ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" "you" "this" "turn" "by" "a" "source" "of" "your" "choice"
 
-prevention_receipt_callback ::= prevention_damage_draw_callback | prevention_filtered_life_callback
+prevention_receipt_callback ::= prevention_exile_library_callback | prevention_damage_draw_callback | prevention_filtered_life_callback
 /* @sem Instruction::Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:$prevention_damage_draw_body})} */
 prevention_damage_draw_callback ::= "when" "damage" "is" "prevented" "this" "way" "," prevention_damage_draw_body
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_ref, recipients:Players(One(ControllerOf(Damage(Source)))), amount:Performed(@marked), preventable:true}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Performed(@marked)}}]} */
@@ -2435,3 +2435,31 @@ redirect_one_damage_target ::= "target" "creature" "," "planeswalker" "," "or" "
 
 /* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:$redirect_one_damage_target, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Objects(One(Source)))}}]}} */
 redirect_target_to_holder ::= "the" "next" number "damage" "that" "would" "be" "dealt" "to" redirect_one_damage_target this_duration "is" "dealt" "to" "this" "creature" "instead"
+
+/* The replacement owns both consequences; the following instruction remains independent. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateReplacement{event:Player{event:LoseGame, players:One(AbilityController)}, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$number}}, Effect{result:@next, operation:SetLifeTotal{players:One(AbilityController), amount:$number_2}}]}}}] */
+next_loss_draw_and_set_life ::= "the" "next" "time" "you" "would" "lose" "the" "game" this_duration "," "instead" "draw" number "cards" "and" "your" "life" "total" "becomes" number
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$next_loss_draw_and_set_life, Effect{result:@next, operation:$exile_named_spell_after_loss_replacement}]}} */
+spell_next_loss_exile_self ::= next_loss_draw_and_set_life "." NEWLINE exile_named_spell_after_loss_replacement "."
+
+/* The spell names itself as the separate exile operation's object. */
+/* @sem Operation::Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_named_spell_after_loss_replacement ::= "exile" self_named
+
+/* The exile quantity is the prevention instruction's actual result. */
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Performed(@marked), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}} */
+prevention_exile_library_callback ::= "exile" "cards" "from" "the" "top" "of" "your" "library" "equal" "to" "the" "damage" "prevented" "this" "way"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$instructions_prevention_receipt_callback}} */
+activated_prevention_receipt ::= cost ":" instructions_prevention_receipt_callback "."
+
+/* This prevention body preserves the original event amount and both recipients. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:DealDamage{source:$object_ref, recipients:Union([Players(One(AbilityController)), $recipients]), amount:Divide{numerator:EventAmount, denominator:Constant(2), rounding:Up}, preventable:true}}]} */
+prevention_half_damage_body ::= "prevent" "that" "damage" "." object_ref "deals" "damage" "to" "you" "and" recipients "equal" "to" "half" "the" "damage" "prevented" "this" "way" "," "rounded" "up"
+
+/* @sem Vec<Instruction>::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources(Any), count:Exactly(Constant(1))}}, Effect{result:@next, operation:CreateReplacement{event:Damage{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}, limit:UntilExpired, duration:$this_duration, body:$prevention_half_damage_body}}] */
+prevention_chosen_source_half ::= "if" "damage" "would" "be" "dealt" "to" "you" this_duration "by" "a" "source" "of" "your" "choice" "," prevention_half_damage_body
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:$prevention_chosen_source_half}} */
+activated_chosen_source_half ::= cost ":" prevention_chosen_source_half "." activation_limits "."
