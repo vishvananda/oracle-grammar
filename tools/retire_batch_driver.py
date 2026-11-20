@@ -393,10 +393,13 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         verified_minimum = config.get('verified_ready_minimum', 0)
                         if type(verified_minimum) is not int or not 0 <= verified_minimum <= 96:
                             raise ValueError('verified_ready_minimum must be between 0 and 96')
+                        verified_limit = config.get('verified_ready_batch_size', limit)
+                        if type(verified_limit) is not int or not 1 <= verified_limit <= 96:
+                            raise ValueError('verified_ready_batch_size must be between 1 and 96')
                         verified = None
                         if ready and not large_mechanical and previous_lane != 'verified-ready':
-                            verified = verified_ready_lane(queue, progress['checkpoint'], limit,
-                                                           min(verified_minimum, limit),
+                            verified = verified_ready_lane(queue, progress['checkpoint'], verified_limit,
+                                                           min(verified_minimum, verified_limit),
                                                            lane['mechanical'] if lane else (),
                                                            cohort['jobs'] if cohort else ())
                         if verified:

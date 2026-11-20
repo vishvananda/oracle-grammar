@@ -569,7 +569,8 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     cp['parse_screen_before_repository']=config.get('parse_screen_before_repository',False)
     print_screen=config.get('early_default_print',False)
     r.require(type(print_screen) is bool,'early_default_print must be boolean')
-    cp['early_default_print']=print_screen
+    skip_mechanical_print=config.get('skip_mechanical_early_default_print',False)
+    r.require(type(skip_mechanical_print) is bool,'skip_mechanical_early_default_print must be boolean')
     early_retained=config.get('early_retained_parse',False)
     r.require(type(early_retained) is bool,'early_retained_parse must be boolean')
     cp['early_retained_parse']=early_retained
@@ -593,6 +594,9 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     items=proposals(run,limit,selected_job_ids)
     if not items:
         return
+    # Pure deletions still run the full print audit before acceptance.
+    cp['early_default_print']=print_screen and (
+        not skip_mechanical_print or any(item['kind'] != 'mechanical' for item in items))
     manifest=(retire_batch.stage(run,cp,items,combine_selected=True) if combine_selected
               else retire_batch.stage(run,cp,items))
     included=[row['job_id'] for row in manifest['jobs'] if row['status']=='included']

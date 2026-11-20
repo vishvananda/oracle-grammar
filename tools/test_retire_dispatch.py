@@ -658,6 +658,31 @@ class DispatchCanaries(unittest.TestCase):
                     save.assert_not_called()
                     queue.advance_and_accept.assert_not_called()
 
+    def test_only_configured_pure_mechanical_batches_skip_early_print(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            run = Path(temporary)
+            queue = Mock()
+            queue.progress.return_value = {'checkpoint': 'base'}
+            for opt_in, kinds, early in (
+                (False, ['mechanical'], True),
+                (True, ['mechanical', 'mechanical'], False),
+                (True, ['mechanical', 'author'], True),
+            ):
+                with self.subTest(opt_in=opt_in, kinds=kinds):
+                    r.write(run/'config.json', {'initial_commit': 'base', 'first_batch_size': 4,
+                                               'early_default_print': True,
+                                               'skip_mechanical_early_default_print': opt_in})
+                    manifest = {'status': 'provisional', 'id': 'stage', 'jobs': [
+                        {'job_id': str(index), 'status': 'included'} for index in range(len(kinds))]}
+                    with patch.object(dispatch, 'Queue', return_value=queue), \
+                            patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
+                            patch.object(dispatch, 'proposals', return_value=[{'kind': kind} for kind in kinds]), \
+                            patch.object(dispatch.retire_batch, 'stage', return_value=manifest) as stage, \
+                            patch.object(dispatch.retire_batch, 'validate', return_value={'status': 'failed'}) as validate:
+                        dispatch._batch(run)
+                    self.assertEqual(stage.call_args.args[1]['early_default_print'], early)
+                    validate.assert_called_once_with(stage.return_value, stage.call_args.args[1], slots=12, scan=True)
+
     def test_invalid_candidate_helper_configuration_does_not_stage_or_reject(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
