@@ -2,7 +2,7 @@
 """Rolling Terra workers, deterministic removals, and one retained batch lane."""
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from collections import OrderedDict
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 import argparse
 import copy
 import fcntl
@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -42,6 +43,7 @@ import retire_worker as w
 import shapes
 
 LARGE_MECHANICAL_POPULATION = 'literal cohort exceeds chunk bounds; use full allowed parse screen'
+DIRTY_PUBLICATION = 'main has uncommitted work'
 
 
 @contextmanager
@@ -636,7 +638,7 @@ def publish_main(run, previous, current, manifest):
     def git(*args):
         return subprocess.check_output(['git',*args],cwd=root,text=True).strip()
     try:
-        r.require(not git('status','--porcelain'),'main has uncommitted work')
+        r.require(not git('status','--porcelain'),DIRTY_PUBLICATION)
         r.require(dev.source(root)==dev.source(Path(previous['source'])),'main compiled source differs')
         for path in ('grammar','families'):
             r.require(r.tree(root/path)==r.tree(Path(previous['source'])/path),
@@ -660,6 +662,52 @@ def publish_main(run, previous, current, manifest):
         record['reason']=str(error)
     r.write(proof,record)
     r.write(run/'publication.json',record)
+
+
+def retry_dirty_publication(run, queue, checkpoint, publication):
+    """Retry an accepted batch under the existing batch lease after main is clean."""
+    r.require(publication == {'candidate': checkpoint, 'status': 'pending', 'reason': DIRTY_PUBLICATION},
+              'batch publication requires operator review')
+    root = Path(r.read(run/'config.json')['main_repo'])
+    if subprocess.check_output(['git', 'status', '--porcelain'], cwd=root):
+        return False
+    with closing(queue._connect()) as db:
+        row = db.execute('SELECT commit_id,parent,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+    r.require(row and row[0] == checkpoint and row[1], 'accepted publication checkpoint changed')
+    commit, parent, evidence = row[0], row[1], json.loads(row[2])
+    batch = evidence.get('manifest')
+    r.require(isinstance(batch, str) and re.fullmatch(r'[0-9a-f]{32}', batch),
+              'accepted publication batch identity is invalid')
+    folder = run/'.cache/batches'/batch
+    manifest = r.read(folder/'manifest.json')
+    validation = r.read(folder/'validation.json')
+    checks = validation.get('full_checks', {})
+    r.require(folder.resolve() == folder and Path(manifest['folder']) == folder
+              and manifest['id'] == batch and manifest['status'] == 'provisional'
+              and manifest['base_commit'] == parent and manifest['commit'] == commit
+              and validation == evidence.get('validation')
+              and validation['status'] == 'passed' and validation['source_checkpoint'] == parent
+              and validation['candidate'] == commit and validation['repository_check_returncode'] == 0
+              and type(checks.get('faces')) is int and checks['faces'] > 0 and checks.get('failures') == [],
+              'accepted publication proof does not match the ledger')
+    previous, current = (r.read(run/'checkpoints'/f'{key}.json') for key in (parent, commit))
+    r.require(previous['commit'] == parent and current['commit'] == commit
+              and current['inputs'] == validation['inputs'] and current['baseline'] == validation['rows']
+              and r.digest(Path(current['inputs'])/'manifest.json') == validation['validation_manifest_sha256']
+              and r.digest(current['baseline']) == validation['rows_sha256']
+              and r.tree(Path(current['source'])/'grammar') == manifest['grammar'],
+              'accepted publication source differs from the audited checkpoint')
+    for snapshot in (previous, current):
+        source = Path(snapshot['source'])
+        r.require(retire_batch._git(source, 'rev-parse', 'HEAD') == snapshot['commit']
+                  and not retire_batch._git(source, 'status', '--porcelain'),
+                  'accepted publication source changed')
+    publish_main(run, previous, current, manifest)
+    result = r.read(run/'publication.json')
+    if result.get('status') == 'integrated':
+        return True
+    r.require(result == publication, 'batch publication requires operator review: '+result.get('reason', 'unknown failure'))
+    return False
 
 
 def run_campaign(run, runner=None):

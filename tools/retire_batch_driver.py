@@ -345,6 +345,13 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         if (run/'drain.json').exists() or (run/'batch-driver-drain.json').exists():
                             status('drained', progress, reason='explicit drain requested')
                             return
+                        publication = run/'publication.json'
+                        if publication.is_file() and (record := r.read(publication)).get('status') == 'pending':
+                            if not dispatch.retry_dirty_publication(run, queue, progress['checkpoint'], record):
+                                status('waiting-publication', progress, reason=dispatch.DIRTY_PUBLICATION)
+                                time.sleep(poll_seconds)
+                                continue
+                            status('idle', progress, reason=None)
                         config = r.read(run/'config.json')
                         limit = config['first_batch_size'] if progress['checkpoint'] == config['initial_commit'] else config['batch_size']
                         if type(limit) is not int or not 1 <= limit <= 96:
@@ -449,14 +456,13 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             if observation['outcome'] == 'passed':
                                 if new_progress['checkpoint'] != observation['candidate']:
                                     raise ValueError('passed batch did not advance to its candidate checkpoint')
-                                publication = run/'publication.json'
-                                if not publication.exists() or r.read(publication).get('status') != 'integrated':
+                                if not publication.is_file() or r.read(publication).get('status') not in ('integrated', 'pending'):
                                     raise ValueError('batch publication requires operator review')
                             elif new_progress['checkpoint'] != progress['checkpoint']:
                                 raise ValueError('rejected batch unexpectedly advanced checkpoint')
                             last_batch = time.monotonic()
                             flush = False
-                            status('idle', new_progress, last_batch=observation)
+                            status('idle', new_progress, last_batch=observation, reason=None)
                             continue
                         if not pending and not running and not ready:
                             if awaiting_print_recovery(run):

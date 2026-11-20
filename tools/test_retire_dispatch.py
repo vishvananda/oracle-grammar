@@ -1062,6 +1062,61 @@ class DispatchCanaries(unittest.TestCase):
             self.assertIn('semantic source differs', proof['reason'])
             self.assertEqual(git(main, 'rev-parse', 'HEAD'), before)
 
+    def test_dirty_publication_retries_from_the_accepted_ledger(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            main, run = root/'main', root/'campaign'
+            base = repository(main)
+            previous, candidate = root/'previous', root/'candidate'
+            git(main, 'worktree', 'add', '--detach', str(previous), base)
+            git(main, 'worktree', 'add', '--detach', str(candidate), base)
+            (candidate/'grammar/syntax/mined.ebnf').write_text('never_action ::= "never"\n')
+            git(candidate, 'commit', '-qam', 'remove seed')
+            commit = git(candidate, 'rev-parse', 'HEAD')
+            batch = 'a'*32
+            folder = run/'.cache/batches'/batch
+            inputs = folder/'validation-inputs'
+            rows = folder/'full-checks/rows.jsonl'
+            inputs.mkdir(parents=True)
+            rows.parent.mkdir()
+            r.write(inputs/'manifest.json', {'population': 2})
+            r.jsonl(rows, [{'name': 'A'}, {'name': 'B'}])
+            manifest = {'id': batch, 'folder': str(folder), 'status': 'provisional', 'base_commit': base,
+                        'commit': commit, 'grammar': r.tree(candidate/'grammar')}
+            validation = {'status': 'passed', 'candidate': commit, 'source_checkpoint': base,
+                          'repository_check_returncode': 0, 'full_checks': {'faces': 2, 'failures': []},
+                          'inputs': str(inputs), 'rows': str(rows), 'rows_sha256': r.digest(rows),
+                          'validation_manifest_sha256': r.digest(inputs/'manifest.json')}
+            r.write(folder/'manifest.json', manifest)
+            r.write(folder/'validation.json', validation)
+            r.write(run/'config.json', {'main_repo': str(main)})
+            parent = {'commit': base, 'source': str(previous)}
+            current = {'commit': commit, 'source': str(candidate), 'inputs': str(inputs), 'baseline': str(rows)}
+            for snapshot in (parent, current):
+                dispatch.campaign_api.save_checkpoint(run, snapshot)
+            queue = dispatch.Queue(run/'queue.sqlite')
+            queue.add_checkpoint(base, {'proof': 'test'})
+            queue.add_jobs([{'id': 'one', 'rules': ['m_one'], 'kind': 'mechanical'}])
+            claim = queue.claim('worker')
+            queue.finish(claim['attempt_id'], 'provisional-pass', 'proof',
+                         {'m_one': {'status': 'pass', 'evidence': 'proof'}})
+            queue.advance_and_accept(commit, base, ['one'], {'manifest': batch, 'validation': validation})
+            edit = main/'unrelated.txt'
+            edit.write_text('in progress\n')
+            with dispatch.lease(run/'batch.lock'), patch.object(dispatch.dev, 'source', return_value='compiled'):
+                dispatch.publish_main(run, parent, current, manifest)
+                pending = r.read(run/'publication.json')
+                self.assertFalse(dispatch.retry_dirty_publication(run, queue, commit, pending))
+                self.assertEqual(git(main, 'rev-parse', 'HEAD'), base)
+                edit.unlink()
+                r.write(folder/'validation.json', dict(validation, repository_check_returncode=1))
+                with self.assertRaisesRegex(ValueError, 'does not match the ledger'):
+                    dispatch.retry_dirty_publication(run, queue, commit, pending)
+                r.write(folder/'validation.json', validation)
+                self.assertTrue(dispatch.retry_dirty_publication(run, queue, commit, pending))
+            self.assertEqual(r.read(run/'publication.json')['status'], 'integrated')
+            self.assertEqual(r.tree(main/'grammar'), r.tree(candidate/'grammar'))
+
 
 if __name__ == '__main__':
     unittest.main()

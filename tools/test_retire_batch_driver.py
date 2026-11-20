@@ -687,6 +687,34 @@ class DriverTests(unittest.TestCase):
         driver.run_driver(self.run, self.runner)
         self.assertEqual(r.read(self.run/'batch-driver.json')['phase'], 'needs-operator')
 
+    def test_dirty_publication_waits_without_starting_another_batch(self):
+        self.queue.value = progress(ready=4)
+        batch_outcome = self.outcome()
+        publication = self.run/'publication.json'
+        record = {'candidate': 'candidate', 'status': 'pending', 'reason': driver.dispatch.DIRTY_PUBLICATION}
+
+        def process(run):
+            batch_outcome(run)
+            r.write(publication, record)
+
+        def retry(run, queue, checkpoint, observed):
+            self.assertEqual((run, queue, checkpoint, observed), (self.run, self.queue, 'candidate', record))
+            if r.read(self.run/'batch-driver.json')['phase'] != 'waiting-publication':
+                return False
+            r.write(publication, {'status': 'integrated'})
+            return True
+
+        with patch.object(driver.dispatch, '_batch', side_effect=process) as batch, \
+                patch.object(driver.dispatch, 'retry_dirty_publication', side_effect=retry) as resume, \
+                patch.object(driver.time, 'sleep') as waiting:
+            driver.run_driver(self.run, self.runner)
+        batch.assert_called_once_with(self.run)
+        waiting.assert_called_once_with(2)
+        self.assertEqual(resume.call_count, 2)
+        state = r.read(self.run/'batch-driver.json')
+        self.assertEqual(state['phase'], 'first-pass-complete')
+        self.assertEqual(state['last_batch']['candidate'], 'candidate')
+
     def test_owned_drain_waits_for_current_batch(self):
         self.queue.value = progress(ready=4)
         with patch.object(driver.dispatch, '_batch', side_effect=self.outcome(drain=True)) as batch:
