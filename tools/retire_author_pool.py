@@ -46,6 +46,17 @@ def prompt(run, task_id):
                 'Fix a bounded edited-operand refusal or print failure before returning your per-rule dispositions. '
                 'The coordinator independently checks the full assigned cohort and edited operands after your response.'
             )
+    budget_note = (f'There are at\nmost {limit} diagnostic attempts and {minutes} minutes for this task. Allow one repair round,\n'
+                   'then park failures with evidence rather than extending the task. Fix useful bounded\n'
+                   'failures; escalate when the next step needs a different contract.')
+    if task.get('repair_until_budget') is True:
+        budget_note = (
+            f'There are at\nmost {limit} diagnostic attempts and {minutes} minutes for this task. The family-check\n'
+            'wrapper does not count as a diagnostic attempt; rerun it freely on your fixture.\n'
+            'Keep repairing bounded failures (fixture refusals, lost readings, print gates)\n'
+            f'while attempts and time remain; do not start a diagnostic after minute {max(1, minutes-3)}.\n'
+            'Park a rule with evidence only when the next step needs a different contract\n'
+            'or the budget is spent. Never weaken a check to make it pass.')
     return f'''Author shared Oracle grammar for this bounded pilot task.
 Read AGENTS.md, SPEC.md, docs/print-shapes.md and {run/'tasks'/f'{task_id}.json'}.
 {packet_note}
@@ -113,10 +124,7 @@ changes (filter, amount, recipient etc.), not identifier renaming or unchanged
 values. Include independent operands when the family supports them.
 {diagnostic_note}
 {json.dumps(diagnostic)}
-Keep/wait on the same exec handle; do not restart a running helper. There are at
-most {limit} diagnostic attempts and {minutes} minutes for this task. Allow one repair round,
-then park failures with evidence rather than extending the task. Fix useful bounded
-failures; escalate when the next step needs a different contract. All four print
+Keep/wait on the same exec handle; do not restart a running helper. {budget_note} All four print
 gates compare baseline successes: an already-false gate is not a new regression.
 Do not forge or edit diagnostic reports or create files outside the write set
 (scratch notes and outputs may go in ignored .cache/). Inspect returned artifact

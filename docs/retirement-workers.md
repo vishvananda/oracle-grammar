@@ -15,6 +15,12 @@ lane; uncertain cohorts, retained users and failed checks remain for review.
 Workers do not write shared grammar, model or reference files. Their descriptor
 bounds the writable files; ordinary root hooks are registered explicitly, and
 seeded removals use `mined.remove` rather than manual hook edits.
+Campaign config can set `max_diagnostic_attempts` (1 to 12) and
+`wall_budget_seconds` (900 to 1,800) for new assignments. With
+`author_repair_until_budget`, the prompt treats family checks as free and asks
+the author to keep repairing bounded failures until the budget is spent rather
+than parking after one repair round. The value `ab` assigns each job to one arm
+by a hash of its identity and records the arm in the task.
 Workers start with the inferred module hints and may compose changes across the
 existing runtime syntax modules. Direct changes to the protected `ability`,
 `line` and `event_clause` dispatchers are rejected; typed hook requests supply

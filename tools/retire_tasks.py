@@ -197,6 +197,25 @@ def _packet(inputs, job, cohort):
             'cohort': cohort, 'notice': 'Records match by complete face-name multiset; original orders and addresses are retained. Text identity is not inferred. Cohort is diagnostic, not acceptance proof.'}
 
 
+AUTHOR_BUDGET_ARMS = ('one-repair-round', 'repair-until-budget')
+
+
+def author_budget(campaign, job):
+    """Read the campaign's author budget; an "ab" policy splits jobs by a stable hash."""
+    path = Path(campaign)/'config.json'
+    config = r.read(path) if path.is_file() else {}
+    attempts = config.get('max_diagnostic_attempts', 3)
+    seconds = config.get('wall_budget_seconds', 900)
+    policy = config.get('author_repair_until_budget', False)
+    r.require(type(attempts) is int and 1 <= attempts <= 12, 'max_diagnostic_attempts must be 1 to 12')
+    r.require(type(seconds) is int and 900 <= seconds <= 1800, 'wall_budget_seconds must be 900 to 1800')
+    r.require(policy in (True, False, 'ab'), 'author_repair_until_budget must be true, false or "ab"')
+    if policy == 'ab':
+        policy = hashlib.sha256(job['id'].encode()).digest()[0] % 2 == 1
+    return {'max_diagnostic_attempts': attempts, 'wall_budget_seconds': seconds,
+            'repair_until_budget': policy, 'author_budget_arm': AUTHOR_BUDGET_ARMS[policy]}
+
+
 def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohort_detail: dict, runner=None) -> dict:
     campaign = Path(campaign).resolve()
     attempt = claim['attempt_id']
@@ -287,9 +306,8 @@ def prepare_task(campaign: Path, claim: dict, checkpoint: dict, job: dict, cohor
                     allowedwritepaths=write_files, module_hints=hints,
                     module_discovery_required=discovery, cohort=cohort_detail['names'],
                     cohort_detail=cohort_detail, packet=str(run/'packet.json'),
-                    rule_dispositions_required=job['rules'], max_diagnostic_attempts=3,
-                    wall_budget_seconds=900, helper_threads=2,
-                    cpu_pool=str(campaign/'cpu'), cpu_capacity=32)
+                    rule_dispositions_required=job['rules'], **author_budget(campaign, job),
+                    helper_threads=2, cpu_pool=str(campaign/'cpu'), cpu_capacity=32)
         if job.get('kind') != 'mechanical' and checkpoint.get('family_case_modes') is True:
             task['family_case_modes'] = True
         task['goal'] = (task['goal'] + ' Start with module_hints; related runtime syntax modules may be edited. '

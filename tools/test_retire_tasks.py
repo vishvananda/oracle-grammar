@@ -155,6 +155,25 @@ class TaskTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'symlink'):
             tasker.validate_runner(self.campaign, alias)
 
+    def test_author_budget_reads_campaign_config(self):
+        self.assertEqual(tasker.author_budget(self.campaign, {'id': 'x'}),
+                         {'max_diagnostic_attempts': 3, 'wall_budget_seconds': 900,
+                          'repair_until_budget': False, 'author_budget_arm': 'one-repair-round'})
+        r.write(self.campaign/'config.json', {'max_diagnostic_attempts': 6, 'wall_budget_seconds': 900,
+                                             'author_repair_until_budget': True})
+        budget = tasker.author_budget(self.campaign, {'id': 'x'})
+        self.assertEqual((budget['max_diagnostic_attempts'], budget['repair_until_budget']), (6, True))
+        r.write(self.campaign/'config.json', {'author_repair_until_budget': 'ab'})
+        arms = {tasker.author_budget(self.campaign, {'id': f'job-{i}'})['author_budget_arm'] for i in range(16)}
+        self.assertEqual(arms, set(tasker.AUTHOR_BUDGET_ARMS))
+        self.assertEqual(tasker.author_budget(self.campaign, {'id': 'job-1'}),
+                         tasker.author_budget(self.campaign, {'id': 'job-1'}))
+        for bad in ({'author_repair_until_budget': 'yes'}, {'max_diagnostic_attempts': 0},
+                    {'wall_budget_seconds': 600}):
+            r.write(self.campaign/'config.json', bad)
+            with self.assertRaises(ValueError):
+                tasker.author_budget(self.campaign, {'id': 'x'})
+
     def test_private_attempt_and_manifest(self):
         self.checkpoint['family_case_modes'] = True
         result = self.prepare()

@@ -73,6 +73,21 @@ class AuthorLaunchTests(unittest.TestCase):
         self.assertIn('then your whole-card operand edits', text)
         self.assertIn('Fix a bounded edited-operand refusal or print failure', text)
 
+    def test_budget_prompt_keeps_one_round_by_default(self):
+        text = author.prompt(self.run, 'task')
+        self.assertIn('Allow one repair round', text)
+        self.assertNotIn('does not count as a diagnostic attempt', text)
+
+    def test_repair_until_budget_prompt_uses_the_whole_budget(self):
+        r.write(self.run/'tasks/task.json', {**self.task, 'repair_until_budget': True,
+                                            'max_diagnostic_attempts': 5, 'wall_budget_seconds': 900})
+        text = author.prompt(self.run, 'task')
+        self.assertNotIn('Allow one repair round', text)
+        self.assertIn('most 5 diagnostic attempts and 15 minutes', text)
+        self.assertIn('does not count as a diagnostic attempt', text)
+        self.assertIn('do not start a diagnostic after minute 12', text)
+        self.assertIn('Never weaken a check', text)
+
     def test_campaign_slot_covers_model_but_ends_before_coordinator(self):
         campaign = self.cpu.parent
         campaign.mkdir()
