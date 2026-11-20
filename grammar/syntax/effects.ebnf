@@ -57,7 +57,7 @@ sacrifice_that_many_third ::= "sacrifices" "that" "many" filter_plural "of" "the
 /* @sem @apply(PlayerSet::One(PlayerRef::AbilityController), $verb_operation_imperative) */
 operation_imperative ::= verb_operation_imperative
 
-verb_operation_imperative ::= create_attacking_copies_each | shuffle_base | create_copy_tapped_attacking | create_copy_each_leading | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | draw_selected_discard_base | scry_where_value | surveil_defined_base | create_copy_affected_permanent | create_each_named_tapped_mana
+verb_operation_imperative ::= create_copy_singular_attacking | create_attacking_copies_each | shuffle_base | create_copy_tapped_attacking | create_copy_each_leading | energy_get_base | create_base | create_each_defined_leading | create_each_named_leading | create_tapped_base | create_attacking_base | mill_base | scry_base | scry_equal | surveil_base | draw_base | discard_random_base | discard_base | discard_hand_base | discard_all_base | draw_selected_discard_base | scry_where_value | surveil_defined_base | create_copy_affected_permanent | create_each_named_tapped_mana
 
 /* "Each opponent attacking that player does the same": every opponent attacking the
    player an attack trigger names repeats the first sentence's action. */
@@ -350,7 +350,7 @@ continuous_beyond_first ::= affected ("gets" | "get") signed "/" signed duration
 
 /* Only explicit action families own this two-sentence contrast. Neither slot
    uses program, clause, operation, or a CDE with an arbitrary change list. */
-clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure
+clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start
 
 /* The replacing action may come first and its condition trail: "That creature gets
    -13/-13 until end of turn instead if a creature died this turn". Both slots are
@@ -1318,3 +1318,11 @@ shared_observed_literal_5485a4934780 ::= top_reveal_bottom | top_reveal_graveyar
 /* The final sentence qualifies this damage action. */
 /* @sem Operation::DealDamage{source:$damage_source_ref, recipients:Objects($affected), amount:$value, preventable:false} */
 damage_unpreventable_object ::= damage_source_ref "deals" value "damage" "to" affected "." "the" "damage" "can't" "be" "prevented"
+
+/* Conditional alternatives retain both independently authored programs. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One(AbilityController), $draw_base)}]}, otherwise:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::All, $draw_third)}]}}] */
+instead_only_controller ::= "each" "player" draw_third "." "if" condition "," "instead" "only" "you" draw_base
+
+/* The later hand test refers to the same beginning-of-turn snapshot. */
+/* @sem Instruction::[If{condition:Compare{left:AsOf{moment:TurnBegan, value:PlayerNumber{player:AbilityController, number:CardsInHand}}, test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}, then:Program{instructions:$clause_imperative}, otherwise:Program{instructions:$clause_operation}}] */
+instead_hand_at_turn_start ::= clause_imperative "if" "you" "had" "no" "cards" "in" "hand" "at" "the" "beginning" "of" "this" "turn" "." "if" "you" "had" "a" "card" "in" "hand" "," clause_operation

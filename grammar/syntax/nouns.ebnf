@@ -709,7 +709,7 @@ modifier ::= modifier_nonattachment | modifier_attached_to | modifier_attached_t
 
 modifier_nonattachment ::= modifier_mana_value_pair | modifier_nonnumeric | modifier_stat | modifier_stat_x | modifier_base_stat
 
-modifier_nonnumeric ::= modifier_not_chosen_type_plural | modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell | modifier_stat_compared | modifier_stat_compared_holder | modifier_source_name | modifier_not_named_self | modifier_referenced_name | modifier_banded_with | modifier_with_toxic_family | modifier_named_counters_on_them | modifier_blocked_this_turn | modifier_with_level_up | modifier_shares_card_type | modifier_name_first_printed_in_homelands | modifier_bare_sticker_vowel | modifier_bare_sticker_consonant | modifier_attacking_last_chosen_player | modifier_attacking_enchanted_player | modifier_attacking_your_opponents | modifier_enchanted_or_equipped | modifier_controlled_by_last_choice | modifier_minimum_named_counters_on_them | modifier_draft_noted_self_type | modifier_draft_noted_creature_type | modifier_other_than_enchanted | modifier_were_dealt_damage | modifier_blocking_attached | modifier_relative_combat | modifier_controller_combat_damage | modifier_name_first_printed_in_antiquities
+modifier_nonnumeric ::= modifier_not_chosen_type_plural | modifier_blocked_or_blocked_by_subtype_turn | modifier_has_named_counter | modifier_attacking_you_walkers | modifier_not_exactly_colors | modifier_relative_kind_union | modifier_with_keyword_pair | modifier_chosen_controller | modifier_neither_attacked_nor_entered | modifier_blocking_operand | modifier_blocked_this_combat | modifier_resolving_counterpart | modifier_you_own | modifier_relative_state | modifier_you_control | modifier_not_controlled | modifier_opponent_controls | modifier_with_keyword | modifier_without_keyword | modifier_opponents_control | modifier_player_controls | modifier_they_control | modifier_dealt_damage | modifier_was_dealt_damage | modifier_dealt_damage_this_turn | modifier_counter_on_it | modifier_pt_counter_on_it | modifier_pt_counters_on_them | modifier_chosen_name | modifier_chosen_type | modifier_chosen_color | modifier_kind_sticker | modifier_any_sticker | modifier_same_name | modifier_other_than_self | modifier_counters_on_them | modifier_positive_named_counters | modifier_minus_counter_on_it | modifier_named_counter_on_it | modifier_power_less_than_that | modifier_power_or_toughness | modifier_blocking_self | modifier_blocked_by_self | modifier_blocked_by_it | modifier_dealt_damage_to_you | modifier_not_enchanted | modifier_colored | modifier_entered_since | modifier_entered_this_turn | modifier_shares_color | modifier_shares_type_named | modifier_same_mana_value_as_spell | modifier_stat_compared | modifier_stat_compared_holder | modifier_source_name | modifier_not_named_self | modifier_referenced_name | modifier_banded_with | modifier_with_toxic_family | modifier_named_counters_on_them | modifier_blocked_this_turn | modifier_with_level_up | modifier_shares_card_type | modifier_name_first_printed_in_homelands | modifier_bare_sticker_vowel | modifier_bare_sticker_consonant | modifier_attacking_last_chosen_player | modifier_attacking_enchanted_player | modifier_attacking_your_opponents | modifier_enchanted_or_equipped | modifier_controlled_by_last_choice | modifier_minimum_named_counters_on_them | modifier_draft_noted_self_type | modifier_draft_noted_creature_type | modifier_other_than_enchanted | modifier_were_dealt_damage | modifier_blocking_attached | modifier_relative_combat | modifier_controller_combat_damage | modifier_name_first_printed_in_antiquities | modifier_both_own_control | modifier_controlled_by_choice
 
 /* Band membership refers to the explicitly described object; it is neither
    a target nor a new group of creatures chosen by this effect. */
@@ -2654,8 +2654,8 @@ modifier_blocking_attached ::= "blocking" attached_ref
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::InSet(Targets(@last_slot)), $filter_plural)} */
 objects_prior_targets_filtered ::= "any" "of" "them" "that" "are" filter_plural
 
-/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3]), $modifier_mana_value_exact)} */
-objects_each_three_mana ::= "each" filter_phrase "," filter_phrase "," "and" filter_phrase modifier_mana_value_exact
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3]), $modifier_mana_value_numeric)} */
+objects_each_three_mana ::= "each" filter_phrase "," filter_phrase "," "and" filter_phrase modifier_mana_value_numeric
 
 /* Population excluding the creatures selected by the preceding scoped choice. */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, InSet(Unselected(@prior))])} */
@@ -2848,3 +2848,47 @@ counter_stack_triggered ::= "triggered" "ability"
 /* The named attacker is the player in the enclosing attack event. */
 /* @sem PlayerRef::EventSubject */
 that_attacking_event_player ::= "that" "attacking" "player"
+
+/* Both predicates apply to the same head. */
+/* @sem ObjectFilter::AllOf([OwnedBy(One(AbilityController)), ControlledBy(One(AbilityController))]) */
+modifier_both_own_control ::= "you" "both" "own" "and" "control"
+
+/* Controllers are the players who chose the stated option. */
+/* @sem ObjectFilter::ControlledBy(Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($choice_war_peace)}}) */
+modifier_controlled_by_choice ::= "controlled" "by" "players" "who" "chose" choice_war_peace
+
+choice_war_peace ::= choice_war | choice_peace
+
+/* @sem String::'War' */
+choice_war ::= "war"
+
+/* @sem String::'Peace' */
+choice_peace ::= "peace"
+
+/* Possessive alternatives identify the targeted permanent, independently of
+   the player who owns it. */
+/* @sem ObjectFilter::CardType(Creature) */
+possessive_permanent_creature ::= "creature's"
+
+/* @sem ObjectFilter::Subtype(Spacecraft) */
+possessive_permanent_spacecraft ::= "Spacecraft's"
+
+/* @sem ObjectFilter::CardType(Land) */
+possessive_permanent_land ::= "land's"
+
+possessive_permanent_filter ::= possessive_permanent_creature | possessive_permanent_spacecraft | possessive_permanent_land
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AnyOf([$noun, $possessive_permanent_filter])}), index:0} */
+target_possessive_union ::= "target" noun "or" possessive_permanent_filter
+
+/* A named permanent and a separately described battlefield population. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($object_ref), $filter_phrase])} */
+object_and_each_filtered ::= object_ref "and" "each" filter_phrase
+
+/* The explicit combat relation applies to the described population. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($object_ref), @and($filter_phrase, $combat_counterpart_filter)])} */
+object_and_each_combat_counterpart ::= object_ref "and" "each" filter_phrase combat_counterpart_filter
+
+/* Per-opponent target counts retain the player set and the numeric bound. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:OpponentsOf(AbilityController), each:UpTo($number)}, filter:$adjective_nontype})) */
+opponent_permanent_targets ::= "up" "to" number "target" adjective_nontype "permanent" "that" "player" "controls"

@@ -6097,3 +6097,45 @@ repeated_power_creature ::= "creature's"
 repeated_power_artifact ::= "artifact's"
 
 repeated_power_noun ::= repeated_power_creature | repeated_power_artifact
+
+/* The spell population and granted mechanic remain independent operands. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($universal_granted_spells), changes:[GrantAbility($mechanic_bare)]}) */
+static_universal_spell_mechanic ::= universal_granted_spells "have" mechanic_bare "."
+
+universal_granted_spells ::= universal_any_spells | universal_filtered_spells
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:Any} */
+universal_any_spells ::= "all" "spells"
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:$spell_adjective} */
+universal_filtered_spells ::= "all" spell_adjective "spells"
+
+/* Singular cast subjects compose independently with the cost modifier. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$singular_cast_cost_subject, modifier:$chosen_color_spell_reduction})]}) */
+static_singular_chosen_color_cost ::= singular_cast_cost_subject "you" "cast" "costs" chosen_color_spell_reduction "."
+
+singular_cast_cost_subject ::= singular_cast_cost_any | singular_cast_cost_filtered
+
+/* @sem ObjectFilter::Any */
+singular_cast_cost_any ::= "each" "spell"
+
+/* @sem $card_filter */
+singular_cast_cost_filtered ::= "each" card_filter "spell"
+
+/* @sem SpellCostModifier::Reduce{reductions:[_{amount:@times($braced_number, Expr::ChosenColorsOf($object_ref))}], spill_into_generic:true} */
+chosen_color_spell_reduction ::= braced_number "less" "to" "cast" "for" "each" "of" "the" "chosen" "colors" object_ref "is"
+
+/* A cascade permission composes its card filter and entry condition. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule($cascade_entry_permission)]}) */
+static_cascade_entry_permission ::= "as" "you" "cascade" "," cascade_entry_permission "."
+
+cascade_entry_permission ::= cascade_entry_permission_a | cascade_entry_permission_an
+
+/* @sem PlayerRule::CascadePut{filter:$filter_phrase, flags:$cascade_entry_flags} */
+cascade_entry_permission_a ::= "you" "may" "put" "a" filter_phrase "card" "from" "among" "the" "exiled" "cards" "onto" "the" "battlefield" cascade_entry_flags
+
+/* @sem PlayerRule::CascadePut{filter:$filter_phrase, flags:$cascade_entry_flags} */
+cascade_entry_permission_an ::= "you" "may" "put" "an" filter_phrase "card" "from" "among" "the" "exiled" "cards" "onto" "the" "battlefield" cascade_entry_flags
+
+/* @sem Operand::List([Term{family:EnterFlag, form:EntersTapped}]) */
+cascade_entry_flags ::= "tapped"
