@@ -580,10 +580,17 @@ class BatchTests(unittest.TestCase):
         self._validate_threads(16, True, screen='passed', scan=True)
         self._validate_threads(16, True, native_rejection=True, scan=True)
 
+    def test_parallel_repository_and_native_checks_share_capacity_and_both_gate_acceptance(self):
+        for gate_code in (0, 1):
+            with self.subTest(repository_returncode=gate_code):
+                self._validate_threads(16, True, gate_code=gate_code, screen='passed',
+                                       parse_first=True, scan=True, parallel=True)
+
     def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False,
                           native_rejection=False, screen=None, screen_threads=None, scan=False,
-                          repository_threads=None, parse_first=False):
+                          repository_threads=None, parse_first=False, parallel=False):
         import os
+        from threading import Event
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -611,6 +618,8 @@ class BatchTests(unittest.TestCase):
                 cp['full_parse_screen'] = True
             if parse_first:
                 cp['parse_screen_before_repository'] = True
+            if parallel:
+                cp['parallel_repository_checks'] = True
             if screen_threads is not None:
                 cp['parse_screen_threads'] = screen_threads
             if repository_threads is not None:
@@ -618,6 +627,7 @@ class BatchTests(unittest.TestCase):
             gate_budget = repository_threads if repository_threads is not None else expected
             order = []
             audit_fds = []
+            gate_started, audit_started = Event(), Event()
             def git(_source, *args):
                 return 'candidate' if args[0] == 'rev-parse' else ''
             def checks(run, directory, grammar, names, data, threads):
@@ -627,6 +637,12 @@ class BatchTests(unittest.TestCase):
                 audit_fds.extend(batch.r._LEASES)
                 for fd in batch.r._LEASES:
                     os.fstat(fd)
+                if parallel:
+                    self.assertTrue(gate_started.wait(timeout=5))
+                    with self.assertRaises(BlockingIOError):
+                        with batch.retire_cpu.reserve(Path(cp['cpu_pool']), 1, 32, wait=False):
+                            self.fail('the audit and repository checks did not use separate leases')
+                    audit_started.set()
                 (directory/'rows.jsonl').write_text('rows')
                 if native_rejection:
                     raise subprocess.CalledProcessError(1, ['validate-readings'])
@@ -647,6 +663,9 @@ class BatchTests(unittest.TestCase):
                     self.assertEqual(kwargs['env'][name], str(gate_budget//2-2))
                 if driver_changed:
                     driver.write_bytes(b'changed coordinator gate driver')
+                if parallel:
+                    gate_started.set()
+                    self.assertTrue(audit_started.wait(timeout=5))
                 return SimpleNamespace(returncode=gate_code)
             def freeze_input(args):
                 order.append('freeze')
@@ -669,8 +688,10 @@ class BatchTests(unittest.TestCase):
                 order.append('scan')
                 self.assertEqual(args.run, folder/'validation-inputs')
                 self.assertIsNone(args.rules)
-                self.assertEqual(batch.r._LEASES, audit_fds)
-                for fd in audit_fds:
+                if not parallel:
+                    self.assertEqual(batch.r._LEASES, audit_fds)
+                self.assertEqual(len(batch.r._LEASES), expected)
+                for fd in batch.r._LEASES:
                     os.fstat(fd)
                 self.assertEqual(batch.r.read(folder/'validation.json')['status'], 'passed')
                 with self.assertRaises(BlockingIOError):
@@ -683,15 +704,21 @@ class BatchTests(unittest.TestCase):
             if screen is not None and not gate_code:
                 self.assertEqual(result['parse_screen_threads'], screen_threads or 6)
             if gate_code:
-                self.assertEqual(order, ['freeze', 'screen', 'gate'] if parse_first else ['freeze', 'gate'])
-                full_checks.assert_not_called()
+                if parallel:
+                    self.assertEqual(order[:2], ['freeze', 'screen'])
+                    self.assertCountEqual(order[2:], ['gate', 'checks'])
+                    full_checks.assert_called_once()
+                    self.assertEqual(result['parse_screen']['status'], 'passed')
+                else:
+                    self.assertEqual(order, ['freeze', 'screen', 'gate'] if parse_first else ['freeze', 'gate'])
+                    full_checks.assert_not_called()
+                    self.assertNotIn('parse_screen', result)
                 self.assertEqual(result['status'], 'failed')
                 self.assertEqual(result['reason'], 'repository gates failed')
                 self.assertEqual(result['repository_check_returncode'], gate_code)
-                self.assertNotIn('parse_screen', result)
                 self.assertTrue((folder/'repository-check.log').is_file())
                 self.assertTrue((folder/'validation-inputs').is_dir())
-                self.assertFalse((folder/'full-checks').exists())
+                self.assertEqual((folder/'full-checks').exists(), parallel)
                 self.assertNotIn('rows', result)
                 self.assertEqual(json.loads((folder/'validation.json').read_text()), result)
                 self.assertEqual(batch.r._LEASES, [])
@@ -718,8 +745,14 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(batch.r._LEASES, [])
                 return
             before_checks = ['freeze', 'screen', 'gate'] if parse_first else ['freeze', 'gate'] + (['screen'] if screen else [])
-            self.assertEqual(order, before_checks + ['checks']
-                             + (['scan'] if scan and not native_rejection else []))
+            if parallel:
+                self.assertEqual(order[:2], ['freeze', 'screen'])
+                self.assertCountEqual(order[2:4], ['gate', 'checks'])
+                self.assertEqual(order[4:], ['scan'])
+                self.assertTrue(result['parallel_repository_checks'])
+            else:
+                self.assertEqual(order, before_checks + ['checks']
+                                 + (['scan'] if scan and not native_rejection else []))
             if native_rejection:
                 recovered.assert_called_once()
                 self.assertEqual(result['status'], 'failed')

@@ -1,8 +1,9 @@
 """Private provisional integration and validation of retirement proposals."""
 from argparse import Namespace
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 import copy
-from contextlib import closing, contextmanager, nullcontext
+from contextlib import ExitStack, closing, contextmanager, nullcontext
 import fcntl
 import hashlib
 import json
@@ -2240,6 +2241,34 @@ def _audit_parse_screen(checkpoint, manifest, output, data, evidence):
     return result
 
 
+def _run_repository_driver(source, folder, threads, descriptors, evidence):
+    # Families and library tests run concurrently inside the repository driver.
+    gate_threads = max(2, threads//2-2)
+    environment = {key: value for key, value in os.environ.items() if not key.startswith('ORACLE_GRAMMAR_')}
+    environment.update(CARGO_BUILD_JOBS=str(max(4, threads-4)), RAYON_NUM_THREADS=str(gate_threads),
+                       ORACLE_GRAMMAR_THREADS=str(gate_threads), RUST_TEST_THREADS=str(gate_threads))
+    driver_sha256 = r.digest(REPOSITORY_DRIVER)
+    evidence.update(repository_driver_sha256=driver_sha256, repository_grammar=str(source/'grammar'))
+    argv = [sys.executable, str(REPOSITORY_DRIVER), str(source), '--lease-fds', ','.join(map(str, descriptors))]
+    with (folder/'repository-check.log').open('w') as log:
+        code = subprocess.run(argv, cwd=source, env=environment, stdout=log, stderr=log, check=False,
+                              pass_fds=descriptors).returncode
+    evidence['repository_check_returncode'] = code
+    if r.digest(REPOSITORY_DRIVER) != driver_sha256:
+        raise ValueError('repository gate driver changed during validation')
+    if code:
+        raise ValueError('repository gates failed')
+    return gate_threads
+
+
+def _parallel_repository_driver(checkpoint, source, folder, threads, inherited, evidence):
+    # The background thread owns separate descriptors and never changes r._LEASES.
+    # Only the foreground native audit publishes its lease in that process-local list.
+    with retire_cpu.reserve(Path(checkpoint['cpu_pool']), threads, checkpoint.get('cpu_capacity', 32),
+                            background=checkpoint.get('background_cpu', False)) as descriptors:
+        _run_repository_driver(source, folder, threads, inherited+descriptors, evidence)
+
+
 def _validate(manifest, checkpoint, slots, *, scan=False):
     """Freeze and run full allowed-population and repository gates for a candidate."""
     if manifest.get('status') != 'provisional':
@@ -2259,6 +2288,12 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
     repository_threads = checkpoint.get('repository_check_threads', threads)
     if type(repository_threads) is not int or not 8 <= repository_threads <= threads:
         raise ValueError('repository_check_threads must be between 8 and audit_threads')
+    overlap = checkpoint.get('parallel_repository_checks', False)
+    if type(overlap) is not bool:
+        raise ValueError('parallel_repository_checks must be boolean')
+    candidate_spec = checkpoint.get('candidate_validation_helpers')
+    overlap = (overlap and parse_first and checkpoint.get('cpu_pool') and candidate_spec is None
+               and threads+repository_threads <= capacity)
     source = Path(manifest['source']).resolve()
     if (_git(source, 'rev-parse', 'HEAD') != manifest['commit']
             or _git(source, 'status', '--porcelain')
@@ -2278,10 +2313,11 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
                 'checkpoint_manifest_sha256': r.digest(input_run/'manifest.json'), 'inputs': str(output),
                 'source_checkpoint': checkpoint['commit'], 'audit_threads': threads,
                 'cpu_capacity': capacity, 'repository_check_threads': repository_threads}
+    executor = pending = None
+    repository_evidence = {}
     try:
         with _audit_cpu(checkpoint, repository_threads, capacity):
             selected_helpers = Path(checkpoint['helpers']).resolve()
-            candidate_spec = checkpoint.get('candidate_validation_helpers')
             if candidate_spec is not None:
                 selected_helpers, candidate_build = _candidate_helper_snapshot(candidate_spec, checkpoint, source, folder)
                 evidence['candidate_helper_build_sha256'] = candidate_spec['build_sha256']
@@ -2296,28 +2332,18 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
             if screened['parse_screen']['failures']:
                 evidence.update(screened, repository_check_skipped=retire_parse_screen.REPOSITORY_SKIPPED)
                 raise ValueError('full allowed-population parse screen failed')
-        with _audit_cpu(checkpoint, repository_threads, capacity):
-            # dev.py runs families and library tests concurrently. Divide the lease
-            # between those two gates, leaving headroom for the fast gates.
-            gate_threads = str(max(2, repository_threads//2-2))
-            gate_env = {key: value for key, value in os.environ.items() if not key.startswith('ORACLE_GRAMMAR_')}
-            gate_env.update(CARGO_BUILD_JOBS=str(max(4, repository_threads-4)), RAYON_NUM_THREADS=gate_threads,
-                            ORACLE_GRAMMAR_THREADS=gate_threads, RUST_TEST_THREADS=gate_threads)
-            driver_sha256 = r.digest(REPOSITORY_DRIVER)
-            evidence.update(repository_driver_sha256=driver_sha256, repository_grammar=str(source/'grammar'))
-            with (folder/'repository-check.log').open('w') as log:
-                code = subprocess.run([sys.executable, str(REPOSITORY_DRIVER), str(source),
-                                       '--lease-fds', ','.join(map(str, r._LEASES))], cwd=source, env=gate_env,
-                                      stdout=log, stderr=log, check=False, pass_fds=tuple(r._LEASES)).returncode
-            evidence['repository_check_returncode'] = code
-            if r.digest(REPOSITORY_DRIVER) != driver_sha256:
-                raise ValueError('repository gate driver changed during validation')
-            if code:
-                raise ValueError('repository gates failed')
-            if candidate_spec is not None:
-                evidence['optimized_family_log'] = str(folder/'optimized-family-check.log')
-                family_log = _optimized_families(source, selected_helpers, folder, int(gate_threads))
-                evidence['optimized_family_log_sha256'] = r.digest(family_log)
+        if overlap:
+            evidence['parallel_repository_checks'] = True
+            executor = ThreadPoolExecutor(max_workers=1)
+            pending = executor.submit(_parallel_repository_driver, checkpoint, source, folder, repository_threads,
+                                      tuple(r._LEASES), repository_evidence)
+        else:
+            with _audit_cpu(checkpoint, repository_threads, capacity):
+                gate_threads = _run_repository_driver(source, folder, repository_threads, tuple(r._LEASES), evidence)
+                if candidate_spec is not None:
+                    evidence['optimized_family_log'] = str(folder/'optimized-family-check.log')
+                    family_log = _optimized_families(source, selected_helpers, folder, gate_threads)
+                    evidence['optimized_family_log_sha256'] = r.digest(family_log)
         if data is None:
             data = w.payload(output)
         if enabled:
@@ -2331,13 +2357,26 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
                     raise ValueError('early parse screen changed during repository checks')
         checks = folder/'full-checks'
         checks.mkdir()
-        with _audit_cpu(checkpoint, threads, capacity):
+        with ExitStack() as audit_lease:
+            audit_lease.enter_context(_audit_cpu(checkpoint, threads, capacity))
             try:
                 report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()],
                                   data, threads)
             except subprocess.CalledProcessError as error:
                 report = retire_native_outcome.preservation_failure(error, output, checks, data)
             evidence['full_checks'] = report
+            released = False
+            if pending is not None:
+                if not pending.done():
+                    # A different foreground waiter could need more than the
+                    # remaining tokens. Release the audit before joining.
+                    audit_lease.close()
+                    released = True
+                pending.result()
+                evidence.update(repository_evidence)
+                _screen_identity(source, manifest, baseline, input_run, output, evidence)
+                if r.digest(folder/'parse-screen/result.json') != evidence['parse_screen_result_sha256']:
+                    raise ValueError('early parse screen changed during concurrent validation')
             if report['failures']:
                 raise ValueError('full allowed-population checks failed')
             if (r.digest(baseline) != evidence['baseline_sha256']
@@ -2358,7 +2397,9 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
             evidence['status'] = 'passed'
             if scan:
                 # The scan uses the frozen audit thread count. Keep its CPU
-                # reservation across the handoff to checkpoint publication.
+                # reservation across publication, or reacquire it after a join.
+                if released:
+                    audit_lease.enter_context(_audit_cpu(checkpoint, threads, capacity))
                 r.write(folder/'validation.json', evidence)
                 r.scan(Namespace(run=output, rules=None))
                 return evidence
@@ -2366,5 +2407,9 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
         if evidence['status'] == 'passed':
             raise
         evidence.update(status='failed', reason=str(error))
+    finally:
+        if executor is not None:
+            executor.shutdown(wait=True)
+            evidence.update(repository_evidence)
     r.write(folder/'validation.json', evidence)
     return evidence

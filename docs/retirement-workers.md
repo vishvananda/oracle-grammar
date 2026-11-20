@@ -147,6 +147,10 @@ confirmed parse regression can go straight to focused recovery. A passing
 screen still requires all repository gates and full print and reparse checks.
 An optional `repository_check_threads` can reserve a smaller bundle for the
 repository gates while keeping the full-population audit and rule-scan budget.
+With `parallel_repository_checks` enabled, syntax-only candidates can run the
+repository gates and full audit together after the initial parse screen passes.
+Each uses its own CPU lease. When both reservations fit the configured capacity,
+the coordinator waits for both results before scanning or accepting the candidate.
 For the current explicitly allowed population, that means all 32,755
 occurrences: preserve every native reading and every baseline-successful
 verified, exact keyed, default and exact-default print gate. The population and
