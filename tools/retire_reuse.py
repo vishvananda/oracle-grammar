@@ -192,17 +192,48 @@ def rebase_candidate(campaign, checkout, task_id, commit, allowed_files, reuse, 
     return {**result, 'rebased_from': origin, 'rebased_onto': commit}
 
 
+
+def _remove_reviewed_hooks(archived, frozen, hooks):
+    from retire_author import root_declarations
+
+    original = root_declarations(frozen)
+    for request in reversed(hooks):
+        r.require(isinstance(request, dict) and set(request) == {'root', 'production'},
+                  'reviewed draft has an invalid hook request')
+        root, production = request['root'], request['production']
+        r.require(isinstance(root, str) and root in original and isinstance(production, str)
+                  and mined.BARE.fullmatch(production) and len(original[root]) == 1,
+                  'reviewed draft has an invalid hook root or production')
+        relative, tokens, _ = original[root][0]
+        # Authors cannot edit dispatch alternatives. A hook already in the
+        # frozen root therefore did not change the evaluation grammar.
+        if production in tokens[1:]:
+            continue
+        target = archived/relative
+        lines = target.read_text().splitlines()
+        index = mined.definitions(lines)[root][-1][0]
+        suffix = ' | '+production
+        r.require(lines[index].endswith(suffix), 'reviewed hook is not the expected final alternative')
+        lines[index] = lines[index].removesuffix(suffix)
+        target.write_text('\n'.join(lines)+'\n')
+
+
 def _copy_reviewed_grammar(archived, checkout, evaluated, report, frozen):
     hooks = report['hooks']
-    r.require(isinstance(hooks, list), 'reviewed draft has invalid hook requests')
+    r.require(isinstance(hooks, list) and len(hooks) <= 4, 'reviewed draft has invalid hook requests')
     if not hooks:
         r.require(report['source_grammar'] == report['grammar'], 'unhooked draft grammar differs from its evaluation')
-    source = checkout/'grammar' if hooks else evaluated
+    authored = checkout/'grammar'
+    recover = bool(hooks) and not authored.exists() and not authored.is_symlink()
+    source = authored if hooks and not recover else evaluated
     grammar = archived/'grammar'
     r.require(not source.is_symlink(), 'reviewed draft grammar is a symlink')
     shutil.copytree(source, grammar, symlinks=True)
-    r.require(not any(item.is_symlink() for item in grammar.rglob('*'))
-              and r.tree(grammar) == report['source_grammar'], 'reviewed draft grammar changed while copying')
+    r.require(not any(item.is_symlink() for item in grammar.rglob('*')), 'reviewed draft grammar contains a symlink')
+    if recover:
+        r.require(r.tree(grammar) == report['grammar'], 'reviewed evaluated grammar changed while copying')
+        _remove_reviewed_hooks(archived, frozen, hooks)
+    r.require(r.tree(grammar) == report['source_grammar'], 'reviewed draft grammar changed while copying')
     if hooks:
         from retire_author import apply_hooks, check_root_hooks
 

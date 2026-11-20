@@ -141,6 +141,34 @@ class DispatchCanaries(unittest.TestCase):
                 retire_reuse._copy_reviewed_grammar(root/'direct-write', checkout, evaluated,
                                                     {**report, 'source_grammar': changed, 'grammar': changed}, frozen)
 
+    def test_reviewed_hooks_restore_exact_grammar_after_checkout_cleanup(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            checkout, frozen = root/'checkout', root/'frozen'
+            evaluated = root/'evaluation/grammar'
+            raw_path = checkout/'grammar/syntax/card.ebnf'
+            raw_path.parent.mkdir(parents=True)
+            raw_path.write_text('ability ::= existing\n'
+                                '/* @sem Ability::Existing */\nexisting ::= "existing"\n'
+                                '/* @sem Ability::First */\nfirst ::= "first"\n'
+                                '/* @sem Ability::Second */\nsecond ::= "second"\n')
+            shutil.copytree(checkout/'grammar', frozen/'grammar')
+            shutil.copytree(checkout/'grammar', evaluated)
+            hooks = [{'root': 'ability', 'production': name} for name in ('first', 'existing', 'second')]
+            apply_hooks(evaluated, hooks)
+            report = {'hooks': hooks, 'source_grammar': r.tree(checkout/'grammar'), 'grammar': r.tree(evaluated)}
+            shutil.rmtree(checkout)
+
+            archived = root/'archived'
+            retire_reuse._copy_reviewed_grammar(archived, checkout, evaluated, report, frozen)
+            self.assertEqual(r.tree(archived/'grammar'), report['source_grammar'])
+            self.assertEqual(r.read(archived/retire_reuse.HOOKS), hooks)
+            self.assertEqual(r.tree(evaluated), report['grammar'])
+
+            with self.assertRaisesRegex(ValueError, 'grammar changed while copying'):
+                retire_reuse._copy_reviewed_grammar(
+                    root/'wrong-source', checkout, evaluated, {**report, 'source_grammar': report['grammar']}, frozen)
+
     def test_exact_reviewed_draft_uses_coordinator_without_launching_a_model(self):
         with tempfile.TemporaryDirectory() as temporary:
             run = Path(temporary)
