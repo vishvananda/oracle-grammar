@@ -1173,30 +1173,60 @@ def _early_render_losses(rows, expected):
     return losses
 
 
+def _early_score(checkpoint, grammar, data, folder, names, *, render):
+    folder.mkdir()
+    run = Path(checkpoint['inputs'])
+    # Keep complete source records so a face name shared by multiple printings
+    # selects every occurrence with its original companion-face identity.
+    selected = set(names)
+    expected = [entry for entry in data[0].values() if entry['name'] in selected]
+    slice_path = folder/'slice.json'
+    r.write(slice_path, {'cards': names})
+    rows = folder/'rows.jsonl'
+    threads = checkpoint['audit_threads'] if render else _parse_screen_threads(checkpoint)
+    capacity = checkpoint['cpu_capacity']
+    minimum = min(threads, (capacity+1)//2)
+    args = [run/'frozen/gold.jsonl', run/'frozen/oracle.json', slice_path, rows]
+    if render:
+        args.append('--render')
+    with _audit_cpu(checkpoint, threads, capacity, minimum_threads=minimum) as granted:
+        r.execute(run, folder, grammar, 'score', args, granted)
+    return r.rows(rows), expected, granted
+
+
+def _early_parse_losses(rows, expected):
+    failures = []
+    for row, before in zip(rows, expected, strict=True):
+        if row['name'] != before['name'] or row['text'] != before['text']:
+            raise ValueError('The early parse screen occurrence differs')
+        if row['status'] != 'equal' or row.get('readings') != before['parse']['readings']:
+            failures.append({'face': row['name'], 'gate': 'parse/reading-count/text'})
+    return failures
+
+
 def _early_default_print(checkpoint, grammar, data, logs):
     run = Path(checkpoint['inputs'])
     manifest = r.verify(run)
-    names = sorted({entry['name'] for entry in data[0].values() if entry['flags'][3]})
-    if not names:
-        return None
-    folder = logs/'default-print-screen'
-    folder.mkdir()
-    selected = w.subset(folder, names, data)
-    expected = [entry for entry in data[0].values() if entry['name'] in selected]
-    rows = folder/'rows.jsonl'
-    threads = checkpoint['audit_threads']
-    capacity = checkpoint['cpu_capacity']
-    minimum = min(threads, (capacity+1)//2)
-    with _audit_cpu(checkpoint, threads, capacity, minimum_threads=minimum) as granted:
-        r.execute(run, folder, grammar, 'score', [folder/'gold.jsonl', folder/'oracle.json',
-                  folder/'slice.json', rows, '--render'], granted)
+    protected = {entry['name'] for entry in data[0].values() if entry['flags'][3]}
+    remaining = {entry['name'] for entry in data[0].values()} - protected
+    parse_losses = []
+    if remaining:
+        folder = logs/'unprotected-parse-screen'
+        rows, expected, granted = _early_score(checkpoint, grammar, data, folder, sorted(remaining), render=False)
+        parse_losses = _early_parse_losses(rows, expected)
+        r.write(folder/'result.json', {'occurrences': len(expected),
+                'rows_sha256': r.digest(folder/'rows.jsonl'), 'failures': parse_losses, 'threads': granted})
+    losses = []
+    if protected:
+        folder = logs/'default-print-screen'
+        rows, expected, granted = _early_score(checkpoint, grammar, data, folder, sorted(protected), render=True)
+        losses = _early_render_losses(rows, expected)
+        r.write(folder/'result.json', {'status': 'inconclusive' if losses is None else 'checked',
+                'occurrences': len(expected), 'protected_occurrences': sum(entry['flags'][3] for entry in expected),
+                'rows_sha256': r.digest(folder/'rows.jsonl'), 'failures': losses, 'threads': granted})
     if r.verify(run) != manifest:
-        raise ValueError('The early print inputs changed')
-    losses = _early_render_losses(r.rows(rows), expected)
-    r.write(folder/'result.json', {'status': 'inconclusive' if losses is None else 'checked',
-            'occurrences': len(expected), 'protected_occurrences': sum(entry['flags'][3] for entry in expected),
-            'rows_sha256': r.digest(rows), 'failures': losses, 'threads': granted})
-    return losses
+        raise ValueError('The early screening inputs changed')
+    return losses + parse_losses if losses is not None else parse_losses or None
 
 
 def _witness_control(checkpoint, losses, logs):
@@ -1224,9 +1254,10 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
         if previous is None:
             data = control['data'] if control is not None else w.payload(Path(checkpoint['inputs']))
             losses = _early_default_print(checkpoint, grammar, data, logs)
-            result = logs/'default-print-screen/result.json'
-            if result.is_file():
-                proof['default_print_screen_sha256'] = r.digest(result)
+            for screen in ('default-print-screen', 'unprotected-parse-screen'):
+                result = logs/screen/'result.json'
+                if result.is_file():
+                    proof[screen.replace('-', '_')+'_sha256'] = r.digest(result)
             # The independent closure can veto a trial. Every provisional
             # batch still runs full allowed-population validation.
             sampled = losses is not None and len(losses) > RETAINED_NATIVE_PROBE_LIMIT
@@ -1254,12 +1285,8 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
         failures = _retained_native_failure(focused, error.report)
         if failures is None:
             return
-        if losses is not None:
-            observed = failures['failures']
-            if any('gate' in failure for failure in losses):
-                observed = [failure for failure in observed if isinstance(failure, dict)]
-            if observed != losses:
-                return
+        if losses is not None and any(item not in failures['failures'] for item in losses):
+            return
         if not input_cache.unchanged() or r.tree(grammar) != proof['trial_grammar']:
             raise _UncertainPromotion('Early print witness inputs changed during staging')
         proof.update(retained_native_failure=failures, early_print_control=spec,

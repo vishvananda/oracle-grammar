@@ -227,6 +227,50 @@ class BatchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             batch._early_render_losses([lost], before)
 
+    def test_early_screen_catches_a_reading_change_outside_the_default_print_cohort(self):
+        entry = dict(text='Written.', parse={'readings':1}, flags=[True,True,True,True])
+        protected = dict(entry, name='A')
+        remaining = dict(entry, name='B', flags=[True,True,True,False])
+        data = ({'0':protected, '1':remaining}, [], [])
+        first = {'name':'A', 'text':'Written.', 'status':'equal', 'readings':1,
+                 'exact':True, 'default':'Other.'}
+        second = {'name':'B', 'text':'Written.', 'status':'equal', 'readings':2}
+
+        def score(checkpoint, grammar, payload, folder, names, *, render):
+            folder.mkdir()
+            rows = [first] if render else [second]
+            batch.r.jsonl(folder/'rows.jsonl', rows)
+            self.assertEqual(names, ['A'] if render else ['B'])
+            return rows, [protected] if render else [remaining], 2
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with (patch.object(batch.r, 'verify', return_value={'population':2}),
+                  patch.object(batch, '_early_score', side_effect=score)):
+                result = batch._early_default_print({'inputs': str(root)}, root, data, root)
+            self.assertEqual(result, [{'face':'A','lost':['exact_default']},
+                                      {'face':'B','gate':'parse/reading-count/text'}])
+            receipt = batch.r.read(root/'unprotected-parse-screen/result.json')
+            self.assertEqual(receipt['occurrences'], 1)
+            self.assertEqual(receipt['failures'], result[1:])
+
+    def test_early_score_counts_every_occurrence_of_a_shared_face_name(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = ({'0':{'name':'Shared', 'text':'One.'}, '1':{'name':'Companion', 'text':'Two.'},
+                     '2':{'name':'Shared', 'text':'Three.'}}, [], [])
+            selected = [data[0]['0'], data[0]['2']]
+            checkpoint = {'inputs':str(root), 'cpu_capacity':32}
+            output = root/'screen'
+            with (patch.object(batch, '_audit_cpu', return_value=batch.nullcontext(6)),
+                  patch.object(batch.r, 'execute') as execute,
+                  patch.object(batch.r, 'rows', return_value=selected)):
+                self.assertEqual(batch._early_score(checkpoint, root, data, output, ['Shared'], render=False),
+                                 (selected, selected, 6))
+            self.assertEqual(batch.r.read(output/'slice.json'), {'cards':['Shared']})
+            execute.assert_called_once_with(root, output, root, 'score',
+                [root/'frozen/gold.jsonl', root/'frozen/oracle.json', output/'slice.json', output/'rows.jsonl'], 6)
+
     def test_early_witness_can_confirm_reading_and_wording_for_the_same_face(self):
         reading = {'face': 'A', 'gate': 'parse/reading-count/text'}
         print_loss = {'face': 'A', 'lost': ['exact_default']}
