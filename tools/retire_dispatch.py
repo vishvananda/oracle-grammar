@@ -570,6 +570,8 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False, staged=None):
     # checkpoints keep the shared range for background recovery services.
     cp['integration_cpu_capacity']=config.get('integration_cpu_capacity',cp.get('cpu_capacity',32))
     cp['audit_minimum_threads']=config.get('audit_minimum_threads',cp['audit_threads'])
+    cp['full_check_round_trip']=config.get('full_check_round_trip','all')
+    retire_batch._round_trip_mode(cp)
     retire_batch._integration_capacity(cp)
     screen=config.get('full_parse_screen',False)
     r.require(type(screen) is bool,'full_parse_screen must be boolean')

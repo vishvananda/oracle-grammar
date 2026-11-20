@@ -177,6 +177,14 @@ tokens, so the audit and repository gates no longer wait behind author leases.
 `audit_minimum_threads` lets the full audit start with fewer tokens than it
 requested; the evidence records the granted count. Overlap needs room for that
 minimum plus the repository bundle.
+Set `full_check_round_trip` to `gated` to print the full audit without the
+round trip, then reprint with it only the cards that have an equal row that is
+neither exact nor default-printed. `verified` is the only gate that reads the
+round trip, and those rows are the only ones it can still decide, so gate flags,
+native readings and failures stay the same. Rows elsewhere omit `round_trip` and
+`lost`; `full-checks/round-trip/` holds any reprint, and the evidence records how
+many faces it covered. `retire_worker.checks` is pinned by each frozen run's
+tooling and keeps the full round trip. The default is `all`.
 For the current explicitly allowed population, that means all 32,755
 occurrences: preserve every native reading and every baseline-successful
 verified, exact keyed, default and exact-default print gate. The population and

@@ -1217,6 +1217,78 @@ def _early_render_losses(rows, expected):
     return losses
 
 
+def needs_round_trip(row):
+    """Whether reparsing the candidate prints of an equal row can still decide a print gate.
+
+    Only `verified` reads the round trip, and an exact or default-printed
+    reading is verified without it. Rows that are not equal are never printed."""
+    if row.get('status') != 'equal':
+        return False
+    return any(detail.get('exact') is not True and not isinstance(detail.get('default'), str)
+               for detail in row.get('printing', [row]))
+
+
+def _round_trip_mode(checkpoint):
+    mode = checkpoint.get('full_check_round_trip', 'all')
+    if mode not in ('all', 'gated'):
+        raise ValueError('full_check_round_trip must be all or gated')
+    return mode
+
+
+def _splice_round_trip(run, directory, grammar, data, threads):
+    """Reprint, with the round trip, every face whose card has a row it can still decide."""
+    rows = r.rows(directory/'rows.jsonl')
+    wanted = {row['name'] for row in rows if needs_round_trip(row)}
+    if not wanted:
+        return 0
+    folder = directory/'round-trip'
+    folder.mkdir()
+    selected = w.subset(folder, wanted, data)
+    r.execute(run, folder, grammar, 'score',
+              [folder/'gold.jsonl', folder/'oracle.json', folder/'slice.json',
+               folder/'rows.jsonl', '--render', '--round-trip'], threads)
+    full = {}
+    for row in r.rows(folder/'rows.jsonl'):
+        full.setdefault(row['name'], []).append(row)
+    spliced = []
+    for row in rows:
+        if row['name'] not in selected:
+            spliced.append(row)
+            continue
+        # Both passes print one ordered population, so occurrences of a name stay aligned.
+        replacement = full.get(row['name'], []).pop(0) if full.get(row['name']) else None
+        if replacement is None or any(replacement.get(key) != row.get(key)
+                                      for key in ('name', 'text', 'status', 'readings')):
+            raise ValueError('round-trip reprint disagrees with the render pass')
+        spliced.append(replacement)
+    if any(full.values()):
+        raise ValueError('round-trip reprint printed faces the render pass did not')
+    r.jsonl(directory/'rows.jsonl', spliced)
+    return sum(row['name'] in selected for row in rows)
+
+
+def _gated_full_checks(run, directory, grammar, names, data, threads):
+    """The worker's full checks, reparsing candidate prints only where that can decide a gate.
+
+    `retire_worker.checks` is pinned by every frozen run's tooling, so the
+    integration print keeps this gate-identical variant beside it. Gate flags,
+    reading checks and failures equal the worker's; rows omit round-trip counts
+    that no gate reads."""
+    selected = w.subset(directory, names, data)
+    r.execute(run, directory, grammar, 'score',
+              [directory/'gold.jsonl', directory/'oracle.json', directory/'slice.json',
+               directory/'rows.jsonl', '--render'], threads)
+    reprinted = _splice_round_trip(run, directory, grammar, data, threads)
+    r.execute(run, directory, grammar, 'validate-readings',
+              [directory/'gold.jsonl', directory/'rows.jsonl', directory/'native.json',
+               directory/'native-failures.jsonl', '--preserve-from', directory/'before.jsonl'],
+              threads)
+    count = sum(e['name'] in selected for e in data[0].values())
+    failures = w.native_failures(r.read(directory/'native.json'), count)
+    failures.extend(w.compare(r.rows(directory/'rows.jsonl'), data[0], selected))
+    return {'faces': count, 'failures': failures}, reprinted
+
+
 def _early_score(checkpoint, grammar, data, folder, names, *, render):
     folder.mkdir()
     run = Path(checkpoint['inputs'])
@@ -2371,6 +2443,7 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
     overlap = checkpoint.get('parallel_repository_checks', False)
     if type(overlap) is not bool:
         raise ValueError('parallel_repository_checks must be boolean')
+    round_trip = _round_trip_mode(checkpoint)
     candidate_spec = checkpoint.get('candidate_validation_helpers')
     overlap = (overlap and parse_first and checkpoint.get('cpu_pool') and candidate_spec is None
                and minimum+repository_threads <= capacity)
@@ -2447,8 +2520,12 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
                 pending = executor.submit(_parallel_repository_driver, checkpoint, source, folder,
                                           repository_threads, inherited, repository_evidence)
             try:
-                report = w.checks(output, checks, source/'grammar', [e['name'] for e in data[0].values()],
-                                  data, granted)
+                names = [e['name'] for e in data[0].values()]
+                if round_trip == 'gated':
+                    report, reprinted = _gated_full_checks(output, checks, source/'grammar', names, data, granted)
+                    evidence['full_check_round_trip'] = {'mode': 'gated', 'reprinted_faces': reprinted}
+                else:
+                    report = w.checks(output, checks, source/'grammar', names, data, granted)
             except subprocess.CalledProcessError as error:
                 report = retire_native_outcome.preservation_failure(error, output, checks, data)
             evidence['full_checks'] = report
