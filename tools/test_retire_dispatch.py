@@ -359,6 +359,49 @@ class DispatchCanaries(unittest.TestCase):
             self.assertEqual(status['status'], 'needs-operator')
             self.assertEqual(status['reason'], 'planned controller drain')
 
+    def test_checkpoint_runner_mismatch_leaves_work_unclaimed(self):
+        for moving_head in (False, True):
+            with self.subTest(moving_head=moving_head), tempfile.TemporaryDirectory() as temporary:
+                run = Path(temporary)
+                runner = run/'runner'
+                runner.mkdir()
+                for name in r.TOOLING:
+                    (runner/name).write_text(name)
+                tools = r.tree(runner)
+                r.write(run/'runner.json', tools)
+                r.write(run/'config.json', {'workers': 2, 'main_repo': str(run), 'max_operational_retries': 1,
+                                           'first_batch_size': 2, 'batch_size': 2, 'batch_wait_seconds': 0,
+                                           'initial_commit': 'base', 'external_batch_driver': True})
+                for head, frozen in (('base', tools), ('next', {**tools, 'retire.py': 'different'})):
+                    inputs = run/head
+                    inputs.mkdir()
+                    r.write(inputs/'manifest.json', {'format': 3, 'commit': head, 'tooling': frozen})
+                    dispatch.campaign_api.save_checkpoint(run, {'commit': head, 'inputs': str(inputs)})
+                queue = dispatch.Queue(run/'queue.sqlite')
+                queue.add_checkpoint('base', {'proof': 'test'})
+                queue.add_jobs([{'id': 'one', 'rules': ['r_one'], 'kind': 'mechanical'},
+                                {'id': 'two', 'rules': ['r_two'], 'kind': 'author'}])
+                if not moving_head:
+                    queue.add_checkpoint('next', {'proof': 'test'}, expected_parent='base')
+                claim = dispatch.Queue.claim
+                observed = []
+
+                def advance_then_claim(instance, worker, checkpoint=None, kinds=None):
+                    observed.append(checkpoint)
+                    instance.add_checkpoint('next', {'proof': 'test'}, expected_parent='base')
+                    return claim(instance, worker, checkpoint, kinds)
+
+                with patch.object(dispatch.Queue, 'claim', advance_then_claim), \
+                        patch.object(dispatch.shutil, 'disk_usage', return_value=SimpleNamespace(free=100*1024**3)), \
+                        patch.object(dispatch.time, 'sleep'), patch.object(dispatch, 'perform') as perform:
+                    dispatch.run_campaign(run)
+                perform.assert_not_called()
+                self.assertEqual(observed, ['base'] if moving_head else [])
+                self.assertEqual(queue.coverage()['counts'], {'pending': 2})
+                status = r.read(run/'status.json')
+                self.assertEqual(status['status'], 'needs-operator')
+                self.assertIn('frozen runner tooling mismatch: retire.py', status['reason'])
+
     def test_reclassify_rehabilitates_only_newly_unused_parked_rules(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

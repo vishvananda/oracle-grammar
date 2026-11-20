@@ -36,8 +36,8 @@ import retire_metrics
 import retire_mechanical_cohort as mechanical_cohort
 import retire_rehabilitation
 import retire_retention
-from retire_queue import Queue, RehabilitationIneligible
-from retire_tasks import (CohortClosureLimit, close_cohort, mechanical_chunks,
+from retire_queue import Queue, RehabilitationIneligible, StaleCheckpoint
+from retire_tasks import (CohortClosureLimit, close_cohort, frozen_manifest, mechanical_chunks,
                           prepare_task, validate_runner)
 import retire_worker as w
 import shapes
@@ -737,6 +737,7 @@ def run_campaign(run, runner=None):
         batching=None
         retried=set()
         stop_reason=None
+        verified_checkpoint=None
         last_batch=time.monotonic()
         with ThreadPoolExecutor(max_workers=config['workers']) as executor:
             while True:
@@ -766,10 +767,25 @@ def run_campaign(run, runner=None):
                 if shutil.disk_usage(Path(config['main_repo'])).free < 2*1024**3:
                     stop_reason='Main filesystem has less than 2 GiB free'
                 free=[f'terra-{n:02}' for n in range(config['workers']) if f'terra-{n:02}' not in futures.values()]
-                for worker in ([] if stop_reason else free):
-                    claim=queue.claim(worker,kinds=['mechanical']) or queue.claim(worker,kinds=['author'])
-                    if claim:
-                        futures[executor.submit(perform,run,claim,contexts,selected)]=worker
+                if not stop_reason and free and queue.get_jobs('pending',limit=1):
+                    head=queue.progress()['checkpoint']
+                    if head != verified_checkpoint:
+                        try:
+                            frozen_manifest(campaign_api.checkpoint(run,head),selected)
+                        except (OSError, ValueError, KeyError, TypeError) as error:
+                            if queue.progress()['checkpoint'] == head:
+                                stop_reason=f'Cannot claim work at checkpoint {head}: {error}'
+                        else:
+                            verified_checkpoint=head
+                    if not stop_reason and verified_checkpoint == head:
+                        for worker in free:
+                            try:
+                                claim=(queue.claim(worker,checkpoint=head,kinds=['mechanical'])
+                                       or queue.claim(worker,checkpoint=head,kinds=['author']))
+                            except StaleCheckpoint:
+                                break
+                            if claim:
+                                futures[executor.submit(perform,run,claim,contexts,selected)]=worker
                 if futures:
                     finished,_=wait(futures,timeout=2,return_when=FIRST_COMPLETED)
                     for future in finished:

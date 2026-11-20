@@ -48,12 +48,21 @@ def validate_runner(campaign, runner=None):
     return selected
 
 
-def _identity(checkpoint, campaign, runner):
-    source, inputs, helpers = (Path(checkpoint[k]).resolve() for k in ('source', 'inputs', 'helpers'))
+def frozen_manifest(checkpoint, runner):
+    """Verify that a runner can use the checkpoint before assigning work."""
+    inputs = Path(checkpoint['inputs']).resolve()
     manifest_bytes = (inputs/'manifest.json').read_bytes()
     manifest = json.loads(manifest_bytes)
     r.require(manifest['format'] == 3 and manifest['commit'] == checkpoint['commit'],
               'checkpoint and frozen manifest commits differ')
+    for name in r.TOOLING:
+        r.require(r.digest(runner/name) == manifest['tooling'][name], 'frozen runner tooling mismatch: '+name)
+    return manifest, hashlib.sha256(manifest_bytes).hexdigest()
+
+
+def _identity(checkpoint, campaign, runner):
+    source, inputs, helpers = (Path(checkpoint[k]).resolve() for k in ('source', 'inputs', 'helpers'))
+    manifest, manifest_hash = frozen_manifest(checkpoint, runner)
     r.require(git(source, 'rev-parse', 'HEAD') == checkpoint['commit'], 'source commit differs')
     r.require(not git(source, 'status', '--porcelain', '--untracked-files=no'), 'source tracked files changed')
     r.require(dev.source(source) == manifest['source'], 'compiled source differs from frozen manifest')
@@ -67,10 +76,7 @@ def _identity(checkpoint, campaign, runner):
     for name in r.HELPERS:
         r.require(r.digest(inputs/'frozen/bin'/name) == build['binaries'][name],
                   'frozen helper checksum mismatch: '+name)
-    for name in r.TOOLING:
-        r.require(r.digest(runner/name) == manifest['tooling'][name],
-                  'frozen runner tooling mismatch: '+name)
-    return source, inputs, helpers, manifest, hashlib.sha256(manifest_bytes).hexdigest()
+    return source, inputs, helpers, manifest, manifest_hash
 
 
 def _checkout(source, destination, commit):

@@ -980,6 +980,10 @@ class RehabilitationIneligible(ValueError):
     """A parked job is safely ineligible or changed while being checked."""
 
 
+class StaleCheckpoint(ValueError):
+    """The queue checkpoint advanced before a pinned claim could start."""
+
+
 class Queue:
     def __init__(self, path, config=None):
         self.path = str(path)
@@ -1489,7 +1493,7 @@ class Queue:
                 raise ValueError("a checkpoint is required before claiming")
             base = latest[0]
             if checkpoint is not None and checkpoint != base:
-                raise ValueError("checkpoint is stale")
+                raise StaleCheckpoint("checkpoint is stale")
             config = json.loads(db.execute("SELECT value FROM metadata WHERE key='config'").fetchone()[0])
             active = db.execute("SELECT count(*) FROM jobs WHERE status='running'").fetchone()[0]
             if active >= config.get("max_workers", 12):
