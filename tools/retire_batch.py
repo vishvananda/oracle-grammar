@@ -1237,7 +1237,8 @@ def _round_trip_mode(checkpoint):
 
 def _splice_round_trip(run, directory, grammar, data, threads):
     """Reprint, with the round trip, every face whose card has a row it can still decide."""
-    rows = r.rows(directory/'rows.jsonl')
+    lines = (directory/'rows.jsonl').read_text().splitlines(keepends=True)
+    rows = [json.loads(line) for line in lines]
     wanted = {row['name'] for row in rows if needs_round_trip(row)}
     if not wanted:
         return 0
@@ -1248,26 +1249,101 @@ def _splice_round_trip(run, directory, grammar, data, threads):
               [folder/'gold.jsonl', folder/'oracle.json', folder/'slice.json',
                folder/'rows.jsonl', '--render', '--round-trip'], threads)
     full = {}
-    for row in r.rows(folder/'rows.jsonl'):
-        full.setdefault(row['name'], []).append(row)
+    for line in (folder/'rows.jsonl').read_text().splitlines(keepends=True):
+        full.setdefault(json.loads(line)['name'], []).append(line)
     spliced = []
-    for row in rows:
+    for line, row in zip(lines, rows):
         if row['name'] not in selected:
-            spliced.append(row)
+            spliced.append(line)
             continue
         # Both passes print one ordered population, so occurrences of a name stay aligned.
         replacement = full.get(row['name'], []).pop(0) if full.get(row['name']) else None
-        if replacement is None or any(replacement.get(key) != row.get(key)
+        reprinted = json.loads(replacement) if replacement is not None else {}
+        if replacement is None or any(reprinted.get(key) != row.get(key)
                                       for key in ('name', 'text', 'status', 'readings')):
             raise ValueError('round-trip reprint disagrees with the render pass')
         spliced.append(replacement)
     if any(full.values()):
         raise ValueError('round-trip reprint printed faces the render pass did not')
-    r.jsonl(directory/'rows.jsonl', spliced)
+    # Keep the scoreboard's own bytes, so unchanged rows stay byte-identical across batches.
+    temporary = directory/'rows.jsonl.splice'
+    temporary.write_text(''.join(spliced))
+    os.replace(temporary, directory/'rows.jsonl')
     return sum(row['name'] in selected for row in rows)
 
 
-def _gated_full_checks(run, directory, grammar, names, data, threads):
+REUSE_CONTRADICTED = 'print-reuse-contradicted.json'
+
+
+def _reuse_settings(checkpoint):
+    mode = checkpoint.get('full_check_reuse', 'off')
+    every = checkpoint.get('full_check_reuse_audit_every', 4)
+    if mode not in ('off', 'shadow', 'on') or type(every) is not int or not 1 <= every <= 64:
+        raise ValueError('full_check_reuse must be off, shadow or on, audited every 1 to 64 batches')
+    if mode != 'off' and _round_trip_mode(checkpoint) != 'gated':
+        raise ValueError('print reuse needs the gated round trip')
+    return mode, every
+
+
+def _previous_print(checkpoint):
+    """The checkpoint's accepted rows with the traces its full print kept, and its frozen grammar."""
+    rows = Path(checkpoint['baseline']).resolve()
+    traces = rows.parent/'traces.jsonl'
+    inputs = Path(checkpoint['inputs']).resolve()
+    try:
+        recorded = r.read(rows.parent.parent/'validation.json')
+        files = r.read(inputs/'manifest.json')['files']
+    except (OSError, ValueError):
+        return None
+    grammar = inputs/'frozen/grammar'
+    expected = {name.removeprefix('grammar/'): sha for name, sha in files.items() if name.startswith('grammar/')}
+    if (Path(recorded.get('rows', '')).resolve() != rows or traces.is_symlink() or not traces.is_file()
+            or recorded.get('full_check_traces_sha256') != r.digest(traces)
+            or grammar.is_symlink() or r.tree(grammar) != expected):
+        return None
+    return {'rows': rows, 'traces': traces, 'grammar': grammar,
+            'streak': (recorded.get('print_reuse') or {}).get('streak', 0)}
+
+
+def _reuse_arguments(campaign, checkpoint, checks):
+    """Score flags that keep traces and, from a traced checkpoint, carry unaffected rows over.
+
+    Every `every`th batch, and every batch after any contradicted prediction, prints in
+    full in shadow mode, so the reuse decisions are audited against a complete print."""
+    mode, every = _reuse_settings(checkpoint)
+    if mode == 'off':
+        return [], None
+    plan = {'mode': 'trace', 'streak': 0, 'previous': None}
+    arguments = [f'--trace-out={checks/"traces.jsonl"}']
+    previous = _previous_print(checkpoint)
+    if previous is not None:
+        audit = (mode == 'shadow' or (campaign/REUSE_CONTRADICTED).exists()
+                 or previous['streak']+1 >= every)
+        plan = {'mode': 'shadow' if audit else 'on', 'streak': 0 if audit else previous['streak']+1,
+                'previous': str(previous['rows'])}
+        arguments += [f'--reuse-rows={previous["rows"]}', f'--reuse-traces={previous["traces"]}',
+                      f'--reuse-grammar={previous["grammar"]}', f'--reuse-mode={plan["mode"]}',
+                      f'--reuse-report={checks/"reuse.json"}']
+    return arguments, plan
+
+
+def _reuse_evidence(campaign, checks, plan, batch):
+    """What the full print reused, and a campaign marker if a shadow print contradicted it."""
+    evidence = dict(plan, traces_sha256=r.digest(checks/'traces.jsonl'))
+    report = checks/'reuse.json'
+    if report.is_file():
+        found = r.read(report)
+        evidence.update({key: found.get(key) for key in ('reused', 'printed', 'unseen', 'predicted', 'reasons')})
+        contradicted = found.get('contradicted') or []
+        evidence['contradicted'] = len(contradicted)
+        if found.get('unavailable'):
+            evidence.update(mode='trace', streak=0, unavailable=found['unavailable'])
+        if contradicted:
+            r.write(campaign/REUSE_CONTRADICTED, {'batch': batch, 'faces': contradicted[:64]})
+    return evidence
+
+
+def _gated_full_checks(run, directory, grammar, names, data, threads, reuse=()):
     """The worker's full checks, reparsing candidate prints only where that can decide a gate.
 
     `retire_worker.checks` is pinned by every frozen run's tooling, so the
@@ -1277,7 +1353,7 @@ def _gated_full_checks(run, directory, grammar, names, data, threads):
     selected = w.subset(directory, names, data)
     r.execute(run, directory, grammar, 'score',
               [directory/'gold.jsonl', directory/'oracle.json', directory/'slice.json',
-               directory/'rows.jsonl', '--render'], threads)
+               directory/'rows.jsonl', '--render', *reuse], threads)
     reprinted = _splice_round_trip(run, directory, grammar, data, threads)
     r.execute(run, directory, grammar, 'validate-readings',
               [directory/'gold.jsonl', directory/'rows.jsonl', directory/'native.json',
@@ -2444,6 +2520,7 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
     if type(overlap) is not bool:
         raise ValueError('parallel_repository_checks must be boolean')
     round_trip = _round_trip_mode(checkpoint)
+    _reuse_settings(checkpoint)
     candidate_spec = checkpoint.get('candidate_validation_helpers')
     overlap = (overlap and parse_first and checkpoint.get('cpu_pool') and candidate_spec is None
                and minimum+repository_threads <= capacity)
@@ -2522,8 +2599,14 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
             try:
                 names = [e['name'] for e in data[0].values()]
                 if round_trip == 'gated':
-                    report, reprinted = _gated_full_checks(output, checks, source/'grammar', names, data, granted)
+                    campaign = folder.parents[2]
+                    reuse, plan = _reuse_arguments(campaign, checkpoint, checks)
+                    report, reprinted = _gated_full_checks(output, checks, source/'grammar', names, data, granted,
+                                                           reuse)
                     evidence['full_check_round_trip'] = {'mode': 'gated', 'reprinted_faces': reprinted}
+                    if plan is not None:
+                        evidence['print_reuse'] = _reuse_evidence(campaign, checks, plan, folder.name)
+                        evidence['full_check_traces_sha256'] = evidence['print_reuse']['traces_sha256']
                 else:
                     report = w.checks(output, checks, source/'grammar', names, data, granted)
             except subprocess.CalledProcessError as error:

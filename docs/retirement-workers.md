@@ -184,7 +184,14 @@ round trip, and those rows are the only ones it can still decide, so gate flags,
 native readings and failures stay the same. Rows elsewhere omit `round_trip` and
 `lost`; `full-checks/round-trip/` holds any reprint, and the evidence records how
 many faces it covered. `retire_worker.checks` is pinned by each frozen run's
-tooling and keeps the full round trip. The default is `all`.
+tooling and keeps the full round trip. The default is `all`. The splice keeps
+the scoreboard's bytes for every row it does not replace.
+With the gated round trip, `full_check_reuse` set to `on` carries rows over from
+the previous checkpoint's traced print where no grammar difference can reach a
+face, and `shadow` audits every prediction with a full print. One batch in
+`full_check_reuse_audit_every` runs in shadow mode, and so does every batch after a
+contradiction until `print-reuse-contradicted.json` is removed. See
+[print reuse](print-reuse.md).
 For the current explicitly allowed population, that means all 32,755
 occurrences: preserve every native reading and every baseline-successful
 verified, exact keyed, default and exact-default print gate. The population and

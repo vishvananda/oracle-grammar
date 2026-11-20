@@ -82,6 +82,19 @@ class GatedRoundTripTests(unittest.TestCase):
                 self.assertRaisesRegex(ValueError, 'disagrees'):
             batch._gated_full_checks(Path('run'), self.directory, Path('grammar'), ['A', 'B', 'C'], self.data, 8)
 
+    def test_the_splice_keeps_the_scoreboard_bytes_of_unprinted_rows(self):
+        def compact(run, folder, grammar, program, arguments, threads):
+            self.execute(run, folder, grammar, program, arguments, threads)
+            if program == 'score':
+                rows = r.rows(folder/'rows.jsonl')
+                (folder/'rows.jsonl').write_text(''.join(json.dumps(row, separators=(',', ':')) + '\n'
+                                                         for row in rows))
+        with patch.object(r, 'execute', side_effect=compact):
+            batch._gated_full_checks(Path('run'), self.directory, Path('grammar'), ['A', 'B', 'C'], self.data, 8)
+        lines = (self.directory/'rows.jsonl').read_text().splitlines()
+        self.assertTrue(all(', ' not in line for line in lines))
+        self.assertIn('"round_trip":[3,1]', lines[1])
+
     def test_round_trip_decides_only_unverified_equal_rows(self):
         self.assertFalse(batch.needs_round_trip({'status': 'equal', 'exact': True}))
         self.assertFalse(batch.needs_round_trip({'status': 'equal', 'exact': False, 'default': 'x'}))
