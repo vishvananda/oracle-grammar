@@ -270,7 +270,8 @@ class SurvivorTests(unittest.TestCase):
             jobs = [{'job_id': str(i), 'attempt_id': str(i), 'kind': 'author', 'rules': [str(i)]}
                     for i in range(4)]
             cp = {'commit': 'accepted', 'cpu_pool': str(campaign/'cpu'), 'cpu_capacity': 4}
-            manifest = {'commit': 'rejected', 'grammar': isolate.r.tree(grammar)}
+            manifest = {'id': 'batch', 'base_commit': 'accepted', 'commit': 'rejected',
+                        'grammar': isolate.r.tree(grammar)}
             archived = (folder, manifest, jobs, cp, inputs, inputs, ['Fixture'], {})
             scratch = campaign/'.cache/proof'
             trials = []
@@ -278,35 +279,44 @@ class SurvivorTests(unittest.TestCase):
             def checked(_, _control, root):
                 indices = isolate.r.read(root/'identity.json')['indices']
                 trials.append(indices)
-                return {'failures': ['regression'] if 1 in indices else []}
+                result = {'faces': 1, 'failures': ['regression'] if 1 in indices else []}
+                check = root/'checks'
+                check.mkdir()
+                for name in isolate.readmission.ARTIFACTS:
+                    (check/name).write_text('')
+                isolate.r.write(check/'slice.json', {'cards': ['Fixture']})
+                isolate.r.write(root/'result.json', result)
+                return result
 
             with (
                 patch.object(isolate, '_archived', return_value=archived),
                 patch.object(isolate, '_proposals', return_value=[(i,) for i in range(4)]),
                 patch.object(isolate, '_apply'),
-                patch.object(isolate.batch, '_control_setup', return_value={'occurrences': 1}),
+                patch.object(isolate.batch, '_control_setup', return_value={'occurrences': 1, 'names': ['Fixture']}),
                 patch.object(isolate.cpu, 'reserve', side_effect=lambda *a, **k: nullcontext()),
                 patch.object(isolate, '_check', side_effect=checked),
-                patch.object(isolate, '_controls', side_effect=lambda roots: {k: str(v) for k, v in roots.items()}),
             ):
                 result = isolate.isolate(campaign, 'batch', scratch, 5, witness_retry=3)
                 original_trials = trials.copy()
                 trials.clear()
                 refreshed = campaign/'.cache/refreshed'
-                survivors = isolate.isolate(campaign, 'batch', refreshed, 3,
-                                            unavailable=['2'], preferred=['0', '3'])
+                anchors = result['evidence']['isolation']
+                survivors = isolate.isolate(campaign, 'batch', refreshed, 3, unavailable=['2'],
+                                            preferred=['0', '3'], retry_anchors=anchors)
                 refreshed_trials = trials.copy()
                 trials.clear()
+                (scratch/'base/checks/score.log').write_text('changed receipt')
                 fallback = isolate.isolate(campaign, 'batch', campaign/'.cache/fallback', 10,
-                                           unavailable=['2'], preferred=['0', '1'])
+                                           unavailable=['2'], preferred=['0', '1'], retry_anchors=anchors)
             self.assertEqual(result['jobs'], ['0', '2', '3'])
             self.assertEqual(original_trials, [[], [0, 1, 2, 3], [0, 1], [0], [1], [0, 2, 3]])
             proof = isolate.r.read(scratch/'isolation.json')
             self.assertEqual(proof['excluded_jobs'], ['1'])
-            self.assertEqual(proof['controls']['base'], str(scratch/'base'))
-            self.assertEqual(proof['controls']['full'], str(scratch/'full'))
+            self.assertEqual(proof['controls']['base']['result']['path'], str(scratch/'base/result.json'))
+            self.assertEqual(proof['controls']['full']['result']['path'], str(scratch/'full/result.json'))
             self.assertEqual(survivors['jobs'], ['0', '3'])
-            self.assertEqual(refreshed_trials, [[], [0, 1, 2, 3], [0, 3]])
+            self.assertEqual(refreshed_trials, [[0, 3]])
+            self.assertTrue((campaign/'.cache/fallback/rejected-retry-anchors.json').is_file())
             self.assertTrue(isolate.r.read(refreshed/'routing.json')['preferred_passed'])
             self.assertEqual(fallback['jobs'], ['0', '3'])
             self.assertEqual(trials[:3], [[], [0, 1, 2, 3], [0, 1]])

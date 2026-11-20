@@ -121,10 +121,11 @@ class PendingFullPrintTests(unittest.TestCase):
         self.assertEqual(self.pending(), [])
 
     def test_recovery_rechecks_survivors_when_a_selected_attempt_moves(self):
-        before = {'rules': 2, 'jobs': ['a', 'b']}
-        after = {'rules': 1, 'jobs': ['a']}
         original = self.output/self.batch/'proof'
         retry = self.output/self.batch/'proof-retry'
+        anchors = {'path': str(original/'isolation.json'), 'sha256': 'proof-digest'}
+        before = {'rules': 2, 'jobs': ['a', 'b'], 'evidence': {'isolation': anchors}}
+        after = {'rules': 1, 'jobs': ['a']}
 
         def verify(_campaign, path, result, *, full_check):
             if path == original:
@@ -140,6 +141,7 @@ class PendingFullPrintTests(unittest.TestCase):
             receipt = recover.recover(self.campaign, self.output, self.batch, 32, apply=True)
         self.assertEqual([call.kwargs['unavailable'] for call in isolate.call_args_list], [set(), {'b'}])
         self.assertEqual(isolate.call_args_list[1].kwargs['preferred'], ['a'])
+        self.assertEqual(isolate.call_args_list[1].kwargs['retry_anchors'], anchors)
         self.assertEqual(readmit.call_count, 2)
         self.assertEqual(receipt, {'status': 'readmitted', 'rules': 1, 'jobs': 1,
                                    'proof': str(retry/'result.json')})

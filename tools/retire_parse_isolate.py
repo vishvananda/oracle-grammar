@@ -334,8 +334,39 @@ def _completed_prefix(selection, seen):
     return None
 
 
+def _retry_anchors(campaign, scratch, prior, manifest, inputs, jobs, control, full_check):
+    path, raw = _proof_file(prior)
+    mode = 'full-check' if full_check else 'parse-screen'
+    previous = json.loads(raw)
+    r.require(path == scratch.parent/'proof/isolation.json' and path.resolve() == path
+              and previous['kind'] == f'isolated-{mode}-regressions'
+              and previous['manifest'] == manifest['id'] and previous['candidate'] == manifest['commit']
+              and previous['parent'] == manifest['base_commit']
+              and previous['population_count'] == control['occurrences'],
+              'retry anchors differ from the archived isolation')
+    anchors, seen = {}, {}
+    for label, indices, tree in (
+            ('base', [], r.tree(inputs/'frozen/grammar')),
+            ('full', list(range(len(jobs))), manifest['grammar'])):
+        spec = previous['controls'][label]
+        decoded, _ = readmission._control(campaign, spec, _proof_file)
+        root = Path(spec['identity']['path']).parent
+        identity, result = decoded['identity'], decoded['result']
+        proposals = [{key: jobs[i][key] for key in ('job_id', 'attempt_id')} for i in indices]
+        r.require(root.is_relative_to(path.parent) and _controls({label: root})[label] == spec
+                  and identity == {'method': 'ordered-proposal-replay-v1', 'indices': indices,
+                                   'tree': tree, 'proposals': proposals}
+                  and decoded['population'] == {'cards': sorted(control['names'])}
+                  and result['faces'] == control['occurrences']
+                  and isinstance(result['failures'], list) and bool(result['failures']) == (label == 'full'),
+                  'retry anchor evidence or full closure differs')
+        anchors[label] = spec
+        seen[tuple(indices)] = {'root': root, 'tree': tree, 'result': result}
+    return anchors, seen
+
+
 def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(), full_check=False,
-            witness_retry=0, unavailable=(), preferred=()):
+            witness_retry=0, unavailable=(), preferred=(), retry_anchors=None):
     r.require(3 <= max_trials <= 96 and 0 <= witness_retry <= 96-max_trials,
               'invalid focused trial budget')
     folder, manifest, jobs, checkpoint, inputs, run, names, archived = _archived(campaign, batch_id, full_check=full_check)
@@ -364,7 +395,12 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     eligible = [i for i in indices if jobs[i]['job_id'] not in unavailable]
     mechanics = [i for i in indices if jobs[i]['kind'] == 'mechanical']
     prefix = mechanics if mechanics == indices[:len(mechanics)] else []
-    seen, roots = {}, {}
+    anchors, seen, roots = {}, {}, {}
+    if retry_anchors is not None:
+        try:
+            anchors, seen = _retry_anchors(campaign, scratch, retry_anchors, manifest, inputs, jobs, control, full_check)
+        except (OSError, ValueError, IndexError, KeyError, TypeError) as error:
+            r.write(scratch/'rejected-retry-anchors.json', {'reason': str(error)})
     pinned = []
     limit = max_trials
 
@@ -447,12 +483,15 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     isolation = scratch/'isolation.json'
     mode = 'full-check' if full_check else 'parse-screen'
     control_baseline = {} if full_check else {'control_baseline': readmission.VALIDATION_INPUTS}
+    controls = _controls({k: roots[k] for k in ('base','full','remaining')})
+    r.require(all(controls[label] == spec for label, spec in anchors.items()),
+              'retry anchors changed during the survivor check')
     r.write(isolation, {**control_baseline, 'kind': f'isolated-{mode}-regressions', 'manifest': batch_id,
                         'candidate': manifest['commit'], 'parent': checkpoint['commit'],
                         'excluded_jobs': [jobs[i]['job_id'] for i in excluded],
                         'reason': 'The retained union preserved every reading and print gate on the failed face closure.',
                         'profile': _spec(profile), 'population_count': control['occurrences'],
-                        'controls': _controls({k: roots[k] for k in ('base','full','remaining')}),
+                        'controls': controls,
                         'original_reports': _spec(original_reports)})
     selected = [jobs[i]['job_id'] for i in remaining]
     evidence = {**archived, 'kind': f'isolated-{mode}-revalidation', 'source_checkpoint': checkpoint['commit'],
