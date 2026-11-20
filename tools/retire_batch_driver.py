@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the existing batch pipeline behind one durable campaign batch lease."""
+"""Run the existing batch pipeline with a durable lease per batch."""
 import argparse
 from collections import Counter, defaultdict
 from contextlib import closing
@@ -378,12 +378,20 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
     with dispatch.lease(run/'batch-driver.lock'):
         status('waiting-lock', queue.progress())
         try:
-            with dispatch.lease(run/'batch.lock', blocking=True) as fd:
-                r._LEASES.append(fd)
-                try:
-                    last_batch = time.monotonic()
-                    flush = flush_once
-                    while True:
+            last_batch = None
+            flush = flush_once
+            delay = 0
+            while True:
+                # Keep the driver singleton while giving repair and publication
+                # services a chance to acquire the integration lease.
+                if delay:
+                    time.sleep(delay)
+                delay = poll_seconds
+                with dispatch.lease(run/'batch.lock', blocking=True) as fd:
+                    r._LEASES.append(fd)
+                    try:
+                        if last_batch is None:
+                            last_batch = time.monotonic()
                         progress = queue.progress()
                         jobs = progress['job_counts']
                         if (run/'drain.json').exists() or (run/'batch-driver-drain.json').exists():
@@ -393,7 +401,6 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         if publication.is_file() and (record := r.read(publication)).get('status') == 'pending':
                             if not dispatch.retry_dirty_publication(run, queue, progress['checkpoint'], record):
                                 status('waiting-publication', progress, reason=dispatch.DIRTY_PUBLICATION)
-                                time.sleep(poll_seconds)
                                 continue
                             status('idle', progress, reason=None)
                         config = r.read(run/'config.json')
@@ -515,7 +522,6 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         if not pending and not running and not ready:
                             if awaiting_print_recovery(run):
                                 status('idle', progress, reason='automatic batch recovery is active')
-                                time.sleep(poll_seconds)
                                 continue
                             final = queue.progress()
                             if any(final['job_counts'].get(name) for name in ('pending', 'running', 'provisional-pass')):
@@ -526,9 +532,8 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             status('first-pass-complete' if complete else 'needs-operator', final)
                             return
                         status('idle', progress)
-                        time.sleep(poll_seconds)
-                finally:
-                    r._LEASES.remove(fd)
+                    finally:
+                        r._LEASES.remove(fd)
         except Exception as error:
             status('needs-operator', queue.progress(), reason=str(error))
             raise

@@ -6,7 +6,7 @@ import tempfile
 import threading
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from retire_queue import Queue
 
@@ -663,9 +663,21 @@ class DriverTests(unittest.TestCase):
 
     def test_ready_threshold_runs_once_with_owned_lease_and_observes_result(self):
         self.queue.value = progress(ready=4)
-        with patch.object(driver.dispatch, '_batch', side_effect=self.outcome()) as batch:
+
+        def between_batches(delay):
+            self.assertEqual(delay, 2)
+            state = r.read(self.run/'batch-driver.json')
+            self.assertEqual((state['phase'], state['checkpoint']), ('idle', 'candidate'))
+            self.assertEqual(r._LEASES, [])
+            with driver.dispatch.lease(self.run/'batch.lock'):
+                with self.assertRaises(BlockingIOError), driver.dispatch.lease(self.run/'batch-driver.lock'):
+                    self.fail('the integration boundary lost the driver singleton')
+
+        with patch.object(driver.dispatch, '_batch', side_effect=self.outcome()) as batch, \
+             patch.object(driver.time, 'sleep', side_effect=between_batches) as pause:
             driver.run_driver(self.run, self.runner)
         self.assertEqual(batch.call_count, 1)
+        pause.assert_called_once_with(2)
         state = r.read(self.run/'batch-driver.json')
         self.assertEqual(state['phase'], 'first-pass-complete')
         self.assertEqual(state['last_batch']['validation_status'], 'passed')
@@ -677,8 +689,9 @@ class DriverTests(unittest.TestCase):
         def recovery_finishes(_):
             state = r.read(self.run/'batch-driver.json')
             self.assertEqual(state['phase'], 'idle')
-            self.assertEqual(state['reason'], 'automatic batch recovery is active')
-            self.queue.value = progress(pending=0, ready=2)
+            if state['checkpoint'] == 'parent':
+                self.assertEqual(state['reason'], 'automatic batch recovery is active')
+                self.queue.value = progress(pending=0, ready=2)
 
         with patch.object(driver, 'awaiting_print_recovery', side_effect=[True, False]), \
              patch.object(driver.time, 'sleep', side_effect=recovery_finishes), \
@@ -723,6 +736,9 @@ class DriverTests(unittest.TestCase):
         self.queue.value = progress(pending=1, ready=1)
         def sleep(_):
             self.assertEqual(r.read(self.run/'batch-driver.json')['phase'], 'idle')
+            self.assertEqual(r._LEASES, [])
+            with driver.dispatch.lease(self.run/'batch.lock'):
+                pass
             r.write(self.run/'drain.json', {'reason': 'stop'})
         with patch.object(driver.dispatch, '_batch') as batch, patch.object(driver.time, 'sleep', side_effect=sleep):
             driver.run_driver(self.run, self.runner)
@@ -769,7 +785,7 @@ class DriverTests(unittest.TestCase):
                 patch.object(driver.time, 'sleep') as waiting:
             driver.run_driver(self.run, self.runner)
         batch.assert_called_once_with(self.run)
-        waiting.assert_called_once_with(2)
+        self.assertEqual(waiting.call_args_list, [call(2), call(2)])
         self.assertEqual(resume.call_count, 2)
         state = r.read(self.run/'batch-driver.json')
         self.assertEqual(state['phase'], 'first-pass-complete')
