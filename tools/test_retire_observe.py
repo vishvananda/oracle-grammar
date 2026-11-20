@@ -106,6 +106,28 @@ class ObserveTests(unittest.TestCase):
         self.assertEqual(sum(row['attempts'] for row in result['attempts']), 1)
         self.assertEqual(result['attempts'][0]['kind'], 'author')
 
+    def test_audit_medians_use_only_complete_accepted_timings_for_the_same_configuration(self):
+        parent = 'base'
+        for index, threads, times in ((1, 24, (23, 31, 1000, 40)), (2, 24, (27, 35, 1200, 44)),
+                                      (3, 16, (22, 33, 1400, 52)), (4, 24, (25, 35, 1800, None))):
+            commit = f'cp{index}'
+            batch = f'{index:032x}'
+            folder = self.root/'.cache/batches'/batch
+            self.queue.add_checkpoint(commit, {'manifest': batch, 'validation': {
+                'candidate': commit, 'status': 'passed', 'audit_threads': threads, 'parse_screen_threads': 12,
+                'full_checks': {'faces': 32755, 'failures': []}, 'parse_screen': {'status': 'passed', 'faces': 32755},
+            }}, expected_parent=parent)
+            parent = commit
+            for stage, measurements in (('parse-screen', times[:2]), ('full-checks', times[2:])):
+                log = folder/stage/'commands.jsonl'
+                log.parent.mkdir(parents=True)
+                log.write_text(''.join(json.dumps({'program': program, 'returncode': 0, 'wall_seconds': seconds})+'\n'
+                                       for program, seconds in zip(('score','validate-readings'), measurements)))
+        samples = observe.snapshot(self.root)['accepted_audit_timings']
+        self.assertEqual([(row['full_threads'], row['samples']) for row in samples], [(16, 1), (24, 2)])
+        self.assertEqual(samples[1]['wall_medians'], {'parse_score_seconds': 25, 'parse_native_seconds': 33,
+            'render_round_trip_score_seconds': 1100, 'full_native_seconds': 42})
+
     def test_cli_output_constrained_to_cache(self):
         script = Path(observe.__file__)
         target = self.root/'.cache/observed.json'

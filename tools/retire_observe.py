@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import sqlite3
 import statistics
@@ -65,6 +66,54 @@ def _verified_unstarted(event):
             and isinstance(terminal.get('verification'), dict) and bool(terminal['verification']))
 
 
+def _audit_command_times(path):
+    try:
+        if path != path.resolve() or not path.is_file() or path.stat().st_size > 8192:
+            return None
+        with path.open() as stream:
+            content = stream.read(8193)
+        if len(content) > 8192:
+            return None
+        rows = [json.loads(line) for line in content.splitlines()]
+        if ([(row['program'], row['returncode']) for row in rows]
+                != [('score', 0), ('validate-readings', 0)]):
+            return None
+        times = [_number(row['wall_seconds']) for row in rows]
+        return times if all(time is not None for time in times) else None
+    except (OSError, KeyError, TypeError, ValueError):
+        return None
+
+
+def _audit_timings(campaign, checkpoints):
+    groups = defaultdict(list)
+    for commit, raw in checkpoints:
+        receipt = json.loads(raw)
+        if not isinstance(receipt, dict):
+            continue
+        batch, validation = receipt.get('manifest'), receipt.get('validation')
+        if (not isinstance(batch, str) or not re.fullmatch(r'[0-9a-f]{32}', batch)
+                or not isinstance(validation, dict) or validation.get('status') != 'passed'
+                or validation.get('candidate') != commit):
+            continue
+        screen, full = (validation.get(key, {}) for key in ('parse_screen', 'full_checks'))
+        if not isinstance(screen, dict) or not isinstance(full, dict):
+            continue
+        population = full.get('faces')
+        parse_threads, full_threads = (validation.get(key) for key in ('parse_screen_threads', 'audit_threads'))
+        if (screen.get('status') != 'passed' or screen.get('faces') != population or full.get('failures') != []
+                or any(type(value) is not int or value <= 0 for value in (population, parse_threads, full_threads))):
+            continue
+        folder = campaign/'.cache/batches'/batch
+        parse = _audit_command_times(folder/'parse-screen/commands.jsonl')
+        rendered = _audit_command_times(folder/'full-checks/commands.jsonl')
+        if parse is not None and rendered is not None:
+            groups[population, parse_threads, full_threads].append(parse + rendered)
+    keys = ('parse_score_seconds', 'parse_native_seconds', 'render_round_trip_score_seconds', 'full_native_seconds')
+    return [{'population': population, 'parse_threads': parse_threads, 'full_threads': full_threads,
+             'samples': len(samples), 'wall_medians': dict(zip(keys, map(statistics.median, zip(*samples)), strict=True))}
+            for (population, parse_threads, full_threads), samples in sorted(groups.items())]
+
+
 def snapshot(campaign):
     """Take one SQLite read transaction; report aggregates without source text."""
     campaign = Path(campaign).resolve()
@@ -94,6 +143,7 @@ def snapshot(campaign):
         attempts = list(db.execute('SELECT id,job_id,started,result FROM attempts'))
         events = list(db.execute("SELECT kind,data,at FROM events WHERE kind IN "
                                  "('claimed','finished','retry-tainted','retry-unstarted') ORDER BY seq"))
+        checkpoints = list(db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 16'))
         db.commit()
     finally:
         db.close()
@@ -190,6 +240,7 @@ def snapshot(campaign):
             'failure_categories': [{'attempt_status': state, 'category': category,
                                     'reason_sha256': digest, 'rules': count}
                                    for (state, category, digest), count in sorted(failures.items(), key=lambda x: str(x[0]))],
+            'accepted_audit_timings': _audit_timings(campaign, checkpoints),
             'filesystem': {'campaign': _disk(campaign), 'main': _disk(Path(config['main_repo']))},
             'cost_basis': 'Standard API equivalent estimates, not subscription billing'}
 
