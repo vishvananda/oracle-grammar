@@ -1,0 +1,957 @@
+{
+  "family": "retirement-bca55720d55c5e8b",
+  "cases": [
+    {
+      "name": "Chains of Mephistopheles",
+      "text": "If a player would draw a card except the first one they draw in each of their draw steps, that player discards a card instead. If the player discards a card this way, they draw a card. If the player doesn't discard a card this way, they mill a card.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Player": {
+                "event": "DrawExceptFirstInDrawStep",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "EventSubject"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Discard": {
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "filter": {
+                                  "kind": "Any"
+                                },
+                                "random": false
+                              }
+                            }
+                          ]
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 1
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "ModifyEvent",
+                              "args": {
+                                "change": "Cancel"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "ModifyEvent",
+                              "args": {
+                                "change": "Cancel"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 5,
+                            "operation": {
+                              "kind": "Mill",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Possessed Portal",
+      "text": "If a player would draw a card, that player skips that draw instead.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Player": {
+                "event": "Draw",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Pyromancer's Gauntlet",
+      "text": "If a red instant or sorcery spell you control or a red planeswalker you control would deal damage to a permanent or player, it deals that much damage plus 2 to that permanent or player instead.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Either": [
+                {
+                  "Damage": {
+                    "source_kind": "Spell",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Red"
+                        },
+                        {
+                          "kind": "AnyOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Instant"
+                            },
+                            {
+                              "kind": "CardType",
+                              "args": "Sorcery"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Red"
+                        },
+                        {
+                          "kind": "CardType",
+                          "args": "Planeswalker"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                }
+              ]
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "SetAmount": {
+                            "kind": "Add",
+                            "args": [
+                              {
+                                "kind": "EventAmount"
+                              },
+                              {
+                                "kind": "Constant",
+                                "args": 2
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Amber Zenith",
+      "text": "If a player would draw a card, that opponent skips that draw instead.",
+      "types": [
+        "Artifact"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Amber Zenith",
+      "text": "If a blue instant or sorcery spell you control or a red planeswalker you control would deal damage to a permanent or player, it deals that much damage plus 2 to that permanent or player instead.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Either": [
+                {
+                  "Damage": {
+                    "source_kind": "Spell",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Blue"
+                        },
+                        {
+                          "kind": "AnyOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Instant"
+                            },
+                            {
+                              "kind": "CardType",
+                              "args": "Sorcery"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Red"
+                        },
+                        {
+                          "kind": "CardType",
+                          "args": "Planeswalker"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                }
+              ]
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "SetAmount": {
+                            "kind": "Add",
+                            "args": [
+                              {
+                                "kind": "EventAmount"
+                              },
+                              {
+                                "kind": "Constant",
+                                "args": 2
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Amber Zenith",
+      "text": "If a red instant or sorcery spell you control or a red planeswalker you control would deal damage to a creature or player, it deals that much damage plus 2 to that permanent or player instead.",
+      "types": [
+        "Artifact"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Pyromancer's Gauntlet",
+      "text": "If a red instant or sorcery spell you control or a red planeswalker you control would deal damage to a permanent or player, it deals that much damage plus 3 to that permanent or player instead.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 5
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Either": [
+                {
+                  "Damage": {
+                    "source_kind": "Spell",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Red"
+                        },
+                        {
+                          "kind": "AnyOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Instant"
+                            },
+                            {
+                              "kind": "CardType",
+                              "args": "Sorcery"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Red"
+                        },
+                        {
+                          "kind": "CardType",
+                          "args": "Planeswalker"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                }
+              ]
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "SetAmount": {
+                            "kind": "Add",
+                            "args": [
+                              {
+                                "kind": "EventAmount"
+                              },
+                              {
+                                "kind": "Constant",
+                                "args": 3
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Pyromancer's Gauntlet",
+      "text": "If a blue instant or sorcery spell you control or a blue planeswalker you control would deal damage to a permanent or player, it deals that much damage plus 2 to that permanent or player instead.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 5
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Either": [
+                {
+                  "Damage": {
+                    "source_kind": "Spell",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Blue"
+                        },
+                        {
+                          "kind": "AnyOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Instant"
+                            },
+                            {
+                              "kind": "CardType",
+                              "args": "Sorcery"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Blue"
+                        },
+                        {
+                          "kind": "CardType",
+                          "args": "Planeswalker"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                }
+              ]
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "SetAmount": {
+                            "kind": "Add",
+                            "args": [
+                              {
+                                "kind": "EventAmount"
+                              },
+                              {
+                                "kind": "Constant",
+                                "args": 2
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Pyromancer's Gauntlet",
+      "text": "If a blue instant or sorcery spell you control or a red planeswalker you control would deal damage to a permanent or player, it deals that much damage plus 2 to that permanent or player instead.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 5
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Either": [
+                {
+                  "Damage": {
+                    "source_kind": "Spell",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Blue"
+                        },
+                        {
+                          "kind": "AnyOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Instant"
+                            },
+                            {
+                              "kind": "CardType",
+                              "args": "Sorcery"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Color",
+                          "args": "Red"
+                        },
+                        {
+                          "kind": "CardType",
+                          "args": "Planeswalker"
+                        },
+                        {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "recipients": {
+                      "ObjectsAndPlayers": {
+                        "objects": {
+                          "kind": "Any"
+                        },
+                        "players": {
+                          "kind": "All"
+                        }
+                      }
+                    },
+                    "kind": "Any",
+                    "grouping": "SourceRecipient",
+                    "subject": "Recipient"
+                  }
+                }
+              ]
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": {
+                          "SetAmount": {
+                            "kind": "Add",
+                            "args": [
+                              {
+                                "kind": "EventAmount"
+                              },
+                              {
+                                "kind": "Constant",
+                                "args": 2
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

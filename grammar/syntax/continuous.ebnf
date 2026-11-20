@@ -356,7 +356,7 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability
+grant ::= grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | grant_chosen_color_hexproof | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability
 
 /* "Gains all creature types", "a 2/2 creature with all creature types": every creature
    type replaces the old ones (CR 205.3m), like a changeling's characteristic. */
@@ -2341,7 +2341,7 @@ change_attachment_permission ::= "can" "be" "attached" "only" "to" attachment_el
 /* @sem Ability::Mechanic{mechanic:$granted_valued_name, amount:$value} */
 granted_valued_mechanic ::= granted_valued_name value
 
-granted_valued_name ::= mechanic_afflict_name | granted_absorb_name | mechanic_renown_name | mechanic_afterlife_name | mechanic_fabricate_name | granted_frenzy_name
+granted_valued_name ::= granted_rampage_name | mechanic_toxic_name | mechanic_afflict_name | granted_absorb_name | mechanic_renown_name | mechanic_afterlife_name | mechanic_fabricate_name | granted_frenzy_name
 
 /* @sem Mechanic::Frenzy */
 granted_frenzy_name ::= "frenzy"
@@ -3160,7 +3160,7 @@ shared_plural_conditional_grant ::= "have" shared_granted_trigger_conditional_cl
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$shared_closed_grant_changes} */
 shared_closed_grant_static ::= affected shared_closed_grant_changes
 
-shared_closed_grant_changes ::= shared_type_and_pair_trigger | shared_creature_type_and_trigger | shared_plural_conditional_grant
+shared_closed_grant_changes ::= shared_type_and_pair_trigger | shared_creature_type_and_trigger | shared_plural_conditional_grant | shared_type_and_trigger
 
 /* Quoted loyalty activations share their holder but retain independent scopes,
    costs and programs. Only the final quote carries the closing period. */
@@ -5743,3 +5743,33 @@ clause_loses_keyword_choice ::= affected "loses" lost_keyword "or" lost_keyword 
 
 /* @sem Operand::Term{family:CheckHasable, form:Landwalk, operands:[Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:Subtype(Swamp)})]} */
 lost_swampwalk ::= "swampwalk"
+
+/* A singular retained subtype and a quoted ability describe independent changes. */
+/* @sem Change::CreatureTypes{mode:Add, types:Listed([@subtype_name($subtype)])} */
+shared_added_an_type ::= "is" "an" subtype "in" "addition" "to" "its" "other" "types"
+
+/* @sem Change::[$shared_added_an_type, $shared_granted_trigger_closed] */
+shared_type_and_trigger ::= shared_added_an_type "and" "has" shared_granted_trigger_closed
+
+/* Owned commanders retain the granted ability as a separate holder scope. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([State(Commander), $plural, OwnedBy(One(AbilityController))])} */
+owned_commander_plural ::= "commander" plural "you" "own"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($owned_commander_plural), changes:[$shared_granted_trigger_closed]} */
+owned_commander_granted_trigger ::= owned_commander_plural "have" shared_granted_trigger_closed
+
+/* These grant phrases compose with any supported affected set and duration. */
+/* @sem Change::ChosenAbility */
+grant_chosen_ability ::= "that" "ability"
+
+/* @sem Change::GrantKeyword(Protection(Players($players_singular))) */
+grant_player_protection ::= "protection" "from" players_singular
+
+/* @sem Change::GrantKeyword(Landwalk(AllOf([Supertype(Snow), Chosen(LandType)]))) */
+grant_chosen_snow_landwalk ::= "snow" "landwalk" "of" "the" "chosen" "type"
+
+/* @sem Change::GrantKeyword(HexproofFrom(Objects(_{kind:Any, filter:Chosen(Color)}))) */
+grant_chosen_color_hexproof ::= "hexproof" "from" "that" "color"
+
+/* @sem Mechanic::Rampage */
+granted_rampage_name ::= "rampage"
