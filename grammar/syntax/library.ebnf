@@ -92,8 +92,7 @@ mill_take_modified ::= "a" "card" modifier
 /* What a search looks for: one find clause. */
 search_choice ::= search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where
 /* An unrestricted plural choice composes with the ordinary search follow-ups. */
-/* @sem SearchChoice::SearchChoice{filter:$filter_phrase, count:AnyNumber} */
-search_choice_any_number ::= "any" "number" "of" filter_phrase "cards"
+search_choice_any_number ::= search_choice_any_number_filtered | search_choice_any_number_colorless
 
 /* The count's definition follows the cards it counts. */
 /* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:UpTo($value)} */
@@ -2036,3 +2035,64 @@ found_battlefield_attached_player ::= "put" "it" "onto" "the" "battlefield" "att
 /* A choice between a typed card and a card with a keyword. */
 /* @sem ObjectFilter::AnyOf([$card_filter, HasKeyword($keyword_value)]) */
 search_filter_keyword_alternative ::= card_filter "card" "or" "a" "card" "with" keyword_value
+
+/* The foretell designation applies to the card just moved face down from hand. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:EffectOn{subject:Objects(One(Result{result:@prior, phase:After, index:0})), effects:[Term{family:ExiledCardEffect, form:IsForetoldForCost, operands:[Cost{parts:[ManaCostReduced{reduction:Term{family:CostReductionSymbol, form:CostReduceGeneric, operands:[Integer($number)]}}]}]}]}}] */
+clause_foretell_exiled_hand ::= "exile" "a" "card" "from" "your" "hand" "face" "down" "." "it" "becomes" "foretold" "." "its" "foretell" "cost" "is" "its" "mana" "cost" "reduced" "by" "{" NUMBER "}"
+
+/* @sem SearchChoice::SearchChoice{filter:$filter_phrase, count:AnyNumber} */
+search_choice_any_number_filtered ::= "any" "number" "of" filter_phrase "cards"
+
+/* @sem SearchChoice::SearchChoice{filter:AllOf([Colorless, $adjective_nontype]), count:AnyNumber} */
+search_choice_any_number_colorless ::= "any" "number" "of" "colorless" adjective_nontype "cards"
+
+/* These complete search/exile sequences keep their cast permissions attached to
+   the exile receipt, including across the intervening shuffle. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$search_any_number}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:1, phase:After}, from:Exile, action:Either, filter:Any}, terms:_{cost:Free}})], duration:$duration, evaluation:LiveObjects}}]} */
+program_search_exile_permission ::= search_any_number "," "exile" "them" "," "then" "shuffle" "." duration "," "you" "may" "cast" "those" "cards" "without" "paying" "their" "mana" "costs" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([$filter_instant_or_sorcery, Shares{property:Colors, with:$object_ref}]), count:UpTo($counter_amount)}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:One(Result{result:1, phase:After, index:0}), count:Exactly(Constant(1)), cost:Free}}]}}]} */
+program_search_exile_cast_one ::= "search" "your" "library" "for" counter_amount filter_instant_or_sorcery "card" "that" "shares" "a" "color" "with" object_ref "," "exile" "that" "card" "," "then" "shuffle" "." "you" "may" "cast" "that" "card" "without" "paying" "its" "mana" "cost" "."
+
+/* @sem Program::Program{instructions:[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:Bound(0), choices:[_{filter:$adjective_nontype, count:UpTo($counter_amount)}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}, Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Transition{result:1, phase:After}, count:AnyNumber, cost:Free}}]}}]} */
+program_each_search_exile_cast ::= "for" players_singular "," "search" "that" "player's" "library" "for" counter_amount adjective_nontype "card" "and" "exile" "it" "," "then" "that" "player" "shuffles" "." "you" "may" "cast" "those" "cards" "without" "paying" "their" "mana" "costs" "."
+
+/* The destination phrase supplies both the hand source wording and visibility;
+   the same selection-and-move instruction composes with either spelling. */
+hand_selection_exile_destination ::= hand_selection_exile_up | hand_selection_exile_down
+
+/* @sem MovementDestination::Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}} */
+hand_selection_exile_up ::= "from" "their" "hand"
+
+/* @sem MovementDestination::Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}} */
+hand_selection_exile_down ::= "from" "their" "hand" "face" "down"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$player_ref, objects:Zone{scope:Players{zone:Hand, players:One($player_ref)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$hand_selection_exile_destination, qualifiers:[]}}] */
+clause_player_hand_selection_exile ::= player_ref "exiles" card_count hand_selection_exile_destination
+
+/* The distinct-owner target group corresponds to at most one card per opponent. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:AnyNumber, filter:@and($card_filter, ObjectFilter::OwnedBy(OpponentsOf(AbilityController))), constraints:[DifferentOwners]})) */
+opponent_graveyard_cast_targets ::= "up" "to" "one" "target" card_filter "card" "from" "that" "player's" "graveyard"
+
+/* The replacement sentence belongs to the cast, not a separate move. */
+/* @sem Instruction::[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:$opponent_graveyard_cast_targets, count:AnyNumber, cost:Free, into_exile:true}}] */
+instructions_opponent_graveyard_free_cast ::= "for" "each" "opponent" "," "you" "may" "cast" opponent_graveyard_cast_targets "without" "paying" "its" "mana" "cost" "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "a" "graveyard" "," "exile" "it" "instead"
+
+/* The draw is measured from the immediately preceding hand-to-library move.
+   Keeping the producer in this phrase constrains both recognition and printing. */
+/* @sem Instruction::[Effect{result:@next, operation:$recycle_hand_move}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:CountObjects(Transition{result:@prior, phase:Before})}}] */
+clause_recycle_hand_draw ::= recycle_hand_move "," "then" "draw" "that" "many" "cards"
+
+recycle_hand_move ::= recycle_hand_bottom | recycle_hand_shuffle
+
+/* @sem Operation::Move{objects:$recycle_hand_cards, destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
+recycle_hand_bottom ::= "put" recycle_hand_cards "on" "the" "bottom" "of" "your" "library" "in" "any" "order"
+
+/* @sem Operation::Move{objects:$recycle_hand_cards_from, destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]} */
+recycle_hand_shuffle ::= "shuffle" recycle_hand_cards_from "into" "your" "library"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any} */
+recycle_hand_cards ::= "the" "cards" "in" "your" "hand"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any} */
+recycle_hand_cards_from ::= "the" "cards" "from" "your" "hand"

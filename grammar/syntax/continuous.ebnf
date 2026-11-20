@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump
+continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -33,7 +33,7 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
-continuous_live ::= continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking | continuous_qualified_live
+continuous_live ::= continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking | continuous_qualified_live | continuous_attack_defender_plural
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$rule_duration, evaluation:LiveObjects} */
 continuous_live_trailing ::= affected rule_changes ("↓")? rule_duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
@@ -246,7 +246,7 @@ base_artifact_creature ::= ("a" | "an") becomes_types "artifact" "creature" "wit
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$value, toughness:$value_2}] */
 base_artifact_creature_native ::= ("a" | "an") becomes_types "artifact" "creature" "with" "base" "power" "and" "toughness" value "/" value
 
-base_changes ::= pilot_animation_change | change_color_set | change_becomes_base | base_changes_and | base_changes_keywords | change_no_longer_snow | change_gains_all_creature_types
+base_changes ::= pilot_animation_change | change_color_set | change_becomes_base | base_changes_and | base_changes_keywords | change_no_longer_snow | change_gains_all_creature_types | chosen_color_becomes
 /* @sem Change::[...$change_becomes_base, ...$changes] */
 base_changes_and ::= change_becomes_base "and" changes
 /* @sem Change::[...$change_becomes_base, ...$grants] */
@@ -388,7 +388,7 @@ rule_changes ::= rule_change | rule_changes_and
 /* @sem Change::[...$rule_change, ...$rule_changes] */
 rule_changes_and ::= rule_change "and" rule_changes
 
-rule_change ::= combat_attack_block_you | combat_attack_block_controller | attack_group_also_rule | attack_planeswalker_only_cost_rule | defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule | rule_blocked_greater_power | change_skip_controllers_untap
+rule_change ::= combat_attack_block_you | combat_attack_block_controller | attack_group_also_rule | attack_planeswalker_only_cost_rule | defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule | rule_blocked_greater_power | change_skip_controllers_untap | rule_block_extra_one | rule_block_extra_many | rule_blocked_chosen_color | rule_attack_scoped_players | block_controller_count_rule | blocked_shared_type_rule | combat_tap_payment_rule
 
 /* A spell is a stack object of kind Spell; "abilities" are every other stack
    object, and an ability "from" a source is an ability of that source. "Spells or
@@ -5977,3 +5977,100 @@ enchanted_creature_adjective ::= adjective noun_creature
 
 /* @sem @and($noun_creature, $modifiers) */
 enchanted_creature_modified ::= noun_creature modifiers
+
+/* Changes compose independently with their subject and duration. */
+/* @sem Change::[ChosenColor{mode:Set}] */
+chosen_color_becomes ::= "becomes" "the" "chosen" "color"
+
+/* @sem Change::[Rule(BlockCapacity(Additional($counter_a)))] */
+rule_block_extra_one ::= "can" "block" counter_a "additional" "creature"
+
+/* @sem Change::[Rule(BlockCapacity(Additional($counter_amount)))] */
+rule_block_extra_many ::= "can" "block" counter_amount "additional" "creatures"
+
+/* @sem Change::[Rule(Prohibit(BeBlocked(AllOf([$filter_plural, Chosen(Color)]))))] */
+rule_blocked_chosen_color ::= "can't" "be" "blocked" "by" filter_plural "of" "that" "color"
+
+/* @sem Change::[Rule(Prohibit(Attack(PlayersAndPlaneswalkers(Matching{binding:0, condition:PlayerIn{player:Bound(0), players:Scoped}}))))] */
+rule_attack_scoped_players ::= "can't" "attack" "those" "players" "or" "planeswalkers" "they" "control"
+
+/* @sem Change::[Rule(AttackException{ignore:Defender, defenders:Any})] */
+rule_ignore_defender_plural ::= "as" "though" "they" "didn't" "have" "defender"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_ignore_defender_plural, duration:$this_duration, evaluation:LiveObjects} */
+continuous_attack_defender_plural ::= affected "can" "attack" this_duration rule_ignore_defender_plural
+
+/* A leading duration applies to the same acquired control as the ordinary
+   imperative; the affected query remains independent of the controller. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$acquire_control_change, duration:$duration, evaluation:Snapshot} */
+leading_control_effect ::= duration "," acquire_control_change affected
+
+/* @sem Change::[SetController(AbilityController)] */
+acquire_control_change ::= "gain" "control" "of"
+
+/* A player rule remains live and applies to the ability's controller. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$leading_player_rule, duration:$duration, evaluation:LiveObjects} */
+leading_player_rule_effect ::= duration "," leading_player_rule
+
+leading_player_rule ::= player_visibility_rule | player_spending_rule | player_life_floor_rule
+
+/* @sem Change::[PlayerRule(Visibility{objects:$affected, audience:AffectedPlayer})] */
+player_visibility_rule ::= "you" "may" "look" "at" affected "any" "time"
+
+/* @sem Change::[PlayerRule(SpendColorAs{color:$mana_color_word, on:Anything})] */
+player_spending_rule ::= "you" "may" "spend" mana_color_word "mana" "as" "though" "it" "were" "mana" "of" "any" "color"
+
+/* The threshold and final life total are both one; neither is an arbitrary
+   independent operand of this wording. */
+/* @sem Change::[PlayerRule(DamageLifeFloor(Constant(1)))] */
+player_life_floor_rule ::= "damage" "that" "would" "reduce" "your" "life" "total" "to" "less" "than" "1" "reduces" "it" "to" "1" "instead"
+
+/* The possessive supplies the affected object, and the stat change supplies
+   the current expression rather than retaining the original card text. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_possessive)), changes:$leading_power_change, duration:$duration, evaluation:Snapshot} */
+leading_self_stat_effect ::= duration "," self_possessive leading_power_change
+
+/* @sem Change::[SetPower($value)] */
+leading_power_change ::= "base" "power" "becomes" "equal" "to" value
+
+/* The two counted populations retain their independent controllers. */
+/* @sem Change::[Rule(BlocksOnlyIf($controller_count_comparison))] */
+block_controller_count_rule ::= "can't" "block" "unless" controller_count_comparison
+
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy($players_singular)])})}} */
+controller_count_comparison ::= "you" "control" "more" filter_plural "than" players_singular
+
+/* A defending player's qualifying group is measured by its shared creature types. */
+/* @sem Change::[Rule(BlockedByDefender{players:Matching{binding:0, condition:$defender_shared_type_condition}, unless:true})] */
+blocked_shared_type_rule ::= "can't" "be" "blocked" "unless" "defending" "player" defender_shared_type_condition
+
+/* @sem Condition::Compare{left:LargestSharedGroup{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(Bound(0)))])}, property:CreatureTypes}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
+defender_shared_type_condition ::= "controls" value "or" "more" "creatures" "that" "share" "a" "creature" "type"
+
+/* One payment is imposed independently for each combat action. */
+/* @sem Change::[Rule(CombatCost{action:Attack(Any), payer:DeclaringPlayer, cost:$combat_tap_payment}), Rule(CombatCost{action:Block(Any), payer:DeclaringPlayer, cost:$combat_tap_payment})] */
+combat_tap_payment_rule ::= "can't" "attack" "or" "block" "unless" "you" combat_tap_payment
+
+/* Both written creature references denote the same selected permanent. */
+/* @sem Cost::Cost{parts:[ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController)), Not(Attacking), Not(Blocking), Not(Tapped)])}, choose:Exactly(Constant(1))}], tapped:true}]} */
+combat_tap_payment ::= "tap" "an" "untapped" "creature" "you" "control" "not" "declared" "as" "an" "attacking" "or" "blocking" "creature" "this" "combat"
+
+/* A temporary snapshot of a population with retained creature types. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$retained_plural_animation, duration:$duration, evaluation:Snapshot} */
+retained_population_snapshot ::= affected retained_plural_animation duration
+
+/* Combat requirements share their subject and duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$temporary_combat_requirement, duration:$this_duration, evaluation:LiveObjects} */
+temporary_combat_obligation ::= affected temporary_combat_requirement this_duration "if" "able"
+
+/* @sem Change::[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))}), Rule(RequireCombat{action:Block(Any), amount:AtLeast(Constant(1))})] */
+temporary_attack_or_block ::= "attacks" "or" "blocks"
+
+/* @sem Change::[Rule(RequireCombat{action:Attack(Players(One(AbilityController))), amount:AtLeast(Constant(1))})] */
+temporary_attack_you ::= "attacks" "you"
+
+temporary_combat_requirement ::= temporary_attack_or_block | temporary_attack_you
+
+/* Temporary reduction uses the same owner and amount operands as static reductions. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($generic_reduction_symbols)})], duration:$this_duration, evaluation:LiveObjects} */
+temporary_activation_reduction ::= "activated" "abilities" "of" activation_owner "cost" generic_reduction_symbols "less" "to" "activate" this_duration

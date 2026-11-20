@@ -22,7 +22,7 @@ copy_exceptions_sentence ::= copy_exceptions_period | copy_exceptions_closed
 /* @sem $copy_exceptions_plain */
 copy_exceptions_period ::= copy_exceptions_plain "."
 
-copy_exceptions_plain ::= copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain
+copy_exceptions_plain ::= copy_colored_stats_types | copy_nonlegendary_with_loyalty | copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain
 
 /* @sem Vec<CopyException>::[$copy_exception_plain] */
 copy_exception_plain_one ::= copy_exception_plain
@@ -44,7 +44,7 @@ copy_exception_plain_then_quote ::= copy_exception_plain "and" copy_exceptions_c
 /* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_closed] */
 copy_exception_quote_more ::= copy_granted_sentence ("↓")? "and" copy_exceptions_closed
 
-copy_exception_plain ::= copy_add_legendary | copy_self_name | copy_named_name | copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact | copy_has_current
+copy_exception_plain ::= copy_add_legendary | copy_self_name | copy_named_name | copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact | copy_has_current | copy_token_keyword | copy_add_creature_type_explicit
 
 /* @sem CopyException::AddCreatureTypes($becomes_types) */
 copy_add_creature_type ::= "it's" ("a" | "an") becomes_types "in" "addition" "to" "its" "other" "types"
@@ -191,3 +191,20 @@ copy_add_land ::= "it's" "a" "land" "in" "addition" "to" "its" "other" "types"
 
 /* @sem CopyException::AddSupertypes([Legendary]) */
 copy_add_legendary ::= "it's" "legendary"
+
+/* Independent copiable characteristics of the copied object. */
+/* @sem $copy_added_keyword */
+copy_token_keyword ::= "the" "token" "has" copy_added_keyword
+
+/* @sem CopyException::SetLoyalty($value) */
+copy_starting_loyalty ::= "its" "starting" "loyalty" "is" value
+
+/* @sem CopyException::AddCreatureTypes($becomes_types) */
+copy_add_creature_type_explicit ::= "it's" "a" becomes_types "in" "addition" "to" "its" "other" "creature" "types"
+
+/* @sem Vec<CopyException>::[$copy_not_legendary, CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::Colors{mode:Add, colors:Listed([$mana_color_word])}, CopyException::AddCreatureTypes($becomes_types)] */
+copy_colored_stats_types ::= copy_not_legendary "and" "it's" "a" value "/" value mana_color_word becomes_types "in" "addition" "to" "its" "other" "colors" "and" "types"
+
+/* The loyalty override belongs to this complete copiable exception. */
+/* @sem Vec<CopyException>::[$copy_not_legendary, $copy_starting_loyalty] */
+copy_nonlegendary_with_loyalty ::= copy_not_legendary "and" copy_starting_loyalty
