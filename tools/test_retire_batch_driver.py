@@ -94,6 +94,33 @@ class RecoveredCohortTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cohort identity'):
             driver.recovered_cohort(self.queue, 'head')
 
+    def finished(self, name, hours_ago):
+        with closing(self.queue._connect()) as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute("INSERT INTO events(at,kind,data) VALUES(datetime('now',?),'finished',?)",
+                       (f'-{hours_ago} hours', json.dumps({'attempt_id': 'attempt_'+name})))
+            db.commit()
+
+    def test_stale_lane_runs_periodically_with_the_oldest_aged_work(self):
+        self.prepare(['old_a', 'fresh', 'old_b'])
+        self.finished('old_a', 30)
+        self.finished('fresh', 1)
+        self.finished('old_b', 25)
+        self.assertEqual(driver.stale_provisional_jobs(self.queue, 'head', 24, 8), ['old_a', 'old_b'])
+        self.assertEqual(driver.stale_provisional_jobs(self.queue, 'head', 24, 1), ['old_a'])
+        config = {'stale_provisional_hours': 24, 'stale_provisional_every': 3, 'stale_provisional_minimum': 2}
+        self.assertIsNone(driver.stale_lane(self.queue, 'head', {}, 9, 48))
+        self.assertIsNone(driver.stale_lane(self.queue, 'head', config, 1, 48))
+        self.assertEqual(driver.stale_lane(self.queue, 'head', config, 2, 48),
+                         {'lane': 'stale-provisional', 'jobs': ['old_a', 'old_b'], 'combine': True})
+        self.assertIsNone(driver.stale_lane(self.queue, 'head', dict(config, stale_provisional_minimum=3), 2, 48))
+        for bad in ({'stale_provisional_hours': 0}, {'stale_provisional_every': 1},
+                    {'stale_provisional_batch_size': 97}, {'stale_provisional_minimum': 0}):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                driver.stale_lane(self.queue, 'head', dict(config, **bad), 5, 48)
+        with self.assertRaisesRegex(ValueError, 'checkpoint changed'):
+            driver.stale_provisional_jobs(self.queue, 'other', 24, 8)
+
     def test_mechanical_lane_uses_real_queue_fifo_and_exact_threshold(self):
         names = ['a0', 'm0', 'a1', 'm1', 'm2', 'm3', 'a2']
         self.queue.add_jobs([{'id': name, 'rules': ['rule_'+name],

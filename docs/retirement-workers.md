@@ -147,6 +147,11 @@ takes precedence. The receipt's `checkpoint` must be the current accepted
 parent, and every job must still have the listed provisional attempt. The
 selected jobs enter ordinary combined staging and audit. Stale selections fall
 back to the normal lanes, and a full mechanical batch keeps priority.
+Set `stale_provisional_hours` (1 to 240) so older work gets a turn. Every
+`stale_provisional_every` batches (default 4), the driver combines up to
+`stale_provisional_batch_size` provisional jobs whose attempts finished at
+least that many hours ago, oldest first. It does so only when at least
+`stale_provisional_minimum` such jobs qualify.
 Set `parse_screen_before_repository` with `full_parse_screen` to run the
 complete parse and native-reading screen before the repository gates. A
 confirmed parse regression can go straight to focused recovery. A passing

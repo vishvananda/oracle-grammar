@@ -231,6 +231,42 @@ def verified_ready_lane(queue, checkpoint, limit, minimum, mechanical=(), recove
     return None
 
 
+def stale_provisional_jobs(queue, checkpoint, hours, limit):
+    """Return the oldest ready jobs whose passing attempt finished before the age bound."""
+    if limit <= 0:
+        return []
+    with closing(queue._connect()) as db:
+        db.execute('BEGIN')
+        latest = db.execute('SELECT commit_id FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+        if not latest or latest[0] != checkpoint:
+            raise ValueError('checkpoint changed during stale provisional selection')
+        return [row[0] for row in db.execute("""SELECT j.id FROM jobs j
+            JOIN events e ON e.kind='finished' AND json_extract(e.data,'$.attempt_id')=j.attempt_id
+            WHERE j.status='provisional-pass' AND unixepoch(e.at) <= unixepoch('now')-?
+            GROUP BY j.id ORDER BY MIN(j.rowid) LIMIT ?""", (int(hours*3600), limit))]
+
+
+def stale_lane(queue, checkpoint, config, since_stale, limit):
+    """Route aged ready work periodically so verified lanes cannot starve it."""
+    hours = config.get('stale_provisional_hours')
+    if hours is None:
+        return None
+    every = config.get('stale_provisional_every', 4)
+    size = config.get('stale_provisional_batch_size', limit)
+    minimum = config.get('stale_provisional_minimum', 8)
+    if (type(hours) not in (int, float) or not 1 <= hours <= 240
+            or type(every) is not int or not 2 <= every <= 20
+            or type(size) is not int or not 1 <= size <= 96
+            or type(minimum) is not int or not 1 <= minimum <= size):
+        raise ValueError('stale provisional settings are invalid')
+    if since_stale + 1 < every:
+        return None
+    jobs = stale_provisional_jobs(queue, checkpoint, hours, size)
+    if len(jobs) < minimum:
+        return None
+    return {'lane': 'stale-provisional', 'jobs': jobs, 'combine': True}
+
+
 def _preflight_document(path, limit, *, sha256=None):
     try:
         if path.resolve() != path or path.is_symlink() or not path.is_file():
@@ -364,9 +400,14 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
     runner = _runner(run, runner)
     started = time.time()
     queue = Queue(run/'queue.sqlite')
-    previous_lane = (r.read(run/'batch-driver.json').get('last_batch') or {}).get('lane') if (run/'batch-driver.json').is_file() else None
+    previous = r.read(run/'batch-driver.json') if (run/'batch-driver.json').is_file() else {}
+    previous_lane = (previous.get('last_batch') or {}).get('lane')
+    since_stale = previous.get('batches_since_stale', 0)
+    if type(since_stale) is not int or since_stale < 0:
+        since_stale = 0
     state = {'pid': os.getpid(), 'runner': str(runner), 'started_unix': started,
-             'last_batch': {'lane': previous_lane} if previous_lane else None}
+             'last_batch': {'lane': previous_lane} if previous_lane else None,
+             'batches_since_stale': since_stale}
     def status(phase, progress=None, **extra):
         state.update(phase=phase, updated_unix=time.time(), **extra)
         if progress is not None:
@@ -449,6 +490,8 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             raise ValueError('verified_ready_batch_size must be between 1 and 96')
                         verified = None
                         if ready and not large_mechanical:
+                            verified = stale_lane(queue, progress['checkpoint'], config, since_stale, limit)
+                        if verified is None and ready and not large_mechanical:
                             verified = preflight_ready_lane(queue, progress['checkpoint'], verified_limit,
                                                             _preflight_receipt(run, config))
                             if verified is None and previous_lane != 'verified-ready':
@@ -507,6 +550,8 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                             observation = _batch_observation(run, batch_id, queue, progress['checkpoint'])
                             previous_lane = state['lane']
                             observation['lane'] = previous_lane
+                            since_stale = 0 if previous_lane == 'stale-provisional' else since_stale+1
+                            state['batches_since_stale'] = since_stale
                             new_progress = queue.progress()
                             if observation['outcome'] == 'passed':
                                 if new_progress['checkpoint'] != observation['candidate']:
