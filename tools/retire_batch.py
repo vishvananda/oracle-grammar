@@ -1269,6 +1269,15 @@ def _witness_control(checkpoint, losses, logs):
     return cp, _control_setup(cp), spec
 
 
+def _confirms_early_loss(loss, observed):
+    if 'lost' not in loss:
+        return loss in observed
+    # The focused render also checks verified default printing. Losing that
+    # flag as well still confirms the early exact-default loss on the face.
+    return any(isinstance(item, dict) and item['face'] == loss['face']
+               and set(loss['lost']) <= set(item.get('lost', ())) for item in observed)
+
+
 def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
     checkpoint = context['checkpoint']
     control = context['control']
@@ -1309,7 +1318,7 @@ def _check_early_default(context, proof, input_cache, grammar, logs, drafts):
         failures = _retained_native_failure(focused, error.report)
         if failures is None:
             return
-        if losses is not None and any(item not in failures['failures'] for item in losses):
+        if losses is not None and any(not _confirms_early_loss(item, failures['failures']) for item in losses):
             return
         if not input_cache.unchanged() or r.tree(grammar) != proof['trial_grammar']:
             raise _UncertainPromotion('Early print witness inputs changed during staging')

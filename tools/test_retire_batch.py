@@ -324,6 +324,20 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(proof['retained_print_hints'],[3])
                 self.assertEqual(proof['retained_native_failure']['failures'],[failure])
 
+                default_only = {'face':'A','lost':['default']}
+                native.side_effect = batch._NativeControlFailure(
+                    root/'native-focused/result.json', {'faces':1,'failures':[default_only]})
+                proof = {'trial_grammar':{}}
+                batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
+                self.assertNotIn('early_print_control', proof)
+
+                both_defaults = {'face':'A','lost':['default','exact_default']}
+                native.side_effect = batch._NativeControlFailure(
+                    root/'native-focused/result.json', {'faces':1,'failures':[both_defaults]})
+                with self.assertRaises(batch._NativeControlFailure):
+                    batch._check_early_default(context,proof,batch._ProposalInputCache(),grammar,root,[])
+                self.assertEqual(proof['retained_native_failure']['failures'], [both_defaults])
+
                 mismatch = {'face':'A','gate':'parse/reading-count/text'}
                 reading_change = {'faces':1,'failures':['native readings changed or failed validation',mismatch]}
                 native.side_effect = batch._NativeControlFailure(root/'native-focused/result.json',reading_change)
