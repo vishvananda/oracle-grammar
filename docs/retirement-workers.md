@@ -347,9 +347,13 @@ passed all 32,755 approved occurrences for two rules with zero model calls.
 The first successful live campaign audit with generated drafts accepted eight
 generated retirements across four recipes in an 81-rule batch. It preserved all
 33,730 native readings and protected print gates across the approved population.
-The published checkpoint left 7,232 seeded rules, of which 20 qualified for the
-source-derived screen and six had both a single owner and a child already
-bounded to its observed alternatives.
+At a later checkpoint, 13 generated retirements had been accepted
+across six recipes and three more were provisional. Of 7,112 seeded rules, ten
+qualified for the source-derived screen and two had both a single owner and a
+child already bounded to its observed alternatives. Two drafts preserved their
+initial cohorts in under five leased seconds each. The compositional family
+replay then exposed missing meld continuations in one of those drafts. Run the
+family replay before spending a full owner-cohort audit on a generated draft.
 
 Keep all 12 Terra slots at that level of demand. Increase synthesis concurrency
 only when several accepted checkpoints show sustained eligible work and higher
