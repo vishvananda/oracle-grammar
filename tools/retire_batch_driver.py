@@ -77,14 +77,13 @@ def _recorded_rehabilitation(events, parent, job, checkpoint, expected):
     return identities.count((job['job_id'], job['attempt_id'], checkpoint)) == 1
 
 
-def _batch_observation(run, before, queue, checkpoint):
-    folders = run/'.cache/batches'
-    after = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
-    created = after-before
-    if len(created) != 1:
-        raise ValueError('batch did not produce exactly one new manifest')
-    folder = folders/created.pop()
+def _batch_observation(run, batch_id, queue, checkpoint):
+    if not isinstance(batch_id, str) or not batch_id or Path(batch_id).name != batch_id or batch_id in ('.', '..'):
+        raise ValueError('dispatch returned an invalid batch manifest identity')
+    folder = run/'.cache/batches'/batch_id
     manifest_path = folder/'manifest.json'
+    if not manifest_path.is_file() or manifest_path.resolve() != manifest_path:
+        raise ValueError('dispatched batch manifest is missing or unsafe')
     manifest = r.read(manifest_path)
     result = {'manifest': str(manifest_path), 'manifest_sha256': r.digest(manifest_path),
               'stage_status': manifest.get('status'), 'candidate': manifest.get('commit')}
@@ -458,8 +457,6 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                         if ready and (standalone_lane or cohort or flush or ready >= limit or not pending
                                       or time.monotonic()-last_batch >= wait):
                             _runner(run, runner)
-                            folders = run/'.cache/batches'
-                            before = {p.name for p in folders.iterdir() if p.is_dir()} if folders.exists() else set()
                             chosen_lane = lane if standalone_lane or (lane and not cohort) else None
                             recovered = cohort['jobs'] if cohort else []
                             also_mechanical = []
@@ -488,19 +485,19 @@ def run_driver(run, runner, *, flush_once=False, poll_seconds=2):
                                     selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots,
                                                                    limit, selected, preferred=protected,
                                                                    callers=callers)
-                                dispatch._batch(run, selected,
+                                batch_id = dispatch._batch(run, selected,
                                                 combine_selected=chosen_lane['combine'] or fresh_union)
                             elif cohort:
-                                dispatch._batch(run, protected+callers,
+                                batch_id = dispatch._batch(run, protected+callers,
                                                 combine_selected=cohort['checkpoint'] == progress['checkpoint'] or union_trial)
                             elif fresh_union or replay_slots or callers or unused:
                                 fifo = [row['id'] for row in queue.get_jobs('provisional-pass', limit=limit)]
                                 selected = with_reviewed_replays(queue, progress['checkpoint'], replay_slots,
                                                                limit, fifo, preferred=unused, callers=callers)
-                                dispatch._batch(run, selected, combine_selected=fresh_union)
+                                batch_id = dispatch._batch(run, selected, combine_selected=fresh_union)
                             else:
-                                dispatch._batch(run)
-                            observation = _batch_observation(run, before, queue, progress['checkpoint'])
+                                batch_id = dispatch._batch(run)
+                            observation = _batch_observation(run, batch_id, queue, progress['checkpoint'])
                             previous_lane = state['lane']
                             observation['lane'] = previous_lane
                             new_progress = queue.progress()

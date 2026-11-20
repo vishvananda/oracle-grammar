@@ -773,15 +773,15 @@ class DispatchCanaries(unittest.TestCase):
                                         'full_parse_screen': True, 'parse_screen_threads': 12,
                                         'native_regression_controls': control, 'stage_group_size': 4})
             with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
-                    patch.object(dispatch.retire_batch, 'stage', return_value={'jobs': [], 'status': 'no-proposals'}) as stage:
-                dispatch._batch(root, ['three', 'one'])
+                    patch.object(dispatch.retire_batch, 'stage', return_value={'id': 'batch-id', 'jobs': [], 'status': 'no-proposals'}) as stage:
+                self.assertEqual(dispatch._batch(root, ['three', 'one']), 'batch-id')
             self.assertEqual([row['job_id'] for row in stage.call_args.args[2]], ['three', 'one'])
             self.assertEqual(stage.call_args.args[1]['native_regression_controls'], control)
             self.assertEqual(stage.call_args.args[1]['stage_group_size'], 4)
             self.assertEqual(stage.call_args.args[1]['parse_screen_threads'], 12)
             self.assertNotIn('combine_selected', stage.call_args.kwargs)
             with patch.object(dispatch.campaign_api, 'checkpoint', return_value={'commit': 'base'}), \
-                    patch.object(dispatch.retire_batch, 'stage', return_value={'jobs': [], 'status': 'no-proposals'}) as combined:
+                    patch.object(dispatch.retire_batch, 'stage', return_value={'id': 'batch-id', 'jobs': [], 'status': 'no-proposals'}) as combined:
                 dispatch._batch(root, ['three', 'one'], combine_selected=True)
             self.assertTrue(combined.call_args.kwargs['combine_selected'])
             self.assertEqual([row['job_id'] for row in combined.call_args.args[2]], ['three', 'one'])

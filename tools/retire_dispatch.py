@@ -555,6 +555,7 @@ def batch(run, selected_job_ids=None, *, wait=False, combine_selected=False):
 
 
 def _batch(run, selected_job_ids=None, *, combine_selected=False):
+    """Stage and adjudicate one batch, returning its allocated manifest ID."""
     if type(combine_selected) is not bool or (combine_selected and not selected_job_ids):
         raise ValueError('combine_selected requires an explicit nonempty selection')
     queue=Queue(run/'queue.sqlite')
@@ -608,12 +609,12 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
             queue.reject_jobs(included,{'manifest':manifest['id'],'reason':manifest.get('reason','staging failed')})
         if manifest['status']=='no-proposals':
             _rehabilitate_staging_rejections(queue, cp, rejected)
-        return
+        return manifest['id']
     result=retire_batch.validate(manifest,cp,slots=12,scan=True)
     if result['status']!='passed':
         queue.reject_jobs(included,{'manifest':manifest['id'],'validation':result})
         _rehabilitate_staging_rejections(queue, cp, rejected)
-        return
+        return manifest['id']
     next_helpers=cp['helpers']
     override=cp.get('candidate_validation_helpers')
     if override is not None:
@@ -639,6 +640,7 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     refresh_priorities(run,commit,policy)
     r.write(run/'latest-checkpoint.json',next_cp)
     publish_main(run, cp, next_cp, manifest)
+    return manifest['id']
 
 
 def publish_main(run, previous, current, manifest):

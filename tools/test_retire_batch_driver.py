@@ -257,7 +257,7 @@ class DriverTests(unittest.TestCase):
         r.write(self.run/'batch-preflight-ready.json', spec)
         self.queue.value = progress(pending=1, ready=2)
         def complete(run, jobs, *, combine_selected):
-            self.outcome(drain=True)(run)
+            return self.outcome(drain=True)(run)
         with patch.object(driver.dispatch, '_batch', side_effect=complete) as stage:
             driver.run_driver(self.run, self.runner)
         stage.assert_called_once_with(self.run, ['second', 'first'], combine_selected=True)
@@ -290,7 +290,24 @@ class DriverTests(unittest.TestCase):
                 r.write(self.run/'publication.json', {'status': 'integrated'})
             if drain:
                 r.write(self.run/'batch-driver-drain.json', {'reason': 'test'})
+            return folder.name
         return call
+
+    def test_driver_observes_its_dispatched_manifest_with_concurrent_stage(self):
+        self.queue.value = progress(pending=0, ready=1)
+
+        def interleaved(run):
+            folder = run/'.cache/batches/isolated-review'
+            folder.mkdir(parents=True)
+            r.write(folder/'manifest.json', {'id': folder.name, 'base_commit': 'parent', 'status': 'no-proposals'})
+            return self.outcome(drain=True)(run)
+
+        with patch.object(driver.dispatch, '_batch', side_effect=interleaved):
+            driver.run_driver(self.run, self.runner, flush_once=True)
+        state = r.read(self.run/'batch-driver.json')
+        self.assertEqual(state['phase'], 'drained')
+        self.assertEqual(state['last_batch']['outcome'], 'passed')
+        self.assertEqual(Path(state['last_batch']['manifest']).parent.name, 'id')
 
     def test_parse_screen_semantic_failure_is_a_rejected_batch(self):
         folder = self.run/'.cache/batches/id'
@@ -303,7 +320,7 @@ class DriverTests(unittest.TestCase):
         r.write(folder/'validation.json', validation)
         self.queue.rejected = [{'id': 'job', 'attempt_id': 'attempt',
                                 'adjudication': {'evidence': {'manifest': 'id', 'validation': validation}}}]
-        result = driver._batch_observation(self.run, set(), self.queue, 'parent')
+        result = driver._batch_observation(self.run, 'id', self.queue, 'parent')
         self.assertEqual(result['outcome'], 'rejected')
         self.assertEqual(result['reason'], validation['reason'])
 
@@ -326,11 +343,11 @@ class DriverTests(unittest.TestCase):
         for kind in ('retry-reviewed-repair', 'retry-staging-reviewed-repair'):
             with self.subTest(kind=kind):
                 self.queue.audit = lambda: [{'kind': kind, 'data': event}]
-                self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'],
+                self.assertEqual(driver._batch_observation(self.run, 'id', self.queue, 'parent')['outcome'],
                                  'rejected')
                 with patch.dict(event['previous_adjudication']['evidence'], manifest='another-batch'):
                     with self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
-                        driver._batch_observation(self.run, set(), self.queue, 'parent')
+                        driver._batch_observation(self.run, 'id', self.queue, 'parent')
 
     def test_recorded_readmission_preserves_batch_observation(self):
         folder = self.run/'.cache/batches/id'
@@ -351,9 +368,9 @@ class DriverTests(unittest.TestCase):
                          'previous_adjudication': {'status': 'integration-rejected', 'checkpoint': None,
                                                    'evidence': {'manifest': 'id', 'validation': validation}}}
                 self.queue.audit = lambda: [{'kind': event_kind, 'data': event}]
-                self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'], 'rejected')
+                self.assertEqual(driver._batch_observation(self.run, 'id', self.queue, 'parent')['outcome'], 'rejected')
                 with patch.dict(event, attempt_id='stale'), self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
-                    driver._batch_observation(self.run, set(), self.queue, 'parent')
+                    driver._batch_observation(self.run, 'id', self.queue, 'parent')
 
     def test_mechanical_rehabilitation_preserves_original_staging_rejection(self):
         folder = self.run/'.cache/batches/id'
@@ -366,14 +383,14 @@ class DriverTests(unittest.TestCase):
         self.queue.superseded = [{'id': 'job', 'attempt_id': 'attempt', 'adjudication': verdict}]
         event = {'parent_job': 'job', 'origin_attempt': 'attempt', 'checkpoint': 'parent'}
         self.queue.audit = lambda: [{'kind': 'rehabilitated-unused', 'data': event}]
-        self.assertEqual(driver._batch_observation(self.run, set(), self.queue, 'parent')['outcome'], 'rejected')
+        self.assertEqual(driver._batch_observation(self.run, 'id', self.queue, 'parent')['outcome'], 'rejected')
         for field in ('parent_job', 'origin_attempt', 'checkpoint'):
             with self.subTest(field=field), patch.dict(event, {field: 'different'}), \
                     self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
-                driver._batch_observation(self.run, set(), self.queue, 'parent')
+                driver._batch_observation(self.run, 'id', self.queue, 'parent')
         with patch.dict(verdict['evidence'], manifest='different'), \
                 self.assertRaisesRegex(ValueError, 'disposition is missing or differs'):
-            driver._batch_observation(self.run, set(), self.queue, 'parent')
+            driver._batch_observation(self.run, 'id', self.queue, 'parent')
 
     def test_mechanical_threshold_takes_only_mechanics_and_caps_at_96(self):
         config = r.read(self.run/'config.json')
@@ -386,7 +403,7 @@ class DriverTests(unittest.TestCase):
         def selected(run, ids, *, combine_selected):
             self.assertEqual(ids, [f'mech-{i:03d}' for i in range(96)])
             self.assertTrue(combine_selected)
-            self.outcome(drain=True)(run)
+            return self.outcome(drain=True)(run)
         with patch.object(driver, 'recovered_cohort') as cohort, \
                 patch.object(driver.dispatch, '_batch', side_effect=selected) as batch:
             driver.run_driver(self.run, self.runner)
@@ -405,7 +422,7 @@ class DriverTests(unittest.TestCase):
         def selected(run, ids, *, combine_selected):
             self.assertEqual(ids, ['m1', 'm2', 'a1', 'a2'])
             self.assertFalse(combine_selected)
-            self.outcome(drain=True)(run)
+            return self.outcome(drain=True)(run)
         with patch.object(driver.dispatch, '_batch', side_effect=selected):
             driver.run_driver(self.run, self.runner)
         self.assertEqual(r.read(self.run/'batch-driver.json')['lane'], 'mechanical-first')
@@ -447,7 +464,7 @@ class DriverTests(unittest.TestCase):
         self.queue.value = progress(pending=1, ready=5)
         cohort = {'jobs': ['a'], 'manifest': 'batch', 'checkpoint': 'parent'}
         def complete(run, jobs, *, combine_selected):
-            self.outcome(drain=True)(run)
+            return self.outcome(drain=True)(run)
         with patch.object(driver, 'recovered_cohort', return_value=cohort), \
                 patch.object(driver, 'reviewed_replay_jobs', return_value=['a','b','c','d','e']) as reviewed, \
                 patch.object(driver.dispatch, '_batch', side_effect=complete) as batch:
@@ -489,7 +506,7 @@ class DriverTests(unittest.TestCase):
         def selected(run, ids, *, combine_selected):
             self.assertEqual(ids, ['a2', 'm1', 'a3', 'm2'])
             self.assertFalse(combine_selected)
-            self.outcome(drain=True)(run)
+            return self.outcome(drain=True)(run)
         cohort = {'jobs': ['a2', 'm1', 'a3'], 'manifest': 'batch', 'checkpoint': 'old'}
         with patch.object(driver, 'recovered_cohort', return_value=cohort), \
                 patch.object(driver.dispatch, '_batch', side_effect=selected):
@@ -579,7 +596,7 @@ class DriverTests(unittest.TestCase):
         def selected(run, ids, *, combine_selected):
             self.assertEqual(ids, ['recovered'])
             self.assertTrue(combine_selected)
-            self.outcome(drain=True)(run)
+            return self.outcome(drain=True)(run)
         with patch.object(driver, 'recovered_cohort', return_value={'jobs': ['recovered'], 'manifest': 'batch', 'checkpoint': 'parent'}) as cohort, \
                 patch.object(driver.dispatch, '_batch', side_effect=selected) as batch:
             driver.run_driver(self.run, self.runner)
@@ -594,7 +611,7 @@ class DriverTests(unittest.TestCase):
         def selected(run, ids, *, combine_selected):
             self.assertEqual(ids, ['recovered'])
             self.assertFalse(combine_selected)
-            self.outcome(drain=True)(run)
+            return self.outcome(drain=True)(run)
         with patch.object(driver, 'recovered_cohort', return_value={'jobs': ['recovered'], 'manifest': 'batch',
                                                                   'checkpoint': 'old-parent'}), \
                 patch.object(driver.dispatch, '_batch', side_effect=selected) as batch:
@@ -736,8 +753,9 @@ class DriverTests(unittest.TestCase):
         record = {'candidate': 'candidate', 'status': 'pending', 'reason': driver.dispatch.DIRTY_PUBLICATION}
 
         def process(run):
-            batch_outcome(run)
+            batch_id = batch_outcome(run)
             r.write(publication, record)
+            return batch_id
 
         def retry(run, queue, checkpoint, observed):
             self.assertEqual((run, queue, checkpoint, observed), (self.run, self.queue, 'candidate', record))
@@ -794,7 +812,7 @@ class DriverTests(unittest.TestCase):
                                                           'source_checkpoint': 'parent'})
                         self.queue.value = progress(pending=0, ready=0, checkpoint='candidate')
                         r.write(self.run/'publication.json', {'status': 'integrated'})
-                        return
+                        return folder.name
                     folder = self.run/'.cache/batches/bad'
                     folder.mkdir(parents=True)
                     item = {'job_id': 'bad', 'attempt_id': 'a1',
@@ -809,6 +827,7 @@ class DriverTests(unittest.TestCase):
                                 else {'manifest': 'bad', 'reason': 'merge or staging rejected'})
                     self.queue.rejected = [{'id': 'bad', 'attempt_id': 'a1', 'adjudication': {'evidence': evidence}}]
                     self.queue.value = progress(pending=0, ready=1)
+                    return folder.name
                 with patch.object(driver.dispatch, '_batch', side_effect=process):
                     driver.run_driver(self.run, self.runner)
                 self.assertEqual(len(calls), 2)
@@ -824,6 +843,7 @@ class DriverTests(unittest.TestCase):
             self.queue.rejected = [{'id': 'bad', 'attempt_id': 'a1',
                                     'adjudication': {'evidence': {'manifest': 'bad', 'reason': 'merge or staging rejected'}}}]
             self.queue.value = progress(pending=0, ready=0, checkpoint='wrong')
+            return folder.name
         with patch.object(driver.dispatch, '_batch', side_effect=process):
             with self.assertRaisesRegex(ValueError, 'unexpectedly advanced'):
                 driver.run_driver(self.run, self.runner)
@@ -837,6 +857,7 @@ class DriverTests(unittest.TestCase):
             r.write(folder/'manifest.json', {'id': 'bad', 'base_commit': 'parent', 'status': 'failed',
                     'failure_scope': 'baseline-library-control',
                     'jobs': [{'job_id': 'bad', 'attempt_id': 'a1', 'status': 'integration-rejected'}]})
+            return folder.name
         with patch.object(driver.dispatch, '_batch', side_effect=process):
             with self.assertRaisesRegex(ValueError, 'staging failed operationally'):
                 driver.run_driver(self.run, self.runner)

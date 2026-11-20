@@ -115,8 +115,10 @@ class NativeControlThreadTests(unittest.TestCase):
                 with patch.object(dispatch, 'Queue', return_value=queue), \
                         patch.object(dispatch.campaign_api, 'checkpoint', return_value=cp), \
                         patch.object(dispatch, 'proposals', return_value=[{'job_id': 'job'}]), \
-                        patch.object(batch, 'stage', return_value={'jobs': [], 'status': 'no-proposals'}) as stage:
-                    dispatch._batch(root)
+                        patch.object(batch, 'stage', return_value={
+                            'id': 'no-proposals-batch', 'jobs': [], 'status': 'no-proposals',
+                        }) as stage:
+                    self.assertEqual(dispatch._batch(root), 'no-proposals-batch')
                 self.assertEqual(stage.call_args.args[1]['native_control_threads'], expected)
                 self.assertEqual(stage.call_args.args[1]['audit_threads'], 16)
                 self.assertEqual(cp['native_control_threads'], 12)
