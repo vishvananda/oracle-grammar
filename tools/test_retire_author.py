@@ -195,13 +195,19 @@ class AuthoringTests(unittest.TestCase):
                                          [source_context if station else None]*2)
                 self.assertEqual(calls, ['score', 'validate-readings']*2+['family-check'])
 
-    def test_family_failure_skips_cohort_and_edited_but_success_runs_all(self):
-        for family_code in (1, 0):
-            with self.subTest(family_code=family_code), tempfile.TemporaryDirectory() as tmp:
+    def test_early_diagnostics_skip_cohort_and_edited_but_success_runs_all(self):
+        for family_code, moved_shape in ((1, False), (0, False), (0, True)):
+            with self.subTest(family_code=family_code, moved_shape=moved_shape), \
+                 tempfile.TemporaryDirectory() as tmp:
                 run, root = Path(tmp)/'run', Path(tmp)/'worker'
-                for folder in (run/'tasks', root/'.cache', root/'grammar/syntax', root/'families', root/'tests/fixtures'):
+                frozen = run/'inputs/frozen/grammar/syntax'
+                for folder in (run/'tasks', frozen, root/'.cache', root/'grammar/syntax',
+                               root/'families', root/'tests/fixtures'):
                     folder.mkdir(parents=True)
-                (root/'grammar/syntax/example.ebnf').write_text('example ::= "example"\n')
+                grandfathered = 'legacy ::= "token" | "tokens"\n'
+                (frozen/'example.ebnf').write_text(grandfathered)
+                candidate = grandfathered.replace('legacy', 'example') if moved_shape else grandfathered
+                (root/'grammar/syntax/example.ebnf').write_text(candidate)
                 r.write(run/'tasks/task.json', {'task': 'test'})
                 r.write(run/'support.json', {'files': {}})
                 fixture = root/'families/case.json'
@@ -221,12 +227,20 @@ class AuthoringTests(unittest.TestCase):
                      redirect_stdout(io.StringIO()):
                     report = a._check(run, 'task', coordinator=True)
                 self.assertEqual(verify.call_count, 2)
-                helper.assert_called_once()
+                self.assertEqual(helper.call_count, int(not moved_shape))
                 self.assertEqual(r.read(Path(report['directory'])/'report.json'), report)
                 edits = Path(report['directory'])/'edits.json'
                 self.assertEqual(edits.read_bytes(), (root/task['edits']).read_bytes())
                 self.assertEqual(r.digest(edits), report['edits_sha256'])
-                if family_code:
+                if moved_shape:
+                    self.assertFalse(report['passed'])
+                    self.assertEqual(report['failures'], [
+                        'example: new print-blowup shape agreement token|tokens (docs/print-shapes.md)'])
+                    self.assertNotIn('family_returncode', report)
+                    payload.assert_not_called()
+                    checks.assert_not_called()
+                    edited.assert_not_called()
+                elif family_code:
                     self.assertFalse(report['passed'])
                     self.assertEqual(report['failures'], ['family regression tests failed'])
                     self.assertEqual(report['checks_skipped']['reason'],

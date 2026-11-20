@@ -19,7 +19,7 @@ from retire_merge import MergeConflict
 
 RUNNERS = tuple(dict.fromkeys((*r.TOOLING, 'retire_author.py', 'retire_author_pool.py',
                                'retire_pool.py', 'retire_cpu.py', 'retire_helper.py', 'retire_cohort.py', 'retire_mechanical_cohort.py',
-                               'retire_screen_packet.py')))
+                               'retire_screen_packet.py', 'shapes.py')))
 HELPERS = ('family-check', 'probe', 'inspect')
 
 

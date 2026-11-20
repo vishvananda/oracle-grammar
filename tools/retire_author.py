@@ -20,6 +20,7 @@ import retire as r
 import retire_cohort as cohort
 import retire_screen_packet as screen_packet
 import retire_worker as w
+import shapes
 
 
 def seeded(root):
@@ -439,6 +440,14 @@ def _check(run, task_id, coordinator=False, *, preview=False, prepared=None):
                 shutil.copyfile(edits, archived_edits)
                 edits = archived_edits
             report['edits_sha256'] = r.digest(edits)
+            new_shapes = shapes.introduced(shapes.found(directory), shapes.found(run/'inputs/frozen'))
+            if new_shapes:
+                report['checks_skipped'] = {
+                    'reason': 'authored grammar introduced a print shape',
+                    'checks': ['compositional family', 'cohort score', 'cohort native validation',
+                               'edited operand checks'],
+                }
+                raise ValueError('\n'.join(new_shapes))
             report['family_returncode'] = helper(run, directory, grammar, 'family-check',
                                                   [directory/'family.json', '--compositional'])
             if report['family_returncode']:
