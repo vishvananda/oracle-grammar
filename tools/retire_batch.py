@@ -1155,7 +1155,9 @@ def _check_retained_parse(context, items, proof, input_cache, grammar, logs, dra
         proof['retained_native_failure'] = witness
         native = directory/'native-focused'
         proof['retained_parse_native_sha256'] = r.digest(native/'result.json')
-        hints = _retained_print_hints(checkpoint, grammar, native/'rows.jsonl', drafts, witness)
+        proof['retained_parse_focus'] = {key: focus[key] for key in ('names', 'occurrences')}
+        hints = _retained_print_hints(checkpoint, grammar, native/'rows.jsonl', drafts, witness,
+                                      reading_checks=native)
         if hints:
             proof['retained_print_hints'] = hints
         raise
@@ -1468,8 +1470,9 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                         witness = _retained_native_failure(control, error.report)
                         if witness is not None:
                             proof['retained_native_failure'] = witness
-                            hints = _retained_print_hints(checkpoint, trial/'grammar',
-                                logs/'native-control/rows.jsonl', trace_drafts, witness)
+                            native = logs/'native-control'
+                            hints = _retained_print_hints(checkpoint, trial/'grammar', native/'rows.jsonl',
+                                                          trace_drafts, witness, reading_checks=native)
                             if hints:
                                 proof['retained_print_hints'] = hints
                     raise
@@ -1797,6 +1800,10 @@ def _isolate_retained_native(context, entries, failure, folder, *, limit, initia
 
     inputs = context.setdefault('proposal_inputs', _ProposalInputCache()).trial()
     verified = _matches_verified_native_trial(context, entries, failure, initial_trial)
+    if not verified and initial_trial is not None:
+        scope = {key: focused[key] for key in ('names', 'occurrences')}
+        if initial_trial.get('retained_parse_focus') == scope and initial_trial.get('retained_parse_native_sha256'):
+            verified = _matches_verified_native_trial(dict(context, control=focused), entries, failure, initial_trial)
     hints = initial_trial.get('retained_print_hints', ()) if verified else ()
     verify_full = not multiple or not verified
     return _isolate_retained(entries, test, folder, inputs, verify_full=verify_full,

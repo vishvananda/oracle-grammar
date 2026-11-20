@@ -1000,15 +1000,21 @@ class BatchTests(unittest.TestCase):
                 with (patch.object(batch, '_retained_parse_candidates', side_effect=screen),
                       patch.object(batch, '_focused_native_control', return_value=control),
                       patch.object(batch, '_check_trial_native', side_effect=verify),
-                      patch.object(batch, '_retained_print_hints', return_value=[])):
+                      patch.object(batch, '_retained_print_hints', return_value=[3]) as hints):
                     args = (context, [], proof, None, root/'grammar', trial, [])
                     if failure == reading:
                         with self.assertRaises(batch._NativeControlFailure):
                             batch._check_retained_parse(*args)
                         self.assertEqual(proof['retained_native_failure']['failures'], [reading])
+                        self.assertEqual(proof['retained_parse_focus'], control)
+                        self.assertEqual(proof['retained_print_hints'], [3])
+                        native = trial/'retained-parse-screen/native-focused'
+                        hints.assert_called_once_with({}, root/'grammar', native/'rows.jsonl', [],
+                                                      proof['retained_native_failure'], reading_checks=native)
                     else:
                         batch._check_retained_parse(*args)
                         self.assertNotIn('retained_native_failure', proof)
+                        hints.assert_not_called()
 
     def test_native_focus_accepts_a_bounded_group_with_the_same_print_loss(self):
         names = [f'Card {index:02d}' for index in range(17)]
@@ -1036,11 +1042,17 @@ class BatchTests(unittest.TestCase):
                                                   ('profile_sha256', 'manifest_sha256', 'threads')},
                      'proposal_indices': list(range(6)), 'jobs': [f'j{i}' for i in range(6)],
                      'attempts': [f'a{i}' for i in range(6)], 'prefix_grammar': batch.r.tree(grammar)}
-            for verified, contributors, hints in ((True, {1, 4}, []), (False, {1, 4}, []),
-                                                   (True, {1}, []), (True, {1, 4}, [1])):
+            cases = ((True, {1, 4}, [], None), (False, {1, 4}, [], None),
+                     (True, {1}, [], None), (True, {1, 4}, [1], None),
+                     (True, {1}, [1], ['A', 'B']), (False, {1}, [], ['A']))
+            for number, (verified, contributors, hints, focus) in enumerate(cases):
                 seen = []
                 evidence = {**trial, 'retained_print_hints': hints}
-                if not verified:
+                if focus is not None:
+                    evidence['verified_native_snapshot'] = dict(trial['verified_native_snapshot'], threads=2)
+                    evidence['retained_parse_focus'] = {'names': focus, 'occurrences': len(focus)}
+                    evidence['retained_parse_native_sha256'] = 'focused receipt'
+                elif not verified:
                     evidence['attempts'] = ['stale']
 
                 def probe(_context, group, focused, _failures, logs, _inputs, *, partial):
@@ -1058,7 +1070,7 @@ class BatchTests(unittest.TestCase):
                                  return_value={'names': ['A', 'B'], 'closure_occurrence_count': 2}),
                     patch.object(batch, '_probe_retained_native', side_effect=probe),
                 ):
-                    output = source/f'{verified}-{len(contributors)}-{len(hints)}'
+                    output = source/f'isolation-{number}'
                     found = batch._isolate_retained_native(context, entries, failure, output,
                                                            limit=2, initial_trial=evidence)
                 self.assertEqual(found, sorted(contributors))
