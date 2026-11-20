@@ -200,6 +200,62 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.get_attempt(self.attempt), self.original)
         self.assertEqual(self.q.coverage()['counts'], {'pending':1,'needs-review':1})
 
+    def test_fresh_family_split_requires_source_edits_and_preserves_resolved_cases(self):
+        self.park()
+        old, new = self.root/'old', self.root/'new'
+        for directory in (old, new, self.root/'scan'):
+            directory.mkdir()
+        refusal = {'name':'Bad wording','text':'Draw invalid.','reject':True}
+        alias = {'name':'Original example','text':'Draw a card.','expected':['meaning']}
+        synthetic = {'name':'Synthetic sibling','text':'Do a sibling action.','expected':['sibling']}
+        family = {'family':'archive','cases':[synthetic, refusal, alias]}
+        self.original_report.update(directory=str(old),family_returncode=1,
+                                    failures=['family regression tests failed'])
+        self.archive.return_value = self.original_report,family
+        gate = old/'family-check.log'
+        gate.write_text(json.dumps({'family':'archive','cases':3,'passed':2,'compositional':True,
+                                    'failures':[{'name':'Synthetic sibling','why':'unexpected refusal: NoParse { x }'}]}))
+        evidence = {**self.evidence,'kind':'reviewed-fresh-family-split','scan':{},
+                    'family_gate':{'path':str(gate),'sha256':sha256(gate.read_bytes()).hexdigest()}}
+        scan = self.root/'scan/rules.json'
+        scan.write_text(json.dumps({'needed':{'m_good':['A'],'m_deferred':['B']}}))
+        pin = 'a' * 64
+        with closing(self.q._connect()) as db, db:
+            db.execute("UPDATE checkpoints SET evidence=? WHERE commit_id='head'",
+                       (json.dumps({'validation':{'validation_manifest_sha256':pin}}),))
+        self.enterContext(patch.object(retire_rehabilitation,'verify_scan',
+                                        return_value=(self.root,set(),pin,sha256(scan.read_bytes()).hexdigest())))
+        self.enterContext(patch.object(retire_rehabilitation,'approved_family_texts',
+                                        return_value={'A':{'Draw a card.'},'B':{'Draw two cards.'}}))
+        fixture = new/'family.json'
+        edits = new/'edits.json'
+        report = {'directory':str(new)}
+
+        def repair(cases, values=(2, 3), flags=(True,True,True,False)):
+            fixture.write_text(json.dumps({'cases':cases}))
+            mutations = [[{'path':[0,'count'], 'value':value}] for value in values]
+            edits.write_text(json.dumps([{'face':'A','set':change} for change in mutations]))
+            report.update(fixture_sha256=sha256(fixture.read_bytes()).hexdigest(),
+                          edits_sha256=sha256(edits.read_bytes()).hexdigest(),
+                          edited=[{'face':'A','mutations':change,'flags':list(flags)} for change in mutations])
+            self.review.return_value = (report, {'cohort':['A','B']})
+
+        repair([refusal])
+        with self.assertRaisesRegex(ValueError,'omitted an archived positive case'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        repair([refusal, alias], values=(2,2))
+        with self.assertRaisesRegex(ValueError,'distinct edits covering every selected face'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        repair([refusal, alias], flags=(True,False,True,False))
+        with self.assertRaisesRegex(ValueError,'exact, verified operand edits'):
+            self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        self.assertEqual(self.q.coverage()['counts'],{'needs-review':2})
+        repair([refusal, alias])
+        receipt = self.q.split_reviewed_author('parent',self.attempt,'head',evidence)
+        self.assertEqual(receipt['rules'], ['m_good'])
+        self.assertEqual(self.q.get_attempt(self.attempt), self.original)
+        self.assertEqual(self.q.coverage()['counts'],{'pending':1,'needs-review':1})
+
     def test_numbered_family_cases_require_pinned_oracle_words_and_preserve_labels(self):
         self.park()
         old = self.root/'old'

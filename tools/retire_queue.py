@@ -835,19 +835,24 @@ def _verify_split_dispositions(original, owned, selected, repaired):
         raise ValueError('the selected subset was not proposed in the original assignment')
 
 
-def _archived_case_face(case, assigned, approved):
+def _archived_case_face(case, assigned, approved, *, match_unnamed=False):
     label = case['name']
     if label in assigned:
         return label
     name, _, number = label.rpartition(' ')
     text = case.get('text')
-    if (not approved or name not in assigned or not re.fullmatch(r'[0-9]{1,3}', number)
-            or not isinstance(text, str) or not text.endswith('.')):
+    if not approved or not isinstance(text, str) or not text.endswith('.'):
         return None
     # Workers sometimes number separate fixtures for a face. Keep their original
     # case name and match its words to a whole text or clause in that exact face.
     pattern = re.compile(r'(?:^|\n|: |\. )' + re.escape(text) + r'(?=$|\s)')
-    return name if any(pattern.search(oracle) for oracle in approved.get(name, ())) else None
+    if name in assigned and re.fullmatch(r'[0-9]{1,3}', number):
+        return name if any(pattern.search(oracle) for oracle in approved.get(name, ())) else None
+    if match_unnamed:
+        matches = [face for face in assigned if any(pattern.search(oracle) for oracle in approved.get(face, ()))]
+        if len(matches) == 1:
+            return matches[0]
+    return None
 
 
 def _verify_legacy_family_native_veto(evidence, archived, refused_residual):
@@ -902,7 +907,7 @@ def _verify_legacy_family_native_veto(evidence, archived, refused_residual):
         raise ValueError(error) from exc
 
 
-def _family_split_cases(evidence, archived, family, selected, deferred, *, approved=None):
+def _family_split_cases(evidence, archived, family, selected, deferred, *, approved=None, fresh=False):
     """Replay every selected compositional case and every archived refusal."""
     report_failures = archived.get('failures')
     if (archived.get('family_returncode') != 1 or archived.get('scope') == 'author-target-preview'
@@ -929,20 +934,23 @@ def _family_split_cases(evidence, archived, family, selected, deferred, *, appro
         raise ValueError('invalid archived family veto') from exc
     targets = set(selected['target_faces'])
     residual = set(deferred['target_faces']) - targets
-    located = [(case, _archived_case_face(case, targets | residual, approved)) for case in cases]
+    located = [(case, _archived_case_face(case, targets | residual, approved, match_unnamed=fresh)) for case in cases]
     faces = {case['name']: face for case, face in located}
     positive = [(case, face) for case, face in located
                 if face in targets and case.get('expected') is not None
                 and case.get('compositional', True) is True and not case.get('reject')]
     positive_names = {face for _, face in positive}
-    known_failures = residual | positive_names
+    covered_failures = ({case['name'] for case in cases if not case.get('reject')} if fresh
+                        else {label for label, face in faces.items() if face in residual | positive_names})
     if (result.get('compositional') is not True or result.get('family') != family.get('family')
             or result.get('cases') != len(cases) or type(result.get('passed')) is not int
             or result['passed'] + len(failures) != len(cases) or len(failed) != len(failures)
-            or not failed or not localized or not {faces.get(label) for label in failed} <= known_failures
+            or not failed or not localized or not failed <= covered_failures
             or any(sum(case['name'] == name for case in cases) != 1 for name in failed)):
         raise ValueError('archived family veto does not isolate replayable cases')
     if len(report_failures) != 1:
+        if fresh:
+            raise ValueError('fresh family split requires a family-only archived failure')
         refused_residual = {faces[failure['name']] for failure in failures
                             if failure['why'].startswith('unexpected refusal:') and faces[failure['name']] in residual}
         _verify_legacy_family_native_veto(evidence, archived, refused_residual)
@@ -974,6 +982,21 @@ def _verify_family_split_fixture(report, preserved):
     current = json.loads(data)['cases']
     if any(case not in current for case in preserved):
         raise ValueError('the repaired family omitted an archived positive case or refusal')
+
+
+def _verify_fresh_split_edits(report, targets):
+    path = Path(report['directory'])/'edits.json'
+    _, data = _proof_file({'path': str(path), 'sha256': report.get('edits_sha256')})
+    original = json.loads(data)
+    checked = report['edited']
+    if (not isinstance(original, list) or len(original) != len(checked)
+            or any(case['face'] != edit['face'] or case['set'] != edit['mutations']
+                   or edit.get('flags', [])[:3] != [True, True, True]
+                   for case, edit in zip(original, checked))):
+        raise ValueError('fresh family split requires archived exact, verified operand edits')
+    witnesses = {(_json(edit['mutations']), edit['face']) for edit in checked}
+    if len(witnesses) < 2 or {face for _, face in witnesses} != set(targets):
+        raise ValueError('fresh family split requires distinct edits covering every selected face')
 
 
 class RehabilitationIneligible(ValueError):
@@ -1096,7 +1119,8 @@ class Queue:
         """Queue an independently evaluated subset and preserve its deferred siblings."""
         kind = evidence.get('kind') if isinstance(evidence, dict) else None
         integration = kind == 'reviewed-integration-repair-split'
-        family_split = kind == 'reviewed-family-repair-split'
+        fresh_family = kind == 'reviewed-fresh-family-split'
+        family_split = fresh_family or kind == 'reviewed-family-repair-split'
         unremoved = kind == 'reviewed-unremoved-draft-split'
         repaired = family_split or unremoved or kind == 'reviewed-author-repair-split'
         if (not (integration or repaired or kind == 'reviewed-author-split')
@@ -1156,7 +1180,7 @@ class Queue:
                     (accepted,), = db.execute('SELECT evidence FROM checkpoints WHERE commit_id=?', (source,))
                     ledger = json.loads(accepted)
                     approved = None
-                    if family_split and evidence.get('numbered_family_cases') is True:
+                    if fresh_family or (family_split and evidence.get('numbered_family_cases') is True):
                         inputs, _, manifest, _ = retire_rehabilitation.verify_scan(
                             campaign, source, ledger, evidence.get('scan'))
                         pinned = ledger.get('validation', {}).get('validation_manifest_sha256', ledger.get('manifest'))
@@ -1164,14 +1188,17 @@ class Queue:
                             raise ValueError('the numbered family proof differs from the accepted archive')
                         approved = retire_rehabilitation.approved_family_texts(inputs, manifest, parent['target_faces'])
                     positive, preserved = (_family_split_cases(evidence, archived, family, selected, deferred,
-                                                               approved=approved)
+                                                               approved=approved, fresh=fresh_family)
                                            if family_split else (None, []))
-                    _verify_family_split_coverage(campaign, evidence, ledger, selected, deferred, positive)
+                    _verify_family_split_coverage(campaign, evidence, ledger, selected, deferred,
+                                                  None if fresh_family else positive)
                 elif archived.get('family_returncode') != 0 or archived.get('scope') == 'author-target-preview':
                     raise ValueError('the original report lacks a full author evaluation')
                 repaired_report, task = _verify_reviewed_repair(campaign, source, selected, evidence)
                 if family_split:
                     _verify_family_split_fixture(repaired_report, preserved)
+                if fresh_family:
+                    _verify_fresh_split_edits(repaired_report, selected['target_faces'])
                 descriptor = campaign/'.cache/attempts'/attempt_id/'tasks'/f'{origin_job}.json'
                 old = descriptor.read_bytes()
                 if hashlib.sha256(old).hexdigest() != archived['descriptor_sha256']:

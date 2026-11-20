@@ -239,6 +239,13 @@ independently checked repair against the recorded failed tests and attempt.
 A numbered fixture label can be matched to its assigned face when its exact
 text appears as a complete clause in that face's frozen Oracle wording. The
 replay keeps the archived label, wording and expectations.
+When the original family veto was confined to positive cases and left no
+positive for a selected rule, a fresh family split can use edited approved
+cards as its witnesses. It retains every archived refusal and any positive
+that can be attributed to the selected faces. The accepted scan still has to
+separate the dependent faces. The replay covers the original closed cohort and
+must verify exact keyed print and reparse for distinct edits covering every
+selected face. The sibling rules keep their original review evidence.
 
 A deferred author assignment can carry an independently verified draft for
 all its remaining rules. The queue ties the draft to the current checkpoint
