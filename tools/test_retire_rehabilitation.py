@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 import retire
 import retire_rehabilitation
-from retire_deferred_frontier import plan_unblocked
+from retire_deferred_frontier import plan_budget, plan_unblocked, refill_budget
 from retire_queue import Queue, RehabilitationIneligible
 
 
@@ -191,6 +191,48 @@ class RehabilitationTests(unittest.TestCase):
             with self.assertRaisesRegex(RehabilitationIneligible,'already received'):
                 self.queue.queue_deferred_author('retry', 'unblocked', self.proof,
                                                  unblocked={**evidence,'attempt_id':claimed['attempt_id']})
+
+    def test_budget_retry_runs_once_for_small_parked_authors(self):
+        head = 'a'*40
+        self.new_checkpoint(head, [], 'new', {'m_small':['face'], 'm_big_a':['big'], 'm_big_b':['big'],
+                                                 'm_big_c':['big']})
+        write(self.root/'config.json', {'workers': 12})
+        self.queue.add_jobs([
+            {'id':'small', 'kind':'author', 'rules':['m_small'], 'target_faces':['face'], 'goal':'compose'},
+            {'id':'big', 'kind':'author', 'rules':['m_big_a','m_big_b','m_big_c'], 'target_faces':['big']},
+        ])
+        with patch.object(self.queue, '_require_absent_pid'):
+            attempts = {}
+            for job in ('small', 'big'):
+                claim = self.queue.claim(job, kinds=['author'])
+                attempts[claim['job']['id']] = claim['attempt_id']
+                self.queue.mark_started(claim['attempt_id'], pid=4567)
+                (self.lease.parent/claim['job']['id']).touch()
+                self.queue.finish(claim['attempt_id'], 'needs-review', 'parked',
+                                  {rule:{'status':'needs-review','reason':'fixture','evidence':'early stop'}
+                                   for rule in claim['job']['rules']})
+            prior = self.queue.get_attempt(attempts['small'])
+            plan = plan_budget(self.root)
+            self.assertEqual([row['job'] for row in plan['candidates']], ['small'])
+            self.assertEqual(plan['candidates'][0]['faces'], ['face'])
+            self.assertEqual(plan_budget(self.root, protected=['small'])['candidates'], [])
+            with self.assertRaisesRegex(RehabilitationIneligible, 'small author'):
+                self.queue.retry_budget_author('big', attempts['big'], head, self.proof)
+            with self.assertRaisesRegex(RehabilitationIneligible, 'different disposition'):
+                self.queue.retry_budget_author('small', attempts['big'], head, self.proof)
+            result = refill_budget(self.root, plan, apply=True)
+            self.assertEqual([row['status'] for row in result['jobs']], ['queued'])
+            self.assertEqual(self.queue.get_attempt(attempts['small']), prior)
+            claimed = self.queue.claim('author', kinds=['author'])
+            self.assertEqual(claimed['job']['id'], 'small')
+            self.assertEqual(claimed['base_commit'], head)
+            self.assertIn(attempts['small'], claimed['job']['goal'])
+            self.assertIs(claimed['job']['preview_edited_operands'], True)
+            self.queue.finish(claimed['attempt_id'], 'needs-review', 'still parked',
+                              {'m_small':{'status':'needs-review','reason':'fixture','evidence':'again'}})
+            self.assertEqual(plan_budget(self.root)['candidates'], [])
+            with self.assertRaisesRegex(RehabilitationIneligible, 'already received a budget retry'):
+                self.queue.retry_budget_author('small', claimed['attempt_id'], head, self.proof)
 
     def test_deferred_author_replays_only_a_reviewed_draft_covering_the_original_cohort(self):
         deferred = self.queue.rehabilitate_unused('family', 'new', self.proof)['review_job']

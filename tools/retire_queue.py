@@ -41,6 +41,8 @@ REVIEWED_RETRY_EVENTS = {
 SPLIT_REVIEWED_AUTHOR = 'split-reviewed-author'
 DEFERRED_REVIEWED_AUTHOR = 'queued-deferred-reviewed-author'
 RETRY_UNBLOCKED_AUTHOR = 'retry-unblocked-author'
+RETRY_BUDGET_AUTHOR = 'retry-budget-author'
+MAX_BUDGET_RETRY_RULES = 2
 _REVIEWED_EVENTS = (*dict.fromkeys(REVIEWED_RETRY_EVENTS.values()), SPLIT_REVIEWED_AUTHOR, DEFERRED_REVIEWED_AUTHOR)
 _REVIEWED_EVENT_SLOTS = ','.join('?' for _ in _REVIEWED_EVENTS)
 
@@ -1467,7 +1469,72 @@ class Queue:
                 self._event(db, event, {**receipt, 'evidence': recorded})
                 return receipt
 
-    def _unblocked_author_witnesses(self, db, targets, neighbors):
+    def retry_budget_author(self, job_id, attempt_id, checkpoint, evidence):
+        """Retry a small parked author assignment once with the current author budget."""
+        if not isinstance(attempt_id, str) or not attempt_id:
+            raise ValueError('a budget retry requires the parked attempt')
+
+        def current(db):
+            row = db.execute('SELECT status,attempt_id,payload,adjudication FROM jobs WHERE id=?',
+                             (job_id,)).fetchone()
+            if not row or tuple(row[:2]) != ('needs-review', attempt_id):
+                raise RehabilitationIneligible('the parked job already has a different disposition')
+            if db.execute("SELECT 1 FROM events WHERE kind=? AND json_extract(data,'$.job_id')=?",
+                          (RETRY_BUDGET_AUTHOR, job_id)).fetchone():
+                raise RehabilitationIneligible('the assignment already received a budget retry')
+            resolved = retire_rehabilitation.resolve_origin(db, job_id, row)
+            if (resolved is None or resolved[0].get('id') != job_id or resolved[0].get('kind') != 'author'
+                    or resolved[1]['job_id'] != job_id or resolved[1]['attempt_id'] != attempt_id
+                    or not 1 <= len(resolved[0].get('rules', [])) <= MAX_BUDGET_RETRY_RULES):
+                raise RehabilitationIneligible('the parked job is not a small author assignment')
+            if json.loads(resolved[4]).get('status') != 'needs-review':
+                raise RehabilitationIneligible('the parked attempt did not end in author review')
+            return resolved
+
+        latest = 'SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1'
+        with closing(self._connect()) as db:
+            initial = current(db)
+            head = db.execute(latest).fetchone()
+            if not head or head[0] != checkpoint:
+                raise RehabilitationIneligible('the accepted checkpoint changed')
+        job, origin, base, started, _ = initial
+        rules = job['rules']
+        pid = json.loads(started or '{}').get('pid')
+        if type(pid) is not int or pid <= 0:
+            raise RehabilitationIneligible('the original worker PID is unknown')
+        campaign = Path(self.path).parent
+        inputs, unused, manifest_hash, scan_hash = retire_rehabilitation.verify_scan(
+            campaign, checkpoint, json.loads(head[1]), evidence)
+        try:
+            targets = retire_rehabilitation.deferred_author_faces(inputs, scan_hash, unused, job)
+        except ValueError as exc:
+            raise RehabilitationIneligible(str(exc)) from exc
+        with self._retry_lease(job_id, unavailable_exc=RehabilitationIneligible):
+            with self._transaction() as db:
+                owned = {row[0] for row in db.execute('SELECT rule FROM rules WHERE job_id=?', (job_id,))}
+                if db.execute(latest).fetchone() != head or current(db) != initial or owned != set(rules):
+                    raise RehabilitationIneligible('the accepted checkpoint or parked ownership changed')
+                _verify_readmission_origin(db, checkpoint, base)
+                finished = db.execute("SELECT unixepoch(at) FROM events WHERE kind='finished' "
+                                      "AND json_extract(data,'$.attempt_id')=?", (attempt_id,)).fetchall()
+                try:
+                    self._require_absent_pid(pid, finished=finished[0][0] if len(finished) == 1 else None)
+                except ValueError as exc:
+                    raise RehabilitationIneligible(str(exc)) from exc
+                self._require_author_room(db, targets)
+                archive = campaign/'.cache/attempts'/attempt_id
+                goal = (job.get('goal', '')+' A previous attempt parked this assignment before using its budget. '
+                        f'Its evidence is under {archive}; keep what held and repair what failed.')
+                payload = dict(job, target_faces=targets, goal=goal, preview_edited_operands=True)
+                db.execute("UPDATE jobs SET payload=?,status='pending',attempt_id=NULL WHERE id=?",
+                           (_json(payload), job_id))
+                receipt = {'job_id': job_id, 'origin_attempt': attempt_id, 'checkpoint': checkpoint,
+                           'rules': rules, 'target_faces': targets, 'manifest_sha256': manifest_hash,
+                           'scan_sha256': scan_hash, 'previous_result_sha256': origin['result_sha256']}
+                self._event(db, RETRY_BUDGET_AUTHOR, {**receipt, 'evidence': evidence})
+                return receipt
+
+    def _require_author_room(self, db, targets):
         config = json.loads(db.execute("SELECT value FROM metadata WHERE key='config'").fetchone()[0])
         workers = config.get('max_workers', 12)
         active = db.execute("SELECT payload FROM jobs WHERE status IN ('pending','running') "
@@ -1475,6 +1542,9 @@ class Queue:
         if (len(active) >= workers
                 or any(set(targets).intersection(json.loads(raw).get('target_faces', [])) for raw, in active)):
             raise RehabilitationIneligible('the worker pool or assigned faces are already occupied')
+
+    def _unblocked_author_witnesses(self, db, targets, neighbors):
+        self._require_author_room(db, targets)
         accepted = {name for name, in db.execute("SELECT r.rule FROM rules r JOIN jobs j ON j.id=r.job_id "
                                                "WHERE j.status='accepted'")}
         witnesses = {name: faces for name, faces in neighbors.items() if name in accepted}

@@ -11,7 +11,8 @@ import re
 import sqlite3
 
 import retire as r
-from retire_queue import RETRY_UNBLOCKED_AUTHOR, Queue, RehabilitationIneligible
+from retire_queue import (MAX_BUDGET_RETRY_RULES, RETRY_BUDGET_AUTHOR, RETRY_UNBLOCKED_AUTHOR, Queue,
+                         RehabilitationIneligible)
 from retire_rehabilitation import (deferred_author_targets, resolve_origin, scan_evidence,
                                    verified_dependency_scan, verify_scan)
 
@@ -244,6 +245,88 @@ def refill_unblocked(campaign, plan, *, apply=False, protected=(), max_wave=MAX_
         return dict(result, status='applied') if apply else result
 
 
+def plan_budget(campaign, *, protected=()):
+    """Rank small parked assignments for one retry with the whole author budget."""
+    campaign = Path(campaign).resolve()
+    uri = (campaign/'queue.sqlite').as_uri()+'?mode=ro'
+    with closing(sqlite3.connect(uri, uri=True)) as db:
+        db.execute('BEGIN')
+        head = db.execute('SELECT commit_id,evidence FROM checkpoints ORDER BY seq DESC LIMIT 1').fetchone()
+        jobs = db.execute("""SELECT j.id,j.attempt_id,j.payload FROM jobs j
+                             JOIN attempts a ON a.id=j.attempt_id AND a.job_id=j.id
+                             WHERE j.status='needs-review' AND a.result IS NOT NULL
+                                 AND json_extract(a.result,'$.status')='needs-review'
+                                 AND json_extract(j.payload,'$.kind')='author'
+                                 AND json_array_length(json_extract(j.payload,'$.rules')) BETWEEN 1 AND ?
+                             ORDER BY j.rowid LIMIT ?""", (MAX_BUDGET_RETRY_RULES, MAX_PARKED+1)).fetchall()
+        retried = {job for job, in db.execute("SELECT json_extract(data,'$.job_id') FROM events WHERE kind=?",
+                                             (RETRY_BUDGET_AUTHOR,))}
+    r.require(head and len(jobs) <= MAX_PARKED, 'budget retry inventory exceeds the planning bound')
+    checkpoint, evidence = head
+    record = r.read(campaign/'checkpoints'/f'{checkpoint}.json')
+    _, needed, unused = verified_dependency_scan(campaign, checkpoint, json.loads(evidence),
+                                                 scan_evidence(Path(record['inputs'])))
+    excluded = retried | set(protected)
+    candidates = []
+    for job_id, attempt, payload in jobs:
+        if job_id in excluded:
+            continue
+        job = json.loads(payload)
+        try:
+            faces = deferred_author_targets(needed, unused, job)
+        except ValueError:
+            continue
+        if 1 <= len(faces) <= MAX_FACES:
+            candidates.append({'job':job_id, 'attempt':attempt, 'rules':job['rules'], 'faces':faces})
+    candidates.sort(key=lambda row: (len(row['rules']), len(row['faces']), row['job']))
+    return {'checkpoint':checkpoint, 'candidates':candidates}
+
+
+def refill_budget(campaign, plan, *, apply=False, protected=(), max_wave=MAX_WAVE):
+    """Admit ranked budget retries while the queue rechecks each parked attempt."""
+    campaign = Path(campaign).resolve()
+    workers = r.read(campaign/'config.json')['workers']
+    r.require(type(workers) is int and 1 <= workers <= MAX_WAVE
+              and type(max_wave) is int and 1 <= max_wave <= MAX_WAVE, 'invalid worker or wave limit')
+    checkpoint = plan['checkpoint']
+    r.require(re.fullmatch(r'[0-9a-f]{40}|[0-9a-f]{64}', checkpoint) is not None
+              and isinstance(plan['candidates'], list) and len(plan['candidates']) <= MAX_PARKED,
+              'invalid budget retry plan')
+    with r.locked(campaign/'deferred-frontier.lock', blocking=False) as owned:
+        if not owned or any((campaign/name).exists() for name in ('drain.json','controller-drain.json')):
+            return {'status':'idle','jobs':[]}
+        head, active, _ = _snapshot(campaign, workers, frozenset(protected))
+        if not head or head[0] != checkpoint:
+            return {'status':'stale-checkpoint','jobs':[]}
+        limit = min(max_wave, workers-len(active))
+        result = {'status':'planned','checkpoint':checkpoint,'active_jobs':len(active),'jobs':[]}
+        busy = {face for job in active for face in job.get('target_faces', [])}
+        excluded = set(protected)
+        queue = Queue(campaign/'queue.sqlite') if apply and limit else None
+        proof = scan_evidence(Path(r.read(campaign/'checkpoints'/f'{checkpoint}.json')['inputs']))
+        queued = 0
+        for row in plan['candidates']:
+            if queued >= limit:
+                break
+            if row['job'] in excluded or busy.intersection(row['faces']):
+                continue
+            faces = row['faces']
+            if queue is not None:
+                try:
+                    receipt = queue.retry_budget_author(row['job'], row['attempt'], checkpoint, proof)
+                except RehabilitationIneligible as error:
+                    result['jobs'].append(dict(row, status='stale', reason=str(error)))
+                    continue
+                result['jobs'].append(dict(row, status='queued', receipt=receipt))
+                faces = receipt['target_faces']
+            else:
+                result['jobs'].append(row)
+            busy.update(faces)
+            excluded.add(row['job'])
+            queued += 1
+        return dict(result, status='applied') if apply else result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('campaign', type=Path)
@@ -254,6 +337,8 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--plan-unblocked', action='store_true')
     mode.add_argument('--unblocked-plan', type=Path)
+    mode.add_argument('--plan-budget', action='store_true')
+    mode.add_argument('--budget-plan', type=Path)
     args = parser.parse_args()
     options = dict(apply=args.apply, protected=args.protect, max_wave=args.max_wave)
     if args.plan_unblocked:
@@ -262,6 +347,15 @@ def main():
         result = plan_unblocked(args.campaign, protected=args.protect)
         if args.checkpoint and args.checkpoint != result['checkpoint']:
             parser.error('--checkpoint differs from the accepted dependency scan')
+    elif args.plan_budget:
+        if args.apply:
+            parser.error('--plan-budget only reads accepted inputs and the queue')
+        result = plan_budget(args.campaign, protected=args.protect)
+    elif args.budget_plan:
+        plan = r.read(args.budget_plan)
+        if args.checkpoint and args.checkpoint != plan['checkpoint']:
+            parser.error('--checkpoint differs from the budget retry plan')
+        result = refill_budget(args.campaign, plan, **options)
     elif args.unblocked_plan:
         plan = r.read(args.unblocked_plan)
         if args.checkpoint and args.checkpoint != plan['checkpoint']:

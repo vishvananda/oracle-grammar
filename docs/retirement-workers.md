@@ -188,6 +188,11 @@ recomputes the witnesses from two accepted scans of the same approved
 population. At least one seeded dependency of an assigned face must have a
 recorded retirement, and active jobs must have disjoint target faces. Each
 assignment gets one such retry and keeps its original attempt in the ledger.
+`--plan-budget` ranks parked author assignments of one or two rules whose own
+attempt stopped with a needs-review result. `--budget-plan PLAN --apply`
+returns each to pending once, with a goal note that points at its archived
+evidence. The queue rechecks the same scan, readmission origin, finished
+process and face occupancy before it moves the job.
 
 The batch driver's optional `reviewed_replay_slots` reserves places in an
 ordinary batch for provisionally passing attempts that independently replayed
