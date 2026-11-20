@@ -256,6 +256,39 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         self.assertEqual(self.q.get_attempt(self.attempt), self.original)
         self.assertEqual(self.q.coverage()['counts'],{'pending':1,'needs-review':1})
 
+    def test_fresh_split_can_defer_only_anchored_sibling_semantic_failures(self):
+        gate = self.root/'family-check.log'
+        archived = {'directory':str(self.root),'family_returncode':1,
+                    'failures':['family regression tests failed']}
+        positive = {'name':'A','text':'Draw a card.','expected':['meaning']}
+        refusal = {'name':'Incomplete','text':'Draw.','reject':True}
+        sibling = {'name':'B','text':'Draw two cards.','expected':['held'],'readings':1}
+        family = {'family':'archive','cases':[positive,refusal,sibling]}
+        selected, deferred = {'target_faces':['A']}, {'target_faces':['A','B']}
+        approved = {'A':{'Draw a card.'}, 'B':{'Draw two cards.'}}
+
+        def replay(label, why, *, fresh=True, sources=approved):
+            gate.write_text(json.dumps({'family':'archive','compositional':True,'cases':3,'passed':2,
+                                        'failures':[{'name':label,'why':why}]}))
+            evidence = {'family_gate':{'path':str(gate),'sha256':sha256(gate.read_bytes()).hexdigest()}}
+            return retire_queue._family_split_cases(evidence,archived,family,selected,deferred,
+                                                     approved=sources,fresh=fresh)
+
+        mismatch = 'no reading equals the expected IR'
+        self.assertEqual(replay('B',mismatch), ({'A'},[positive,refusal]))
+        self.assertEqual(replay('B','expected Some(1) readings, got 2'), ({'A'},[positive,refusal]))
+        for label, why, fresh, sources in (
+            ('A',mismatch,True,approved),
+            ('B',mismatch,False,approved),
+            ('B',mismatch,True,{**approved,'B':{'Discard two cards.'}}),
+            ('B','expected Some(2) readings, got 3',True,approved),
+            ('B','expected Some(1) readings, got 1',True,approved),
+            ('B','work limit: test',True,approved),
+        ):
+            with self.subTest(label=label, why=why, fresh=fresh, sources=sources):
+                with self.assertRaisesRegex(ValueError,'does not isolate replayable cases'):
+                    replay(label,why,fresh=fresh,sources=sources)
+
     def test_numbered_family_cases_require_pinned_oracle_words_and_preserve_labels(self):
         self.park()
         old = self.root/'old'

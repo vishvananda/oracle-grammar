@@ -835,9 +835,9 @@ def _verify_split_dispositions(original, owned, selected, repaired):
         raise ValueError('the selected subset was not proposed in the original assignment')
 
 
-def _archived_case_face(case, assigned, approved, *, match_unnamed=False):
+def _archived_case_face(case, assigned, approved, *, match_unnamed=False, verify_named=False):
     label = case['name']
-    if label in assigned:
+    if label in assigned and not verify_named:
         return label
     name, _, number = label.rpartition(' ')
     text = case.get('text')
@@ -846,6 +846,8 @@ def _archived_case_face(case, assigned, approved, *, match_unnamed=False):
     # Workers sometimes number separate fixtures for a face. Keep their original
     # case name and match its words to a whole text or clause in that exact face.
     pattern = re.compile(r'(?:^|\n|: |\. )' + re.escape(text) + r'(?=$|\s)')
+    if label in assigned:
+        return label if any(pattern.search(oracle) for oracle in approved.get(label, ())) else None
     if name in assigned and re.fullmatch(r'[0-9]{1,3}', number):
         return name if any(pattern.search(oracle) for oracle in approved.get(name, ())) else None
     if match_unnamed:
@@ -853,6 +855,20 @@ def _archived_case_face(case, assigned, approved, *, match_unnamed=False):
         if len(matches) == 1:
             return matches[0]
     return None
+
+
+def _deferred_semantic_veto(failure, case, targets, residual, approved):
+    """Recognize a semantic mismatch on a verified face that stays in review."""
+    why = failure['why']
+    if why in ('no reading equals the expected IR', 'no card reading equals the expected IR and notes'):
+        if case.get('expected') is None and case.get('expected_notes') is None:
+            return False
+    else:
+        count = re.fullmatch(r'expected Some\(([0-9]+)\) (?:card )?readings, got ([0-9]+)', why)
+        if not count or count[1] == count[2] or count[1] != str(case.get('readings')):
+            return False
+    face = _archived_case_face(case, targets | residual, approved, match_unnamed=True, verify_named=True)
+    return (face in residual and case.get('compositional', True) is True and not case.get('reject'))
 
 
 def _verify_legacy_family_native_veto(evidence, archived, refused_residual):
@@ -917,23 +933,26 @@ def _family_split_cases(evidence, archived, family, selected, deferred, *, appro
     if gate.resolve() != gate or gate != Path(archived['directory'])/'family-check.log':
         raise ValueError('family veto proof is outside the original evaluation')
     cases = family['cases']
+    targets = set(selected['target_faces'])
+    residual = set(deferred['target_faces']) - targets
     try:
         result = json.loads(data.splitlines()[0])
         failures = result['failures']
         failed = {failure['name'] for failure in failures}
         exact = {case['name'] for case in cases if case.get('exact') is True}
         default = {case['name'] for case in cases if case.get('default') is True}
+        by_name = {case['name']: case for case in cases}
         localized = all(failure['why'].startswith(('unexpected refusal: NoParse {',
                                                   'unexpected refusal: Binding('))
                         or (failure['name'] in exact and failure['why'] in (
                             'a reading has no exact keyed print', 'a card reading has no exact keyed print'))
                         or (failure['name'] in default and failure['why'] in (
                             'a reading has no verified default print', 'a card reading has no verified default print'))
+                        or (fresh and failure['name'] in by_name
+                            and _deferred_semantic_veto(failure, by_name[failure['name']], targets, residual, approved))
                         for failure in failures)
     except (ValueError, IndexError, KeyError, TypeError, AttributeError) as exc:
         raise ValueError('invalid archived family veto') from exc
-    targets = set(selected['target_faces'])
-    residual = set(deferred['target_faces']) - targets
     located = [(case, _archived_case_face(case, targets | residual, approved, match_unnamed=fresh)) for case in cases]
     faces = {case['name']: face for case, face in located}
     positive = [(case, face) for case, face in located
