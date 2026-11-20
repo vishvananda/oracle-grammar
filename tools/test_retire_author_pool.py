@@ -67,6 +67,12 @@ class AuthorLaunchTests(unittest.TestCase):
         self.assertIn(json.dumps(command), text)
         self.assertNotIn('--preview', text)
 
+    def test_dependency_retry_prompt_asks_to_fix_failed_preview_edits(self):
+        r.write(self.run/'tasks/task.json', {**self.task, 'preview_edited_operands': True})
+        text = author.prompt(self.run, 'task')
+        self.assertIn('then your whole-card operand edits', text)
+        self.assertIn('Fix a bounded edited-operand refusal or print failure', text)
+
     def test_campaign_slot_covers_model_but_ends_before_coordinator(self):
         campaign = self.cpu.parent
         campaign.mkdir()

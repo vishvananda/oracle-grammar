@@ -39,6 +39,13 @@ def prompt(run, task_id):
             'Return your per-rule dispositions after the preview. '
             'The coordinator independently checks the full assigned cohort and edited operands after your response.'
         )
+        if task.get('preview_edited_operands') is True:
+            diagnostic_note = (
+                'After grouped changes, run the target preview and read its report. '
+                'It checks the authored family, target readings and printing, then your whole-card operand edits. '
+                'Fix a bounded edited-operand refusal or print failure before returning your per-rule dispositions. '
+                'The coordinator independently checks the full assigned cohort and edited operands after your response.'
+            )
     return f'''Author shared Oracle grammar for this bounded pilot task.
 Read AGENTS.md, SPEC.md, docs/print-shapes.md and {run/'tasks'/f'{task_id}.json'}.
 {packet_note}

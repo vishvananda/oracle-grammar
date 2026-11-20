@@ -97,6 +97,31 @@ class AuthoringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             a.edited_record_pair(gold, oracle, 'Back', ['Front'])
 
+    def test_edited_preview_reports_edit_failure_with_the_passed_target_evidence(self):
+        data = ({'0': {'name':'Target', 'record':0, 'face':0}},
+                [{'faces':[{'name':'Target'}]}], [])
+        task = {'target_faces':['Target'], 'cohort':['Target']}
+        run, root = Path('/private/task'), Path('/private/draft')
+        status = {'faces':1, 'failures':[]}
+        with (patch.object(a.w, 'payload', return_value=data),
+              patch.object(a.w, 'checks', return_value=status),
+              patch.object(a, 'edited_checks', side_effect=ValueError('edited print refused')) as edited):
+            report = a._preview_checks(run, run/'logs', run/'grammar', task, edited_root=root)
+        self.assertEqual(report, {'faces':1, 'failures':['edited print refused'],
+                                  'deferred_checks':['full assigned cohort']})
+        edited.assert_called_once_with(run, run/'logs', run/'grammar', task, root, data)
+        for failures in ([], ['target differed']):
+            with (patch.object(a.w, 'payload', return_value=data),
+                  patch.object(a.w, 'checks', return_value={'faces':1, 'failures':failures}),
+                  patch.object(a, 'edited_checks', return_value=['verified']) as edited):
+                report = a._preview_checks(run, run/'logs', run/'grammar', task, edited_root=root)
+            if failures:
+                self.assertIn('edited operand checks', report['deferred_checks'])
+                edited.assert_not_called()
+            else:
+                self.assertEqual(report['edited'], ['verified'])
+                self.assertEqual(report['deferred_checks'], ['full assigned cohort'])
+
     def test_author_family_cannot_disable_compositional_checks(self):
         family = {'cases': [{'expected': []}, {'reject': True}, {}, {'compositional': True}]}
         a.validate_author_family(family)

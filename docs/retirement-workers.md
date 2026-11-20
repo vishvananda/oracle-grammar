@@ -258,6 +258,8 @@ Campaign workers use `--preview` before returning their per-rule dispositions.
 It checks the compositional family, native readings and printing for the
 assigned target faces and their companions. The report identifies this scope
 as `author-target-preview` and records the checks deferred to the coordinator.
+Dependency retries also check the submitted whole-card operand edits in the
+preview, giving the author time to repair refusals and print failures.
 The independent coordinator checks the complete assigned cohort and edited
 operands. The full diagnostic is also available directly and remains the
 default for paired pilot workers.

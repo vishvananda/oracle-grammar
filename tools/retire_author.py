@@ -334,7 +334,8 @@ def edited_checks(run, directory, grammar, task, root, data):
         row = next(row for row in rows if row['name'] == name)
         flags = r.flags(row)
         r.require(len(rows) == len(names) and row['status'] == 'equal'
-                  and flags[0] and flags[2], 'edited operand lacks equal verified print')
+                  and flags[0] and flags[2],
+                  f'edited operand lacks equal verified print for {name}. See {folder/"rows.jsonl"}')
         r.execute(run/'inputs', folder, grammar, 'validate-readings',
                   [folder/'gold.jsonl', folder/'rows.jsonl', folder/'native.json',
                    folder/'native-failures.jsonl'], 2)
@@ -373,7 +374,7 @@ def validate_author_family(family):
                   for case in cases), 'worker-authored family cases must be compositional')
 
 
-def _preview_checks(run, directory, grammar, task):
+def _preview_checks(run, directory, grammar, task, *, edited_root=None):
     data = w.payload(run/'inputs')
     by_name = _cohort_index(data[0])
     targets = task.get('target_faces')
@@ -381,7 +382,14 @@ def _preview_checks(run, directory, grammar, task):
                else cohort.close_cohort(by_name, data[1], {'names': task['cohort']}, already_closed=True))
     result = w.checks(run/'inputs', directory, grammar, primary['names'], data, 2)
     r.require(result['faces'] == primary['closure_occurrence_count'], 'preview omitted target occurrences')
-    result['deferred_checks'] = ['full assigned cohort', 'edited operand checks']
+    result['deferred_checks'] = ['full assigned cohort']
+    if edited_root is None or result['failures']:
+        result['deferred_checks'].append('edited operand checks')
+        return result
+    try:
+        result['edited'] = edited_checks(run, directory, grammar, task, edited_root, data)
+    except (ValueError, OSError, KeyError, StopIteration, subprocess.SubprocessError) as error:
+        result['failures'].append(str(error))
     return result
 
 
@@ -405,6 +413,7 @@ def _check(run, task_id, coordinator=False, *, preview=False, prepared=None):
                   'directory': str(directory), 'failures': []}
         if preview:
             report['scope'] = 'author-target-preview'
+        preview_edits = preview and task.get('preview_edited_operands') is True
         before = r.tree(root/'grammar')
         shutil.copytree(root/'grammar', directory/'grammar')
         grammar = directory/'grammar'
@@ -425,7 +434,7 @@ def _check(run, task_id, coordinator=False, *, preview=False, prepared=None):
             shutil.copy2(fixture, directory/'family.json')
             report['fixture_sha256'] = r.digest(fixture)
             edits = root/task['edits']
-            if coordinator and edits.stat().st_size <= 1024*1024:
+            if (coordinator or preview_edits) and edits.stat().st_size <= 1024*1024:
                 archived_edits = directory/'edits.json'
                 shutil.copyfile(edits, archived_edits)
                 edits = archived_edits
@@ -439,7 +448,8 @@ def _check(run, task_id, coordinator=False, *, preview=False, prepared=None):
                     'checks': ['cohort score', 'cohort native validation', 'edited operand checks'],
                 }
             elif preview:
-                report.update(_preview_checks(run, directory, grammar, task))
+                report.update(_preview_checks(run, directory, grammar, task,
+                                              edited_root=root if preview_edits else None))
                 report['passed'] = not report['failures']
             else:
                 compact = screen_packet.load(run, task, r.digest(run/'inputs/manifest.json'),

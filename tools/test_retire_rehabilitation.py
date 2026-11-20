@@ -183,6 +183,7 @@ class RehabilitationTests(unittest.TestCase):
             self.assertEqual(claimed['base_commit'], 'unblocked')
             self.assertEqual(claimed['job']['rules'], ['m_retry'])
             self.assertIn('m_neighbor', claimed['job']['goal'])
+            self.assertIs(claimed['job']['preview_edited_operands'], True)
             self.queue.finish(claimed['attempt_id'], 'needs-review', 'still parked', held)
             self.assertEqual(plan_unblocked(self.root)['candidates'], [])
             with self.assertRaisesRegex(RehabilitationIneligible,'already received'):

@@ -1276,6 +1276,7 @@ class Queue:
                     witnesses = self._unblocked_author_witnesses(db, targets, neighbors)
                     names = ', '.join(sorted(witnesses)[:12])
                     payload['goal'] += ' The accepted grammar has since retired dependencies of the assigned faces, including '+names+'.'
+                    payload['preview_edited_operands'] = True
                     event = RETRY_UNBLOCKED_AUTHOR
                     recorded = {'scan': evidence, 'previous_scan': unblocked['scan'], 'previous_checkpoint': base,
                                 'previous_result_sha256': origin['result_sha256'], 'retired_dependencies': witnesses}
