@@ -27,7 +27,7 @@ condition_most_votes ::= vote_word "gets" "more" "votes"
 condition_most_votes_or_tied ::= vote_word "gets" "more" "votes" "or" "the" "vote" "is" "tied"
 
 /* The words a ballot offers, each a data terminal that prints as written. */
-vote_word ::= vote_bribery | vote_carnage | vote_chaos | vote_condemnation | vote_death | vote_denial | vote_dominion | vote_duplication | vote_embark | vote_evidence | vote_feather | vote_free | vote_grace | vote_guidance | vote_harvest | vote_homage | vote_knowledge | vote_money | vote_numbers | vote_past | vote_planeswalk | vote_present | vote_profit | vote_psychosis | vote_quill | vote_return | vote_security | vote_sickness | vote_sprout | vote_strength | vote_taxes | vote_time | vote_torture | vote_wild
+vote_word ::= vote_redhorn_pass | vote_mines_of_moria | vote_bribery | vote_carnage | vote_chaos | vote_condemnation | vote_death | vote_denial | vote_dominion | vote_duplication | vote_embark | vote_evidence | vote_feather | vote_free | vote_grace | vote_guidance | vote_harvest | vote_homage | vote_knowledge | vote_money | vote_numbers | vote_past | vote_planeswalk | vote_present | vote_profit | vote_psychosis | vote_quill | vote_return | vote_security | vote_sickness | vote_sprout | vote_strength | vote_taxes | vote_time | vote_torture | vote_wild
 /* @sem String::'Bribery' */
 vote_bribery ::= "bribery"
 /* @sem String::'Carnage' */
@@ -108,3 +108,22 @@ vote_card_type ::= noun_artifact | noun_creature | noun_enchantment | noun_land 
 /* The controller investigates once for each vote for the named option. */
 /* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:$count_each_vote}}}] */
 clause_investigate_per_vote ::= "for" "each" count_each_vote "," "investigate"
+
+/* Multiword ballot options retain their individual word identities. */
+/* @sem String::'Redhorn Pass' */
+vote_redhorn_pass ::= "Redhorn" "Pass"
+
+/* @sem String::'Mines of Moria' */
+vote_mines_of_moria ::= "Mines" "of" "Moria"
+
+/* A separate exile paragraph belongs to the same spell as the vote. */
+/* @prefer always */
+/* @sem Ability::[Spell{announcement:@announcement, body:Program{instructions:[...$clause_word_vote, ...$clause_vote_search_tapped, ...$clause_vote_graveyard_return_any, ...$vote_exile_source]}}] */
+line_vote_search_return_exile ::= clause_word_vote "." clause_vote_search_tapped "." clause_vote_graveyard_return_any "." NEWLINE vote_exile_source "."
+
+/* @prefer always */
+/* @sem Ability::[Spell{announcement:@announcement, body:Program{instructions:[...$clause_word_vote, ...$clause_vote_search_tapped, ...$clause_vote_graveyard_return, ...$vote_exile_source]}}] */
+line_vote_search_filtered_return_exile ::= clause_word_vote "." clause_vote_search_tapped "." clause_vote_graveyard_return "." NEWLINE vote_exile_source "."
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+vote_exile_source ::= "exile" SELF_NAME

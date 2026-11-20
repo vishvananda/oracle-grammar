@@ -310,3 +310,38 @@ shared_singular_keyword ::= convoked_creature_set "connives"
 
 /* @sem Instruction::[Effect{result:@mark, operation:$roll_composed_action}] */
 die_highest_roll ::= roll_composed_action
+
+/* Loyalty die tables use their own row bodies, keeping their special payment
+   and pronoun spellings local to this table. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty(Constant(0))]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[...$die_roll, ...$loyalty_die_rows]}} */
+activated_loyalty_die_table ::= "[" "0" "]" ":" die_roll "." NEWLINE loyalty_die_rows
+
+/* @sem Instruction::[$loyalty_die_row] */
+loyalty_die_rows_one ::= loyalty_die_row
+
+/* @sem Instruction::[$loyalty_die_row, ...$loyalty_die_rows] */
+loyalty_die_rows_more ::= loyalty_die_row NEWLINE loyalty_die_rows
+
+loyalty_die_rows ::= loyalty_die_rows_one | loyalty_die_rows_more
+
+loyalty_die_row ::= loyalty_die_row_pair | loyalty_die_row_single
+
+/* @sem Instruction::If{condition:AllOf([Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_digits}}, Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_digits_2}}]), then:$loyalty_die_body, otherwise:Program{}} */
+loyalty_die_row_pair ::= number_digits "or" number_digits "—" loyalty_die_body
+
+/* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:Equal, value:$number_digits}}, then:$loyalty_die_body, otherwise:Program{}} */
+loyalty_die_row_single ::= number_digits "—" loyalty_die_body
+
+loyalty_die_body ::= loyalty_die_create | loyalty_die_return | loyalty_die_damage_him | loyalty_die_grant
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Loyalty($loyalty)]}}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$count_plural, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@prior)), changes:[GrantKeyword($keyword_name)], duration:EndOfTurn, evaluation:Snapshot}}]} */
+loyalty_die_create ::= "[" loyalty "]" "," "then" "create" count_plural token_recipe "." "they" "gain" keyword_name "until" "end" "of" "turn" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Loyalty($loyalty)]}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$number_digits}}}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand{}}}]} */
+loyalty_die_return ::= "[" loyalty "]" "," "then" "return" "a" "card" "with" "mana" "value" number_digits "or" "less" "from" "your" "graveyard" "to" "your" "hand" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Recipient, terms:_{options:[Recipients(Union([Players(All), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)})]))], count:Exactly(Constant(1))}}}, Effect{result:@next, operation:DealDamage{source:Source, recipients:Chosen, amount:CountCounters{recipients:Objects(One(Source)), kind:Named(LoyaltyCounter), information:CurrentOrLastKnown}, preventable:true}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Loyalty($loyalty)]}}}]} */
+loyalty_die_damage_him ::= SELF_NAME "deals" "damage" "equal" "to" "the" "number" "of" "loyalty" "counters" "on" "him" "to" "a" "creature" "or" "player" "," "then" "[" loyalty "]" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Loyalty($loyalty)]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(ActivationGrant{abilities:AllOf([OnStack(Loyalty), AbilityOf(SameObject(Source))]), grant:AdditionalTimes($count_plural)})], duration:EndOfTurn, evaluation:LiveObjects}}]} */
+loyalty_die_grant ::= "[" loyalty "]" "," "and" "you" "may" "activate" SELF_NAME "'s" "loyalty" "ability" count_plural "more" "times" "this" "turn" "."

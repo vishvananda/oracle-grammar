@@ -397,7 +397,7 @@ instructions_player_reveal_may_battlefield ::= player_ref "reveals" "the" "top" 
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$top_reveal_test}, otherwise:Program{}}] */
 clause_if_you_do_reveal_test ::= "you" "may" payment "." "if" "you" "do" "," top_reveal_test
 top_reveal_test ::= instructions_top_reveal_if | instructions_top_reveal_if_otherwise
-top_reveal_quality ::= top_reveal_kind | top_reveal_kind_with
+top_reveal_quality ::= top_reveal_union_double_faced | top_reveal_kind | top_reveal_kind_with
 /* @sem $card_filter */
 top_reveal_kind ::= ("a" | "an") card_filter "card"
 /* @sem @and($card_filter, $modifiers) */
@@ -2440,3 +2440,30 @@ seek_pair_battlefield_shuffle ::= "put" "one" "of" "them" "onto" "the" "battlefi
 
 /* @sem Instruction::[...$remove_study_seek_two, ...$seek_pair_battlefield_shuffle] */
 instructions_study_seek_pair ::= remove_study_seek_two "." seek_pair_battlefield_shuffle
+
+/* The search quantity is the before receipt of this exact hand-to-library move.
+   The whole sequence stays together so its inverse cannot claim another receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:Move{objects:Zone{scope:Players{zone:Hand, players:One($hand_exchange_target)}, kind:Card, filter:Any}, destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$hand_exchange_target, choices:[_{filter:Any, count:AsManyAsCan(CountObjects(Transition{result:@marked, phase:Before}))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($hand_exchange_target)}}]} */
+hand_exchange_search_program ::= hand_exchange_target "puts" "the" "cards" "from" "their" "hand" "on" "top" "of" "their" "library" "." "search" "that" "player's" "library" "for" "that" "many" "cards" "." "that" "player" "puts" "those" "cards" "into" "their" "hand" "," "then" "shuffles" "."
+
+hand_exchange_target ::= target_opponent | target_player
+
+/* Restrict the inverse to activations, preserving spell print choices. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:$hand_exchange_search_program} */
+activated_hand_exchange_search ::= cost ":" hand_exchange_search_program
+
+/* The payment receipt determines the size of this library observation. The
+   chosen cards and remainder stay tied to that observation and move. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Mana}}, ...$paid_mana_library_choice]} */
+program_paid_mana_library_choice ::= "pay" "any" "amount" "of" "mana" "." paid_mana_library_choice
+
+/* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Performed(@prior), from:Top}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($number), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:$rest_bottom}] */
+paid_mana_library_choice ::= "look" "at" "that" "many" "cards" "from" "the" "top" "of" "your" "library" "," "then" "put" number "of" "those" "cards" "into" "your" "hand" "and" rest_bottom
+
+/* A vote-dependent search and its conditional shuffle are one scoped phrase. */
+/* @sem Instruction::[If{condition:Voted(Word($vote_word)), then:_{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([Supertype(Basic), $noun]), count:UpTo(Votes(Word($vote_word)))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}, otherwise:_{}}] */
+clause_vote_search_tapped ::= "for" "each" vote_word "vote" "," "search" "your" "library" "for" "a" "basic" noun "card" "and" "put" "it" "onto" "the" "battlefield" "tapped" "." "if" "you" "search" "your" "library" "this" "way" "," "shuffle"
+
+/* Both alternatives test the same observed card. */
+/* @sem ObjectFilter::AnyOf([$filter_phrase, State(DoubleFaced)]) */
+top_reveal_union_double_faced ::= "a" filter_phrase "or" "double-faced" "card"

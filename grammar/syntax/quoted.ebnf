@@ -173,7 +173,7 @@ token_abilities_quoted_more ::= token_ability "," token_abilities_quoted_tail
 /* @sem Ability::@holder($token_ability_sentence) */
 token_quoted_sentence ::= '"' token_ability_sentence '"'
 
-token_ability_sentence ::= static_assign_as_unblocked | departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if | static_ability | static_conditional | static_conditional_first | static_conditional_first_closed | static_during_turn | static_player_prohibition | static_player_prohibition_if | replacement_ability | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence | emblem_cast_spell_grant | emblem_cast_spell_cost | triggered_life_amount_pump | quoted_cumulative_mana | quoted_cumulative_words | quoted_bands_with_others | static_untap_each_other_untap | activated_untap_symbol | static_ordinary_ability | source_cast_trigger | additional_trigger_source_or_emblem | graveyard_optional_library_replacement
+token_ability_sentence ::= static_assign_as_unblocked | departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if | static_ability | static_conditional | static_conditional_first | static_conditional_first_closed | static_during_turn | static_player_prohibition | static_player_prohibition_if | replacement_ability | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence | emblem_cast_spell_grant | emblem_cast_spell_cost | triggered_life_amount_pump | quoted_cumulative_mana | quoted_cumulative_words | quoted_bands_with_others | static_untap_each_other_untap | activated_untap_symbol | static_ordinary_ability | source_cast_trigger | additional_trigger_source_or_emblem | graveyard_optional_library_replacement | activated_creature_damage_override
 
 /* A final quoted sentence closes a duration-led grant too. The existing
    token_quoted_sentence enforces its inner period and resets the holder. */
@@ -191,7 +191,7 @@ closed_grant_keyword_prefix ::= grant_keyword "and" closed_grants
 /* The ability's own closing period also ends this perpetual grant. Scalar
    references retain the current moved/selected object; closed_grants resets
    the holder. Private graveyard cards use the pinned AnyZone/AddAbility form. */
-clause_perpetual_grant_quoted ::= perpetual_random_event_hand_grant | perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant
+clause_perpetual_grant_quoted ::= perpetual_graveyard_copy_grant | perpetual_random_event_hand_grant | perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$perpetual_quote_scalar, changes:$closed_grants}}] */
 perpetual_quote_scalar_grant ::= perpetual_quote_scalar "perpetually" ("gains" | "gain") closed_grants
 /* @sem ObjectSet::One($perpetual_quote_reference) */
@@ -358,3 +358,18 @@ optional_source_copy ::= "you" "may" "have" "it" "become" "a" "copy" "of" "anoth
 /* The event's player owns the exiled card; payment and its continuation remain linked. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone(_{scope:Shared(Exile), kind:Card, filter:OwnedBy(One(EventSubject))})), kind:$counter_kind, amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]}]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Constant(1)}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number, words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}]} */
 quoted_remove_owned_counter_draw_tokens ::= "you" "may" "remove" "a" counter_kind "counter" "from" "a" "card" "that" "player" "owns" "in" "exile" "." "if" "you" "do" "," "draw" "a" "card" "and" "create" number token_named_recipe "tokens"
+
+/* The two sentences describe one damage action with a conditional amount.
+   Both branches retain the same announced target and granted holder. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$creature_damage_override} */
+activated_creature_damage_override ::= cost ":" creature_damage_override
+
+/* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:Source, filter:$subtype}, then:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:$noun, players:All})), amount:$number_digits_2, preventable:true}}]}, otherwise:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Targets(0), amount:$number_digits, preventable:true}}]}}]} */
+creature_damage_override ::= "this" "creature" "deals" number_digits "damage" "to" "target" "player" "or" noun "." "if" "this" "creature" "is" "a" subtype "," "it" "deals" number_digits "damage" "instead" "."
+
+/* A graveyard target receives an ability scoped to the card's graveyard. */
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($perpetual_graveyard_target), changes:[GrantAbility($graveyard_exile_copy_activation)]}}] */
+perpetual_graveyard_copy_grant ::= perpetual_graveyard_target "perpetually" "gains" '"' graveyard_exile_copy_activation '"'
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
+perpetual_graveyard_target ::= "target" card_filter "card" "in" "your" "graveyard"

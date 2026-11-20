@@ -904,3 +904,24 @@ create_coin_wins_attacking ::= "for" "each" "flip" "you" "win" "," "create" "a" 
 /* Both receipt references are scoped to their mill and exile producers. */
 /* @sem Instruction::[Effect{result:@next, operation:Mill{players:All, amount:$card_count_many}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@prior, phase:After}, filter:$filter_phrase}, count:UpTo($count_plural)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Aggregate{objects:Transition{result:@prior, phase:After}, property:$receipt_stat, aggregation:Sum}, Aggregate{objects:Transition{result:@prior, phase:After}, property:$receipt_stat, aggregation:Sum}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
 instructions_mill_exile_stat_token ::= "each" "player" "mills" card_count_many "." "exile" "up" "to" count_plural filter_phrase "cards" "put" "into" "graveyards" "this" "way" "." "create" counter_amount "X" "/" "X" token_colors token_subtypes token_types "token" "," "where" "X" "is" "the" "total" receipt_stat "of" "the" "cards" "exiled" "this" "way"
+
+/* The delayed sacrifice refers to the tokens created by this instruction. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$linked_copy_added_type}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}] */
+clause_linked_copy_combat_cleanup ::= "create" "a" "tapped" "and" "attacking" linked_copy_added_type "." "sacrifice" "that" "token" "at" "end" "of" "combat"
+
+/* @sem TokenRecipe::Copy{object:Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0}, exceptions:[CopyException::AddCreatureTypes([@subtype_name($creature_subtype)])]} */
+linked_copy_added_type ::= "token" "that's" "a" "copy" "of" "the" "exiled" "card" "," "except" "it's" "an" creature_subtype "in" "addition" "to" "its" "other" "types"
+
+/* A separate Aura is attached to each announced creature. Its following sentence
+   describes intrinsic abilities of those tokens, not a later grant. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[$attached_aura_each]}} */
+attached_aura_each_spell ::= attached_aura_each
+
+/* @sem Instruction::ForEachObject{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:$target_up_to, filter:CardType(Creature)})), binding:0, body:Program{instructions:[Effect{result:@next, operation:$attached_aura_creation}]}} */
+attached_aura_each ::= "for" "each" "of" target_up_to "target" "creatures" "," attached_aura_creation
+
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit('Smoke Blessing'), colors:[$token_color], card_types:[Enchantment], subtypes:[Aura], abilities:[Enchant{hosts:Permanents(CardType(Creature))}, $attached_aura_death_trigger]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo(Bound(0))]}} */
+attached_aura_creation ::= "create" "a" token_color "Aura" "enchantment" "token" "named" "Smoke" "Blessing" "attached" "to" "that" "creature" "." "those" "tokens" "have" "enchant" "creature" "and" '"' attached_aura_death_trigger '"'
+
+/* @sem Ability::@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(AttachedTo(Source)), from:Battlefield, to:Graveyard}, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:EventSubject, recipients:Players(One(ControllerOf(EventSubject))), amount:$number_digits, preventable:true}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}) */
+attached_aura_death_trigger ::= "when" "enchanted" "creature" "dies" "," "it" "deals" number_digits "damage" "to" "its" "controller" "and" "you" "create" "a" token_named_recipe "token" "."

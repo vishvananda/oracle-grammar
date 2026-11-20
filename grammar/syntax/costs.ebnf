@@ -40,7 +40,7 @@ cost_symbols ::= cost_mana | cost_tap | cost_untap_symbol
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one | cost_or_choice | cost_exile_hand_mana_value_one | cost_exile_hand_mana_value_many | cost_put_exiled_card_graveyard | cost_remove_selected_counter | cost_remove_selected_named_counter | cost_exile_top_card | cost_remove_unspecified_count | cost_remove_unspecified_among | cost_remove_kind_among | cost_remove_kind_at_least_among | cost_remove_kind_count | cost_tap_named_source | cost_roll_die | cost_exile_card_hand | cost_sacrifice_description
+cost_words_owned ::= cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one | cost_or_choice | cost_exile_hand_mana_value_one | cost_exile_hand_mana_value_many | cost_put_exiled_card_graveyard | cost_remove_selected_counter | cost_remove_selected_named_counter | cost_exile_top_card | cost_remove_unspecified_count | cost_remove_unspecified_among | cost_remove_kind_among | cost_remove_kind_at_least_among | cost_remove_kind_count | cost_tap_named_source | cost_roll_die | cost_exile_card_hand | cost_sacrifice_description | cost_life_measured
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -1501,3 +1501,47 @@ casting_paired_sacrifice_reductions ::= optional_cost_opening "sacrifice" "any" 
 
 /* @sem ObjectFilter::AnyOf([$plural_2, $plural]) */
 paired_sacrifice_population ::= plural "and" "/" "or" plural
+
+/* The mana and source exile are the two actual cost components. Both uses
+   below refer to the arrival of that exact exile payment. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[Mana($mana_symbols), Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:$limit_sorcery, announcement:@announcement, body:Program{instructions:$graveyard_exile_copy_body}})} */
+graveyard_exile_copy_activation ::= mana_symbols "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":" graveyard_exile_copy_body "." limit_sorcery "."
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}, exceptions:$graveyard_copy_traits}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}), zone:Exile}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+graveyard_exile_copy_body ::= "create" "a" "token" "that's" "a" "copy" "of" "it" "," "except" graveyard_copy_traits "." "shuffle" "the" "exiled" "card" "into" "its" "owner's" "library"
+
+/* @sem CopyException::[SetPowerToughness{power:$value, toughness:$value_2}, Colors{mode:Set, colors:Listed([$mana_color_word])}, AddCreatureTypes($becomes_types)] */
+graveyard_copy_traits ::= "it's" "a" value "/" value mana_color_word becomes_types "in" "addition" "to" "its" "other" "types"
+
+/* Life payments compose with bounded, independently described quantities. */
+/* @sem CostPart::Life($payment_life_quantity) */
+cost_life_measured ::= "pay" payment_life_quantity
+
+payment_life_quantity ::= payment_life_equal | payment_life_each_hand | payment_life_each_counter
+
+/* @sem $payment_equal_value */
+payment_life_equal ::= "life" "equal" "to" payment_equal_value
+
+payment_equal_value ::= value_commander_identity
+
+/* @sem $count_each_card_hand */
+payment_life_each_hand ::= "1" "life" "for" "each" count_each_card_hand
+
+/* @sem Expr::Multiply([$value, $payment_counter_count]) */
+payment_life_each_counter ::= value "life" "for" "each" payment_counter_count
+
+/* @sem Expr::CountCounters(_{recipients:Objects(One($object_ref)), kind:$counter_kind, information:CurrentOrLastKnown}) */
+payment_counter_count ::= counter_kind "counter" "on" object_ref
+
+/* A ward's stated object is the ability holder, including copied abilities. */
+/* @sem Expr::ObjectProperty{object:AbilityHolder, property:$stat, information:CurrentOrLastKnown} */
+payment_holder_stat ::= payment_holder_possessive stat
+
+payment_holder_possessive ::= holder_possessive | payment_named_possessive
+
+/* @sem () */
+payment_named_possessive ::= self_named "'s"
+
+/* This quantity is exposed only inside a ward cost. */
+/* @sem CostPart::Life($payment_holder_stat) */
+cost_ward_holder_life ::= "pay" "life" "equal" "to" payment_holder_stat
