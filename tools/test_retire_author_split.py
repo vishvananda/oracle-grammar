@@ -388,6 +388,26 @@ class ReviewedAuthorSplitTests(unittest.TestCase):
         positives, preserved = retire_queue._family_split_cases(evidence,archived,family,selected,recovered)
         self.assertEqual((positives,preserved), ({'A'},[positive,refusal]))
 
+        # Fresh edits are replayed on the full cohort, even if the old draft
+        # lost a selected reading and introduced a different sibling reading.
+        preserve.update(missing=[{'name':'A','reading':0},{'name':'B','reading':0}],
+                        additions=[{'name':'B','occurrence':1,'added_current_indices':[0],
+                                    'retained_current_indices':[]}])
+        evidence['legacy_native_gate']['native.json'] = artifact('native.json',json.dumps(native))
+        self.assertEqual(retire_queue._family_split_cases(evidence,archived,family,selected,recovered,
+                                                         fresh=True), ({'A'},[positive,refusal]))
+        with self.assertRaisesRegex(ValueError,'does not isolate residual family refusals'):
+            retire_queue._family_split_cases(evidence,archived,family,selected,recovered)
+        preserve['additions'][0]['retained_current_indices'] = [0]
+        evidence['legacy_native_gate']['native.json'] = artifact('native.json',json.dumps(native))
+        with self.assertRaisesRegex(ValueError,'mixed family and native veto is inconsistent'):
+            retire_queue._family_split_cases(evidence,archived,family,selected,recovered,fresh=True)
+        preserve['additions'][0]['retained_current_indices'] = []
+        native['readings']['total'] = 2
+        evidence['legacy_native_gate']['native.json'] = artifact('native.json',json.dumps(native))
+        with self.assertRaisesRegex(ValueError,'mixed family and native veto is inconsistent'):
+            retire_queue._family_split_cases(evidence,archived,family,selected,recovered,fresh=True)
+
     def test_repair_can_split_an_inherited_review_using_the_original_attempt(self):
         self.park()
         rules = ['m_initial', 'm_repaired', 'm_held']

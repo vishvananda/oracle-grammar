@@ -897,12 +897,34 @@ def _deferred_semantic_veto(failure, case, targets, residual, approved):
     return (face in residual and case.get('compositional', True) is True and not case.get('reject'))
 
 
-def _verify_legacy_family_native_veto(evidence, archived, refused_residual):
-    """Older evaluators continued after a family veto and recorded native losses too."""
+def _native_addition_count(additions, occurrences):
+    if not isinstance(additions, list):
+        raise ValueError('invalid archived native additions')
+    seen = set()
+    total = 0
+    for row in additions:
+        index, added, retained = (row[key] for key in
+                                  ('occurrence', 'added_current_indices', 'retained_current_indices'))
+        if (type(index) is not int or not 0 <= index < occurrences or index in seen
+                or not isinstance(row['name'], str) or not row['name']
+                or not isinstance(added, list) or not added or not isinstance(retained, list)):
+            raise ValueError('invalid archived native additions')
+        indices = added + retained
+        if (any(type(value) is not int or value < 0 for value in indices)
+                or len(set(indices)) != len(indices)):
+            raise ValueError('invalid archived native reading indices')
+        seen.add(index)
+        total += len(added)
+    return total
+
+
+def _verify_legacy_family_native_veto(evidence, archived, refused_residual, *, fresh=False):
+    """Verify an archived evaluator that also ran native checks after a family veto."""
     failures = archived['failures']
     directory = Path(archived['directory'])
-    error = 'the archived native veto does not isolate residual family refusals'
-    if len(failures) != 2 or not refused_residual or not isinstance(failures[1], str):
+    error = ('the archived mixed family and native veto is inconsistent' if fresh
+             else 'the archived native veto does not isolate residual family refusals')
+    if len(failures) != 2 or not (fresh or refused_residual) or not isinstance(failures[1], str):
         raise ValueError(error)
     command = failures[1]
     prefix, suffix = "Command '", "' returned non-zero exit status 1."
@@ -935,17 +957,22 @@ def _verify_legacy_family_native_veto(evidence, archived, refused_residual):
         source, canonical = report['source_gold'], report['canonical_gold']
         missing = preserve['missing']
         losses = {(row['name'], row['reading']) for row in missing}
+        additions = preserve['additions']
+        added = _native_addition_count(additions, preserve['occurrences']) if fresh else 0
+        invalid_loss = any(not isinstance(name, str) or not name or type(index) is not int or index < 0
+                           or (not fresh and name not in refused_residual) for name, index in losses)
+        # A fresh split independently rechecks the complete archived cohort,
+        # including the selected faces whose native readings may have failed before.
         expected_outcomes = [('family-check', 1), ('score', 0), ('validate-readings', 1)]
         if (outcomes != expected_outcomes or any(type(code) is not int for _, code in outcomes)
-                or preserve['passed'] is not False or preserve['additions'] != [] or preserve['merged_faces'] != 0
+                or preserve['passed'] is not False or (not fresh and additions != []) or preserve['merged_faces'] != 0
                 or not (preserve['occurrences'] == source['faces'] == source['valid']
                         == canonical['faces'] == canonical['valid'] == canonical['idempotent'])
-                or not (preserve['old_readings'] - len(losses) == readings['total']
+                or not (preserve['old_readings'] - len(losses) + added == readings['total']
                         == readings['valid'] == readings['canonical'])
-                or not losses or len(losses) != len(missing)
-                or any(name not in refused_residual or type(index) is not int or index < 0 for name, index in losses)):
+                or not (losses or added) or len(losses) != len(missing) or invalid_loss):
             raise ValueError(error)
-    except (KeyError, TypeError) as exc:
+    except (KeyError, TypeError, ValueError) as exc:
         raise ValueError(error) from exc
 
 
@@ -994,11 +1021,9 @@ def _family_split_cases(evidence, archived, family, selected, deferred, *, appro
             or any(sum(case['name'] == name for case in cases) != 1 for name in failed)):
         raise ValueError('archived family veto does not isolate replayable cases')
     if len(report_failures) != 1:
-        if fresh:
-            raise ValueError('fresh family split requires a family-only archived failure')
         refused_residual = {faces[failure['name']] for failure in failures
                             if failure['why'].startswith('unexpected refusal:') and faces[failure['name']] in residual}
-        _verify_legacy_family_native_veto(evidence, archived, refused_residual)
+        _verify_legacy_family_native_veto(evidence, archived, refused_residual, fresh=fresh)
     required = [*(case for case, _ in positive), *(case for case in cases if case.get('reject') is True)]
     return positive_names, required
 
