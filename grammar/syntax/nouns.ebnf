@@ -100,7 +100,7 @@ current_card_ref ::= "that" "card"
 /* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
 linked_exiled_card ::= "the" "exiled" "card"
 
-target_card ::= target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard
+target_card ::= target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard | target_card_exile_counter
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
@@ -1455,7 +1455,7 @@ filter_activated_or_tapped ::= noun "that" "was" "activated" "this" "turn" "or" 
 target_event_subject_choice ::= "target" adjective_nontype "permanent" "of" "that" "player's" "choice" "that" "one" "of" "your" "opponents" "controls"
 
 /* Stack selections are shared operands for counter effects. */
-counter_stack_objects ::= receipt_counter_spells | counter_other_typed_spells | counter_targeting_spell_or_ability | counter_targeting_instant_or_subtype | counter_one_linked_name | counter_one_sourced_ability | counter_one_mixed_stack | counter_many_stack | counter_many_spells | counter_one_cast_from_zone | counter_one_ability_or_filtered_spell
+counter_stack_objects ::= receipt_counter_spells | counter_other_typed_spells | counter_targeting_spell_or_ability | counter_targeting_instant_or_subtype | counter_one_linked_name | counter_one_sourced_ability | counter_many_stack | counter_many_spells | counter_one_cast_from_zone | counter_one_ability_or_filtered_spell | counter_stack_union | counter_nth_cast | counter_opponents_stack
 
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([$counter_ability_kind, AbilityOf($counter_source_filter)])}), index:0}) */
 counter_one_sourced_ability ::= "target" counter_ability_kind "ability" "from" counter_source_filter "source"
@@ -2892,3 +2892,50 @@ object_and_each_combat_counterpart ::= object_ref "and" "each" filter_phrase com
 /* Per-opponent target counts retain the player set and the numeric bound. */
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:OpponentsOf(AbilityController), each:UpTo($number)}, filter:$adjective_nontype})) */
 opponent_permanent_targets ::= "up" "to" number "target" adjective_nontype "permanent" "that" "player" "controls"
+
+/* A target may be selected from a union of independently described stack objects. */
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:$counter_stack_union_filter}), index:0}) */
+counter_stack_union ::= "target" counter_stack_union_filter
+
+counter_stack_union_filter ::= counter_stack_union_three | counter_stack_union_four
+
+/* @sem ObjectFilter::AnyOf([$counter_stack_member, $counter_stack_member_2, $counter_stack_member_3]) */
+counter_stack_union_three ::= counter_stack_member "," counter_stack_member "," "or" counter_stack_member
+
+/* @sem ObjectFilter::AnyOf([$counter_stack_member, $counter_stack_member_2, $counter_stack_member_3, $counter_stack_member_4]) */
+counter_stack_union_four ::= counter_stack_member "," counter_stack_member "," counter_stack_member "," "or" counter_stack_member
+
+counter_stack_member ::= counter_stack_instant | counter_stack_sorcery | counter_stack_activated | counter_stack_triggered | counter_stack_qualified_spell
+
+/* @sem ObjectFilter::AllOf([OnStack(Spell), CardType(Instant)]) */
+counter_stack_instant ::= "instant" "spell"
+
+/* @sem ObjectFilter::AllOf([OnStack(Spell), CardType(Sorcery)]) */
+counter_stack_sorcery ::= "sorcery" "spell"
+
+/* @sem ObjectFilter::AllOf([OnStack(Spell), $counter_stack_quality]) */
+counter_stack_qualified_spell ::= counter_stack_quality "spell"
+
+counter_stack_quality ::= adjective_legendary | adjective_snow | adjective_nontype
+
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:NthCast{ordinal:$ordinal, spells:Any, scope:Turn}}), index:0}) */
+counter_nth_cast ::= "target" "spell" "that's" "the" ordinal "spell" "cast" "this" "turn"
+
+/* @sem ObjectSet::Zone(_{scope:Shared(Stack), kind:Any, filter:ControlledBy($counter_stack_controlled_pair)}) */
+counter_opponents_stack ::= counter_stack_controlled_pair
+
+counter_stack_controlled_pair ::= counter_stack_opponent_pair | counter_stack_all_player_pair
+
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+counter_stack_opponent_pair ::= "all" "spells" "your" "opponents" "control" "and" "all" "abilities" "your" "opponents" "control"
+
+/* @sem PlayerSet::All */
+counter_stack_all_player_pair ::= "all" "spells" "all" "players" "control" "and" "all" "abilities" "all" "players" "control"
+
+/* Exile targets carry their counter predicate independently of their card type. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Exile]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, $modifier_named_counter_on_it)}), index:0} */
+target_card_exile_counter ::= "target" card_filter "card" "in" "exile" modifier_named_counter_on_it
+
+/* A three-head union can be reused by scoped population instructions. */
+/* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3]) */
+filter_three_and_heads ::= filter_phrase "," filter_phrase "," "and" filter_phrase

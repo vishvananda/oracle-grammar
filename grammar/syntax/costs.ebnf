@@ -636,8 +636,7 @@ cost_untap_single_filter ::= "untap" "a" filter_phrase
 /* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$card_filter} */
 cost_reveal_filtered_hand ::= "reveal" "a" card_filter "card" "in" "your" "hand"
 
-/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))} */
-cost_one_permanent_selection ::= ("a" | "an") filter_phrase
+cost_one_permanent_selection ::= cost_another_nontoken_controlled | cost_one_plain_permanent
 
 /* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
 cost_owner_hand_destination ::= "to" "its" "owner's" "hand"
@@ -1454,3 +1453,33 @@ cost_tap_named_source ::= "tap" self_ref_named
 /* @sem Cost::Cost{parts:[$ignore_sacrifice_part]} */
 ignore_sacrifice_choice ::= ignore_sacrifice_part "of" "their" "choice"
 ignore_sacrifice_part ::= cost_sacrifice | cost_sacrifice_many
+
+/* Resolution payments retain the chosen cost component and its operands. */
+/* @sem Operation::PayCost{player:AbilityController, cost:Cost{parts:[$resolution_selection_payment]}, optional:true} */
+optional_shared_resolution_payment ::= "you" "may" resolution_selection_payment
+
+resolution_selection_payment ::= resolution_tap_any_population | resolution_reveal_x_hand
+
+/* @sem CostPart::ChangeTapState{selections:[_{objects:$affected, choose:AnyNumber}], tapped:true} */
+resolution_tap_any_population ::= "tap" "any" "number" "of" affected
+
+/* @sem CostPart::Reveal{count:AnyNumber, filter:$adjective_color} */
+resolution_reveal_x_hand ::= "reveal" "X" adjective_color "cards" "in" "your" "hand"
+
+/* The payment and both uses of its input receipt stay within one branch. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$resolution_reveal_x_hand]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_permanent)), changes:[Pump{power:Multiply([Constant(-1), CountObjects(CostObjects{payment:Resolution(@marked), component:[0], view:Inputs, phase:Before})]), toughness:Multiply([Constant(-1), CountObjects(CostObjects{payment:Resolution(@marked), component:[0], view:Inputs, phase:Before})])}], duration:$duration, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+resolution_reveal_x_pump ::= "you" "may" resolution_reveal_x_hand "." "if" "you" "do" "," target_permanent "gets" "-" "X" "/" "-" "X" duration
+
+/* The performed tap receipt is counted only within its own payment branch. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$resolution_tap_creatures]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:[Pump{power:CountObjects(CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:Before}), toughness:CountObjects(CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:Before})}], duration:$duration, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+resolution_tap_creature_pump ::= "you" "may" resolution_tap_creatures "." self_explicit_ref "gets" "+" "1" "/" "+" "1" duration "for" "each" "creature" "tapped" "this" "way"
+
+/* @sem CostPart::ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Tapped), CardType(Creature), ControlledBy(One(AbilityController))])}, choose:AnyNumber}], tapped:true} */
+resolution_tap_creatures ::= "tap" "any" "number" "of" "untapped" "creatures" "you" "control"
+
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))} */
+cost_one_plain_permanent ::= ("a" | "an") filter_phrase
+
+/* The selection excludes the ability holder and retains its written filter. */
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject(Source)), ObjectFilter::Not(Token), $filter_phrase, ObjectFilter::ControlledBy(One(AbilityController)))}, choose:Exactly(Constant(1))} */
+cost_another_nontoken_controlled ::= "another" "nontoken" filter_phrase "you" "control"

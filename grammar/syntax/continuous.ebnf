@@ -33,7 +33,7 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
-continuous_live ::= continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking | continuous_qualified_live | continuous_attack_defender_plural
+continuous_live ::= continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking | continuous_qualified_live | continuous_attack_defender_plural | continuous_named_targeting_exception
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$rule_duration, evaluation:LiveObjects} */
 continuous_live_trailing ::= affected rule_changes ("↓")? rule_duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
@@ -6139,3 +6139,26 @@ cascade_entry_permission_an ::= "you" "may" "put" "an" filter_phrase "card" "fro
 
 /* @sem Operand::List([Term{family:EnterFlag, form:EntersTapped}]) */
 cascade_entry_flags ::= "tapped"
+
+/* A named holder can ignore a targeting restriction for a specified controller.
+   The singular pronoun refers to that same named holder. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_ref_named)), changes:$controlled_targeting_exception, duration:$duration, evaluation:LiveObjects} */
+continuous_named_targeting_exception ::= duration "," self_ref_named controlled_targeting_exception
+
+/* @sem Change::[Rule(TargetableDespite{sources:ControlledBy($players_singular), keyword:$targeting_ignored_keyword})] */
+controlled_targeting_exception ::= "can" "be" "the" "target" "of" "spells" "and" "abilities" "controlled" "by" players_singular "as" "though" "it" "didn't" "have" targeting_ignored_keyword
+
+/* The choice action is retained inside its optional payment. */
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:AnyNumber, options:[]}} */
+choose_any_colors ::= "the" "color" "or" "colors" "of" "your" "choice"
+
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$choose_any_colors}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:$object_ref, affected:Objects(One($object_ref)), changes:[ChosenColor{mode:Set}], duration:Indefinite, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+optional_object_color_choice ::= "you" "may" "have" object_ref "become" choose_any_colors
+
+/* Duration-first copy wording shares the same current operands as suffix wording. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$target_card_exile_counter)), changes:[CopyOf{object:$target_card_exile_counter, exceptions:[]}], duration:$duration, evaluation:Snapshot} */
+copy_effect_leading_duration ::= duration "," affected "becomes" "a" "copy" "of" target_card_exile_counter
+
+/* A quoted copied ability closes the surrounding sentence. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:$copy_exceptions_closed}], duration:Indefinite, evaluation:Snapshot}}] */
+clause_copy_quoted ::= affected "becomes" "a" "copy" "of" copy_model_ref "," "except" copy_exceptions_closed

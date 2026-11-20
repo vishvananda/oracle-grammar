@@ -59,7 +59,7 @@ instructions_between_quoted ::= clause_quoted instructions_quoted
 /* @sem Instruction::[...$clause_quoted, ...$instructions] */
 instructions_after_quoted ::= clause_quoted "then"? instructions
 
-clause_quoted ::= clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger
+clause_quoted ::= clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted
 
 /* An emblem's final quoted sentence also closes its enclosing sentence. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateEmblem{actor:One(PlayerRef::AbilityController), abilities:[$token_quoted_sentence]}}] */
@@ -124,7 +124,7 @@ token_groups_quoted_last ::= "and" token_group_quoted
 /* @sem TokenSpec::[$token_group, ...$token_groups_quoted_tail] */
 token_groups_quoted_more ::= token_group "," token_groups_quoted_tail
 
-token_group_quoted ::= token_defined_quoted | token_copy_quoted
+token_group_quoted ::= token_defined_quoted | token_copy_quoted | token_equal_then_quoted
 /* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe_quoted} */
 token_defined_quoted ::= token_amount token_recipe_quoted
 
@@ -340,3 +340,7 @@ program_sentence_chosen_hand_spell_perpetual ::= instructions_choose_hand_perpet
 /* A quoted conjunction of player prohibitions grants each rule to the same holder. */
 /* @sem Change::[GrantAbility(@holder($player_rule_ability)), GrantAbility(@holder($player_rule_ability_2))] */
 closed_player_rule_pair ::= '"' player_rule_ability "and" player_rule_ability "." '"'
+
+/* The quantity and the following intrinsic abilities independently qualify the recipe. */
+/* @sem TokenSpec::TokenSpec{amount:$value, words:CreatingEffect, recipe:@token_abilities($token_recipe_quote_base, $token_description_after_quoted)} */
+token_equal_then_quoted ::= "a" "number" "of" token_recipe_quote_base "equal" "to" value token_description_after_quoted
