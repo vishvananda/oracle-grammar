@@ -49,12 +49,17 @@ def _archived(campaign, batch_id, *, full_check=False):
               and validation['status'] == 'failed' and validation['scope'] == 'combined-batch'
               and validation['reason'] == reason
               and validation['candidate'] == manifest['commit'] and validation['source_checkpoint'] == origin
-              and validation['included_jobs'] == [row['job_id'] for row in jobs]
-              and validation['repository_check_returncode'] == 0
-              and all(x in ('passed', 'reused') for x in _gates((folder/'repository-check.log').read_bytes()).values()),
+              and validation['included_jobs'] == [row['job_id'] for row in jobs],
               'batch does not contain the selected complete rejected audit')
     reads = readmission.Reads(_proof_file)
     evidence = {}
+    log = readmission.repository_log(folder, validation, full_checks=full_check)
+    if log is not None:
+        spec = _spec(log)
+        _, data = reads(spec)
+        r.require(all(x in ('passed', 'reused') for x in _gates(data).values()),
+                  'archived repository gates failed')
+        evidence['repository_log'] = spec
     if full_check:
         parent = r.read(campaign/'checkpoints'/f'{origin}.json')
         evidence['archive_manifests'] = {'checkpoint_manifest_sha256': _spec(Path(parent['inputs'])/'manifest.json'),
@@ -496,7 +501,7 @@ def isolate(campaign, batch_id, scratch, max_trials, *, suspect=None, suspects=(
     selected = [jobs[i]['job_id'] for i in remaining]
     evidence = {**archived, 'kind': f'isolated-{mode}-revalidation', 'source_checkpoint': checkpoint['commit'],
                 'manifest': _spec(folder/'manifest.json'), 'validation': _spec(folder/'validation.json'),
-                'repository_log': _spec(folder/'repository-check.log'), 'isolation': _spec(isolation),
+                'isolation': _spec(isolation),
                 'reports': {job: reports[job] for job in selected}}
     result = {'considered': len(jobs), 'jobs': selected, 'evidence': evidence,
               'rules': sum(len(jobs[i]['rules']) for i in remaining)}

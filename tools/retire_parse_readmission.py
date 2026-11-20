@@ -484,11 +484,25 @@ def _focus(campaign, controls, profile_spec, context, reads):
     return {label: _control(campaign, controls[label], reads)[0]['identity']['tree'] for label in controls}
 
 
+def repository_log(folder, validation, *, full_checks):
+    """Locate the archived repository gates for a candidate that reached them."""
+    path = folder/'repository-check.log'
+    if 'repository_check_skipped' in validation:
+        if (full_checks or validation['repository_check_skipped'] != screen.REPOSITORY_SKIPPED
+                or 'repository_check_returncode' in validation or 'repository_driver_sha256' in validation
+                or 'repository_grammar' in validation or path.exists() or path.is_symlink()):
+            raise ValueError('deferred repository gates differ from the parse rejection')
+        return None
+    if type(validation.get('repository_check_returncode')) is not int or validation['repository_check_returncode'] != 0:
+        raise ValueError('original repository gates did not pass')
+    return path
+
+
 def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gates):
     reads = Reads(read_proof); paths, values = {}, {}
-    for name in ('manifest', 'validation', 'repository_log', 'isolation'):
+    for name in ('manifest', 'validation', 'isolation'):
         path, value = reads(evidence.get(name)); paths[name] = path.resolve()
-        values[name] = value if name == 'repository_log' else json.loads(value)
+        values[name] = json.loads(value)
     manifest, validation, isolation = (values[k] for k in ('manifest', 'validation', 'isolation'))
     kind = evidence.get('kind')
     full_checks = kind == 'isolated-full-check-revalidation'
@@ -505,19 +519,26 @@ def verify(campaign, selected, checkpoint, rejections, evidence, read_proof, gat
             or any(item.get('attempt_id') != selected[item['job_id']] for item in included if item['job_id'] in selected)
             or paths['manifest'] != (folder/'manifest.json').resolve()
             or paths['validation'] != (folder/'validation.json').resolve()
-            or paths['repository_log'] != (folder/'repository-check.log').resolve() or not _allowed(campaign, paths['isolation'])):
+            or not _allowed(campaign, paths['isolation'])):
         raise ValueError('parse isolation selection or original artifact paths differ')
     reason = PRINT_ONLY_REJECTION if full_checks else PARSE_SCREEN_REJECTION
     if (manifest.get('base_commit') != checkpoint or validation.get('scope') != 'combined-batch'
             or validation.get('status') != 'failed' or validation.get('reason') != reason
-            or validation.get('repository_check_returncode') != 0 or validation.get('candidate') != manifest.get('commit')
+            or validation.get('candidate') != manifest.get('commit')
             or validation.get('source_checkpoint') != checkpoint or validation.get('included_jobs') != ids
             or ('full_checks' in validation) != full_checks or 'rows' in validation
             or any(x.get('evidence', {}).get('manifest') != batch or x.get('evidence', {}).get('validation') != validation
-                   for x in rejections.values())
-            or any(value not in ('passed', 'reused') for value in gates(values['repository_log']).values())):
+                   for x in rejections.values())):
         outcome = 'archived full-check' if full_checks else 'original additions-only parse'
         raise ValueError(outcome+' failure or complete repository gates differ')
+    log = repository_log(folder, validation, full_checks=full_checks)
+    if log is None:
+        if 'repository_log' in evidence:
+            raise ValueError('deferred repository gates cannot include a completed log')
+    else:
+        actual, data = reads(evidence.get('repository_log'))
+        if actual.resolve() != log.resolve() or any(value not in ('passed', 'reused') for value in gates(data).values()):
+            raise ValueError('original repository gate log differs')
     isolation_kind = 'isolated-full-check-regressions' if full_checks else 'isolated-parse-screen-regressions'
     if (isolation.get('kind') != isolation_kind or isolation.get('manifest') != batch
             or isolation.get('candidate') != manifest.get('commit') or isolation.get('parent') != checkpoint

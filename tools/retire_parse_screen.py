@@ -6,6 +6,8 @@ import subprocess
 import retire as r
 import retire_worker as w
 
+REPOSITORY_SKIPPED = 'parse screen rejected candidate before repository checks'
+
 
 def assess(run, directory, data, native_exit):
     """Require complete native evidence before classifying a semantic rejection."""

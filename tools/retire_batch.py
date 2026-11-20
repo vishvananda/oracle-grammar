@@ -2042,6 +2042,24 @@ def _audit_cpu(checkpoint, threads, capacity, *, minimum_threads=None):
                 r._LEASES.remove(fd)
 
 
+def _audit_parse_screen(checkpoint, manifest, output, data, evidence):
+    source = Path(manifest['source']).resolve()
+    baseline = Path(checkpoint['baseline']).resolve()
+    input_run = Path(checkpoint['inputs']).resolve()
+    folder = Path(manifest['folder']).resolve()/'parse-screen'
+    threads = _parse_screen_threads(checkpoint)
+    result = {'parse_screen_threads': threads, 'validation_manifest_sha256': r.digest(output/'manifest.json')}
+    identity = {**evidence, **result}
+    _screen_identity(source, manifest, baseline, input_run, output, identity)
+    try:
+        with _audit_cpu(checkpoint, threads, checkpoint.get('cpu_capacity', 32)):
+            result['parse_screen'] = retire_parse_screen.run(output, folder, source/'grammar', data, threads)
+    finally:
+        _screen_identity(source, manifest, baseline, input_run, output, identity)
+    result['parse_screen_result_sha256'] = r.digest(folder/'result.json')
+    return result
+
+
 def _validate(manifest, checkpoint, slots, *, scan=False):
     """Freeze and run full allowed-population and repository gates for a candidate."""
     if manifest.get('status') != 'provisional':
@@ -2049,7 +2067,10 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
     enabled = checkpoint.get('full_parse_screen', False)
     if type(enabled) is not bool:
         raise ValueError('full_parse_screen must be boolean')
-    screen_threads = _parse_screen_threads(checkpoint)
+    parse_first = checkpoint.get('parse_screen_before_repository', False)
+    if type(parse_first) is not bool or (parse_first and not enabled):
+        raise ValueError('parse_screen_before_repository requires an enabled full parse screen')
+    _parse_screen_threads(checkpoint)
     threads = checkpoint.get('audit_threads', 24)
     capacity = checkpoint.get('cpu_capacity', 32)
     if (type(threads) is not int or not 16 <= threads <= 24
@@ -2088,6 +2109,14 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
             r.freeze(Namespace(run=output, source=source, helpers=selected_helpers,
                                slots=1, threads=threads, allowed=inputs/'allowed.json', gold=inputs/'gold.jsonl',
                                oracle=inputs/'oracle.json', parse=baseline, prints=[baseline]))
+        data = w.payload(output) if parse_first else None
+        screened = None
+        if parse_first:
+            screened = _audit_parse_screen(checkpoint, manifest, output, data, evidence)
+            if screened['parse_screen']['failures']:
+                evidence.update(screened, repository_check_skipped=retire_parse_screen.REPOSITORY_SKIPPED)
+                raise ValueError('full allowed-population parse screen failed')
+        with _audit_cpu(checkpoint, repository_threads, capacity):
             # dev.py runs families and library tests concurrently. Divide the lease
             # between those two gates, leaving headroom for the fast gates.
             gate_threads = str(max(2, repository_threads//2-2))
@@ -2109,21 +2138,17 @@ def _validate(manifest, checkpoint, slots, *, scan=False):
                 evidence['optimized_family_log'] = str(folder/'optimized-family-check.log')
                 family_log = _optimized_families(source, selected_helpers, folder, int(gate_threads))
                 evidence['optimized_family_log_sha256'] = r.digest(family_log)
-        data = w.payload(output)
+        if data is None:
+            data = w.payload(output)
         if enabled:
-            evidence.update(parse_screen_threads=screen_threads,
-                            validation_manifest_sha256=r.digest(output/'manifest.json'))
-            _screen_identity(source, manifest, baseline, input_run, output, evidence)
-            try:
-                with _audit_cpu(checkpoint, screen_threads, capacity):
-                    screen = retire_parse_screen.run(output, folder/'parse-screen', source/'grammar',
-                                                      data, screen_threads)
-            finally:
-                _screen_identity(source, manifest, baseline, input_run, output, evidence)
-            evidence['parse_screen'] = screen
-            evidence['parse_screen_result_sha256'] = r.digest(folder/'parse-screen/result.json')
-            if screen['failures']:
+            evidence.update(screened if screened is not None else
+                            _audit_parse_screen(checkpoint, manifest, output, data, evidence))
+            if evidence['parse_screen']['failures']:
                 raise ValueError('full allowed-population parse screen failed')
+            if screened is not None:
+                _screen_identity(source, manifest, baseline, input_run, output, evidence)
+                if r.digest(folder/'parse-screen/result.json') != evidence['parse_screen_result_sha256']:
+                    raise ValueError('early parse screen changed during repository checks')
         checks = folder/'full-checks'
         checks.mkdir()
         with _audit_cpu(checkpoint, threads, capacity):

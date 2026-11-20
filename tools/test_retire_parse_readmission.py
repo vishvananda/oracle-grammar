@@ -29,7 +29,7 @@ def native_report(rows, old_count, additions):
 
 
 class ParseReadmissionTests(BatchReadmissionTests):
-    def fixture(self, *, refusal=False, mixed=False):
+    def fixture(self, *, refusal=False, mixed=False, parse_first=False):
         folder = self.root/'.cache/batches/batch'
         self.old = [{'name': n, 'text': n.lower(), 'status': 'equal', 'readings': 1, 'exact': True}
                     for n in ('C', 'A', 'B')]
@@ -77,12 +77,18 @@ class ParseReadmissionTests(BatchReadmissionTests):
             'checkpoint_manifest_sha256': r.digest(self.inputs/'manifest.json'),
             'validation_manifest_sha256': r.digest(self.run/'manifest.json'),
             'parse_screen': original_screen, 'parse_screen_result_sha256': r.digest(self.original/'result.json')}
+        if parse_first:
+            del validation['repository_check_returncode']
+            validation['repository_check_skipped'] = screen.REPOSITORY_SKIPPED
         write(self.validation, validation)
         with closing(self.queue._connect()) as db:
             for item in self.items:
                 db.execute('UPDATE jobs SET adjudication=? WHERE id=?',
                            (json.dumps({'status': 'integration-rejected', 'evidence': {'manifest': 'batch', 'validation': validation}}), item['job_id']))
-        self.log.write_text(''.join(f'{name} passed 1.0 s\n' for name in ('fmt','pin','hygiene','tools','clippy','build','families','test')))
+        if parse_first:
+            self.log.unlink()
+        else:
+            self.log.write_text(''.join(f'{name} passed 1.0 s\n' for name in ('fmt','pin','hygiene','tools','clippy','build','families','test')))
         controls = {}
         for label, indices, tree in (('base', [], trees[0]), ('full', [0,1,2], trees[1]), ('remaining', [0,1], {'test.ebnf': None})):
             root = self.root/'.cache'/f'focus-{label}'; (root/'grammar').mkdir(parents=True)
@@ -103,7 +109,7 @@ class ParseReadmissionTests(BatchReadmissionTests):
             'parent':'parent','excluded_jobs':['culprit'],'reason':'explicit isolated addition','profile':spec(profile),
             'population_count':2,'controls':controls,'original_reports':spec(originals)})
         return {'kind':'isolated-parse-screen-revalidation','manifest':spec(manifest_path), 'validation':spec(self.validation),
-                'repository_log':spec(self.log),'isolation':spec(self.isolation),
+                **({} if parse_first else {'repository_log':spec(self.log)}),'isolation':spec(self.isolation),
                 'reports':{name:spec(self.reports[name])for name in ('author','mechanical')}}
 
     def make_checks(self, directory, names, addition, *, refusal=None, loss=None):
@@ -139,6 +145,17 @@ class ParseReadmissionTests(BatchReadmissionTests):
         with patch.object(parsed.library, '_replay'):
             result = self.invoke(proof)
         self.assertEqual(result['proof']['proof_scope'], 'refusal-only parse-screen isolation')
+        self.assertTrue(result['proof']['requires_fresh_full_validation'])
+        self.assertEqual(self.queue.coverage()['counts'], {'provisional-pass': 2, 'integration-rejected': 1})
+
+    def test_parse_first_rejection_readmits_survivors_for_full_validation(self):
+        proof = self.fixture(refusal=True, parse_first=True)
+        self.log.write_text('unrelated repository results\n')
+        with self.assertRaisesRegex(ValueError, 'deferred repository gates differ'):
+            self.invoke(proof)
+        self.log.unlink()
+        with patch.object(parsed.library, '_replay'):
+            result = self.invoke(proof)
         self.assertTrue(result['proof']['requires_fresh_full_validation'])
         self.assertEqual(self.queue.coverage()['counts'], {'provisional-pass': 2, 'integration-rejected': 1})
 

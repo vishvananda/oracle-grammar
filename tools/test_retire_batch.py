@@ -489,6 +489,13 @@ class BatchTests(unittest.TestCase):
     def test_parse_screen_reject_skips_full_checks(self):
         self._validate_threads(16, True, screen='failed')
 
+    def test_parse_first_rejection_skips_repository_checks(self):
+        self._validate_threads(16, True, screen='failed', parse_first=True)
+
+    def test_parse_first_pass_still_requires_repository_and_full_checks(self):
+        self._validate_threads(16, True, screen='passed', parse_first=True)
+        self._validate_threads(16, True, screen='passed', parse_first=True, gate_code=1)
+
     def test_configured_parse_screen_budget_leaves_full_audit_budget_intact(self):
         self._validate_threads(24, True, screen='passed', screen_threads=12)
 
@@ -502,7 +509,7 @@ class BatchTests(unittest.TestCase):
 
     def _validate_threads(self, expected, configured, gate_code=0, driver_changed=False,
                           native_rejection=False, screen=None, screen_threads=None, scan=False,
-                          repository_threads=None):
+                          repository_threads=None, parse_first=False):
         import os
         from types import SimpleNamespace
         with tempfile.TemporaryDirectory() as temporary:
@@ -529,6 +536,8 @@ class BatchTests(unittest.TestCase):
                 cp['audit_threads'] = expected
             if screen is not None:
                 cp['full_parse_screen'] = True
+            if parse_first:
+                cp['parse_screen_before_repository'] = True
             if screen_threads is not None:
                 cp['parse_screen_threads'] = screen_threads
             if repository_threads is not None:
@@ -598,14 +607,15 @@ class BatchTests(unittest.TestCase):
                 result = batch.validate(manifest, cp, scan=scan)
             self.assertEqual(freeze.call_args.args[0].threads, expected)
             self.assertEqual(freeze.call_args.args[0].slots, 1)
-            if screen is not None:
+            if screen is not None and not gate_code:
                 self.assertEqual(result['parse_screen_threads'], screen_threads or 6)
             if gate_code:
-                self.assertEqual(order, ['freeze', 'gate'])
+                self.assertEqual(order, ['freeze', 'screen', 'gate'] if parse_first else ['freeze', 'gate'])
                 full_checks.assert_not_called()
                 self.assertEqual(result['status'], 'failed')
                 self.assertEqual(result['reason'], 'repository gates failed')
                 self.assertEqual(result['repository_check_returncode'], gate_code)
+                self.assertNotIn('parse_screen', result)
                 self.assertTrue((folder/'repository-check.log').is_file())
                 self.assertTrue((folder/'validation-inputs').is_dir())
                 self.assertFalse((folder/'full-checks').exists())
@@ -623,14 +633,19 @@ class BatchTests(unittest.TestCase):
                 self.assertEqual(batch.r._LEASES, [])
                 return
             if screen == 'failed':
-                self.assertEqual(order, ['freeze', 'gate', 'screen'])
+                self.assertEqual(order, ['freeze', 'screen'] if parse_first else ['freeze', 'gate', 'screen'])
                 full_checks.assert_not_called()
                 self.assertEqual(result['reason'], 'full allowed-population parse screen failed')
                 self.assertNotIn('full_checks', result)
                 self.assertEqual(result['parse_screen']['status'], 'failed')
+                if parse_first:
+                    self.assertFalse((folder/'repository-check.log').exists())
+                    self.assertNotIn('repository_check_returncode', result)
+                    self.assertEqual(result['repository_check_skipped'], batch.retire_parse_screen.REPOSITORY_SKIPPED)
                 self.assertEqual(batch.r._LEASES, [])
                 return
-            self.assertEqual(order, ['freeze', 'gate'] + (['screen'] if screen else []) + ['checks']
+            before_checks = ['freeze', 'screen', 'gate'] if parse_first else ['freeze', 'gate'] + (['screen'] if screen else [])
+            self.assertEqual(order, before_checks + ['checks']
                              + (['scan'] if scan and not native_rejection else []))
             if native_rejection:
                 recovered.assert_called_once()

@@ -566,6 +566,7 @@ def _batch(run, selected_job_ids=None, *, combine_selected=False):
     screen=config.get('full_parse_screen',False)
     r.require(type(screen) is bool,'full_parse_screen must be boolean')
     cp['full_parse_screen']=screen
+    cp['parse_screen_before_repository']=config.get('parse_screen_before_repository',False)
     print_screen=config.get('early_default_print',False)
     r.require(type(print_screen) is bool,'early_default_print must be boolean')
     cp['early_default_print']=print_screen
