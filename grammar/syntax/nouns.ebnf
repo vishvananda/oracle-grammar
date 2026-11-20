@@ -100,7 +100,7 @@ current_card_ref ::= "that" "card"
 /* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
 linked_exiled_card ::= "the" "exiled" "card"
 
-target_card ::= target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source
+target_card ::= target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
@@ -287,7 +287,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other
+target_object ::= target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -354,7 +354,7 @@ target_exactly ::= count
 /* @sem Count::UpTo($count) */
 target_up_to ::= "up" "to" count
 
-filter_phrase ::= subtype_spell_pair | filter_card_type_and | filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails | filter_urzas_land_subtypes | filter_three_heads | filter_three_heads_middle_keyword
+filter_phrase ::= subtype_spell_pair | filter_card_type_and | filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails | filter_urzas_land_subtypes | filter_three_heads | filter_three_heads_middle_keyword | filter_three_colors_or
 
 /* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
 filter_quality_list ::= quality noun "," noun "," "and" noun modifier
@@ -952,8 +952,7 @@ players_or_controller ::= "that" "player" "or" "that" "planeswalker's" "controll
 /* @sem PlayerSet::One($player_ref) */
 player_one ::= player_ref
 
-player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner
-    | attacking_player | damage_source_controller
+player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner | attacking_player | damage_source_controller | extreme_life_player | extreme_hand_player
 
 /* "That source's controller": the controller of the event's damage source. */
 /* @sem PlayerRef::ControllerOf(EventSubject) */
@@ -2774,3 +2773,27 @@ self_and_common_graveyard_targets ::= self_ref "and" "up" "to" number "target" "
 
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:Not(SameObject(@current_named_object))}), index:0}) */
 other_graveyard_card_target ::= "up" "to" number "other" "target" "card" "from" "a" "graveyard"
+
+/* A target union keeps the negative subtype on the second alternative. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([$noun, AllOf([Not(Subtype(Aura)), $noun_2])]), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
+target_non_subtype_union_graveyard ::= "target" noun "or" "non-Aura" noun "card" "from" "your" "graveyard"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AllOf([$noun, InZone(Players{zone:Graveyard, players:One(EventSubject)})])})) */
+graveyard_event_optional_targets ::= "up" "to" "one" "target" noun "card" "from" "that" "player's" "graveyard"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Between{minimum:Constant(1), maximum:Constant(3)}, filter:$noun})) */
+graveyard_range_targets ::= "one" "," "two" "," "or" "three" "target" noun "cards" "from" "graveyards"
+
+/* The event player both controls and chooses the announced target. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:AllOf([$filter_phrase, ControlledBy(One(EventSubject))]), chooser:EventSubject}), index:0} */
+target_event_player_choice ::= "target" filter_phrase "that" "player" "controls" "of" "their" "choice"
+
+/* Three alternative colors qualify the same kind of permanent. */
+/* @sem ObjectFilter::AllOf([AnyOf([$adjective_color, $adjective_color_2, $adjective_color_3]), $noun]) */
+filter_three_colors_or ::= adjective_color "," adjective_color "," "or" adjective_color noun
+
+/* @sem PlayerRef::Extreme{players:All, number:Life, highest:true} */
+extreme_life_player ::= "the" "player" "with" "the" "most" "life"
+
+/* @sem PlayerRef::Extreme{players:All, number:CardsInHand, highest:true} */
+extreme_hand_player ::= "the" "player" "who" "has" "the" "most" "cards" "in" "hand"

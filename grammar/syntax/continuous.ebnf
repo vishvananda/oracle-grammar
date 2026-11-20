@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot
+continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -173,7 +173,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords
+change ::= pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -320,8 +320,7 @@ becomes_type_more ::= subtype becomes_types
 change_also_type ::= ("is" | "are" | "becomes" | "become") ("a" | "an")? becomes_types "in" "addition" "to" ("its" | "their") "other" ("creature")? "types"
 
 /* Bonuses counted out over a set, with the count last in the sentence. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Change::Pump{power:@times($signed, $count_each), toughness:@times($signed_2, $count_each)}], duration:$duration, evaluation:Snapshot} */
-continuous_for_each ::= affected ("gets" | "get") signed "/" signed duration "for" "each" count_each
+continuous_for_each ::= continuous_for_each_gets | continuous_for_each_get
 
 /* @sem Change::[Change::Pump{power:$signed, toughness:$signed_2}] */
 change_pump ::= ("gets" | "get") ("an" "additional")? signed "/" signed
@@ -5911,3 +5910,70 @@ change_gains_all_creature_types ::= "gains" grant_all_creature_types
 /* A shared protection source grants a live player rule and a snapshot object grant. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(GrantKeyword(Protection(Players($players_singular))))], duration:$duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[GrantKeyword(Protection(Players($players_singular)))], duration:$duration, evaluation:Snapshot}}] */
 clause_you_and_objects_protection ::= duration "," "you" "and" filter_plural "gain" "protection" "from" players_singular
+
+/* The chosen player is introduced by the enclosing choice-and-prohibition phrase. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:[Rule(Prohibit(BeBlocked(AllOf([$filter_plural, ControlledBy(One(Chosen))]))))], duration:$this_duration, evaluation:LiveObjects} */
+chosen_player_block_prohibition ::= target_object "can't" "be" "blocked" "by" filter_plural "that" "player" "controls" this_duration
+
+/* @sem Instruction::[Effect{result:@next, operation:$choose_player_most_life}, Effect{result:@next, operation:$chosen_player_block_prohibition}] */
+choose_player_block_restriction ::= choose_player_most_life "." chosen_player_block_prohibition
+
+/* The chosen color and its associated keyword are one continuous effect. */
+/* @sem Change::[GrantKeyword(HexproofFrom(Objects(_{kind:Any, filter:Chosen(Color)})))] */
+change_gains_hexproof_chosen_color ::= "gains" "hexproof" "from" "that" "color"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenColor{mode:Set}, ...$change_gains_hexproof_chosen_color], duration:$duration, evaluation:Snapshot}}] */
+clause_duration_chosen_color_grant ::= duration "," affected "becomes" "the" "color" "of" "your" "choice" "and" change_gains_hexproof_chosen_color
+
+/* A written X definition supplies the expression independently of the affected set. */
+/* @sem Operation::@where(Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$defined_pump_changes, duration:$duration, evaluation:Snapshot}, $defined_pump_value) */
+continuous_defined_pump ::= affected defined_pump_changes duration "," "where" "X" "is" defined_pump_value
+
+defined_pump_changes ::= defined_pump_pair | defined_pump_one
+
+/* @sem Change::[Pump{power:@times($defined_x_sign, Expr::AnnouncedX), toughness:@times($defined_x_sign_2, Expr::AnnouncedX)}] */
+defined_pump_pair ::= "get" defined_x_sign "/" defined_x_sign
+
+/* @sem Change::[Pump{power:Expr::AnnouncedX, toughness:$value}] */
+defined_pump_one ::= "get" "+" "X" "/" "+" value
+
+defined_pump_value ::= defined_attacked_players | defined_counter_population
+
+/* @sem Expr::CountPlayers(Matching{binding:0, condition:PlayerState{player:Bound(0), state:BeingAttacked}}) */
+defined_attacked_players ::= "the" "number" "of" "players" "being" "attacked"
+
+/* @sem Expr::CountCounters(_{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown}) */
+defined_counter_population ::= "the" "number" "of" counter_kind "counters" "among" affected
+
+/* Twice applies independently to each printed signed operand. */
+/* @sem Change::[Pump{power:Multiply([Constant(-1), Multiply([Constant(2), $number])]), toughness:Multiply([Constant(-1), Multiply([Constant(2), $number_2])])}] */
+change_twice_negative_pump ::= "gets" "twice" "-" number "/" "-" number
+
+/* An unqualified mechanic grant lasts indefinitely, with its own holder. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GrantAbility($mechanic_bare)], duration:Indefinite, evaluation:Snapshot} */
+continuous_mechanic_indefinite ::= affected "gains" mechanic_bare
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Change::Pump{power:@times($signed, $continuous_count_each), toughness:@times($signed_2, $continuous_count_each)}], duration:$duration, evaluation:Snapshot} */
+continuous_for_each_gets ::= affected "gets" signed "/" signed duration "for" "each" continuous_count_each
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Change::Pump{power:@times($signed, $continuous_count_each), toughness:@times($signed_2, $continuous_count_each)}], duration:$duration, evaluation:Snapshot} */
+continuous_for_each_get ::= affected "get" signed "/" signed duration "for" "each" continuous_count_each
+
+continuous_count_each ::= count_each | count_each_affected_controller_counter
+
+/* The repeated creature is the affected target, not the ability source. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($enchanted_creature_target)), changes:[SetController(AbilityController)], duration:WhileItMatches($control_creature_state), evaluation:Snapshot} */
+gain_control_enchanted_creature ::= "gain" "control" "of" enchanted_creature_target "for" "as" "long" "as" "that" "creature" "is" control_creature_state
+
+control_creature_state ::= adjective_enchanted | adjective_equipped | adjective_blocked
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$enchanted_creature_filter}), index:0} */
+enchanted_creature_target ::= "target" enchanted_creature_filter
+
+enchanted_creature_filter ::= noun_creature | enchanted_creature_adjective | enchanted_creature_modified
+
+/* @sem @and($adjective, $noun_creature) */
+enchanted_creature_adjective ::= adjective noun_creature
+
+/* @sem @and($noun_creature, $modifiers) */
+enchanted_creature_modified ::= noun_creature modifiers

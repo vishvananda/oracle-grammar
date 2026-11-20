@@ -163,7 +163,7 @@ search_either_one ::= "and" found_action
 /* @sem Instruction::[Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:$found_action_2}] */
 search_either_two ::= "," found_action "," ("and" | "then") found_action
 
-search_filter ::= search_filter_subtype_list | search_filter_plain | search_filter_modified | search_filter_either | search_filter_either_bare
+search_filter ::= search_filter_subtype_list | search_filter_plain | search_filter_modified | search_filter_either | search_filter_either_bare | search_filter_distinct_controlled_name | search_filter_shared_object_name | search_filter_keyword_alternative
 
 /* "A basic land card or a Desert card": either kind, each with its own noun. */
 /* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
@@ -218,7 +218,7 @@ search_shuffle_top_any_order ::= "," "then" "shuffle" "and" "put" "those" "cards
 /* @sem () */
 found ::= "it" | "them" | "that" "card" | "those" "cards"
 
-found_action ::= found_reveal | found_exile | found_hand | found_graveyard | found_top | found_battlefield | found_battlefield_tapped
+found_action ::= found_battlefield_tapped_target_controller | found_battlefield_attached_player | found_reveal | found_exile | found_hand | found_graveyard | found_top | found_battlefield | found_battlefield_tapped
 
 /* @sem Operation::Reveal{objects:Selected(@marked)} */
 found_reveal ::= "reveal" found
@@ -2014,3 +2014,25 @@ random_top_card_to_hand ::= "put" "a" "random" filter_phrase "card" "from" "amon
 /* Keep the arrival reference tied to the immediately preceding move. */
 /* @sem Instruction::[Effect{result:@next, operation:$random_top_card_to_hand}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[GrantAbility(Casting(ReduceCost([_{amount:$braced_amount}])))]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
 instructions_random_top_cost ::= random_top_card_to_hand "." "it" "perpetually" "gains" '"' "this" "spell" "costs" braced_amount "less" "to" "cast" "." '"' "then" "shuffle"
+
+/* The explicit actor still chooses from the same current card pool. */
+/* @sem $clause_put_from */
+clause_you_put_from ::= "you" clause_put_from
+
+/* Search predicates preserve the referenced object's identity and battlefield scope. */
+/* @sem ObjectFilter::AllOf([$filter_phrase, Not(SharesNameWithAny(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase_2}))]) */
+search_filter_distinct_controlled_name ::= filter_phrase "card" "that" "doesn't" "have" "the" "same" "name" "as" "a" filter_phrase
+
+/* @sem ObjectFilter::AllOf([$card_filter, SharesNameWith($object_ref)]) */
+search_filter_shared_object_name ::= card_filter "card" "with" "the" "same" "name" "as" object_ref
+
+/* The search selection remains the antecedent of the singular pronoun. */
+/* @sem Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player($possessive_target_player), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]} */
+found_battlefield_tapped_target_controller ::= "put" "it" "onto" "the" "battlefield" "tapped" "under" possessive_target_player "control"
+
+/* @sem Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[AttachedToPlayer($player_ref)]}}, qualifiers:[]} */
+found_battlefield_attached_player ::= "put" "it" "onto" "the" "battlefield" "attached" "to" player_ref
+
+/* A choice between a typed card and a card with a keyword. */
+/* @sem ObjectFilter::AnyOf([$card_filter, HasKeyword($keyword_value)]) */
+search_filter_keyword_alternative ::= card_filter "card" "or" "a" "card" "with" keyword_value
