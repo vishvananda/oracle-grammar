@@ -167,20 +167,21 @@ class BatchTests(unittest.TestCase):
             probe = root/'probe'
             probe.write_bytes(b'frozen helper')
             rows = root/'rows.jsonl'
-            failures = [{'face': name, 'lost': ['exact_default']} for name in 'ABCDE']
+            failures = [{'face': name, 'lost': ['exact_default']} for name in 'ABCDEF']
             batch.r.jsonl(rows, [{'name': name, 'text': 'Old.', 'first': 'New.', 'readings': 1}
-                                 for name in 'ABCDE'])
+                                 for name in 'ABCDEF'])
             checkpoint = {'inputs': str(root), 'cpu_pool': str(root/'cpu'), 'cpu_capacity': 32}
             drafts = [(1, root, root/'old'), (4, root, root/'added')]
             with (patch.object(batch.retire_cpu, 'reserve', wraps=batch.retire_cpu.reserve) as reserve,
                   patch.object(batch, '_trace_binary', return_value=(probe,batch.r.digest(probe))),
                   patch.object(batch, '_probe_rules', side_effect=lambda _, __, name, text, ___:
-                               {'baseline','fresh'} if text == 'New.' else {'baseline'}) as traced,
+                               {'baseline','fresh'} if name == 'E' and text == 'New.' else {'baseline'}) as traced,
                   patch.object(batch, '_new_productions', side_effect=lambda run, directory, names:
                                names if directory.name == 'added' else set())):
                 self.assertEqual(batch._retained_print_hints(
                     checkpoint, root/'grammar', rows, drafts, {'failures':failures}), [4])
-                self.assertEqual(traced.call_count,6)
+                self.assertEqual(traced.call_count, 10)
+                self.assertNotIn('F', [call.args[2] for call in traced.call_args_list])
                 reserve.assert_called_once_with(root/'cpu', 1, 32, background=True)
 
     def test_retained_print_screen_can_rank_both_kinds_of_witness(self):

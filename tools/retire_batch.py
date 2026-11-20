@@ -39,6 +39,7 @@ DEFAULT_PARSE_SCREEN_THREADS = 6
 MAX_ROUTED_EXCLUSIONS = 12
 RETAINED_NATIVE_PROBE_LIMIT = 16
 RETAINED_FAMILY_PROBE_LIMIT = 4
+RETAINED_PRINT_TRACE_LIMIT = 5
 MIN_EARLY_PRINT_GROUP = 16
 CONTROL_INPUTS = ('allowed.json', 'gold.jsonl', 'oracle.json', 'index.json',
                   'bin/score', 'bin/validate-readings')
@@ -1043,7 +1044,8 @@ def _retained_print_hints(checkpoint, grammar, rows_path, drafts, evidence, *, r
         # hint available while a foreground bundle is draining the pool.
         with retire_cpu.reserve(Path(checkpoint['cpu_pool']), 1, checkpoint['cpu_capacity'],
                                 background=True) as fds:
-            for row in sorted(rows, key=lambda item: (len(item['text']), item['name']))[:3]:
+            ordered = sorted(rows, key=lambda item: (len(item['text']), item['name']))
+            for row in ordered[:RETAINED_PRINT_TRACE_LIMIT]:
                 try:
                     delta = _print_trace_delta(row, lambda name, text: _probe_rules(binary, grammar, name, text, fds))
                 except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
