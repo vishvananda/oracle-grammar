@@ -90,8 +90,13 @@ class DispatchCanaries(unittest.TestCase):
         job = {'kind': 'mechanical', 'rules': ['m_one']}
         exact = {'face': 'Affected', 'lost': ['exact_default']}
         self.assertTrue(dispatch._repairable_mechanical_failure(job, {'passed': False, 'failures': [exact]}))
+        for lost in (['default'], list(r.PRINT_GATES)):
+            printed = {'face': 'Another', 'lost': lost}
+            self.assertTrue(dispatch._repairable_mechanical_failure(job, {'passed': False, 'failures': [exact, printed]}))
         for failures in ([{'face': 'Affected', 'gate': 'parse/reading-count/text'}],
-                         [exact, {'face': 'Another', 'lost': ['default']}], [exact]*17):
+                         [exact, {'face': 'Another', 'lost': ['unknown']}],
+                         [{'face': 'Another', 'lost': ['default', 'default']}],
+                         [{'face': 'Another', 'lost': ['exact_default', 'verified']}], [exact]*17):
             self.assertFalse(dispatch._repairable_mechanical_failure(job, {'passed': False, 'failures': failures}))
         self.assertFalse(dispatch._repairable_mechanical_failure({**job, 'mechanical_chunks': [0]},
                                                                  {'passed': False, 'failures': [exact]}))

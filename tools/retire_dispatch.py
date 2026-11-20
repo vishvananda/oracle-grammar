@@ -263,15 +263,21 @@ def _automatic_evaluation(command, log_path, evaluations, fd, record_start, *, c
     return paths, report
 
 
+def _named_print_loss(row):
+    if (not isinstance(row, dict) or set(row) != {'face', 'lost'}
+            or not isinstance(row['face'], str) or not row['face']):
+        return False
+    lost = row['lost']
+    return isinstance(lost, list) and bool(lost) and lost == [gate for gate in r.PRINT_GATES if gate in lost]
+
+
 def _repairable_mechanical_failure(job, report):
     failures = report.get('failures')
     if (job['kind'] != 'mechanical' or len(job['rules']) != 1
             or 'mechanical_chunks' in job or report.get('passed') is not False
             or not isinstance(failures, list) or not 1 <= len(failures) <= 16):
         return False
-    if all(isinstance(row, dict) and set(row) == {'face', 'lost'}
-           and isinstance(row['face'], str) and row['face']
-           and row['lost'] in (['exact'], ['exact_default']) for row in failures):
+    if all(_named_print_loss(row) for row in failures):
         return True
     # The queue verifier recomputes the named reading losses before assigning work.
     if len(failures) != 1 or not isinstance(failures[0], str):
