@@ -103,3 +103,23 @@ energy_gets_per_each ::= "gets" "{" "E" "}" "for" "each" count_each_attacking_yo
 /* The payment receipt determines the number of counters placed. */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[EnergyOneOrMore]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:Performed(@marked)}]}}]}, otherwise:Program{}}] */
 clause_energy_payment_counters ::= "you" "may" "pay" "one" "or" "more" "{E}" "." "if" "you" "do" "," "put" "that" "many" counter_kind "counters" "on" affected
+
+/* A chosen stack spell can be taxed by a subsequent variable energy payment.
+   Keep the payment and its dependent price together so the repeated amount
+   cannot name an unrelated performed action when printing. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$energy_tax_instructions}} */
+spell_energy_payment_tax ::= energy_tax_instructions "."
+
+/* @sem Instruction::[Effect{result:@next, operation:$energy_tax_prefix}, Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Energy}}, Effect{result:@next, operation:PayCost{player:ControllerOf($target_stack_spell), cost:Cost{parts:[Repeated{part:Mana($mana_symbols), times:Performed(@prior)}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Counter{objects:One(Target{slot:@next_slot, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None}}]}, otherwise:Program{}}] */
+energy_tax_instructions ::= "choose" target_stack_spell "." energy_tax_prefix "," "then" "you" "may" "pay" "any" "amount" "of" "{E}" "." "counter" "that" "spell" "unless" "its" "controller" "pays" mana_symbols "for" "each" "{E}" "paid" "this" "way"
+
+energy_tax_prefix ::= energy_tax_gain | energy_tax_gain_reminded | energy_tax_life
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::GainEnergy{amount:$energy_amount}} */
+energy_tax_gain ::= "you" "get" energy_amount
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::GainEnergy{amount:@agree($energy_amount, $energy_word_amount)}} */
+energy_tax_gain_reminded ::= "you" "get" energy_amount "(" "↓" energy_word_amount ")"
+
+/* @sem Operation::GainLife{players:One(AbilityController), amount:$number} */
+energy_tax_life ::= "you" "gain" number "life"

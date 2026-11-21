@@ -427,7 +427,7 @@ event_cast_nth ::= "you" "cast" "your" ordinal "spell" "each" "turn"
 /* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:$event_player, spells:Any}, test:NumberTest::Compare{comparison:Equal, value:$ordinal}} */
 event_cast_nth_third ::= event_player "casts" "their" ordinal "spell" "each" "turn"
 
-ordinal ::= ordinal_second | ordinal_third
+ordinal ::= ordinal_second | ordinal_third | ordinal_fourth | ordinal_sixth | ordinal_twelfth
 
 /* @sem Expr::Constant(2) */
 ordinal_second ::= "second"
@@ -4884,3 +4884,67 @@ triggered_event_player_sacrifice ::= event_nonowner_controls_holder "," event_pl
 
 /* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$draw_counter_damage_receipt_program} */
 triggered_turn_draw_counter_damage ::= "at" turn_event "," draw_counter_damage_receipt_program
+
+/* A trigger active in the command zone and on the battlefield. */
+/* @sem Ability::Scoped{zones:[Command, Battlefield], ability:@scope(Ability::Triggered{event:$turn_event, intervening_if:ObjectMatches{object:Source, filter:AnyOf([InZone(Shared(Command)), InZone(Shared(Battlefield))])}, limits:_{}, body:$program_sentence, announcement:@announcement})} */
+command_battlefield_turn_trigger ::= "at" turn_event "," "if" self_text "is" "in" "the" "command" "zone" "or" "on" "the" "battlefield" "," program_sentence
+
+/* The explicit return of this card establishes the graveyard ability scope. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$event_clause, intervening_if:$entrant_graveyard_origin_condition, limits:TriggerLimits{}, announcement:@announcement, body:$delayed_graveyard_self_program})} */
+graveyard_entrant_origin_trigger ::= event_clause "," "if" entrant_graveyard_origin_condition "," delayed_graveyard_self_program
+
+/* @sem Condition::ObjectMatches{object:EventSubject, filter:AnyOf([EnteredFrom(Players{zone:Graveyard, players:One(AbilityController)}), Cast{by:One(AbilityController), from:Players{zone:Graveyard, players:One(AbilityController)}}])} */
+entrant_graveyard_origin_condition ::= "it" "entered" "from" "your" "graveyard" "or" "you" "cast" "it" "from" "your" "graveyard"
+
+/* The source spell is cast by its controller from that caster’s hand. */
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:AllOf([SameObject(Source), Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}}])} */
+cast_source_from_hand_header ::= "when" "you" "cast" "this" "spell" "from" "your" "hand"
+
+/* A third-party caster's origin follows that caster, not the ability holder. */
+/* @sem EventSpec::Spell{event:Cast, players:$event_player, spells:@and($spell_filter, ObjectFilter::Cast{from:Players{zone:$caster_origin_zone, players:One(CasterOf(Candidate))}})} */
+event_player_casts_from_own_zone ::= event_player "casts" spell_filter "from" "their" caster_origin_zone
+
+/* @sem Zone::Hand */
+caster_origin_hand ::= "hand"
+
+/* @sem Zone::Graveyard */
+caster_origin_graveyard ::= "graveyard"
+
+/* @sem Zone::Library */
+caster_origin_library ::= "library"
+
+caster_origin_zone ::= caster_origin_hand | caster_origin_graveyard | caster_origin_library
+
+/* The payment and its exclusion are scoped together: the excluded cards are
+   the actual arrivals of this exact exile payment. */
+/* @sem Ability::Triggered{event:$event_player_casts_from_own_zone, limits:TriggerLimits{}, announcement:@announcement, body:$event_exile_linked_cast_program} */
+triggered_cast_origin_exile_linked ::= "whenever" event_player_casts_from_own_zone "," event_exile_linked_cast_program
+
+/* The placement count, counter kind and holder are independent operands. */
+/* @sem EventSpec::NthCounter{kind:$nth_counter_kind, objects:$event_self, nth:$ordinal} */
+event_nth_counter_source ::= "the" ordinal nth_counter_kind "counter" "is" "put" "on" event_self
+
+nth_counter_kind ::= nth_counter_plan | nth_counter_hour
+
+/* @sem Operand::Vocabulary{family:CounterType, form:PlanCounter} */
+nth_counter_plan ::= "plan"
+
+/* @sem Operand::Vocabulary{family:CounterType, form:HourCounter} */
+nth_counter_hour ::= "hour"
+
+/* @sem Expr::Constant(4) */
+ordinal_fourth ::= "fourth"
+
+/* @sem Expr::Constant(6) */
+ordinal_sixth ::= "sixth"
+
+/* @sem Expr::Constant(12) */
+ordinal_twelfth ::= "twelfth"
+
+/* In this frame the counter recipient is the source introduced immediately
+   before the sacrifice pronoun; the reflexive callback owns its targets. */
+/* @sem Ability::Triggered{event:$event_nth_counter_source, limits:TriggerLimits{}, announcement:Announcement{}, body:Program{instructions:$nth_source_sacrifice_callback}} */
+nth_source_sacrifice_trigger ::= "when" event_nth_counter_source "," nth_source_sacrifice_callback "."
+
+/* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:_{instructions:$instructions_random_hand_cast_trigger}} */
+turn_random_hand_cast_trigger ::= "at" turn_event "," instructions_random_hand_cast_trigger

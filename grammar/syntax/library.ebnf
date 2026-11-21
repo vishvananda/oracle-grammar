@@ -3427,3 +3427,76 @@ top_card_put_qualified_action ::= top_card_put_qualified
 
 /* @sem Instruction::[...$top_card_look, Optional{decider:AbilityController, body:Program{instructions:$top_card_put_qualified_action}}] */
 clause_top_card_put_qualified ::= top_card_look top_card_put_qualified_action
+
+/* A live battlefield count governs a reveal; the matching observation moves,
+   and the remaining library cards are randomized at the bottom. */
+/* @sem Instruction::[Effect{result:@next, operation:RevealUntil{library:AbilityController, filter:@agree($card_filter, $card_filter_2), count:$value_number_of}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@prior), filter:@agree($card_filter, $card_filter_2)}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@back(3)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:Random}}] */
+instructions_reveal_counted_battlefield ::= "reveal" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "reveal" "X" card_filter "cards" "," "where" "X" "is" value_number_of "." "put" "those" card_filter "cards" "onto" "the" "battlefield" "tapped" "and" "the" "rest" "on" "the" "bottom" "of" "your" "library" "in" "a" "random" "order"
+
+/* @sem $instructions_reveal_counted_battlefield */
+instructions_then_reveal_counted_battlefield ::= "then" instructions_reveal_counted_battlefield
+
+/* The exile consumes the inspected library tops; the following permission and
+   visibility refer to that same face-down movement receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:$library_tops}}, Effect{result:@next, operation:Move{objects:$library_tops, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+look_library_tops_exile_down ::= "look" "at" library_tops "," "then" "exile" "those" "cards" "face" "down"
+
+/* @sem Instruction::[...$look_library_tops_exile_down, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:Transition{result:@prior, phase:After}, audience:AffectedPlayer}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:$exiled_plural_cost}})], duration:WhileAnyExiled(Transition{result:@prior, phase:After}), evaluation:LiveObjects}}] */
+instructions_look_tops_exile_free ::= look_library_tops_exile_down "." "you" "may" exiled_play_action "them" exiled_plural_cost
+
+exiled_plural_cost ::= exiled_plural_cost_free | exiled_plural_cost_normal
+
+/* @sem PlayCost::Free */
+exiled_plural_cost_free ::= "without" "paying" "their" "mana" "costs" "for" "as" "long" "as" "they" "remain" "exiled"
+
+/* @sem PlayCost::Normal */
+exiled_plural_cost_normal ::= "for" "as" "long" "as" "they" "remain" "exiled"
+
+/* Keep the search and exile producer in the same print contract as its hand
+   receipt; the named player both shuffles and draws. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$target_possessive, choices:[_{filter:Chosen(CardName), count:$named_search_count}], also:[Graveyard, Hand]}}, Effect{result:@mark, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($target_possessive)}}, Effect{result:@next, operation:Draw{players:One($target_possessive), amount:CountObjects(InZone{objects:Transition{result:@marked, phase:Before}, zone:Hand})}}] */
+instructions_search_name_exile_hand_draw ::= "search" target_possessive "graveyard" "," "hand" "," "and" "library" "for" named_search_count "cards" "with" "that" "name" "and" "exile" "them" "." "that" "player" "shuffles" "," "then" "draws" "a" "card" "for" "each" "card" "exiled" "from" "their" "hand" "this" "way"
+
+/* The perpetual effect applies to the arrival of the single searched card,
+   after its reveal, move to its owner's hand, and shuffle. */
+/* @sem Instruction::[Effect{result:@next, operation:$search_single_library}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:Transition{result:@back(3), phase:After}, changes:$search_hand_perpetual_changes}}] */
+instructions_search_hand_perpetual ::= search_single_library "," "reveal" "it" "," "put" "it" "into" "your" "hand" "," "then" "shuffle" "." "it" "perpetually" search_hand_perpetual_changes
+
+/* @sem Change::[AddArtifactType(Clue), GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program}))] */
+search_hand_perpetual_changes ::= "becomes" "a" "Clue" "artifact" "in" "addition" "to" "its" "other" "types" "and" "gains" '"' cost ":" program "." '"'
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions_search_hand_perpetual}} */
+spell_search_hand_perpetual ::= instructions_search_hand_perpetual
+
+/* The amount and slice refer to the same player's library. */
+/* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:@recipient_value(Recipients::Players(One($player_ref)), $fraction_top_library_amount), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+player_exiles_top_fraction ::= player_ref "exiles" "the" "top" fraction_top_library_amount
+
+/* @sem Expr::Divide{numerator:CountObjects(Zone{scope:Players{zone:Library, players:One(@that_player)}, kind:Card, filter:Any}), denominator:Constant(2), rounding:$rounding_words} */
+fraction_top_library_amount ::= "half" "of" "their" "library" "," rounding_words
+
+/* The two phases form one receipt contract: the search count refers to the
+   total of the optional mana payments, and the move uses that search's result. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, starting_with:$shared_payment_first_player, body:Program{instructions:[Optional{decider:Bound(0), body:Program{instructions:[Effect{result:@next, operation:PayAnyAmount{actor:One(Bound(0)), resource:Mana}}]}}]}}, ForEachPlayer{players:$players_singular_2, binding:0, body:Program{instructions:[Effect{result:@next, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[_{filter:$filter_phrase, count:UpTo(PerformedTotal(@prior))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$shared_search_destination, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}]}}] */
+shared_payment_search_instructions ::= "starting" "with" shared_payment_first_player "," players_singular "may" "pay" "any" "amount" "of" "mana" "." players_singular "searches" "their" "library" "for" "up" "to" "X" filter_phrase "cards" "," "where" "X" "is" "the" "total" "amount" "of" "mana" "paid" "this" "way" "," "puts" "them" shared_search_destination "," "then" "shuffles"
+
+shared_search_destination ::= shared_search_battlefield | shared_search_hand
+
+/* @sem MovementDestination::Battlefield{controller:Player(Bound(0)), arrival:$search_option_entry} */
+shared_search_battlefield ::= search_option_entry
+
+/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
+shared_search_hand ::= "into" "their" "hand"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$shared_payment_search_instructions]}} */
+shared_payment_search_spell ::= shared_payment_search_instructions "."
+
+/* Postposed eligibility is scoped to the short declined-payment wording. */
+/* @sem Instruction::[Effect{result:@next, operation:MoveTopCard{actor:One(AbilityController), cards:$top_reveal_kind, reveal:false, destination:$top_card_battlefield}}] */
+top_card_put_short_action ::= "you" "may" "put" "it" top_card_battlefield "if" "it's" top_reveal_kind
+
+/* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:$top_card_put_short_action}}]} */
+top_card_put_short_payment ::= top_card_put_short_action
+
+/* @sem Instruction::[...$top_card_look, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$top_card_put_short_payment, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:$top_reveal_branch}, otherwise:Program{}}] */
+clause_top_card_put_declined_short ::= top_card_look top_card_put_short_payment "." "if" "you" "don't" "," top_reveal_branch

@@ -107,7 +107,7 @@ counter_group_reference ::= "they" | "those" "creatures" | "those" "permanents"
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:$number, preventable:true}}, Instruction::Effect{result:@next, operation:Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$changes, duration:$duration, evaluation:Snapshot}}] */
 clause_damage_and_change ::= object_ref "deals" number "damage" "to" recipients "and" changes duration
 
-affected ::= affected_union_with_other_controlled | affected_landwalk_family_plural | cross_spells | owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference | affected_chosen_planeswalker_plural | affected_without_keyword_pair | affected_without_keyword_pair_reverse | controlled_not_owned_each | affected_each_counter_an | affected_nth_chosen_type | objects_each_counter_qualified | affected_all_attacking_defender | named_and_other_controlled_population | affected_controlled_pair_mana_bound
+affected ::= affected_union_with_other_controlled | affected_landwalk_family_plural | cross_spells | owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference | affected_chosen_planeswalker_plural | affected_without_keyword_pair | affected_without_keyword_pair_reverse | controlled_not_owned_each | affected_each_counter_an | affected_nth_chosen_type | objects_each_counter_qualified | affected_all_attacking_defender | named_and_other_controlled_population | affected_controlled_pair_mana_bound | affected_opponents_union
 
 counter_choice_reference ::= counter_choice_singular_reference | counter_choice_group_reference
 /* @sem ObjectSet::@counter_reference_single */
@@ -6973,3 +6973,54 @@ change_retained_typed_creature_stats ::= "is" "a" value "/" value becomes_types 
 /* A final quoted ability supplies the enclosing sentence's period. */
 /* @sem Ability::Conditional{condition:$static_turn_window, then:[Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:$static_changes_closed})]} */
 static_during_turn_closed ::= static_turn_window "," affected static_changes_closed
+
+/* Redirected deaths and the resulting hand restriction share a replacement frame. */
+/* @sem Ability::Replacement{active:Battlefield, event:$hand_return_death_event, body:Program{instructions:[Effect{result:@next, operation:$hand_return_redirect}, Effect{result:@next, operation:$hand_arrival_restriction}]}} */
+replacement_death_hand_with_rule ::= "if" hand_return_death_event "," hand_return_redirect "." hand_arrival_restriction "."
+
+/* @sem EventSpec::ZoneChange{objects:$die_exile_objects, from:Battlefield, to:Graveyard} */
+hand_return_death_event ::= die_exile_objects "would" "die"
+
+/* @sem Operation::ModifyEvent{change:SetDestination(OwnersHand)} */
+hand_return_redirect ::= "return" "it" "to" "its" "owner's" "hand" "instead"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(OwnerOf(Query{objects:InZone{objects:One(EventDestination), zone:Hand}, index:0}))), changes:[PlayerRule(Visibility{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Hand}, index:0}), audience:Everyone}), PlayerRule(Prohibit(PlayCard(SameObject(Query{objects:InZone{objects:One(EventDestination), zone:Hand}, index:0}))))], duration:UntilNextTurn(OwnerOf(Query{objects:InZone{objects:One(EventDestination), zone:Hand}, index:0})), evaluation:LiveObjects} */
+hand_arrival_restriction ::= "until" "that" "player's" "next" "turn" "," "that" "player" "plays" "with" "that" "card" "revealed" "in" "their" "hand" "and" "can't" "play" "it"
+
+/* A replacement active everywhere redirects this source from its stated origin. */
+/* @sem Ability::Replacement{active:Everywhere, event:ZoneChange{objects:SameObject(Source), from:$hand_return_origin, to:Graveyard}, body:Program{instructions:[Effect{result:@next, operation:$hand_return_redirect}, Effect{result:@next, operation:$hand_arrival_restriction}]}} */
+replacement_source_zone_hand_with_rule ::= "if" "this" "card" "would" "be" "put" "into" "a" "graveyard" "from" hand_return_origin "," hand_return_redirect "." hand_arrival_restriction "."
+
+hand_return_origin ::= hand_return_from_library | hand_return_from_exile
+
+/* @sem Zone::Library */
+hand_return_from_library ::= "a" "library"
+
+/* @sem Zone::Exile */
+hand_return_from_exile ::= "exile"
+
+/* The controller restriction applies to both members of the type union. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_opponents_union} */
+affected_opponents_union ::= entry_opponents_union
+
+/* A limited graveyard permission can grant a replacement ability to the played object. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:One(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:Either, filter:$graveyard_play_or_cast_filter}, terms:_{limit:EachTurn(1), during:One(AbilityController), cost:Normal, effects:[List([Term{family:SpellEffect, form:AddAbility, operands:[Ability($graveyard_play_granted_replacement)]}])]}})]}) */
+static_graveyard_play_grant ::= "once" "during" "each" "of" "your" "turns" "," "you" "may" graveyard_play_or_cast_filter "from" "your" "graveyard" "." "if" "you" "do" "," "it" "gains" '"' graveyard_play_granted_replacement '"'
+
+/* @sem ObjectFilter::AnyOf([$filter_phrase, AllOf([$filter_phrase_2, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])]) */
+graveyard_play_or_cast_filter ::= "play" "a" filter_phrase "or" "cast" "a" filter_phrase "spell"
+
+/* Land-play permission keeps the outside population and cost independent. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:OutsideTheGame($outside_play_lands), from:Outside, action:PlayLand, filter:Any}, terms:_{cost:Normal}})], duration:EndOfTurn, evaluation:LiveObjects}}] */
+outside_land_play_this_turn ::= "this" "turn" "," "you" "may" "play" outside_play_lands "from" "outside" "the" "game"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$outside_land_play_this_turn}} */
+activated_outside_land_play ::= cost ":" outside_land_play_this_turn "."
+
+/* @sem ObjectFilter::CardType(Land) */
+outside_play_lands_plain ::= "lands"
+
+/* @sem @and($quality, ObjectFilter::CardType(Land)) */
+outside_play_lands_qualified ::= quality "lands"
+
+outside_play_lands ::= outside_play_lands_plain | outside_play_lands_qualified

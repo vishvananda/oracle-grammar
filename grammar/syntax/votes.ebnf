@@ -127,3 +127,20 @@ line_vote_search_filtered_return_exile ::= clause_word_vote "." clause_vote_sear
 
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 vote_exile_source ::= "exile" SELF_NAME
+
+/* A required secret object ballot reveals only after all voters have voted. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:Vote{actor:One(Bound(0)), ballot:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), secret:true}}]}}, Effect{result:@next, operation:RevealChoices{kind:Object}}] */
+secret_required_object_vote ::= players_singular "secretly" "votes" "for" "a" filter_phrase "," "then" "those" "votes" "are" "revealed"
+
+/* This bounded ballot guarantees every object receiving a vote is a creature. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:Vote{actor:One(Bound(0)), ballot:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), $vote_creature_control)}), secret:true}}]}}, Effect{result:@next, operation:RevealChoices{kind:Object}}] */
+secret_controlled_creature_vote ::= players_singular "secretly" "votes" "for" "a" "creature" vote_creature_control "," "then" "those" "votes" "are" "revealed"
+vote_creature_control ::= modifier_you_control | modifier_not_controlled
+
+/* The consumer is used only after the creature ballot above, which proves the
+   printed creature restriction for both operations on the voted population. */
+/* @sem Instruction::[Effect{result:@next, operation:PutCountersEach{amount:Votes(Object(Affected)), kind:$counter_kind, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:State(ReceivedAVote)}}}, Effect{result:@next, operation:SetTapped{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:State(ReceivedAVote)}, tapped:true}}] */
+voted_creature_counters_tap ::= "for" "each" "creature" "with" "one" "or" "more" "votes" "," "put" "that" "many" counter_kind "counters" "on" "it" "," "then" "tap" "it"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$secret_controlled_creature_vote, ...$voted_creature_counters_tap]}} */
+spell_creature_vote_counters_tap ::= secret_controlled_creature_vote "." voted_creature_counters_tap "."
