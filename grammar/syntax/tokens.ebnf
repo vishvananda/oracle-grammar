@@ -166,7 +166,7 @@ token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_
 
 token_recipe ::= token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with
 
-token_recipe_base ::= token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
+token_recipe_base ::= token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
 token_recipe_plain ::= token_stat "/" token_stat token_colors token_subtypes token_types ("token" | "tokens")
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore
+created_token_name ::= created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1016,3 +1016,29 @@ scoped_paid_token_program ::= "you" "may" pay_mana "." "if" "you" "do" "," condi
 
 /* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_reference, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
 scoped_token_exile_end ::= "exile" created_reference "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* This plural recipe keeps the creation and its later sacrifice in one scope. */
+/* @sem TokenSpec::TokenSpec{amount:$number, words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}} */
+temporary_attacking_token_group ::= number token_stat "/" token_stat token_colors token_subtypes token_types "tokens"
+
+/* @sem Operation::CreateTrigger{event:$event, duration:$this_duration, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$temporary_attacking_token_group], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]}} */
+temporary_trigger_attacking_tokens ::= "whenever" event this_duration "," "create" temporary_attacking_token_group "that" "are" "tapped" "and" "attacking" "." "sacrifice" "them" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$temporary_trigger_attacking_tokens}]}} */
+activated_temporary_trigger_attacking_tokens ::= cost ":" temporary_trigger_attacking_tokens "."
+
+/* A blocking token enters in combat against the announced attacker. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[Blocking(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$filter_phrase, AttackingDefender(Players(One(AbilityController)))])}), index:0})]}}) */
+create_blocking_single ::= "create" "a" token_recipe "that's" "blocking" "target" filter_phrase "attacking" "you"
+
+/* The token's literal name is independent of its source and characteristics. */
+/* @sem String::'Ajani''s Pridemate' */
+created_name_ajanis_pridemate ::= "Ajani" "'s" "Pridemate"
+
+/* The first action completes before the independent condition and creation. */
+/* @sem Instruction::[Effect{result:@next, operation:$operation}, If{condition:$condition_no_counters, then:Program{instructions:[$conditional_token_creation]}, otherwise:Program{}}] */
+instructions_then_conditional_creation ::= operation "." "then" "if" condition_no_counters "," conditional_token_creation
+
+/* Both branches use the same current recipe; only the quantity is replaced. */
+/* @sem Instruction::[If{condition:$condition_control_named_pair, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount_2, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
+instructions_token_quantity_override ::= "create" counter_amount token_recipe "." "create" counter_amount "of" "those" "tokens" "instead" "if" condition_control_named_pair

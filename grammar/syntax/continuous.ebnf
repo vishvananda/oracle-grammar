@@ -6776,3 +6776,14 @@ spell_blocked_target_granted_combat ::= duration "," blocked_controlled_target "
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([State(Blocked), $noun, ControlledBy(One(AbilityController))])}), index:0} */
 blocked_controlled_target ::= "target" "blocked" noun "you" "control"
+
+/* The scry event supplies the number of cards looked at by that event. */
+/* @sem Ability::Triggered{event:$event_you_scry, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:@times($value, Expr::EventAmount), toughness:@times($value_2, Expr::EventAmount)}], duration:$duration, evaluation:Snapshot}}]}} */
+triggered_scry_count_pump ::= "whenever" event_you_scry "," affected "gets" "+" value "/" "+" value duration "for" "each" "card" "looked" "at" "while" "scrying" "this" "way" "."
+
+/* The comparison consumes the immediately preceding captured quantity. */
+/* @sem Instruction::[Effect{result:@next, operation:$count_counter_population}, Effect{result:@next, operation:$counter_comparison_effect}] */
+instructions_count_counter_comparison ::= count_counter_population "." counter_comparison_effect
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Property{property:$stat, test:NumberTest::Compare{comparison:$stat_comparison, value:BoundValue(@prior)}}])}), changes:$static_changes, duration:$this_duration, evaluation:LiveObjects} */
+counter_comparison_effect ::= filter_plural "with" stat stat_comparison "that" "number" static_changes this_duration

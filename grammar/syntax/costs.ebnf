@@ -1628,3 +1628,27 @@ copy_paid_card_plural ::= "create" count "tokens" "that" "are" "copies" "of" "th
 /* X is fixed by the number of matching cards revealed from the payer’s hand. */
 /* @sem CostPart::@announced_x(CostPart::Reveal{count:AnyNumber, filter:$announced_hand_card_selection}) */
 cost_reveal_announced_hand_selection ::= "reveal" announced_hand_card_selection
+
+/* Keep the sacrifice payment and its tested before-state in one card line.
+   Agreement binds the printed description to the cost's actual population. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost::Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($cast_sacrifice_head, $filter_phrase)}, choose:Exactly(Expr::Constant(1))}]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$operation}, If{condition:Compare{left:CountObjects(Matching{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Performed, phase:Before}, filter:$cast_sacrifice_quality}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:$operation_2}]}, otherwise:Program{}}]}}] */
+line_cast_sacrifice_test ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "sacrifice" cast_sacrifice_head "." NEWLINE operation "." "if" "the" "sacrificed" filter_phrase "was" cast_sacrifice_quality "," operation "."
+
+cast_sacrifice_head ::= cast_sacrifice_head_a | cast_sacrifice_head_an
+
+/* @sem $filter_phrase */
+cast_sacrifice_head_a ::= "a" filter_phrase
+
+/* @sem $filter_phrase */
+cast_sacrifice_head_an ::= "an" filter_phrase
+
+cast_sacrifice_quality ::= cast_sacrifice_quality_adjective | cast_sacrifice_quality_a | cast_sacrifice_quality_an
+
+/* @sem $adjectives */
+cast_sacrifice_quality_adjective ::= adjectives
+
+/* @sem $filter_phrase */
+cast_sacrifice_quality_a ::= "a" filter_phrase
+
+/* @sem $filter_phrase */
+cast_sacrifice_quality_an ::= "an" filter_phrase

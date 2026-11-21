@@ -343,3 +343,15 @@ counted_mana_population ::= card_filter "card" "in" target_possessive "graveyard
 counted_mana_action ::= "add" mana_production
 /* @sem Operation::GainLife{players:One(AbilityController), amount:BoundValue(@marked)} */
 counted_life_action ::= "you" "gain" "1" "life"
+
+/* Written fixed counts compose with subsequent instructions without accepting
+   the distinct X-where wording used for dynamic quantities. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$number_words, production:$mana_production, choice:Once}} */
+mana_add_counted_words ::= "add" number_words mana_production
+
+/* The input receipt is the singleton creature in this casting cost. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:ObjectProperty{object:Query{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}, production:$mana_production, choice:Once}} */
+mana_from_sacrificed_creature_cost ::= "add" "an" "amount" "of" mana_production "equal" "to" "the" "sacrificed" "creature's" "mana" "value"
+
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))}]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$mana_from_sacrificed_creature_cost}]}}] */
+line_sacrifice_cost_mana_value ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "sacrifice" "a" "creature" "." NEWLINE mana_from_sacrificed_creature_cost "."

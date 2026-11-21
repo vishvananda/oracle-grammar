@@ -972,7 +972,7 @@ controlled_explore_replacement ::= controlled_explore_event "," explore_twice_re
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_modification}) */
 entry_modified ::= object_ref "enters" entry_modification "."
 
-entry_modification ::= entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse
+entry_modification ::= entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]} */
 entry_tapped_and_counters ::= "tapped" "and" "with" value counter_kind "counters" "on" "it"
@@ -2650,3 +2650,33 @@ have_hand_reveal_choice ::= "have" players_singular "reveal" "their" "hand" "." 
 
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[...$have_hand_reveal_choice, Effect{result:@next, operation:$hand_loss}]}}] */
 optional_hand_reveal_choice ::= "you" "may" have_hand_reveal_choice "and" hand_loss
+
+/* The choice introduces the player counted in the immediately following entry change. */
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(Chosen))])}) */
+entry_chosen_controlled_count ::= filter_phrase "that" "player" "controls"
+
+/* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$entry_chosen_controlled_count})} */
+entry_chosen_population_counters ::= "enters" "with" "a" counter_kind "counter" "on" "it" "for" "each" entry_chosen_controlled_count
+
+/* Both mentions identify the same creature holder; keep the choice and use together. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(@self)}, body:Program{instructions:[Effect{result:@next, operation:$choose_opponent}, Effect{result:@next, operation:$entry_chosen_population_counters}]}}) */
+entry_choose_opponent_population ::= "as" self_creature "enters" "," choose_opponent "." self_creature entry_chosen_population_counters "."
+
+/* A condition qualifies a composed entry replacement. */
+/* @sem Ability::Conditional{condition:$condition, then:[$entry_modified]} */
+conditional_entry_replacement ::= "if" condition "," entry_modified
+
+/* Both placements modify the same entry event. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind_2, amount:$counter_amount})}}]} */
+entry_two_counter_kinds ::= "with" value counter_kind "counters" "and" counter_amount counter_kind "counter" "on" "it"
+
+/* The returned creature is the web-slinging payment, so this amount is
+   available only inside the matching payment condition. */
+/* @sem Condition::ObjectMatches{object:$self_explicit_ref, filter:State(CostPaid(WebSlinging))} */
+entry_web_payment_condition ::= self_explicit_ref "was" "cast" "using" "web-slinging"
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(Source)}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Earlier{what:Webslung, measure:Of(ManaValue)}})}}]}}) */
+entry_web_paid_replacement ::= "he" "enters" "with" "X" counter_kind "counters" "on" "him" "," "where" "X" "is" "the" "mana" "value" "of" "the" "returned" "creature" "."
+
+/* @sem Ability::Conditional{condition:$entry_web_payment_condition, then:[$entry_web_paid_replacement]} */
+conditional_web_paid_entry ::= "if" entry_web_payment_condition "," entry_web_paid_replacement

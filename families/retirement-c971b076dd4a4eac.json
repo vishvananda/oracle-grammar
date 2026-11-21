@@ -1,0 +1,822 @@
+{
+  "family": "retirement-7cbfb7f4b27cec31",
+  "cases": [
+    {
+      "name": "Prototype X-8",
+      "text": "This spell costs {2} less to cast for each creature card in your graveyard.\nWhenever another creature you control enters, if you cast it, sacrifice it. If you do, conjure a duplicate of it onto the battlefield. The duplicate perpetually becomes a Robot artifact in addition to its other types.",
+      "types": [
+        "Artifact",
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "ReduceCost": [
+              {
+                "color": null,
+                "amount": {
+                  "kind": "Multiply",
+                  "args": [
+                    {
+                      "kind": "Constant",
+                      "args": 2
+                    },
+                    {
+                      "kind": "CountObjects",
+                      "args": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Players": {
+                              "zone": "Graveyard",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          },
+                          "kind": "Card",
+                          "filter": {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "EventSubject"
+                },
+                "filter": {
+                  "kind": "Cast",
+                  "args": {
+                    "by": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "from": null
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Sacrifice": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          ]
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Conjure",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "card": {
+                                  "Duplicate": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "EventSubject"
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "owner": null,
+                                "destination": {
+                                  "Battlefield": {
+                                    "controller": null,
+                                    "tapped": false,
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "CreatePerpetualEffect",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "CreatureTypes",
+                                    "args": {
+                                      "mode": "Add",
+                                      "types": {
+                                        "Listed": [
+                                          "Robot"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "kind": "AddCardType",
+                                    "args": "Artifact"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Duplicate requires an antecedent",
+      "text": "The duplicate perpetually becomes a Robot artifact in addition to its other types.",
+      "reject": true
+    },
+    {
+      "name": "Duplicate cannot refer to a missing producer",
+      "text": "The duplicate perpetually becomes a Goblin artifact in addition to its other types.",
+      "reject": true
+    },
+    {
+      "name": "Conjured duplicate cannot be its own copy operand",
+      "text": "Conjure a duplicate of the duplicate onto the battlefield. The duplicate perpetually becomes a Robot artifact in addition to its other types.",
+      "reject": true
+    },
+    {
+      "name": "Prototype X-8",
+      "text": "This spell costs {2} less to cast for each creature card in your graveyard.\nWhenever another creature you control enters, if you cast it, sacrifice it. If you do, conjure a duplicate of it onto the battlefield. The duplicate perpetually becomes a Goblin artifact in addition to its other types.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Artifact",
+          "Creature"
+        ],
+        "subtypes": [
+          "Robot",
+          "Octopus"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 8
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          8,
+          8
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "ReduceCost": [
+              {
+                "color": null,
+                "amount": {
+                  "kind": "Multiply",
+                  "args": [
+                    {
+                      "kind": "Constant",
+                      "args": 2
+                    },
+                    {
+                      "kind": "CountObjects",
+                      "args": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Players": {
+                              "zone": "Graveyard",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          },
+                          "kind": "Card",
+                          "filter": {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "EventSubject"
+                },
+                "filter": {
+                  "kind": "Cast",
+                  "args": {
+                    "by": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "from": null
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Sacrifice": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          ]
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Conjure",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "card": {
+                                  "Duplicate": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "EventSubject"
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "owner": null,
+                                "destination": {
+                                  "Battlefield": {
+                                    "controller": null,
+                                    "tapped": false,
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "CreatePerpetualEffect",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "CreatureTypes",
+                                    "args": {
+                                      "mode": "Add",
+                                      "types": {
+                                        "Listed": [
+                                          "Goblin"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "kind": "AddCardType",
+                                    "args": "Artifact"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Prototype X-8",
+      "text": "This spell costs {3} less to cast for each creature card in your graveyard.\nWhenever another creature you control enters, if you cast it, sacrifice it. If you do, conjure a duplicate of it onto the battlefield. The duplicate perpetually becomes a Robot artifact in addition to its other types.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Artifact",
+          "Creature"
+        ],
+        "subtypes": [
+          "Robot",
+          "Octopus"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 8
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          8,
+          8
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "ReduceCost": [
+              {
+                "color": null,
+                "amount": {
+                  "kind": "Multiply",
+                  "args": [
+                    {
+                      "kind": "Constant",
+                      "args": 3
+                    },
+                    {
+                      "kind": "CountObjects",
+                      "args": {
+                        "kind": "Zone",
+                        "args": {
+                          "scope": {
+                            "Players": {
+                              "zone": "Graveyard",
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          },
+                          "kind": "Card",
+                          "filter": {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "EventSubject"
+                },
+                "filter": {
+                  "kind": "Cast",
+                  "args": {
+                    "by": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    },
+                    "from": null
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Sacrifice": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          ]
+                        },
+                        "optional": false
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Conjure",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "card": {
+                                  "Duplicate": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "EventSubject"
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "owner": null,
+                                "destination": {
+                                  "Battlefield": {
+                                    "controller": null,
+                                    "tapped": false,
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "CreatePerpetualEffect",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "CreatureTypes",
+                                    "args": {
+                                      "mode": "Add",
+                                      "types": {
+                                        "Listed": [
+                                          "Robot"
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  {
+                                    "kind": "AddCardType",
+                                    "args": "Artifact"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
