@@ -2,7 +2,7 @@
    closed productions record that grammatical fact; no punctuation is inserted
    by the tokenizer and an unquoted program still needs its final period. */
 /* A leading time is a program only inside an already announced ability. */
-program_sentence ::= program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage
+program_sentence ::= program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast
 
 /* This limits a successful performance, not the number of triggers. The
    offer owns the complete coordinated program. Declining it or failing a
@@ -182,7 +182,7 @@ clause_continuous_grant_quoted ::= duration "," affected ("gains" | "gain") clos
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[...$change_pump, ...$closed_grants], duration:$duration, evaluation:Snapshot}}] */
 clause_continuous_pump_grant_quoted ::= duration "," affected change_pump "and" ("gains" | "gain") closed_grants
 
-closed_grants ::= closed_player_rule_pair | closed_activation_pair | closed_grant_word_ward | closed_grant_ability | closed_grant_keyword_prefix | closed_grant_exhaust | closed_grant_pair
+closed_grants ::= closed_player_rule_pair | closed_activation_pair | closed_grant_word_ward | closed_grant_ability | closed_grant_keyword_prefix | closed_grant_exhaust | closed_grant_pair | closed_grant_keyword_comma_and | closed_grant_keyword_comma
 /* @sem Change::[GrantAbility($token_quoted_sentence)] */
 closed_grant_ability ::= token_quoted_sentence
 /* @sem Change::[$grant_keyword, ...$closed_grants] */
@@ -191,7 +191,7 @@ closed_grant_keyword_prefix ::= grant_keyword "and" closed_grants
 /* The ability's own closing period also ends this perpetual grant. Scalar
    references retain the current moved/selected object; closed_grants resets
    the holder. Private graveyard cards use the pinned AnyZone/AddAbility form. */
-clause_perpetual_grant_quoted ::= perpetual_graveyard_copy_grant | perpetual_random_event_hand_grant | perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant | perpetual_hand_capped_grant
+clause_perpetual_grant_quoted ::= perpetual_graveyard_copy_grant | perpetual_random_event_hand_grant | perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant | perpetual_hand_capped_grant | perpetual_defending_hand_grant
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$perpetual_quote_scalar, changes:$closed_grants}}] */
 perpetual_quote_scalar_grant ::= perpetual_quote_scalar "perpetually" ("gains" | "gain") closed_grants
 /* @sem ObjectSet::One($perpetual_quote_reference) */
@@ -424,3 +424,19 @@ perpetual_hand_capped_grant ::= perpetual_hand_capped_population "perpetually" "
 
 /* @sem ObjectSet::Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$adjective_nontype, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}])}) */
 perpetual_hand_capped_population ::= adjective_nontype "cards" "in" "your" "hand" "with" "mana" "value" value "or" "less"
+
+/* The receipt and its destination are proved by the adjacent exile producer.
+   The granted permission belongs to each exiled card, not the original source. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:EffectOn{subject:Objects(Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([InSet(Transition{result:@prior, phase:After}), $filter_phrase])})), effects:[Term{family:ExiledCardEffect, form:AddAbility, operands:[Ability(Scoped{zones:[Exile], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Source), from:Exile, action:CastSpell, filter:Any})]})})]}]}}]} */
+program_sentence_exile_grant_cast ::= exile_top_cards_of_your_library "." filter_phrase "cards" "exiled" "this" "way" "gain" '"' "you" "may" "cast" "this" "card" "from" "exile" "as" "long" "as" condition "." '"'
+
+/* The defending player belongs to the attack event, while the quoted ability has its own holder. */
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Hand, players:One(DefendingPlayerOf(EventSubject))}, kind:Card, filter:$adjective_nontype}), changes:$closed_grants}}] */
+perpetual_defending_hand_grant ::= "each" adjective_nontype "card" "in" "defending" "player's" "hand" "perpetually" "gains" closed_grants
+
+/* Comma-separated keyword grants continue into a final quoted ability. */
+/* @sem Change::[$grant_keyword, ...$closed_grants] */
+closed_grant_keyword_comma ::= grant_keyword "," closed_grants
+
+/* @sem Change::[$grant_keyword, ...$closed_grants] */
+closed_grant_keyword_comma_and ::= grant_keyword "," "and" closed_grants

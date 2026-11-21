@@ -12,7 +12,7 @@ event_self_dies ::= event_self "dies"
 /* @sem EventSpec::Object{event:LeavesBattlefield, objects:$event_self} */
 event_self_leaves ::= event_self "leaves" "the" "battlefield"
 
-event_object ::= event_legendary_with_counters | event_self | event_a | event_another | event_owned | event_attached | event_target | event_linked_battlefield_creature | event_above_base_controlled
+event_object ::= event_legendary_with_counters | event_self | event_a | event_another | event_owned | event_attached | event_target | event_linked_battlefield_creature | event_above_base_controlled | event_controlled_subtype
 
 /* A recalled singular object keeps its identity in face-up and source-damage
    events, including delayed triggers about a previously named object. */
@@ -4843,3 +4843,44 @@ line_colored_creature_or_spell_damage ::= "whenever" "a" adjective_color "creatu
 /* The same source is the event subject and the ability’s sole target. */
 /* @sem EventSpec::BecomesTarget{objects:$event_self, kind:Ability, by:Term{family:Abilities, form:TargetsOnlySinglePermanent, operands:[Object(Source)]}} */
 event_ability_targets_only_source ::= event_self "becomes" "the" "target" "of" "an" "ability" "that" "targets" "only" "it"
+
+/* The quoted trigger is scoped to its newly granted ability holder. */
+/* @sem Operand::Term{family:PerpetualEffect, form:AddAbility, operands:[Ability(@scope(Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$program}))]} */
+perpetual_granted_trigger ::= "gains" '"' "at" turn_event "," program "." '"'
+
+/* Independent event alternatives retain their event identities. */
+/* @prefer always */
+/* @sem EventSpec::AnyOf([$event_when, $graveyard_card_departure]) */
+event_when_and_graveyard_departure ::= event_when "and" "whenever" graveyard_card_departure
+
+/* @sem EventSpec::Object{event:LeavesGraveyard, objects:AllOf([$graveyard_departure_filter, InZone(Players{zone:Graveyard, players:One(AbilityController)})])} */
+graveyard_card_departure ::= "a" graveyard_departure_filter "card" "leaves" "your" "graveyard"
+
+graveyard_departure_filter ::= noun_land | noun_creature | non_land | non_creature | non_artifact | non_enchantment | non_planeswalker
+
+/* The damaged creature is the recipient of this particular damage event. */
+/* @sem Ability::Triggered{event:Damage{source_kind:Permanent, sources:$event_object, recipients:Objects(CardType(Creature)), kind:Combat, grouping:SourceRecipient, subject:Source}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Damage(Recipient)), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}} */
+combat_creature_recipient_exile_trigger ::= "whenever" event_object "deals" "combat" "damage" "to" "a" "creature" "," "exile" "that" "creature" "."
+
+/* A singular controlled subtype retains the attacker as event subject. */
+/* @sem ObjectFilter::AllOf([$subtype, ControlledBy(One(AbilityController))]) */
+event_controlled_subtype ::= "a" subtype "you" "control"
+
+/* An explicit exiled source supplies the scope; the counter condition and
+   resolving program remain independent operands. */
+/* @sem Ability::Scoped{zones:[Exile], ability:@scope(Ability::Triggered{event:$turn_event, intervening_if:$exiled_source_counter_condition, limits:TriggerLimits{}, announcement:@announcement, body:$exiled_source_counter_program})} */
+exiled_source_counter_turn_trigger ::= "at" turn_event "," "if" exiled_source_counter_condition "," exiled_source_counter_program "."
+
+/* @sem Condition::ObjectMatches{object:Source, filter:Counters{kind:$counter_kind, comparison:Greater, value:Constant(0)}} */
+exiled_source_counter_condition ::= "this" "card" "is" "exiled" "with" "a" counter_kind "counter" "on" "it"
+
+/* The state carries the controlling player independently of the holder's owner. */
+/* @sem EventSpec::StateWithPlayer{condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([SameObject(Source), ControlledBy(OthersThan(OwnerOf(Source)))])}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, player:ControllerOf(Source)} */
+event_nonowner_controls_holder ::= "when" "a" "player" "other" "than" "this" "creature's" "owner" "controls" "it"
+
+/* Compose a player-bearing event with a dependent payment program. */
+/* @sem Ability::Triggered{event:$event_nonowner_controls_holder, limits:TriggerLimits{}, announcement:@announcement, body:$event_player_sacrifice_program} */
+triggered_event_player_sacrifice ::= event_nonowner_controls_holder "," event_player_sacrifice_program "."
+
+/* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$draw_counter_damage_receipt_program} */
+triggered_turn_draw_counter_damage ::= "at" turn_event "," draw_counter_damage_receipt_program

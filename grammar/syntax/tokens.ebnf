@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with
+token_recipe ::= token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with
 
 token_recipe_base ::= token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -1070,3 +1070,32 @@ token_choice_tail ::= token_choice_last | token_choice_more
 
 /* @sem Instruction::[ChooseOne{decider:AbilityController, options:[$token_choice_option, ...$token_choice_tail]}] */
 clause_create_token_choice ::= "create" "your" "choice" "of" token_choice_option "," token_choice_tail
+
+/* A single token already on the battlefield has its own quoted ability. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:@token_abilities($singular_counted_token_recipe, $before_game_quoted_abilities)} */
+before_game_single_token ::= "a" singular_counted_token_recipe "on" "the" "battlefield" "." "it" "has" before_game_quoted_abilities
+
+/* @sem Ability::[$token_quoted] */
+before_game_quoted_abilities ::= token_quoted
+
+/* @sem Ability::BeforeGame{when:GameBegins, body:List([Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$before_game_single_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}])} */
+before_game_with_token ::= "you" "begin" "the" "game" "with" before_game_single_token
+
+/* The shared trailing definition supplies both token characteristics. Limit the
+   history expression to a producer-independent life total for this turn. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$value_life_gained_turn, $value_life_gained_turn]}) */
+token_recipe_equal_history ::= "X" "/" "X" token_colors token_subtypes token_types "tokens" "," "where" "X" "is" value_life_gained_turn
+
+/* The cost and consumer are one phrase: the measured object is the single
+   creature sacrificed as component zero of this casting cost. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))}]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:ObjectProperty{object:Query{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Inputs, phase:Before}, index:0}, property:$casting_sacrifice_stat, information:CurrentOrLastKnown}, words:CreatingEffect, recipe:$casting_sacrifice_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]}}] */
+line_casting_sacrifice_tokens ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "sacrifice" "a" "creature" "." NEWLINE "create" "X" casting_sacrifice_token_recipe "where" "X" "is" "the" "sacrificed" "creature's" casting_sacrifice_stat "."
+
+casting_sacrifice_stat ::= stat_power | stat_toughness
+
+/* The quotation's comma ends the triggered ability before the where clause. */
+/* @sem TokenRecipe::@token_abilities($token_recipe_base, $casting_sacrifice_token_ability) */
+casting_sacrifice_token_recipe ::= token_recipe_base "with" casting_sacrifice_token_ability
+
+/* @sem Ability::[@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program})] */
+casting_sacrifice_token_ability ::= '"' event_clause "," program "," '"'

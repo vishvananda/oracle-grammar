@@ -225,3 +225,13 @@ activation_event_for_that_ability_copy ::= event_clause_you_activate_targeting_a
 
 /* @sem Ability::Triggered{event:$activation_event_for_that_ability_copy, limits:TriggerLimits{}, announcement:@announcement, body:$program_copy_targeting_ability} */
 triggered_activation_copy_that_ability ::= activation_event_for_that_ability_copy "," program_copy_targeting_ability
+
+/* The singular exile produces the card copied by the next instruction. */
+/* @sem Operation::Move{objects:One($target_card_arrived_this_turn), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_arrived_card ::= "exile" target_card_arrived_this_turn
+
+/* @sem Instruction::Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:One(Result{result:@prior, phase:After, index:0}), times:Constant(1)}} */
+copy_singular_exile_result ::= "copy" "it"
+
+/* @sem Instruction::[Effect{result:@next, operation:$exile_arrived_card}, $copy_singular_exile_result, $copy_cast] */
+clause_exile_arrived_copy_cast ::= exile_arrived_card "." copy_singular_exile_result "." copy_cast

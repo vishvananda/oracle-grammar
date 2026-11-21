@@ -2690,7 +2690,7 @@ controlled_exile_counter_card ::= "from" "exile" "with" "a" counter_kind "counte
 /* @sem Operation::PlayWith{actor:One(AbilityController), action:Either, cards:$controlled_exile_counter_card, count:Exactly($card_count_one), terms:_{cost:Normal, spend_as:AnyColor}} */
 play_controlled_exile_counter_card ::= "play" card_count_one controlled_exile_counter_card "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "it"
 
-once_turn_play_operation ::= play_free_linked_land_or_spell | play_controlled_exile_counter_card
+once_turn_play_operation ::= play_free_linked_land_or_spell | play_controlled_exile_counter_card | play_graveyard_spell_exile_replacement | play_graveyard_consonant_spell_exile_replacement
 
 /* An opponent's unchosen graveyard selection can be repeated after a payment. */
 /* @sem Instruction::Repeatable{instructions:[$graveyard_repeat_choice, $graveyard_repeat_payment, $graveyard_repeat_again]} */
@@ -8891,3 +8891,156 @@ graveyard_cast_an_filter ::= filter_instant_or_sorcery | spell_instant | noun_ar
 graveyard_cast_choice_a ::= "a" graveyard_cast_a_filter
 
 graveyard_cast_a_filter ::= spell_sorcery | noun_creature
+
+/* The replacement refers to the spells cast by this same permission. */
+/* @sem Operation::PlayWith{actor:One(AbilityController), action:CastSpell, cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$graveyard_spell_pair}), count:UpTo(Constant(1)), terms:_{cost:Normal, into_exile:true}} */
+play_graveyard_spell_exile_replacement ::= "cast" "an" graveyard_spell_pair "spell" "from" "your" "graveyard" "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead"
+
+/* @sem ObjectFilter::AnyOf([$graveyard_vowel_spell_kind, $graveyard_pair_spell_kind]) */
+graveyard_spell_pair ::= graveyard_vowel_spell_kind "or" graveyard_pair_spell_kind
+
+graveyard_vowel_spell_kind ::= spell_instant | noun_artifact | noun_enchantment
+
+graveyard_pair_spell_kind ::= spell_instant | spell_sorcery | noun_artifact | noun_creature | noun_enchantment
+
+/* @sem Operation::PlayWith{actor:One(AbilityController), action:CastSpell, cards:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$graveyard_consonant_spell_pair}), count:UpTo(Constant(1)), terms:_{cost:Normal, into_exile:true}} */
+play_graveyard_consonant_spell_exile_replacement ::= "cast" "a" graveyard_consonant_spell_pair "spell" "from" "your" "graveyard" "." "if" "a" "spell" "cast" "this" "way" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead"
+
+/* @sem ObjectFilter::AnyOf([$graveyard_consonant_spell_kind, $graveyard_pair_spell_kind]) */
+graveyard_consonant_spell_pair ::= graveyard_consonant_spell_kind "or" graveyard_pair_spell_kind
+
+graveyard_consonant_spell_kind ::= spell_sorcery | noun_creature
+
+/* Perpetual modifiers and a granted ability compose in the same effect. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$perpetual_modifier_grant}]}} */
+spell_perpetual_modifier_grant ::= perpetual_modifier_grant
+
+/* @sem Operation::EffectOn{subject:Objects($affected), effects:[$perpetual_pt_operand, $perpetual_granted_trigger]} */
+perpetual_modifier_grant ::= affected "perpetually" perpetual_pt_operand "and" perpetual_granted_trigger
+
+/* @sem Operand::Term{family:PerpetualEffect, form:AdjustPT, operands:[$perpetual_integer_operand, $perpetual_integer_operand_2]} */
+perpetual_pt_operand ::= "gets" perpetual_integer_operand "/" perpetual_integer_operand
+
+perpetual_integer_operand ::= perpetual_integer_minus_one | perpetual_integer_minus_two | perpetual_integer_minus_three | perpetual_integer_plus_one | perpetual_integer_plus_two | perpetual_integer_plus_three
+
+/* @sem Operand::Integer(-1) */
+perpetual_integer_minus_one ::= "-" "1"
+
+/* @sem Operand::Integer(-2) */
+perpetual_integer_minus_two ::= "-" "2"
+
+/* @sem Operand::Integer(-3) */
+perpetual_integer_minus_three ::= "-" "3"
+
+/* @sem Operand::Integer(1) */
+perpetual_integer_plus_one ::= "+" "1"
+
+/* @sem Operand::Integer(2) */
+perpetual_integer_plus_two ::= "+" "2"
+
+/* @sem Operand::Integer(3) */
+perpetual_integer_plus_three ::= "+" "3"
+
+/* This-spell cast triggers copy their event subject. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventSubject, times:Constant(1), targets:Same}}]} */
+cast_subject_copy_once ::= "copy" "this" "spell" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventSubject, times:$number, targets:Same}}]} */
+cast_subject_copy_times ::= "copy" "this" "spell" number "times" "."
+
+cast_subject_trigger_body ::= cast_subject_copy_once | cast_subject_copy_times | program_sentence
+
+/* The selection and face-down arrival are one action: the following sentence
+   describes those arrivals, not a separate continuous effect. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$put_hand_face_down}]} */
+program_sentence_face_down_hand ::= put_hand_face_down "."
+
+/* @sem Operation::WithSelections{steps:[_{binding:@selection_id(0), chooser:Players(One(AbilityController)), objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$face_down_hand_filter}, count:AnyNumber, constraints:[]}], action:Move{objects:Prepared(@selection_id(0)), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[FaceDownAs(_{power:$number_digits, toughness:$number_digits_2, artifact:true})]}}, qualifiers:[]}} */
+put_hand_face_down ::= "put" "any" "number" "of" face_down_hand_filter "from" "your" "hand" "onto" "the" "battlefield" "face" "down" "." "they're" number_digits "/" number_digits "artifact" "creatures"
+
+face_down_hand_filter ::= face_down_any_cards | face_down_filtered_cards
+
+/* @sem ObjectFilter::Any */
+face_down_any_cards ::= "cards"
+
+/* @sem $card_filter */
+face_down_filtered_cards ::= card_filter "cards"
+
+/* The optional actions share the loop's player as actor, owner, and decider. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Optional{decider:Bound(0), body:Program{instructions:[Effect{result:@next, operation:$bound_discard_hand}, Effect{result:@next, operation:$bound_draw_action}]}}]}}] */
+clause_player_optional_hand_exchange ::= players_singular "may" bound_discard_hand "and" bound_draw_action
+
+/* @sem Operation::Discard{players:One(Bound(0)), amount:CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), random:false} */
+bound_discard_hand ::= "discard" "their" "hand"
+
+/* @sem Operation::Draw{players:One(Bound(0)), amount:$bound_draw_count} */
+bound_draw_action ::= "draw" bound_draw_count
+
+bound_draw_count ::= card_count | bound_commander_draw_count
+
+/* @sem Expr::Aggregate{objects:Union([Zone{scope:Shared(Command), kind:Card, filter:AllOf([State(Commander), OwnedBy(One(Bound(0)))])}, Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([State(Commander), OwnedBy(One(Bound(0)))])}]), property:$stat, aggregation:Maximum} */
+bound_commander_draw_count ::= "cards" "equal" "to" "the" "greatest" stat "of" "a" "commander" "they" "own" "on" "the" "battlefield" "or" "in" "the" "command" "zone"
+
+/* Keep the exile producer in the same span as both references to its arrivals.
+   The object population and the number returned remain independent operands. */
+/* @sem Instruction::[Effect{result:@next, operation:$exile_objects}, Effect{result:@next, operation:CreateTrigger{event:Turn{point:UpkeepBegins, players:All}, duration:WhileAnyExiled(Transition{result:@prior, phase:After}), announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:EventSubject, objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([InSet(Transition{result:@back(3), phase:After}), OwnedBy(One(EventSubject))])}), count:AsManyAsCan($number)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(EventSubject), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+instructions_exile_recurring_owned_return ::= exile_objects "." "for" "as" "long" "as" "any" "of" "those" "cards" "remain" "exiled" "," "at" "the" "beginning" "of" "each" "player's" "upkeep" "," "that" "player" "returns" number "of" "the" "exiled" "cards" "they" "own" "to" "the" "battlefield"
+
+/* The player selects from both zones as one pool, with a count defined by counters. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:WithSelections{steps:[_{binding:@selection_id(0), objects:$controlled_permanents_and_hand_cards, chooser:Players(One(Bound(0))), count:Exactly($exile_counter_count)}], action:Move{objects:Prepared(@selection_id(0)), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}}]}}] */
+clause_each_player_exile_counter_count ::= players_singular "exiles" "X" controlled_permanents_and_hand_cards "," "where" "X" "is" exile_counter_count
+
+/* @sem Expr::CountCounters{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown} */
+exile_counter_count ::= "the" "number" "of" counter_kind "counters" "on" affected
+
+/* Counter the spell identified by the current antecedent. */
+/* @sem Operation::Counter{objects:One($it_ordinary_pronoun), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), destination_when:None} */
+counter_anaphoric_action ::= "counter" it_ordinary_pronoun
+
+/* This payment clause keeps the payer and the countered antecedent separate. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:$counter_anaphoric_action}]}, otherwise:Program{}}]} */
+source_cast_counter_unless_sentence ::= counter_anaphoric_action "unless" "you" payment "."
+
+/* An unspecified opponent is the recipient of this draw action. */
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(OneOf(OpponentsOf(AbilityController))), amount:$card_count}}] */
+clause_one_opponent_draws ::= "an" "opponent" "draws" card_count
+
+/* The hand owner and the compared spell remain independent operands. */
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One(ControllerOf($spell_possessive))}, kind:Card, filter:Any}}}, Effect{result:@next, operation:DiscardObjects{objects:Zone{scope:Players{zone:Hand, players:One(ControllerOf($spell_possessive))}, kind:Card, filter:$spliced_name_filter}}}] */
+clause_reveal_hand_spliced_names ::= spell_possessive "controller" "reveals" "their" "hand" "," "then" "discards" "each" "card" spliced_name_filter
+
+/* @sem ObjectFilter::SharesNameWithAny(SplicedOnto($spliced_spell_ref)) */
+spliced_name_filter ::= "with" "the" "same" "name" "as" "a" "card" "spliced" "onto" spliced_spell_ref
+
+/* @sem ObjectRef::@qualified_object(ObjectKind::Spell, ObjectFilter::Any) */
+spliced_spell_ref ::= "that" "spell"
+
+/* The pile partition consumes the preceding exile movement's arrival receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:SeparatePiles{separator:OneOf(OpponentsOf(AbilityController)), chooser:AbilityController, objects:Transition{result:@prior, phase:After}}}, Effect{result:@next, operation:Move{objects:InZone{objects:Selected(@prior), zone:Exile}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Unselected(@marked), zone:Exile}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+exiled_cards_opponent_piles ::= "an" "opponent" "separates" "those" "cards" "into" "two" "piles" "." "put" "all" "cards" "from" "the" "pile" "of" "your" "choice" "onto" "the" "battlefield" "under" "your" "control" "and" "the" "rest" "into" "their" "owners'" "graveyards"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$exile_objects}, ...$exiled_cards_opponent_piles]}} */
+spell_exile_opponent_piles ::= exile_objects "." exiled_cards_opponent_piles "."
+
+/* A resolving action precedes a separate test of the named counter kind. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$operation}, If{condition:$source_no_more_counters, then:$exiled_source_graveyard_followup, otherwise:Program{}}]} */
+exiled_source_counter_program ::= operation "." "if" source_no_more_counters "," exiled_source_graveyard_followup
+
+/* @sem Condition::ObjectMatches{object:Source, filter:Counters{kind:$counter_kind, comparison:Equal, value:Constant(0)}} */
+source_no_more_counters ::= "there" "are" "no" "more" counter_kind "counters" "on" "it"
+
+/* In the exile-scoped source ability, the card returns to its owner's graveyard. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Source), zone:Exile}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, ...$clause_players_return_all]} */
+exiled_source_graveyard_followup ::= "put" "it" "into" "your" "graveyard" "and" clause_players_return_all
+
+/* The player named by the event pays the sacrifice; the follow-up reads the
+   payment result and retains its own operands. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:EventSubject, cost:Cost{parts:[Sacrifice{objects:One(Source)}]}, optional:false}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:$event_player_damage}]}, otherwise:Program{}}]} */
+event_player_sacrifice_program ::= "that" "player" "sacrifices" "it" "." "if" "the" "player" "does" "," event_player_damage
+
+/* @sem Operation::DealDamage{source:$self_explicit_ref, recipients:Players(One(EventSubject)), amount:$number, preventable:true} */
+event_player_damage ::= self_explicit_ref "deals" number "damage" "to" "the" "player"
+
+/* The damage count is the receipt of this specific preceding draw. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Draw{players:One(EventSubject), amount:CountCounters{recipients:Objects(One($self_ref_holder)), kind:$counter_kind, information:CurrentOrLastKnown}}}, Effect{result:@next, operation:DealDamage{source:$self_ref_holder_2, recipients:Players(One(EventSubject)), amount:Performed(@prior), preventable:true}}]} */
+draw_counter_damage_receipt_program ::= "that" "player" "draws" "an" "additional" "card" "for" "each" counter_kind "counter" "on" self_ref_holder "," "then" self_ref_holder "deals" "damage" "to" "the" "player" "equal" "to" "the" "number" "of" "cards" "they" "drew" "this" "way" "."
