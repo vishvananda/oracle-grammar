@@ -100,7 +100,7 @@ current_card_ref ::= "that" "card"
 /* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
 linked_exiled_card ::= "the" "exiled" "card"
 
-target_card ::= target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard | target_card_exile_counter
+target_card ::= target_card_opponent_library_arrival | target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard | target_card_exile_counter
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
@@ -3197,3 +3197,22 @@ choice_permanent ::= filter_phrase
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ChosenFilter)} */
 all_of_that_type ::= "all" filter_plural "of" "that" "type"
+
+/* The card target retains its opponent graveyard and its library arrival origin. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(PlayerRef::AbilityController)}), ObjectFilter::ArrivedThisTurn{from:Library})}), index:0} */
+target_card_opponent_library_arrival ::= "target" card_filter "card" "in" "an" "opponent's" "graveyard" "that" "was" "put" "there" "from" "their" "library" "this" "turn"
+
+/* The hand population and its chosen-type refinement are independent of the change. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter} */
+perpetual_hand_cards ::= card_filter "cards" "in" "your" "hand"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:@and($card_filter, ObjectFilter::Chosen(CreatureType))} */
+chosen_type_hand_cards ::= card_filter "cards" "of" "that" "type" "in" "your" "hand"
+
+/* This producer always taps creatures, so its later creature count is exact. */
+/* @sem ObjectFilter::AllOf([Not(Tapped), $adjective_color, CardType(Creature)]) */
+tapped_creature_population ::= "untapped" adjective_color "creatures"
+
+/* The prior choice is the union of the players' selections. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, InSet(Unselected(@prior))])} */
+unselected_by_any_player_population ::= "all" filter_plural "that" "weren't" "chosen" "this" "way" "by" "any" "player"

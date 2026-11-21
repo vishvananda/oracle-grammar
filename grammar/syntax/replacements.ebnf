@@ -1213,7 +1213,7 @@ replacement_leave_loyalty ::= "if" "damage" "dealt" "to" "a" noun "you" "control
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:$entry_receipt_program}) */
 entry_receipt_ability ::= "as" self_ref "enters" "," entry_receipt_program "."
 
-entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program | entry_draft_exile_program | entry_removed_counter_doubled_program
+entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program | entry_draft_exile_program | entry_removed_counter_doubled_program | entry_optional_exiled_payment_counters
 
 /* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:$affected, choose:AnyNumber}) */
 entry_sacrifice_any ::= "sacrifice" "any" "number" "of" affected
@@ -2680,3 +2680,13 @@ entry_web_paid_replacement ::= "he" "enters" "with" "X" counter_kind "counters" 
 
 /* @sem Ability::Conditional{condition:$entry_web_payment_condition, then:[$entry_web_paid_replacement]} */
 conditional_web_paid_entry ::= "if" entry_web_payment_condition "," entry_web_paid_replacement
+
+/* The entry payment and its conditional change share the same payment receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:$entry_exiled_card_payment}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$entry_creature_counter_change}]}, otherwise:Program{}}]} */
+entry_optional_exiled_payment_counters ::= entry_exiled_card_payment "." "if" "you" "do" "," entry_creature_counter_change
+
+/* @sem Operation::PayCost{player:AbilityController, cost:Cost{parts:[Repeated{part:ExiledToGraveyard(Zone{scope:Shared(Exile), kind:Card, filter:OwnedBy(OpponentsOf(AbilityController))}), times:@plural_amount($value)}]}, optional:true} */
+entry_exiled_card_payment ::= "you" "may" "put" value "cards" "your" "opponents" "own" "from" "exile" "into" "their" "owners'" "graveyards"
+
+/* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:@plural_amount($value)})} */
+entry_creature_counter_change ::= "this" "creature" "enters" "with" value counter_kind "counters" "on" "it"

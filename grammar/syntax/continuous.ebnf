@@ -639,7 +639,7 @@ copy_become_indefinite_except ::= affected "become" "a" "copy" "of" copy_model_r
 
 /* A proved noun view comes from the current announcement's operands.
    Plain target/query references still use the ordinary reference grammar. */
-copy_model_ref ::= copy_model_qualified | object_ref
+copy_model_ref ::= linked_exiled_card | copy_model_qualified | object_ref
 /* @prefer symbol(qualified_object) */
 copy_model_qualified ::= that_noun
 
@@ -5475,8 +5475,8 @@ history_attacked_players ::= players_singular "who" bound_attack_with_one
 bound_attack_with_one ::= "attacked" "with" counter_a filter_phrase "this" "turn"
 
 /* Prefix duration composes with the same copy model and exceptions. */
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:$copy_land_with_keyword}], duration:$duration, evaluation:Snapshot} */
-copy_effect_prefix_except ::= duration "," affected "becomes" "a" "copy" "of" copy_model_ref "," "except" copy_land_with_keyword
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_model_ref)), changes:[CopyOf{object:$copy_model_ref, exceptions:$copy_prefix_exceptions}], duration:$duration, evaluation:Snapshot} */
+copy_effect_prefix_except ::= duration "," affected "becomes" "a" "copy" "of" copy_model_ref "," "except" copy_prefix_exceptions
 
 /* Land is a card type and the added keyword belongs to the copied object. */
 /* @sem Vec<CopyException>::[$copy_add_land, $copy_keyword_ability] */
@@ -6787,3 +6787,16 @@ instructions_count_counter_comparison ::= count_counter_population "." counter_c
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, Property{property:$stat, test:NumberTest::Compare{comparison:$stat_comparison, value:BoundValue(@prior)}}])}), changes:$static_changes, duration:$this_duration, evaluation:LiveObjects} */
 counter_comparison_effect ::= filter_plural "with" stat stat_comparison "that" "number" static_changes this_duration
+
+copy_prefix_exceptions ::= copy_land_with_keyword | copy_vehicle_artifact_retained
+
+/* @sem Vec<CopyException>::[CopyException::AddArtifactTypes([Vehicle]), CopyException::AddCardTypes([Artifact])] */
+copy_vehicle_artifact_retained ::= "it's" "a" "Vehicle" "artifact" "in" "addition" "to" "its" "other" "types"
+
+/* The attacking population excludes the triggering subject and snapshots at resolution. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(EventSubject)), $noun, AttackingDefender(Players(OpponentsOf(AbilityController)))])}), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}] */
+instructions_other_attacking_pump ::= "each" "other" noun "that's" "attacking" "one" "of" "your" "opponents" "gets" signed "/" signed duration
+
+/* A counter recipient is also the attacker and recipient of the delayed grant. */
+/* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:CreateTrigger{event:Attack{attackers:SameObject(Target{slot:0, index:0}), defenders:Players(One(Holder(Monarch)))}, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:0, index:0})), changes:[GrantKeyword($keyword_name), GrantKeyword($keyword_name_2)], duration:EndOfTurn, evaluation:Snapshot}}]}, announcement:_{}}}] */
+clause_counter_monarch_attack ::= "put" "a" counter_kind "counter" "on" "target" "creature" "." "whenever" "that" "creature" "attacks" "the" "monarch" "this" "turn" "," "it" "gains" keyword_name "and" keyword_name "until" "end" "of" "turn"

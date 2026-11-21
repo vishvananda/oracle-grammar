@@ -208,3 +208,14 @@ copy_cast_copies_free ::= "you" "may" "cast" "the" "copies" "without" "paying" "
 /* A loyalty activation composes the scoped producer and its consumer. */
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$clause_exile_top_copy_selection}} */
 activated_exile_top_copy ::= "[" loyalty "]" ":" clause_exile_top_copy_selection "."
+
+/* The target predicate and the copy payment are independent phrase operands;
+   the unsuccessful branch is shared with the predicate's false branch. */
+/* @sem Instruction::[If{condition:$stack_targets_permanent_or_player, then:Program{instructions:[$copy_stack_payment, If{condition:Not(PaymentChosen(@prior)), then:$program, otherwise:Program{}}]}, otherwise:$program}] */
+instructions_conditional_stack_copy_fallback ::= copy_stack_payment "if" stack_targets_permanent_or_player "," "and" "you" "may" "choose" "new" "targets" "for" "the" "copy" "." "if" "you" "don't" "copy" "a" "spell" "this" "way" "," program
+
+/* @sem Condition::ObjectMatches{object:$object_ref, filter:AnyOf([TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase})), TargetsAny(Players(All))])} */
+stack_targets_permanent_or_player ::= object_ref "targets" "a" filter_phrase "or" "player"
+
+/* @sem Instruction::Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May}}]}}]}}} */
+copy_stack_payment ::= "copy" object_ref
