@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot
+continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -126,7 +126,7 @@ affected_other ::= contextual_other_filter
 /* @sem ObjectFilter::@other_filter(ObjectFilter::@and(ObjectFilter::Not(ObjectFilter::SameObject(@other_reference(ObjectFilter::$filter_plural))), $filter_plural)) */
 contextual_other_filter ::= "other" filter_plural
 
-duration ::= until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep | until_next_end_step | while_you_control | while_on_battlefield | until_player_planeswalks
+duration ::= until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep | until_next_end_step | while_you_control | while_on_battlefield | until_player_planeswalks | while_you_control_and_tapped
 
 /* "For as long as you control this creature": the effect ends when you stop
    controlling that object. */
@@ -6586,3 +6586,50 @@ control_indefinite ::= control_indefinite_player "gains" "control" "of" affected
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($subtype_tokens, $modifier_you_control)}), changes:[$grant_keyword]} */
 static_subtype_token_keyword ::= subtype_tokens modifier_you_control "have" grant_keyword "."
+
+/* Both conditions limit the duration, and each names its own object. */
+/* @sem Duration::Either([WhileControlled{player:AbilityController, object:$object_ref}, WhileMatches{object:$object_ref_2, filter:Tapped}]) */
+while_you_control_and_tapped ::= "for" "as" "long" "as" "you" "control" object_ref "and" object_ref "remains" "tapped"
+
+/* Permission for the next played card of the current filter. */
+/* @sem Instruction::[Effect{result:@next, operation:EffectOn{subject:Players(One(AbilityController)), effects:[Term{family:FuturePlayerEffect, form:NextCardPlayedThisCanCanBePlayedAsThoughItHadFlash, operands:[Filter($noun)]}]}}] */
+clause_next_card_flash ::= "the" "next" noun "card" "you" "play" "this" "turn" "can" "be" "played" "as" "though" "it" "had" "flash"
+
+/* A line break may separate consecutive instructions of the same spell. */
+/* @sem Instruction::[...$clause_next_card_flash, ...$instructions] */
+instructions_next_card_newline ::= clause_next_card_flash "." NEWLINE instructions
+
+/* A timed cost modifier preserves the casting player and the full spell filter. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players($players_singular), changes:[PlayerRule(SpellCost{spells:$timed_spell_filter, modifier:$spell_cost_less})], duration:$duration, evaluation:LiveObjects}}] */
+clause_timed_spell_cost ::= duration "," timed_spell_filter players_singular "casts" "cost" spell_cost_less "to" "cast"
+
+/* @sem ObjectFilter::AnyOf([$spell_adjective, $spell_adjective_2, $filter_phrase]) */
+timed_spell_filter ::= spell_adjective "," spell_adjective "," "and" filter_phrase "spells"
+
+/* A singular optional target is reused for both effects. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_up_to_one)), changes:$change_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_up_to_one)), changes:[Rule(Prohibit(Activate(Any)))], duration:$duration, evaluation:LiveObjects}}] */
+clause_target_pump_prohibit_activation ::= duration "," target_up_to_one change_pump "and" "its" "activated" "abilities" "can't" "be" "activated"
+
+/* The where-definition is shared by both statistics and is evaluated when the
+   temporary effect resolves. Each printed shape has one verb inflection. */
+/* @sem Operation::@where(Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:AnnouncedX, toughness:AnnouncedX}], duration:$duration, evaluation:Snapshot}, $pump_definition) */
+continuous_defined_equal_pump ::= affected "gets" "+" "X" "/" "+" "X" duration "," "where" "X" "is" pump_definition
+
+/* @sem Operation::@where(Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:AnnouncedX, toughness:$value}], duration:$duration, evaluation:Snapshot}, $pump_definition) */
+continuous_defined_power_pump ::= affected "gets" "+" "X" "/" "+" value duration "," "where" "X" "is" pump_definition
+
+pump_definition ::= pump_energy_definition | pump_mana_symbols_definition | pump_stat_difference_definition
+
+/* @sem Expr::PlayerNumber{player:AbilityController, number:Energy} */
+pump_energy_definition ::= "the" "amount" "of" "{" "E" "}" "you" "have"
+
+/* @sem Expr::CountManaSymbols{objects:$affected, colors:[$mana_color_word]} */
+pump_mana_symbols_definition ::= "the" "number" "of" mana_color_word "mana" "symbols" "in" "the" "mana" "costs" "of" affected
+
+/* @sem Expr::Maximum([Subtract([ObjectProperty{object:$pump_stat_possessive, property:$stat, information:CurrentOrLastKnown}, ObjectProperty{object:$pump_stat_possessive, property:$stat_2, information:CurrentOrLastKnown}]), Subtract([ObjectProperty{object:$pump_stat_possessive, property:$stat_2, information:CurrentOrLastKnown}, ObjectProperty{object:$pump_stat_possessive, property:$stat, information:CurrentOrLastKnown}])]) */
+pump_stat_difference_definition ::= "the" "difference" "between" pump_stat_possessive stat "and" stat
+
+pump_stat_possessive ::= it_possessive | pump_its_possessive
+
+/* @sem ObjectRef::@it */
+pump_its_possessive ::= "its"

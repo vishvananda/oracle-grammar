@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana
+object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -287,7 +287,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice
+target_object ::= target_extreme_battlefield | target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -925,7 +925,7 @@ bound_less ::= "less"
 bound_greater ::= "greater"
 
 /* Players. */
-players_singular ::= players_coin_tails | players_empty_hand | players_unqualified_singular | players_voted_same | players_voted_different | players_chosen_extreme_life | players_tapped_for_mana_this_turn | players_controlling_filter | players_event_controller_opponents | players_event_player_opponents | players_controlling_an | players_your_teammates | players_most_controlled | players_enchanted_opponent | players_qualified | players_unqualified
+players_singular ::= players_coin_tails | players_empty_hand | players_unqualified_singular | players_voted_same | players_voted_different | players_chosen_extreme_life | players_tapped_for_mana_this_turn | players_controlling_filter | players_event_controller_opponents | players_event_player_opponents | players_controlling_an | players_your_teammates | players_most_controlled | players_enchanted_opponent | players_qualified | players_unqualified | players_with_counter_threshold
 
 /* A Curse's player: the player this Aura enchants. */
 /* @sem PlayerSet::One(PlayerRef::EnchantedBy(ObjectRef::Source)) */
@@ -949,7 +949,7 @@ players_or_controller ::= "that" "player" "or" "that" "planeswalker's" "controll
 /* @sem PlayerSet::One($player_ref) */
 player_one ::= player_ref
 
-player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner | attacking_player | damage_source_controller | extreme_life_player | extreme_hand_player | that_attacking_player | that_attacking_event_player
+player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner | attacking_player | damage_source_controller | extreme_life_player | extreme_hand_player | that_attacking_player | that_attacking_event_player | target_player_lost_life | event_card_owner
 
 /* "That source's controller": the controller of the event's damage source. */
 /* @sem PlayerRef::ControllerOf(EventSubject) */
@@ -3096,3 +3096,45 @@ token_subtype ::= token_subtype_zombie_folded | subtype
 /* Sentence-initial Zombie folds when lowercase zombie is in the vocabulary. */
 /* @sem ObjectFilter::Subtype(Zombie) */
 token_subtype_zombie_folded ::= "zombie"
+
+/* A target and its comparison population retain independent filters. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($filter_plain, $modifier_extreme_among)}), index:0} */
+target_extreme_battlefield ::= "target" filter_plain modifier_extreme_among
+
+/* A filtered linked population retains the independently printed filter. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, ExiledWith($object_ref)])} */
+linked_exiled_filtered_all ::= "all" filter_phrase "cards" "exiled" "with" object_ref
+
+/* @sem ObjectSet::@exile_followup(InZone{objects:One(Result{result:@prior, phase:After, index:0}), zone:Exile}) */
+prior_exiled_it ::= "it"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:All, each:UpTo($number)}, filter:$adjective_nontype})) */
+per_player_permanent_targets ::= "up" "to" number "target" adjective_nontype "permanent" "that" "player" "controls"
+
+/* A linked population is owned independently of the source anchor. */
+/* @sem ObjectSet::$permission_owned_linked_exile_cards */
+owned_linked_exile_population ::= "all" permission_owned_linked_exile_cards
+
+/* The source-created creature remains the object of the later action. */
+/* @sem ObjectSet::One(MadeHere) */
+linked_battlefield_creature_set ::= "the" "creature" "put" "onto" "the" "battlefield" "with" "this" "enchantment"
+
+/* The target is a card contained in the linked exile population. */
+/* @sem ObjectSet::InZone{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:AllOf([$filter_phrase, InSet(Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)}))])}), index:0}), zone:Exile} */
+target_linked_exile_set_card ::= "target" filter_phrase "card" "exiled" "with" object_ref
+
+/* The threshold restricts the population independently of the subsequent verb. */
+/* @sem PlayerSet::Intersection([$players_unqualified_singular, Matching{binding:0, condition:Compare{left:CountCounters(_{recipients:Players(One(Bound(0))), kind:$counter_kind, information:CurrentOrLastKnown}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}}]) */
+players_with_counter_threshold ::= players_unqualified_singular "who" "has" value "or" "more" counter_kind "counters"
+
+/* The announcement targets only players with a qualifying life-loss event. */
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:LosesLife, players:One(Bound(0))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}}), index:0} */
+target_player_lost_life ::= "target" "player" "who" "lost" "life" "this" "turn"
+
+/* The card mentioned by the event remains distinct from its owner. */
+/* @sem PlayerRef::OwnerOf(EventSubject) */
+event_card_owner ::= "that" "card's" "owner"
+
+/* The threshold is evaluated in the filter's object scope. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($value), filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:@in_filter($value_2)}}, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
+target_up_to_your_graveyard_mana_value ::= "up" "to" value "target" card_filter "card" "with" "mana" "value" "less" "than" "or" "equal" "to" value "from" "your" "graveyard"

@@ -22,9 +22,9 @@ create_copy_each_leading ::= "for" "each" filter_phrase "," "create" "a" "token"
 copy_each_referent ::= "it" | "that" "creature" | "that" "permanent"
 /* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:$leading_count_each, words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
 create_each_named_leading ::= "for" "each" leading_count_each "," "create" ("a" | "an") token_named_recipe "token"
-/* A leading count names present permanents. "This way" counts name a producing
-   instruction, which a sentence boundary can separate from @prior. */
-leading_count_each ::= count_each_vote | count_spells_cast_this_turn | count_attached_to_him | count_controlled_either | count_each_permanent | count_each_other
+/* Receipt counts need a separately proved producer; these counts are live or
+   use the explicitly named object's current-or-last-known counters. */
+leading_count_each ::= count_each_vote | count_spells_cast_this_turn | count_attached_to_him | count_controlled_either | count_each_permanent | count_each_other | count_each_graveyard | count_each_card_graveyard | leading_count_object_counter
 
 /* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:$token_groups_tapped, entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}) */
 create_tapped_third ::= "creates" token_groups_tapped
@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after
+token_group ::= named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after
 
 token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural
 
@@ -284,7 +284,7 @@ tt_enchantment_creature ::= "enchantment" "creature"
 /* @sem CardType::[Land, Creature] */
 tt_land_creature ::= "land" "creature"
 
-token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites | tn_baneslayer_angel | tn_vibranium | tn_walker
+token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites | tn_baneslayer_angel | tn_vibranium | tn_walker | tn_feroz_ban
 
 /* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Blood], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Discard{count:Expr::Constant(1), filter:Any}, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
 tn_blood ::= "Blood"
@@ -429,7 +429,7 @@ token_explicit_legendary ::= token_explicit_legendary_plain | token_explicit_leg
 token_explicit_legendary_plain ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token"
 /* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
 token_explicit_legendary_with ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
-explicit_legendary_name ::= explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami | explicit_token_darkstar | explicit_token_karox | explicit_token_marit_lage | explicit_token_angelo
+explicit_legendary_name ::= explicit_token_mowu | explicit_token_primo | explicit_token_scion_deep | explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami | explicit_token_darkstar | explicit_token_karox | explicit_token_marit_lage | explicit_token_angelo
 /* @sem TokenName::Explicit(Tiny) */
 explicit_token_tiny ::= "Tiny"
 /* @sem TokenName::Explicit('Stangg Twin') */
@@ -925,3 +925,59 @@ attached_aura_creation ::= "create" "a" token_color "Aura" "enchantment" "token"
 
 /* @sem Ability::@scope(Ability::Triggered{event:ZoneChange{objects:SameObject(AttachedTo(Source)), from:Battlefield, to:Graveyard}, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:EventSubject, recipients:Players(One(ControllerOf(EventSubject))), amount:$number_digits, preventable:true}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}) */
 attached_aura_death_trigger ::= "when" "enchanted" "creature" "dies" "," "it" "deals" number_digits "damage" "to" "its" "controller" "and" "you" "create" "a" token_named_recipe "token" "."
+
+/* @sem Expr::CountCounters{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown} */
+leading_count_object_counter ::= counter_kind "counter" "on" affected
+
+/* Named rules tokens retain their intrinsic name separately from created recipes. */
+/* @sem TokenRecipe::Named('Feroz''s Ban') */
+tn_feroz_ban ::= "Feroz's" "Ban"
+
+/* Named legendary recipes retain their own abilities and holder scopes. */
+/* @sem TokenName::Explicit('Tamiyo''s Notebook') */
+notebook_token_name ::= "Tamiyo's" "Notebook"
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:$spell_cost_change})]}) */
+quoted_spell_cost_no_period ::= cast_spells_filter "you" "cast" "cost" spell_cost_change "to" "cast"
+
+/* @sem Ability::[@holder($quoted_spell_cost_no_period), $token_quoted_sentence] */
+quoted_cost_and_sentence ::= '"' quoted_spell_cost_no_period '"' "and" token_quoted_sentence
+
+/* @sem TokenSpec::TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:$notebook_token_name, supertypes:[Legendary], colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, abilities:$quoted_cost_and_sentence}} */
+named_legendary_scoped_token ::= notebook_token_name "," counter_a "legendary" token_colors token_subtypes token_types "token" "with" quoted_cost_and_sentence
+
+/* A following sentence describes intrinsic abilities of the attached token. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:Explicit(Mask), colors:$token_colors, card_types:[Enchantment], subtypes:[Aura], abilities:[$enchant_permanents, $bare_umbra_armor]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($object_ref)]}}}] */
+instructions_named_attached_aura ::= "create" counter_a token_colors "Aura" "enchantment" "token" "named" "Mask" "attached" "to" object_ref "." "the" "token" "has" enchant_permanents "and" bare_umbra_armor
+
+/* Exile and the conditional copy share the attempted target and its before receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($object_ref), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, If{condition:ObjectMatches{object:Result{result:@marked, phase:Before, index:0}, filter:Not($filter_phrase)}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_colored_creature_keyword}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+instructions_exile_conditional_modified_copy ::= "exile" object_ref "." "if" "it" "wasn't" "an" filter_phrase "," "create" "a" "token" "that's" "a" "copy" "of" "it" "," "except" copy_colored_creature_keyword
+
+/* @sem Vec<CopyException>::[SetPowerToughness{power:$token_stat, toughness:$token_stat_2}, Colors{mode:Set, colors:Listed([$token_color])}, AddCreatureTypes($token_subtypes), AddCardTypes([Creature]), AddAbilities([Keyword($keyword_value)])] */
+copy_colored_creature_keyword ::= "it's" "a" token_stat "/" token_stat token_color token_subtypes "creature" "with" keyword_value "in" "addition" "to" "its" "other" "types"
+
+/* The inner final period closes the enclosing creation sentence. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$named_legendary_scoped_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+instructions_named_legendary_scoped ::= "create" named_legendary_scoped_token
+
+/* Token names are independent of their colors, creature types, and statistics. */
+/* @sem TokenName::Explicit(Mowu) */
+explicit_token_mowu ::= "Mowu"
+
+/* @sem TokenName::Explicit('Primo, the Indivisible') */
+explicit_token_primo ::= "Primo" "," "the" "Indivisible"
+
+/* @sem TokenName::Explicit('Scion of the Deep') */
+explicit_token_scion_deep ::= "Scion" "of" "the" "Deep"
+
+/* The creation occurs only if both choices exist. The two statistics remain independent. */
+/* @sem Instruction::[If{condition:AllOf([ValueChosen(Color), ValueChosen(CreatureType)]), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, chosen_color:true, chosen_creature_type:true, card_types:[Creature], power_toughness:[$token_stat, $token_stat_2]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+instructions_chosen_creature_token ::= "create" "a" token_stat "/" token_stat "creature" "token" "of" "the" "chosen" "color" "and" "type"
+
+/* A named artifact token carries its own scoped activated ability. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$token_amount, words:CreatingEffect, recipe:$named_artifact_quoted_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+instructions_named_artifact_token_quoted ::= "create" token_amount named_artifact_quoted_recipe
+
+/* @sem TokenRecipe::Defined(_{name:Explicit('Etherium Cell'), card_types:[Artifact], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})]}) */
+named_artifact_quoted_recipe ::= "colorless" "artifact" "token" "named" "Etherium" "Cell" "with" '"' cost ":" program "." '"'

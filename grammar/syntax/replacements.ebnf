@@ -1,6 +1,6 @@
 /* Replacement effects, prevention and delayed triggers. */
 
-replacement_clause ::= replacement_player_draw_skip_shared | replacement_spell_or_permanent_bonus | replacement_draw_reveal_pay | replacement_extra_draw_discard_shared | team_counter_replacement | owned_extra_token_replacement | filtered_extra_token_replacement | combat_counter_mill_replacement | basic_tap_mana_replacement | replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle | replacement_counter_creature_double | replacement_you_extra_draw | replacement_you_gain_draw | replacement_you_lose_program | replacement_you_dice_extra | replacement_you_create_extra | replacement_owned_zone_redirect | replacement_zone_redirect | replacement_scry_amount | replacement_planar_extra | replacement_d6_exchange | replacement_life_transform | replacement_object_damage_player | replacement_prevention_followup | replacement_damage_opponent_permanent_factor | replacement_spell_damage_change | replacement_damage_counter_amount | replacement_damage_counters_instead | replacement_draw_while_after | replacement_draw_while_before | replacement_draw_before_reveal_split | replacement_prevent_self_combat_shuffle | replacement_draw_before_look_split | replacement_draw_after_look_split
+replacement_clause ::= replacement_player_draw_skip_shared | replacement_spell_or_permanent_bonus | replacement_draw_reveal_pay | replacement_extra_draw_discard_shared | team_counter_replacement | owned_extra_token_replacement | filtered_extra_token_replacement | combat_counter_mill_replacement | basic_tap_mana_replacement | replacement_player_draw_exile | replacement_permanent_damage_multiplier | replacement_redirect_all_damage | replacement_skip_extra_turn | replacement_choose_two_players_entering | replacement_matching_color_counterpart | replacement_chosen_player_counterpart | replacement_counters_double_minus | replacement_counters_double | replacement_effect_counters_double | replacement_counters_add | replacement_counters_add_each_kind | replacement_counters_subtract | replacement_counter_exile_play | replacement_prevent_all | replacement_prevent_to_by_permanents | replacement_prevent_to_by_sources | replacement_prevent_by_permanents | replacement_prevent_self_deals | replacement_prevent_to_and_by | replacement_prevent | replacement_dealt_prevent | replacement_dealt_prevent_and | replacement_dealt_prevent_then | replacement_dealt_instead | replacement_prevent_some | replacement_prevent_all_but | replacement_double_damage | replacement_plus_damage | replacement_draw_instead | replacement_draw_may_instead | replacement_draw_empty | replacement_tokens_twice_yours | replacement_tokens_twice_any | replacement_tokens_plus_yours | replacement_enter_cost_or_graveyard | replacement_scale_outgoing | replacement_redirect_controller | replacement_entry_creature | replacement_effect_token_copies | replacement_player_skip_extra | replacement_player_lose_instead | replacement_mana_color_choice | replacement_attached_destroyed_sacrifice | replacement_damage_prevent_draw | replacement_damage_half_down | replacement_damage_double_opponent | replacement_damage_prevent_half | replacement_damage_double_you | replacement_mana_produced | replacement_explore_scry | replacement_untap_counters | replacement_prevent_counted_damage | replacement_opponent_mill | replacement_search_top | replacement_extra_draw_skip | replacement_draw_each_one | replacement_opponent_counters_half | replacement_counter_plus_phrase | replacement_counter_each_double_phrase | replacement_filtered_token_phrase | replacement_self_damage_phrase | replacement_reveal_shuffle | replacement_counter_creature_double | replacement_you_extra_draw | replacement_you_gain_draw | replacement_you_lose_program | replacement_you_dice_extra | replacement_you_create_extra | replacement_owned_zone_redirect | replacement_zone_redirect | replacement_scry_amount | replacement_planar_extra | replacement_d6_exchange | replacement_life_transform | replacement_object_damage_player | replacement_prevention_followup | replacement_damage_opponent_permanent_factor | replacement_spell_damage_change | replacement_damage_counter_amount | replacement_damage_counters_instead | replacement_draw_while_after | replacement_draw_while_before | replacement_draw_before_reveal_split | replacement_prevent_self_combat_shuffle | replacement_draw_before_look_split | replacement_draw_after_look_split | replacement_damage_while_factor | replacement_life_during_factor
 
 /* A creature or permanent without the word card is a battlefield population.
    The counter kind is repeated in the replacement and must agree. */
@@ -2584,3 +2584,51 @@ untap_counter_payment_response ::= "remove" counter_amount counter_kind "counter
 
 /* @sem Ability::Replacement{active:Battlefield, event:$untap_step_replacement_event, body:$untap_counter_payment_response} */
 replacement_untap_counter_payment ::= untap_step_replacement_event "," untap_counter_payment_response
+
+/* Both moves share the producer result, including its exile destination. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_objects}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@marked, phase:After, index:0}), zone:Exile}), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[FaceDown]}}, qualifiers:[]}}] */
+clause_exile_return_face_down ::= exile_objects "," "then" "return" "it" "to" "the" "battlefield" "face" "down" "under" "its" "owner's" "control"
+
+/* This plural return consumes the union produced by the preceding exile. */
+/* @sem Instruction::[Effect{result:@mark, operation:$plural_exile_producer}, Effect{result:@next, operation:Move{objects:InZone{objects:Transition{result:@marked, phase:After}, zone:Exile}, destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+clause_exile_two_return_group ::= plural_exile_producer "." "then" "return" "them" "to" "the" "battlefield" "under" "their" "owners'" "control"
+
+plural_exile_producer ::= exile_target_pair | exile_two_groups
+
+/* @sem Operation::@exile_result(Operation::Move{objects:$objects_two_targets, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
+exile_target_pair ::= "exile" objects_two_targets
+
+/* A condition qualifies the whole damage replacement; event and multiplier are
+   independently printable from their current operands. */
+/* @sem Ability::Conditional{condition:$condition, then:[Replacement{active:Battlefield, event:$damage_event, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([$damage_factor, EventAmount]))}}]}}]} */
+replacement_damage_while_factor ::= "if" damage_event "while" condition "," "it" "deals" damage_factor "that" "damage" "instead" "."
+
+/* The loss event and the multiplier remain separate from the active-turn test. */
+/* @sem Ability::Conditional{condition:$replacement_turn_condition, then:[Replacement{active:Battlefield, event:$replacement_life_loss_event, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:LoseLife{players:One(EventSubject), amount:Multiply([$replacement_life_factor, EventAmount])}}]}}]} */
+replacement_life_during_factor ::= "if" replacement_life_loss_event "during" replacement_turn_condition "," "they" "lose" replacement_life_factor "that" "much" "life" "instead" "."
+
+replacement_life_loss_event ::= replacement_opponent_life_loss | replacement_player_life_loss
+
+/* @sem ReplacementEvent::Player{event:LoseLife, players:OpponentsOf(AbilityController)} */
+replacement_opponent_life_loss ::= "an" "opponent" "would" "lose" "life"
+
+/* @sem ReplacementEvent::Player{event:LoseLife, players:All} */
+replacement_player_life_loss ::= "a" "player" "would" "lose" "life"
+
+/* @sem Condition::PlayerIsActive(AbilityController) */
+replacement_turn_condition ::= "your" "turn"
+
+replacement_life_factor ::= replacement_life_twice | replacement_life_three_times
+
+/* @sem Expr::Constant(2) */
+replacement_life_twice ::= "twice"
+
+/* @sem Expr::Constant(3) */
+replacement_life_three_times ::= "three" "times"
+
+/* The source filter refers to the card linked to this ability's source. */
+/* @sem ObjectFilter::SharesColorWith(Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0}) */
+linked_color_damage_source ::= "source" "of" "your" "choice" "that" "shares" "a" "color" "with" "the" "exiled" "card"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($linked_color_damage_source), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}, limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}] */
+instructions_prevent_linked_source ::= "prevent" "all" "damage" "that" "would" "be" "dealt" this_duration "by" counter_amount linked_color_damage_source

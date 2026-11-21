@@ -1,0 +1,1413 @@
+{
+  "family": "retirement-graveyard-exile",
+  "cases": [
+    {
+      "name": "Wondrous Crucible",
+      "text": "Permanents you control have ward {2}.\nAt the beginning of your end step, mill two cards, then exile a nonland card at random from your graveyard. Copy it. You may cast the copy without paying its mana cost.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "Any"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "GrantKeyword",
+                "args": {
+                  "kind": "Ward",
+                  "args": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 2
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 2
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Graveyard",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "Exile": {
+                                  "visibility": "FaceUp",
+                                  "arrival": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "CopyCards",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Result",
+                            "args": {
+                              "result": 2,
+                              "phase": "After",
+                              "index": 0
+                            }
+                          }
+                        },
+                        "times": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Copies",
+                                  "args": 3
+                                },
+                                "count": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Random graveyard exile and copy",
+      "text": "At the beginning of your end step, mill two cards, then exile a nonland card at random from your graveyard. Copy it. You may cast the copy without paying its mana cost.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 2
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Graveyard",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "Exile": {
+                                  "visibility": "FaceUp",
+                                  "arrival": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "CopyCards",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Result",
+                            "args": {
+                              "result": 2,
+                              "phase": "After",
+                              "index": 0
+                            }
+                          }
+                        },
+                        "times": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Copies",
+                                  "args": 3
+                                },
+                                "count": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Reject wrong zone",
+      "text": "Exile a card at random from your battlefield.",
+      "reject": true
+    },
+    {
+      "name": "Reject mismatched receipt",
+      "text": "At the beginning of your end step, mill two cards, then exile a nonland card at random from your graveyard. Copy it. You may cast the copy without paying its mana cost. Nonsense.",
+      "reject": true
+    },
+    {
+      "name": "Tersa Lightshatter",
+      "text": "Haste\nWhen Tersa Lightshatter enters, discard up to two cards, then draw that many cards.\nWhenever Tersa Lightshatter attacks, if there are six or more cards in your graveyard, exile a card at random from your graveyard. You may play that card this turn.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Orc",
+          "Wizard"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          3,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Haste"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Hand",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                }
+                              },
+                              "constraints": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "DiscardObjects",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Transition",
+                            "args": {
+                              "result": 1,
+                              "phase": "Before"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "Attacks",
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 6
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Graveyard",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Any"
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 0
+                              },
+                              "destination": {
+                                "Exile": {
+                                  "visibility": "FaceUp",
+                                  "arrival": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermission": {
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "from": "Exile",
+                                "action": "Either",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Wondrous Crucible",
+      "text": "Permanents you control have ward {2}.\nAt the beginning of your end step, mill three cards, then exile a nonland card at random from your graveyard. Copy it. You may cast the copy without paying its mana cost.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 7
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "Any"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "GrantKeyword",
+                "args": {
+                  "kind": "Ward",
+                  "args": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 2
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 3
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Graveyard",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Land"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "Exile": {
+                                  "visibility": "FaceUp",
+                                  "arrival": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "CopyCards",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Result",
+                            "args": {
+                              "result": 2,
+                              "phase": "After",
+                              "index": 0
+                            }
+                          }
+                        },
+                        "times": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Copies",
+                                  "args": 3
+                                },
+                                "count": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Wondrous Crucible",
+      "text": "Permanents you control have ward {2}.\nAt the beginning of your end step, mill two cards, then exile a noncreature card at random from your graveyard. Copy it. You may cast the copy without paying its mana cost.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 7
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "Any"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "GrantKeyword",
+                "args": {
+                  "kind": "Ward",
+                  "args": {
+                    "parts": [
+                      {
+                        "Mana": [
+                          {
+                            "Generic": 2
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 2
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Players": {
+                                      "zone": "Graveyard",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "constraints": [
+                                "AtRandom"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "Exile": {
+                                  "visibility": "FaceUp",
+                                  "arrival": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "CopyCards",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Result",
+                            "args": {
+                              "result": 2,
+                              "phase": "After",
+                              "index": 0
+                            }
+                          }
+                        },
+                        "times": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Copies",
+                                  "args": 3
+                                },
+                                "count": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

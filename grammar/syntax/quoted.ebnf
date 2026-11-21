@@ -22,7 +22,7 @@ program_sentence_plain ::= program "."
 /* @sem Program::Program{instructions:$instructions_quoted} */
 program_sentence_quoted ::= instructions_quoted
 
-instructions_quoted ::= instructions_conjure_perpetual | instructions_conjured_duplicate_grant | clause_quoted | instructions_before_quoted | instructions_between_quoted | instructions_closed_before_quoted | instructions_if_you_do_quoted | instructions_paid_token_quoted | instructions_chosen_hand_perpetual | instructions_opponent_tap_if_done_quoted
+instructions_quoted ::= instructions_conjure_perpetual | instructions_conjured_duplicate_grant | clause_quoted | instructions_before_quoted | instructions_between_quoted | instructions_closed_before_quoted | instructions_if_you_do_quoted | instructions_paid_token_quoted | instructions_chosen_hand_perpetual | instructions_opponent_tap_if_done_quoted | instructions_damage_excess_boon | instructions_named_legendary_scoped | instructions_named_artifact_token_quoted
 
 /* A final quoted grant closes both the token-only continuation and the paid
    conditional sentence. Its dependent effects still share the creation receipt. */
@@ -124,7 +124,7 @@ token_groups_quoted_last ::= "and" token_group_quoted
 /* @sem TokenSpec::[$token_group, ...$token_groups_quoted_tail] */
 token_groups_quoted_more ::= token_group "," token_groups_quoted_tail
 
-token_group_quoted ::= token_defined_quoted | token_copy_quoted | token_equal_then_quoted
+token_group_quoted ::= token_defined_quoted | token_copy_quoted | token_equal_then_quoted | token_explicit_artifact_quoted
 /* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe_quoted} */
 token_defined_quoted ::= token_amount token_recipe_quoted
 
@@ -381,3 +381,23 @@ clause_operation_create_quoted ::= operation "and" "create" token_groups_quoted
 /* Two separately scoped granted abilities; only the final quote closes the sentence. */
 /* @sem Change::[GrantAbility(@holder($replacement_enters_counters_clause)), GrantAbility($token_quoted_sentence)] */
 closed_grant_pair ::= '"' replacement_enters_counters_clause '"' "and" token_quoted_sentence
+
+/* The damage operation and its excess-damage consumer share one marked result.
+   The boon owns its cast event and its independently announced targets. */
+/* @sem Instruction::[Effect{result:@mark, operation:$deal_damage}, If{condition:Compare{left:ExcessDamage{result:@marked, to:Any}, test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:Note(Number(ExcessDamage{result:@marked, to:Any}))}, $excess_boon]}, otherwise:Program{}}] */
+instructions_damage_excess_boon ::= deal_damage "." "if" "excess" "damage" "was" "dealt" "this" "way" "," "note" "that" "excess" "damage" "," "then" excess_boon
+
+/* @sem Instruction::Effect{result:@next, operation:@scope(Operation::CreateTrigger{event:$event_cast, duration:Indefinite, announcement:@announcement, body:Program{instructions:[$excess_boon_effect]}, once:true})} */
+excess_boon ::= "you" "get" "a" "one-time" "boon" "with" '"' "when" event_cast "," excess_boon_effect "." '"'
+
+excess_boon_effect ::= excess_boon_pump | excess_boon_damage
+
+/* @sem Instruction::Effect{result:@next, operation:CreatePerpetualEffect{objects:One(EventSubject), changes:[Pump{power:Noted{measure:Number}, toughness:Constant(0)}]}} */
+excess_boon_pump ::= "it" "perpetually" "gets" "+" "X" "/" "+" "0" "," "where" "X" "is" "the" "noted" "number"
+
+/* @sem Instruction::Effect{result:@next, operation:DealDamage{source:Source, recipients:$recipients, amount:Noted{measure:Number}, preventable:true}} */
+excess_boon_damage ::= "this" "boon" "deals" "damage" "equal" "to" "the" "noted" "number" "to" recipients
+
+/* Explicit names and quoted abilities are operands of the created recipe. */
+/* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:Defined{name:Explicit(Banana), colors:$token_colors, card_types:[Artifact], abilities:$token_abilities_quoted}} */
+token_explicit_artifact_quoted ::= token_amount token_colors "artifact" "token" "named" "Banana" "with" token_abilities_quoted

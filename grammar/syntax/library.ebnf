@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair
+clause_search ::= clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_plural}, ...$search_plural_follow] */
@@ -90,7 +90,7 @@ mill_take_filtered ::= ("a" | "an") search_filter
 mill_take_modified ::= "a" "card" modifier
 
 /* What a search looks for: one find clause. */
-search_choice ::= search_choice_shared_color | search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where
+search_choice ::= search_choice_shared_color | search_choice_filtered | search_choice_any | search_choice_modified | search_choice_many | search_choice_many_any | search_named_one | search_named_many | search_choice_many_where | search_choice_basic_land_type | search_choice_enchant_host
 /* An unrestricted plural choice composes with the ordinary search follow-ups. */
 search_choice_any_number ::= search_choice_any_number_filtered | search_choice_any_number_colorless
 
@@ -352,7 +352,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice
+dig_block ::= dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -2699,3 +2699,111 @@ reveal_card_of_chosen_creature_type ::= filter_phrase "card" "of" "that" "type"
 
 /* @sem Operation::RevealUntil{library:AbilityController, filter:$reveal_card_of_chosen_creature_type, count:$counter_amount} */
 reveal_until_chosen_creature_type ::= reveal_until_your_library counter_amount reveal_card_of_chosen_creature_type
+
+/* A bound player reveals through the matching card and exiles the observed cards. */
+/* @sem Instruction::[Effect{result:@next, operation:RevealUntil{library:Bound(0), filter:$adjective_nontype, count:$counter_amount}}, Effect{result:@next, operation:Move{objects:Observed(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+bound_exile_until_card ::= "exiles" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "exile" counter_amount adjective_nontype "card"
+
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[...$bound_exile_until_card]}}] */
+clause_players_exile_until_card ::= players_singular bound_exile_until_card
+
+/* The alternate discard payment belongs to the cast of the card selected by the
+   preceding exile-until instruction. The discarded amount is independent. */
+/* @sem Operation::PlayWith{actor:One(AbilityController), action:CastSpell, cards:One($exiled_that_card), count:Exactly(Constant(1)), terms:_{cost:Alternate(Cost{parts:[Discard{count:$exile_discard_count, filter:Any}]})}} */
+cast_exiled_card_discard ::= "cast" exiled_that_card "by" "discarding" exile_discard_count "rather" "than" "paying" "its" "mana" "cost"
+
+exile_discard_count ::= exile_discard_one | exile_discard_many
+
+/* @sem Expr::Constant(1) */
+exile_discard_one ::= ("a" | "one") "card"
+
+/* @sem $number_words */
+exile_discard_many ::= number_words "cards"
+
+/* @sem Instruction::[...$clause_exile_until_card, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$cast_exiled_card_discard}]}}] */
+instructions_exile_until_discard_cast ::= clause_exile_until_card "." "you" "may" cast_exiled_card_discard
+
+/* Restrictions on a searched card compose with ordinary search continuations. */
+/* @sem SearchChoice::SearchChoice{filter:$a_card_basic_type, count:UpTo(Constant(1))} */
+search_choice_basic_land_type ::= a_card_basic_type
+
+/* @sem SearchChoice::SearchChoice{filter:AllOf([$card_filter, CouldEnchant(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase})]), count:UpTo(Constant(1))} */
+search_choice_enchant_host ::= "an" card_filter "card" "with" "enchant" filter_phrase
+
+/* Search constraints remain attached to the choice through its follow-ups. */
+/* @sem SearchChoice::SearchChoice{filter:SharesNameWith($object_ref), count:UpTo($card_count)} */
+search_choice_same_name ::= "up" "to" card_count "with" "the" "same" "name" "as" object_ref
+
+/* @sem SearchChoice::SearchChoice{filter:AllOf([$filter_phrase, $modifier_not_named_self]), count:UpTo($value), constraints:[DifferentNames]} */
+search_choice_distinct_not_self ::= "up" "to" value filter_phrase "cards" modifier_not_named_self "that" "each" "have" "different" "names"
+
+/* Plural selections retain plural anaphors in every follow-up. */
+/* @sem Instruction::[Effect{result:@mark, operation:$search_constrained_plural}, ...$search_plural_follow] */
+clause_search_constrained_plural ::= search_constrained_plural search_plural_follow
+
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$constrained_plural_choice]} */
+search_constrained_plural ::= "search" "your" "library" "for" constrained_plural_choice
+
+constrained_plural_choice ::= search_choice_same_name | search_choice_distinct_not_self
+
+/* The selection is restricted to the arrivals of this exact library-exile action. */
+/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:Move{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, InSet(Transition{result:@prior, phase:After})])}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+instructions_exile_top_put_matching ::= exile_top_cards_of_your_library "." "put" "all" filter_phrase "cards" "from" "among" "them" "onto" "the" "battlefield"
+
+/* A revealed slice, two independently selected categories, and their remaining cards.
+   Both departures belong to this observation and to the same destination. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$dig_two_entries, $dig_two_entries_rest] */
+dig_reveal_two_entries ::= reveal_top "." dig_two_entries "." dig_two_entries_rest
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$filter_phrase}, count:UpTo($counter_amount), constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, filter:$filter_phrase_2}, count:UpTo($counter_amount_2), constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+dig_two_entries ::= "you" "may" "put" counter_amount filter_phrase "card" "and" "/" "or" counter_amount filter_phrase "card" "from" "among" "them" "onto" "the" "battlefield"
+
+/* @sem Instruction::Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(3), phase:Before}, Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}} */
+dig_two_entries_rest ::= "put" "the" "rest" "on" "the" "bottom" library_order
+
+/* Keep the departure and the explicit battlefield remainder in one scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$dig_entry_take, $dig_entry_remainder] */
+dig_reveal_entry_remainder ::= reveal_top "." dig_entry_take "." dig_entry_remainder
+
+/* @sem Instruction::Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}} */
+dig_entry_remainder ::= "then" "put" "all" "cards" "revealed" "this" "way" "that" "weren't" "put" "onto" "the" "battlefield" "on" "the" "bottom" "of" "your" "library" library_order
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$revealed_plural_filter}, count:AnyNumber, constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+dig_entry_take ::= "you" "may" "put" "any" "number" "of" revealed_plural_filter "from" "among" "them" "onto" "the" "battlefield"
+
+/* A negative test reverses the branches, keeping each branch under the same
+   single-card observation. A following grant refers to the moved incarnation. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:$observed_reveal_entry_grant}, otherwise:Program{instructions:$observed_top_reveal_put}}] */
+instructions_top_reveal_unless_entry ::= "reveal" "the" "top" "card" "of" "your" "library" "." "if" "it" "isn't" top_reveal_quality "," observed_top_reveal_put "." "otherwise" "," observed_reveal_entry_grant
+
+/* @sem Instruction::[...$observed_reveal_battlefield, ...$entered_creature_grant_sacrifice] */
+observed_reveal_entry_grant ::= observed_reveal_battlefield "." entered_creature_grant_sacrifice
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+observed_reveal_battlefield ::= "put" "that" "card" "onto" "the" "battlefield"
+
+/* Adjacent look and exile share the exact singular top-of-library query. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+instructions_look_own_top_exile_then ::= "look" "at" "the" "top" "card" "of" "your" "library" "," "then" "exile" "it" "face" "down"
+
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:$look_top_exile_destination, qualifiers:[]}}]}}] */
+instructions_look_own_top_exile_optional ::= "look" "at" "the" "top" "card" "of" "your" "library" "." "you" "may" look_top_exile_destination
+
+look_top_exile_destination ::= look_top_exile_face_down | look_top_exile_face_up
+
+/* @sem MovementDestination::Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}} */
+look_top_exile_face_down ::= "exile" "it" "face" "down"
+
+/* @sem MovementDestination::Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}} */
+look_top_exile_face_up ::= "exile" "that" "card"
+
+/* The permission consumes the immediately preceding top-of-library exile. */
+/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects}}] */
+clause_top_exile_play_receipt ::= exile_top_cards_of_your_library "." duration "," "you" "may" "play" "cards" "exiled" "this" "way"
+
+/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:CastSpell, filter:AnyOf([CardType(Instant), CardType(Sorcery)])}, terms:_{cost:Free}})], duration:$this_duration, evaluation:LiveObjects}}] */
+clause_top_exile_cast_receipt ::= exile_top_cards_of_your_library "." "you" "may" "cast" "instant" "and" "sorcery" "spells" "from" "among" "them" this_duration "without" "paying" "their" "mana" "costs"
+
+/* The singleton permission follows this exact top-card exile. */
+/* @sem Instruction::[Effect{result:@next, operation:$shuffle_your_library}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any}, terms:_{cost:Free}})], duration:$duration, evaluation:LiveObjects}}] */
+clause_top_card_exile_free_play ::= shuffle_your_library "," "then" "exile" "the" "top" "card" "." duration "," "you" "may" "play" "that" "card" "without" "paying" "its" "mana" "cost"

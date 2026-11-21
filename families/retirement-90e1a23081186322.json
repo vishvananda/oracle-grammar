@@ -1,0 +1,682 @@
+{
+  "family": "retirement-6ddd6195935d5f94",
+  "cases": [
+    {
+      "name": "Conditional noncombat damage",
+      "text": "If a source you control would deal noncombat damage to a permanent or player while there are four or more card types among cards in your graveyard, it deals double that damage instead.",
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountDistinct",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "Any"
+                        }
+                      }
+                    },
+                    "property": "CardTypes"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 4
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "ObjectsAndPlayers": {
+                          "objects": {
+                            "kind": "Any"
+                          },
+                          "players": {
+                            "kind": "All"
+                          }
+                        }
+                      },
+                      "kind": "Noncombat",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetAmount": {
+                                  "kind": "Multiply",
+                                  "args": [
+                                    {
+                                      "kind": "Constant",
+                                      "args": 2
+                                    },
+                                    {
+                                      "kind": "EventAmount"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "types": [
+        "Enchantment"
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Opponent life loss on your turn",
+      "text": "If an opponent would lose life during your turn, they lose twice that much life instead.",
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "PlayerIsActive",
+              "args": {
+                "kind": "AbilityController"
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Player": {
+                      "event": "LoseLife",
+                      "players": {
+                        "kind": "OpponentsOf",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "Cancel"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "LoseLife",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              },
+                              "amount": {
+                                "kind": "Multiply",
+                                "args": [
+                                  {
+                                    "kind": "Constant",
+                                    "args": 2
+                                  },
+                                  {
+                                    "kind": "EventAmount"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "types": [
+        "Creature"
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Reject missing conditional damage consequence",
+      "text": "If a source you control would deal noncombat damage to a permanent or player while there are four or more card types among cards in your graveyard, it deals that damage instead.",
+      "reject": true
+    },
+    {
+      "name": "Reject missing loss consequence",
+      "text": "If an opponent would lose life during your turn, they lose twice that much life instead and win the game.",
+      "reject": true
+    },
+    {
+      "name": "The Rollercrusher Ride",
+      "text": "If a source you control would deal noncombat damage to a permanent or player while there are five or more card types among cards in your graveyard, it deals double that damage instead.\nWhen The Rollercrusher Ride enters, it deals X damage to each of up to X target creatures.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          "X",
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountDistinct",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "Any"
+                        }
+                      }
+                    },
+                    "property": "CardTypes"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 5
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "ObjectsAndPlayers": {
+                          "objects": {
+                            "kind": "Any"
+                          },
+                          "players": {
+                            "kind": "All"
+                          }
+                        }
+                      },
+                      "kind": "Noncombat",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetAmount": {
+                                  "kind": "Multiply",
+                                  "args": [
+                                    {
+                                      "kind": "Constant",
+                                      "args": 2
+                                    },
+                                    {
+                                      "kind": "EventAmount"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "UpTo": {
+                      "kind": "CastX",
+                      "args": {
+                        "kind": "EventSubject"
+                      }
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "Targets",
+                            "args": 0
+                          }
+                        },
+                        "amount": {
+                          "kind": "CastX",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "The Rollercrusher Ride",
+      "text": "If a source you control would deal noncombat damage to a permanent or player while there are four or more card types among cards in your graveyard, it deals triple that damage instead.\nWhen The Rollercrusher Ride enters, it deals X damage to each of up to X target creatures.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          "X",
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountDistinct",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            }
+                          }
+                        },
+                        "kind": "Card",
+                        "filter": {
+                          "kind": "Any"
+                        }
+                      }
+                    },
+                    "property": "CardTypes"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 4
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "ObjectsAndPlayers": {
+                          "objects": {
+                            "kind": "Any"
+                          },
+                          "players": {
+                            "kind": "All"
+                          }
+                        }
+                      },
+                      "kind": "Noncombat",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetAmount": {
+                                  "kind": "Multiply",
+                                  "args": [
+                                    {
+                                      "kind": "Constant",
+                                      "args": 3
+                                    },
+                                    {
+                                      "kind": "EventAmount"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "UpTo": {
+                      "kind": "CastX",
+                      "args": {
+                        "kind": "EventSubject"
+                      }
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "DealDamage",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "recipients": {
+                          "kind": "Objects",
+                          "args": {
+                            "kind": "Targets",
+                            "args": 0
+                          }
+                        },
+                        "amount": {
+                          "kind": "CastX",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "preventable": true
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
