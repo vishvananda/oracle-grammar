@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type
+object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -3300,3 +3300,15 @@ counter_named_spell ::= named_spell
 random_perpetual_hand_population ::= random_perpetual_hand_filter "card" "in" "your" "hand"
 
 random_perpetual_hand_filter ::= filter_phrase | non_creature | non_land
+
+/* Each target retains its own announcement; the graveyard belongs to the
+   separately announced player, rather than to either permanent. */
+/* @sem ObjectSet::Union([One($target_object), One($target_object_2), $optional_opponent_graveyard_cards]) */
+mixed_target_graveyard_union ::= target_object "," target_object "," "and" optional_opponent_graveyard_cards
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:UpTo(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}), index:0})}, kind:Card, filter:Any} */
+optional_opponent_graveyard_cards ::= "all" "cards" "from" "up" "to" "one" "target" "opponent's" "graveyard"
+
+/* Each arm describes a legendary card, with one optional target overall. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AnyOf([AllOf([Supertype(Legendary), $noun]), AllOf([Supertype(Legendary), $noun_2])])}), index:0} */
+target_graveyard_card_union_optional ::= "up" "to" "one" "target" "legendary" noun "card" "or" "legendary" noun "card" "from" "a" "graveyard"

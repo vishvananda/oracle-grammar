@@ -7024,3 +7024,47 @@ outside_play_lands_plain ::= "lands"
 outside_play_lands_qualified ::= quality "lands"
 
 outside_play_lands ::= outside_play_lands_plain | outside_play_lands_qualified
+
+/* A spell's ordinal, target population and colored reduction are independent. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$targeted_ordered_spell, modifier:Reduce{reductions:$colored_cost_reductions}})]}) */
+static_targeted_ordered_colored_cost ::= targeted_ordered_spell "costs" colored_cost_reductions "less" "to" "cast" "." "this" "effect" "reduces" "only" "the" "amount" "of" "colored" "mana" "you" "pay" "."
+
+/* @sem ObjectFilter::NthCast{ordinal:$cast_order, spells:TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase})), by:One(AbilityController), scope:Turn} */
+targeted_ordered_spell ::= "the" cast_order "spell" "you" "cast" "during" "each" "of" "your" "turns" "that" "targets" ("a" | "an") filter_phrase
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellTiming{spells:$enchant_qualified_spells, timing:Flash})]}) */
+static_enchant_spells_flash ::= "you" "may" "cast" enchant_qualified_spells "as" "though" "they" "had" "flash" "."
+
+/* @sem ObjectFilter::AllOf([$filter_phrase, CouldEnchant(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase_2})]) */
+enchant_qualified_spells ::= filter_phrase "spells" "with" "enchant" filter_phrase
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:Crew, cards:SameObject($object_ref), change:Alternate(Cost{parts:[$affected_counter_payment]})})]}) */
+static_crew_counter_alternative ::= "you" "may" affected_counter_payment "rather" "than" "pay" object_ref "'s" "crew" "cost" "."
+
+/* The explicitly named source provides the ordinary self-reference print. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:Crew, cards:SameObject($self_ref_named), change:Alternate(Cost{parts:[$affected_counter_payment]})})]}) */
+static_named_crew_counter_alternative ::= "you" "may" affected_counter_payment "rather" "than" "pay" self_ref_named "'s" "crew" "cost" "."
+
+/* The first player introduces the target; the second reference is resolved in context. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players($players_singular), changes:[PlayerRule(Prohibit(CastSpell{filter:Any})), PlayerRule(Prohibit(Activate(Any))), PlayerRule(Visibility{objects:Zone(_{scope:Players{zone:Hand, players:One(Affected)}, kind:Card, filter:Any}), audience:Everyone})], duration:EndOfTurn, evaluation:LiveObjects}}] */
+chosen_player_hand_restriction ::= "choose" players_singular "." "this" "turn" "," "that" "player" "can't" "cast" "spells" "or" "activate" "abilities" "and" "plays" "with" "their" "hand" "revealed"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One($zone_that_player)}, kind:Card, filter:Any}), from:Hand, action:PlayLand, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Hand, players:One($zone_that_player)}, kind:Card, filter:Any}), from:Hand, action:CastSpell, filter:Any}, terms:_{cost:Normal}})], duration:EndOfTurn, evaluation:LiveObjects}}] */
+clause_play_referenced_hand ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" zone_that_player "hand" "this" "turn"
+
+/* A keyword and a quoted trigger are independent changes to one holder. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[GrantKeyword($keyword_value), $shared_granted_trigger_closed]} */
+shared_keyword_and_trigger_static ::= affected "has" keyword_value "and" shared_granted_trigger_closed
+
+/* A captured definition drives a temporary reduction on the selected spells. */
+/* @sem Instruction::[Effect{result:@mark, operation:BindValue{value:$captured_spell_cost_value}}, Effect{result:@next, operation:EffectOn{subject:EachSpell(@and(ObjectFilter::Cast{by:One(AbilityController)}, ObjectFilter::Cast{from:$cast_origin})), effects:[Term{family:SpellEffect, form:DecreaseManaCostX, operands:[List([Vocabulary{family:CostReductionSymbolX, form:CostReduceX}]), Number(BoundValue(@marked))]}], until:EndOfTurn}}] */
+clause_captured_exile_cast_reduction ::= "spells" "you" "cast" "from" cast_origin "this" "turn" "cost" "{" "X" "}" "less" "to" "cast" "," "where" "X" "is" captured_spell_cost_value
+
+captured_spell_cost_value ::= defined_attacked_players | value
+
+/* The limit belongs to each granted trigger and its holder. */
+/* @sem Change::GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{per_turn:2}, announcement:@announcement, body:$program})) */
+shared_granted_trigger_twice ::= '"' event_clause "," program "." "this" "ability" "triggers" "only" "twice" "each" "turn" "." '"'
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[$shared_granted_trigger_twice]} */
+static_plural_granted_trigger_twice ::= affected "have" shared_granted_trigger_twice

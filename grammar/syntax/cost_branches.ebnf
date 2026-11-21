@@ -35,7 +35,7 @@ spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
 /* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
 awaken_land ::= "awaken" number
 
-kicker_branch_program ::= kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller | program_discard_maximum_conditional
+kicker_branch_program ::= kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller | program_discard_maximum_conditional | prevention_target_override_program
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional
    cost was paid, this effect doesn't affect combat damage that would be dealt by red
    creatures": the paid prevention spares damage those sources deal. */
@@ -298,3 +298,13 @@ spell_kicker_search_selected ::= "kicker" keyword_payment NEWLINE "search" "your
 /* Each alternative has an independent announcement and damage operation. */
 /* @sem Ability::CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$spell_divided_damage_instead}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$spell_divided_damage}]}})} */
 spell_madness_divided_replacement ::= "madness" keyword_payment NEWLINE spell_divided_damage "." "if" "this" "spell's" "madness" "cost" "was" "paid" "," spell_divided_damage_instead "."
+
+/* The second shield refers to the sole damage recipient announced by the first. */
+/* @sem Program::Program{instructions:[If{condition:$condition, then:_{instructions:[Effect{result:@next, operation:$prevention_same_target}]}, otherwise:_{instructions:[Effect{result:@next, operation:$prevention_targeted}]}}]} */
+prevention_target_override_program ::= prevention_targeted "." "if" condition "," prevention_same_target "instead" "."
+
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:$prevent_to_any_target, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$prevent_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevention_targeted ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "to" prevent_to_any_target prevent_duration
+
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:Target{slot:0, index:0}, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$prevent_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevention_same_target ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "to" "that" "permanent" "or" "player" prevent_duration

@@ -350,7 +350,7 @@ continuous_beyond_first ::= affected ("gets" | "get") signed "/" signed duration
 
 /* Only explicit action families own this two-sentence contrast. Neither slot
    uses program, clause, operation, or a CDE with an arbitrary change list. */
-clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start | instead_draw_scry_then_draw | instead_counter_conditional | instead_sacrifice_postposed_line | instead_search_program | instead_leading_draw_discard | instead_phase_move | instead_sacrifice_front
+clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start | instead_draw_scry_then_draw | instead_counter_conditional | instead_sacrifice_postposed_line | instead_search_program | instead_leading_draw_discard | instead_phase_move | instead_sacrifice_front | instead_sacrifice_either_both
 
 /* The replacing action may come first and its condition trail: "That creature gets
    -13/-13 until end of turn instead if a creature died this turn". Both slots are
@@ -790,7 +790,7 @@ have_player_shuffle ::= "have" players_singular shuffle_base
 /* @sem Operation::Conjure{actor:One(AbilityController), card:Duplicate($conjure_duplicate_population), count:$counter_amount, destination:Hand(CardArrival{counters:[], states:[]})} */
 conjure_duplicate_hand ::= "conjure" counter_amount "duplicate" "of" conjure_duplicate_population "into" "your" "hand"
 
-conjure_duplicate_population ::= affected | conjure_sought_population
+conjure_duplicate_population ::= affected | conjure_sought_population | conjure_linked_target_card
 
 /* @sem ObjectSet::Earlier{what:Sought} */
 conjure_sought_population ::= "each" "of" "those" "cards"
@@ -1645,3 +1645,12 @@ spell_divided_damage ::= self_explicit_ref "deals" number "damage" "divided" "as
 /* This continuation re-announces the same kind of recipient for its branch. */
 /* @sem Operation::DealDamage{source:Source, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:UpTo($number), filter:Any, distribute:$number})), amount:Expr::DistributedShare(@share), preventable:true} */
 spell_divided_damage_instead ::= "it" "deals" number "damage" "divided" "as" "you" "choose" "among" "those" "permanents" "and" "/" "or" "players" "instead"
+
+/* The same two eligibility filters appear in both alternatives.  The second
+   sentence refers to the first sentence's target, not a new player. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Together([Sacrifice{players:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:All}), index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_nonlist_head, $filter_nonlist_head_3)}, choose:Exactly(Constant(1))}, Sacrifice{players:One(Target{slot:0, index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_nonlist_head_2, $filter_nonlist_head_4)}, choose:Exactly(Constant(1))}])}]}, otherwise:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(Target{slot:0, index:0}), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([@agree($filter_nonlist_head, $filter_nonlist_head_3), @agree($filter_nonlist_head_2, $filter_nonlist_head_4)])}, choose:AsManyAsCan(Constant(1))})}]}}] */
+instead_sacrifice_either_both ::= "target" "player" "sacrifices" "a" filter_nonlist_head "or" filter_nonlist_head "of" "their" "choice" "." NEWLINE "if" condition "," "instead" "that" "player" "sacrifices" "a" filter_nonlist_head "and" "a" filter_nonlist_head "of" "their" "choice"
+
+/* The linked exile target stays a card and keeps the source identity. */
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ExiledWith(Source)])}), index:0}) */
+conjure_linked_target_card ::= "target" noun "card" "exiled" "with" "this" "creature"

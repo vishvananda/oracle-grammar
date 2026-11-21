@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with
+token_recipe ::= token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors
 
 token_recipe_base ::= token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore
+created_token_name ::= created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1099,3 +1099,42 @@ casting_sacrifice_token_recipe ::= token_recipe_base "with" casting_sacrifice_to
 
 /* @sem Ability::[@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program})] */
 casting_sacrifice_token_ability ::= '"' event_clause "," program "," '"'
+
+/* A named token can state all colors after its name and list intrinsic abilities. */
+/* @sem TokenRecipe::Defined(_{name:Explicit($created_token_name), colors:[White, Blue, Black, Red, Green], card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+token_recipe_named_all_colors ::= token_stat "/" token_stat token_subtypes token_types "token" "named" created_token_name "that's" "all" "colors"
+
+/* @sem TokenRecipe::@token_abilities($token_recipe_named_all_colors, $token_ability_description) */
+token_recipe_named_all_colors_with ::= token_recipe_named_all_colors token_ability_description
+
+/* @sem String::'Reliquary Dragon' */
+created_name_reliquary_dragon ::= "Reliquary" "Dragon"
+
+/* The closing quotation carries the sentence's period. The list must end in
+   a quoted ability so that the enclosing activation need not add another. */
+/* @sem Ability::[$token_quoted] */
+token_final_quoted_last ::= "and" token_quoted
+
+/* @sem Ability::[$token_ability, ...$token_final_quoted_tail] */
+token_final_quoted_more ::= token_ability "," token_final_quoted_tail
+
+token_final_quoted_tail ::= token_final_quoted_last | token_final_quoted_more
+
+/* @sem Ability::[$token_ability, ...$token_final_quoted_tail] */
+token_final_quoted_list ::= token_ability "," token_final_quoted_tail
+
+/* @sem TokenRecipe::@token_abilities($token_recipe_named_all_colors, $token_final_quoted_list) */
+token_named_colors_final_quote ::= token_recipe_named_all_colors "." "it" "has" token_final_quoted_list
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_named_colors_final_quote}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+create_named_colors_final_quote ::= "create" token_amount token_named_colors_final_quote
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_named_colors_final_quote}]}} */
+activated_token_final_quote_limited ::= cost ":" create_named_colors_final_quote activation_limits "."
+
+/* A single copied token establishes the antecedent of its delayed exile. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:$copy_exceptions_plain}} */
+single_copy_token_with_exceptions ::= token_copy_single object_ref "," "except" copy_exceptions_plain
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$single_copy_token_with_exceptions], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}]} */
+program_single_copy_exile_combat ::= "create" single_copy_token_with_exceptions "." "exile" "it" "at" "end" "of" "combat"

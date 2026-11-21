@@ -2,7 +2,7 @@
    closed productions record that grammatical fact; no punctuation is inserted
    by the tokenizer and an unquoted program still needs its final period. */
 /* A leading time is a program only inside an already announced ability. */
-program_sentence ::= program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast
+program_sentence ::= program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast
 
 /* This limits a successful performance, not the number of triggers. The
    offer owns the complete coordinated program. Declining it or failing a
@@ -173,7 +173,7 @@ token_abilities_quoted_more ::= token_ability "," token_abilities_quoted_tail
 /* @sem Ability::@holder($token_ability_sentence) */
 token_quoted_sentence ::= '"' token_ability_sentence '"'
 
-token_ability_sentence ::= static_assign_as_unblocked | departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if | static_ability | static_conditional | static_conditional_first | static_conditional_first_closed | static_during_turn | static_player_prohibition | static_player_prohibition_if | replacement_ability | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence | emblem_cast_spell_grant | emblem_cast_spell_cost | triggered_life_amount_pump | quoted_cumulative_mana | quoted_cumulative_words | quoted_bands_with_others | static_untap_each_other_untap | activated_untap_symbol | static_ordinary_ability | source_cast_trigger | additional_trigger_source_or_emblem | graveyard_optional_library_replacement | activated_creature_damage_override | replacement_untap_counter_payment | plural_entry_replacement | emblem_play_linked_any_color | static_free_cast_from_own_zone
+token_ability_sentence ::= static_assign_as_unblocked | departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if | static_ability | static_conditional | static_conditional_first | static_conditional_first_closed | static_during_turn | static_player_prohibition | static_player_prohibition_if | replacement_ability | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence | emblem_cast_spell_grant | emblem_cast_spell_cost | triggered_life_amount_pump | quoted_cumulative_mana | quoted_cumulative_words | quoted_bands_with_others | static_untap_each_other_untap | activated_untap_symbol | static_ordinary_ability | source_cast_trigger | additional_trigger_source_or_emblem | graveyard_optional_library_replacement | activated_creature_damage_override | replacement_untap_counter_payment | plural_entry_replacement | emblem_play_linked_any_color | static_free_cast_from_own_zone | token_death_subject_trigger
 
 /* A final quoted sentence closes a duration-led grant too. The existing
    token_quoted_sentence enforces its inner period and resets the holder. */
@@ -444,3 +444,15 @@ closed_grant_keyword_comma_and ::= grant_keyword "," "and" closed_grants
 /* The quoted replacement closes the perpetual grant sentence. */
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$affected, changes:$perpetual_gain_replacement}}] */
 perpetual_quote_population_replacement ::= affected "perpetually" perpetual_gain_replacement
+
+/* The death-event subject is the object that deals this damage. */
+/* @sem Ability::Triggered{event:$event_self_dies, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$death_subject_damage}]}} */
+token_death_subject_trigger ::= "when" event_self_dies "," death_subject_damage "."
+
+/* @sem Operation::DealDamage{source:EventSubject, recipients:$recipients, amount:$number, preventable:true} */
+death_subject_damage ::= "it" "deals" number "damage" "to" recipients
+
+/* An intervening condition can introduce an explicit controller instruction. */
+/* @sem Ability::Triggered{event:$event_clause, intervening_if:$condition, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$clause_you_quoted}} */
+/* @prefer always */
+triggered_if_you_quoted ::= event_clause "," "if" condition "," clause_you_quoted

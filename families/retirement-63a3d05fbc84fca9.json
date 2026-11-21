@@ -1,0 +1,1261 @@
+{
+  "family": "source-counter-exile-permission",
+  "cases": [
+    {
+      "name": "Original counter and exile receipt",
+      "text": "Menace\nWhenever this creature deals combat damage to a player, put a skewer counter on this creature. Then you may sacrifice it. If you do, exile the top X cards of your library, where X is the number of skewer counters on this creature. You may play those cards this turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Menace"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "SkewerCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Sacrifice": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 1
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "CountCounters",
+                                      "args": {
+                                        "recipients": {
+                                          "kind": "Objects",
+                                          "args": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "Source"
+                                            }
+                                          }
+                                        },
+                                        "kind": {
+                                          "Named": "SkewerCounter"
+                                        },
+                                        "information": "CurrentOrLastKnown"
+                                      }
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 2,
+                                            "phase": "After"
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Different placed counter",
+      "text": "Menace\nWhenever this creature deals combat damage to a player, put a charge counter on this creature. Then you may sacrifice it. If you do, exile the top X cards of your library, where X is the number of skewer counters on this creature. You may play those cards this turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Menace"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "ChargeCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Sacrifice": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 1
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "CountCounters",
+                                      "args": {
+                                        "recipients": {
+                                          "kind": "Objects",
+                                          "args": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "Source"
+                                            }
+                                          }
+                                        },
+                                        "kind": {
+                                          "Named": "SkewerCounter"
+                                        },
+                                        "information": "CurrentOrLastKnown"
+                                      }
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 2,
+                                            "phase": "After"
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "Different counted counter",
+      "text": "Menace\nWhenever this creature deals combat damage to a player, put a skewer counter on this creature. Then you may sacrifice it. If you do, exile the top X cards of your library, where X is the number of charge counters on this creature. You may play those cards this turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Menace"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "SkewerCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Sacrifice": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 1
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "CountCounters",
+                                      "args": {
+                                        "recipients": {
+                                          "kind": "Objects",
+                                          "args": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "Source"
+                                            }
+                                          }
+                                        },
+                                        "kind": {
+                                          "Named": "ChargeCounter"
+                                        },
+                                        "information": "CurrentOrLastKnown"
+                                      }
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 2,
+                                            "phase": "After"
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "Wrong producer wording refuses",
+      "text": "Menace\nWhenever this creature deals combat damage to a player, put a skewer counter on this creature. Then you may sacrifice it. If you do, mill the top X cards of your library, where X is the number of skewer counters on this creature. You may play those cards this turn.",
+      "types": [
+        "Creature"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Rotisserie Elemental",
+      "text": "Menace\nWhenever this creature deals combat damage to a player, put a charge counter on this creature. Then you may sacrifice it. If you do, exile the top X cards of your library, where X is the number of skewer counters on this creature. You may play those cards this turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Elemental"
+        ],
+        "mana_cost": [
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          1
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Menace"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "ChargeCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Sacrifice": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 1
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "CountCounters",
+                                      "args": {
+                                        "recipients": {
+                                          "kind": "Objects",
+                                          "args": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "Source"
+                                            }
+                                          }
+                                        },
+                                        "kind": {
+                                          "Named": "SkewerCounter"
+                                        },
+                                        "information": "CurrentOrLastKnown"
+                                      }
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 2,
+                                            "phase": "After"
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Rotisserie Elemental",
+      "text": "Menace\nWhenever this creature deals combat damage to a player, put a skewer counter on this creature. Then you may sacrifice it. If you do, exile the top X cards of your library, where X is the number of charge counters on this creature. You may play those cards this turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Elemental"
+        ],
+        "mana_cost": [
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          1
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Menace"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "SkewerCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Sacrifice": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 1
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "CountCounters",
+                                      "args": {
+                                        "recipients": {
+                                          "kind": "Objects",
+                                          "args": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "Source"
+                                            }
+                                          }
+                                        },
+                                        "kind": {
+                                          "Named": "ChargeCounter"
+                                        },
+                                        "information": "CurrentOrLastKnown"
+                                      }
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "Transition",
+                                          "args": {
+                                            "result": 2,
+                                            "phase": "After"
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

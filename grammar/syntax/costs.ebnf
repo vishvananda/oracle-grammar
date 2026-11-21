@@ -70,7 +70,7 @@ cost_reveal_self_hand ::= "reveal" self_explicit_ref "from" "your" "hand"
 cost_exile_self ::= "exile" self_text
 
 /* An ability paid by moving this card out of a zone works only from that zone. */
-activated_from_zone ::= activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited | activated_exile_self_limited | activated_discard_self_limited | activated_discard_self_after_limited
+activated_from_zone ::= activated_suspended_source | activated_exile_self_after_limited | activated_graveyard_quoted_limited | activated_exile_self | activated_exile_self_after | activated_discard_self | activated_discard_self_after | activated_graveyard_return | activated_graveyard_return_limited | activated_discard_self_after_population_limited | activated_discard_self_population_limited | activated_exile_self_limited | activated_discard_self_limited | activated_discard_self_after_limited | activated_exile_self_and_named_limited
 
 /* Returning this card explicitly from the graveyard scopes the whole
    activation there, including any preceding action and its announced targets. */
@@ -1722,3 +1722,19 @@ cost_exile_any_graveyard_filtered ::= "exile" "any" "number" "of" card_filter "c
 
 /* @sem SelectionConstraint::TotalProperty{property:ManaValue, comparison:GreaterOrEqual, amount:$value} */
 cost_constraint_total_mana_minimum ::= "with" "total" "mana" "value" value "or" "greater"
+
+/* The payer is the player affected by the alternative cost rule. */
+/* @sem CostPart::RemoveCounters{removals:[_{player:Affected, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), kind:$counter_kind, amount:AmongThem(Exactly(Constant(1)))}]} */
+affected_counter_payment ::= "remove" "a" counter_kind "counter" "from" "a" filter_phrase
+
+/* The explicit restriction also establishes the activation zone. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{condition:ObjectMatches{object:Source, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}}, body:$program_sentence, announcement:@announcement})} */
+activated_only_own_graveyard ::= cost ":" program_sentence "activate" "only" "if" "this" "card" "is" "in" "your" "graveyard" "."
+
+/* Exiling this card from the graveyard scopes the activation there; the other
+   selected cards have their own explicit name and exclude the source. */
+/* @sem CostPart::Move{selections:[_{objects:One(Source)}, _{objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([Not(SameObject(Source)), Name($referenced_card_name)])}), choose:Exactly($value)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_self_and_named ::= "exile" "this" "card" "and" value "other" "cards" "named" referenced_card_name "from" "your" "graveyard"
+
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_exile_self_and_named]}, limits:$activation_limits, announcement:@announcement, body:$program})} */
+activated_exile_self_and_named_limited ::= cost_exile_self_and_named ":" program "." activation_limits "."
