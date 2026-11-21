@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump
+continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -6733,3 +6733,46 @@ host_abilities_cant_activate ::= "its" "activated" "abilities" "can't" "be" "act
 /* A condition and the card's graveyard location scope its flashback permission. */
 /* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:$keyword_flashback} */
 conditional_graveyard_flashback ::= "as" "long" "as" condition "and" "this" "card" "is" "in" "your" "graveyard" "," "it" "has" keyword_flashback "."
+
+/* Plural populations receive a temporary stat bonus and a keyword together. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected_plural), changes:[...$plural_pump_change, ...$plural_gain_change], duration:$duration, evaluation:Snapshot} */
+continuous_plural_pump_grant ::= affected_plural plural_pump_change "and" plural_gain_change duration
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+plural_pump_change ::= "get" signed "/" signed
+
+/* @sem Change::[GrantKeyword($keyword_value)] */
+plural_gain_change ::= "gain" keyword_value
+
+/* The affected batch of the preceding action retains its result identity. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Affected(@prior)), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot} */
+prior_creatures_pump ::= "those" "creatures" "get" signed "/" signed duration
+
+/* A targeting exception applies separately to players and controlled permanents. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Players($permission_players), changes:[PlayerRule(TargetableDespite{sources:ControlledBy(One(AbilityController)), keyword:$permission_keyword})]}, Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([ControlledBy($permission_controllers), HasKeywordFamily($permission_keyword)])}), changes:[Rule(TargetableDespite{sources:ControlledBy(One(AbilityController)), keyword:$permission_keyword})]}] */
+line_targeting_permission ::= permission_players "and" "permanents" permission_controllers "control" permission_keyword "."
+
+permission_players ::= player_keyword_many | hexproof_you
+
+permission_controllers ::= player_keyword_many | permission_you
+
+/* @sem PlayerSet::One(AbilityController) */
+permission_you ::= "you"
+
+permission_keyword ::= permission_hexproof
+
+/* @sem KeywordFamily::Hexproof */
+permission_hexproof ::= "with" "hexproof" "can" "be" "the" "targets" "of" "spells" "and" "abilities" "you" "control" "as" "though" "they" "didn't" "have" "hexproof"
+
+/* A target's temporary changes and its separately created combat trigger. */
+/* @sem Ability::Spell{body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($controlled_subtype_target)), changes:[Pump{power:$signed, toughness:$signed_2}, GrantKeyword($keyword_name)], duration:EndOfTurn, evaluation:Snapshot}}, Effect{result:@next, operation:CreateTrigger{event:Damage{source_kind:Permanent, sources:SameObject($controlled_subtype_target), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}, duration:EndOfTurn, body:$combat_exile_play_program, announcement:_{}}}]}, announcement:@announcement} */
+spell_controlled_target_combat_program ::= controlled_subtype_target "gets" signed "/" signed "and" "gains" keyword_name "until" "end" "of" "turn" "." "whenever" "it" "deals" "combat" "damage" "to" "a" "player" "this" "turn" "," combat_exile_play_program
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$subtype, ControlledBy(One(AbilityController))])}), index:0} */
+controlled_subtype_target ::= "target" subtype "you" "control"
+
+/* @sem Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($blocked_controlled_target)), changes:[Pump{power:$signed, toughness:$signed_2}, GrantKeyword($keyword_name), GrantAbility(@scope(Ability::Triggered{event:Damage{source_kind:Permanent, sources:SameObject(Source), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}, limits:_{}, announcement:@announcement, body:$combat_look_exile_cast_program}))], duration:$duration, evaluation:Snapshot}}]}} */
+spell_blocked_target_granted_combat ::= duration "," blocked_controlled_target "gets" signed "/" signed "and" "gains" keyword_name "and" '"' "whenever" "this" "creature" "deals" "combat" "damage" "to" "a" "player" "," combat_look_exile_cast_program '"'
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([State(Blocked), $noun, ControlledBy(One(AbilityController))])}), index:0} */
+blocked_controlled_target ::= "target" "blocked" noun "you" "control"

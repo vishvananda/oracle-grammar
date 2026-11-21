@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after
+token_group ::= named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted
 
 token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural
 
@@ -985,3 +985,34 @@ named_artifact_quoted_recipe ::= "colorless" "artifact" "token" "named" "Etheriu
 /* The trailing definition supplies the amount, independently of the token recipe. */
 /* @sem TokenSpec::TokenSpec{amount:$graveyard_hand_library_history, words:CreatingEffect, recipe:$token_recipe} */
 token_history_x_tapped ::= "X" "tapped" token_recipe "," "where" "X" "is" graveyard_hand_library_history
+
+/* The X definition supplies the amount while the recipe remains independently composable. */
+/* @sem TokenSpec::TokenSpec{amount:$token_damage_x_amount, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_damage_x ::= "X" token_recipe "," "where" "X" "is" token_damage_x_amount
+
+/* @sem TokenSpec::TokenSpec{amount:$token_damage_x_amount, words:CreatingEffect, recipe:$token_recipe_quoted_comma} */
+token_defined_damage_x_quoted ::= "X" token_recipe_quoted_comma "where" "X" "is" token_damage_x_amount
+
+/* @sem TokenRecipe::@token_abilities($token_recipe_base, $token_comma_abilities) */
+token_recipe_quoted_comma ::= token_recipe_base "with" token_comma_abilities
+
+/* @sem Ability::[$token_comma_static] */
+token_comma_abilities ::= token_comma_static
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:$static_changes} */
+token_comma_static ::= '"' affected static_changes "," '"' 
+
+token_damage_x_amount ::= token_damage_opponents | token_damage_object
+
+/* @sem Expr::EventHistory{event:Damage(_{source_kind:Any, sources:Any, recipients:Players(OpponentsOf(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:TotalAmount} */
+token_damage_opponents ::= "the" "damage" "dealt" "to" "your" "opponents" "this" "turn"
+
+/* @sem Expr::EventHistory{event:Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject($object_ref)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:TotalAmount} */
+token_damage_object ::= "the" "amount" "of" "damage" "dealt" "to" object_ref "this" "turn"
+
+/* Keep the payment and its created token's grant and delayed exile in one branch. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$pay_mana, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[$conditional_token_creation, $conditional_token_grant, $scoped_token_exile_end]}, otherwise:Program{}}]} */
+scoped_paid_token_program ::= "you" "may" pay_mana "." "if" "you" "do" "," conditional_token_creation "." conditional_token_grant "." scoped_token_exile_end "."
+
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_reference, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
+scoped_token_exile_end ::= "exile" created_reference "at" "the" "beginning" "of" "the" "next" "end" "step"

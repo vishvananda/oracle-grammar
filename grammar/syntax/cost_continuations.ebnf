@@ -251,3 +251,19 @@ instructions_optional_sacrifice_return ::= "you" "may" cost_sacrifice "." "if" "
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$cost_sacrifice]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:InSet(CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After})}, destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, $sacrifice_return_count]], states:[]}}, qualifiers:[]}}, ...$conjoined]}, otherwise:Program{}}] */
 instructions_optional_sacrifice_return_more ::= "you" "may" cost_sacrifice "." "if" "you" "do" "," "return" "that" "card" "to" "the" "battlefield" "under" "its" "owner's" "control" "with" sacrifice_return_count counter_kind "counters" "on" "it" "and" conjoined
 sacrifice_return_count ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20 | n30 | number_hundred
+
+/* A hand-to-battlefield payment and its continuation share the performed
+   payment receipt; the follow-up cannot bind to an unrelated movement. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$hand_battlefield_payment, optional:true}}, If{condition:PaymentChosen(@marked), then:$hand_battlefield_followup, otherwise:Program{}}]}} */
+hand_battlefield_paid_spell ::= "you" "may" hand_battlefield_payment "." hand_battlefield_followup
+
+/* @sem Cost::Cost{parts:[Move{selections:[_{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, choose:Exactly($counter_a)}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+hand_battlefield_payment ::= "put" counter_a filter_phrase "card" "from" "your" "hand" "onto" "the" "battlefield"
+
+hand_battlefield_followup ::= hand_battlefield_unless_mana | hand_battlefield_granted_triggers
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[ManaCostReduced{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, reduction:$generic_reduction_symbols}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})}}]}, otherwise:Program{}}]} */
+hand_battlefield_unless_mana ::= "if" "you" "do" "," "sacrifice" "it" "unless" "you" "pay" "its" "mana" "cost" "reduced" "by" generic_reduction_symbols "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})), changes:[GrantKeyword($keyword_value), GrantAbility(@scope(Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$program})), GrantAbility(@scope(Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$program_2}))], duration:Indefinite, evaluation:Snapshot}}]} */
+hand_battlefield_granted_triggers ::= "that" "permanent" "gains" keyword_value "," '"' event_clause "," program "," '"' "and" '"' "at" turn_event "," program "." '"'

@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set
+object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -519,7 +519,7 @@ noun_outlaw ::= "outlaw"
 /* @sem ObjectFilter::CardType(Battle) */
 noun_battle ::= "battle"
 
-filter_plural ::= enchanted_ref_and_object | plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among | filter_plural_except_shared | filter_plural_quantified_three | plural_nonattacker_except_unable | plural_controlled_chosen_name | shared_literal_fold_526071ba63ca
+filter_plural ::= enchanted_ref_and_object | plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among | filter_plural_except_shared | filter_plural_quantified_three | plural_nonattacker_except_unable | plural_controlled_chosen_name | shared_literal_fold_526071ba63ca | filter_plural_folded_vampire
 
 /* @sem @and($filter_outer_adjectives, $filter_plural) */
 filter_plural_adjectives ::= filter_outer_adjectives filter_plural
@@ -3176,3 +3176,18 @@ choice_cards_library ::= "a" "card" "from" "your" "library"
 /* Owned commanders in the two public commander zones, preserving both domains. */
 /* @sem ObjectSet::Union([Zone(_{scope:Shared(Command), kind:Card, filter:AllOf([State(Commander), State(Commander), OwnedBy(One(AbilityController))])}), Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([State(Commander), State(Commander), OwnedBy(One(AbilityController))])}]) */
 owned_commander_battlefield_or_command ::= "a" "commander" "you" "own" "on" "the" "battlefield" "or" "in" "the" "command" "zone"
+
+/* Sentence-initial capitalization folds this subtype token. */
+/* @sem @and(ObjectFilter::Subtype(Vampire), $typed_plural_tail) */
+filter_plural_folded_vampire ::= "vampire" typed_plural_tail
+
+/* The explicit target and each other member share a color with that target. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), AllOf([Not(SameObject($target_object)), $filter_phrase, Shares{property:Colors, with:$target_object}])])} */
+objects_target_and_color_sharing ::= target_object "and" "each" "other" filter_phrase "that" "shares" "a" "color" "with" "it"
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([Not(State(FaceDown)), OwnedBy(One(AbilityController))])} */
+face_up_owned_exile_cards ::= "face-up" "exiled" "cards" "you" "own"
+
+/* A selected X-card population from the payer’s hand. */
+/* @sem $card_filter */
+announced_hand_card_selection ::= "X" card_filter "cards" "from" "your" "hand"

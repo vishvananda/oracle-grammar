@@ -479,3 +479,52 @@ defender_history_put ::= "put" "a" filter_phrase "onto" "the" "battlefield"
 /* Preserve the bound attacking player and both alternative defenders. */
 /* @sem PlayerSet::Intersection([$players_singular, Union([Matching{binding:0, condition:Compare{left:EventHistory{event:Attack{attackers:Any, by:One(Bound(0)), defenders:Players(One(AbilityController))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}, Matching{binding:0, condition:PlayerDid{player:Bound(0), event:AttackedDefender($filter_phrase), window:ThisTurn}}])]) */
 player_rule_attacked_you_or_defender ::= players_singular "who" "attacked" "you" "or" "a" filter_phrase "this" "turn"
+
+/* Each announced player supplies both the mill recipient and counted zone owner. */
+/* @sem Instruction::[ForEachPlayer{players:$announced_many_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Mill{players:One(Bound(0)), amount:CountObjects(Zone{scope:Players{zone:$personal_mill_zone, players:One(Bound(0))}, kind:Card, filter:Any})}}]}}] */
+instructions_announced_personal_mill ::= announced_many_players "each" "mill" "cards" "equal" "to" "the" "number" "of" "cards" "in" "their" personal_mill_zone
+
+personal_mill_zone ::= personal_mill_graveyard | personal_mill_hand | personal_mill_library
+
+/* @sem Zone::Graveyard */
+personal_mill_graveyard ::= "graveyard"
+
+/* @sem Zone::Hand */
+personal_mill_hand ::= "hand"
+
+/* @sem Zone::Library */
+personal_mill_library ::= "library"
+
+/* Thresholds count each iterated player's own controlled permanents. */
+/* @sem PlayerSet::Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}} */
+players_control_threshold_more ::= "each" "player" "who" "controls" value "or" "more" filter_plural
+
+/* @sem PlayerSet::Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}} */
+players_control_threshold_fewer ::= "each" "player" "who" "controls" value "or" "fewer" filter_plural
+
+/* Comparison subjects compose with the ordinary player prohibition phrase. */
+/* @sem Ability::[Static{kind:Ordinary, affected:Players($more_type_opponents), changes:$player_prohibitions}] */
+line_more_opponents_prohibition ::= more_type_opponents "can't" player_prohibitions "."
+
+/* The elliptical sentence repeats the comparison and cast prohibition per type. */
+/* @sem Ability::[$comparison_cast_opening, $comparison_cast_repeat, $comparison_cast_repeat_2] */
+line_comparison_cast_ellipsis ::= comparison_cast_opening "." "the" "same" "is" "true" "for" comparison_cast_repeat "and" comparison_cast_repeat "."
+
+/* @sem Ability::Static{kind:Ordinary, affected:Players(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$comparison_cast_pair, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$comparison_cast_pair, ControlledBy(One(AbilityController))])})}}}])), changes:[PlayerRule(Prohibit(CastSpell{filter:$comparison_cast_pair}))]} */
+comparison_cast_opening ::= "each" "opponent" "who" "controls" "more" comparison_cast_pair "spells"
+
+comparison_cast_pair ::= comparison_creature_pair | comparison_artifact_pair | comparison_enchantment_pair
+
+/* @sem ObjectFilter::CardType(Creature) */
+comparison_creature_pair ::= "creatures" "than" "you" "can't" "cast" "creature"
+
+/* @sem ObjectFilter::CardType(Artifact) */
+comparison_artifact_pair ::= "artifacts" "than" "you" "can't" "cast" "artifact"
+
+/* @sem ObjectFilter::CardType(Enchantment) */
+comparison_enchantment_pair ::= "enchantments" "than" "you" "can't" "cast" "enchantment"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Players(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$comparison_spell_type, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$comparison_spell_type, ControlledBy(One(AbilityController))])})}}}])), changes:[PlayerRule(Prohibit(CastSpell{filter:$comparison_spell_type}))]} */
+comparison_cast_repeat ::= comparison_spell_type
+
+comparison_spell_type ::= plural_creature | plural_artifact | plural_enchantment

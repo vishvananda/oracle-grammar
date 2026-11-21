@@ -193,3 +193,18 @@ triggered_paid_source_targeting_spell_copy ::= "whenever" event_cast_spell_targe
 /* The returned object is the same announced spell that was copied. */
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$target_stack_spell, times:Constant(1), targets:May}}, Effect{result:@next, operation:Move{objects:One($target_stack_spell), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
 clause_copy_spell_return_owner ::= "copy" target_stack_spell "," "then" "return" "it" "to" "its" "owner's" "hand" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* The linked copy phrase is used within an activation with its own linked-card limit. */
+/* @sem Instruction::[Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:One($linked_exiled_card), times:Constant(1)}}, $copy_cast_free] */
+clause_copy_linked_free ::= "copy" linked_exiled_card "." copy_cast_free
+
+/* This consumer is scoped to its explicit exile producer and its arrival receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([InSet(Transition{result:@prior, phase:After}), $cast_instant_or_sorcery_filter])}), times:$value}}, $copy_cast_copies_free] */
+clause_exile_top_copy_selection ::= exile_top_cards_of_your_library "." "choose" "an" cast_instant_or_sorcery_filter "card" "exiled" "this" "way" "and" "copy" "it" value "times" "." copy_cast_copies_free
+
+/* @sem Instruction::Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:AnyNumber, cost:Free}}]}} */
+copy_cast_copies_free ::= "you" "may" "cast" "the" "copies" "without" "paying" "their" "mana" "costs"
+
+/* A loyalty activation composes the scoped producer and its consumer. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[CostPart::Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:$clause_exile_top_copy_selection}} */
+activated_exile_top_copy ::= "[" loyalty "]" ":" clause_exile_top_copy_selection "."
