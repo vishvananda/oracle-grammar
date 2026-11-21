@@ -1452,7 +1452,7 @@ filter_activated_or_tapped ::= noun "that" "was" "activated" "this" "turn" "or" 
 target_event_subject_choice ::= "target" adjective_nontype "permanent" "of" "that" "player's" "choice" "that" "one" "of" "your" "opponents" "controls"
 
 /* Stack selections are shared operands for counter effects. */
-counter_stack_objects ::= counter_one_controlled_ability | receipt_counter_spells | counter_other_typed_spells | counter_targeting_spell_or_ability | counter_targeting_instant_or_subtype | counter_one_linked_name | counter_one_sourced_ability | counter_many_stack | counter_many_spells | counter_one_cast_from_zone | counter_one_ability_or_filtered_spell | counter_stack_union | counter_nth_cast | counter_opponents_stack | counter_named_spell
+counter_stack_objects ::= counter_one_controlled_ability | receipt_counter_spells | counter_other_typed_spells | counter_targeting_spell_or_ability | counter_targeting_instant_or_subtype | counter_one_linked_name | counter_one_sourced_ability | counter_many_stack | counter_many_spells | counter_one_cast_from_zone | counter_one_ability_or_filtered_spell | counter_stack_union | counter_nth_cast | counter_opponents_stack | counter_named_spell | counter_one_spell
 
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Ability, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([$counter_ability_kind, AbilityOf($counter_source_filter)])}), index:0}) */
 counter_one_sourced_ability ::= "target" counter_ability_kind "ability" "from" counter_source_filter "source"
@@ -3312,3 +3312,16 @@ optional_opponent_graveyard_cards ::= "all" "cards" "from" "up" "to" "one" "targ
 /* Each arm describes a legendary card, with one optional target overall. */
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AnyOf([AllOf([Supertype(Legendary), $noun]), AllOf([Supertype(Legendary), $noun_2])])}), index:0} */
 target_graveyard_card_union_optional ::= "up" "to" "one" "target" "legendary" noun "card" "or" "legendary" noun "card" "from" "a" "graveyard"
+
+/* The receipt wording in the consumer requires a creature-only population. */
+chosen_counter_creature ::= chosen_counter_creature_bare | chosen_counter_creature_modified
+
+/* @sem ObjectFilter::CardType(Creature) */
+chosen_counter_creature_bare ::= "creature"
+
+/* @sem @and(ObjectFilter::CardType(Creature), $modifiers) */
+chosen_counter_creature_modified ::= "creature" modifiers
+
+/* A counter action targets a spell on the stack, retaining its filter. */
+/* @sem ObjectSet::One($target_stack_spell) */
+counter_one_spell ::= target_stack_spell

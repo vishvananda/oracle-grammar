@@ -354,7 +354,7 @@ grant_tail ::= grant_last | grant_many
 /* @sem Change::[$grant] */
 grant_last ::= "and" grant
 
-grant ::= grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | grant_chosen_color_hexproof | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability | grant_activated_abilities_from | grant_unpunctuated_static
+grant ::= grant_chosen_ability | grant_player_protection | grant_chosen_snow_landwalk | grant_chosen_color_hexproof | grant_quoted_activation | grant_departure_triggers | grant_keyword | grant_ability | grant_native_mechanic | grant_protection_each | grant_all_creature_types | grant_basic_land_types | grant_recorded_colors | grant_unpunctuated_trigger | grant_crew_ability | grant_activated_abilities_from | grant_unpunctuated_static | grant_equipment_keyword
 
 /* "Gains all creature types", "a 2/2 creature with all creature types": every creature
    type replaces the old ones (CR 205.3m), like a changeling's characteristic. */
@@ -3195,8 +3195,7 @@ first_spell_turn_grant ::= "the" "first" "spell" "you" "cast" "during" "each" "o
 /* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}} */
 first_spell_threshold ::= "with" "mana" "value" value "or" "greater"
 
-/* @sem Operand::Term{family:SpellEffect, form:Cascade} */
-first_spell_effect ::= "cascade"
+first_spell_effect ::= first_spell_effect_cascade | first_spell_effect_assist
 
 /* The alternative amount and the keyword cost being replaced are separate
    operands. The turn condition applies to the player receiving the rule. */
@@ -3246,10 +3245,9 @@ static_once_during_your_turn_play ::= "once" "during" "each" "of" "your" "turns"
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($each_hand_card), changes:[GrantAbility($hand_card_granted_ability)]} */
 static_each_hand_card_grant ::= each_hand_card "has" hand_card_granted_ability "."
 
-/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter} */
-each_hand_card ::= "each" card_filter "card" "in" "your" "hand"
+each_hand_card ::= each_card_in_your_hand | each_card_in_each_players_hand
 
-hand_card_granted_ability ::= keyword_cycling
+hand_card_granted_ability ::= keyword_cycling | listed_typecycling
 
 /* Spells cast by the emblem controller are affected on the stack. */
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($emblem_cast_spell_subject), changes:[GrantAbility(@holder($bare_storm))]} */
@@ -7068,3 +7066,58 @@ shared_granted_trigger_twice ::= '"' event_clause "," program "." "this" "abilit
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[$shared_granted_trigger_twice]} */
 static_plural_granted_trigger_twice ::= affected "have" shared_granted_trigger_twice
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter} */
+each_card_in_your_hand ::= "each" card_filter "card" "in" "your" "hand"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:All}, kind:Card, filter:$card_filter} */
+each_card_in_each_players_hand ::= "each" card_filter "card" "in" "each" "player's" "hand"
+
+/* The alternative foretell payment belongs to the controller's first card. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:Foretell, cards:Any, change:Alternate($first_foretell_payment), first_each_turn:true})]}) */
+first_foretell_alternative ::= "the" "first" "card" "you" "foretell" "each" "turn" "costs" first_foretell_payment "to" "foretell" "."
+
+/* @sem Operand::Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]} */
+first_foretell_payment ::= "{" NUMBER "}"
+
+/* A pump and a granted activation with its own cost and limits. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[Pump{power:$signed, toughness:$signed_2}, GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$granting_object_exile_cost, limits:$limit_holder_power_reduction_sorcery, announcement:@announcement, body:$granted_explicit_player_program}))]} */
+static_pump_grant_limited_exile ::= affected "gets" signed "/" signed "and" "has" '"' granting_object_exile_cost ":" granted_explicit_player_program "." limit_holder_power_reduction_sorcery "." '"'
+
+/* Explicit controller wording in a granted activation. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$player_action_base}]} */
+granted_explicit_player_program ::= "you" player_action_base
+
+/* The equipped ability belongs to each affected permanent. */
+/* @sem Change::GrantAbility(@holder($keyword_equip)) */
+grant_equipment_keyword ::= keyword_equip
+
+/* The population and its origin are shared by all three permissions. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:PlayLand, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:CastSpell, filter:Any}, terms:_{cost:Normal}}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:$permission_history}), from:$own_cast_zone, action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost{parts:[$permission_alternate_cost]})}})]}) */
+static_history_lands_spells ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" "cards" "in" own_cast_zone permission_history "." "if" "you" "cast" "a" "spell" "this" "way" "," "you" permission_alternate_cost "."
+
+permission_history ::= permission_surveilled_history | drawn_cards_history
+
+/* @sem ObjectFilter::History{event:Surveilled, window:ThisTurn} */
+permission_surveilled_history ::= "you've" "surveilled" "this" "turn"
+
+/* @sem CostPart::LifeEqualToOwnManaValue */
+permission_alternate_cost ::= "pay" "life" "equal" "to" "its" "mana" "value" "rather" "than" "paying" "its" "mana" "cost"
+
+/* The grant refers to the creature arriving from this specific choice and move. */
+/* @sem Instruction::[...$opponent_choice_creature_entry, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:$grants, duration:Indefinite, evaluation:Snapshot}}] */
+clause_opponent_choice_entry_grant ::= opponent_choice_creature_entry "." "that" "creature" "gains" grants
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$target_opponent, objects:Zone{scope:Players{zone:Graveyard, players:One($target_opponent)}, kind:Card, filter:CardType(Creature)}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{}}, qualifiers:[]}}] */
+opponent_choice_creature_entry ::= target_opponent "puts" "a" "creature" "card" "of" "their" "choice" "from" "their" "graveyard" "onto" "the" "battlefield" "under" "your" "control"
+
+/* @sem Operand::Term{family:SpellEffect, form:Cascade} */
+first_spell_effect_cascade ::= "cascade"
+
+/* The unqualified first spell and its granted effect are independent of the
+   threshold-qualified form above. */
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellsHaveAbilities{spells:Any, nth_each_turn:Constant(1), abilities:List([$first_spell_effect])})]})]} */
+first_unqualified_spell_turn_grant ::= "the" "first" "spell" "you" "cast" "during" "each" "of" "your" "turns" "has" first_spell_effect "."
+
+/* @sem Operand::Term{family:SpellEffect, form:Assist} */
+first_spell_effect_assist ::= "assist"

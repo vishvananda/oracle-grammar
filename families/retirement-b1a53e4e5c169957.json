@@ -1,0 +1,1112 @@
+{
+  "family": "repeated-exile-mana-value-cast",
+  "cases": [
+    {
+      "name": "baseline",
+      "text": "Shuffle your library. As many times as you choose, you may exile the top card of your library. If the total mana value of the cards exiled this way is 13 or less, you may cast any number of spells from among those cards without paying their mana costs.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Shuffle",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "excluding": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "PayCost",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "cost": {
+                                "parts": [
+                                  {
+                                    "Move": {
+                                      "selections": [
+                                        {
+                                          "objects": {
+                                            "kind": "Take",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "Zone",
+                                                "args": {
+                                                  "scope": {
+                                                    "Players": {
+                                                      "zone": "Library",
+                                                      "players": {
+                                                        "kind": "One",
+                                                        "args": {
+                                                          "kind": "AbilityController"
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "Card",
+                                                  "filter": {
+                                                    "kind": "Any"
+                                                  }
+                                                }
+                                              },
+                                              "count": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              },
+                                              "from": "Top"
+                                            }
+                                          },
+                                          "choose": {
+                                            "Exactly": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "destination": {
+                                        "Exile": {
+                                          "visibility": "FaceUp",
+                                          "arrival": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "optional": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "PaymentChosen",
+                            "args": 1
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "Aggregate",
+                          "args": {
+                            "objects": {
+                              "kind": "Earlier",
+                              "args": {
+                                "what": "Exiled",
+                                "by": null
+                              }
+                            },
+                            "property": "ManaValue",
+                            "aggregation": "Sum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "LessOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 13
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Earlier",
+                                  "args": {
+                                    "what": "Exiled",
+                                    "by": null
+                                  }
+                                },
+                                "count": "AnyNumber",
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "different threshold",
+      "text": "Shuffle your library. As many times as you choose, you may exile the top card of your library. If the total mana value of the cards exiled this way is 8 or less, you may cast any number of spells from among those cards without paying their mana costs.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Shuffle",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "excluding": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "PayCost",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "cost": {
+                                "parts": [
+                                  {
+                                    "Move": {
+                                      "selections": [
+                                        {
+                                          "objects": {
+                                            "kind": "Take",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "Zone",
+                                                "args": {
+                                                  "scope": {
+                                                    "Players": {
+                                                      "zone": "Library",
+                                                      "players": {
+                                                        "kind": "One",
+                                                        "args": {
+                                                          "kind": "AbilityController"
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "Card",
+                                                  "filter": {
+                                                    "kind": "Any"
+                                                  }
+                                                }
+                                              },
+                                              "count": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              },
+                                              "from": "Top"
+                                            }
+                                          },
+                                          "choose": {
+                                            "Exactly": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "destination": {
+                                        "Exile": {
+                                          "visibility": "FaceUp",
+                                          "arrival": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "optional": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "PaymentChosen",
+                            "args": 1
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "Aggregate",
+                          "args": {
+                            "objects": {
+                              "kind": "Earlier",
+                              "args": {
+                                "what": "Exiled",
+                                "by": null
+                              }
+                            },
+                            "property": "ManaValue",
+                            "aggregation": "Sum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "LessOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 8
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Earlier",
+                                  "args": {
+                                    "what": "Exiled",
+                                    "by": null
+                                  }
+                                },
+                                "count": "AnyNumber",
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "another threshold",
+      "text": "Shuffle your library. As many times as you choose, you may exile the top card of your library. If the total mana value of the cards exiled this way is 20 or less, you may cast any number of spells from among those cards without paying their mana costs.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Shuffle",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "excluding": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "PayCost",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "cost": {
+                                "parts": [
+                                  {
+                                    "Move": {
+                                      "selections": [
+                                        {
+                                          "objects": {
+                                            "kind": "Take",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "Zone",
+                                                "args": {
+                                                  "scope": {
+                                                    "Players": {
+                                                      "zone": "Library",
+                                                      "players": {
+                                                        "kind": "One",
+                                                        "args": {
+                                                          "kind": "AbilityController"
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "Card",
+                                                  "filter": {
+                                                    "kind": "Any"
+                                                  }
+                                                }
+                                              },
+                                              "count": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              },
+                                              "from": "Top"
+                                            }
+                                          },
+                                          "choose": {
+                                            "Exactly": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "destination": {
+                                        "Exile": {
+                                          "visibility": "FaceUp",
+                                          "arrival": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "optional": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "PaymentChosen",
+                            "args": 1
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "Aggregate",
+                          "args": {
+                            "objects": {
+                              "kind": "Earlier",
+                              "args": {
+                                "what": "Exiled",
+                                "by": null
+                              }
+                            },
+                            "property": "ManaValue",
+                            "aggregation": "Sum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "LessOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 20
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Earlier",
+                                  "args": {
+                                    "what": "Exiled",
+                                    "by": null
+                                  }
+                                },
+                                "count": "AnyNumber",
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "refuse unrelated graveyard producer",
+      "text": "Shuffle your library. As many times as you choose, you may exile the top card of your graveyard. If the total mana value of the cards exiled this way is 13 or less, you may cast any number of spells from among those cards without paying their mana costs.",
+      "reject": true
+    },
+    {
+      "name": "Dance with Calamity",
+      "text": "Shuffle your library. As many times as you choose, you may exile the top card of your library. If the total mana value of the cards exiled this way is 8 or less, you may cast any number of spells from among those cards without paying their mana costs.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 7
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Shuffle",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "excluding": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "PayCost",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "cost": {
+                                "parts": [
+                                  {
+                                    "Move": {
+                                      "selections": [
+                                        {
+                                          "objects": {
+                                            "kind": "Take",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "Zone",
+                                                "args": {
+                                                  "scope": {
+                                                    "Players": {
+                                                      "zone": "Library",
+                                                      "players": {
+                                                        "kind": "One",
+                                                        "args": {
+                                                          "kind": "AbilityController"
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "Card",
+                                                  "filter": {
+                                                    "kind": "Any"
+                                                  }
+                                                }
+                                              },
+                                              "count": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              },
+                                              "from": "Top"
+                                            }
+                                          },
+                                          "choose": {
+                                            "Exactly": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "destination": {
+                                        "Exile": {
+                                          "visibility": "FaceUp",
+                                          "arrival": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "optional": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "PaymentChosen",
+                            "args": 1
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "Aggregate",
+                          "args": {
+                            "objects": {
+                              "kind": "Earlier",
+                              "args": {
+                                "what": "Exiled",
+                                "by": null
+                              }
+                            },
+                            "property": "ManaValue",
+                            "aggregation": "Sum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "LessOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 8
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Earlier",
+                                  "args": {
+                                    "what": "Exiled",
+                                    "by": null
+                                  }
+                                },
+                                "count": "AnyNumber",
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Dance with Calamity",
+      "text": "Shuffle your library. As many times as you choose, you may exile the top card of your library. If the total mana value of the cards exiled this way is 20 or less, you may cast any number of spells from among those cards without paying their mana costs.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 7
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Shuffle",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "excluding": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "PayCost",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "cost": {
+                                "parts": [
+                                  {
+                                    "Move": {
+                                      "selections": [
+                                        {
+                                          "objects": {
+                                            "kind": "Take",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "Zone",
+                                                "args": {
+                                                  "scope": {
+                                                    "Players": {
+                                                      "zone": "Library",
+                                                      "players": {
+                                                        "kind": "One",
+                                                        "args": {
+                                                          "kind": "AbilityController"
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "kind": "Card",
+                                                  "filter": {
+                                                    "kind": "Any"
+                                                  }
+                                                }
+                                              },
+                                              "count": {
+                                                "kind": "Constant",
+                                                "args": 1
+                                              },
+                                              "from": "Top"
+                                            }
+                                          },
+                                          "choose": {
+                                            "Exactly": {
+                                              "kind": "Constant",
+                                              "args": 1
+                                            }
+                                          }
+                                        }
+                                      ],
+                                      "destination": {
+                                        "Exile": {
+                                          "visibility": "FaceUp",
+                                          "arrival": {
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                ]
+                              },
+                              "optional": true
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "PaymentChosen",
+                            "args": 1
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "RepeatProcess"
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "Aggregate",
+                          "args": {
+                            "objects": {
+                              "kind": "Earlier",
+                              "args": {
+                                "what": "Exiled",
+                                "by": null
+                              }
+                            },
+                            "property": "ManaValue",
+                            "aggregation": "Sum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "LessOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 20
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "Earlier",
+                                  "args": {
+                                    "what": "Exiled",
+                                    "by": null
+                                  }
+                                },
+                                "count": "AnyNumber",
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

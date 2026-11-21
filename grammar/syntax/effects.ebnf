@@ -350,7 +350,7 @@ continuous_beyond_first ::= affected ("gets" | "get") signed "/" signed duration
 
 /* Only explicit action families own this two-sentence contrast. Neither slot
    uses program, clause, operation, or a CDE with an arbitrary change list. */
-clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start | instead_draw_scry_then_draw | instead_counter_conditional | instead_sacrifice_postposed_line | instead_search_program | instead_leading_draw_discard | instead_phase_move | instead_sacrifice_front | instead_sacrifice_either_both
+clause_atomic_instead ::= instead_token_quantity | clause_x_draw_replacement | instead_chosen_or_action | instead_damage | instead_draw | instead_life | instead_mana | instead_destroy | instead_counters | instead_tokens | instead_moves | instead_pump | instead_pump_counters | instead_scry_draw | instead_draw_seek | instead_investigate | instead_sacrifice | instead_damage_postposed | instead_postposed | instead_target_player_life | instead_optional_seek_conjure | instead_only_controller | instead_hand_at_turn_start | instead_draw_scry_then_draw | instead_counter_conditional | instead_sacrifice_postposed_line | instead_search_program | instead_leading_draw_discard | instead_phase_move | instead_sacrifice_front | instead_sacrifice_either_both | instead_discard_hand_choice
 
 /* The replacing action may come first and its condition trail: "That creature gets
    -13/-13 until end of turn instead if a creature died this turn". Both slots are
@@ -1654,3 +1654,18 @@ instead_sacrifice_either_both ::= "target" "player" "sacrifices" "a" filter_nonl
 /* The linked exile target stays a card and keeps the source identity. */
 /* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ExiledWith(Source)])}), index:0}) */
 conjure_linked_target_card ::= "target" noun "card" "exiled" "with" "this" "creature"
+
+/* Both sentences describe one continuous rule on the announced creature. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), changes:[Rule(Prohibit(Regenerate)), Rule(Unique(DamageToItUnpreventable))], duration:EndOfTurn, evaluation:LiveObjects} */
+target_creature_regeneration_damage_rule ::= "target" "creature" "can't" "be" "regenerated" "this" "turn" "." "damage" "that" "would" "be" "dealt" "to" "that" "creature" "this" "turn" "can't" "be" "prevented" "or" "dealt" "instead" "to" "another" "permanent" "or" "player"
+
+/* A conditional replacement composes the original discard and the alternative
+   revealed-hand choice. Both amounts and the condition are current operands. */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:$instead_revealed_hand_choice}, otherwise:Program{instructions:$instead_target_discard}}] */
+instead_discard_hand_choice ::= instead_target_discard "." NEWLINE "if" condition "," "instead" instead_revealed_hand_choice
+
+/* @sem Instruction::[Effect{result:@next, operation:Discard{players:One($target_player), amount:$card_count, random:false}}] */
+instead_target_discard ::= target_player "discards" card_count
+
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:One(@that_player)}, kind:Card, filter:Any}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(@that_player)}, kind:Card, filter:Any}, count:AsManyAsCan($card_count)}}, Effect{result:@next, operation:DiscardObjects{objects:Selected(@prior)}}] */
+instead_revealed_hand_choice ::= "that" "player" "reveals" "their" "hand" "," "you" "choose" card_count "from" "it" "," "then" "that" "player" "discards" "those" "cards"

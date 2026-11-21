@@ -51,7 +51,7 @@ conditional_creation_operation ::= create_base | create_tapped_base | create_att
 conditional_token_followups_one ::= conditional_token_followup
 /* @sem Instruction::[$conditional_token_followup, ...$conditional_token_followups] */
 conditional_token_followups_more ::= conditional_token_followup "." conditional_token_followups
-conditional_token_followups ::= conditional_token_followups_one | conditional_token_followups_more
+conditional_token_followups ::= conditional_token_grant_exile | conditional_token_followups_one | conditional_token_followups_more
 
 conditional_token_followup ::= conditional_token_change | conditional_token_grant | conditional_token_cleanup
 
@@ -1138,3 +1138,7 @@ single_copy_token_with_exceptions ::= token_copy_single object_ref "," "except" 
 
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$single_copy_token_with_exceptions], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}]} */
 program_single_copy_exile_combat ::= "create" single_copy_token_with_exceptions "." "exile" "it" "at" "end" "of" "combat"
+
+/* The grant and cleanup refer to the same preceding creation. */
+/* @sem Instruction::[$conditional_token_grant, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_ordinary_singular, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+conditional_token_grant_exile ::= conditional_token_grant "." "exile" created_ordinary_singular "at" "the" "beginning" "of" "the" "next" "end" "step"

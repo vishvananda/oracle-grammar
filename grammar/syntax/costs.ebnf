@@ -1738,3 +1738,19 @@ cost_exile_self_and_named ::= "exile" "this" "card" "and" value "other" "cards" 
 
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_exile_self_and_named]}, limits:$activation_limits, announcement:@announcement, body:$program})} */
 activated_exile_self_and_named_limited ::= cost_exile_self_and_named ":" program "." activation_limits "."
+
+/* A granted ability can pay by exiling its granting object. */
+/* @sem Cost::Cost{parts:[Mana($mana_symbols), Move{selections:[_{objects:One(GrantingObject)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]} */
+granting_object_exile_cost ::= mana_symbols "," "↑" "exile" SELF_NAME
+
+/* A graveyard return establishes the activation zone; the grant is attached
+   to the exact arriving object, and the reduction counts a live population. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{modifiers:[ActivationRule(Cost{modifier:Reduce{reductions:[_{amount:@times($braced_number, $count_each_land_type)}], spill_into_generic:true}})]}, announcement:@announcement, body:Program{instructions:[...$graveyard_return_quoted_grant]}})} */
+activated_graveyard_return_grant_reduced ::= cost ":" graveyard_return_quoted_grant "this" "ability" "costs" braced_number "less" "to" "activate" "for" "each" count_each_land_type "."
+
+/* @sem Instruction::[Effect{result:@next, operation:$self_graveyard_return}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:[GrantAbility(@holder($graveyard_return_granted_ability))], duration:Indefinite, evaluation:Snapshot}}] */
+graveyard_return_quoted_grant ::= self_graveyard_return "." "it" "gains" '"' graveyard_return_granted_ability '"'
+
+/* A modal activation whose timing limit follows its choice header. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{sorcery:true}, announcement:Announcement{modes:ModeSelection{count:ModeCount{minimum:$number_words, maximum:$number_words}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}}}, body:Program{}} */
+activated_modal_sorcery_header ::= cost ":" "choose" number_words "." "activate" "only" "as" "a" "sorcery" "." NEWLINE modes
