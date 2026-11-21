@@ -15,6 +15,27 @@ const MOST_GUARDS: usize = 4;
 /// The most nodes that may meet one required node instead; past them it is dropped.
 const MOST_INSTEAD: usize = 40;
 
+/// Where `@repeated_damage_actor` may read the later damage source as bare `it`.
+const REPEATED_SOURCE: &[&str] = &[
+    "args",
+    "then",
+    "instructions",
+    ELEMENT,
+    "args",
+    "operation",
+    "args",
+    "source",
+];
+
+/// Where `@apply` may read a verb's player set as `@subject`, for one operation or a
+/// list of instructions.
+const SUBJECTS: &[&[&str]] = &[
+    &["args", "players"],
+    &["args", "actor"],
+    &[ELEMENT, "args", "operation", "args", "players"],
+    &[ELEMENT, "args", "operation", "args", "actor"],
+];
+
 /// A node every value some rule prints holds, at a path from the value's root, unless
 /// the value holds one of the `unless` nodes instead: a transparent symbol's own node,
 /// or the same node where a conjunct may sit instead.
@@ -140,9 +161,27 @@ impl<'a> Walk<'a> {
                 match (&**name, args.as_slice()) {
                     // Only the order of the list's items may differ.
                     ("unordered", [inner @ Pattern::List(_)]) => return self.pattern(inner),
+                    // Concatenated instruction lists hold every element feature of both sides.
+                    ("and_sequence" | "then_sequence" | "optional_then", [head, tail]) => {
+                        return self.concatenated(head, tail);
+                    }
                     ("and", _) => return self.conjuncts(args),
                     ("either_event", [left, right]) => return self.either(left, right),
                     ("entering_controller", [inner]) => return self.entering(inner),
+                    // `src/functions/repeated_damage_actor.rs`: the later source may be read
+                    // as bare `it`.
+                    ("repeated_damage_actor", [inner]) => {
+                        return self.edited(inner, &[REPEATED_SOURCE], None);
+                    }
+                    // `unify_apply`: each verb's player set may be read as `@subject`.
+                    ("apply", [subject, body]) => {
+                        return self.derives(subject) && self.edited(body, SUBJECTS, None);
+                    }
+                    // `unify_where`: a computed number or a bound value may be read as `X`,
+                    // and the instruction binding it dropped.
+                    ("where", [body, amount]) => {
+                        return self.derives(amount) && self.edited(body, &[], Some("AnnouncedX"));
+                    }
                     _ => {}
                 }
             }
@@ -254,6 +293,21 @@ impl<'a> Walk<'a> {
         }
     }
 
+    /// `@and_sequence`, `@then_sequence`, and `@optional_then` concatenate two
+    /// instruction lists without editing their elements, so the result is a list holding
+    /// every element feature that either side always holds.
+    fn concatenated(&mut self, head: &Pattern, tail: &Pattern) -> bool {
+        self.node(b'L', "");
+        for side in [head, tail] {
+            let mut inner = Walk::new(self.bound, self.found);
+            if !inner.pattern(side) {
+                return false;
+            }
+            self.shift(&inner.out, true);
+        }
+        true
+    }
+
     /// `@and` deals the value's conjuncts, the nodes under its nested `AllOf` lists, out
     /// among its arguments. An argument that takes one conjunct holds its nodes at that
     /// conjunct's depth; past the deepest depth the trace keeps them for, the value has
@@ -314,6 +368,41 @@ impl<'a> Walk<'a> {
             feature.unless.append(&mut original);
         }
         derives
+    }
+
+    /// A symbol that matches its argument against the value with some nodes edited: a
+    /// required node there, or one of `kind` that an edit wrote, may not be the value's.
+    fn edited(&mut self, inner: &Pattern, under: &[&[&str]], kind: Option<&str>) -> bool {
+        let start = self.out.len();
+        let derives = self.pattern(inner);
+        let at = self.path.clone();
+        let changed = |node: &Node| {
+            let below = node.path.strip_prefix(at.as_slice()).is_some_and(|rest| {
+                under.iter().any(|prefix| {
+                    rest.len() >= prefix.len() && rest.iter().zip(*prefix).all(|(a, b)| &**a == *b)
+                })
+            });
+            below
+                || kind.is_some_and(|kind| {
+                    node.kind == b'S'
+                        && &*node.text == kind
+                        && node.path.last().is_some_and(|step| &**step == "kind")
+                })
+        };
+        let kept: Vec<Feature> = self
+            .out
+            .drain(start..)
+            .filter(|feature| !changed(&feature.node()) && !feature.unless.iter().any(changed))
+            .collect();
+        self.out.extend(kept);
+        derives
+    }
+
+    /// Whether a pattern can print anything yet, keeping none of what it requires.
+    fn derives(&self, pattern: &Pattern) -> bool {
+        let mut scratch = Walk::new(self.bound, self.found);
+        scratch.path = self.path.clone();
+        scratch.pattern(pattern)
     }
 
     fn place(&mut self, feature: &Feature) {

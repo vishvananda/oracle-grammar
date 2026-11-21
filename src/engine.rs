@@ -194,11 +194,13 @@ impl Engine {
             .iter()
             .map(|(n, t)| (n.as_str(), t.as_str()))
             .collect();
-        let grammar = grammar::load(LEXICAL, &syntax, &schema)?;
+        let mut grammar = grammar::load(LEXICAL, &syntax, &schema)?;
         let root = *grammar.names.get("card").ok_or("no card rule")?;
+        let style = print_style();
+        grammar.bind_style(&style);
         Ok(Self {
             grammar,
-            style: print_style(),
+            style,
             root,
             limits: Limits::default(),
             reading_limit: 256,
@@ -222,6 +224,7 @@ impl Engine {
     /// Print by these learned weights instead of the built-in table.
     pub fn relearn(&mut self, table: &str) {
         self.style.learn(table);
+        self.grammar.bind_style(&self.style);
     }
 
     pub fn rule_count(&self) -> usize {
@@ -408,15 +411,109 @@ fn bind_card(value: &Value, name: &str) -> Result<Value, String> {
 }
 
 fn bind_surface(value: &Value, name: &str) -> Result<Value, String> {
+    bind_surface_cached(value, name, None)
+}
+
+fn attachment_tag(attachment: bind::Attachment) -> u8 {
+    match attachment {
+        bind::Attachment::None => 0,
+        bind::Attachment::Aura => 1,
+        bind::Attachment::Equipment => 2,
+    }
+}
+
+fn has_mergeable_spells(items: &[Value]) -> bool {
+    items.windows(2).any(|pair| {
+        pair[0]["kind"] == "Spell"
+            && pair[0]["args"]["announcement"]["modes"].is_null()
+            && pair[1]["kind"] == "Spell"
+            && pair[1]["args"]["announcement"]["modes"].is_null()
+            && pair[0]["args"]["body"]["instructions"].is_array()
+            && pair[1]["args"]["body"]["instructions"].is_array()
+    })
+}
+
+fn bind_surface_cached(
+    value: &Value,
+    name: &str,
+    mut memo: Option<&mut crate::parse::ParseMemo>,
+) -> Result<Value, String> {
+    // Zero-clone fast path for ordinary multi-ability cards: check per-ability
+    // binding cache on borrowed abilities before allocating a cloned card Value.
+    if let (Value::Array(items), Some(cache)) = (value, memo.as_deref_mut())
+        && !has_mergeable_spells(items)
+        && bind::linked_card_actions::is_plain(value)?
+    {
+        let attachment = bind::attachment(value);
+        let att_tag = attachment_tag(attachment);
+        let mut bound_rcs: Vec<std::rc::Rc<Value>> = Vec::with_capacity(items.len());
+        for item in items {
+            let digest = crate::heads::value_digest(item);
+            if let Some(cached) = cache.get_ability(digest, att_tag, item) {
+                match cached {
+                    Ok(done) => bound_rcs.push(std::rc::Rc::clone(done)),
+                    Err(why) => return Err(why.clone()),
+                }
+                continue;
+            }
+            let mut one = item.clone();
+            let res = bind::bind_held_ability(&mut one, name, attachment);
+            match res {
+                Ok(()) => {
+                    let rc = std::rc::Rc::new(one);
+                    cache.insert_ability(
+                        digest,
+                        att_tag,
+                        item.clone(),
+                        Ok(std::rc::Rc::clone(&rc)),
+                    );
+                    bound_rcs.push(rc);
+                }
+                Err(why) => {
+                    cache.insert_ability(digest, att_tag, item.clone(), Err(why.clone()));
+                    return Err(why);
+                }
+            }
+        }
+        let mut bound = Value::Array(bound_rcs.into_iter().map(|rc| (*rc).clone()).collect());
+        bind::chosen_kinds::check(&bound)?;
+        bind::branches::check_gift_frames(&bound)?;
+        if let Value::Array(items) = &mut bound {
+            for item in items {
+                bind::spell_x::lower(item)?;
+            }
+        }
+        return Ok(bound);
+    }
     let mut bound = match value {
         Value::Array(items) => Value::Array(merge_spells(items.clone())),
         other => other.clone(),
     };
     let linked_card_sites = bind::linked_card_actions::prepare(&mut bound)?;
     let attachment = bind::attachment(&bound);
+    let att_tag = attachment_tag(attachment);
     if let Value::Array(items) = &mut bound {
         for item in items {
-            bind::bind_held_ability(item, name, attachment)?;
+            if let Some(cache) = memo.as_deref_mut() {
+                let digest = crate::heads::value_digest(item);
+                if let Some(cached) = cache.get_ability(digest, att_tag, item) {
+                    match cached {
+                        Ok(done) => *item = (**done).clone(),
+                        Err(why) => return Err(why.clone()),
+                    }
+                    continue;
+                }
+                let raw = item.clone();
+                let res = bind::bind_held_ability(item, name, attachment);
+                let stored = res
+                    .as_ref()
+                    .map(|()| std::rc::Rc::new(item.clone()))
+                    .map_err(Clone::clone);
+                cache.insert_ability(digest, att_tag, raw, stored);
+                res?;
+            } else {
+                bind::bind_held_ability(item, name, attachment)?;
+            }
         }
     }
     bind::linked_card_actions::lower(&mut bound, &linked_card_sites)?;
@@ -434,7 +531,7 @@ fn bind_surface(value: &Value, name: &str) -> Result<Value, String> {
 /// normalizing it or inventing printed card characteristics.
 pub fn validate_abilities(value: &Value) -> Result<(), String> {
     let abilities: Vec<Ability> =
-        serde_json::from_value(value.clone()).map_err(|e| format!("typed abilities: {e}"))?;
+        serde::Deserialize::deserialize(value).map_err(|e| format!("typed abilities: {e}"))?;
     if serde_json::to_value(&abilities).map_err(|e| e.to_string())? != *value {
         return Err("typed abilities contain unknown or missing fields".into());
     }

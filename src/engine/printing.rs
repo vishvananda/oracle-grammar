@@ -4,7 +4,7 @@ use crate::bind;
 use crate::derivation::Node;
 use crate::grammar::Sym;
 use crate::model::canonical;
-use crate::render::{Blame, Matcher, Renderer, Work};
+use crate::render::{Blame, FaceMemo, Matcher, Renderer, Work};
 use crate::replay::Replay;
 use crate::tokens::{self, Names};
 use serde_json::Value;
@@ -190,7 +190,7 @@ impl Engine {
         cap: usize,
         key: &[String],
     ) -> Result<Vec<String>, String> {
-        self.verified(name, abilities, types, (cap, cap), key)
+        self.verified(name, abilities, types, (cap, cap), key, None)
     }
 
     /// The text a card prints, which is the best one that reparses to the same IR. Nothing
@@ -202,12 +202,25 @@ impl Engine {
         types: &[String],
         key: &[String],
     ) -> Result<Option<String>, String> {
-        let mut texts = self.verified(name, abilities, types, (8, 1), key)?;
+        let mut memo = FaceMemo::new();
+        self.print_keyed_memo(&mut memo, name, abilities, types, key)
+    }
+
+    /// [`Self::print_keyed`] reusing a per-face memo across calls for the same face.
+    pub fn print_keyed_memo(
+        &self,
+        memo: &mut FaceMemo,
+        name: &str,
+        abilities: &Value,
+        types: &[String],
+        key: &[String],
+    ) -> Result<Option<String>, String> {
+        let mut texts = self.verified(name, abilities, types, (8, 1), key, Some(memo))?;
         // A schema's canonical operand order can change which equivalent
         // spellings crowd the beam. Keep the common search cheap, then use
         // the already bounded wider renderer only when no text verifies.
         if texts.is_empty() {
-            texts = self.verified(name, abilities, types, (32, 1), key)?;
+            texts = self.verified(name, abilities, types, (32, 1), key, Some(memo))?;
         }
         Ok(texts.into_iter().next())
     }
@@ -222,8 +235,28 @@ impl Engine {
         types: &[String],
         key: &[String],
     ) -> Result<Option<String>, String> {
+        let mut memo = FaceMemo::new();
+        self.print_keyed_narrow_memo(&mut memo, name, abilities, types, key)
+    }
+
+    /// [`Self::print_keyed_narrow`] reusing a per-face memo across calls for the same face.
+    pub fn print_keyed_narrow_memo(
+        &self,
+        memo: &mut FaceMemo,
+        name: &str,
+        abilities: &Value,
+        types: &[String],
+        key: &[String],
+    ) -> Result<Option<String>, String> {
         super::validate_abilities(abilities)?;
-        let texts = self.verified_whole(name, abilities, types, (8, 1), key, &WIDTHS[..1])?;
+        let texts = self.verified_whole(
+            name,
+            abilities,
+            types,
+            (8, 1),
+            (key, &WIDTHS[..1]),
+            Some(memo),
+        )?;
         Ok(texts.into_iter().next())
     }
 
@@ -235,13 +268,22 @@ impl Engine {
         types: &[String],
         limits: (usize, usize),
         key: &[String],
+        mut memo: Option<&mut FaceMemo>,
     ) -> Result<Vec<String>, String> {
         super::validate_abilities(abilities)?;
-        let texts = self.verified_whole(name, abilities, types, limits, key, &WIDTHS)?;
+        let texts = self.verified_whole(
+            name,
+            abilities,
+            types,
+            limits,
+            (key, &WIDTHS),
+            memo.as_deref_mut(),
+        )?;
         if !texts.is_empty() {
             return Ok(texts);
         }
-        let apart = self.verified_apart(name, abilities, types, limits.0, key)?;
+        let apart =
+            self.verified_apart(name, abilities, types, limits.0, key, memo.as_deref_mut())?;
         if let Some(text) = apart {
             return Ok(vec![text]);
         }
@@ -252,12 +294,19 @@ impl Engine {
         if canonical == *abilities {
             return Ok(Vec::new());
         }
-        let texts = self.verified_whole(name, &canonical, types, limits, key, &WIDTHS)?;
+        let texts = self.verified_whole(
+            name,
+            &canonical,
+            types,
+            limits,
+            (key, &WIDTHS),
+            memo.as_deref_mut(),
+        )?;
         if !texts.is_empty() {
             return Ok(texts);
         }
         Ok(self
-            .verified_apart(name, &canonical, types, limits.0, key)?
+            .verified_apart(name, &canonical, types, limits.0, key, memo)?
             .into_iter()
             .collect())
     }
@@ -269,19 +318,30 @@ impl Engine {
         abilities: &Value,
         types: &[String],
         (cap, most): (usize, usize),
-        key: &[String],
-        widths: &[usize],
+        (key, widths): (&[String], &[usize]),
+        mut memo: Option<&mut FaceMemo>,
     ) -> Result<Vec<String>, String> {
         let wanted = canonical_abilities(abilities)?;
+        let written = !key.is_empty();
         // Wrong guesses at a reference can fill a narrow beam, so widen it on failure. A
         // wider beam prints most of the same texts, and a text that failed still fails.
         // Keep native inverse views in their own pass: extra guesses must not
         // consume the lexical pass's reparse allowance or hide a verified text.
         for native in [true, false] {
             let mut failed = rustc_hash::FxHashSet::default();
+            let surfaces = if native {
+                Self::native_surfaces(abilities, written)?
+            } else {
+                Self::surfaces(abilities, written)?
+            };
             for &width in widths {
-                let printed =
-                    self.enumerated_view(name, abilities, types, (cap * width, key, native))?;
+                let printed = self.enumerated_settings(
+                    self.root,
+                    &surfaces,
+                    (name, types),
+                    (cap * width, key, native),
+                    memo.as_deref_mut(),
+                )?;
                 let mut out = Vec::new();
                 for (text, trees) in printed.texts.into_iter().zip(&printed.trees) {
                     if failed.contains(&text) {
@@ -293,7 +353,9 @@ impl Engine {
                     // been read back as a text, either way.
                     let worth_reading =
                         failed.len() < READ_ANYWAY || self.means(name, trees, &wanted);
-                    if worth_reading && self.reads_as(name, &text, &wanted) {
+                    if worth_reading
+                        && self.reads_as_memo(memo.as_deref_mut(), name, &text, &wanted)
+                    {
                         out.push(text);
                     } else {
                         failed.insert(text);
@@ -325,6 +387,7 @@ impl Engine {
         types: &[String],
         cap: usize,
         key: &[String],
+        mut memo: Option<&mut FaceMemo>,
     ) -> Result<Option<String>, String> {
         let Some(items) = abilities.as_array().filter(|items| items.len() > 1) else {
             return Ok(None);
@@ -336,7 +399,14 @@ impl Engine {
             let mut found = None;
             for end in at + 1..=longest {
                 let stretch = Value::Array(items[at..end].to_vec());
-                let texts = self.verified_whole(name, &stretch, types, (cap, 1), key, &WIDTHS)?;
+                let texts = self.verified_whole(
+                    name,
+                    &stretch,
+                    types,
+                    (cap, 1),
+                    (key, &WIDTHS),
+                    memo.as_deref_mut(),
+                )?;
                 if let Some(text) = texts.into_iter().next() {
                     found = Some((text, end));
                     break;
@@ -350,7 +420,9 @@ impl Engine {
         }
         let text = lines.join("\n");
         let wanted = canonical_abilities(abilities)?;
-        Ok(self.reads_as(name, &text, &wanted).then_some(text))
+        Ok(self
+            .reads_as_memo(memo, name, &text, &wanted)
+            .then_some(text))
     }
 
     /// Whether one of these trees builds the wanted abilities.
@@ -363,7 +435,17 @@ impl Engine {
     }
 
     pub(super) fn reads_as(&self, name: &str, text: &str, wanted: &Value) -> bool {
-        self.parse(name, text)
+        self.reads_as_memo(None, name, text, wanted)
+    }
+
+    pub(super) fn reads_as_memo(
+        &self,
+        memo: Option<&mut FaceMemo>,
+        name: &str,
+        text: &str,
+        wanted: &Value,
+    ) -> bool {
+        super::diagnostics::parse_with_memo(self, memo.map(|m| &mut m.parse), name, text)
             .is_ok_and(|parsed| parsed.readings.contains(wanted))
     }
 
@@ -376,9 +458,27 @@ impl Engine {
         cap: usize,
         key: &[String],
     ) -> Result<Enumerated, String> {
+        self.enumerated_memo(None, name, abilities, types, cap, key)
+    }
+
+    pub(super) fn enumerated_memo(
+        &self,
+        mut memo: Option<&mut FaceMemo>,
+        name: &str,
+        abilities: &Value,
+        types: &[String],
+        cap: usize,
+        key: &[String],
+    ) -> Result<Enumerated, String> {
         super::validate_abilities(abilities)?;
-        let mut printed = self.enumerated_view(name, abilities, types, (cap, key, false))?;
-        printed.append(self.enumerated_view(name, abilities, types, (cap, key, true))?);
+        let mut printed = self.enumerated_view(
+            name,
+            abilities,
+            types,
+            (cap, key, false),
+            memo.as_deref_mut(),
+        )?;
+        printed.append(self.enumerated_view(name, abilities, types, (cap, key, true), memo)?);
         Ok(printed)
     }
 
@@ -388,6 +488,7 @@ impl Engine {
         abilities: &Value,
         types: &[String],
         (cap, key, native): (usize, &[String], bool),
+        memo: Option<&mut FaceMemo>,
     ) -> Result<Enumerated, String> {
         let written = !key.is_empty();
         let surfaces = if native {
@@ -395,7 +496,13 @@ impl Engine {
         } else {
             Self::surfaces(abilities, written)?
         };
-        self.enumerated_settings(self.root, surfaces, name, types, (cap, key, native))
+        self.enumerated_settings(
+            self.root,
+            &surfaces,
+            (name, types),
+            (cap, key, native),
+            memo,
+        )
     }
 
     pub(super) fn enumerated_surfaces(
@@ -407,16 +514,16 @@ impl Engine {
         cap: usize,
         key: &[String],
     ) -> Result<Enumerated, String> {
-        self.enumerated_settings(root, surfaces, name, types, (cap, key, true))
+        self.enumerated_settings(root, &surfaces, (name, types), (cap, key, true), None)
     }
 
     fn enumerated_settings(
         &self,
         root: u32,
-        surfaces: Vec<Value>,
-        name: &str,
-        types: &[String],
+        surfaces: &[Value],
+        (name, types): (&str, &[String]),
         (cap, key, native): (usize, &[String], bool),
+        mut memo: Option<&mut FaceMemo>,
     ) -> Result<Enumerated, String> {
         let names = Names::of(name);
         let named: rustc_hash::FxHashSet<(u32, usize)> = key
@@ -432,15 +539,26 @@ impl Engine {
             .with_key(named)
             .with_name(name)
             .with_self_name(names.printed(types));
+        let saved_parse = memo
+            .as_deref_mut()
+            .map(|face| std::mem::take(&mut face.parse));
+        if let Some(face) = memo.as_deref_mut() {
+            renderer = renderer.with_face_memo(std::mem::take(face));
+        }
         for surface in surfaces {
-            let found = renderer.render(root, &surface);
+            let found = renderer.render(root, surface);
             for derivation in found.iter() {
-                let tokens = derivation.tokens.items();
+                let tokens = renderer.tokens_of(derivation);
                 let spelled = tokens::agree_articles(&tokens);
                 let weight = renderer.weight(derivation, &tokens);
                 let score = weight + self.style.score(&spelled, true);
                 printed.push((score, spelled, derivation.node.clone()));
             }
+        }
+        let cut = renderer.truncated;
+        let work = renderer.work;
+        if let Some(face) = memo {
+            *face = renderer.into_face_memo(saved_parse.unwrap_or_default());
         }
         printed.sort_by(|a, b| b.0.total_cmp(&a.0));
         let mut seen: rustc_hash::FxHashMap<String, usize> = rustc_hash::FxHashMap::default();
@@ -458,8 +576,8 @@ impl Engine {
         Ok(Enumerated {
             texts,
             trees,
-            cut: renderer.truncated,
-            work: renderer.work,
+            cut,
+            work,
         })
     }
 
@@ -653,11 +771,25 @@ impl Engine {
         abilities: &Value,
         types: &[String],
     ) -> Result<Vec<String>, String> {
+        let mut memo = FaceMemo::new();
+        self.productions_of_memo(&mut memo, name, abilities, types)
+    }
+
+    /// [`Self::productions_of`] reusing a per-face memo.
+    pub fn productions_of_memo(
+        &self,
+        memo: &mut FaceMemo,
+        name: &str,
+        abilities: &Value,
+        types: &[String],
+    ) -> Result<Vec<String>, String> {
         super::validate_abilities(abilities)?;
         let mut out = Vec::new();
+        let saved_parse = std::mem::take(&mut memo.parse);
         let mut renderer = Renderer::new(&self.grammar, &self.style, 8, types.to_vec())
             .with_name(name)
-            .with_self_name(Names::of(name).printed(types));
+            .with_self_name(Names::of(name).printed(types))
+            .with_face_memo(std::mem::take(memo));
         for surface in Self::native_surfaces(abilities, false)? {
             if let Some(best) = renderer.render(self.root, &surface).first() {
                 out.extend(
@@ -669,6 +801,7 @@ impl Engine {
                 break;
             }
         }
+        *memo = renderer.into_face_memo(saved_parse);
         out.sort();
         out.dedup();
         Ok(out)
@@ -689,7 +822,7 @@ impl Engine {
         if target.len() > self.limits.tokens {
             return Err("frontier target token limit".into());
         }
-        let mut matcher = Matcher::new(&self.grammar, &target);
+        let mut matcher = Matcher::new(&self.grammar, &target).with_frontier();
         for surface in Self::native_surfaces(abilities, true)? {
             if matcher.reaches(self.root, &surface) {
                 return Ok(None);

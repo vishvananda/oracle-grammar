@@ -3,10 +3,11 @@
 //! the text means by filling the same patterns the parser fills, with no search.
 use crate::grammar::{Grammar, RuleId};
 use crate::pattern::Bindings;
-use crate::tokens::Token;
+use crate::rtoken::RToken;
 use serde_json::Value;
 use std::borrow::Cow;
 use std::rc::Rc;
+use std::sync::Arc;
 
 /// A sequence joined in constant time.
 #[derive(Debug, Clone)]
@@ -15,6 +16,7 @@ pub struct Rope<T>(Option<Rc<Knot<T>>>);
 #[derive(Debug)]
 enum Knot<T> {
     Leaf(T),
+    Chunk(Arc<[T]>),
     Join(Rope<T>, Rope<T>),
 }
 
@@ -29,6 +31,14 @@ impl<T: Clone> Rope<T> {
         Self(Some(Rc::new(Knot::Leaf(item))))
     }
 
+    pub(crate) fn chunk(items: Arc<[T]>) -> Self {
+        if items.is_empty() {
+            Self(None)
+        } else {
+            Self(Some(Rc::new(Knot::Chunk(items))))
+        }
+    }
+
     pub fn join(&self, other: &Self) -> Self {
         match (&self.0, &other.0) {
             (None, _) => other.clone(),
@@ -37,20 +47,28 @@ impl<T: Clone> Rope<T> {
         }
     }
 
-    /// The items in order.
-    pub fn items(&self) -> Vec<T> {
-        let mut out = Vec::new();
-        let mut stack = vec![self];
+    /// Append the items in order into `out` without allocating a new output vector.
+    pub fn items_into(&self, out: &mut Vec<T>) {
+        out.clear();
+        let mut stack = smallvec::SmallVec::<[&Self; 32]>::new();
+        stack.push(self);
         while let Some(Self(knot)) = stack.pop() {
             match knot.as_deref() {
                 None => {}
                 Some(Knot::Leaf(item)) => out.push(item.clone()),
+                Some(Knot::Chunk(items)) => out.extend_from_slice(items),
                 Some(Knot::Join(left, right)) => {
                     stack.push(right);
                     stack.push(left);
                 }
             }
         }
+    }
+
+    /// The items in order.
+    pub fn items(&self) -> Vec<T> {
+        let mut out = Vec::new();
+        self.items_into(&mut out);
         out
     }
 }
@@ -112,7 +130,7 @@ impl Node {
 /// One text for a value, the named productions it used, and what it built.
 #[derive(Debug, Clone, Default)]
 pub struct Derivation {
-    pub tokens: Rope<Token>,
+    pub(crate) tokens: Rope<RToken>,
     /// Each rule used, with the alternative taken.
     pub productions: Rope<(RuleId, usize)>,
     /// How many `@prefer`red alternatives it took.
@@ -125,6 +143,10 @@ pub struct Derivation {
     pub references: u32,
     /// How many tokens it holds.
     pub length: usize,
+    /// Bitmask of style-rule trigger tokens present in `tokens`.
+    pub(crate) style_flags: u64,
+    /// Bitset of matched key steps when the card's key has at most 128 entries.
+    pub(crate) key_bits: [u64; 2],
     /// The children so far of a production being walked.
     pub kids: Rope<Kid>,
     /// What this finished derivation built, when it built anything.
@@ -132,13 +154,45 @@ pub struct Derivation {
 }
 
 impl Derivation {
-    pub fn token(token: Token, value: Option<Value>) -> Self {
+    pub(crate) fn token(token: RToken, flags: u64, value: Option<Value>) -> Self {
         Self {
             tokens: Rope::leaf(token),
             length: 1,
+            style_flags: flags,
             node: value.map(|value| Rc::new(Node::Value(value))),
             ..Self::default()
         }
+    }
+
+    /// Append a static literal token run in place (never carries a semantic `Node`).
+    #[inline]
+    pub(crate) fn append_literal(&mut self, rope: &Rope<RToken>, len: usize, flags: u64) {
+        self.tokens = self.tokens.join(rope);
+        self.length += len;
+        self.style_flags |= flags;
+        self.node = None;
+    }
+
+    /// Append one token (optionally with a semantic `Node`) in place.
+    #[inline]
+    pub(crate) fn append_token(
+        &mut self,
+        token: RToken,
+        flags: u64,
+        sym: usize,
+        node: Option<Rc<Node>>,
+    ) {
+        if let Some(node) = node {
+            self.kids = self.kids.join(&Rope::leaf(Kid {
+                sym,
+                offset: self.length,
+                node,
+            }));
+        }
+        self.tokens = self.tokens.join(&Rope::leaf(token));
+        self.length += 1;
+        self.style_flags |= flags;
+        self.node = None;
     }
 
     /// Add `piece`, as the symbol at index `sym`, to this production so far.
@@ -159,6 +213,11 @@ impl Derivation {
             word: self.word.max(piece.word),
             references: self.references + piece.references,
             length: self.length + piece.length,
+            style_flags: self.style_flags | piece.style_flags,
+            key_bits: [
+                self.key_bits[0] | piece.key_bits[0],
+                self.key_bits[1] | piece.key_bits[1],
+            ],
             kids,
             node: None,
         }

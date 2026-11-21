@@ -18,6 +18,10 @@ const CLASSES: usize = 7;
 /// An alternative that can derive nothing starts at any token, or at none.
 const EVERY_CLASS: u8 = (1 << CLASSES) - 1;
 
+/// Thresholds for choosing per-rule lookup structure.
+const SMALL_LIMIT: usize = 8;
+const DENSE_THRESHOLD: usize = 64;
+
 /// The token at a position, as a table reads it.
 #[derive(Debug, Clone, Copy)]
 pub struct Look {
@@ -32,11 +36,22 @@ struct Set {
     open: u8,
 }
 
+#[derive(Debug, Default)]
+enum Lookup {
+    #[default]
+    Empty,
+    /// Tiny rules: cache-friendly linear scan beats binary search and hashing.
+    Small(Box<[(u32, u32)]>),
+    /// Medium rules: O(1) FxHashMap lookup.
+    Map(HashMap<u32, u32>),
+    /// Large hub rules: direct array indexed by key, pre-filled with open-class fallback.
+    Dense(Box<[u32]>),
+}
+
 /// One rule's alternatives by the token they can start at, each list in grammar order.
 #[derive(Debug, Default)]
 struct Table {
-    /// Sorted by key, each with its list.
-    named: Vec<(u32, u32)>,
+    named: Lookup,
     /// For each class, the list for a token no alternative names.
     open: [u32; CLASSES],
     /// Many keys share one list, so each distinct list is held once.
@@ -190,13 +205,33 @@ impl Starts {
         for (class, list) in open.iter().enumerate() {
             table.open[class] = intern(list.clone(), &mut table.lists);
         }
+        let mut pairs: Vec<(u32, u32)> = Vec::with_capacity(by_key.len());
         for (key, mut list) in by_key {
             list.extend_from_slice(&open[usize::from(self.classes[key as usize])]);
             list.sort_unstable();
             list.dedup();
-            table.named.push((key, intern(list, &mut table.lists)));
+            pairs.push((key, intern(list, &mut table.lists)));
         }
-        table.named.sort_unstable();
+        table.named = if pairs.is_empty() {
+            Lookup::Empty
+        } else if pairs.len() <= SMALL_LIMIT {
+            pairs.sort_unstable();
+            Lookup::Small(pairs.into_boxed_slice())
+        } else if pairs.len() <= DENSE_THRESHOLD {
+            Lookup::Map(pairs.into_iter().collect())
+        } else {
+            let mut dense: Vec<u32> = self
+                .classes
+                .iter()
+                .map(|&c| table.open[usize::from(c)])
+                .collect();
+            for (key, list_id) in pairs {
+                if let Some(slot) = dense.get_mut(key as usize) {
+                    *slot = list_id;
+                }
+            }
+            Lookup::Dense(dense.into_boxed_slice())
+        };
         table
     }
 
@@ -211,6 +246,7 @@ impl Starts {
                 &mut sets,
             );
         }
+        // Build tables only after all keys exist in `starts.classes`.
         starts.tables = rules
             .iter()
             .map(|rule| starts.table(rule, nullable, &sets))
@@ -249,13 +285,23 @@ impl Starts {
     }
 
     /// The alternatives of `rule` that can start at this token, in grammar order.
+    #[inline]
     pub fn candidates(&self, rule: RuleId, look: Look) -> &[u32] {
         let table = &self.tables[rule as usize];
-        let named = look.key.and_then(|key| {
-            let found = table.named.binary_search_by_key(&key, |(key, _)| *key);
-            found.ok().map(|at| table.named[at].1)
-        });
-        let list = named.unwrap_or(table.open[look.class]);
+        let list = match (look.key, &table.named) {
+            (Some(key), Lookup::Dense(dense)) => dense
+                .get(key as usize)
+                .copied()
+                .unwrap_or(table.open[look.class]),
+            (Some(key), Lookup::Small(pairs)) => pairs
+                .iter()
+                .find_map(|&(k, v)| (k == key).then_some(v))
+                .unwrap_or(table.open[look.class]),
+            (Some(key), Lookup::Map(map)) => {
+                map.get(&key).copied().unwrap_or(table.open[look.class])
+            }
+            _ => table.open[look.class],
+        };
         &table.lists[list as usize]
     }
 }

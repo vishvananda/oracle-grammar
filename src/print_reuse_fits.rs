@@ -531,6 +531,68 @@ mod tests {
         );
     }
 
+    /// The pattern unifies with the value, so the fit must admit it.
+    fn assert_fits_where_it_unifies(pattern: &Pattern, value: &Value) {
+        assert!(
+            !pattern
+                .unify(value, crate::pattern::Bindings::new())
+                .is_empty(),
+            "{value}"
+        );
+        assert!(fit_of(pattern).may_fit(&looked_up(value)), "{value}");
+    }
+
+    #[test]
+    fn an_edited_match_requires_nothing_where_the_edit_writes() {
+        // Each argument matches only the edited value, never the value itself.
+        let source = json!({"kind": "Source"});
+        let damage = |source: Value, amount: i64| json!({"kind": "Effect", "args": {"operation": {"kind": "DealDamage", "args": {"source": source, "amount": amount}}}});
+        let contrast = |later: Value| {
+            json!({"kind": "If", "args": {"condition": {"kind": "Monstrous"},
+                "then": {"instructions": [damage(later, 2)]},
+                "otherwise": {"instructions": [damage(source.clone(), 1)]}}})
+        };
+        let it = json!({"$sym": "member_count_it", "args": [{"$sym": "it", "args": [], "at": 0}], "at": 0});
+        let repeated = Pattern::Symbol(
+            "repeated_damage_actor".into(),
+            vec![Pattern::Value(contrast(it))],
+        );
+        assert_fits_where_it_unifies(&repeated, &contrast(source.clone()));
+        let players = json!({"kind": "One", "args": {"kind": "AbilityController"}});
+        let marker = json!({"$sym": "subject", "args": [], "at": 0});
+        let draw =
+            |players: Value| json!({"kind": "Draw", "args": {"players": players, "amount": 1}});
+        let apply = Pattern::Symbol(
+            "apply".into(),
+            vec![
+                Pattern::Value(players.clone()),
+                Pattern::Value(draw(marker)),
+            ],
+        );
+        assert_fits_where_it_unifies(&apply, &draw(players.clone()));
+        // Everything outside what the edit writes is still required.
+        let other = contrast(source.clone())
+            .to_string()
+            .replace("DealDamage", "LoseLife");
+        let other: Value = serde_json::from_str(&other).unwrap();
+        assert!(!fit_of(&repeated).may_fit(&looked_up(&other)));
+        let discard = json!({"kind": "Discard", "args": {"players": players, "amount": 1}});
+        assert!(!fit_of(&apply).may_fit(&looked_up(&discard)));
+        let gain = |amount: Value| json!({"kind": "GainLife", "args": {"amount": amount}});
+        let opaque = crate::model::ir_schema::Ty::Opaque;
+        let x = Pattern::Symbol(
+            "where".into(),
+            vec![
+                Pattern::Value(gain(json!({"kind": "AnnouncedX"}))),
+                Pattern::Hole("x".into(), opaque),
+            ],
+        );
+        assert_fits_where_it_unifies(&x, &gain(json!({"kind": "CountCards", "args": 3})));
+        assert!(!fit_of(&x).may_fit(&looked_up(
+            &json!({"kind": "LoseLife", "args": {"amount": 3}})
+        )));
+    }
+
     #[test]
     fn an_entering_controller_is_also_met_by_the_controller_it_reads() {
         let replacement = |players: Value| json!({"kind": "Replacement", "args": {"active": "SourceEntering", "body": {"players": players}}});
@@ -561,5 +623,25 @@ mod tests {
         assert!(!fit.may_fit(&looked_up(&json!({"kind": "Sacrifice", "args": 2}))));
         let symbol = json!({"$sym": "sacrificed_result", "args": [{"kind": "Exile"}]});
         assert!(fit.may_fit(&looked_up(&symbol)));
+    }
+
+    #[test]
+    fn sequence_concatenation_requires_element_features_from_both_sides() {
+        let draw = json!({"kind": "Effect", "args": {"operation": {"kind": "Draw", "args": 1}}});
+        let gain =
+            json!({"kind": "Effect", "args": {"operation": {"kind": "GainLife", "args": 2}}});
+        let lose =
+            json!({"kind": "Effect", "args": {"operation": {"kind": "LoseLife", "args": 2}}});
+        for name in ["and_sequence", "then_sequence", "optional_then"] {
+            let pattern = Pattern::Symbol(
+                name.into(),
+                vec![Pattern::Value(json!([draw])), Pattern::Value(json!([gain]))],
+            );
+            let fit = fit_of(&pattern);
+            assert!(fit.may_fit(&looked_up(&json!([draw, gain]))), "{name}");
+            assert!(!fit.may_fit(&looked_up(&json!([draw, lose]))), "{name}");
+            assert!(!fit.may_fit(&looked_up(&json!([lose, gain]))), "{name}");
+            assert!(!fit.may_fit(&looked_up(&draw)), "{name}");
+        }
     }
 }

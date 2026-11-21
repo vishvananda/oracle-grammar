@@ -1,16 +1,13 @@
 //! Canonical color order for inherent mana headers, and spending restrictions that agree
 //! with the mana they follow; keys retain every other wording.
-use super::{BROKEN, Found, SOFTLY, is};
-use crate::tokens::Token;
+use super::view::{BreachSink, F_ACTIVATE, F_ADD, F_CAST, F_LBRACE, F_LPAREN, F_SPEND, TokenSlice};
+use super::{BROKEN, SOFTLY};
 
-fn color(tokens: &[Token], at: usize) -> Option<u8> {
-    if tokens.get(at) != Some(&Token::Mark('{')) || tokens.get(at + 2) != Some(&Token::Mark('}')) {
+fn color<T: TokenSlice + ?Sized>(tokens: &T, at: usize) -> Option<u8> {
+    if !tokens.is_mark(at, '{') || !tokens.is_mark(at + 2, '}') {
         return None;
     }
-    let Token::Word(word) = tokens.get(at + 1)? else {
-        return None;
-    };
-    match word.as_str() {
+    match tokens.word(at + 1)? {
         "W" => Some(0),
         "U" => Some(1),
         "B" => Some(2),
@@ -21,20 +18,18 @@ fn color(tokens: &[Token], at: usize) -> Option<u8> {
     }
 }
 
-fn options(tokens: &[Token], mut at: usize) -> Option<Vec<u8>> {
+fn options<T: TokenSlice + ?Sized>(tokens: &T, mut at: usize) -> Option<Vec<u8>> {
     let mut colors = Vec::new();
     for _ in 0..5 {
         colors.push(color(tokens, at)?);
         at += 3;
-        if tokens.get(at) == Some(&Token::Mark('.'))
-            && tokens.get(at + 1) == Some(&Token::Mark(')'))
-        {
+        if tokens.is_mark(at, '.') && tokens.is_mark(at + 1, ')') {
             return Some(colors);
         }
-        if tokens.get(at) == Some(&Token::Mark(',')) {
+        if tokens.is_mark(at, ',') {
             at += 1;
-            at += usize::from(is(tokens, at, "or"));
-        } else if is(tokens, at, "or") {
+            at += usize::from(tokens.is_word(at, "or"));
+        } else if tokens.is_word(at, "or") {
             at += 1;
         } else {
             return None;
@@ -75,10 +70,23 @@ fn canonical(colors: &[u8]) -> Option<&'static [u8]> {
     })
 }
 
-pub(super) fn wording(tokens: &[Token], found: &mut Found) {
-    production_bundles(tokens, found);
-    spending_agrees(tokens, found);
-    uses_agree(tokens, found);
+pub(super) fn wording<T: TokenSlice + ?Sized, S: BreachSink>(
+    tokens: &T,
+    flags: u64,
+    found: &mut S,
+) {
+    if (flags & F_ADD != 0) && (flags & F_LBRACE != 0) {
+        production_bundles(tokens, found);
+    }
+    if flags & F_SPEND != 0 {
+        spending_agrees(tokens, found);
+    }
+    if (flags & F_CAST != 0) && (flags & F_ACTIVATE != 0) {
+        uses_agree(tokens, found);
+    }
+    if flags & F_LBRACE == 0 {
+        return;
+    }
     let mut fragment = Vec::new();
     let mut at = 0;
     while fragment.len() < 128 {
@@ -89,15 +97,18 @@ pub(super) fn wording(tokens: &[Token], found: &mut Found) {
         at += 3;
     }
     if at == tokens.len() && !fragment.is_empty() && noncanonical(&fragment) {
-        found.push(("literal mana order", BROKEN, 0));
+        found.push("literal mana order", BROKEN, 0);
+    }
+    if flags & F_LPAREN == 0 || flags & F_ADD == 0 {
+        return;
     }
     for open in 0..tokens.len() {
-        if tokens.get(open) != Some(&Token::Mark('('))
-            || tokens.get(open + 1) != Some(&Token::Mark('{'))
-            || !is(tokens, open + 2, "T")
-            || tokens.get(open + 3) != Some(&Token::Mark('}'))
-            || tokens.get(open + 4) != Some(&Token::Mark(':'))
-            || !is(tokens, open + 5, "add")
+        if !tokens.is_mark(open, '(')
+            || !tokens.is_mark(open + 1, '{')
+            || !tokens.is_word(open + 2, "T")
+            || !tokens.is_mark(open + 3, '}')
+            || !tokens.is_mark(open + 4, ':')
+            || !tokens.is_word(open + 5, "add")
         {
             continue;
         }
@@ -107,20 +118,20 @@ pub(super) fn wording(tokens: &[Token], found: &mut Found) {
         let mut sorted = colors.clone();
         sorted.sort_unstable();
         if canonical(&sorted).is_some_and(|wanted| wanted != colors) {
-            found.push(("mana header order", BROKEN, open));
+            found.push("mana header order", BROKEN, open);
         }
     }
 }
 
 /// Literal totals admit every order. Prefer grouped units in the established
 /// color-cycle order; a spelling key can still select any other permutation.
-fn production_bundles(tokens: &[Token], found: &mut Found) {
+fn production_bundles<T: TokenSlice + ?Sized, S: BreachSink>(tokens: &T, found: &mut S) {
     for verb in 0..tokens.len() {
-        if !is(tokens, verb, "add") && !is(tokens, verb, "adds") {
+        if !tokens.is_word(verb, "add") && !tokens.is_word(verb, "adds") {
             continue;
         }
         let mut at = verb + 1;
-        if is(tokens, at, "an") && is(tokens, at + 1, "additional") {
+        if tokens.is_word(at, "an") && tokens.is_word(at + 1, "additional") {
             at += 2;
         }
         loop {
@@ -137,12 +148,12 @@ fn production_bundles(tokens: &[Token], found: &mut Found) {
                 break;
             }
             if noncanonical(&units) {
-                found.push(("literal mana order", BROKEN, start));
+                found.push("literal mana order", BROKEN, start);
             }
-            if tokens.get(at) == Some(&Token::Mark(',')) {
+            if tokens.is_mark(at, ',') {
                 at += 1;
-                at += usize::from(is(tokens, at, "or"));
-            } else if is(tokens, at, "or") {
+                at += usize::from(tokens.is_word(at, "or"));
+            } else if tokens.is_word(at, "or") {
                 at += 1;
             } else {
                 break;
@@ -174,30 +185,31 @@ fn noncanonical(units: &[u8]) -> bool {
 /// only to cast a creature spell" and "Add two mana in any combination of colors. Spend
 /// this mana only to cast Elemental spells". Oracle says otherwise in 11 of 146
 /// restrictions, which a key keeps.
-fn spending_agrees(tokens: &[Token], found: &mut Found) {
-    for at in 0..tokens.len() {
+fn spending_agrees<T: TokenSlice + ?Sized, S: BreachSink>(tokens: &T, found: &mut S) {
+    let len = tokens.len();
+    for at in 0..len {
         let spend = ["spend", "this", "mana", "only", "to"];
-        if !(0..spend.len()).all(|offset| is(tokens, at + offset, spend[offset])) {
+        if !(0..spend.len()).all(|offset| tokens.is_word(at + offset, spend[offset])) {
             continue;
         }
         let Some(verb) = (at.saturating_sub(64)..at)
             .rev()
-            .find(|&i| is(tokens, i, "add"))
+            .find(|&i| tokens.is_word(i, "add"))
         else {
             continue;
         };
         let mut amount = verb + 1;
-        if is(tokens, amount, "an") && is(tokens, amount + 1, "additional") {
+        if tokens.is_word(amount, "an") && tokens.is_word(amount + 1, "additional") {
             amount += 2;
         }
         let one = one_unit(tokens, amount)
-            || (is(tokens, amount, "one") || tokens.get(amount) == Some(&Token::Number(1)))
-                && is(tokens, amount + 1, "mana");
+            || (tokens.is_word(amount, "one") || tokens.number(amount) == Some(1))
+                && tokens.is_word(amount + 1, "mana");
         let mut word = at + spend.len();
-        while word < tokens.len() && tokens[word] != Token::Mark('.') {
+        while word < len && !tokens.is_mark(word, '.') {
             let number = use_number(tokens, word);
             if one && number == Some(false) || !one && number == Some(true) {
-                found.push(("spending agrees with the mana", 2.0 * SOFTLY, word));
+                found.push("spending agrees with the mana", 2.0 * SOFTLY, word);
             }
             word += 1;
         }
@@ -206,25 +218,23 @@ fn spending_agrees(tokens: &[Token], found: &mut Found) {
 
 /// "cast a creature spell or activate an ability of a creature", "cast artifact spells or
 /// activate abilities of artifacts": Oracle never mixes the two, in 64 of 64.
-fn uses_agree(tokens: &[Token], found: &mut Found) {
-    for at in 0..tokens.len() {
+fn uses_agree<T: TokenSlice + ?Sized, S: BreachSink>(tokens: &T, found: &mut S) {
+    let len = tokens.len();
+    for at in 0..len {
         let named = ["it", "that", "this", "the", "them", "those"]
             .iter()
-            .any(|word| is(tokens, at + 1, word));
-        if !is(tokens, at, "cast")
-            || named
-            || matches!(tokens.get(at + 1), Some(Token::SelfName(_)))
-        {
+            .any(|word| tokens.is_word(at + 1, word));
+        if !tokens.is_word(at, "cast") || named || tokens.is_self_name(at + 1) {
             continue;
         }
         let Some(cast) = use_number(tokens, at) else {
             continue;
         };
         let mut word = at + 1;
-        while word < tokens.len() && !matches!(tokens[word], Token::Mark('.') | Token::Newline) {
-            if is(tokens, word, "or") && is(tokens, word + 1, "activate") {
+        while word < len && !tokens.is_mark(word, '.') && !tokens.is_newline(word) {
+            if tokens.is_word(word, "or") && tokens.is_word(word + 1, "activate") {
                 if use_number(tokens, word + 1).is_some_and(|activate| activate != cast) {
-                    found.push(("cast and activate agree", BROKEN, word + 1));
+                    found.push("cast and activate agree", BROKEN, word + 1);
                 }
                 break;
             }
@@ -234,13 +244,13 @@ fn uses_agree(tokens: &[Token], found: &mut Found) {
 }
 
 /// Whether "cast …" or "activate …" at `at` names one spell or ability, or several.
-fn use_number(tokens: &[Token], at: usize) -> Option<bool> {
-    let article = is(tokens, at + 1, "a") || is(tokens, at + 1, "an");
-    if is(tokens, at, "cast") {
+fn use_number<T: TokenSlice + ?Sized>(tokens: &T, at: usize) -> Option<bool> {
+    let article = tokens.is_word(at + 1, "a") || tokens.is_word(at + 1, "an");
+    if tokens.is_word(at, "cast") {
         Some(article)
-    } else if is(tokens, at, "activate") && is(tokens, at + 1, "abilities") {
+    } else if tokens.is_word(at, "activate") && tokens.is_word(at + 1, "abilities") {
         Some(false)
-    } else if is(tokens, at, "activate") && article && is(tokens, at + 2, "ability") {
+    } else if tokens.is_word(at, "activate") && article && tokens.is_word(at + 2, "ability") {
         Some(true)
     } else {
         None
@@ -248,24 +258,24 @@ fn use_number(tokens: &[Token], at: usize) -> Option<bool> {
 }
 
 /// One mana symbol, or a choice of them, ends the sentence: `{G}.`, `{R}, {W}, or {B}.`
-fn one_unit(tokens: &[Token], mut at: usize) -> bool {
+fn one_unit<T: TokenSlice + ?Sized>(tokens: &T, mut at: usize) -> bool {
     loop {
-        if !(tokens.get(at) == Some(&Token::Mark('{'))
-            && matches!(tokens.get(at + 1), Some(Token::Word(_)))
-            && tokens.get(at + 2) == Some(&Token::Mark('}')))
+        if !(tokens.is_mark(at, '{')
+            && tokens.word(at + 1).is_some()
+            && tokens.is_mark(at + 2, '}'))
         {
             return false;
         }
         at += 3;
-        if tokens.get(at) == Some(&Token::Mark('.')) {
+        if tokens.is_mark(at, '.') {
             return true;
         }
-        if tokens.get(at) == Some(&Token::Mark(',')) {
+        if tokens.is_mark(at, ',') {
             at += 1;
         }
-        if is(tokens, at, "or") {
+        if tokens.is_word(at, "or") {
             at += 1;
-        } else if tokens.get(at - 1) != Some(&Token::Mark(',')) {
+        } else if !tokens.is_mark(at - 1, ',') {
             return false;
         }
     }

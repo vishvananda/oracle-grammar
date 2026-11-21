@@ -71,7 +71,7 @@ fn semantic_roots(
     visited: &mut u64,
     conditions: bool,
 ) -> bool {
-    let mut stack = vec![(node, false)];
+    let mut stack: SmallVec<[(&Node, bool); 32]> = smallvec::smallvec![(node, false)];
     while let Some((node, inside_ability)) = stack.pop() {
         if *visited >= 8192 {
             return false;
@@ -144,7 +144,7 @@ mod tests {
         }
         g
     }
-    fn wrapped(root: RuleId, leaf: RuleId, text: &str, preferred: u32) -> Derivation {
+    fn wrapped(root: RuleId, leaf: RuleId, word_id: u32, preferred: u32) -> Derivation {
         let mut node = Rc::new(Node::Rule {
             rule: leaf,
             alternative: 0,
@@ -162,7 +162,7 @@ mod tests {
             });
         }
         Derivation {
-            tokens: Rope::leaf(Token::Word(text.into())),
+            tokens: Rope::leaf(crate::rtoken::RToken::Number(word_id)),
             node: Some(node),
             preferred,
             ..Derivation::default()
@@ -174,15 +174,13 @@ mod tests {
         let model = Model::default();
         for rule in [0, 1, 2, 3] {
             let mut renderer = Renderer::new(&g, &model, 4, vec![]);
-            let mut found: Vec<_> = (0..5)
-                .map(|i| wrapped(rule, 4, &format!("generic{i}"), 10))
-                .collect();
-            found.push(wrapped(rule, 5, "explicit", 0));
+            let mut found: Vec<_> = (0..5).map(|i| wrapped(rule, 4, i, 10)).collect();
+            found.push(wrapped(rule, 5, 99, 0));
             let kept = renderer.best_of_each(rule, found, &[0]);
             assert_eq!(kept.len(), 4);
             assert!(
                 kept.iter()
-                    .any(|d| d.tokens.items() == vec![Token::Word("explicit".into())])
+                    .any(|d| renderer.tokens_of(d) == vec![Token::Number(99)])
             );
             assert!(renderer.work.branch_nodes > 0);
         }
@@ -190,7 +188,7 @@ mod tests {
     #[test]
     fn conditions_do_not_replace_the_owning_ability_key() {
         let g = grammar();
-        let d = wrapped(0, 5, "explicit", 0);
+        let d = wrapped(0, 5, 99, 0);
         let (branch, _) = of(&g, 0, 0, &d);
         let Branch::Semantic(roots) = branch else {
             panic!("semantic roots")

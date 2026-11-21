@@ -11,12 +11,40 @@ pub(super) fn preferred(grammar: &Grammar, alternative: &Alternative, value: &Va
     let [Sym::Rule(rule)] = alternative.syms.as_slice() else {
         return 0;
     };
+    crate::print_trace::rule(*rule);
+    if let Some(compiled) = grammar.word_table.compiled_prefer.get(*rule as usize) {
+        if compiled.is_empty() {
+            return 0;
+        }
+        let kind = value
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let sym = value.get("$sym").and_then(Value::as_str);
+        let mut once: Option<bool> = None;
+        for prefer in compiled {
+            let matched = match prefer {
+                crate::rtoken::CompiledPrefer::Always => true,
+                crate::rtoken::CompiledPrefer::Value(want) => want == kind,
+                crate::rtoken::CompiledPrefer::Symbol(want) => sym == Some(want.as_str()),
+                crate::rtoken::CompiledPrefer::Once => {
+                    *once.get_or_insert_with(|| happens_once(value))
+                }
+                crate::rtoken::CompiledPrefer::Recurs => {
+                    !*once.get_or_insert_with(|| happens_once(value))
+                }
+            };
+            if matched {
+                return 1;
+            }
+        }
+        return 0;
+    }
     let kind = value
         .get("kind")
         .and_then(Value::as_str)
         .unwrap_or_default();
     let mut most = 0;
-    crate::print_trace::rule(*rule);
     for prefer in &grammar.rules[*rule as usize].prefer {
         if prefer == "always"
             || prefer == &format!("value({kind})")

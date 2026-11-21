@@ -64,6 +64,22 @@ pub enum Item {
 /// What `@card_name` matched: no hole has this name.
 pub const CARD_NAME: &str = "@card_name";
 
+/// Sound list-shape guidance for splice and sequence unification.
+#[derive(Clone, Copy)]
+pub(crate) struct UnifyCtx<'a> {
+    pub(crate) tags: &'a crate::list_shapes::TagTable,
+    pub(crate) holes: &'a [(String, crate::list_shapes::ListShape)],
+}
+
+impl<'a> UnifyCtx<'a> {
+    #[inline]
+    pub(crate) fn hole(&self, name: &str) -> Option<&'a crate::list_shapes::ListShape> {
+        self.holes
+            .iter()
+            .find_map(|(hole, shape)| (hole == name).then_some(shape))
+    }
+}
+
 /// What holes hold: values borrowed from the one being matched wherever that can be, so
 /// that matching copies nothing. `'p` is the pattern's life, `'v` the values'.
 #[derive(Debug, Clone, Default)]
@@ -85,6 +101,17 @@ impl<'p, 'v> Bindings<'p, 'v> {
             Some(held) => held.1 = value,
             None => self.0.push((name, value)),
         }
+    }
+
+    /// Borrow every bound value with a shorter lifetime, avoiding deep clones during
+    /// temporary `unify_made` calls.
+    fn reborrow<'b>(&'b self) -> Bindings<'p, 'b> {
+        Bindings(
+            self.0
+                .iter()
+                .map(|(name, value)| (*name, Cow::Borrowed(value.as_ref())))
+                .collect(),
+        )
     }
 
     /// The same bindings, holding their own values, for a match that outlives what it read.
@@ -497,7 +524,7 @@ impl Pattern {
                 Ok(Value::Object(object))
             }
             Self::List(pieces) => {
-                let mut items = Vec::new();
+                let mut items = Vec::with_capacity(pieces.len());
                 for piece in pieces {
                     match piece {
                         Item::One(pattern) => items.push(pattern.fill(bindings, at)?),
@@ -677,6 +704,15 @@ impl Pattern {
         value: &'v Value,
         bindings: Bindings<'p, 'v>,
     ) -> Vec<Bindings<'p, 'v>> {
+        self.unify_with(value, bindings, None)
+    }
+
+    pub(crate) fn unify_with<'p, 'v>(
+        &'p self,
+        value: &'v Value,
+        bindings: Bindings<'p, 'v>,
+        ctx: Option<UnifyCtx<'p>>,
+    ) -> Vec<Bindings<'p, 'v>> {
         match self {
             Self::Value(expected) => {
                 if expected == value {
@@ -700,20 +736,28 @@ impl Pattern {
                     let Some(field) = object.get(name) else {
                         return Vec::new();
                     };
-                    solutions = solutions
-                        .into_iter()
-                        .flat_map(|b| pattern.unify(field, b))
-                        .collect();
+                    if solutions.len() == 1 {
+                        let only = solutions.pop().unwrap();
+                        solutions = pattern.unify_with(field, only, ctx);
+                    } else {
+                        solutions = solutions
+                            .into_iter()
+                            .flat_map(|b| pattern.unify_with(field, b, ctx))
+                            .collect();
+                    }
+                    if solutions.is_empty() {
+                        return Vec::new();
+                    }
                 }
                 solutions
             }
             Self::List(pieces) => match value.as_array() {
-                Some(items) => unify_items(pieces, items, bindings),
+                Some(items) => unify_items_root(pieces, items, bindings, ctx),
                 None => Vec::new(),
             },
             Self::Symbol(name, args) => {
                 let mut found = self.moved_source(name, value, &bindings);
-                found.extend(self.unify_symbol(name, args, value, bindings));
+                found.extend(self.unify_symbol(name, args, value, bindings, ctx));
                 found
             }
         }
@@ -725,7 +769,7 @@ impl Pattern {
         made: &Value,
         bindings: &Bindings<'p, 'v>,
     ) -> Vec<Bindings<'p, 'v>> {
-        let found = self.unify(made, bindings.clone());
+        let found = self.unify(made, bindings.reborrow());
         found.into_iter().map(Bindings::owned).collect()
     }
 
@@ -755,6 +799,7 @@ impl Pattern {
         args: &'p [Self],
         value: &'v Value,
         bindings: Bindings<'p, 'v>,
+        ctx: Option<UnifyCtx<'p>>,
     ) -> Vec<Bindings<'p, 'v>> {
         let name = crate::bind::damage_relative::ordinary_name(name);
         if reference_symbols::is_context(name) {
@@ -871,7 +916,7 @@ impl Pattern {
             | "offered_action"
             | "optional_program"
             | "optional_action_program" => {
-                return crate::functions::optional_scope::unify(name, args, value, bindings);
+                return crate::functions::optional_scope::unify(name, args, value, bindings, ctx);
             }
             "captured_targets" | "announced_targets" => {
                 return unify_targets(args, value, bindings);
@@ -952,7 +997,7 @@ impl Pattern {
             _ if transparent_symbol(name) && value.get("$sym").is_none() => {
                 return args
                     .first()
-                    .map_or_else(Vec::new, |inner| inner.unify(value, bindings));
+                    .map_or_else(Vec::new, |inner| inner.unify_with(value, bindings, ctx));
             }
             "plus_one" => return unify_plus_one(args, value, bindings),
             _ => {}
@@ -1104,7 +1149,7 @@ fn unify_reflexive<'p, 'v>(
         .map_or_else(Vec::new, |inner| inner.unify(value, bindings))
 }
 
-fn bind<'p, 'v>(
+pub(crate) fn bind<'p, 'v>(
     name: &'p str,
     value: Cow<'v, Value>,
     mut bindings: Bindings<'p, 'v>,
@@ -1120,10 +1165,87 @@ fn bind<'p, 'v>(
     }
 }
 
-fn unify_items<'p, 'v>(
+fn piece_bounds(piece: &Item, ctx: Option<UnifyCtx<'_>>) -> (usize, Option<usize>) {
+    match piece {
+        Item::One(_) => (1, Some(1)),
+        Item::Splice(name, _) => ctx
+            .and_then(|c| c.hole(name))
+            .map_or((0, None), |shape| (shape.min_len(), shape.max_len())),
+    }
+}
+
+fn suffix_bounds(
+    pieces: &[Item],
+    ctx: Option<UnifyCtx<'_>>,
+) -> smallvec::SmallVec<[(usize, Option<usize>); 8]> {
+    let mut bounds = smallvec::smallvec![(0usize, Some(0usize)); pieces.len() + 1];
+    for i in (0..pieces.len()).rev() {
+        let (lo, hi) = piece_bounds(&pieces[i], ctx);
+        let (rlo, rhi) = bounds[i + 1];
+        bounds[i] = (
+            lo.saturating_add(rlo),
+            hi.zip(rhi).and_then(|(a, b)| a.checked_add(b)),
+        );
+    }
+    bounds
+}
+
+fn unify_items_root<'p, 'v>(
     pieces: &'p [Item],
     items: &'v [Value],
     bindings: Bindings<'p, 'v>,
+    ctx: Option<UnifyCtx<'p>>,
+) -> Vec<Bindings<'p, 'v>> {
+    let has_splice = pieces.iter().any(|p| matches!(p, Item::Splice(..)));
+    if !has_splice {
+        if items.len() != pieces.len() {
+            return Vec::new();
+        }
+        return unify_exact_items(pieces, items, bindings, ctx);
+    }
+    let bounds = suffix_bounds(pieces, ctx);
+    let (total_min, total_max) = bounds[0];
+    if items.len() < total_min || total_max.is_some_and(|m| items.len() > m) {
+        return Vec::new();
+    }
+    let tags = ctx.map(|c| c.tags.slice_tags(items));
+    unify_items_guided(pieces, items, tags.as_deref(), &bounds, bindings, ctx)
+}
+
+fn unify_exact_items<'p, 'v>(
+    pieces: &'p [Item],
+    items: &'v [Value],
+    bindings: Bindings<'p, 'v>,
+    ctx: Option<UnifyCtx<'p>>,
+) -> Vec<Bindings<'p, 'v>> {
+    let mut solutions = vec![bindings];
+    for (piece, item) in pieces.iter().zip(items) {
+        let Item::One(pattern) = piece else {
+            return Vec::new();
+        };
+        if solutions.len() == 1 {
+            let only = solutions.pop().unwrap();
+            solutions = pattern.unify_with(item, only, ctx);
+        } else {
+            solutions = solutions
+                .into_iter()
+                .flat_map(|b| pattern.unify_with(item, b, ctx))
+                .collect();
+        }
+        if solutions.is_empty() {
+            return Vec::new();
+        }
+    }
+    solutions
+}
+
+fn unify_items_guided<'p, 'v>(
+    pieces: &'p [Item],
+    items: &'v [Value],
+    tags: Option<&[u16]>,
+    bounds: &[(usize, Option<usize>)],
+    bindings: Bindings<'p, 'v>,
+    ctx: Option<UnifyCtx<'p>>,
 ) -> Vec<Bindings<'p, 'v>> {
     match pieces.split_first() {
         None => {
@@ -1135,28 +1257,56 @@ fn unify_items<'p, 'v>(
         }
         Some((Item::One(pattern), rest)) => match items.split_first() {
             None => Vec::new(),
-            Some((first, others)) => pattern
-                .unify(first, bindings)
-                .into_iter()
-                .flat_map(|b| unify_items(rest, others, b))
-                .collect(),
+            Some((first, others)) => {
+                let (rmin, rmax) = bounds[1];
+                if others.len() < rmin || rmax.is_some_and(|m| others.len() > m) {
+                    return Vec::new();
+                }
+                let rest_tags = tags.map(|t| &t[1..]);
+                pattern
+                    .unify_with(first, bindings, ctx)
+                    .into_iter()
+                    .flat_map(|b| unify_items_guided(rest, others, rest_tags, &bounds[1..], b, ctx))
+                    .collect()
+            }
         },
         Some((Item::Splice(name, _), rest)) => {
-            // With no other splice after it, the items left to match fix where this ends.
-            let fixed = !rest.iter().any(|piece| matches!(piece, Item::Splice(..)));
-            let splits = if fixed {
-                let Some(split) = items.len().checked_sub(rest.len()) else {
-                    return Vec::new();
-                };
-                split..=split
-            } else {
-                0..=items.len()
-            };
+            let shape = ctx.and_then(|c| c.hole(name));
+            let (smin, smax) = shape.map_or((0, None), |s| (s.min_len(), s.max_len()));
+            let (rmin, rmax) = bounds[1];
+            let lo = smin.max(rmax.map_or(0, |rm| items.len().saturating_sub(rm)));
+            let hi = smax
+                .map_or(items.len(), |sm| sm.min(items.len()))
+                .min(items.len().saturating_sub(rmin));
+            if lo > hi {
+                return Vec::new();
+            }
             let mut solutions = Vec::new();
-            for split in splits {
+            for split in lo..=hi {
+                if let (Some(shape), Some(t)) = (shape, tags)
+                    && !shape.matches_tags(&t[..split])
+                {
+                    continue;
+                }
+                let rest_tags = tags.map(|t| &t[split..]);
+                // Check next splice's immediate shape before cloning if rest is a single splice.
+                if let [Item::Splice(next_name, _)] = rest
+                    && let (Some(next_shape), Some(rt)) =
+                        (ctx.and_then(|c| c.hole(next_name)), rest_tags)
+                    && !next_shape.matches_tags(rt)
+                {
+                    continue;
+                }
                 let taken = Value::Array(items[..split].to_vec());
                 if let Some(b) = bind(name, Cow::Owned(taken), bindings.clone()) {
-                    solutions.extend(unify_items(rest, &items[split..], b));
+                    solutions.extend(unify_items_guided(
+                        rest,
+                        &items[split..],
+                        rest_tags,
+                        &bounds[1..],
+                        b,
+                        ctx,
+                    ));
                 }
             }
             solutions

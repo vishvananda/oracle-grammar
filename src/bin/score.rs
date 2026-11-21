@@ -125,15 +125,16 @@ fn render_row(
 ) -> Result<(), String> {
     let name = face["name"].as_str().unwrap_or_default();
     let types = oracle_ir_grammar::corpus::print_context(face);
-    let printed = engine.print_keyed(name, &face["abilities"], &types, &[])?;
-    render_row_with_default(engine, face, text, &types, row, score, printed)
+    let mut memo = oracle_ir_grammar::render::FaceMemo::new();
+    let printed = engine.print_keyed_memo(&mut memo, name, &face["abilities"], &types, &[])?;
+    render_row_with_default(engine, &mut memo, face, (text, &types), row, score, printed)
 }
 
 fn render_row_with_default(
     engine: &Engine,
+    memo: &mut oracle_ir_grammar::render::FaceMemo,
     face: &Value,
-    text: &str,
-    types: &[String],
+    (text, types): (&str, &[String]),
     row: &mut Value,
     score: &mut Score,
     printed: Option<String>,
@@ -145,14 +146,14 @@ fn render_row_with_default(
     let mut any = first;
     if !first {
         row["default"] = json!(printed);
-        let default = engine.productions_of(name, abilities, types)?;
+        let default = engine.productions_of_memo(memo, name, abilities, types)?;
         if let Some(full) = engine.derivation_of(name, abilities, text)? {
             score.reachable += 1;
             let trimmed = Engine::trim_key(&full, &default);
             // A key is a set, so a short one can make every candidate wrong the same way
             // and fail only after the whole fallback search. Try it narrowly, then the full
             // key, and give the short key its whole search only if the full key fails too.
-            let narrow = engine.print_keyed_narrow(name, abilities, types, &trimmed)?;
+            let narrow = engine.print_keyed_narrow_memo(memo, name, abilities, types, &trimmed)?;
             let mut found = (narrow.as_deref() == Some(text)).then_some(&trimmed);
             let rest = if trimmed == full {
                 vec![&full]
@@ -161,7 +162,10 @@ fn render_row_with_default(
             };
             for key in rest {
                 if found.is_none()
-                    && engine.print_keyed(name, abilities, types, key)?.as_deref() == Some(text)
+                    && engine
+                        .print_keyed_memo(memo, name, abilities, types, key)?
+                        .as_deref()
+                        == Some(text)
                 {
                     found = Some(key);
                 }
@@ -425,10 +429,22 @@ fn judge(
                 match (options.render, options.round_trip) {
                     (true, true) => {
                         let types = oracle_ir_grammar::corpus::print_context(face);
-                        let (printed, round_trip) =
-                            engine.audit_default_print(name, &face["abilities"], &types, 8)?;
+                        let mut memo = oracle_ir_grammar::render::FaceMemo::new();
+                        let (printed, round_trip) = engine.audit_default_print_memo(
+                            &mut memo,
+                            name,
+                            &face["abilities"],
+                            &types,
+                            8,
+                        )?;
                         render_row_with_default(
-                            engine, face, &text, &types, &mut row, &mut score, printed,
+                            engine,
+                            &mut memo,
+                            face,
+                            (&text, &types),
+                            &mut row,
+                            &mut score,
+                            printed,
                         )?;
                         record_round_trip(&mut row, &mut score, round_trip);
                     }

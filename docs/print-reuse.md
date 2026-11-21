@@ -64,8 +64,9 @@ duplicates) and finds:
   the nodes its children require (a greatest fixed point over the grammar). A
   transparent symbol such as `@sacrificed_result(…)` matches what its argument
   matches or a value already marked with it, so a node required under one is also
-  met by that symbol's own node. `@unordered` keeps a list's nodes, and
-  `@either_event(a, b)` matches `{"AnyOf": [a, b]}` in either order. `@and` deals a
+  met by that symbol's own node. `@unordered` keeps a list's nodes, `@and_sequence`,
+  `@then_sequence` and `@optional_then` keep the list's element nodes from both sides,
+  and `@either_event(a, b)` matches `{"AnyOf": [a, b]}` in either order. `@and` deals a
   value's conjuncts, the nodes under its nested `AllOf` lists, out among its
   arguments: an argument that must be one object kind other than `AllOf` or `Any`
   takes one conjunct, so its nodes are met at some depth of those lists, or the
@@ -73,13 +74,17 @@ duplicates) and finds:
   conjunction inverse, which prints a declared `AllOf` or `AnyOf` this way, keeps
   the meaning's holes. `@entering_controller` matches a source-entry replacement as
   it is or with each `ControllerOf(EventSubject)` under its body read as
-  `AbilityController`, so such a node may also be the original. A seed no
-  alternative can fill, such as a disabled `never` rule, fits nothing. A seed the
-  child no longer reaches, or one under a lost alternative, reprints a face that
-  consulted it (or the lost child) only when it could fit one of the face's values
-  under the old grammar: the trace names every rule the print's index offered, not
-  only those that printed. When a search passes 32,768 descendants, every face that
-  consulted the rule is reprinted;
+  `AbilityController`, so such a node may also be the original.
+  `@repeated_damage_actor`, `@apply` and `@where` match their argument with parts of
+  the value rewritten: the later damage source as bare `it`, each verb's player set
+  as `@subject`, and a computed or bound number as `X` (with the instruction that
+  binds it dropped), so the argument requires nothing where those rewrites write. A
+  seed no alternative can fill, such as a disabled `never` rule, fits nothing. A
+  seed the child no longer reaches, or one under a lost alternative, reprints a face
+  that consulted it (or the lost child) only when it could fit one of the face's
+  values under the old grammar: the trace names every rule the print's index
+  offered, not only those that printed. When a search passes 32,768 descendants,
+  every face that consulted the rule is reprinted;
 - **parse changes**: for each changed or new alternative, the words and adjacent
   word pairs every derivation of it must contain (a greatest fixed point over the
   grammar). The parser matches one token per symbol, so two literals side by side

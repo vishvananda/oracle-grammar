@@ -1,6 +1,8 @@
 //! Optional evidence from the original parse; never a second recognition pass.
-use super::{Engine, Parsed, Refusal, bind_surface, canonical_abilities, validate_abilities};
-use crate::parse::{Counters, Parser, RuleSet};
+use super::{
+    Engine, Parsed, Refusal, bind_surface_cached, canonical_abilities, validate_abilities,
+};
+use crate::parse::{Counters, ParseMemo, Parser, RuleSet};
 use crate::tokens::{self, Names, Token};
 use serde::Serialize;
 use serde_json::Value;
@@ -86,9 +88,9 @@ impl Engine {
             name,
             text,
             &RuleSet::default(),
-            true,
-            true,
+            (true, true),
             &mut evidence,
+            None,
         );
         Attempt { result, evidence }
     }
@@ -114,12 +116,41 @@ pub(super) fn frontier(tokens: &[Token], names: &Names, at: usize) -> String {
 }
 
 pub(super) fn bind(value: &Value, name: &str) -> Result<Value, (Stage, String)> {
-    let bound = bind_surface(value, name).map_err(|why| (Stage::Binding, why))?;
-    validate_abilities(&bound)
+    bind_cached(value, name, None, true)
+}
+
+fn bind_cached(
+    value: &Value,
+    name: &str,
+    mut memo: Option<&mut ParseMemo>,
+    capture: bool,
+) -> Result<Value, (Stage, String)> {
+    let bound = bind_surface_cached(value, name, memo.as_deref_mut())
+        .map_err(|why| (Stage::Binding, why))?;
+    if !capture && let Some(shared) = memo {
+        let bound_digest = crate::heads::value_digest(&bound);
+        if let Some(cached) = shared.get_canonical(bound_digest, &bound) {
+            return cached.clone().map_err(|why| (Stage::Binding, why));
+        }
+        let canon = validate_and_canonicalize(&bound);
+        shared.insert_canonical(
+            bound_digest,
+            bound,
+            canon.as_ref().cloned().map_err(|(_, why)| why.clone()),
+        );
+        return canon;
+    }
+    validate_and_canonicalize(&bound)
+}
+
+fn validate_and_canonicalize(bound: &Value) -> Result<Value, (Stage, String)> {
+    validate_abilities(bound)
         .map_err(|why| (Stage::BoundValidation, format!("bound IR: {why}")))?;
-    let canonical = canonical_abilities(&bound).map_err(|why| (Stage::Canonicalization, why))?;
-    validate_abilities(&canonical)
-        .map_err(|why| (Stage::CanonicalValidation, format!("canonical IR: {why}")))?;
+    let canonical = canonical_abilities(bound).map_err(|why| (Stage::Canonicalization, why))?;
+    if canonical != *bound {
+        validate_abilities(&canonical)
+            .map_err(|why| (Stage::CanonicalValidation, format!("canonical IR: {why}")))?;
+    }
     Ok(canonical)
 }
 
@@ -131,8 +162,35 @@ pub(super) fn parse(
     capture: bool,
 ) -> Attempt {
     let mut evidence = Evidence::default();
-    let result = run(engine, name, text, off, capture, false, &mut evidence);
+    let result = run(
+        engine,
+        name,
+        text,
+        off,
+        (capture, false),
+        &mut evidence,
+        None,
+    );
     Attempt { result, evidence }
+}
+
+pub(super) fn parse_with_memo(
+    engine: &Engine,
+    memo: Option<&mut ParseMemo>,
+    name: &str,
+    text: &str,
+) -> Result<Parsed, Refusal> {
+    let mut evidence = Evidence::default();
+    let empty = RuleSet::default();
+    run(
+        engine,
+        name,
+        text,
+        &empty,
+        (false, false),
+        &mut evidence,
+        memo,
+    )
 }
 
 fn run(
@@ -140,9 +198,9 @@ fn run(
     name: &str,
     text: &str,
     off: &RuleSet,
-    capture: bool,
-    candidate_ir: bool,
+    (capture, candidate_ir): (bool, bool),
     evidence: &mut Evidence,
+    mut memo: Option<&mut ParseMemo>,
 ) -> Result<Parsed, Refusal> {
     let names = Names::of(name);
     let tokens = tokens::tokenize(text, &names, &engine.grammar.vocabulary).map_err(|why| {
@@ -151,11 +209,24 @@ fn run(
         }
         Refusal::Lexical(why)
     })?;
-    let mut parser = Parser::new(&engine.grammar, &tokens, engine.limits).without(off);
+    let mut parser = Parser::new(&engine.grammar, &tokens, engine.limits);
+    if !off.is_empty() {
+        parser = parser.without(off);
+    }
     if capture {
         parser = parser.with_diagnostics();
+    } else if off.is_empty()
+        && let Some(shared) = memo.as_deref_mut()
+    {
+        shared.align(name);
+        parser = parser.with_memo(std::mem::take(shared));
     }
     let values = parser.whole(engine.root);
+    if let Some(shared) = memo.as_deref_mut()
+        && parser.has_memo()
+    {
+        *shared = parser.take_memo();
+    }
     if capture {
         evidence.tokens = tokens.len();
         evidence.furthest = parser.furthest;
@@ -203,11 +274,21 @@ fn run(
     } else {
         None
     };
+    let mut local_bind = (memo.is_none() && values.len() > 1).then(ParseMemo::default);
+    if let Some(local) = local_bind.as_mut() {
+        local.align(name);
+    }
     let mut readings = Vec::new();
     let mut candidate_bytes_left = 64 * 1024;
     let mut failure = None;
     for (index, value) in values.iter().enumerate() {
-        let bound = bind(value, name).and_then(|bound| {
+        let active_memo = match (memo.as_deref_mut(), local_bind.as_mut()) {
+            (Some(m), _) => Some(m),
+            (None, Some(m)) => Some(m),
+            (None, None) => None,
+        };
+        let bound_raw = bind_cached(value, name, active_memo, capture);
+        let bound = bound_raw.and_then(|bound| {
             if contextual_station
                 && super::card::station::requires_context(&bound)
                 && !explicit_station

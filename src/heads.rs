@@ -8,8 +8,18 @@ use crate::grammar::{Rule, RuleId, Sym};
 use crate::pattern::{Item, Pattern};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde_json::Value;
+use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_NET_ID: AtomicU64 = AtomicU64::new(1);
+const REACH_CACHE_CAP: usize = 32_768;
+
+thread_local! {
+    static REACH_CACHE: RefCell<HashMap<(u64, u128), Rc<Reach>>> =
+        RefCell::new(HashMap::default());
+}
 
 /// A pattern's path stops here, and whatever is left is for `unify` to decide. Sharing a
 /// long prefix is rare enough that this bounds the tree without widening lookups.
@@ -60,6 +70,7 @@ impl Reach {
 /// The discrimination tree, and the edges to walk up.
 #[derive(Debug, Default)]
 pub struct Net {
+    id: u64,
     strings: HashMap<String, u32>,
     numbers: HashMap<String, u32>,
     edges: HashMap<(u32, u32), u32>,
@@ -204,6 +215,7 @@ impl Net {
 
     pub(crate) fn with_inverses(rules: &[Rule], inverses: &HashMap<RuleId, Pattern>) -> Self {
         let mut net = Self {
+            id: NEXT_NET_ID.fetch_add(1, Ordering::Relaxed),
             holes: vec![NONE],
             parents: vec![Vec::new(); rules.len()],
             ..Self::default()
@@ -396,14 +408,36 @@ impl Values {
     pub fn id(&mut self, net: &Net, value: &Value) -> (u32, Rc<Reach>) {
         let mut state = Digest::default();
         digest(value, &mut state);
-        let id = *self.ids.entry(state.key()).or_insert_with(|| {
-            let reach = net.reach(value);
+        let key = state.key();
+        let id = *self.ids.entry(key).or_insert_with(|| {
+            let reach = if net.id != 0 {
+                REACH_CACHE.with(|cell| {
+                    let mut cache = cell.borrow_mut();
+                    if let Some(hit) = cache.get(&(net.id, key)) {
+                        return Rc::clone(hit);
+                    }
+                    let computed = Rc::new(net.reach(value));
+                    if cache.len() >= REACH_CACHE_CAP {
+                        cache.clear();
+                    }
+                    cache.insert((net.id, key), Rc::clone(&computed));
+                    computed
+                })
+            } else {
+                Rc::new(net.reach(value))
+            };
             crate::print_trace::lookup(value, reach.rules.iter().chain(&reach.fits));
-            self.reaches.push(Rc::new(reach));
+            self.reaches.push(reach);
             count(self.reaches.len() - 1)
         });
         (id, Rc::clone(&self.reaches[id as usize]))
     }
+}
+
+pub(crate) fn value_digest(value: &Value) -> u128 {
+    let mut state = Digest::default();
+    digest(value, &mut state);
+    state.key()
 }
 
 fn digest(value: &Value, state: &mut Digest) {

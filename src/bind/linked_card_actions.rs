@@ -132,6 +132,69 @@ pub(crate) fn prepare(card: &mut Value) -> Result<Vec<Site>, String> {
     strip(card, 0, &mut 131_072)?;
     Ok(sites)
 }
+
+/// Read-only fast check: returns `Ok(true)` when `prepare` would return zero sites
+/// and make zero edits, avoiding a full-card clone before per-ability cache lookup.
+pub(crate) fn is_plain(card: &Value) -> Result<bool, String> {
+    let has_site = candidates(card)?
+        .iter()
+        .any(|site| returned(card, site).is_some_and(|op| raw_literal(&op["args"]["objects"])));
+    if has_site {
+        return Ok(false);
+    }
+    fn check(
+        value: &Value,
+        depth: usize,
+        work: &mut usize,
+        local_exile: bool,
+    ) -> Result<bool, String> {
+        if depth > 128 || *work == 0 {
+            return Err("linked literal work/depth limit".into());
+        }
+        *work -= 1;
+        let local_exile = local_exile
+            && !matches!(
+                value["kind"].as_str(),
+                Some("Triggered" | "Activated" | "Spell")
+            );
+        if local_exile && value["kind"] == "Move" && raw_literal(&value["args"]["objects"]) {
+            return Err("the exiled card in this resolution needs its local exile receipt".into());
+        }
+        if super::symbol_name(value) == Some(MARKER) {
+            return Ok(false);
+        }
+        if let Some(instructions) = value.get("instructions").and_then(Value::as_array) {
+            let mut local_exile = local_exile;
+            for instruction in instructions {
+                let produced = optional_exile(instruction);
+                if !check(instruction, depth + 1, work, local_exile)? {
+                    return Ok(false);
+                }
+                local_exile |= produced;
+            }
+            return Ok(true);
+        }
+        match value {
+            Value::Object(fields) => {
+                for child in fields.values() {
+                    if !check(child, depth + 1, work, local_exile)? {
+                        return Ok(false);
+                    }
+                }
+            }
+            Value::Array(items) => {
+                for child in items {
+                    if !check(child, depth + 1, work, local_exile)? {
+                        return Ok(false);
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(true)
+    }
+    check(card, 0, &mut 131_072, false)
+}
 fn strip(value: &mut Value, depth: usize, work: &mut usize) -> Result<(), String> {
     strip_context(value, depth, work, false)
 }

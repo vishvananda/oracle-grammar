@@ -56,16 +56,43 @@ impl Grammar {
         value: &'v serde_json::Value,
         native: bool,
     ) -> Vec<pattern::Bindings<'p, 'v>> {
+        self.print_unify_inner(rule, value, native, false)
+    }
+
+    pub(crate) fn print_unify_guided<'p, 'v>(
+        &'p self,
+        rule: RuleId,
+        value: &'v serde_json::Value,
+        native: bool,
+    ) -> Vec<pattern::Bindings<'p, 'v>> {
+        if !self.list_shapes.matches_rule(rule, value) {
+            return Vec::new();
+        }
+        self.print_unify_inner(rule, value, native, true)
+    }
+
+    fn print_unify_inner<'p, 'v>(
+        &'p self,
+        rule: RuleId,
+        value: &'v serde_json::Value,
+        native: bool,
+        guided: bool,
+    ) -> Vec<pattern::Bindings<'p, 'v>> {
         let Some(pattern) = &self.rules[rule as usize].sem else {
             return Vec::new();
         };
-        let mut solutions = pattern.unify(value, pattern::Bindings::new());
+        let ctx = guided.then(|| pattern::UnifyCtx {
+            tags: &self.list_shapes.tags,
+            holes: self.list_shapes.holes(rule),
+        });
+        let mut solutions = pattern.unify_with(value, pattern::Bindings::new(), ctx);
         if native
             && solutions.is_empty()
-            && self
-                .literal_inverses
-                .get(&rule)
-                .is_some_and(|inverse| !inverse.unify(value, pattern::Bindings::new()).is_empty())
+            && self.literal_inverses.get(&rule).is_some_and(|inverse| {
+                !inverse
+                    .unify_with(value, pattern::Bindings::new(), ctx)
+                    .is_empty()
+            })
         {
             solutions.push(pattern::Bindings::new());
         }
@@ -73,9 +100,17 @@ impl Grammar {
             && solutions.is_empty()
             && let Some(inverse) = self.conjunction_inverses.get(&rule)
         {
-            solutions = inverse.unify(value, pattern::Bindings::new());
+            solutions = inverse.unify_with(value, pattern::Bindings::new(), ctx);
         }
         solutions
+    }
+    pub(crate) fn bind_style(&mut self, style: &crate::style::Model) {
+        self.word_table.bind_style(style);
+    }
+
+    #[inline]
+    pub(crate) fn has_native_inverse(&self, rule: RuleId) -> bool {
+        self.literal_inverses.contains_key(&rule) || self.conjunction_inverses.contains_key(&rule)
     }
 }
 
@@ -88,6 +123,10 @@ pub struct Grammar {
     pub fingerprint: String,
     /// Which rules can print a value.
     pub net: crate::heads::Net,
+    /// Sound list-length and element-tag constraints per rule.
+    pub(crate) list_shapes: crate::list_shapes::ListShapes,
+    /// Interned renderer word table, compiled literal steps, and parsed `@prefer`s.
+    pub(crate) word_table: crate::rtoken::WordTable,
     /// Which alternatives can start at a token, for reading.
     pub starts: crate::starts::Starts,
     /// Only declared, literal presentation labels may be stripped from rules text.
@@ -431,6 +470,8 @@ pub fn load(lexical: &str, syntax: &[(&str, &str)], schema: &Schema) -> Result<G
     let mut inverses = grammar.literal_inverses.clone();
     inverses.extend(grammar.conjunction_inverses.clone());
     grammar.net = crate::heads::Net::with_inverses(&grammar.rules, &inverses);
+    grammar.list_shapes = crate::list_shapes::ListShapes::build(&grammar.rules, &inverses);
+    grammar.word_table = crate::rtoken::WordTable::build(&grammar.rules);
     grammar.words = crate::render::words::Words::build(&grammar.rules);
     if let Some((_, source)) = syntax.iter().find(|(name, _)| *name == "labels") {
         grammar.presentation_labels = presentation_labels(source)?;

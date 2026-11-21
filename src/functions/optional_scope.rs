@@ -1,6 +1,7 @@
 //! Preserve one declared optional action across an explicit conjunction.
-use crate::pattern::{Bindings, Pattern};
+use crate::pattern::{Bindings, Pattern, UnifyCtx, bind};
 use serde_json::{Value, json};
+use std::borrow::Cow;
 
 fn controller() -> Value {
     json!({"kind":"One","args":{"kind":"AbilityController"}})
@@ -94,11 +95,50 @@ pub(crate) fn sequence(head: &Value, tail: &Value) -> Result<Value, String> {
 const THEN_ACTIONS: usize = 64;
 const THEN_BYTES: usize = 256 * 1024;
 
+/// Fast upper bound on serialized JSON byte length; avoids allocating a JSON
+/// buffer unless the value might actually exceed `limit`.
+fn json_size_upper_bound(value: &Value, limit: usize) -> usize {
+    fn walk(value: &Value, acc: &mut usize, limit: usize) {
+        if *acc > limit {
+            return;
+        }
+        match value {
+            Value::Null => *acc += 4,
+            Value::Bool(_) => *acc += 5,
+            Value::Number(_) => *acc += 24,
+            Value::String(s) => *acc += s.len().saturating_mul(6).saturating_add(2),
+            Value::Array(items) => {
+                *acc += 2 + items.len();
+                for item in items {
+                    walk(item, acc, limit);
+                    if *acc > limit {
+                        return;
+                    }
+                }
+            }
+            Value::Object(map) => {
+                *acc += 2 + map.len().saturating_mul(2);
+                for (k, v) in map {
+                    *acc += k.len().saturating_mul(6).saturating_add(2);
+                    walk(v, acc, limit);
+                    if *acc > limit {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    let mut acc = 0;
+    walk(value, &mut acc, limit);
+    acc
+}
+
 fn then_parts(value: &Value) -> Result<&[Value], String> {
     let items = instructions(value)?;
     if items.is_empty()
         || items.len() > THEN_ACTIONS
-        || serde_json::to_vec(value).map_err(|e| e.to_string())?.len() > THEN_BYTES
+        || (json_size_upper_bound(value, THEN_BYTES) > THEN_BYTES
+            && serde_json::to_vec(value).map_err(|e| e.to_string())?.len() > THEN_BYTES)
     {
         return Err("then composition work bound".into());
     }
@@ -129,11 +169,66 @@ pub(crate) fn then_sequence(head: &Value, tail: &Value, inside: bool) -> Result<
     Ok(joined)
 }
 
+type SplitBounds<'a> = (
+    usize,
+    usize,
+    Option<&'a crate::list_shapes::ListShape>,
+    Option<&'a crate::list_shapes::ListShape>,
+);
+
+fn split_bounds<'a>(
+    head: &Pattern,
+    tail: &Pattern,
+    len: usize,
+    min_each: usize,
+    ctx: Option<UnifyCtx<'a>>,
+) -> Option<SplitBounds<'a>> {
+    let head_shape = match head {
+        Pattern::Hole(name, _) => ctx.and_then(|c| c.hole(name)),
+        _ => None,
+    };
+    let tail_shape = match tail {
+        Pattern::Hole(name, _) => ctx.and_then(|c| c.hole(name)),
+        _ => None,
+    };
+    let hmin = head_shape.map_or(0, |s| s.min_len()).max(min_each);
+    let hmax = head_shape.and_then(|s| s.max_len());
+    let tmin = tail_shape.map_or(0, |s| s.min_len()).max(min_each);
+    let tmax = tail_shape.and_then(|s| s.max_len());
+    let lo = hmin.max(tmax.map_or(0, |m| len.saturating_sub(m)));
+    let hi = hmax
+        .map_or(len, |m| m.min(len))
+        .min(len.saturating_sub(tmin));
+    (lo <= hi).then_some((lo, hi, head_shape, tail_shape))
+}
+
+fn unify_pair<'p, 'v>(
+    head: &'p Pattern,
+    tail: &'p Pattern,
+    left: Value,
+    right: Value,
+    bindings: &Bindings<'p, 'v>,
+    result: &mut Vec<Bindings<'p, 'v>>,
+) {
+    if let (Pattern::Hole(h, _), Pattern::Hole(t, _)) = (head, tail) {
+        if let Some(bound) = bind(h, Cow::Owned(left), bindings.clone())
+            && let Some(done) = bind(t, Cow::Owned(right), bound)
+        {
+            result.push(done);
+        }
+        return;
+    }
+    for bound in head.unify_made(&left, bindings) {
+        result.extend(tail.unify_made(&right, &bound));
+    }
+}
+
 fn unify_then<'p, 'v>(
     args: &'p [Pattern],
     value: &'v Value,
     bindings: Bindings<'p, 'v>,
     inside: bool,
+    ctx: Option<UnifyCtx<'p>>,
 ) -> Vec<Bindings<'p, 'v>> {
     let [head, tail] = args else {
         return Vec::new();
@@ -141,16 +236,25 @@ fn unify_then<'p, 'v>(
     let Ok(items) = then_parts(value) else {
         return Vec::new();
     };
+    let Some((lo, hi, head_shape, tail_shape)) = split_bounds(head, tail, items.len(), 1, ctx)
+    else {
+        return Vec::new();
+    };
+    let tags = ctx.map(|c| c.tags.slice_tags(items));
     let mut result = Vec::new();
-    for split in 1..items.len() {
+    for split in lo..=hi {
         if !then_allowed(&items[..split], &items[split..], inside) {
+            continue;
+        }
+        if let Some(t) = tags.as_deref()
+            && (head_shape.is_some_and(|s| !s.matches_tags(&t[..split]))
+                || tail_shape.is_some_and(|s| !s.matches_tags(&t[split..])))
+        {
             continue;
         }
         let left = Value::Array(items[..split].to_vec());
         let right = Value::Array(items[split..].to_vec());
-        for bound in head.unify_made(&left, &bindings) {
-            result.extend(tail.unify_made(&right, &bound));
-        }
+        unify_pair(head, tail, left, right, &bindings, &mut result);
     }
     result
 }
@@ -300,22 +404,23 @@ pub(crate) fn unify<'p, 'v>(
     args: &'p [Pattern],
     value: &'v Value,
     bindings: Bindings<'p, 'v>,
+    ctx: Option<UnifyCtx<'p>>,
 ) -> Vec<Bindings<'p, 'v>> {
     match name {
-        "and_sequence" => unify_sequence(args, value, bindings),
-        "then_sequence" => unify_then(args, value, bindings, false),
-        "optional_then" => unify_then(args, value, bindings, true),
-        "single_reflexive_base" => unify_base(args, value, bindings),
+        "and_sequence" => unify_sequence(args, value, bindings, ctx),
+        "then_sequence" => unify_then(args, value, bindings, false, ctx),
+        "optional_then" => unify_then(args, value, bindings, true, ctx),
+        "single_reflexive_base" => unify_base(args, value, bindings, ctx),
         "offered_action" => match args {
-            [inner] if offered_action(value).is_ok() => inner.unify(value, bindings),
+            [inner] if offered_action(value).is_ok() => inner.unify_with(value, bindings, ctx),
             _ => Vec::new(),
         },
         "optional_action_program" => match args {
-            [inner] if action_program(value).is_ok() => inner.unify(value, bindings),
+            [inner] if action_program(value).is_ok() => inner.unify_with(value, bindings, ctx),
             _ => Vec::new(),
         },
         "optional_program" => match args {
-            [inner] if program(value).is_ok() => inner.unify(value, bindings),
+            [inner] if program(value).is_ok() => inner.unify_with(value, bindings, ctx),
             _ => Vec::new(),
         },
         _ => Vec::new(),
@@ -326,18 +431,20 @@ pub(crate) fn unify_base<'p, 'v>(
     args: &'p [Pattern],
     value: &'v Value,
     bindings: Bindings<'p, 'v>,
+    ctx: Option<UnifyCtx<'p>>,
 ) -> Vec<Bindings<'p, 'v>> {
     let [inner] = args else { return Vec::new() };
     if single_base(value).is_err() {
         return Vec::new();
     }
-    inner.unify(value, bindings)
+    inner.unify_with(value, bindings, ctx)
 }
 
 pub(crate) fn unify_sequence<'p, 'v>(
     args: &'p [Pattern],
     value: &'v Value,
     bindings: Bindings<'p, 'v>,
+    ctx: Option<UnifyCtx<'p>>,
 ) -> Vec<Bindings<'p, 'v>> {
     let [head, tail] = args else {
         return Vec::new();
@@ -345,17 +452,26 @@ pub(crate) fn unify_sequence<'p, 'v>(
     let Ok(items) = instructions(value) else {
         return Vec::new();
     };
+    let Some((lo, hi, head_shape, tail_shape)) = split_bounds(head, tail, items.len(), 0, ctx)
+    else {
+        return Vec::new();
+    };
+    let tags = ctx.map(|c| c.tags.slice_tags(items));
     let mut result = Vec::new();
     // Same contiguous partitions as the former pair of instruction splices.
-    for split in 0..=items.len() {
+    for split in lo..=hi {
         if forbidden_join(&items[..split], &items[split..]) {
+            continue;
+        }
+        if let Some(t) = tags.as_deref()
+            && (head_shape.is_some_and(|s| !s.matches_tags(&t[..split]))
+                || tail_shape.is_some_and(|s| !s.matches_tags(&t[split..])))
+        {
             continue;
         }
         let left = Value::Array(items[..split].to_vec());
         let right = Value::Array(items[split..].to_vec());
-        for bound in head.unify_made(&left, &bindings) {
-            result.extend(tail.unify_made(&right, &bound));
-        }
+        unify_pair(head, tail, left, right, &bindings, &mut result);
     }
     result
 }
@@ -382,9 +498,25 @@ mod tests {
         let independent = json!({"instructions":[{"kind":"Optional"}]});
         assert_eq!(action_program(&independent).unwrap(), independent);
         let args = [Pattern::Hole("body".into(), Ty::Named("Program".into()))];
-        assert!(unify("optional_action_program", &args, &grouped, Bindings::new()).is_empty());
+        assert!(
+            unify(
+                "optional_action_program",
+                &args,
+                &grouped,
+                Bindings::new(),
+                None
+            )
+            .is_empty()
+        );
         assert_eq!(
-            unify("optional_action_program", &args, &nested, Bindings::new()).len(),
+            unify(
+                "optional_action_program",
+                &args,
+                &nested,
+                Bindings::new(),
+                None
+            )
+            .len(),
             1
         );
     }
@@ -409,11 +541,11 @@ mod tests {
             "body".into(),
             Ty::Vec(Box::new(Ty::Named("Instruction".into()))),
         )];
-        assert!(unify("offered_action", &args, &hand, Bindings::new()).is_empty());
+        assert!(unify("offered_action", &args, &hand, Bindings::new(), None).is_empty());
         let graveyard = json!([choose("Graveyard"), put]);
         assert_eq!(offered_action(&graveyard).unwrap(), graveyard);
         assert_eq!(
-            unify("offered_action", &args, &graveyard, Bindings::new()).len(),
+            unify("offered_action", &args, &graveyard, Bindings::new(), None).len(),
             1
         );
     }
@@ -452,9 +584,9 @@ mod tests {
         }}]});
         assert_eq!(program(&allowed).unwrap(), allowed);
         let args = [Pattern::Hole("body".into(), Ty::Named("Program".into()))];
-        assert!(unify("optional_program", &args, &grouped, Bindings::new()).is_empty());
+        assert!(unify("optional_program", &args, &grouped, Bindings::new(), None).is_empty());
         assert_eq!(
-            unify("optional_program", &args, &allowed, Bindings::new()).len(),
+            unify("optional_program", &args, &allowed, Bindings::new(), None).len(),
             1
         );
     }
@@ -508,12 +640,12 @@ mod tests {
             (&plain, &option, true, false),
         ] {
             let value = json!([head[0].clone(), tail[0].clone()]);
-            let inverse = unify_then(&args, &value, Bindings::new(), inside);
+            let inverse = unify_then(&args, &value, Bindings::new(), inside, None);
             assert_eq!(then_sequence(head, tail, inside).is_ok(), permitted);
             assert_eq!(!inverse.is_empty(), permitted);
         }
         assert!(then_sequence(&json!([]), &plain, false).is_err());
-        assert!(unify_then(&args, &plain, Bindings::new(), false).is_empty());
+        assert!(unify_then(&args, &plain, Bindings::new(), false, None).is_empty());
     }
     fn discard() -> Value {
         json!({"kind":"Effect","args":{"result":{"$sym":"next","args":[],"at":0},"operation":{"kind":"Discard","args":{
@@ -548,7 +680,7 @@ mod tests {
         let actions = json!([discard(), draw()]);
         let hole = [Pattern::Hole("body".into(), Ty::Opaque)];
         assert!(single_base(&actions).is_err());
-        assert!(unify_base(&hole, &actions, Bindings::new()).is_empty());
+        assert!(unify_base(&hole, &actions, Bindings::new(), None).is_empty());
         for allowed in [
             json!([discard()]),
             json!([draw()]),
@@ -556,7 +688,7 @@ mod tests {
             json!([{"$sym":"holder","args":[actions.clone()]}]),
         ] {
             assert_eq!(single_base(&allowed).unwrap(), allowed);
-            assert_eq!(unify_base(&hole, &allowed, Bindings::new()).len(), 1);
+            assert_eq!(unify_base(&hole, &allowed, Bindings::new(), None).len(), 1);
         }
     }
     #[test]
@@ -566,7 +698,7 @@ mod tests {
             Pattern::Hole("head".into(), Ty::Opaque),
             Pattern::Hole("tail".into(), Ty::Opaque),
         ];
-        let bindings = unify_sequence(&args, &value, Bindings::new());
+        let bindings = unify_sequence(&args, &value, Bindings::new(), None);
         assert_eq!(bindings.len(), 2);
         for binding in bindings {
             assert_eq!(
