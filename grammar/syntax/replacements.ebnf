@@ -2632,3 +2632,21 @@ linked_color_damage_source ::= "source" "of" "your" "choice" "that" "shares" "a"
 
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($linked_color_damage_source), count:Exactly($counter_amount)}}, Effect{result:@next, operation:CreateReplacement{event:Damage{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}, limit:UntilExpired, duration:$this_duration, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}] */
 instructions_prevent_linked_source ::= "prevent" "all" "damage" "that" "would" "be" "dealt" this_duration "by" counter_amount linked_color_damage_source
+
+/* A final quoted sentence carries its own closing period. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:Program{instructions:$clause_emblem_quoted}}) */
+entering_quoted_emblem ::= "as" object_ref "enters" "," clause_emblem_quoted
+
+/* The life gain consumes the prevention in this replacement body, not an
+   arbitrary preceding effect. Spell target, damage kind and duration remain
+   independent operands in both directions. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Spell, sources:SameObject($target_stack_spell), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Performed(@prior)}}]}}}] */
+instructions_spell_damage_prevention_life ::= "prevent" "all" prevent_damage target_stack_spell "would" "deal" this_duration "." "you" "gain" "life" "equal" "to" "the" "damage" "prevented" "this" "way"
+
+/* The optional reveal and immediate choice share the same whole-hand owner.
+   Its continuation consumes the selected card, independently of the filter. */
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Zone{scope:Players{zone:Hand, players:$players_singular}, kind:Card, filter:Any}}}, Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:$players_singular}, kind:Card, filter:$hand_pick_source}, count:AsManyAsCan(Constant(1))}}] */
+have_hand_reveal_choice ::= "have" players_singular "reveal" "their" "hand" "." "if" "you" "do" "," "choose" hand_pick_source
+
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[...$have_hand_reveal_choice, Effect{result:@next, operation:$hand_loss}]}}] */
+optional_hand_reveal_choice ::= "you" "may" have_hand_reveal_choice "and" hand_loss

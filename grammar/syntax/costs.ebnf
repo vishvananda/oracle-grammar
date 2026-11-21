@@ -667,7 +667,7 @@ cost_permanent_selections_pair ::= cost_one_permanent_selection "and" cost_one_p
 /* @sem CostObjectSelection::[CostObjectSelection{objects:One(Source)}, CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), AnyOf([$filter_plural, $filter_plural_2]), ControlledBy(One(AbilityController))])}, choose:Exactly($value)}] */
 cost_permanent_selections_self_and_other ::= self_text "and" value "other" filter_plural "and" "/" "or" filter_plural "you" "control"
 
-cost_permanent_selections ::= cost_permanent_selections_one | cost_permanent_selections_pair | cost_permanent_selections_self_and_other
+cost_permanent_selections ::= cost_permanent_selections_one | cost_permanent_selections_pair | cost_permanent_selections_self_and_other | cost_permanent_selections_affected_named_pair
 
 /* Participial payments retain the independent counter and permanent selections. */
 /* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))} */
@@ -1565,3 +1565,33 @@ activation_counter_damage ::= mana_symbols "," "↑" cost_remove_at_least_counte
 /* This phrase is only dispatched inside the proved activation above. */
 /* @sem Operation::DealDamage{source:$object_ref, recipients:Objects($affected), amount:PaidCountersRemoved{payment:Activation, component:[1]}, preventable:true} */
 paid_counter_damage ::= object_ref "deals" "that" "much" "damage" "to" affected
+
+/* One selection for each named controlled permanent, sharing the printed filter. */
+/* @sem CostObjectSelection::[_{objects:$affected}, ...$controlled_named_pair_selections] */
+cost_permanent_selections_affected_named_pair ::= affected "and" controlled_named_pair_selections
+
+/* @sem CostObjectSelection::[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController)), Name($referenced_card_name)])}, choose:Exactly(Constant(1))}, _{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController)), Name($referenced_card_name_2)])}, choose:Exactly(Constant(1))}] */
+controlled_named_pair_selections ::= filter_plural "you" "control" "named" referenced_card_name "and" referenced_card_name
+
+/* The same ordinary activation works in its default zone and in the graveyard. */
+/* @sem Ability::[$activated_ability, Scoped{zones:[Graveyard], ability:@scope($activated_ability)}] */
+line_activation_battlefield_or_graveyard ::= activated_ability "activate" "only" "if" self_text "is" "on" "the" "battlefield" "or" "in" "your" "graveyard" "."
+
+/* An optional additional payment and its consequence are composed by the
+   enclosing spell-cost rule; the payer remains the ability controller. */
+/* @sem Operand::Cost{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Mana}}]}}]} */
+optional_any_mana_payment ::= "pay" "any" "amount" "of" "mana"
+
+/* A cost modifier and its defining expression stay separate from the mechanic. */
+/* @sem Operand::Term{family:CastModifier, form:ReduceCostX, operands:[List([Vocabulary{family:CostReductionSymbolX, form:CostReduceX}]), Number($value_greatest_owned_commander_mana)]} */
+cast_this_way_reduced_by_commander ::= "this" "spell" "costs" "{" "X" "}" "less" "to" "cast" "this" "way" "," "where" "X" "is" value_greatest_owned_commander_mana
+
+/* @sem Ability::Modified{ability:Mechanic{mechanic:Flashback, cost:$cost}, modifier:$cast_this_way_reduced_by_commander} */
+flashback_with_cast_reduction ::= "flashback" cost "." cast_this_way_reduced_by_commander "."
+
+/* @sem Cost::Cost{parts:[Move{selections:[_{objects:Zone{scope:Players{zone:Graveyard, players:One(ControllerOf(AttachedTo(Source)))}, kind:Card, filter:Any}, choose:Exactly($number)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]} */
+host_controller_graveyard_exile_cost ::= "exile" number "cards" "from" "their" "graveyard"
+
+/* The explicit source-zone condition permits this activation in the graveyard. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{condition:$source_graveyard_property_condition}, announcement:@announcement, body:$program_sentence})} */
+activated_source_graveyard_property ::= cost ":" program_sentence "activate" "only" "if" source_graveyard_property_condition "."

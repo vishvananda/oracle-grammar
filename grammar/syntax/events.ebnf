@@ -314,8 +314,8 @@ event_becomes_blocked ::= event_singular_subject "becomes" "blocked"
 /* @sem EventSpec::@either_event(EventSpec::Object{event:Blocks, objects:$event_object}, EventSpec::Object{event:BecomesBlocked, objects:$event_object}) */
 event_blocks_or_blocked_once ::= event_object "blocks" "or" "becomes" "blocked"
 
-/* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_singular_subject, recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}) */
-event_combat_damage_player ::= event_singular_subject "deals" "combat" "damage" "to" "a" "player"
+/* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_singular_subject, recipients:Players($combat_damage_player_set), kind:Combat, grouping:SourceRecipient, subject:Source}) */
+event_combat_damage_player ::= event_singular_subject "deals" "combat" "damage" "to" combat_damage_player_set
 
 /* @sem EventSpec::Damage(DamageEvent{source_kind:Permanent, sources:$event_object, recipients:Players(All), kind:Any, grouping:SourceRecipient, subject:Source}) */
 event_damage_player ::= event_object "deals" "damage" "to" "a" "player"
@@ -4475,3 +4475,72 @@ event_named_attack ::= event_named "attack"
 /* A singular event subject retains the object that phased out. */
 /* @sem EventSpec::Object{event:PhasesOut, objects:SameObject($object_ref)} */
 event_phases_out ::= object_ref "phases" "out"
+
+combat_damage_player_set ::= combat_damage_any_player | combat_damage_player_more_permanents
+
+/* @sem PlayerSet::All */
+combat_damage_any_player ::= "a" "player"
+
+/* @sem PlayerSet::Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})}}} */
+combat_damage_player_more_permanents ::= "a" "player" "who" "controls" "more" filter_plural "than" "you"
+
+/* The cast spell is explicitly a planeswalker, which licenses its later
+   planeswalker anaphor while retaining the subtype as an operand. */
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:@and($subtype, ObjectFilter::CardType(Planeswalker))} */
+event_cast_subtype_planeswalker ::= "you" "cast" "a" subtype "planeswalker" "spell"
+
+/* @sem $event_cast_subtype_planeswalker */
+when_cast_subtype_planeswalker ::= "when" event_cast_subtype_planeswalker
+
+/* Both movements count cards owned by the ability controller. */
+/* @sem Expr::EventHistory{event:AnyOf([ZoneChange{objects:OwnedBy(One(AbilityController)), from:Hand, to:Graveyard}, ZoneChange{objects:OwnedBy(One(AbilityController)), from:Library, to:Graveyard}]), window:ThisTurn, measure:Occurrences} */
+graveyard_hand_library_history ::= "the" "number" "of" "cards" "that" "were" "put" "into" "your" "graveyard" "from" "your" "hand" "or" "library" "this" "turn"
+
+/* Covercast operates while the card is outside the battlefield. Its cast event
+   supplies the antecedent of the mana-spent condition. */
+/* @sem Ability::Scoped{zones:[Hand, Library, Graveyard, Exile, Stack], ability:@scope(Ability::Triggered{event:$covercast_event, intervening_if:$covercast_mana_condition, limits:TriggerLimits{}, body:$covercast_program, announcement:@announcement})} */
+covercast_trigger ::= "Covercast" "—" "whenever" covercast_event "," "if" covercast_mana_condition "," covercast_program
+
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:@and($filter_phrase, ObjectFilter::Not(SameObject(Source)))} */
+covercast_event ::= "you" "cast" "another" filter_phrase "spell"
+
+/* @sem Condition::Compare{left:ManaSpent{object:EventSubject, filter:SpentManaFilter{}, aggregation:Count}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$spent_least}} */
+covercast_mana_condition ::= spent_least "mana" "was" "spent" "to" "cast" "it"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Intensify{cards:SameObject(Source), owner:AbilityController}}]} */
+covercast_program ::= "this" "card" "intensifies" "."
+
+/* The actor and the controller of the counter recipient are independent roles. */
+/* @sem EventSpec::Counters{change:Put, kind:$counter_kind, objects:@and($filter_phrase, ObjectFilter::ControlledBy(One(AbilityController))), by:One(AbilityController)} */
+event_clause_you_put_single_counter_controlled ::= "whenever" "you" "put" "a" counter_kind "counter" "on" "a" filter_phrase "you" "control"
+
+/* Explicit presence in the controller's graveyard scopes this trigger there. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$event_clause, intervening_if:$condition_self_in_your_graveyard_and, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_presence_body})} */
+graveyard_presence_trigger ::= event_clause "," "if" condition_self_in_your_graveyard_and "," graveyard_presence_body
+
+graveyard_presence_body ::= graveyard_trigger_cast_self | program_sentence
+
+/* This source card's arrival in its owner's graveyard gives the trigger its
+   graveyard scope; the resolution program remains independently composable. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$own_library_graveyard_event, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence})} */
+triggered_own_library_graveyard ::= own_graveyard_trigger_word own_library_graveyard_event "," program_sentence
+
+own_graveyard_trigger_word ::= own_graveyard_when | own_graveyard_whenever
+
+/* @prefer always */
+/* @sem () */
+own_graveyard_when ::= "when"
+
+/* @sem () */
+own_graveyard_whenever ::= "whenever"
+
+/* @sem EventSpec::ZoneChange{objects:AllOf([SameObject(Source), OwnedBy(One(AbilityController))]), from:$own_graveyard_origin, to:Graveyard} */
+own_library_graveyard_event ::= self_card "is" "put" "into" "your" "graveyard" "from" "your" own_graveyard_origin
+
+own_graveyard_origin ::= own_graveyard_library | own_graveyard_hand
+
+/* @sem Zone::Library */
+own_graveyard_library ::= "library"
+
+/* @sem Zone::Hand */
+own_graveyard_hand ::= "hand"

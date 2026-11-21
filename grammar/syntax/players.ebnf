@@ -55,7 +55,7 @@ player_keyword_changes_comma ::= player_keyword_change "," "and"? player_keyword
 player_keyword ::= player_hexproof | player_shroud | player_protection | player_hexproof_from | player_protection_each
 
 /* Player prohibitions are rules on players, independently of object keywords. */
-player_rule_subject ::= player_rule_you | player_keyword_many | players_singular
+player_rule_subject ::= player_rule_attacked_you_or_defender | player_rule_you | player_keyword_many | players_singular
 
 /* @sem PlayerSet::One(PlayerRef::AbilityController) */
 player_rule_you ::= "you"
@@ -459,3 +459,23 @@ instructions_announced_hand_more ::= instructions_announced_hand "." instruction
 
 /* @sem Instruction::[...$instructions_announced_hand_draw, ...$instructions] */
 instructions_announced_hand_draw_more ::= instructions_announced_hand_draw "." instructions
+
+/* An opponent makes the choice and performs the enclosed action. */
+/* @sem Operation::PlayersDo{players:OpponentsOf(AbilityController), any_one:true, optional:true, body:[Program{instructions:$acting_choice_action}]} */
+opponent_may_perform_choice ::= "an" "opponent" "may" acting_choice_action
+
+/* Each matching set binds the defender whose own last turn is queried. */
+defender_history ::= defender_history_either | defender_history_cast | defender_history_put
+
+/* @sem PlayerSet::Union(@unordered([$defender_history_cast, $defender_history_put])) */
+defender_history_either ::= defender_history_cast "or" defender_history_put
+
+/* @sem PlayerSet::Matching{binding:1, condition:PlayerDid{player:Bound(1), event:CastSpell(Any), window:LastTurnOf(Bound(1))}} */
+defender_history_cast ::= "cast" "a" "spell"
+
+/* @sem PlayerSet::Matching{binding:1, condition:Compare{left:EventHistory{event:Player{event:PutsOntoBattlefield, players:One(Bound(1)), objects:$filter_phrase}, window:LastTurnOf(Bound(1)), measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}} */
+defender_history_put ::= "put" "a" filter_phrase "onto" "the" "battlefield"
+
+/* Preserve the bound attacking player and both alternative defenders. */
+/* @sem PlayerSet::Intersection([$players_singular, Union([Matching{binding:0, condition:Compare{left:EventHistory{event:Attack{attackers:Any, by:One(Bound(0)), defenders:Players(One(AbilityController))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}, Matching{binding:0, condition:PlayerDid{player:Bound(0), event:AttackedDefender($filter_phrase), window:ThisTurn}}])]) */
+player_rule_attacked_you_or_defender ::= players_singular "who" "attacked" "you" "or" "a" filter_phrase "this" "turn"

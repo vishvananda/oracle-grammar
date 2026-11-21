@@ -1243,3 +1243,19 @@ count_each_phased_creature ::= "creature" "that" "phased" "out" "this" "way"
 /* Count occurrences for a population leaving while controlled by you. */
 /* @sem Expr::EventHistory{event:Object{event:LeavesBattlefield, objects:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))}, window:ThisTurn, measure:Occurrences} */
 count_each_controlled_departure ::= filter_phrase "that" "left" "the" "battlefield" "under" "your" "control" "this" "turn"
+
+/* The controller is evaluated on the departing permanent in each death event. */
+/* @sem Expr::EventHistory{event:ZoneChange{objects:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))), from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences} */
+count_each_you_controlled_died ::= filter_phrase "you" "controlled" "that" "died" "this" "turn"
+
+/* The history measures life, not the number of loss events. */
+/* @sem Expr::EventHistory{event:Player{event:LosesLife, players:OpponentsOf(AbilityController)}, window:ThisTurn, measure:TotalAmount} */
+history_life_opponents_lost ::= "the" "total" "amount" "of" "life" "your" "opponents" "have" "lost" "this" "turn"
+
+/* @sem Expr::EventHistory{event:Player{event:LosesLife, players:One(AbilityController)}, window:ThisTurn, measure:TotalAmount} */
+history_life_you_lost ::= "the" "total" "amount" "of" "life" "you" "have" "lost" "this" "turn"
+
+history_life_total ::= history_life_opponents_lost | history_life_you_lost
+
+/* @sem Expr::Aggregate{objects:$owned_commander_battlefield_or_command, property:ManaValue, aggregation:Maximum} */
+value_greatest_owned_commander_mana ::= "the" "greatest" "mana" "value" "of" owned_commander_battlefield_or_command

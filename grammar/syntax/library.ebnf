@@ -2807,3 +2807,54 @@ clause_top_exile_cast_receipt ::= exile_top_cards_of_your_library "." "you" "may
 /* The singleton permission follows this exact top-card exile. */
 /* @sem Instruction::[Effect{result:@next, operation:$shuffle_your_library}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any}, terms:_{cost:Free}})], duration:$duration, evaluation:LiveObjects}}] */
 clause_top_card_exile_free_play ::= shuffle_your_library "," "then" "exile" "the" "top" "card" "." duration "," "you" "may" "play" "that" "card" "without" "paying" "its" "mana" "cost"
+
+/* The observed cards are the immediately preceding top-of-library reveal.
+   The singular choice supplies the selected card for the following move. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, Effect{result:@next, operation:ChooseObjects{player:OneOf($players_singular), objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+clause_reveal_opponent_choice_graveyard ::= reveal_top "." players_singular "chooses" "one" "of" "those" "cards" "." "put" "that" "card" "into" "your" "graveyard"
+
+/* The reveal receipt is consumed by the following owner-graveyard moves. */
+/* @sem Instruction::[Effect{result:@mark, operation:EachPlayer{players:$players_singular, action:RevealUntil{library:Acting, filter:$card_filter, count:$number}}}, ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:Move{objects:AnyZone(InSet(Recorded(@marked))), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}] */
+instructions_each_reveal_until_graveyard ::= players_singular "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" number card_filter "cards" "," "then" "puts" "all" "cards" "revealed" "this" "way" "into" "their" "graveyard"
+
+/* The casting restriction precedes the instructions in the spell IR. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:LimitX{test:Compare{comparison:Greater, value:Constant(0)}}}, ...$instructions]}} */
+spell_instructions_positive_x ::= instructions "." "x" "can't" "be" "0" "."
+
+/* A choice from your hand moves into your shuffled library. The move receipt
+   remains available to an ordinary following instruction. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$shuffle_hand_card_kind}, count:$shuffle_hand_count}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_shuffle_hand_choice ::= "shuffle" shuffle_hand_count shuffle_hand_card_kind "from" "your" "hand" "into" "your" "library"
+
+/* @sem Count::AnyNumber */
+shuffle_hand_any_count ::= "any" "number" "of"
+
+/* @sem Count::UpTo($count_plural) */
+shuffle_hand_up_to_count ::= "up" "to" count_plural
+
+shuffle_hand_count ::= shuffle_hand_any_count | shuffle_hand_up_to_count
+
+/* @sem ObjectFilter::Any */
+shuffle_hand_any_cards ::= "cards"
+
+/* @sem $card_filter */
+shuffle_hand_filtered_cards ::= card_filter "cards"
+
+shuffle_hand_card_kind ::= shuffle_hand_any_cards | shuffle_hand_filtered_cards
+
+/* The observation is bound by the adjacent reveal, and both consumers use it. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:Zone{scope:Players{zone:Library, players:All}, kind:Card, filter:AllOf([$filter_phrase, InSet(Observed(@marked))])}, exceptions:$revealed_copy_exceptions}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$filter_phrase_2}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}, then:$then_condition_program, otherwise:Program{}}] */
+instructions_reveal_tops_copy_if_none ::= "each" "player" "reveals" "the" "top" "card" "of" "their" "library" "." "for" "each" filter_phrase "card" "revealed" "this" "way" "," "create" "a" "token" "that's" "a" "copy" "of" "that" "card" "," "except" revealed_copy_exceptions "." "if" "no" filter_phrase "cards" "were" "revealed" "this" "way" "," then_condition_program
+
+/* The copy's characteristic exceptions retain their independently printed operands. */
+/* @sem Vec<CopyException>::[$revealed_copy_stats, $copy_add_creature_type, $copy_keyword_ability] */
+revealed_copy_exceptions ::= revealed_copy_stats "," copy_add_creature_type "," "and" copy_keyword_ability
+
+/* @sem CopyException::SetPowerToughness{power:$value, toughness:$value_2} */
+revealed_copy_stats ::= "it's" value "/" value
+
+/* A plural subject governs two independent player actions, followed by an
+   exile from each player's own library. The repeated population binds all
+   three actions while the library owner stays local to the loop. */
+/* @sem Instruction::[Effect{result:@next, operation:@apply($optional_player_population, $verb_operation_third)}, Effect{result:@next, operation:@apply($optional_player_population, $verb_operation_third_2)}, ForEachPlayer{players:$optional_player_population, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:$top_count, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
+clause_plural_verbs_exile_tops ::= optional_player_population verb_operation_third "," verb_operation_third "," "and" "exiles" "the" "top" top_count "of" "their" "library"
