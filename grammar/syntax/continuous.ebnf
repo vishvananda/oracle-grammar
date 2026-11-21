@@ -6894,3 +6894,22 @@ command_zone_other_spell_cost ::= command_zone_other_spells "you" "cast" "cost" 
 /* A graveyard permission with a composed additional payment. */
 /* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Additional(Cost{parts:$cast_life_and_additional_parts})}})]})} */
 static_graveyard_cast_composed_cost ::= graveyard_cast_phrase "by" cast_life_and_additional_parts "in" "addition" "to" "paying" "its" "other" "costs" "."
+
+/* A draft-linked population and the copied keyword list are independent operands. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[GainAbilitiesOf{objects:$draft_removed_flying_cards, kinds:$draft_shared_keyword_list}]}) */
+static_draft_shared_keywords ::= draft_removed_flying_cards "," affected "has" "flying" "." "the" "same" "is" "true" "for" draft_shared_keyword_list "."
+
+draft_removed_flying_cards ::= draft_removed_flying_a | draft_removed_flying_an
+
+/* @sem ObjectSet::OutsideTheGame(AllOf([$filter_phrase, DraftNoted(_{kind:Removed, player:AbilityController, card:@card_name})])) */
+draft_removed_flying_a ::= "if" "you" "removed" "a" filter_phrase "card" "with" "flying" "from" "the" "draft" "with" "cards" "named" SELF_NAME
+
+/* @sem ObjectSet::OutsideTheGame(AllOf([$filter_phrase, DraftNoted(_{kind:Removed, player:AbilityController, card:@card_name})])) */
+draft_removed_flying_an ::= "if" "you" "removed" "an" filter_phrase "card" "with" "flying" "from" "the" "draft" "with" "cards" "named" SELF_NAME
+
+/* @sem Operand::List([Term{family:CheckHasable, form:Flying}, Term{family:CheckHasable, form:FirstStrike}, Term{family:CheckHasable, form:DoubleStrike}, Term{family:CheckHasable, form:Deathtouch}, Term{family:CheckHasable, form:Haste}, Term{family:CheckHasable, form:AnyHexproof}, Term{family:CheckHasable, form:Indestructible}, Term{family:CheckHasable, form:Lifelink}, Term{family:CheckHasable, form:Menace}, Term{family:CheckHasable, form:Reach}, Term{family:CheckHasable, form:Vigilance}]) */
+draft_shared_keyword_list ::= "first" "strike" "," "double" "strike" "," "deathtouch" "," "haste" "," "hexproof" "," "indestructible" "," "lifelink" "," "menace" "," "reach" "," "and" "vigilance"
+
+/* Two separately quoted grants retain independent ability scopes on the same holder. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[$shared_granted_activation_open, $shared_granted_trigger_closed]} */
+static_shared_activation_trigger ::= affected "has" shared_granted_activation_open "and" shared_granted_trigger_closed

@@ -338,7 +338,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken
+instructions_dig ::= look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined
 
 /* @sem Instruction::[...$dig_block, ...$instructions] */
 dig_block_more ::= dig_block "." instructions
@@ -451,7 +451,7 @@ dig_reveal_any ::= "you" "may" "reveal" "any" "number" "of" search_filter_many "
 dig_found_many ::= "them" | "those" "cards" | "the" "revealed" "cards"
 
 /* "You may put a card" takes at most one; "put a card" takes one if there is one. */
-dig_put_take ::= dig_put_conditional_entry | dig_put_same_name | dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all | dig_put_one_each
+dig_put_take ::= dig_put_conditional_entry | dig_put_same_name | dig_put_may_one | dig_put_one | dig_put_upto | dig_put_any | dig_put_all | dig_put_one_each | dig_put_revealed_one
 
 /* "A creature card and/or a land card": up to one card of each kind. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:UpTo(Constant(2)), constraints:[OneForEach([$card_filter, $card_filter_2])]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
@@ -3314,3 +3314,43 @@ manifest_observed_count ::= "manifest" value "of" "those" "cards"
 
 /* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Observed(@marked), zone:Library}, destination:Library{position:TopOrBottom{chooser:Players(One(AbilityController))}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}} */
 manifest_observed_rest ::= "put" "the" "rest" "on" "the" "top" "or" "bottom" "of" "your" "library"
+
+/* The shuffle identifies the owner whose top card is exiled; both branches
+   consume that exact exile receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:$owner_shuffles_target}, ...$owner_exile_top_type_choice] */
+instructions_owner_shuffle_exile_choice ::= owner_shuffles_target "," owner_exile_top_type_choice
+
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(OwnerOf(Target{slot:@last_slot, index:0}))}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Result{result:@marked, phase:After, index:0}), zone:Exile}, destination:Battlefield{controller:Player(OwnerOf(Target{slot:@last_slot, index:0})), arrival:BattlefieldArrival{}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Optional{decider:OwnerOf(Target{slot:@last_slot, index:0}), body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(OwnerOf(Target{slot:@last_slot, index:0})), action:CastSpell, cards:One(Result{result:@marked, phase:After, index:0}), count:Exactly(Constant(1)), cost:Free}}]}}]}}] */
+owner_exile_top_type_choice ::= "then" "exiles" "the" "top" "card" "of" "their" "library" "." "if" "it's" "a" card_filter "card" "," "they" "put" "it" "onto" "the" "battlefield" "." "otherwise" "," "they" "may" "cast" "it" "without" "paying" "its" "mana" "cost"
+
+/* Both uses of the exiled cards are scoped to this top-library producer. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_cards_of_your_library}, ...$exiled_choice_type_permission] */
+instructions_top_exile_choice_type_permission ::= exile_top_cards_of_your_library "." exiled_choice_type_permission
+
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Exile), kind:Card, filter:AllOf([$card_filter, InSet(Transition{result:@marked, phase:After})])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{}}, qualifiers:[]}}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone{scope:Shared(Exile), kind:Card, filter:InSet(Transition{result:@marked, phase:After})}, from:Exile, action:CastSpell, filter:Any}, terms:_{limit:OnePerCardType(Nonland), cost:Free}})], duration:$duration, evaluation:LiveObjects}}] */
+exiled_choice_type_permission ::= "you" "may" "put" "a" card_filter "card" "from" "among" "them" "onto" "the" "battlefield" "." duration "," "for" "each" "nonland" "card" "type" "," "you" "may" "cast" "a" "spell" "of" "that" "type" "from" "among" "the" "exiled" "cards" "without" "paying" "its" "mana" "cost"
+
+/* The target exile supplies both the compared incarnation and its controller. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_opponent_nontoken_union}, ...$controller_random_lesser_entry] */
+instructions_exile_union_random_lesser ::= exile_opponent_nontoken_union "." controller_random_lesser_entry
+
+/* @sem Operation::Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Not(Token), AnyOf([$noun, $noun_2, $noun_3]), ControlledBy(OpponentsOf(AbilityController))])}), index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]} */
+exile_opponent_nontoken_union ::= "exile" "target" "nontoken" noun "," noun "," "or" noun "an" "opponent" "controls"
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:@selection(SelectionStep::_{binding:0, objects:Zone{scope:Players{zone:Library, players:One(ControllerOf(Target{slot:@last_slot, index:0}))}, kind:Card, filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:Less, value:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}])}, chooser:Chance, count:AsManyAsCan(Constant(1))}), destination:Battlefield{controller:Player(ControllerOf(Target{slot:@last_slot, index:0})), arrival:BattlefieldArrival{tapped:true}}, qualifiers:[]}}] */
+controller_random_lesser_entry ::= "that" "player" "puts" "a" "random" card_filter "card" "with" "lesser" "mana" "value" "from" "their" "library" "onto" "the" "battlefield" "tapped"
+
+/* Each selected opponent exiles one card from their own library. */
+/* @sem Instruction::[ForEachPlayer{players:$poisoned_opponents, binding:0, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
+clause_poisoned_opponents_exile_top ::= poisoned_opponents "exiles" "the" "top" "card" "of" "their" "library" "face" "down"
+
+/* The permission applies to the arrivals produced by this exact exile loop. */
+/* @sem Instruction::[...$clause_poisoned_opponents_exile_top, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:Transition{result:@prior, phase:After}, audience:AffectedPlayer}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@prior, phase:After}, from:Exile, action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyColor}})], duration:WhileAnyExiled(Transition{result:@prior, phase:After}), evaluation:LiveObjects}}] */
+instructions_poisoned_exile_play ::= clause_poisoned_opponents_exile_top "." "you" "may" "look" "at" "and" "play" "those" "cards" "for" "as" "long" "as" "they" "remain" "exiled" "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "those" "spells"
+
+/* The option covers the entire reveal and its subsequent partition. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$dig_reveal_joined}}] */
+dig_optional_reveal_joined ::= "you" "may" dig_reveal_joined
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:$dig_destination}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$dig_destination, qualifiers:[]}}] */
+dig_put_revealed_one ::= "put" a_card "revealed" "this" "way" dig_destination

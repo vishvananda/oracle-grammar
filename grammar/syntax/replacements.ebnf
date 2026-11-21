@@ -190,7 +190,7 @@ prevent_damage_combat ::= "combat" "damage"
 /* @sem Operation::CreateReplacement{event:Damage(DamageEvent{source_kind:Any, sources:Any, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$prevent_duration, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventDamage}}]}} */
 prevent_all_dealt ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" prevent_duration
 
-prevent_to ::= prevent_to_player_or_noun | prevent_to_any_target | prevent_to_target | prevent_to_you | prevent_to_it | prevent_to_self | prevent_to_attached | prevent_to_group | prevent_to_you_and | prevent_to_players
+prevent_to ::= prevent_to_player_or_noun | prevent_to_any_target | prevent_to_target | prevent_to_you | prevent_to_it | prevent_to_self | prevent_to_attached | prevent_to_group | prevent_to_you_and | prevent_to_players | prevent_to_player_two_kinds
 
 /* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
 prevent_to_any_target ::= "any" "target"
@@ -2712,3 +2712,15 @@ clause_exile_return_her_transformed ::= exile_objects return_join "return" "her"
 /* The excluded card is the arrival of this exact resolution payment. */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:AllOf([Not(SameObject(Source)), CardType(Creature)])})), choose:Exactly(Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[ExiledFor(WhileOnBattlefield($self_ref))]}}}]}, optional:false}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:Zone{scope:Shared(Exile), kind:Card, filter:AllOf([ExiledWith($object_ref), Not(SameObject(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}))])}, zone:Exile}, destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{}}] */
 clause_exile_linked_other_return ::= "exile" "up" "to" "one" "other" "target" "creature" "until" self_ref "leaves" "the" "battlefield" "." "if" "a" "creature" "is" "put" "into" "exile" "this" "way" "," "return" "each" "other" "card" "exiled" "with" object_ref "to" "the" "battlefield" "under" "its" "owner's" "control"
+
+/* One target may be a player or either of the two named permanent kinds. */
+/* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:AnyOf([$filter_phrase, $filter_phrase_2]), players:All}), index:0} */
+prevent_to_player_two_kinds ::= "target" "player" "," filter_phrase "," "or" filter_phrase
+
+/* An optional substitution keeps the original event as the other choice. */
+/* @sem Ability::Replacement{active:Battlefield, event:$first_tokens_you_would_create, body:_{instructions:[Effect{result:@next, operation:ChooseAction{actor:One(AbilityController), options:[Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:0, tokens:[_{amount:EventAmount, words:CreatingEffect, recipe:Copy{object:AttachedTo(Source), exceptions:[]}}]}}}]}, Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1}}}]}]}}]}} */
+replacement_first_tokens_equipped_copy ::= first_tokens_you_would_create "," "you" "may" "instead" "create" "that" "many" "tokens" "that" "are" "copies" "of" "equipped" "creature" "."
+
+/* The condition and replacement both refer to this ability's source. */
+/* @sem Ability::Conditional{condition:$condition_self_attached, then:[$replacement_first_tokens_equipped_copy]} */
+conditional_attached_replacement ::= "as" "long" "as" condition_self_attached "," replacement_first_tokens_equipped_copy
