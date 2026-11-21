@@ -2561,7 +2561,7 @@ partition_search_choose_one ::= "." "if" "you" "do" "," "reveal" "those" "cards"
 
 /* Reveal-until phrases share the library owner independently from the
    qualifying card and amount. The prior-result form follows a movement. */
-reveal_until_operation ::= reveal_until_other_one | reveal_until_other_many | reveal_until_your_one | reveal_until_chosen_name | reveal_until_qualified_card | reveal_until_shared_type
+reveal_until_operation ::= reveal_until_other_one | reveal_until_other_many | reveal_until_your_one | reveal_until_chosen_name | reveal_until_qualified_card | reveal_until_shared_type | reveal_until_chosen_creature_type
 
 /* @sem Operation::RevealUntil{library:$reveal_until_named_prefix, filter:$reveal_until_filter, count:$counter_amount} */
 reveal_until_other_one ::= reveal_until_named_prefix counter_amount reveal_until_filter "card"
@@ -2675,3 +2675,27 @@ exiled_piles_free_play ::= "an" "opponent" "separates" "those" "cards" "into" "t
 
 /* @sem Instruction::[Effect{result:@mark, operation:$exile_top_cards_of_your_library}, ...$exiled_piles_free_play] */
 instructions_exile_top_piles_free_play ::= exile_top_cards_of_your_library "." exiled_piles_free_play
+
+/* The observation and split share the same marked receipt in both directions. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_put_split] */
+look_instead_put_split ::= look_top "instead" "." look_put_split
+
+/* Filtered cards come from this reveal, and the rest excludes the actual move. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, Effect{result:@next, operation:Move{objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$noun}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:$rest_bottom}] */
+reveal_matching_hand_rest ::= reveal_top "." "put" "all" noun "cards" "revealed" "this" "way" "into" "your" "hand" "and" rest_bottom
+
+/* The singular receipt also owns the duration and the mana-spending term. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_possessive)}, kind:Card, filter:Any}, count:Constant(1), from:$ordered_end}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:One(Result{result:@marked, phase:After, index:0}), audience:AffectedPlayer}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyColor}})], duration:WhileExiled(Result{result:@marked, phase:After, index:0}), evaluation:LiveObjects}}] */
+instructions_exiled_hidden_one_play ::= "exile" "the" ordered_end "card" "of" player_possessive "library" "face" "down" "." "you" "may" "look" "at" "and" "play" "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "that" "spell"
+
+/* Keep the singleton exile producer and its permission in the same print scope. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:$exile_top_card_named}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$exiled_spending}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}] */
+clause_exile_top_while_exiled_spending ::= exile_top_card_named "." "you" "may" exiled_play_action "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" exiled_spending
+
+/* The chosen type qualifies the revealed card independently of its card filter. */
+/* @sem ObjectFilter::AllOf([$filter_phrase, Chosen(CreatureType)]) */
+reveal_card_of_chosen_creature_type ::= filter_phrase "card" "of" "that" "type"
+
+/* @sem Operation::RevealUntil{library:AbilityController, filter:$reveal_card_of_chosen_creature_type, count:$counter_amount} */
+reveal_until_chosen_creature_type ::= reveal_until_your_library counter_amount reveal_card_of_chosen_creature_type

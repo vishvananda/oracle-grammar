@@ -1,0 +1,730 @@
+{
+  "family": "retirement-condition-composition",
+  "cases": [
+    {
+      "name": "Farideh, Devil's Chosen",
+      "text": "Whenever you roll one or more dice, Farideh gains flying and menace until end of turn. If any of those results was 10 or higher, draw a card.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "RollsDice",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "GrantKeyword",
+                            "args": {
+                              "kind": "Flying"
+                            }
+                          },
+                          {
+                            "kind": "GrantKeyword",
+                            "args": {
+                              "kind": "Menace"
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "Snapshot"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "Dice",
+                          "args": {
+                            "Matching": [
+                              "GreaterOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 10
+                              }
+                            ]
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Mindblade Render",
+      "text": "Whenever your opponents are dealt combat damage, if any of that damage was dealt by a Warrior, you draw a card and you lose 1 life.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Any",
+                "sources": {
+                  "kind": "Any"
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "Batch",
+                "subject": "Recipient"
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Matching",
+                    "args": {
+                      "objects": {
+                        "kind": "Damage",
+                        "args": "Source"
+                      },
+                      "filter": {
+                        "kind": "Subtype",
+                        "args": "Warrior"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "LoseLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Aberrant Researcher",
+      "text": "Flying\nAt the beginning of your upkeep, mill a card. If an instant or sorcery card was milled this way, transform this creature.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "AnyOf",
+                                "args": [
+                                  {
+                                    "kind": "CardType",
+                                    "args": "Instant"
+                                  },
+                                  {
+                                    "kind": "CardType",
+                                    "args": "Sorcery"
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Greater",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 0
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": {
+                                  "Transform": {
+                                    "object": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Unrelated example",
+      "text": "Whenever your opponents are dealt combat damage, if any of that damage was dealt by a Warrior, gibberish.",
+      "types": [
+        "Creature"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Farideh, Devil's Chosen",
+      "text": "Whenever you roll one or more dice, Farideh gains flying and menace until end of turn. If any of those results was 12 or higher, draw a card.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Tiefling",
+          "Warlock"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          3,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "RollsDice",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Source"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "GrantKeyword",
+                            "args": {
+                              "kind": "Flying"
+                            }
+                          },
+                          {
+                            "kind": "GrantKeyword",
+                            "args": {
+                              "kind": "Menace"
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "Snapshot"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "Dice",
+                          "args": {
+                            "Matching": [
+                              "GreaterOrEqual",
+                              {
+                                "kind": "Constant",
+                                "args": 12
+                              }
+                            ]
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Mindblade Render",
+      "text": "Whenever your opponents are dealt combat damage, if any of that damage was dealt by a Wizard, you draw a card and you lose 1 life.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Azra",
+          "Warrior"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Any",
+                "sources": {
+                  "kind": "Any"
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "Batch",
+                "subject": "Recipient"
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Matching",
+                    "args": {
+                      "objects": {
+                        "kind": "Damage",
+                        "args": "Source"
+                      },
+                      "filter": {
+                        "kind": "Subtype",
+                        "args": "Wizard"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "LoseLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

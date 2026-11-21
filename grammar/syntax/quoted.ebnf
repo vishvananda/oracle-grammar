@@ -22,7 +22,7 @@ program_sentence_plain ::= program "."
 /* @sem Program::Program{instructions:$instructions_quoted} */
 program_sentence_quoted ::= instructions_quoted
 
-instructions_quoted ::= instructions_conjure_perpetual | instructions_conjured_duplicate_grant | clause_quoted | instructions_before_quoted | instructions_between_quoted | instructions_closed_before_quoted | instructions_if_you_do_quoted | instructions_paid_token_quoted | instructions_chosen_hand_perpetual
+instructions_quoted ::= instructions_conjure_perpetual | instructions_conjured_duplicate_grant | clause_quoted | instructions_before_quoted | instructions_between_quoted | instructions_closed_before_quoted | instructions_if_you_do_quoted | instructions_paid_token_quoted | instructions_chosen_hand_perpetual | instructions_opponent_tap_if_done_quoted
 
 /* A final quoted grant closes both the token-only continuation and the paid
    conditional sentence. Its dependent effects still share the creation receipt. */
@@ -59,7 +59,7 @@ instructions_between_quoted ::= clause_quoted instructions_quoted
 /* @sem Instruction::[...$clause_quoted, ...$instructions] */
 instructions_after_quoted ::= clause_quoted "then"? instructions
 
-clause_quoted ::= clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted
+clause_quoted ::= clause_operation_create_quoted | clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted
 
 /* An emblem's final quoted sentence also closes its enclosing sentence. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateEmblem{actor:One(PlayerRef::AbilityController), abilities:[$token_quoted_sentence]}}] */
@@ -173,7 +173,7 @@ token_abilities_quoted_more ::= token_ability "," token_abilities_quoted_tail
 /* @sem Ability::@holder($token_ability_sentence) */
 token_quoted_sentence ::= '"' token_ability_sentence '"'
 
-token_ability_sentence ::= static_assign_as_unblocked | departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if | static_ability | static_conditional | static_conditional_first | static_conditional_first_closed | static_during_turn | static_player_prohibition | static_player_prohibition_if | replacement_ability | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence | emblem_cast_spell_grant | emblem_cast_spell_cost | triggered_life_amount_pump | quoted_cumulative_mana | quoted_cumulative_words | quoted_bands_with_others | static_untap_each_other_untap | activated_untap_symbol | static_ordinary_ability | source_cast_trigger | additional_trigger_source_or_emblem | graveyard_optional_library_replacement | activated_creature_damage_override
+token_ability_sentence ::= static_assign_as_unblocked | departure_granted_triggers | triggered_counter_receipt_opponent | triggered_counter_receipt_optional | ordered_named_reveal_discard | paired_combat_leave_delayed | triggered_once_entry | harnessed_turn_trigger | replacement_holder_combat_half_draw | casting_spend_any_type | triggered_cast_entry_counters | replacement_mana_type_single | static_player_color_spending | static_quoted_grant | max_speed_sentence | reminded_action_ability | labelled_action_reminder | spell_ability | activated_ability | activated_forecast | activated_boast | activated_power_up | activated_limited | activated_loyalty | triggered_ability | triggered_once | triggered_if | triggered_cast_if | triggered_turn | triggered_turn_if | static_ability | static_conditional | static_conditional_first | static_conditional_first_closed | static_during_turn | static_player_prohibition | static_player_prohibition_if | replacement_ability | replacement_clause | token_defining_both | token_defining_power | token_defining_toughness | token_labelled_sentence | emblem_cast_spell_grant | emblem_cast_spell_cost | triggered_life_amount_pump | quoted_cumulative_mana | quoted_cumulative_words | quoted_bands_with_others | static_untap_each_other_untap | activated_untap_symbol | static_ordinary_ability | source_cast_trigger | additional_trigger_source_or_emblem | graveyard_optional_library_replacement | activated_creature_damage_override | replacement_untap_counter_payment | plural_entry_replacement
 
 /* A final quoted sentence closes a duration-led grant too. The existing
    token_quoted_sentence enforces its inner period and resets the holder. */
@@ -182,7 +182,7 @@ clause_continuous_grant_quoted ::= duration "," affected ("gains" | "gain") clos
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[...$change_pump, ...$closed_grants], duration:$duration, evaluation:Snapshot}}] */
 clause_continuous_pump_grant_quoted ::= duration "," affected change_pump "and" ("gains" | "gain") closed_grants
 
-closed_grants ::= closed_player_rule_pair | closed_activation_pair | closed_grant_word_ward | closed_grant_ability | closed_grant_keyword_prefix | closed_grant_exhaust
+closed_grants ::= closed_player_rule_pair | closed_activation_pair | closed_grant_word_ward | closed_grant_ability | closed_grant_keyword_prefix | closed_grant_exhaust | closed_grant_pair
 /* @sem Change::[GrantAbility($token_quoted_sentence)] */
 closed_grant_ability ::= token_quoted_sentence
 /* @sem Change::[$grant_keyword, ...$closed_grants] */
@@ -373,3 +373,11 @@ perpetual_graveyard_copy_grant ::= perpetual_graveyard_target "perpetually" "gai
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
 perpetual_graveyard_target ::= "target" card_filter "card" "in" "your" "graveyard"
+
+/* The quoted token ability closes a coordinated action sentence. */
+/* @sem Instruction::[Effect{result:@next, operation:$operation}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:$token_groups_quoted, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+clause_operation_create_quoted ::= operation "and" "create" token_groups_quoted
+
+/* Two separately scoped granted abilities; only the final quote closes the sentence. */
+/* @sem Change::[GrantAbility(@holder($replacement_enters_counters_clause)), GrantAbility($token_quoted_sentence)] */
+closed_grant_pair ::= '"' replacement_enters_counters_clause '"' "and" token_quoted_sentence

@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom
+object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -354,7 +354,7 @@ target_exactly ::= count
 /* @sem Count::UpTo($count) */
 target_up_to ::= "up" "to" count
 
-filter_phrase ::= kicker_test_any | subtype_spell_pair | filter_card_type_and | filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails | filter_urzas_land_subtypes | filter_three_heads | filter_three_heads_middle_keyword | filter_three_colors_or
+filter_phrase ::= kicker_test_any | subtype_spell_pair | filter_card_type_and | filter_permanent_of_that_color | filter_qualified_three_heads | filter_legendary_three_kinds | filter_unequal_stats | filter_lowest_mana_value | filter_activated_or_tapped | creature_not_five_subtypes | five_subtype_union | filter_plain | filter_lists | filter_quality_list | filter_phrase_modified | mined_filter | filter_instant_or_sorcery | filter_instant_and_or_sorcery | filter_mixed_nonbasic_list | filter_mixed_tapped_list | filter_that_is_three_kinds | filter_coin_tails | filter_urzas_land_subtypes | filter_three_heads | filter_three_heads_middle_keyword | filter_three_colors_or | filter_controlled_extreme
 
 /* @sem @and($quality, ObjectFilter::AnyOf([$noun, $noun_2, $noun_3]), $modifier) */
 filter_quality_list ::= quality noun "," noun "," "and" noun modifier
@@ -3075,3 +3075,24 @@ shares_linked_card_type ::= "shares" "a" "card" "type" "with" "a" "card" exile_l
 
 /* @sem ObjectFilter::SharesWithAny{property:Colors, with:$exile_linked_population} */
 shares_linked_color ::= "shares" "a" "color" "with" "a" "card" exile_linked_population
+
+/* An optional target can be any of three separately qualified kinds. */
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($number), filter:AnyOf([$noun, $noun_2, @and(ObjectFilter::Tapped, $noun_3)])}), index:0}) */
+objects_optional_three_kinds ::= "up" "to" number "target" noun "," noun "," "or" "tapped" noun
+
+/* The target count is evaluated from a controlled subtype population. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$subtype_plural, ControlledBy(One(AbilityController))])})), filter:AllOf([$plural, Not(HasActivatedAbility(Mana))])})) */
+objects_up_to_count_without_mana ::= "up" "to" "X" "target" plural "without" "mana" "abilities" "," "where" "X" "is" "the" "number" "of" subtype_plural "you" "control"
+
+/* The extreme is measured over the same controlled population as the candidate. */
+/* @sem @and($filter_nonlist_head, $modifier_you_control, ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Expr::Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_nonlist_head, $modifier_you_control)}, property:$stat, aggregation:$extreme_aggregation}}}) */
+filter_controlled_extreme ::= filter_nonlist_head modifier_you_control "with" "the" extreme_aggregation stat
+
+/* @sem @and($token_subtype, ObjectFilter::Token) */
+subtype_tokens ::= token_subtype "tokens"
+
+token_subtype ::= token_subtype_zombie_folded | subtype
+
+/* Sentence-initial Zombie folds when lowercase zombie is in the vocabulary. */
+/* @sem ObjectFilter::Subtype(Zombie) */
+token_subtype_zombie_folded ::= "zombie"
