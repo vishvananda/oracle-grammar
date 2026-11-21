@@ -1012,7 +1012,7 @@ players_each_opponent ::= "each" "opponent" | "each" "of" "your" "opponents"
 players_each ::= "each" "player"
 
 /* Damage recipients. */
-recipients ::= recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player
+recipients ::= recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player
 
 /* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_phrase, $filter_phrase_2])}) */
 recipients_each_and_each ::= "each" filter_phrase "and" "each" filter_phrase
@@ -3216,3 +3216,39 @@ tapped_creature_population ::= "untapped" adjective_color "creatures"
 /* The prior choice is the union of the players' selections. */
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, InSet(Unselected(@prior))])} */
 unselected_by_any_player_population ::= "all" filter_plural "that" "weren't" "chosen" "this" "way" "by" "any" "player"
+
+/* Distinct characteristics measured across the same proved card receipt. */
+discard_distinct_property ::= discard_distinct_card_types | discard_distinct_colors
+
+/* @sem DistinctProperty::CardTypes */
+discard_distinct_card_types ::= "card" "types"
+
+/* @sem DistinctProperty::Colors */
+discard_distinct_colors ::= "colors"
+
+/* The surrounding scheme event supplies the object domain. */
+scheme_motion_qualifier ::= scheme_motion_nonongoing | adjective_nonlegendary | adjective_nonsnow
+
+/* @sem ObjectFilter::Not(ObjectFilter::Supertype(Ongoing)) */
+scheme_motion_nonongoing ::= "non-ongoing"
+
+/* An inclusive named object and a distinct controlled plural population. */
+/* @sem ObjectFilter::AnyOf([SameObject($object_ref), AllOf([Not(SameObject($object_ref)), Not(Token), $filter_plural, ControlledBy(One(AbilityController))])]) */
+referenced_or_other_plural ::= object_ref "and" "/" "or" "one" "or" "more" "other" "nontoken" filter_plural "you" "control"
+
+/* Maximum hand size is captured before the instruction uses it. */
+/* @sem Expr::AmongPlayers{players:All, number:CardsInHand, aggregation:Maximum} */
+hand_size_maximum_all ::= "the" "player" "with" "the" "most" "cards" "in" "hand"
+
+/* @sem Expr::AmongPlayers{players:OpponentsOf(AbilityController), number:CardsInHand, aggregation:Maximum} */
+hand_size_maximum_opponents ::= "the" "opponent" "with" "the" "most" "cards" "in" "hand"
+
+hand_size_maximum ::= hand_size_maximum_all | hand_size_maximum_opponents
+
+/* An explicitly distributive target group retains its printed wording. */
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:$target_count_any, filter:Any})) */
+recipients_each_of_targets ::= "each" "of" target_count_any "targets"
+
+/* The recipient is bound by the enclosing damage event. */
+/* @sem Recipients::DamagedByEvent */
+recipients_damage_event_permanent_or_player ::= "that" "permanent" "or" "player"

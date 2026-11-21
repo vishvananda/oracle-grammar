@@ -101,7 +101,7 @@ replacement_prevent_all_but ::= "if" damage_event "," "prevent" "all" "but" numb
 damage_event ::= damage_event_colored_spell | spell_self_damage_event | generic_damage_event
 
 /* A damage source of any kind: a spell, a permanent or a card. */
-damage_source ::= source_any | source_yours | source_opponents | source_yours_except
+damage_source ::= source_any | source_yours | source_opponents | source_yours_except | source_another_yours
 
 /* @sem ObjectFilter::Any */
 source_any ::= "a" "source"
@@ -165,7 +165,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late
+prevent_clause ::= next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -1213,7 +1213,7 @@ replacement_leave_loyalty ::= "if" "damage" "dealt" "to" "a" noun "you" "control
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:$entry_receipt_program}) */
 entry_receipt_ability ::= "as" self_ref "enters" "," entry_receipt_program "."
 
-entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program | entry_draft_exile_program | entry_removed_counter_doubled_program | entry_optional_exiled_payment_counters
+entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program | entry_draft_exile_program | entry_removed_counter_doubled_program | entry_optional_exiled_payment_counters | entry_return_payment_program
 
 /* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:$affected, choose:AnyNumber}) */
 entry_sacrifice_any ::= "sacrifice" "any" "number" "of" affected
@@ -2690,3 +2690,17 @@ entry_exiled_card_payment ::= "you" "may" "put" value "cards" "your" "opponents"
 
 /* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:@plural_amount($value)})} */
 entry_creature_counter_change ::= "this" "creature" "enters" "with" value counter_kind "counters" "on" "it"
+
+/* The spell granting an ability remains distinct from its new holder. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Spell, sources:SameObject(GrantingObject), recipients:Objects(SameObject($object_ref)), kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($value), duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+prevent_next_granting_spell ::= "prevent" "the" "next" value "damage" "that" "would" "be" "dealt" "to" object_ref "by" SELF_NAME this_duration
+
+/* The conditional entry change is tied to the immediately preceding payment. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$payment_return_controlled_permanent, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$entry_counter_change}]}, otherwise:Program{}}]} */
+entry_return_payment_program ::= "you" "may" payment_return_controlled_permanent "." "if" "you" "do" "," "this" "creature" "enters" entry_counter_change
+
+/* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$counter_amount})} */
+entry_counter_change ::= "with" counter_amount counter_kind "counter" "on" "it"
+
+/* @sem ObjectFilter::AllOf([Not(SameObject(Source)), ControlledBy(One(AbilityController))]) */
+source_another_yours ::= "another" "source" "you" "control"

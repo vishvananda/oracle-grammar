@@ -338,7 +338,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken
+instructions_dig ::= look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken
 
 /* @sem Instruction::[...$dig_block, ...$instructions] */
 dig_block_more ::= dig_block "." instructions
@@ -3151,3 +3151,68 @@ reveal_named_to_hand_exile_rest ::= reveal_top "and" "put" "all" "of" "them" "wi
 
 /* @sem Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$choose_a_card_name}, ...$reveal_named_to_hand_exile_rest]}} */
 spell_choose_name_reveal_partition ::= choose_a_card_name "." reveal_named_to_hand_exile_rest "."
+
+/* The observed library and the optional shuffle share its target owner. Keeping
+   both sentences in one phrase also bounds the antecedent of "that library". */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One($target_possessive)}, kind:Card, filter:Any}, count:$top_count, from:Top}}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Shuffle{players:One($target_possessive)}}]}}] */
+look_target_library_optional_shuffle ::= "look" "at" "the" "top" top_count "of" target_possessive "library" "." "you" "may" "then" "have" "that" "player" "shuffle" "that" "library"
+
+/* Both quantities are measured for the drawing player; the last sentence
+   supplies the rounding mode for each independent calculation. */
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One($player_ref), amount:Divide{numerator:CountObjects(Zone{scope:Players{zone:$fraction_count_draw_words, players:One($player_ref)}, kind:Card, filter:Any}), denominator:Constant(2), rounding:$fraction_round_each}}}, Effect{result:@next, operation:LoseLife{players:One($player_ref), amount:Divide{numerator:PlayerNumber{player:$player_ref, number:Life}, denominator:Constant(2), rounding:$fraction_round_each}}}] */
+instructions_player_half_draw_life ::= player_ref fraction_count_draw_words "and" "loses" "half" "their" "life" "." fraction_round_each
+
+/* @sem Zone::$fraction_count_zone */
+fraction_count_draw_words ::= "draws" "cards" "equal" "to" "half" "the" "number" "of" "cards" "in" "their" fraction_count_zone
+
+fraction_count_zone ::= fraction_count_library | fraction_count_hand | fraction_count_graveyard
+
+/* @sem Zone::Library */
+fraction_count_library ::= "library"
+
+/* @sem Zone::Hand */
+fraction_count_hand ::= "hand"
+
+/* @sem Zone::Graveyard */
+fraction_count_graveyard ::= "graveyard"
+
+fraction_round_each ::= fraction_round_up_each | fraction_round_down_each
+
+/* @sem Rounding::Up */
+fraction_round_up_each ::= "round" "up" "each" "time"
+
+/* @sem Rounding::Down */
+fraction_round_down_each ::= "round" "down" "each" "time"
+
+/* The observed hand, the choice, and the discard share one targeted owner.
+   Keep the entire sequence together so the selection receipt cannot be borrowed
+   from a different hand or intervening action. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One($target_possessive)}, kind:Card, filter:Any})}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Recorded(@prior), count:$hand_choice_up_to}}, Effect{result:@next, operation:DiscardObjects{objects:Zone(_{scope:Players{zone:Hand, players:One($target_possessive)}, kind:Card, filter:InSet(Earlier{what:Selected})})}}] */
+clause_look_choose_discard ::= "look" "at" target_possessive "hand" "and" hand_choice_up_to "." "that" "player" "discards" "those" "cards"
+
+/* @sem Count::UpTo($number) */
+hand_choice_up_to ::= "choose" "up" "to" number "cards" "from" "it"
+
+/* The reveal and its immediate damage consumer share one observation receipt.
+   The target is announced before either instruction. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:$single_library_top}}, Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:ObjectProperty{object:Query{objects:Observed(@marked), index:0}, property:ManaValue, information:CurrentOrLastKnown}, preventable:true}}] */
+observed_top_value_target_damage ::= "reveal" single_library_top "." self_explicit_ref "deals" "damage" "equal" "to" "that" "card's" "mana" "value" "to" "that" "permanent" "or" "player"
+
+/* @sem Instruction::[...$observed_top_value_target_damage] */
+instructions_choose_target_observed_damage ::= "choose" "any" "target" "." observed_top_value_target_damage
+
+/* @sem Instruction::[...$clause_before_then, ...$observed_top_value_target_damage] */
+instructions_choose_target_then_observed_damage ::= "choose" "any" "target" "." clause_before_then "," "then" observed_top_value_target_damage
+
+/* The singular reveal and the following permission share the same top card. */
+/* @sem Instruction::[Effect{result:@next, operation:$shuffle_your_library}, Effect{result:@next, operation:Reveal{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:Constant(1), from:Top}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$revealed_top_play_changes, duration:$revealed_top_play_duration, evaluation:LiveObjects}}] */
+instructions_reveal_top_revealed_play ::= shuffle_your_library "," "then" "reveal" "the" "top" "card" "." revealed_top_play_duration "," revealed_top_play_changes
+
+/* @sem Duration::Either([$until_end_of_turn, UntilLibraryTopChanges(AbilityController)]) */
+revealed_top_play_duration ::= until_end_of_turn "," "for" "as" "long" "as" "that" "card" "remains" "on" "top" "of" "your" "library"
+
+/* @sem Change::[PlayerRule(Visibility{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, audience:Everyone}), ...$revealed_top_free_permission] */
+revealed_top_play_changes ::= "play" "with" "the" "top" "card" "of" "your" "library" "revealed" "and" revealed_top_free_permission
+
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:Either, filter:Any}, terms:_{cost:Free}})] */
+revealed_top_free_permission ::= "you" "may" "play" "that" "card" "without" "paying" "its" "mana" "cost"

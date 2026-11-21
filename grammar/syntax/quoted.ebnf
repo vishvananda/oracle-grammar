@@ -191,7 +191,7 @@ closed_grant_keyword_prefix ::= grant_keyword "and" closed_grants
 /* The ability's own closing period also ends this perpetual grant. Scalar
    references retain the current moved/selected object; closed_grants resets
    the holder. Private graveyard cards use the pinned AnyZone/AddAbility form. */
-clause_perpetual_grant_quoted ::= perpetual_graveyard_copy_grant | perpetual_random_event_hand_grant | perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant
+clause_perpetual_grant_quoted ::= perpetual_graveyard_copy_grant | perpetual_random_event_hand_grant | perpetual_quote_scalar_grant | perpetual_quote_cards_grant | perpetual_quote_choose_grant | perpetual_quote_exile_grant | perpetual_hand_capped_grant
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$perpetual_quote_scalar, changes:$closed_grants}}] */
 perpetual_quote_scalar_grant ::= perpetual_quote_scalar "perpetually" ("gains" | "gain") closed_grants
 /* @sem ObjectSet::One($perpetual_quote_reference) */
@@ -416,3 +416,11 @@ instructions_exile_card_if_quoted_creation ::= "exile" target_any_card_a_graveya
 /* The selected pile is the result of this separation, chosen by the active player. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:SeparatePiles{separator:AbilityController, chooser:$player_ref, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One($player_ref))])}}}, Effect{result:@next, operation:ChangeCombat{change:OnlyAttackers{objects:Selected(@marked)}}}]} */
 program_sentence_chosen_attackers ::= "separate" "all" "creatures" player_ref "controls" "into" "two" "piles" "." "only" "creatures" "in" "the" "pile" "of" "their" "choice" "can" "attack" "this" "turn" "."
+
+/* A hand population and its grant are independent of any preceding action.
+   The quoted ability establishes its own holder and stack scope. */
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:$perpetual_hand_capped_population, changes:$closed_grants}}] */
+perpetual_hand_capped_grant ::= perpetual_hand_capped_population "perpetually" "gain" closed_grants
+
+/* @sem ObjectSet::Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$adjective_nontype, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}])}) */
+perpetual_hand_capped_population ::= adjective_nontype "cards" "in" "your" "hand" "with" "mana" "value" value "or" "less"

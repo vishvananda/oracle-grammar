@@ -107,7 +107,7 @@ counter_group_reference ::= "they" | "those" "creatures" | "those" "permanents"
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:$number, preventable:true}}, Instruction::Effect{result:@next, operation:Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$changes, duration:$duration, evaluation:Snapshot}}] */
 clause_damage_and_change ::= object_ref "deals" number "damage" "to" recipients "and" changes duration
 
-affected ::= affected_landwalk_family_plural | cross_spells | owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference | affected_chosen_planeswalker_plural | affected_without_keyword_pair | affected_without_keyword_pair_reverse | controlled_not_owned_each | affected_each_counter_an | affected_nth_chosen_type | objects_each_counter_qualified | affected_all_attacking_defender | named_and_other_controlled_population
+affected ::= affected_union_with_other_controlled | affected_landwalk_family_plural | cross_spells | owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference | affected_chosen_planeswalker_plural | affected_without_keyword_pair | affected_without_keyword_pair_reverse | controlled_not_owned_each | affected_each_counter_an | affected_nth_chosen_type | objects_each_counter_qualified | affected_all_attacking_defender | named_and_other_controlled_population
 
 counter_choice_reference ::= counter_choice_singular_reference | counter_choice_group_reference
 /* @sem ObjectSet::@counter_reference_single */
@@ -4433,7 +4433,7 @@ retirement_singular_grant ::= affected "has" '"' retirement_quoted_trigger '"'
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[GrantAbility(@holder($retirement_quoted_trigger))]} */
 retirement_plural_grant ::= affected "have" '"' retirement_quoted_trigger '"'
 
-retirement_quoted_trigger ::= retirement_created_attachment_trigger | retirement_counter_batch_trigger | retirement_each_player_trigger
+retirement_quoted_trigger ::= retirement_created_attachment_trigger | retirement_counter_batch_trigger | retirement_each_player_trigger | quoted_turn_limited_trigger
 
 /* The second action counts attachments to the named object, excluding the granting object. */
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$token_group], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@prior)), kind:$counter_kind, amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, AttachedTo(SameObject($object_ref)), Not(SameObject(GrantingObject))])})}]}}]}} */
@@ -6800,3 +6800,49 @@ instructions_other_attacking_pump ::= "each" "other" noun "that's" "attacking" "
 /* A counter recipient is also the attacker and recipient of the delayed grant. */
 /* @sem Instruction::[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:CreateTrigger{event:Attack{attackers:SameObject(Target{slot:0, index:0}), defenders:Players(One(Holder(Monarch)))}, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:0, index:0})), changes:[GrantKeyword($keyword_name), GrantKeyword($keyword_name_2)], duration:EndOfTurn, evaluation:Snapshot}}]}, announcement:_{}}}] */
 clause_counter_monarch_attack ::= "put" "a" counter_kind "counter" "on" "target" "creature" "." "whenever" "that" "creature" "attacks" "the" "monarch" "this" "turn" "," "it" "gains" keyword_name "and" keyword_name "until" "end" "of" "turn"
+
+/* A union keeps the first population independent of the source exclusion on the second. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_plural, $entry_other_controlled])} */
+affected_union_with_other_controlled ::= filter_plural "and" entry_other_controlled
+
+/* A quoted limited trigger composes its event, program and per-turn limit. */
+/* @sem Ability::Triggered{event:$quoted_turn_filtered_event, limits:_{per_turn:1}, announcement:@announcement, body:$program_sentence} */
+quoted_turn_limited_trigger ::= quoted_turn_filtered_event "," program_sentence "this" "ability" "triggers" "only" "once" "each" "turn" "."
+
+quoted_turn_filtered_event ::= quoted_whenever_during_your_turn | quoted_when_during_your_turn
+
+/* @sem EventSpec::Filtered{event:$event_whenever, condition:PlayerIsActive(AbilityController)} */
+quoted_whenever_during_your_turn ::= event_whenever "during" "your" "turn"
+
+/* @sem EventSpec::Filtered{event:$event_when, condition:PlayerIsActive(AbilityController)} */
+quoted_when_during_your_turn ::= event_when "during" "your" "turn"
+
+/* Separate permissions share the affected player's other-player graveyard scope. */
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:OthersThan(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:PlayLand, filter:Any}, terms:_{cost:Normal}})] */
+other_graveyards_land_permission ::= "play" "lands"
+
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:Graveyard, players:OthersThan(Affected)}, kind:Card, filter:Any}), from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Normal}})] */
+other_graveyards_spell_permission ::= "cast" "spells"
+
+/* @sem Change::[...$other_graveyards_land_permission, ...$other_graveyards_spell_permission] */
+other_graveyards_both_permissions ::= other_graveyards_land_permission "and" other_graveyards_spell_permission
+
+other_graveyards_permissions ::= other_graveyards_both_permissions | other_graveyards_land_permission | other_graveyards_spell_permission
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:$other_graveyards_permissions, duration:$this_duration, evaluation:LiveObjects} */
+other_graveyards_temporary_permission ::= "you" "may" other_graveyards_permissions "from" "other" "players'" "graveyards" this_duration "as" "though" "those" "cards" "were" "in" "your" "graveyard"
+
+/* A static grant can operate while the granting spell is on the stack. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[$grant_quoted_activation]} */
+static_population_has_quoted_activation ::= affected "has" grant_quoted_activation
+
+/* @sem Ability::Scoped{zones:[Stack], ability:$static_population_has_quoted_activation} */
+stack_scoped_population_activation ::= "as" "long" "as" SELF_NAME "is" "on" "the" "stack" "," static_population_has_quoted_activation
+
+/* The linked choice and copy consume the same source and choice receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$noun_atomic, InSet(Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($object_ref)}))])}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:CreateContinuousEffect{source:$object_ref, affected:Objects($affected), changes:[CopyOf{object:Result{result:@prior, phase:After, index:0}, exceptions:[]}], duration:Indefinite, evaluation:Snapshot}}] */
+instructions_copy_linked_card ::= affected "becomes" "a" "copy" "of" "a" noun_atomic "card" "exiled" "with" object_ref
+
+/* A perpetual change applies to the current matching cards in your graveyard. */
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}), changes:$static_changes}}] */
+clause_each_graveyard_card_perpetual ::= "each" filter_phrase "card" "in" "your" "graveyard" "perpetually" static_changes
