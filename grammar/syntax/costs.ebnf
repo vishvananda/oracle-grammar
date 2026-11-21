@@ -1549,3 +1549,19 @@ cost_ward_holder_life ::= "pay" "life" "equal" "to" payment_holder_stat
 /* Keep this comparison scoped to its leading casting reduction shape. */
 /* @sem Ability::Casting(If{condition:$condition_opponent_margin, rule:$source_spell_reduction}) */
 casting_opponent_margin_reduction ::= "if" condition_opponent_margin "," source_spell_reduction "."
+
+/* A variable counter-removal payment records the selected amount in its cost. */
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), kind:$counter_kind, amount:Count(AtLeast($value))}]} */
+cost_remove_at_least_counters ::= "remove" value "or" "more" counter_kind "counters" "from" affected
+
+/* The enclosing activation fixes the receipt at the second payment component.
+   Its damage clause can compose with any subsequent instructions. */
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Mana($mana_symbols), $cost_remove_at_least_counters]}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$paid_counter_damage}, ...$instructions]}} */
+activation_counter_damage_followed ::= mana_symbols "," "↑" cost_remove_at_least_counters ":" paid_counter_damage "." instructions "."
+
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Mana($mana_symbols), $cost_remove_at_least_counters]}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$paid_counter_damage}]}} */
+activation_counter_damage ::= mana_symbols "," "↑" cost_remove_at_least_counters ":" paid_counter_damage "."
+
+/* This phrase is only dispatched inside the proved activation above. */
+/* @sem Operation::DealDamage{source:$object_ref, recipients:Objects($affected), amount:PaidCountersRemoved{payment:Activation, component:[1]}, preventable:true} */
+paid_counter_damage ::= object_ref "deals" "that" "much" "damage" "to" affected

@@ -445,3 +445,17 @@ you_and_named_player_set ::= "you" "and" players_singular
 
 /* @sem PlayerSet::Union([One(AbilityController), One(Chosen)]) */
 you_and_chosen_player_set ::= "you" "and" "that" "player"
+
+/* A personal hand is counted separately for every announced player. */
+/* @sem Instruction::[ForEachPlayer{players:$announced_many_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Discard{players:One(Bound(0)), amount:CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any})}}]}}] */
+instructions_announced_hand ::= announced_many_players "each" "discard" "their" "hands"
+
+/* The same announced player set supplies both phases, even after earlier targets. */
+/* @sem Instruction::[ForEachPlayer{players:$announced_many_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Discard{players:One(Bound(0)), amount:CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any})}}]}}, Effect{result:@next, operation:Draw{players:$announced_many_players, amount:$card_count}}] */
+instructions_announced_hand_draw ::= announced_many_players "each" "discard" "their" "hands" "," "then" "draw" card_count
+
+/* @sem Instruction::[...$instructions_announced_hand, ...$instructions] */
+instructions_announced_hand_more ::= instructions_announced_hand "." instructions
+
+/* @sem Instruction::[...$instructions_announced_hand_draw, ...$instructions] */
+instructions_announced_hand_draw_more ::= instructions_announced_hand_draw "." instructions

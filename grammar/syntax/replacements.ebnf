@@ -502,7 +502,7 @@ instructions_wheel ::= "each" "player" "discards" "their" "hand" "," "then" "dra
 /* @sem Instruction::[Instruction::ForEachPlayer{players:$hand_plural_players, binding:0, in_chosen_direction:false, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::Discard{players:One(Bound(0)), amount:Expr::CountObjects(Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:Any}), random:false}}]}}, Instruction::Effect{result:@next, operation:Operation::Draw{players:$hand_plural_players, amount:$hand_shared_count}}] */
 instructions_hand_wheel ::= hand_plural_players "discards" hand_words ("," "then" | "and") "draws" hand_shared_count
 
-hand_shared_count ::= card_count_one | card_count_many | card_count_additional
+hand_shared_count ::= greatest_discard_count | card_count_one | card_count_many | card_count_additional
 
 /* A created trigger governs the rest of its sentence. The creating effect owns
    targets in the event; the future trigger owns targets and references in its body. */
@@ -673,7 +673,7 @@ next_chosen_to ::= next_chosen_to_you | next_chosen_to_object | next_chosen_to_a
 /* @sem DamageRecipients::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any}), index:0} */
 next_chosen_to_any_target ::= "to" "any" "target"
 /* The prevention, and life equal to what it prevented. */
-prevented_body ::= prevented_body_plain | prevented_body_life
+prevented_body ::= prevented_body_plain | prevented_body_life | prevented_body_exile_library
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]} */
 prevented_body_plain ::= "prevent" "that" "damage"
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Performed(@prior)}}]} */
@@ -1213,7 +1213,7 @@ replacement_leave_loyalty ::= "if" "damage" "dealt" "to" "a" noun "you" "control
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:$entry_receipt_program}) */
 entry_receipt_ability ::= "as" self_ref "enters" "," entry_receipt_program "."
 
-entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program
+entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program | entry_draft_exile_program | entry_removed_counter_doubled_program
 
 /* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:$affected, choose:AnyNumber}) */
 entry_sacrifice_any ::= "sacrifice" "any" "number" "of" affected
@@ -2463,3 +2463,23 @@ prevention_chosen_source_half ::= "if" "damage" "would" "be" "dealt" "to" "you" 
 
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:$prevention_chosen_source_half}} */
 activated_chosen_source_half ::= cost ":" prevention_chosen_source_half "." activation_limits "."
+
+/* Keep the prevention producer and its dependent library move in one program:
+   Performed refers to this ModifyEvent, not an unrelated earlier action. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Performed(@prior), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]} */
+prevented_body_exile_library ::= "prevent" "that" "damage" "." "exile" "cards" "from" "the" "top" "of" "your" "library" "equal" "to" "the" "damage" "prevented" "this" "way"
+
+/* A singular draft result is the exact card exiled by the following instruction. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$draft_self_spellbook_card}, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]} */
+entry_draft_exile_program ::= draft_self_spellbook_card "and" "exile" "it" "face" "down"
+
+/* The chosen recipients and the counted removal receipt belong to one entry program. */
+/* @sem Operation::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), amount:All, selection:_{player:AbilityController, count:AnyNumber}}]} */
+entry_remove_all_counters_any ::= "remove" "all" "counters" "from" "any" "number" "of" affected
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_remove_all_counters_any}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Multiply([Constant(2), CountersRemoved(@prior)])})}}]} */
+entry_removed_counter_doubled_program ::= entry_remove_all_counters_any "." SELF_NAME "enters" "with" "X" counter_kind "counters" "on" "it" "," "where" "X" "is" "twice" "the" "number" "of" "counters" "removed" "this" "way"
+
+/* Valid inside the hand-wheel producer immediately above. */
+/* @sem Expr::Game(MostDiscardedThisWay) */
+greatest_discard_count ::= "cards" "equal" "to" "the" "greatest" "number" "of" "cards" "a" "player" "discarded" "this" "way"

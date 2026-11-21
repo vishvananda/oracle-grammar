@@ -925,7 +925,7 @@ bound_less ::= "less"
 bound_greater ::= "greater"
 
 /* Players. */
-players_singular ::= players_coin_tails | players_empty_hand | players_unqualified_singular | players_voted_same | players_voted_different | players_chosen_extreme_life | players_tapped_for_mana_this_turn | players_controlling_filter | players_event_controller_opponents | players_event_player_opponents | players_controlling_an | players_your_teammates | players_most_controlled | players_enchanted_opponent
+players_singular ::= players_coin_tails | players_empty_hand | players_unqualified_singular | players_voted_same | players_voted_different | players_chosen_extreme_life | players_tapped_for_mana_this_turn | players_controlling_filter | players_event_controller_opponents | players_event_player_opponents | players_controlling_an | players_your_teammates | players_most_controlled | players_enchanted_opponent | players_qualified | players_unqualified
 
 /* A Curse's player: the player this Aura enchants. */
 /* @sem PlayerSet::One(PlayerRef::EnchantedBy(ObjectRef::Source)) */
@@ -3044,3 +3044,34 @@ players_enchanted_opponent ::= "enchanted" "opponent"
 
 /* @sem ObjectFilter::Subtype(Pegasus) */
 plural_pegasi ::= "Pegasi"
+
+players_unqualified ::= players_fewest_permanents | mined_players | player_one | players_each_opponent | players_each | players_or_controller | players_each_other | players_each_other_opponent
+    | players_each_friend | players_each_foe | players_enchanted
+
+/* Player qualifiers retain their bound player's identity independently of the action. */
+/* @sem PlayerSet::Intersection([$players_unqualified, Matching{binding:0, condition:Not(Controls{player:Bound(0), filter:$filter_phrase, minimum:1})}]) */
+players_qualified_control_an ::= players_unqualified "who" "doesn't" "control" "an" filter_phrase
+
+/* @sem PlayerSet::Intersection([$players_unqualified, Matching{binding:0, condition:Compare{left:EventHistory{event:Spell{event:Cast, players:One(Bound(0)), spells:SharesNameWithAny(Selected(0))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$counter_amount}}}]) */
+players_qualified_cast_same_name ::= players_unqualified "who" "cast" counter_amount "spell" "this" "turn" "with" "the" "same" "name" "as" "that" "card"
+
+/* @sem PlayerSet::Intersection([$players_unqualified, Matching{binding:0, condition:Compare{left:CountObjects(Matching{objects:MovedBy{result:@prior, phase:After, player:Bound(0)}, filter:SharesWithAny{property:CardTypes, with:MovedBy{result:@prior, phase:After, player:AbilityController}}}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}}]) */
+players_qualified_discard_shared_type ::= players_unqualified "who" "discarded" "a" "card" "that" "shares" "a" "card" "type" "with" "the" "card" "you" "discarded"
+
+players_qualified ::= players_qualified_control_an | players_qualified_cast_same_name | players_qualified_discard_shared_type
+
+/* @sem PlayerSet::One(Chosen) */
+players_chosen_shared ::= "the" "chosen" "player"
+
+/* The owner is the player bound by the enclosing instruction. */
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([OwnedBy(One(Bound(0))), ExiledWith($object_ref)])}) */
+bound_owned_linked_exile_cards ::= "all" "cards" "they" "own" "exiled" "with" object_ref
+
+/* Shared characteristics refer to the entire linked exile population. */
+top_cast_shared_filter ::= shares_linked_card_type | shares_linked_color
+
+/* @sem ObjectFilter::SharesWithAny{property:CardTypes, with:$exile_linked_population} */
+shares_linked_card_type ::= "shares" "a" "card" "type" "with" "a" "card" exile_linked_population
+
+/* @sem ObjectFilter::SharesWithAny{property:Colors, with:$exile_linked_population} */
+shares_linked_color ::= "shares" "a" "color" "with" "a" "card" exile_linked_population

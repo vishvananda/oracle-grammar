@@ -2662,3 +2662,16 @@ top_card_private_choice_program ::= top_card_look top_card_private_choice "."
 
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:$top_card_private_choice_program} */
 activated_top_card_private_choice ::= cost ":" top_card_private_choice_program
+
+/* The matching card and shuffle are scoped to this reveal-until producer. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:AllOf([$filter_phrase, Chosen(CreatureType)]), count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:AllOf([$filter_phrase, Chosen(CreatureType)])}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+reveal_chosen_type_shuffle_rest ::= "reveal" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "reveal" "a" filter_phrase "card" "of" "that" "type" "." "put" "that" "card" until_destination "and" "shuffle" "the" "rest" "into" "your" "library"
+
+/* Piles use the immediately preceding top-library exile receipt.  The outer
+   production fixes that producer so inverse printing cannot attach this text
+   to an unrelated transition. */
+/* @sem Vec<Instruction>::[Effect{result:@next, operation:SeparatePiles{separator:OneOf(OpponentsOf(AbilityController)), chooser:AbilityController, objects:Zone(_{scope:Shared(Exile), kind:Card, filter:InSet(Transition{result:@marked, phase:After})})}}, Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:Either, cards:Matching{objects:Selected(@prior), filter:AnyOf([$filter_plural, Any])}, count:AnyNumber, terms:_{cost:Free}}}] */
+exiled_piles_free_play ::= "an" "opponent" "separates" "those" "cards" "into" "two" "piles" "." "you" "may" "play" filter_plural "and" "cast" "spells" "from" "one" "of" "those" "piles" "." "if" "you" "cast" "a" "spell" "this" "way" "," "you" "cast" "it" "without" "paying" "its" "mana" "cost"
+
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_cards_of_your_library}, ...$exiled_piles_free_play] */
+instructions_exile_top_piles_free_play ::= exile_top_cards_of_your_library "." exiled_piles_free_play
