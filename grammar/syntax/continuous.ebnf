@@ -1094,7 +1094,7 @@ attached_other_auras ::= "can't" "be" "enchanted" "by" "other" "Auras"
 /* @sem Change::GrantAbility(@holder($granted_mechanic)) */
 grant_native_mechanic ::= granted_mechanic
 
-granted_mechanic ::= granted_echo_defined | granted_annihilator_defined | granted_defined_mechanic | bare_rebound | bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast | bare_undying | mechanic_banding
+granted_mechanic ::= bare_phasing | granted_echo_defined | granted_annihilator_defined | granted_defined_mechanic | bare_rebound | bare_dethrone | bare_evolve | bare_exploit | bare_extort | granted_valued_mechanic | bare_battle_cry | bare_persist | mechanic_numbered_keyword | bare_jump_start | bare_exalted | granted_affinity | granted_replicate_mana_cost | granted_replicate_cost | bare_melee | bare_myriad | bare_provoke | bare_read_ahead | granted_poisonous | granted_outlast | bare_undying | mechanic_banding
 /* @sem Ability::Mechanic{mechanic:Affinity, filter:$filter_plural} */
 granted_affinity ::= "affinity" "for" filter_plural
 /* Source belongs to the receiving spell, not the static granting permanent. */
@@ -2832,8 +2832,7 @@ static_graveyard_cast_alternate ::= "as" "long" "as" condition "," graveyard_cas
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, HasKeyword($keyword_value)])} */
 affected_keyword_plural ::= filter_plural "with" keyword_value
 
-/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(AbilityController))])} */
-affected_controlled_each ::= "each" noun "you" "control"
+affected_controlled_each ::= affected_controlled_each_noun | affected_controlled_each_nontype
 
 /* @sem Change::[Rule(BlockedAsThoughLacking(Term{family:CheckHasable, form:Landwalk, operands:[Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$walk_land_filter})]}))] */
 change_landwalk_lacking ::= "can" "be" "blocked" "as" "though" "they" "didn't" "have" walk_land_filter
@@ -4070,7 +4069,7 @@ conditional_static_pair ::= "as" "long" "as" condition "," static_subject_pair "
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected_controlled_each), changes:$controlled_each_change}) */
 static_controlled_each_change ::= affected_controlled_each controlled_each_change "."
 
-controlled_each_change ::= change_chosen_creature_type_add_singular
+controlled_each_change ::= change_chosen_creature_type_add_singular | controlled_each_color_set
 
 /* @sem Change::[ChosenType{kind:CreatureType, mode:Add}] */
 change_chosen_creature_type_add_singular ::= "is" "the" "chosen" "type" "in" "addition" "to" "its" "other" "types"
@@ -5334,7 +5333,7 @@ static_defining_holder_values ::= holder_possessive_ref "power" "and" "toughness
 
 /* These quantities are scoped to intrinsic stat definitions, leaving other
    consumers of value and their existing readings unchanged. */
-defining_named_stat_value ::= defining_max_hand | defining_half_max_life | defining_difference_opponent | defining_difference_max_player
+defining_named_stat_value ::= defining_graveyard_count | defining_graveyard_symbols | defining_max_hand | defining_half_max_life | defining_difference_opponent | defining_difference_max_player
 
 defining_holder_stat_value ::= defining_symbols | defining_difference_max_player
 
@@ -6846,3 +6845,52 @@ instructions_copy_linked_card ::= affected "becomes" "a" "copy" "of" "a" noun_at
 /* A perpetual change applies to the current matching cards in your graveyard. */
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}), changes:$static_changes}}] */
 clause_each_graveyard_card_perpetual ::= "each" filter_phrase "card" "in" "your" "graveyard" "perpetually" static_changes
+
+/* Shared graveyard populations keep their owner, filter, and exclusion. */
+/* @sem Expr::CountObjects($defining_graveyard_population) */
+defining_graveyard_count ::= "the" "number" "of" defining_graveyard_population
+
+/* @sem Expr::CountManaSymbols{objects:$defining_graveyard_population, colors:[$mana_color_word]} */
+defining_graveyard_symbols ::= "the" "number" "of" mana_color_word "mana" "symbols" "in" "the" "mana" "costs" "of" defining_graveyard_population
+
+defining_graveyard_population ::= defining_your_graveyard_cards | defining_your_graveyard_other_cards | defining_opponents_graveyard_cards | defining_opponents_graveyard_filtered_cards
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any} */
+defining_your_graveyard_cards ::= "cards" "in" "your" "graveyard"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Not(SameObject(Source))])} */
+defining_your_graveyard_other_cards ::= "other" filter_phrase "cards" "in" "your" "graveyard"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:OpponentsOf(AbilityController)}, kind:Card, filter:Any} */
+defining_opponents_graveyard_cards ::= "cards" "in" "your" "opponents'" "graveyards"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:OpponentsOf(AbilityController)}, kind:Card, filter:$filter_phrase} */
+defining_opponents_graveyard_filtered_cards ::= filter_phrase "cards" "in" "your" "opponents'" "graveyards"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(AbilityController))])} */
+affected_controlled_each_noun ::= "each" noun "you" "control"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$adjective_nontype, ControlledBy(One(AbilityController))])} */
+affected_controlled_each_nontype ::= "each" adjective_nontype "permanent" "you" "control"
+
+/* @sem Change::[Colors{mode:Set, colors:[White, Blue, Black, Red, Green]}] */
+controlled_each_all_colors ::= "all" "colors"
+
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}] */
+controlled_each_one_color ::= mana_color_word
+
+controlled_each_color_value ::= controlled_each_all_colors | controlled_each_one_color
+
+/* @sem $controlled_each_color_value */
+controlled_each_color_set ::= "is" controlled_each_color_value
+
+/* The named source grants an other-spell reduction while in either zone. */
+/* @sem ObjectFilter::AllOf([Not(SameObject($self_ref_named)), $cast_kind_spells]) */
+command_zone_other_spells ::= "as" "long" "as" self_ref_named "is" "in" "the" "command" "zone" "or" "on" "the" "battlefield" "," "other" cast_kind_spells
+
+/* @sem Ability::Scoped{zones:[Command, Battlefield], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$command_zone_other_spells, modifier:$spell_cost_change})]})} */
+command_zone_other_spell_cost ::= command_zone_other_spells "you" "cast" "cost" spell_cost_change "to" "cast" "."
+
+/* A graveyard permission with a composed additional payment. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Additional(Cost{parts:$cast_life_and_additional_parts})}})]})} */
+static_graveyard_cast_composed_cost ::= graveyard_cast_phrase "by" cast_life_and_additional_parts "in" "addition" "to" "paying" "its" "other" "costs" "."

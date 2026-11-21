@@ -1055,3 +1055,18 @@ create_attacking_copy_each_token ::= "for" "each" qualified_token_population ","
 create_attacking_copies_each_token ::= "for" "each" qualified_token_population "," "create" copy_token_plural_amount "tapped" "and" "attacking" "tokens" "that" "are" "copies" "of" "that" "token"
 
 copy_token_plural_amount ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20 | n30
+
+/* A choice list composes token alternatives without fixing their recipes. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$token_group], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+token_choice_option ::= token_group
+
+/* @sem Program::[$token_choice_option] */
+token_choice_last ::= "or" token_choice_option
+
+/* @sem Program::[$token_choice_option, ...$token_choice_tail] */
+token_choice_more ::= token_choice_option "," token_choice_tail
+
+token_choice_tail ::= token_choice_last | token_choice_more
+
+/* @sem Instruction::[ChooseOne{decider:AbilityController, options:[$token_choice_option, ...$token_choice_tail]}] */
+clause_create_token_choice ::= "create" "your" "choice" "of" token_choice_option "," token_choice_tail

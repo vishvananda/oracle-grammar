@@ -352,7 +352,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder
+dig_block ::= reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -3216,3 +3216,101 @@ revealed_top_play_changes ::= "play" "with" "the" "top" "card" "of" "your" "libr
 
 /* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:Either, filter:Any}, terms:_{cost:Free}})] */
 revealed_top_free_permission ::= "you" "may" "play" "that" "card" "without" "paying" "its" "mana" "cost"
+
+/* The event player's library supplies the actual exile arrivals. */
+/* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:Any}, count:$card_count, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_event_player_top ::= "exile" "the" "top" card_count "of" "that" "player's" "library"
+
+/* This consumer is used only with the immediately preceding exile producer. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, InSet(Transition{result:@marked, phase:After})])}, count:AsManyAsCan($counter_amount)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+put_exile_arrival_under_your_control ::= "put" counter_amount filter_phrase "card" "from" "among" "them" "onto" "the" "battlefield" "under" "your" "control"
+
+/* Keep the producer and its consumer together for inverse matching. */
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_event_player_top}, ...$put_exile_arrival_under_your_control] */
+clause_exile_event_top_put ::= exile_event_player_top "," "then" put_exile_arrival_under_your_control
+
+/* Scope the observation and both consumers to the same reveal receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, Effect{result:@next, operation:Mill{players:$players_singular, amount:CountManaSymbols{objects:Observed(@marked), colors:[$mana_color_word]}}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Bottom, order:Chosen}}] */
+instructions_reveal_color_mill_bottom ::= reveal_top "." "for" "each" mana_color_word "mana" "symbol" "in" "the" "mana" "costs" "of" "the" "revealed" "cards" "," players_singular "mills" "a" "card" "." "then" "put" "the" "cards" "you" "revealed" "this" "way" "on" "the" "bottom" "of" "your" "library" "in" "any" "order"
+
+/* The reveal, battlefield move and remainder form one observed partition. */
+/* @sem Instruction::[...$player_reveal_partition_program] */
+player_reveal_partition_graveyard ::= player_reveal_partition_program
+
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:$player_ref, filter:$card_filter, count:$value}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+player_reveal_partition_program ::= player_ref "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" value card_filter "cards" "." "put" "those" "cards" "onto" "the" "battlefield" "under" "your" "control" "." "that" "player" "puts" "the" "rest" "into" "their" "graveyard"
+
+/* The observation counted by damage is the same reveal that produced the partition. */
+/* @sem Instruction::[...$own_reveal_partition_program, Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One(AbilityController)), amount:CountObjects(Observed(@back(4))), preventable:true}}] */
+reveal_partition_damage ::= own_reveal_partition_program "." "this" "creature" "deals" "damage" "to" "you" "equal" "to" "the" "number" "of" "cards" "revealed" "this" "way"
+
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$card_filter, count:$counter_amount}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}}] */
+own_reveal_partition_program ::= reveal_until_your_library counter_amount card_filter "card" "." "put" "that" "card" until_destination "and" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order
+
+/* The target is retained across its move and the controller's reveal. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0} */
+reveal_target_creature ::= "target" "creature"
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($reveal_target_creature), destination:Library{position:Bottom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, ...$controller_reveal_partition_program] */
+target_creature_bottom_reveal ::= "put" reveal_target_creature "on" "the" "bottom" "of" "its" "owner's" "library" "." controller_reveal_partition_program
+
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:ControllerOf(@that_object), filter:$card_filter, count:$counter_amount}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:Battlefield{controller:Player(ControllerOf(@that_object)), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:ControllerOf(@that_object), library_owner:ControllerOf(@that_object), objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}}] */
+controller_reveal_partition_program ::= "that" "creature's" "controller" "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" counter_amount card_filter "card" "." "the" "player" "puts" "that" "card" "onto" "the" "battlefield" "and" "the" "rest" "on" "the" "bottom" "of" "their" "library" library_order
+
+/* The mana comparison uses the actual exile arrival of this target. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One($target_qualified_creature), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, ...$greater_value_reveal_program] */
+exile_creature_greater_reveal ::= "exile" target_qualified_creature "," "then" greater_value_reveal_program
+
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:Greater, value:ObjectProperty{object:Result{result:@prior, phase:After, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}]), count:$counter_amount}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:Greater, value:ObjectProperty{object:Result{result:@back(3), phase:After, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}])}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}}] */
+greater_value_reveal_program ::= reveal_until_your_library counter_amount card_filter "card" "with" "greater" "mana" "value" "." "put" "that" "card" until_destination "and" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order
+
+/* The destination follows the owners of the plural selection. */
+/* @sem MovementDestination::Library{position:$cost_library_end, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+cost_plural_owner_library ::= cost_library_end "of" "their" "owner's" "library"
+
+/* @sem LibraryPosition::Bottom */
+cost_library_end_bottom ::= "on" "the" "bottom"
+
+/* @sem LibraryPosition::Top */
+cost_library_end_top ::= "on" "top"
+
+cost_library_end ::= cost_library_end_bottom | cost_library_end_top
+
+/* The conditional tests the controller's top card; the following anaphor
+   refers to that same card, so keep the two clauses in one scoped production. */
+/* @sem Condition::ObjectMatches{object:Query{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, index:0}, filter:$card_filter} */
+condition_own_top_card_kind_a ::= "the" "top" "card" "of" "your" "library" "is" "a" card_filter "card"
+
+/* @sem Condition::ObjectMatches{object:Query{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, index:0}, filter:$card_filter} */
+condition_own_top_card_kind_an ::= "the" "top" "card" "of" "your" "library" "is" "an" card_filter "card"
+
+condition_own_top_card_kind ::= condition_own_top_card_kind_a | condition_own_top_card_kind_an
+
+/* @sem Change::[GainAbilitiesOf{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, kinds:Term{family:CheckHasable, form:ActivatedAbility}}] */
+change_own_top_card_activated ::= "has" "all" "activated" "abilities" "of" "that" "card"
+
+/* @sem Ability::Conditional{condition:$condition_own_top_card_kind, then:[Static(_{kind:Ordinary, affected:Objects($affected), changes:$change_own_top_card_activated})]} */
+conditional_own_top_card_abilities ::= "as" "long" "as" condition_own_top_card_kind "," affected change_own_top_card_activated "."
+
+/* The look supplies the library observation used by both following effects. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top_two}, ...$manifest_observed_one, $manifest_observed_other] */
+dig_look_manifest_other ::= look_top_two "." manifest_observed_one "," "then" manifest_observed_other
+
+/* @sem Operation::LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(2), from:Top}} */
+look_top_two ::= "look" "at" "the" "top" "two" "cards" "of" "your" "library"
+
+/* @sem Instruction::[Effect{result:@next, operation:@manifest_result(Operation::WithSelections{steps:[_{binding:@selection_id(0), objects:InZone{objects:Observed(@marked), zone:Library}, chooser:Players(One(AbilityController)), count:Exactly(Constant(1))}], action:Manifest{actor:One(AbilityController), source:Cards(Prepared(@selection_id(0))), entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}})}] */
+manifest_observed_one ::= "manifest" "one" "of" "those" "cards"
+
+/* Only the cards still in the observed library population are moved. */
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Observed(@marked), zone:Library}, destination:Library{position:TopOrBottom{chooser:Players(One(AbilityController))}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}} */
+manifest_observed_other ::= "put" "the" "other" "on" "the" "top" "or" "bottom" "of" "your" "library"
+
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$manifest_observed_count, $manifest_observed_rest] */
+dig_look_manifest_rest ::= look_top "." manifest_observed_count "," "then" manifest_observed_rest
+
+/* @sem Instruction::[Effect{result:@next, operation:@manifest_result(Operation::WithSelections{steps:[_{binding:@selection_id(0), objects:InZone{objects:Observed(@marked), zone:Library}, chooser:Players(One(AbilityController)), count:Exactly($value)}], action:Manifest{actor:One(AbilityController), source:Cards(Prepared(@selection_id(0))), entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}})}] */
+manifest_observed_count ::= "manifest" value "of" "those" "cards"
+
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Observed(@marked), zone:Library}, destination:Library{position:TopOrBottom{chooser:Players(One(AbilityController))}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}} */
+manifest_observed_rest ::= "put" "the" "rest" "on" "the" "top" "or" "bottom" "of" "your" "library"

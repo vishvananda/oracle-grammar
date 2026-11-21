@@ -125,8 +125,7 @@ event_mana_colorless ::= "{" "C" "}"
 event_mana_chosen_color ::= "mana" "of" "the" "chosen" "color"
 
 /* Used only with an event that identifies the referenced chosen color. */
-/* @sem Operation::AddMana{players:$players_singular, mana:Amount{color:Chosen, amount:$value}} */
-add_referenced_chosen_mana ::= players_singular "adds" "an" "additional" value "mana" "of" "that" "color"
+add_referenced_chosen_mana ::= add_referenced_chosen_mana_player | add_referenced_chosen_mana_you
 
 /* A casting restriction names the colors allowed for the X payment. */
 /* @sem Ability::Casting(RestrictMana{portion:X, filter:Colors($casting_mana_colors)}) */
@@ -355,3 +354,34 @@ mana_from_sacrificed_creature_cost ::= "add" "an" "amount" "of" mana_production 
 
 /* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))}]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$mana_from_sacrificed_creature_cost}]}}] */
 line_sacrifice_cost_mana_value ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "sacrifice" "a" "creature" "." NEWLINE mana_from_sacrificed_creature_cost "."
+
+/* @sem Operation::AddMana{players:$players_singular, mana:Amount{color:Chosen, amount:$value}} */
+add_referenced_chosen_mana_player ::= players_singular "adds" "an" "additional" value "mana" "of" "that" "color"
+
+/* The event keeps the ability's source, recipient and produced mana independent. */
+/* @sem EventSpec::ManaAdded{abilities:AbilityOf($mana_ability_holder), players:One(AbilityController), mana:$event_mana_chosen_color} */
+event_ability_causes_chosen_mana ::= mana_ability_holder "causes" "you" "to" "add" "one" "or" "more" event_mana_chosen_color
+
+mana_ability_holder ::= mana_ability_land | mana_ability_creature | mana_ability_artifact | mana_ability_permanent
+
+/* @sem ObjectFilter::CardType(Land) */
+mana_ability_land ::= "a" "land's" "ability"
+
+/* @sem ObjectFilter::CardType(Creature) */
+mana_ability_creature ::= "a" "creature's" "ability"
+
+/* @sem ObjectFilter::CardType(Artifact) */
+mana_ability_artifact ::= "an" "artifact's" "ability"
+
+/* @sem ObjectFilter::Any */
+mana_ability_permanent ::= "a" "permanent's" "ability"
+
+/* @sem EventSpec::$event_ability_causes_chosen_mana */
+event_when_ability_causes_chosen_mana ::= "when" event_ability_causes_chosen_mana
+
+/* @sem EventSpec::$event_ability_causes_chosen_mana */
+event_whenever_ability_causes_chosen_mana ::= "whenever" event_ability_causes_chosen_mana
+
+/* The event licenses the reference to the chosen color. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Amount{color:Chosen, amount:$value}} */
+add_referenced_chosen_mana_you ::= "add" "an" "additional" value "mana" "of" "that" "color"
