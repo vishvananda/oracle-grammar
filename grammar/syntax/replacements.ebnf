@@ -893,6 +893,7 @@ replacement_enter_cost_or_graveyard ::= "if" object_ref "would" "enter" "," cost
 
 /* The next draw this turn is replaced by the written action. */
 /* @sem Operation::CreateReplacement{event:Player{event:Draw, players:One(AbilityController)}, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$operation}]}} */
+/* @prefer always */
 next_draw_replaced ::= "the" "next" "time" "you" "would" "draw" "a" "card" this_duration "," operation "instead"
 
 /* The chosen card belongs to the revealed hand's owner; its native single
@@ -972,7 +973,7 @@ controlled_explore_replacement ::= controlled_explore_event "," explore_twice_re
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_modification}) */
 entry_modified ::= object_ref "enters" entry_modification "."
 
-entry_modification ::= entry_convoked_counters | entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse
+entry_modification ::= entry_convoked_counters | entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse | entry_foretold_counters
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]} */
 entry_tapped_and_counters ::= "tapped" "and" "with" value counter_kind "counters" "on" "it"
@@ -3301,3 +3302,32 @@ entry_two_counters_and_keyword ::= entry_two_counter_effects "and" "with" keywor
 
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:Program{instructions:[If{condition:$condition, then:Program{instructions:$entry_two_counters_and_keyword}, otherwise:Program{}}]}}) */
 conditional_entry_counters_keyword ::= "if" condition "," object_ref "enters" entry_two_counters_and_keyword "."
+
+/* The where-clause defines the amount for this entry counter change. */
+/* @sem Expr::TurnsSinceForetold */
+entry_turns_since_foretold ::= "the" "number" "of" "turns" "you've" "begun" "since" "it" "was" "foretold"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$entry_turns_since_foretold})}}]} */
+entry_foretold_counters ::= "with" "X" counter_kind "counters" "on" "it" "," "where" "X" "is" entry_turns_since_foretold
+
+/* The action following this draw replacement is an ordinary operation. */
+/* @sem Operation::CreateReplacement{event:Player{event:Draw, players:One(AbilityController)}, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$put_linked_pile_card}]}} */
+/* @prefer always */
+next_draw_replaced_leading_instead ::= "the" "next" "time" "you" "would" "draw" "a" "card" this_duration "," "instead" put_linked_pile_card
+
+/* A singular controlled entry population and its independent modifications. */
+/* @sem ReplacementEvent::Enter{objects:AllOf([Not(SameObject(Source)), $filter_phrase, ControlledBy(One(AbilityController))])} */
+singular_other_controlled_entry ::= "each" "other" filter_phrase "you" "control" "enters"
+
+/* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})} */
+singular_entry_additional_counted_counters ::= "with" "a" "number" "of" "additional" counter_kind "counters" "on" "it" "equal" "to" value
+
+/* @sem Operation::ModifyEvent{change:Entry(Changes([CreatureTypes{mode:Add, types:Listed([@subtype_name($creature_subtype)])}]))} */
+singular_entry_add_creature_type ::= "as" "a" creature_subtype "in" "addition" "to" "its" "other" "types"
+
+/* @sem Ability::Replacement{active:Battlefield, event:$singular_other_controlled_entry, body:_{instructions:[Effect{result:@next, operation:$singular_entry_additional_counted_counters}, Effect{result:@next, operation:$singular_entry_add_creature_type}]}} */
+controlled_entry_counters_and_type ::= singular_other_controlled_entry singular_entry_additional_counted_counters "and" singular_entry_add_creature_type "."
+
+/* The subject of this replacement is the player enchanted by its holder. */
+/* @sem Ability::Replacement{active:Battlefield, event:Player{event:LoseLife, players:One(EnchantedBy(Source))}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:LoseLife{players:One(EventSubject), amount:Multiply([$replacement_life_factor, EventAmount])}}]}} */
+replacement_enchanted_life_factor ::= "if" "enchanted" "player" "would" "lose" "life" "," "they" "lose" replacement_life_factor "that" "much" "life" "instead" "."

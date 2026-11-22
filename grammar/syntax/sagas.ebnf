@@ -9,7 +9,7 @@ chapters_one ::= chapter_first
 /* @sem Ability::[...$chapter_first, ...$chapter_tail] */
 chapters_more ::= chapter_first NEWLINE chapter_tail
 
-chapter_first ::= chapter_1_2_3_4_5_6 | chapter_1_quoted_token | chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
+chapter_first ::= chapter_1_final_quoted_grant | chapter_1_2_3_4_5_6 | chapter_1_quoted_token | chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
 
 chapter_tail ::= chapter | chapter_tail_more
 
@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate
+chapter_program ::= chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -209,3 +209,60 @@ chapter_discard_investigate ::= clause_discard_investigate_per_card
 
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(4), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(5), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(6), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program})] */
 chapter_1_2_3_4_5_6 ::= "i" "," "II" "," "III" "," "IV" "," "V" "," "VI" "—" chapter_program "."
+
+/* The test consumes the receipt of this mill, within the repeatable process. */
+/* @sem Program::Program{instructions:[Repeatable{instructions:[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count_many}}, If{condition:SubsetMeets{objects:Recorded(@marked), comparison:Equal, amount:$card_count_many_2, constraints:[CommonProperty(CardTypes)]}, then:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:RepeatProcess}]}, otherwise:Program{}}]}]} */
+chapter_repeat_mill_common_type ::= "mill" card_count_many "." "if" card_count_many "that" "share" "a" "card" "type" "were" "milled" "this" "way" "," "draw" card_count "and" "repeat" "this" "process"
+
+/* @prefer always */
+/* The plural copy follows this specific exile and the cast follows that copy. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:AnyNumber, filter:@and(ObjectFilter::AnyOf([CardType(Instant), CardType(Sorcery), @and($subtype, $noun)]), ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))})), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CopyCards{actor:One(AbilityController), objects:Transition{result:@marked, phase:After}, times:Constant(1)}}, Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@prior), count:AnyNumber, cost:Normal}}]} */
+chapter_exile_copy_cards ::= "exile" "any" "number" "of" "target" "instant" "," "sorcery" "," "and" "/" "or" subtype noun "cards" "from" "your" "graveyard" "." "copy" "them" "." "you" "may" "cast" "any" "number" "of" "the" "copies"
+
+/* Count the ability controller's controlled permanents owned by others. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(AbilityController)), OwnedBy(OthersThan(AbilityController))])})}}]} */
+chapter_draw_controlled_unowned ::= "draw" "a" "card" "for" "each" filter_phrase "you" "control" "but" "don't" "own"
+
+/* The selected set is the result of the immediately preceding player loop. */
+/* @sem Program::Program{instructions:[ForEachPlayer{players:All, binding:0, starting_with:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_phrase, $filter_phrase_2)}, count:AsManyAsCan(Constant(1))}}]}}, Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($filter_phrase, $filter_phrase_2), InSet(Selected(@prior))])}, regeneration:true}}]} */
+chapter_each_choose_destroy ::= "starting" "with" "you" "," "each" "player" "chooses" "a" filter_phrase "." "destroy" "each" filter_phrase "chosen" "this" "way"
+
+/* The receipt and its exile destination are scoped together for inverse printing. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:Any})), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:CountObjects(Matching{objects:Transition{result:@prior, phase:After}, filter:$noun})}}]} */
+chapter_exile_targets_gain_per_type ::= "exile" "up" "to" number "target" "cards" "from" "graveyards" "." "for" "each" noun "card" "exiled" "this" "way" "," "you" "gain" "1" "life"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([$noun, $noun_2]), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]} */
+chapter_return_union_card_hand ::= "return" "target" noun "or" noun "card" "from" "your" "graveyard" "to" "your" "hand"
+
+/* Domain counts the distinct basic land types in the controlled population;
+   the target and granted keyword remain independently printable operands. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:BindValue{value:CountDistinct{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$plural, ControlledBy(One(AbilityController))])}, property:BasicLandTypes}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ControlledBy(One(AbilityController))])}), index:0})), changes:[Pump{power:BoundValue(@prior), toughness:BoundValue(@prior)}, GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}]} */
+chapter_domain_pump_keyword ::= "domain" "—" "target" noun "you" "control" "gets" "+" "X" "/" "+" "X" "and" "gains" keyword_name duration "," "where" "X" "is" "the" "number" "of" "basic" "land" "types" "among" plural "you" "control"
+
+/* A quoted static ability supplies its own final period inside the quotation. */
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_quoted_grant_program})] */
+chapter_1_final_quoted_grant ::= "i" "—" chapter_quoted_grant_program
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$operation}, Effect{result:@next, operation:$continuous_quoted_static_indefinite}]} */
+chapter_quoted_grant_program ::= operation "." continuous_quoted_static_indefinite
+
+/* Counter placement and counted token creation compose independently with chapter labels. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Players(All), kind:$counter_kind, amount:$number_words}]}}]} */
+chapter_players_get_counters ::= "each" "player" "gets" number_words counter_kind "counters"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:CountCounters(_{recipients:Players(All), kind:$counter_kind, information:CurrentOrLastKnown}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+chapter_counter_total_tokens ::= "create" "X" token_recipe "," "where" "X" "is" "the" "total" "number" "of" counter_kind "counters" "among" "players"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(AbilityController)), AnyOf([$noun_2, $noun_3])])}), kind:$counter_kind, amount:$number_words}]}}]} */
+chapter_controlled_either_counters ::= "put" number_words counter_kind "counters" "on" "each" noun "you" "control" "that's" "a" noun "or" noun
+
+/* The per-player graveyard choice remains separate from the preceding mill. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Mill{players:All, amount:$card_count}}, ...$optional_exile_each_graveyard]} */
+chapter_mill_then_exile_each_graveyard ::= "each" "player" "mills" card_count "." "then" optional_exile_each_graveyard
+
+/* @sem Instruction::[ForEachPlayer{players:All, binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Graveyard, players:One(Bound(0))}, kind:Card, filter:AnyOf([$noun, $noun_2])}), count:UpTo(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}] */
+optional_exile_each_graveyard ::= "you" "may" "exile" "a" noun "or" noun "card" "from" "each" "graveyard"
+
+/* The permission is linked to the Saga, and its mana qualification applies to casting. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:AnyColor}})], duration:EndOfTurn, evaluation:LiveObjects}}]} */
+chapter_linked_exile_cast_any_color ::= "until" "end" "of" "turn" "," "you" "may" "cast" "spells" "from" "among" "cards" "exiled" "with" "this" "Saga" "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "those" "spells"

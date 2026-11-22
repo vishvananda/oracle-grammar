@@ -169,8 +169,8 @@ line_kicker_uncounterable_damage ::= kicker_branch_header NEWLINE stack_uncounte
 payment_sacrifice_choice ::= "sacrifice" ("a" | "an") filter_phrase "of" "their" "choice"
 
 /* The replacement retains the same token recipe in both casting branches. */
-/* @sem Ability::CostBranch{keyword:Kicker, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words_2, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}})} */
-spell_kicker_token_replacement ::= "kicker" keyword_payment NEWLINE "create" number_words token_recipe "." "if" "this" "spell" "was" "kicked" "," "create" number_words "of" "those" "tokens" "instead" "."
+/* @sem Ability::CostBranch{keyword:Kicker, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$replacement_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$replacement_initial_count, words:CreatingEffect, recipe:$replacement_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}})} */
+spell_kicker_token_replacement ::= "kicker" keyword_payment NEWLINE "create" replacement_initial_count replacement_token_recipe "." "if" "this" "spell" "was" "kicked" "," "create" number_words "of" "those" "tokens" "instead" "."
 
 /* Madness replaces both actions, keeping their quantities independently bound. */
 /* @sem Ability::CostBranch{keyword:Madness, cost:$keyword_payment, paid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_x, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_x_2}}]}}), unpaid:@scope(Ability::Spell{announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$number_words, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number_digits}}]}})} */
@@ -397,3 +397,18 @@ kicker_search_battlefield_animation ::= "search" "your" "library" "for" "up" "to
 /* Both choices are announced independently of the conditional placement. */
 /* @sem Program::Program{instructions:[If{condition:$condition_gift_promised, then:Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:0, index:0})), kind:$counter_kind, amount:Constant(1)}]}}]}, otherwise:Program{}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Fight{first:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0}, second:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(OthersThan(AbilityController))])}), index:0}}}}]} */
 chosen_creatures_conditional_counter_fight ::= "choose" "target" "creature" "you" "control" "and" "target" "creature" "you" "don't" "control" "." "put" "a" counter_kind "counter" "on" "the" "creature" "you" "control" "if" condition_gift_promised "." "then" "those" "creatures" "fight" "each" "other" "."
+
+/* The first quantity and recipe are shared by both branch specializations. */
+replacement_initial_count ::= replacement_initial_words | replacement_initial_article
+
+/* @sem $number_words */
+replacement_initial_words ::= number_words
+
+/* @prefer always */
+/* @sem Expr::Constant(1) */
+replacement_initial_article ::= "a"
+
+replacement_token_recipe ::= token_recipe | replacement_copy_recipe
+
+/* @sem TokenRecipe::Copy{object:$object_ref, exceptions:[]} */
+replacement_copy_recipe ::= "token" "that's" "a" "copy" "of" object_ref

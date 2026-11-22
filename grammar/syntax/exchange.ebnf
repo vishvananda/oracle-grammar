@@ -23,3 +23,22 @@ exchange_nonland_permanent ::= "nonland" "permanent"
 instructions_exchange_spell_retarget ::= "exchange" "control" "of" exchange_target_spell "and" object_ref "." "then" "the" "spell's" "controller" "may" "choose" "new" "targets" "for" "it"
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:$adjective_nontype}), index:0} */
 exchange_target_spell ::= "target" adjective_nontype "spell"
+
+/* The event spell and the holder are independent objects in the exchange. */
+/* @sem Operation::Exchange{kind:Control, first:Object(EventSubject), second:Object($self_ref_holder)} */
+exchange_holder_event_spell ::= "exchange" "control" "of" self_ref_holder "and" "that" "spell"
+
+/* @sem Operation::Retarget{actor:One(AbilityController), object:EventSubject, targets:May} */
+retarget_event_spell_optional ::= "you" "may" "choose" "new" "targets" "for" "the" "spell"
+
+/* @sem Operation::Retarget{actor:One(AbilityController), object:EventSubject, targets:Must} */
+retarget_event_spell_required ::= "choose" "new" "targets" "for" "the" "spell"
+
+retarget_event_spell_followup ::= retarget_event_spell_optional | retarget_event_spell_required
+
+/* The follow-up uses the choice receipt of the preceding player action. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:$exchange_holder_event_spell}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:_{instructions:[Effect{result:@next, operation:$retarget_event_spell_followup}]}, otherwise:_{}}]} */
+optional_exchange_event_spell_followup ::= "you" "may" exchange_holder_event_spell "." "if" "you" "do" "," retarget_event_spell_followup "."
+
+/* @sem Ability::Triggered{event:$event_cast_third, limits:TriggerLimits{}, announcement:@announcement, body:$optional_exchange_event_spell_followup} */
+cast_exchange_holder_trigger ::= "whenever" event_cast_third "," optional_exchange_event_spell_followup

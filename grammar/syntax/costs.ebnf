@@ -2014,3 +2014,14 @@ activation_mechanic_name ::= mechanic_specialize_name | mechanic_outlast_name | 
 
 /* @sem Ability::Modified{ability:Mechanic{mechanic:$activation_mechanic_name, cost:$cost}, modifier:$activation_mechanic_reduction_if} */
 activation_mechanic_conditional_reduction ::= activation_mechanic_name cost "." activation_mechanic_reduction_if "."
+
+/* Scope the comparison to the immediately preceding singular discard payment. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$discard_one_payment]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:Property{property:$discarded_same_property, test:NumberTest::Compare{comparison:Equal, value:ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(0), component:[0], view:Inputs, phase:Before}, index:0}, property:$discarded_same_property, information:CurrentOrLastKnown}}}, count:UpTo(Constant(1))}]}}, ...$search_follow]}, otherwise:Program{}}]} */
+program_discard_same_value_search ::= "you" "may" discard_one_payment "." "if" "you" "do" "," "search" "your" "library" "for" "a" "card" discarded_same_property search_follow
+
+/* @sem ObjectProperty::ManaValue */
+discarded_same_property ::= "with" "the" "same" "mana" "value" "as" "that" "card"
+
+/* This wrapper starts a fresh ability result frame for the payment receipt. */
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_discard_same_value_search} */
+triggered_discard_same_value_search ::= event_clause "," program_discard_same_value_search "."

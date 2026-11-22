@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_grant_own_mana_cost | continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot | temporary_grant_equal_own_mana | temporary_harmonize_mana_cost
+continuous_snapshot ::= continuous_grant_own_mana_cost | continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot | temporary_grant_equal_own_mana | temporary_harmonize_mana_cost | combat_relative_stats
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -864,7 +864,7 @@ replacement_entry_untapped ::= entry_objects "enter" "untapped" "."
 /* @sem Ability::Conditional{condition:ObjectMatches{object:$self_explicit_ref, filter:$condition_state}, then:[$replacement_entry_state], otherwise:[]} */
 replacement_entry_condition ::= "as" "long" "as" self_explicit_ref "is" condition_state "," replacement_entry_state
 
-entry_objects ::= entry_other_objects | entry_opponents_union | filter_plural
+entry_objects ::= entry_other_objects | entry_opponents_union | entry_enchanted_player_controlled | filter_plural
 /* @sem ObjectFilter::@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_plural) */
 entry_other_objects ::= "other" filter_plural
 
@@ -4556,7 +4556,7 @@ change_are_nth_chosen_land_type ::= change_are_first_chosen_land_type | change_a
 /* @sem Change::[Pump{power:$shared_pump_count, toughness:$shared_pump_count}] */
 shared_equal_count_pump ::= "gets" "+" "1" "/" "+" "1" "for" "each" shared_pump_count
 
-shared_pump_count ::= shared_opponents_counter_count | shared_affected_color_count | shared_affected_creature_type_maximum | shared_affected_bushido_count | shared_unspent_mana_count | shared_unspent_color_count | shared_own_mana_symbols_count | shared_own_type_count
+shared_pump_count ::= shared_other_controlled_sharing_creature_type_count | shared_opponents_counter_count | shared_affected_color_count | shared_affected_creature_type_maximum | shared_affected_bushido_count | shared_unspent_mana_count | shared_unspent_color_count | shared_own_mana_symbols_count | shared_own_type_count
 
 /* @sem Expr::PlayerNumber{player:AbilityController, number:UnspentMana} */
 shared_unspent_mana_count ::= "unspent" "mana" "you" "have"
@@ -4666,8 +4666,8 @@ ability_origin_controlled_different_name ::= filter_plural "you" "control" "that
 
 /* A singular distributive subject keeps its parity predicate and population
    together so a static grant prints the subject's current filter. */
-/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:SameParity, value:ChosenParity}}])} */
-chosen_parity_each_subject ::= "each" filter_phrase "with" "mana" "value" "of" "the" "chosen" "quality"
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, $chosen_parity_property])} */
+chosen_parity_each_subject ::= "each" filter_phrase "with" chosen_parity_property
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Objects($chosen_parity_each_subject), changes:$grants}) */
 static_each_parity_has ::= chosen_parity_each_subject "has" grants "."
@@ -6315,8 +6315,7 @@ controlled_type_pump_subject ::= subtype_plural | subtype_marked_merfolk | contr
 controlled_type_marked_goblins ::= "↑" "goblins"
 
 /* The combat relation belongs to the announced target. */
-/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, AnyOf([BlockingObject($self_explicit_ref), BlockedByObject($self_explicit_ref)])])}), index:0} */
-combat_opposing_target ::= "target" noun "blocking" "or" "blocked" "by" self_explicit_ref
+combat_opposing_target ::= combat_opposing_target_plain | combat_opposing_target_being
 
 /* @sem Expr::Add([$value, ObjectProperty{object:$combat_opposing_target, property:Power, information:CurrentOrLastKnown}]) */
 combat_target_power_sum ::= value "plus" "the" "power" "of" combat_opposing_target
@@ -8179,3 +8178,102 @@ shared_room_retrigger_rule ::= shared_room_ability_population "trigger" "an" "ad
 
 /* @sem ObjectFilter::AllOf([OnStack(DungeonRoom), ControlledBy(One(AbilityController))]) */
 shared_room_ability_population ::= "Room" "abilities" "of" "dungeons" "you" "own"
+
+/* @sem Ability::Conditional{condition:ObjectMatches{object:Source, filter:Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})}, then:[Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})]})]} */
+counter_untap_granted ::= "this" "creature" "doesn't" "untap" "during" "your" "untap" "step" "if" "it" "has" "a" counter_kind "counter" "on" "it"
+
+/* @sem Ability::Triggered{event:Turn{point:UpkeepBegins, players:One(AbilityController)}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One(Source)), kind:$counter_kind, amount:Count(Exactly(Constant(1)))}]}}]}, announcement:@announcement} */
+counter_upkeep_granted ::= "at" "the" "beginning" "of" "your" "upkeep" "," "remove" "a" counter_kind "counter" "from" "this" "creature" "."
+
+/* The prior target is captured before the distinct blocking target is announced. */
+/* @sem ObjectRef::Target{slot:@last_slot, index:0} */
+combat_prior_target ::= ("↓")?
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_another)), changes:[Rule(RequireCombat{action:Block(SameObject($combat_prior_target)), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+combat_another_target_blocks_prior ::= combat_prior_target target_another "blocks" "it" this_duration "if" "able"
+
+/* A quoted static cost rule is granted to each owned commander holder. */
+/* @sem Change::GrantAbility(@holder($static_ordered_spell_cost)) */
+quoted_ordered_spell_cost_grant ::= '"' static_ordered_spell_cost '"'
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($owned_commander_plural), changes:[$quoted_ordered_spell_cost_grant]} */
+owned_commander_quoted_cost ::= owned_commander_plural "have" quoted_ordered_spell_cost_grant
+
+/* An unqualified quoted static grant retains the granted ability's subject. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GrantAbility($static_postposed_cleanup)], duration:Indefinite, evaluation:Snapshot} */
+continuous_quoted_static_indefinite ::= affected "gains" '"' static_postposed_cleanup '"'
+
+/* The leading duration scopes both the pump and the selected ability. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Ability, terms:_{count:Exactly(Constant(1)), options:$pump_keyword_options}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:$signed, toughness:$signed_2}, ChosenAbility], duration:$duration, evaluation:Snapshot}}] */
+clause_prefix_pump_keyword_choice ::= duration "," affected "gets" signed "/" signed "and" "gains" "your" "choice" "of" pump_keyword_options
+
+/* Options carry the full keyword value, including qualified protection. */
+pump_keyword_options ::= pump_keyword_pair | pump_keyword_many
+
+/* @sem Operand::[Ability(Keyword($keyword_value)), Ability(Keyword($keyword_value_2))] */
+pump_keyword_pair ::= keyword_value "or" keyword_value
+
+/* @sem Operand::[Ability(Keyword($keyword_value)), ...$pump_keyword_tail] */
+pump_keyword_many ::= keyword_value "," pump_keyword_tail
+
+pump_keyword_tail ::= pump_keyword_last | pump_keyword_options
+
+/* @sem Operand::[Ability(Keyword($keyword_value))] */
+pump_keyword_last ::= "or" keyword_value
+
+/* A named creature target is the antecedent of each subsequent color test. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:@and($noun_creature, $modifier_you_control)})) */
+chosen_creature_target ::= "up" "to" "one" "target" noun_creature modifier_you_control
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+chosen_creature_pump ::= "gets" signed "/" signed
+
+/* @sem $grants */
+chosen_creature_grant ::= "gains" grants
+
+/* @sem Instruction::If{condition:ObjectMatches{object:Target{slot:@last_slot, index:0}, filter:$adjective_color}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Targets(@last_slot)), changes:$chosen_creature_grant, duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{}} */
+chosen_creature_color_grant ::= chosen_creature_grant "if" "it's" adjective_color
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($chosen_creature_target), changes:$chosen_creature_pump, duration:EndOfTurn, evaluation:Snapshot}}, $chosen_creature_color_grant, $chosen_creature_color_grant_2] */
+instructions_chosen_creature_changes ::= "choose" chosen_creature_target "." "until" "end" "of" "turn" "," "that" "creature" chosen_creature_pump "," chosen_creature_color_grant "," "and" chosen_creature_color_grant
+
+/* A timed characteristic change is reusable in either arm of a conditional. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$static_changes, duration:$duration, evaluation:Snapshot}}]} */
+timed_characteristic_program ::= affected static_changes duration
+
+/* @sem Instruction::[If{condition:$condition, then:$timed_characteristic_program_2, otherwise:$timed_characteristic_program}] */
+instructions_conditional_timed_alternative ::= timed_characteristic_program "." "if" condition "," timed_characteristic_program "instead"
+
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, AnyOf([BlockingObject($self_explicit_ref), BlockedByObject($self_explicit_ref)])])}), index:0} */
+combat_opposing_target_plain ::= "target" noun "blocking" "or" "blocked" "by" self_explicit_ref
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, AnyOf([BlockingObject($self_explicit_ref), BlockedByObject($self_explicit_ref)])])}), index:0} */
+combat_opposing_target_being ::= "target" noun "blocking" "or" "being" "blocked" "by" self_explicit_ref
+
+/* The two assignments share their target and end-of-turn snapshot. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_possessive)), changes:[SetPower(Subtract([ObjectProperty{object:$combat_opposing_target, property:Toughness, information:CurrentOrLastKnown}, $number_digits])), SetToughness(Add([$number_digits_2, $combat_relative_power_ref]))], duration:EndOfTurn, evaluation:Snapshot} */
+combat_relative_stats ::= self_possessive "power" "becomes" "the" "toughness" "of" combat_opposing_target "minus" number_digits "until" "end" "of" "turn" "," "and" "its" "toughness" "becomes" number_digits "plus" combat_relative_power_ref "until" "end" "of" "turn"
+
+/* The second characteristic refers to the previously announced target. */
+/* @sem Expr::ObjectProperty{object:@named_object, property:Power, information:CurrentOrLastKnown} */
+combat_relative_power_ref ::= "the" "power" "of" "that" "creature"
+
+/* The repeated plural population is shared by both pumps. The mana payment
+   retains its own payer and result; neither pump inherits its amount. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected_plural)), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:PayCost{player:FirstWilling(All), cost:Cost{parts:[$cost_mana]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected_plural)), changes:[Pump{power:$signed_3, toughness:$signed_4}], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+clause_plural_pump_unless_payment ::= affected_plural "get" signed "/" signed duration "." "they" "get" "an" "additional" signed "/" signed duration "unless" "any" "player" "pays" cost_mana
+
+/* The same referenced object is excluded and supplies the creature types compared. */
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject($object_ref)), $filter_phrase, ControlledBy(One(AbilityController)), Shares{property:CreatureTypes, with:$object_ref}])}) */
+shared_other_controlled_sharing_creature_type_count ::= "other" filter_phrase "you" "control" "that" "shares" "a" "creature" "type" "with" object_ref
+
+/* @sem ObjectFilter::AllOf([$filter_plural, ControlledBy(One(EnchantedBy(Source)))]) */
+entry_enchanted_player_controlled ::= filter_plural "enchanted" "player" "controls"
+
+/* An Aura conversion grants two independently scoped activations to its host. */
+/* @sem Change::[SetCardTypes([Enchantment]), AddEnchantmentType(Vocabulary{family:EnchantmentType, form:Aura}), GrantAbility(Enchant{hosts:Permanents($filter_phrase)}), GrantAbility(Static(_{kind:Ordinary, affected:Objects($affected), changes:[GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})), GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost_2, limits:_{}, announcement:@announcement, body:$program_2}))]}))] */
+aura_two_activations_changes ::= "an" "Aura" "enchantment" "with" "enchant" filter_phrase "and" '"' affected "has" "'" cost ":" program "'" "and" "'" cost ":" program "." "'" '"'
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@prior, phase:After, index:0})), changes:$aura_two_activations_changes, duration:Indefinite, evaluation:Snapshot} */
+prior_result_aura_two_activations ::= "it's" aura_two_activations_changes

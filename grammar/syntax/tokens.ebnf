@@ -429,7 +429,7 @@ token_explicit_legendary ::= token_explicit_legendary_plain | token_explicit_leg
 token_explicit_legendary_plain ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token"
 /* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
 token_explicit_legendary_with ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
-explicit_legendary_name ::= explicit_token_mowu | explicit_token_primo | explicit_token_scion_deep | explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami | explicit_token_darkstar | explicit_token_karox | explicit_token_marit_lage | explicit_token_angelo
+explicit_legendary_name ::= explicit_token_jumblebones | explicit_token_mowu | explicit_token_primo | explicit_token_scion_deep | explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami | explicit_token_darkstar | explicit_token_karox | explicit_token_marit_lage | explicit_token_angelo
 /* @sem TokenName::Explicit(Tiny) */
 explicit_token_tiny ::= "Tiny"
 /* @sem TokenName::Explicit('Stangg Twin') */
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly
+created_token_name ::= created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1258,3 +1258,52 @@ instructions_linked_copy_sacrifice_own_end ::= "create" token_copy_exiled_plural
 
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[...$instructions_linked_copy_sacrifice_own_end]}} */
 triggered_linked_copy_sacrifice_own_end ::= event_clause "," instructions_linked_copy_sacrifice_own_end "."
+
+/* One implied choice between targets in different zones; each option owns its target. */
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Constant(1)}, options:[@scope(Mode::Mode{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$copy_token_plural_amount, words:CreatingEffect, recipe:Copy{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:$copy_choice_graveyard_type}), index:0}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, weight:1}), @scope(Mode::Mode{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$copy_token_plural_amount, words:CreatingEffect, recipe:Copy{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$copy_choice_battlefield_type}), index:0}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, weight:1})], rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Implied} */
+copy_choice_zone_modes ::= "choose" "target" copy_choice_graveyard_type "card" "in" "a" "graveyard" "or" copy_choice_battlefield_type "on" "the" "battlefield" "." "create" copy_token_plural_amount "tokens" "that" "are" "copies" "of" "it" "."
+
+copy_choice_graveyard_type ::= noun_artifact | noun_creature | noun_enchantment | noun_land
+
+copy_choice_battlefield_type ::= noun_artifact | noun_creature | noun_enchantment | noun_land
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Loyalty($loyalty)]}, limits:ActivationLimits{sorcery:true}, announcement:Announcement{modes:$copy_choice_zone_modes}, body:Program{}} */
+loyalty_copy_choice_zones ::= "[" loyalty "]" ":" copy_choice_zone_modes
+
+/* @sem String::'Festering Goblin' */
+created_name_festering_goblin ::= "Festering" "Goblin"
+
+/* An explicitly named token can carry a prohibition and a scoped departure
+   trigger. The card named by the return remains an independent operand. */
+/* @sem TokenName::Explicit(Jumblebones) */
+explicit_token_jumblebones ::= "Jumblebones"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(Source)), changes:[Rule(Prohibit(Block(Any)))]} */
+jumblebones_cannot_block ::= "Jumblebones" "can't" "block"
+
+/* @sem Ability::Triggered{event:Object{event:LeavesBattlefield, objects:SameObject(Source)}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([Name($referenced_card_name), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, announcement:@announcement} */
+named_token_departure_return ::= "when" "Jumblebones" "leaves" "the" "battlefield" "," "return" "target" "card" "named" referenced_card_name "from" "your" "graveyard" "to" "your" "hand" "."
+
+/* @sem Ability::[@holder($jumblebones_cannot_block), @holder($named_token_departure_return)] */
+quoted_named_token_departure_abilities ::= "with" '"' jumblebones_cannot_block '"' "and" '"' named_token_departure_return '"'
+
+/* @sem TokenSpec::TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:$explicit_token_jumblebones, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$quoted_named_token_departure_abilities}} */
+named_token_departure_spec ::= explicit_token_jumblebones "," counter_a "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" quoted_named_token_departure_abilities
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$named_token_departure_spec], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+instructions_named_token_departure ::= "create" named_token_departure_spec
+
+/* An explicitly named Aura enters attached and carries intrinsic abilities. */
+/* @sem TokenName::Explicit('Selenia''s Curse') */
+aura_curse_token_name ::= "Selenia's" "Curse"
+
+aura_player_target ::= target_opponent | target_player
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:$aura_curse_token_name, colors:$token_colors, supertypes:[Legendary], card_types:[Enchantment], subtypes:$token_subtypes, abilities:[$enchant_player, @holder($replacement_enchanted_life_factor)]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedToPlayer($aura_player_target)]}}}] */
+instructions_named_player_aura ::= "create" "a" "legendary" token_colors token_subtypes "enchantment" "token" "named" aura_curse_token_name "attached" "to" aura_player_target "." "the" "token" "has" enchant_player "and" '"' replacement_enchanted_life_factor '"'
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$instructions_named_player_aura}} */
+triggered_named_player_aura ::= event_clause "," instructions_named_player_aura
+
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$tt_creature, subtypes:$token_subtypes, power_toughness:[Expr::Constant(0), Expr::Constant(0)]}) */
+token_creature_statless_singular ::= token_colors token_subtypes tt_creature "token"
