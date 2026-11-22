@@ -2026,7 +2026,7 @@ top_play_cards ::= "play" "cards"
    Rogue, and Wizard spells", "artifact spells and colorless spells", "spells with mana
    value 4 or greater", "creature spells of the chosen type". */
 cast_spells_filter ::= cast_folded_zombie_spells | cast_adjective_list_spells | cast_any_spells | cast_kind_spells | cast_kind_pair_spells | cast_kind_list_spells | cast_two_kinds_spells | cast_modified_spells | cast_kind_modified_spells | cast_chosen_type_spells
-plural_kind ::= filter_phrase | quality
+plural_kind ::= filter_phrase | quality | noun_elemental_folded
 /* @sem ObjectFilter::Any */
 cast_any_spells ::= "spells"
 /* @sem $plural_kind */
@@ -4432,7 +4432,7 @@ retirement_singular_grant ::= affected "has" '"' retirement_quoted_trigger '"'
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($affected), changes:[GrantAbility(@holder($retirement_quoted_trigger))]} */
 retirement_plural_grant ::= affected "have" '"' retirement_quoted_trigger '"'
 
-retirement_quoted_trigger ::= retirement_quoted_turn_payment | retirement_created_attachment_trigger | retirement_counter_batch_trigger | retirement_each_player_trigger | quoted_turn_limited_trigger
+retirement_quoted_trigger ::= retirement_quoted_turn_payment | retirement_created_attachment_trigger | retirement_counter_batch_trigger | retirement_each_player_trigger | quoted_turn_limited_trigger | holder_mana_counter_trigger
 
 /* The second action counts attachments to the named object, excluding the granting object. */
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$token_group], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@prior)), kind:$counter_kind, amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, AttachedTo(SameObject($object_ref)), Not(SameObject(GrantingObject))])})}]}}]}} */
@@ -7944,3 +7944,95 @@ retained_colored_dual_animation ::= "are" colored_plural_stats becomes_types "cr
    An explicit retention note applies its own inverse transformation. */
 /* @sem Change::[...$plural_named_animation, ...$grants] */
 plural_granted_animation ::= plural_named_animation "with" grants
+
+/* The counted objects share a creature type with the trigger's subject. */
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(EventSubject)), $noun, ControlledBy(One(ControllerOf(EventSubject))), Shares{property:CreatureTypes, with:EventSubject}])}) */
+shared_attacker_controller_count ::= "other" noun "its" "controller" "controls" "that" "shares" "a" "creature" "type" "with" "it"
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(EventSubject)), Attacking, $noun, Shares{property:CreatureTypes, with:EventSubject}])}) */
+shared_attacking_type_count ::= "other" "attacking" noun "that" "shares" "a" "creature" "type" "with" "it"
+
+shared_event_type_count ::= shared_attacker_controller_count | shared_attacking_type_count
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventSubject)), changes:[Pump{power:@times($signed, $shared_event_type_count), toughness:@times($signed_2, $shared_event_type_count)}], duration:$duration, evaluation:Snapshot}}]} */
+shared_event_subject_count_pump ::= "it" "gets" signed "/" signed duration "for" "each" shared_event_type_count
+
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$shared_event_subject_count_pump} */
+shared_event_subject_count_trigger ::= event_clause "," shared_event_subject_count_pump "."
+
+/* Each affected attacker has its own defending player. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)), ObjectFilter::AttackingDefender(Players(All)))} */
+affected_each_controlled_attacking_player ::= "each" filter_phrase "you" "control" "attacking" "a" "player"
+
+/* Keep the defender-relative count inside the attacker population's scope. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected_each_controlled_attacking_player), changes:[Pump{power:@times($signed, Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::DefendingPlayerOf(Affected))))})), toughness:@times($signed_2, Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::DefendingPlayerOf(Affected))))}))}], duration:$duration, evaluation:Snapshot} */
+continuous_attacker_defender_count ::= affected_each_controlled_attacking_player "gets" signed "/" signed duration "for" "each" filter_phrase "that" "player" "controls"
+
+/* The quoted sentence closes the static effect and introduces its own holder. */
+/* @sem Ability::Conditional{condition:$shared_static_step_window, then:[$static_quoted_grant]} */
+shared_step_quoted_static ::= shared_static_step_window "," static_quoted_grant
+
+shared_static_step_window ::= window_during_your_end_step | window_during_your_upkeep_step
+
+/* Temporary play permissions share their linked populations with other clauses.
+   The explicit self reference proves that the effect source and link coincide. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$permission_self_owned_linked, from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects} */
+linked_self_owned_play ::= duration "," "you" "may" "play" permission_self_owned_linked
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_self_linked_single, from:Exile, action:Either, filter:Any}, terms:_{limit:Total(1), cost:Normal}})], duration:$duration, evaluation:LiveObjects} */
+linked_self_single_play ::= duration "," "you" "may" "play" permission_self_linked_single
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_self_linked_single, from:Exile, action:Either, filter:Any}, terms:_{limit:Total(1), cost:Free}})], duration:$duration, evaluation:LiveObjects} */
+linked_self_single_play_free ::= duration "," "you" "may" "play" permission_self_linked_single "without" "paying" "its" "mana" "cost"
+
+/* The event amount and its consumer are scoped to the same resolving mana ability. */
+/* @sem Ability::Triggered{event:$holder_mana_resolution, limits:_{per_turn:1}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$holder_mana_counter_placement}]}} */
+holder_mana_counter_trigger ::= holder_mana_resolution "," holder_mana_counter_placement "." "this" "ability" "triggers" "only" "once" "each" "turn" "."
+
+/* @sem EventSpec::Resolves(AllOf([OnStack(Mana), AbilityOf(SameObject(Source))])) */
+holder_mana_resolution ::= "whenever" "a" "mana" "ability" "of" "this" "creature" "resolves"
+
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects(One(Source)), kind:$counter_kind, amount:EventAmount}]} */
+holder_mana_counter_placement ::= "put" "a" "number" "of" counter_kind "counters" "on" "it" "equal" "to" "the" "amount" "of" "mana" "this" "creature" "produced"
+
+/* @sem Change::[$shared_granted_activation_open, $granted_aim_removal_damage] */
+closed_activation_aim_pair ::= shared_granted_activation_open "and" granted_aim_removal_damage
+
+/* The named counter in the damage sentence is exactly the one removed in
+   this activation's second payment component. The complete activation keeps
+   that proof local, including the holder and the named granting object. */
+/* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[TapSymbol, RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:Named(AimCounter), amount:All}]}]}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:PaidCountersRemoved{payment:Activation, component:[1]}, preventable:true}}]}, announcement:@announcement})) */
+granted_aim_removal_damage ::= '"' "{" "T" "}" "," "↑" "remove" "all" "aim" "counters" "from" self_explicit_ref ":" "this" "creature" "deals" "damage" "to" "any" "target" "equal" "to" "the" "number" "of" "aim" "counters" "removed" "this" "way" "." '"'
+
+/* Joined land and spell permissions share the top card, while the cast terms
+   apply only to the spell permission. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[...$top_play_lands, $top_cast_with_terms]}) */
+static_top_lands_and_cast_terms ::= "you" "may" top_play_lands "and" top_cast_with_terms "."
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, from:Library, action:CastSpell, filter:$cast_spells_filter}, terms:$top_library_cast_terms}) */
+top_cast_with_terms ::= "cast" cast_spells_filter "from" "the" "top" "of" "your" "library" "." top_library_cast_terms
+
+top_library_cast_terms ::= top_library_life_terms | top_library_entry_terms
+
+/* @sem PlayTerms::PlayTerms{cost:Alternate(Cost{parts:[LifeEqualToOwnManaValue]})} */
+top_library_life_terms ::= "if" "you" "cast" "a" "spell" "this" "way" "," "pay" "life" "equal" "to" "its" "mana" "value" "rather" "than" "pay" "its" "mana" "cost"
+
+/* @sem PlayTerms::PlayTerms{cost:Normal, effects:[Filter($filter_phrase), List([$next_flash_entry_counter])]} */
+top_library_entry_terms ::= "if" "you" "cast" "a" filter_phrase "spell" "this" "way" "," next_flash_entry_counter
+
+/* Each permission ranges over the top card of each player's library. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[...$any_library_play_lands, ...$any_library_cast_spells]}) */
+static_any_library_permissions ::= "you" "may" any_library_play_lands "and" any_library_cast_spells "from" "the" "top" "of" "any" "player's" "library" "."
+
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:LibraryTops(All), from:Library, action:PlayLand, filter:Any}, terms:_{cost:Normal}})] */
+any_library_play_lands ::= "play" "lands"
+
+/* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:LibraryTops(All), from:Library, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Normal}})] */
+any_library_cast_spells ::= "cast" cast_spells_filter
+
+/* Plot access keeps the card filter as an operand. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$top_library_plot_access]}) */
+static_top_library_plot ::= "you" "may" top_library_plot_access "."
+
+/* @sem Change::PlayerRule(KeywordAccess{keyword:Plot, cards:$adjective_nontype, from:Library}) */
+top_library_plot_access ::= "plot" adjective_nontype "cards" "from" "the" "top" "of" "your" "library"

@@ -3654,7 +3654,7 @@ cast_spell_hand_history ::= "from" "among" "cards" "put" "into" "your" "hand" "t
 /* @sem Ability::$aura_upkeep_scoped */
 aura_upkeep_shared ::= aura_upkeep_scoped
 
-aura_upkeep_scoped ::= aura_upkeep_creature | aura_upkeep_artifact | aura_upkeep_land | aura_upkeep_permanent
+aura_upkeep_scoped ::= aura_upkeep_creature | aura_upkeep_artifact | aura_upkeep_land | aura_upkeep_permanent | aura_upkeep_enchantment
 
 /* @sem Ability::Triggered{event:$aura_upkeep_creature_event, limits:_{}, announcement:@announcement, body:$aura_upkeep_creature_body} */
 aura_upkeep_creature ::= "at" aura_upkeep_creature_event "," aura_upkeep_creature_body "."
@@ -5519,3 +5519,28 @@ entry_damage_qualified_creature ::= adjective noun_creature
 
 /* @sem Ability::Triggered{event:$entry_damage_event, limits:TriggerLimits{}, announcement:@announcement, body:$entry_controller_damage_program} */
 entry_controller_damage_trigger ::= entry_damage_event "," entry_controller_damage_program "."
+
+/* The subject of a death event owns the card returned by this delayed trigger. */
+/* @sem Ability::Triggered{event:$event_self_dies, limits:_{}, announcement:@announcement, body:$owner_upkeep_return_program} */
+shared_self_death_owner_upkeep ::= "when" event_self_dies "," owner_upkeep_return_program "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:One(OwnerOf(EventSubject))}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}}}]} */
+owner_upkeep_return_program ::= "return" "it" "to" "the" "battlefield" "tapped" "under" "its" "owner's" "control" "at" "the" "beginning" "of" "their" "next" "upkeep"
+
+/* The event and the receipt-scoped program compose independently. */
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$top_exile_followup_program} */
+triggered_top_exile_followup ::= event_clause "," top_exile_followup_program
+
+top_exile_followup_program ::= program_top_exile_type_stats | program_top_exile_dungeon_play
+
+/* @sem Ability::Triggered{event:$aura_upkeep_enchantment_event, limits:_{}, announcement:@announcement, body:$aura_upkeep_prevent_damage} */
+aura_upkeep_enchantment ::= "at" aura_upkeep_enchantment_event "," aura_upkeep_prevent_damage "."
+
+/* @sem EventSpec::Turn{point:UpkeepBegins, players:One(ControllerOf(@enchanted_operand(ObjectRef::AttachedTo(Source))))} */
+aura_upkeep_enchantment_event ::= "the" "beginning" "of" "the" "upkeep" "of" "enchanted" "enchantment's" "controller"
+
+/* The entry event has no announced target, so the shared limit points to the
+   first target introduced by the following operation. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:ZoneChange{objects:$event_self, to:Battlefield}, limits:_{}, announcement:@announcement, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:$exile_shared_battlefield_graveyard_targets}]}}]}} */
+shared_entry_optional_exile_groups ::= "when" event_self "enters" "," "you" "may" exile_shared_battlefield_graveyard_targets "."

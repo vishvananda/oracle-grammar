@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set
+object_set ::= objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -144,7 +144,7 @@ attached_ref ::= enchanted_ref | equipped_ref
 /* The word enchanted supplies the Aura departure exception; Equipment and
    Fortifications do not move to the graveyard when their host leaves. */
 /* @prefer value(AttachedTo) */
-enchanted_ref ::= enchanted_creature_ref | enchanted_qualified_creature_ref | enchanted_other_ref
+enchanted_ref ::= enchanted_creature_ref | enchanted_qualified_creature_ref | enchanted_other_ref | enchanted_card_ref
 
 /* Same reference as enchanted_operand; retain only the literal creature noun. */
 /* @sem ObjectRef::@enchanted_creature_operand(ObjectRef::AttachedTo(Source)) */
@@ -3551,3 +3551,27 @@ entry_controller_damage_target ::= "any" "target" "of" "their" "choice"
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($noun_creature, ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(AbilityController)}))}), index:0} */
 opponent_creature_card ::= "target" noun_creature "card" "from" "an" "opponent's" "graveyard"
+
+/* Sentence-initial Elemental is folded by the lexical vocabulary. */
+/* @sem ObjectFilter::Subtype(Elemental) */
+noun_elemental_folded ::= "elemental"
+
+/* A self-linked exile population preserves the link and ownership separately. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith($self_ref_named)} */
+permission_self_linked_single ::= "a" "card" "exiled" "with" self_ref_named
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([OwnedBy(One(AbilityController)), ExiledWith($self_ref_named)])} */
+permission_self_owned_linked ::= "cards" "you" "own" "exiled" "with" self_ref_named
+
+/* The property cap constrains the announced group, not each target. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:AnyNumber, filter:$plural_and_or, constraints:[$target_total_budget]})) */
+objects_target_total_budget ::= "any" "number" "of" "target" plural_and_or target_total_budget
+
+/* @sem SelectionConstraint::TotalProperty{property:$stat, comparison:LessOrEqual, amount:$target_budget_amount} */
+target_total_budget ::= "with" "total" stat target_budget_amount "or" "less"
+
+target_budget_amount ::= number
+
+/* A card in a graveyard may be the object enchanted by an Aura. */
+/* @sem ObjectRef::@enchanted_operand(ObjectRef::AttachedTo(Source)) */
+enchanted_card_ref ::= "the" "enchanted" "card"

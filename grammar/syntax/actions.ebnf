@@ -4369,7 +4369,7 @@ return_scoped_exiled_owner_each ::= "return" return_scoped_exiled_each_populatio
 return_scoped_exiled_owner_plural ::= "return" return_scoped_exiled_plural_population "to" "the" "battlefield" "under" "their" "owners'" "control"
 
 /* These bodies share the controller and attachment established by the header. */
-aura_upkeep_creature_body ::= aura_upkeep_sacrifice_mana | aura_upkeep_pay_untap | aura_upkeep_prevent_damage
+aura_upkeep_creature_body ::= aura_upkeep_sacrifice_mana | aura_upkeep_pay_untap | aura_upkeep_discard_untap | aura_upkeep_prevent_damage
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:EventSubject, cost:_{parts:[Mana($mana_symbols)]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(EventSubject), objects:One(EventSubject)})}]}, otherwise:_{}}]} */
 aura_upkeep_sacrifice_mana ::= "that" "player" "sacrifices" "that" "creature" "unless" "they" "pay" mana_symbols
@@ -11032,3 +11032,107 @@ perpetual_target_equipment_equip ::= "target" "Equipment" "you" "control" "perpe
 /* The condition, whole-hand observation, choice and discard share one target. */
 /* @sem Instruction::[If{condition:Compare{left:EventHistory{event:Player{event:LosesLife, players:One($target_opponent)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:_{instructions:[Effect{result:@next, operation:Reveal{objects:Zone(_{scope:Players{zone:Hand, players:One(Target{slot:0, index:0})}, kind:Card, filter:Any})}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(Target{slot:0, index:0})}, kind:Card, filter:$adjective_nontype}), count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:DiscardObjects{objects:Selected(@prior)}}]}, otherwise:_{instructions:[Effect{result:@next, operation:Discard{players:One(Target{slot:0, index:0}), amount:Constant(1)}}]}}] */
 instructions_life_loss_hand_discard ::= "choose" target_opponent "." "if" "they" "lost" "life" "this" "turn" "," "they" "reveal" "their" "hand" "," "you" "choose" "a" adjective_nontype "card" "from" "it" "," "and" "they" "discard" "that" "card" "." "otherwise" "," "they" "discard" "a" "card"
+
+/* The targeted permanent's controller makes and receives the damage payment. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:ControllerOf($target_permanent), cost:_{parts:[PlayerAction{player:ControllerOf(Target{slot:@next_slot, index:0}), body:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One(ControllerOf(Target{slot:@next_slot, index:0}))), amount:ObjectProperty{object:Source, property:Power, information:CurrentOrLastKnown}, preventable:true}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@prior)), then:_{instructions:[Effect{result:@next, operation:Destroy{objects:One(Target{slot:@next_slot, index:0}), regeneration:true}}]}, otherwise:_{}}]} */
+shared_destroy_unless_source_power_damage ::= "destroy" target_permanent "unless" "its" "controller" "has" SELF_NAME "deal" "damage" "to" "them" "equal" "to" "his" "power"
+
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$shared_destroy_unless_source_power_damage} */
+shared_event_destroy_unless_damage ::= event_clause "," shared_destroy_unless_source_power_damage "."
+
+/* The play permission consumes exactly the preceding exile move. */
+/* @sem Operation::Move{objects:$library_tops, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]} */
+exile_library_tops ::= "exile" library_tops
+
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_library_tops}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:Either, filter:Any}, terms:_{limit:Total(1), cost:Free}})], duration:$duration, evaluation:LiveObjects}}] */
+instructions_exile_tops_play_one_free ::= exile_library_tops "." duration "," "you" "may" "play" "one" "of" "those" "cards" "without" "paying" "its" "mana" "cost"
+
+/* The definition belongs to the top-card move, including in its print inverse. */
+/* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:$value, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]} */
+exile_top_defined_count ::= "exile" "the" "top" "X" "cards" "," "where" "X" "is" value
+
+/* @sem Instruction::[Effect{result:@mark, operation:$exile_top_defined_count}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Transition{result:@marked, phase:After}, from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Free}})], duration:$duration, evaluation:LiveObjects}}] */
+instructions_exile_defined_play_free ::= exile_top_defined_count "." duration "," "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" "cards" "exiled" "this" "way" "without" "paying" "their" "mana" "costs"
+
+/* A chosen single card supplies the receipt for the visibility permission.
+   The same producer can be used without the following permission. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+exile_single_hand_hidden ::= "exile" a_card "from" "your" "hand" "face" "down"
+
+/* The referent of both occurrences is the actual preceding exile arrival. */
+/* @sem Instruction::[...$exile_single_hand_hidden, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:One(Result{result:@prior, phase:After, index:0}), audience:AffectedPlayer})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}] */
+clause_hidden_hand_look ::= exile_single_hand_hidden "." "you" "may" "look" "at" "that" "card" "for" "as" "long" "as" "it" "remains" "exiled"
+
+/* The payment and its conditional share the payment result. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$cost, optional:true}}, If{condition:PaymentChosen(@last_result), then:$program, otherwise:Program{}}] */
+clause_optional_cost_then ::= "you" "may" "pay" cost "." "if" "you" "do" "," program
+
+/* This single-card producer marks the actual exile arrival for later effects. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$a_card}, count:AsManyAsCan(Constant(1))}}, Effect{result:@mark, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+exile_single_hand_up ::= "exile" a_card "from" "your" "hand"
+
+/* The granted triggered ability belongs to the exiled card, not its grantor. */
+/* @sem Ability::Triggered{event:$exiled_holder_last_counter_event, intervening_if:ObjectMatches{object:Source, filter:InZone(Shared(Exile))}, limits:_{}, announcement:@announcement, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:One(Source), count:UpTo(Constant(1)), terms:_{cost:Free, effects:[Filter($filter_phrase), Term{family:SpellEffect, form:AddAbility, operands:[Ability(Keyword($keyword_value))]}]}}}]}}]}} */
+exiled_counter_cast_keyword ::= exiled_holder_last_counter_event "," "if" "it's" "exiled" "," "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "." "if" "you" "cast" "a" filter_phrase "spell" "this" "way" "," "it" "gains" keyword_value "until" "end" "of" "turn" "."
+
+/* Every consumer refers to the marked single-card exile, including cleanup. */
+/* @sem Instruction::[...$exile_single_hand_up, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Result{result:@marked, phase:After, index:0})), kind:$counter_kind, amount:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:ManaValue, information:CurrentOrLastKnown}}]}}, Effect{result:@next, operation:EffectOn{subject:Objects(One(Result{result:@marked, phase:After, index:0})), effects:[Term{family:ExiledCardEffect, form:AddAbility, operands:[Ability(Scoped{zones:[Exile], ability:@scope($exiled_counter_cast_keyword)})]}]}}, Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([Not(SameObject(Result{result:@marked, phase:After, index:0})), OwnedBy(One(AbilityController))])})), kind:$counter_kind_2, amount:Count(Exactly(Constant(1)))}]}}] */
+clause_exile_hand_counter_cast ::= exile_single_hand_up "and" "put" "a" "number" "of" counter_kind "counters" "on" "it" "equal" "to" "its" "mana" "value" "." "it" "gains" '"' exiled_counter_cast_keyword '"' "then" "remove" "a" counter_kind "counter" "from" "each" "other" "card" "you" "own" "in" "exile"
+
+hand_exile_continuation ::= clause_exile_hand_counter_cast | hidden_hand_payment_continuation
+
+/* @sem Instruction::[...$clause_hidden_hand_look, ...$clause_optional_cost_then] */
+hidden_hand_payment_continuation ::= clause_hidden_hand_look "." clause_optional_cost_then
+
+/* An ordinary activation composes its first clause with either hand-exile continuation. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:@then_sequence($clause_before_then, $hand_exile_continuation)}} */
+activated_then_hand_exile ::= cost ":" clause_before_then "," "then" hand_exile_continuation "."
+
+/* The source controller's selection, exile arrival, test, and both uses are
+   scoped together so the pronoun names exactly the card moved to exile. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:ControllerOf(EventSubject), objects:Zone{scope:Players{zone:Hand, players:One(ControllerOf(EventSubject))}, kind:Card, filter:Any}, count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@mark, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, If{condition:ObjectMatches{object:Result{result:@marked, phase:After, index:0}, filter:$filter_phrase}, then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Result{result:@marked, phase:After, index:0}), zone:Exile}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}]}, otherwise:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:One(Result{result:@marked, phase:After, index:0}), count:Exactly(Constant(1)), cost:Free, into_exile:false}}]}}]}}] */
+instructions_random_source_hand_exile_branch ::= "that" "source's" "controller" "exiles" "a" "card" "from" "their" "hand" "at" "random" "." "if" "it's" "a" filter_phrase "card" "," "you" "may" "put" "it" "onto" "the" "battlefield" "under" "your" "control" "." "otherwise" "," "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost"
+
+/* The event's subject is the damage source, so the dependent hand owner and
+   actor remain the source controller within this trigger. */
+/* @sem Ability::Triggered{event:$event_source_damage, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$instructions_random_source_hand_exile_branch}} */
+triggered_source_hand_exile_branch ::= "whenever" event_source_damage "," instructions_random_source_hand_exile_branch "."
+
+/* Copying an enchanted instant card and the optional cast are linked to the
+   payment tested by the following action. The later attachment chooses its
+   own graveyard host and keeps that host's filter as a current operand. */
+/* @sem Instruction::[Effect{result:@mark, operation:CopyCards{actor:One(AbilityController), objects:One(AttachedTo(Source)), times:Constant(1)}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Copies(@marked), count:Exactly(Constant(1)), cost:Free, into_exile:false}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:Program{instructions:[Effect{result:@next, operation:$exile_objects}, Effect{result:@next, operation:$attach_aura_graveyard_card}]}, otherwise:Program{}}] */
+instructions_copy_enchanted_card_paid_followup ::= "copy" "the" "enchanted" "instant" "card" "." "you" "may" "cast" "the" "copy" "without" "paying" "its" "mana" "cost" "." "if" "you" "do" "," exile_objects "and" attach_aura_graveyard_card
+
+/* The host is selected on resolution in any graveyard. */
+/* @sem Operation::WithSelections{steps:[_{binding:0, chooser:Players(One(AbilityController)), objects:Zone{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:$aura_graveyard_filter}, count:Exactly(Constant(1)), constraints:[]}], action:AttachEach{actor:One(AbilityController), attachments:One(Source), hosts:Objects(Prepared(0)), each_host:false}} */
+attach_aura_graveyard_card ::= "attach" "this" "Aura" "to" "another" aura_graveyard_filter "card" "in" "a" "graveyard"
+
+aura_graveyard_filter ::= spell_instant | spell_sorcery | filter_phrase
+
+/* The discard payment and its success branch share the enclosing attachment context. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:EventSubject, cost:_{parts:[$cost_discard_random]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:_{instructions:[Effect{result:@next, operation:SetTapped{objects:One(EventSubject)}}]}, otherwise:_{}}]} */
+aura_upkeep_discard_untap ::= "that" "player" "may" cost_discard_random "." "if" "the" "player" "does" "," "untap" "that" "creature"
+
+/* Used only by a spell paired with its singleton creature sacrifice casting cost. */
+/* @sem Expr::ObjectProperty{object:Query{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Inputs, phase:Before}, index:0}, property:$creature_stat, information:CurrentOrLastKnown} */
+casting_sacrificed_creature_stat ::= "the" "sacrificed" "creature's" creature_stat
+
+discard_casting_sacrificed_stat ::= discard_casting_sacrificed_stat_ordered | discard_casting_sacrificed_stat_random
+
+/* @sem Operation::Discard{players:$players_singular, amount:$casting_sacrificed_creature_stat, random:false} */
+discard_casting_sacrificed_stat_ordered ::= players_singular "discards" "a" "number" "of" "cards" "equal" "to" casting_sacrificed_creature_stat
+
+/* @sem Operation::Discard{players:$players_singular, amount:$casting_sacrificed_creature_stat, random:true} */
+discard_casting_sacrificed_stat_random ::= players_singular "discards" "a" "number" "of" "cards" "equal" "to" casting_sacrificed_creature_stat "at" "random"
+
+/* Two independently filtered target groups share one announced maximum.  This
+   phrase is used only in the target-free self-entry trigger below. */
+/* @prefer always */
+/* @sem Operation::Move{objects:Union([Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($number_words), filter:AllOf([Not(SameObject(Source)), $plural_atomic])})), Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number_words), filter:$card_noun, constraints:[SharesLimitWith(0)]}))]), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+exile_shared_battlefield_graveyard_targets ::= "exile" "up" "to" number_words "other" "target" plural_atomic "from" "the" "battlefield" "and" "/" "or" card_noun "cards" "from" "graveyards"
+
+/* A named choice resolves one of two independent programs. The second action
+   applies to the controller's opponents other than the referenced player. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseAction{actor:$players_singular, options:[Term{family:NamedAction, form:NamedAction, operands:[Text(Self), List([Program($program)])]}, Term{family:NamedAction, form:NamedAction, operands:[Text(Others), List([Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::Intersection([OthersThan($player_ref), OpponentsOf(AbilityController)]), $verb_operation_third)}]}])]}]}}] */
+choice_self_or_others ::= players_singular "chooses" "self" "or" "others" "." "if" player_ref "chooses" "self" "," program "." "if" "the" "player" "chooses" "others" "," "each" "of" "your" "other" "opponents" verb_operation_third

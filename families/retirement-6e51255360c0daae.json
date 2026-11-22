@@ -1,0 +1,1244 @@
+{
+  "family": "retirement-6e51255360c0daae",
+  "cases": [
+    {
+      "name": "Breathstealer's Crypt",
+      "text": "If a player would draw a card, instead they draw a card and reveal it. If it's a creature card, that player discards it unless they pay 3 life.",
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Player": {
+                "event": "Draw",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "Cancel"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Draw",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              },
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 2,
+                                  "phase": "After"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "Compare",
+                            "args": {
+                              "left": {
+                                "kind": "CountObjects",
+                                "args": {
+                                  "kind": "Matching",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 2,
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "filter": {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    }
+                                  }
+                                }
+                              },
+                              "test": {
+                                "kind": "Compare",
+                                "args": {
+                                  "comparison": "GreaterOrEqual",
+                                  "value": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 4,
+                                  "operation": {
+                                    "kind": "ModifyEvent",
+                                    "args": {
+                                      "change": "Cancel"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 5,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "FirstWilling",
+                                        "args": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "EventSubject"
+                                          }
+                                        }
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Life": {
+                                              "kind": "Constant",
+                                              "args": 3
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "If",
+                                "args": {
+                                  "condition": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "PaymentChosen",
+                                      "args": 5
+                                    }
+                                  },
+                                  "then": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 6,
+                                          "operation": {
+                                            "kind": "ModifyEvent",
+                                            "args": {
+                                              "change": "Cancel"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 7,
+                                          "operation": {
+                                            "kind": "DiscardObjects",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "Transition",
+                                                "args": {
+                                                  "result": 2,
+                                                  "phase": "After"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "otherwise": {
+                                    "instructions": []
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Freyalise's Winds",
+      "text": "If a permanent with a wind counter on it would untap during its controller's untap step, remove all wind counters from it instead.",
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Object": {
+                "event": "UntapsInUntapStep",
+                "objects": {
+                  "kind": "Counters",
+                  "args": {
+                    "kind": {
+                      "Named": "WindCounter"
+                    },
+                    "comparison": "Greater",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RemoveCounters",
+                      "args": {
+                        "removals": [
+                          {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "WindCounter"
+                            },
+                            "amount": "All",
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Counter Test",
+      "text": "If a permanent with a time counter on it would untap during its controller's untap step, remove all wind counters from it instead.",
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Object": {
+                "event": "UntapsInUntapStep",
+                "objects": {
+                  "kind": "Counters",
+                  "args": {
+                    "kind": {
+                      "Named": "TimeCounter"
+                    },
+                    "comparison": "Greater",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RemoveCounters",
+                      "args": {
+                        "removals": [
+                          {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "WindCounter"
+                            },
+                            "amount": "All",
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Sample Relic",
+      "text": "If a player would draw a card, instead they draw a card and reveal it. If it's a creature card, that player discards it unless they gain 3 life.",
+      "reject": true
+    },
+    {
+      "name": "Breathstealer's Crypt",
+      "text": "If a player would draw a card, instead they draw a card and reveal it. If it's an artifact card, that player discards it unless they pay 3 life.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Player": {
+                "event": "Draw",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "Cancel"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Draw",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              },
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 2,
+                                  "phase": "After"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "Compare",
+                            "args": {
+                              "left": {
+                                "kind": "CountObjects",
+                                "args": {
+                                  "kind": "Matching",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 2,
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "filter": {
+                                      "kind": "CardType",
+                                      "args": "Artifact"
+                                    }
+                                  }
+                                }
+                              },
+                              "test": {
+                                "kind": "Compare",
+                                "args": {
+                                  "comparison": "GreaterOrEqual",
+                                  "value": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 4,
+                                  "operation": {
+                                    "kind": "ModifyEvent",
+                                    "args": {
+                                      "change": "Cancel"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 5,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "FirstWilling",
+                                        "args": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "EventSubject"
+                                          }
+                                        }
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Life": {
+                                              "kind": "Constant",
+                                              "args": 3
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "If",
+                                "args": {
+                                  "condition": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "PaymentChosen",
+                                      "args": 5
+                                    }
+                                  },
+                                  "then": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 6,
+                                          "operation": {
+                                            "kind": "ModifyEvent",
+                                            "args": {
+                                              "change": "Cancel"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 7,
+                                          "operation": {
+                                            "kind": "DiscardObjects",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "Transition",
+                                                "args": {
+                                                  "result": 2,
+                                                  "phase": "After"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "otherwise": {
+                                    "instructions": []
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Breathstealer's Crypt",
+      "text": "If a player would draw a card, instead they draw a card and reveal it. If it's a creature card, that player discards it unless they pay 4 life.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Player": {
+                "event": "Draw",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "Cancel"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Draw",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              },
+                              "amount": {
+                                "kind": "Constant",
+                                "args": 1
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 2,
+                                  "phase": "After"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "Compare",
+                            "args": {
+                              "left": {
+                                "kind": "CountObjects",
+                                "args": {
+                                  "kind": "Matching",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 2,
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "filter": {
+                                      "kind": "CardType",
+                                      "args": "Creature"
+                                    }
+                                  }
+                                }
+                              },
+                              "test": {
+                                "kind": "Compare",
+                                "args": {
+                                  "comparison": "GreaterOrEqual",
+                                  "value": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 4,
+                                  "operation": {
+                                    "kind": "ModifyEvent",
+                                    "args": {
+                                      "change": "Cancel"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 5,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "FirstWilling",
+                                        "args": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "EventSubject"
+                                          }
+                                        }
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Life": {
+                                              "kind": "Constant",
+                                              "args": 4
+                                            }
+                                          }
+                                        ]
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "If",
+                                "args": {
+                                  "condition": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "PaymentChosen",
+                                      "args": 5
+                                    }
+                                  },
+                                  "then": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 6,
+                                          "operation": {
+                                            "kind": "ModifyEvent",
+                                            "args": {
+                                              "change": "Cancel"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 7,
+                                          "operation": {
+                                            "kind": "DiscardObjects",
+                                            "args": {
+                                              "objects": {
+                                                "kind": "Transition",
+                                                "args": {
+                                                  "result": 2,
+                                                  "phase": "After"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "otherwise": {
+                                    "instructions": []
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Freyalise's Winds",
+      "text": "Whenever a permanent becomes tapped, put a wind counter on it.\nIf a permanent with a time counter on it would untap during its controller's untap step, remove all wind counters from it instead.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "BecomesTapped",
+                "objects": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "WindCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Object": {
+                "event": "UntapsInUntapStep",
+                "objects": {
+                  "kind": "Counters",
+                  "args": {
+                    "kind": {
+                      "Named": "TimeCounter"
+                    },
+                    "comparison": "Greater",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RemoveCounters",
+                      "args": {
+                        "removals": [
+                          {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "WindCounter"
+                            },
+                            "amount": "All",
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Freyalise's Winds",
+      "text": "Whenever a permanent becomes tapped, put a wind counter on it.\nIf a permanent with a wind counter on it would untap during its controller's untap step, remove all time counters from it instead.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "BecomesTapped",
+                "objects": {
+                  "kind": "Any"
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "WindCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Replacement",
+          "args": {
+            "active": "Battlefield",
+            "event": {
+              "Object": {
+                "event": "UntapsInUntapStep",
+                "objects": {
+                  "kind": "Counters",
+                  "args": {
+                    "kind": {
+                      "Named": "WindCounter"
+                    },
+                    "comparison": "Greater",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "ModifyEvent",
+                      "args": {
+                        "change": "Cancel"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RemoveCounters",
+                      "args": {
+                        "removals": [
+                          {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "EventSubject"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "TimeCounter"
+                            },
+                            "amount": "All",
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

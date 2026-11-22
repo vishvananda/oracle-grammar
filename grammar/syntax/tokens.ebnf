@@ -1244,3 +1244,10 @@ instructions_destroy_receipt_named_tapped ::= destroy "." "for" "each" filter_ph
 
 /* @sem Instruction::[Effect{result:@mark, operation:@sacrificed_result(Operation::Sacrifice{players:OpponentsOf(AbilityController), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:AsManyAsCan(Constant(1))})}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Matching{objects:Transition{result:@marked, phase:Before}, filter:$filter_phrase_2}), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
 instructions_opponents_sacrifice_receipt_named ::= "each" "opponent" "sacrifices" "an" filter_phrase "." "for" "each" filter_phrase "sacrificed" "this" "way" "," "you" "create" "a" token_named_recipe "token"
+
+/* The alternative uses the same token recipe as the ordinary creation. */
+/* @sem Program::Program{instructions:[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]} */
+shared_token_conditional_instead ::= "create" token_amount token_recipe "." "if" condition "," "create" counter_amount "of" "those" "tokens" "instead" "."
+
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$shared_token_conditional_instead} */
+shared_trigger_token_conditional ::= event_clause "," shared_token_conditional_instead

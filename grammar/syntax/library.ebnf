@@ -83,7 +83,7 @@ player_search_many_choice ::= search_choice_many | search_choice_many_any
 /* After milling, you may put one matching card of those milled into your hand. */
 /* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$mill_take_choice}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}] */
 clause_mill_take ::= "mill" card_count "." "you" "may" "put" mill_take_choice mill_take_origin "into" "your" "hand"
-mill_take_choice ::= mill_take_filtered | mill_take_modified
+mill_take_choice ::= mill_take_has_x | mill_take_filtered | mill_take_modified
 /* @sem $search_filter */
 mill_take_filtered ::= ("a" | "an") search_filter
 /* @sem $modifier */
@@ -4515,3 +4515,79 @@ controller_reveal_until_battlefield_shuffle ::= "that" "player" "reveals" "cards
 
 /* @sem Instruction::[...$exile_opponent_controlled_target, ...$controller_reveal_until_battlefield_shuffle] */
 instructions_exile_controller_reveal ::= exile_opponent_controlled_target "." controller_reveal_until_battlefield_shuffle
+
+/* A private-zone move and its search continuation share one receipt.  Keeping
+   the producer in this scope makes the counted transition safe to print. */
+/* @sem Zone::Hand */
+private_cards_hand ::= "hand"
+
+/* @sem Zone::Graveyard */
+private_cards_graveyard ::= "graveyard"
+
+private_cards_origin ::= private_cards_hand | private_cards_graveyard
+
+/* @sem ObjectFilter::Any */
+counted_search_any_cards ::= "cards"
+
+counted_search_filter ::= counted_search_any_cards | search_filter_many
+
+hand_search_target ::= target_player | target_opponent
+
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Zone{scope:Players{zone:$private_cards_origin, players:One($hand_search_target)}, kind:Card, filter:Any}, destination:Library{position:$owner_library_position, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$hand_search_target, choices:[_{filter:$counted_search_filter, count:AsManyAsCan(CountObjects(Transition{result:@marked, phase:Before}))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($hand_search_target)}}] */
+clause_private_move_search_receipt ::= hand_search_target "puts" "the" "cards" "from" "their" private_cards_origin owner_library_position "of" "their" "library" "." "search" "that" "player's" "library" "for" "that" "many" counted_search_filter "." "the" "player" "puts" "those" "cards" "into" "their" "hand" "," "then" "shuffles"
+
+/* These follow-ups are scoped to the immediately preceding single-card exile.
+   Their references and the exile destination are checked together for printing. */
+/* @sem Program::Program{instructions:[...$card_exile_value_producer, If{condition:ObjectMatches{object:Result{result:@marked, phase:After, index:0}, filter:@agree($noun, $noun_2)}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[Pump{power:ObjectProperty{object:Result{result:@marked, phase:Before, index:0}, property:$stat, information:CurrentOrLastKnown}, toughness:Earlier{what:Exiled, measure:Of($stat_2)}}], duration:$duration, evaluation:Snapshot}}]}, otherwise:Program{}}]} */
+program_top_exile_type_stats ::= card_exile_value_producer "." "if" "it's" "a" noun "card" "," "this" "creature" "gets" "+" "X" "/" "+" "Y" duration "," "where" "X" "is" "the" "exiled" noun "card's" stat "and" "Y" "is" "its" stat "."
+
+/* @sem Program::Program{instructions:[...$card_exile_value_producer, If{condition:$condition_completed_dungeon, then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:Either, cards:One(Result{result:@marked, phase:After, index:0}), count:Exactly(Constant(1)), cost:Free}}]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$this_duration, evaluation:LiveObjects}}]}}]} */
+program_top_exile_dungeon_play ::= card_exile_value_producer "." "if" condition_completed_dungeon "," "you" "may" "play" "that" "card" "this" "turn" "without" "paying" "its" "mana" "cost" "." "otherwise" "," "you" "may" "play" "that" "card" this_duration "."
+
+/* @sem ObjectFilter::State(HasX) */
+mill_take_has_x ::= "a" "card" "with" "{" "X" "}" "in" "its" "mana" "cost"
+
+/* The hand selection and move are shared by the two scoped continuations. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One($target_possessive)}, kind:Card, filter:Any}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(Target{slot:0, index:0})}, kind:Card, filter:$adjective_nontype}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+hand_look_optional_exile_selection ::= "look" "at" target_possessive "hand" "." "you" "may" "exile" "a" adjective_nontype "card" "from" "it"
+
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(Target{slot:0, index:0})}, kind:Card, filter:Any}}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[...$hand_look_optional_exile_selection, Effect{result:@next, operation:ReturnAfter{objects:Transition{result:@prior, phase:After}, duration:WhileOnBattlefield(Source)}}]}}]}, optional:true}}] */
+instructions_hand_exile_until_source_leaves ::= hand_look_optional_exile_selection "until" "this" "creature" "leaves" "the" "battlefield"
+
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(Target{slot:0, index:0})}, kind:Card, filter:Any}}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:$hand_look_optional_exile_selection}}]}, optional:true}}, If{condition:PaymentChosen(@back(4)), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(OwnerOf(Result{result:@prior, phase:After, index:0}))), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Additional(Cost{parts:[Mana($mana_symbols)]})}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}]}, otherwise:_{}}] */
+instructions_hand_exile_owner_play_cost ::= hand_look_optional_exile_selection "." "for" "as" "long" "as" "that" "card" "remains" "exiled" "," "its" "owner" "may" "play" "it" "." "a" "spell" "cast" "this" "way" "costs" mana_symbols "more" "to" "cast"
+
+/* A searched selection is revealed before another player partitions it. The
+   choice and both moves retain the original search and choice receipts. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$searched_partition_episode]}} */
+spell_searched_partition ::= searched_partition_episode "."
+
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$partition_search_choice]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, ...$partition_choice_and_move, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+searched_partition_episode ::= "search" "your" "library" "for" partition_search_choice "and" "reveal" "them" "." partition_choice_and_move "." "then" "shuffle"
+
+partition_search_choice ::= partition_search_count | partition_search_distinct
+
+/* @sem SearchChoice::SearchChoice{filter:$partition_search_filter, count:AsManyAsCan($count)} */
+partition_search_count ::= count partition_search_filter
+
+/* @sem SearchChoice::SearchChoice{filter:$partition_search_filter, count:UpTo($count), constraints:[DifferentNames]} */
+partition_search_distinct ::= "up" "to" count partition_search_filter "with" "different" "names"
+
+/* @sem ObjectFilter::Any */
+partition_search_filter ::= "cards"
+
+partition_choice_and_move ::= partition_choice_one | partition_choice_many
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$target_opponent, objects:Selected(@marked), count:AsManyAsCan(Constant(1)), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$partition_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Unselected(@back(3)), destination:$partition_destination_2, qualifiers:[]}}] */
+partition_choice_one ::= target_opponent "chooses" "one" "." "put" "that" "card" partition_destination "and" "the" "rest" partition_destination
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:$target_opponent, objects:Selected(@marked), count:AsManyAsCan($count_plural), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:$partition_destination, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Unselected(@back(3)), destination:$partition_destination_2, qualifiers:[]}}] */
+partition_choice_many ::= target_opponent "chooses" count_plural "of" "those" "cards" "." "put" "the" "chosen" "cards" partition_destination "and" "the" "rest" partition_destination
+
+partition_destination ::= partition_hand | partition_graveyard
+
+/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
+partition_hand ::= "into" "your" "hand"
+
+/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
+partition_graveyard ::= "into" "your" "graveyard"
