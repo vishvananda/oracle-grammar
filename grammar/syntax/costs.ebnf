@@ -1,7 +1,7 @@
 /* Costs and mana symbols. */
 cost ::= cost_standard | cost_pay_mana_or_words
 
-cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self
+cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
 
 /* "Remove three quest counters from this enchantment and sacrifice it": "it" is the
    source the counters come off. */
@@ -1758,3 +1758,46 @@ activated_modal_sorcery_header ::= cost ":" "choose" number_words "." "activate"
 /* An activation can continue a preceding instruction with the owner's choice. */
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[...$draw_optional_hand_entry, ...$clause_owner_draw_hand_entry]}} */
 activated_owner_draw_followup ::= cost ":" draw_optional_hand_entry "." clause_owner_draw_hand_entry "."
+
+/* A die table governed by a graveyard-only activation keeps the roll and each
+   independent result row in the same scoped ability. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{condition:ObjectMatches{object:Source, filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}}, announcement:@announcement, body:Program{instructions:[...$die_table_head, ...$graveyard_die_rows]}})} */
+activated_graveyard_die_table ::= cost ":" die_table_head "." "activate" "only" "if" "this" "card" "is" "in" "your" "graveyard" "." NEWLINE graveyard_die_rows
+
+/* The card is in its controller's graveyard, so its owner is that player. */
+graveyard_die_rows ::= graveyard_die_rows_one | graveyard_die_rows_more
+
+/* @sem Instruction::[$graveyard_die_row] */
+graveyard_die_rows_one ::= graveyard_die_row
+
+/* @sem Instruction::[$graveyard_die_row, ...$graveyard_die_rows] */
+graveyard_die_rows_more ::= graveyard_die_row NEWLINE graveyard_die_rows
+
+graveyard_die_row ::= graveyard_die_range | graveyard_die_exact
+
+/* @sem Instruction::If{condition:AllOf([Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$graveyard_die_program, otherwise:_{}} */
+graveyard_die_range ::= number "―" number "|" graveyard_die_program
+
+/* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:$graveyard_die_program, otherwise:_{}} */
+graveyard_die_exact ::= number "|" graveyard_die_program
+
+graveyard_die_program ::= graveyard_die_self_top | graveyard_die_self_hand | graveyard_die_self_tapped | program_sentence
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{}}, qualifiers:[]}}]} */
+graveyard_die_self_top ::= "put" "this" "card" "on" "top" "of" "your" "library" "."
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:OwnersHand(CardArrival{}), qualifiers:[]}}]} */
+graveyard_die_self_hand ::= "return" "this" "card" "to" "your" "hand" "."
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One(Source), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true}}, qualifiers:[]}}]} */
+graveyard_die_self_tapped ::= "return" "this" "card" "to" "the" "battlefield" "tapped" "."
+
+/* A controlled untapped permanent and an independent sacrifice form one payment. */
+/* @sem CostPart::[$cost_tap_controlled_untapped, $cost_sacrifice] */
+cost_tap_controlled_and_sacrifice ::= cost_tap_controlled_untapped "and" cost_sacrifice
+
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Tapped), $filter_phrase, ControlledBy(One(AbilityController))])}, choose:Exactly(Constant(1))}], tapped:true} */
+cost_tap_controlled_untapped ::= "tap" "an" "untapped" filter_phrase "you" "control"

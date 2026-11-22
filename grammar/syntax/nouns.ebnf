@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union
+object_set ::= graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -100,7 +100,7 @@ current_card_ref ::= "that" "card"
 /* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
 linked_exiled_card ::= "the" "exiled" "card"
 
-target_card ::= target_card_opponent_library_arrival | target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard | target_card_exile_counter | target_card_arrived_this_turn
+target_card ::= target_card_opponent_library_arrival | target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard | target_card_exile_counter | target_card_arrived_this_turn | target_card_subtype_union_your_graveyard | optional_opponent_graveyard_card | optional_opponent_graveyard_filtered_card
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
@@ -3339,3 +3339,54 @@ choose_cast_graveyard_in ::= "target" card_filter "card" "in" "your" "graveyard"
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
 choose_cast_graveyard_from ::= "target" card_filter "card" "from" "your" "graveyard"
+
+/* A population of cards in the announced players’ graveyards. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:$graveyard_target_players}, kind:Card, filter:Any} */
+target_players_graveyard_population ::= graveyard_target_players "graveyards"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:AllOf([OwnedBy(One(AbilityController)), $exiled_card_qualifier])}), index:0} */
+owned_exiled_qualified_card ::= "target" "card" "you" "own" "in" "exile" exiled_card_qualifier
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:AllOf([OwnedBy(OthersThan(AbilityController)), $exiled_card_qualifier])}), index:0} */
+other_exiled_qualified_card ::= "target" "card" "you" "don't" "own" "in" "exile" exiled_card_qualifier
+
+exiled_card_qualifier ::= card_ability_qualifier | modifier_no_abilities
+
+/* A shared-head union preserves each subtype in the graveyard target. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and(ObjectFilter::AnyOf([$subtype, $subtype_2]), ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+target_card_subtype_union_your_graveyard ::= "target" subtype "or" subtype "card" "from" "your" "graveyard"
+
+/* Optional singular targets retain the opponent's graveyard and card filter. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:InZone(Players{zone:Graveyard, players:OpponentsOf(AbilityController)})}), index:0} */
+optional_opponent_graveyard_card ::= "up" "to" "one" "target" "card" "from" "an" "opponent's" "graveyard"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(PlayerRef::AbilityController)}))}), index:0} */
+optional_opponent_graveyard_filtered_card ::= "up" "to" "one" "target" card_filter "card" "from" "an" "opponent's" "graveyard"
+
+/* Two separately announced card targets share their stated graveyard. */
+/* @prefer always */
+/* @sem ObjectSet::Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject($graveyard_required_target), SameObject($graveyard_optional_target)])}) */
+graveyard_required_optional_targets ::= graveyard_required_target "and" graveyard_optional_target "from" "your" "graveyard"
+
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([$card_filter, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
+graveyard_required_target ::= "target" card_filter "card"
+
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and($graveyard_four_subtypes, $noun_creature, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
+graveyard_optional_target ::= "up" "to" "one" "target" graveyard_four_subtypes noun_creature "card"
+
+/* A four-way creature subtype choice remains one card filter. */
+/* @prefer always */
+/* @sem ObjectFilter::AnyOf(@unordered([$subtype, $subtype_2, $subtype_3, $subtype_4])) */
+graveyard_four_subtypes ::= subtype "," subtype "," subtype "," "or" subtype
+
+/* Target card groups in the event player's graveyard retain that player's identity. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:InZone(Players{zone:Graveyard, players:One(EventSubject)})})) */
+graveyard_event_up_to_cards ::= "up" "to" number "target" "cards" "from" "that" "player's" "graveyard"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:@and($noun, ObjectFilter::InZone(Players{zone:Graveyard, players:One(EventSubject)}))})) */
+graveyard_event_up_to_typed_cards ::= "up" "to" number "target" noun "cards" "from" "that" "player's" "graveyard"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})})) */
+graveyard_your_up_to_cards ::= "up" "to" number "target" "cards" "from" "your" "graveyard"

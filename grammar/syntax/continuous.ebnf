@@ -7126,3 +7126,17 @@ shared_draw_discard_trigger_closed ::= '"' event_clause "," draw_discard_propert
 
 /* @sem Change::GrantAbility(@scope(Ability::Triggered{event:Object{event:Attacks, objects:SameObject(Source)}, limits:_{}, announcement:@announcement, body:$shared_defender_graveyard_copy_program})) */
 shared_defender_copy_trigger_closed ::= '"' "whenever" "this" "creature" "attacks" "," shared_defender_graveyard_copy_program "." '"'
+
+/* The returned incarnation is shared by the grant, delayed exile, and
+   replacement; the complete move anchors every reference in both directions. */
+/* @sem Instruction::[Effect{result:@mark, operation:$post_grant_move}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Result{result:@marked, phase:After, index:0})), changes:$grants, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Result{result:@marked, phase:After, index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}, Effect{result:@next, operation:CreateReplacement{event:Object{event:LeavesBattlefield, objects:SameObject(Result{result:@marked, phase:After, index:0})}, limit:NextOccurrence, duration:EndOfTurn, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]}}}] */
+clause_post_move_grant_delayed_exile_replacement ::= post_grant_move "." "it" "gains" grants "." "exile" "it" "at" "the" "beginning" "of" "the" "next" "end" "step" "." "if" "it" "would" "leave" "the" "battlefield" "," "exile" "it" "instead" "of" "putting" "it" "anywhere" "else"
+
+/* Any event clause may frame the scoped move-and-followups program. */
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$clause_post_move_grant_delayed_exile_replacement}} */
+triggered_post_move_grant_delayed_exile ::= event_clause "," clause_post_move_grant_delayed_exile_replacement "."
+
+/* The land subject proves the retained land type; the two statistics and
+   the duration remain independent operands of the continuous effect. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), changes:[SetBasePowerToughness{power:$value, toughness:$value_2}, AddCardType(Creature)], duration:$duration, evaluation:Snapshot} */
+controlled_lands_retained_animation ::= duration "," "lands" "you" "control" "become" value "/" value "creatures" "that" "are" "still" "lands"

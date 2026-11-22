@@ -117,7 +117,7 @@ token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted
 
-token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural
+token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -858,8 +858,7 @@ created_tokens_goaded_subject ::= "the" "tokens"
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:@token_abilities($token_recipe_plain, $chapter_quoted_token_abilities)}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]} */
 chapter_quoted_token_program ::= "create" token_amount token_recipe_plain "with" chapter_quoted_token_abilities
 
-/* @sem Ability::[$token_quoted] */
-chapter_quoted_token_abilities ::= token_quoted
+chapter_quoted_token_abilities ::= chapter_token_attack_abilities | chapter_other_quoted_abilities
 
 /* Named token identities are independent of their characteristics. */
 /* @sem String::'Minor Demon' */
@@ -1150,3 +1149,23 @@ create_role_on_event_member ::= "create" "a" role_recipe "token" "attached" "to"
 /* A temporary grant applies to the batch created earlier in this program. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_gain_subject), changes:$grants, duration:$duration, evaluation:Snapshot}}] */
 clause_created_temporary_gain ::= created_gain_subject "gain" grants duration
+
+/* The immediately created singular token is the animated object. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@marked)), changes:[SetBasePowerToughness{power:$token_stat, toughness:$token_stat_2}, AddCardType(Artifact), AddCardType(Creature), GrantKeyword($keyword_name)], duration:Indefinite, evaluation:Snapshot}}] */
+instructions_named_token_animation ::= "create" "a" token_named_recipe "token" "." "it" "becomes" "a" token_stat "/" token_stat "artifact" "creature" "and" "gains" keyword_name
+
+/* @prefer always */
+/* @sem Ability::[$chapter_token_attack_quoted] */
+chapter_token_attack_abilities ::= chapter_token_attack_quoted
+
+/* @sem Ability::[$token_quoted] */
+chapter_other_quoted_abilities ::= token_quoted
+
+/* The attack event belongs to the newly created token; its body composes independently. */
+/* @prefer always */
+/* @sem Ability::@holder(Ability::Triggered{event:Object{event:Attacks, objects:SameObject(Source)}, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence}) */
+chapter_token_attack_quoted ::= '"' "whenever" "this" "token" "attacks" "," program_sentence '"'
+
+/* A linked exiled card and its copy exceptions retain independent operands. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyOne{objects:$token_exiled_card, exceptions:$copy_exceptions_plain}} */
+token_copy_exiled_modified ::= "a" "token" "that's" "a" "copy" "of" token_exiled_card "," "except" copy_exceptions_plain

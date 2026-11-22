@@ -342,3 +342,16 @@ spell_kicker_target_qualification ::= "kicker" keyword_payment NEWLINE "choose" 
    whose current or last known information survives the preceding move. */
 /* @sem Instruction::Effect{result:@next, operation:GainLife{players:One(ControllerOf(Target{slot:0, index:0})), amount:ObjectProperty{object:Target{slot:0, index:0}, property:$stat, information:CurrentOrLastKnown}}} */
 chosen_target_life ::= "its" "controller" "gains" "life" "equal" "to" "its" stat
+
+/* Alternative selection costs specialize one independently scoped spell per choice. */
+/* @sem Ability::CostOptions{keyword:AdditionalCost, options:[[$casting_controlled_choice, @scope(Ability::Spell{body:$chosen_choice_program, announcement:@announcement})], [$casting_warped_choice, @scope(Ability::Spell{body:$chosen_choice_program, announcement:@announcement})]]} */
+spell_alternative_selection ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "choose" casting_controlled_choice "or" casting_warped_choice "." NEWLINE chosen_choice_program
+
+/* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}, count:AsManyAsCan(Constant(1))}}]}}]} */
+casting_controlled_choice ::= "a" "creature" "you" "control"
+
+/* @sem Cost::Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Exile), kind:Card, filter:AllOf([State(Warped), CardType(Creature), OwnedBy(One(AbilityController))])}, count:AsManyAsCan(Constant(1))}}]}}]} */
+casting_warped_choice ::= "a" "warped" "creature" "card" "you" "own" "in" "exile"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:$recipients, amount:ObjectProperty{object:Earlier{what:Selected}, property:$stat, information:CurrentOrLastKnown}, preventable:true}}]} */
+chosen_choice_program ::= self_explicit_ref "deals" "damage" "equal" "to" "the" stat "of" "the" "chosen" "creature" "or" "card" "to" recipients "."
