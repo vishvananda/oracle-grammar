@@ -1012,7 +1012,7 @@ players_each_opponent ::= "each" "opponent" | "each" "of" "your" "opponents"
 players_each ::= "each" "player"
 
 /* Damage recipients. */
-recipients ::= recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player | recipients_target_opponent_and_controlled
+recipients ::= recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player | recipients_target_opponent_and_controlled | recipients_random_damage_target | recipients_previously_damaged_target
 
 /* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_phrase, $filter_phrase_2])}) */
 recipients_each_and_each ::= "each" filter_phrase "and" "each" filter_phrase
@@ -3604,3 +3604,27 @@ controlled_permanent_predicate ::= permanent_one_or_more_colors | quality_unscop
 
 /* @sem ObjectFilter::Not(ObjectFilter::Colorless) */
 permanent_one_or_more_colors ::= "one" "or" "more" "colors"
+
+/* Ownership is part of the target selection, independent of control. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:@and($filter_nonlist_head, $modifier_you_own)}), index:0} */
+owned_battlefield_target ::= "target" filter_nonlist_head modifier_you_own
+
+/* This filter is used only inside an activation whose second cost is a
+   single sacrificed creature; the receipt is the input to that cost. */
+/* @sem ObjectFilter::AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}]) */
+filter_same_mana_as_activation_sacrifice ::= filter_phrase "with" "the" "same" "mana" "value" "as" "the" "sacrificed" "creature"
+
+/* These receipt filters are reachable only through their producer-bound roots. */
+/* @sem ObjectFilter::AllOf([$filter_phrase, Not(SameObject(Query{objects:CostObjects{payment:Activation, component:[0], view:Inputs, phase:Before}, index:0}))]) */
+filter_other_than_tapped_activation_creature ::= filter_phrase "other" "than" "the" "creature" "tapped" "this" "way"
+
+/* @sem ObjectFilter::AllOf([$filter_plural, Shares{property:CreatureTypes, with:Query{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Inputs, phase:Before}, index:0}}]) */
+filter_shared_type_cast_sacrifice ::= filter_plural "that" "share" "a" "creature" "type" "with" "the" "sacrificed" "creature"
+
+/* A random selection constraint belongs to the target declaration. */
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Any, constraints:[AtRandom]})) */
+recipients_random_damage_target ::= "any" "target" "chosen" "at" "random"
+
+/* Object and player candidates each retain their own damage-history subject. */
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Expr::Constant(1)), filter:Condition(Compare{left:EventHistory{event:Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject(Candidate)), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}), players:Matching{binding:0, condition:Compare{left:EventHistory{event:Damage(_{source_kind:Any, sources:Any, recipients:Players(One(Bound(0))), kind:Any, grouping:SourceRecipient, subject:Recipient}), window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}})) */
+recipients_previously_damaged_target ::= "any" "target" "that" "was" "dealt" "damage" "this" "turn"

@@ -1307,3 +1307,15 @@ triggered_named_player_aura ::= event_clause "," instructions_named_player_aura
 
 /* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$tt_creature, subtypes:$token_subtypes, power_toughness:[Expr::Constant(0), Expr::Constant(0)]}) */
 token_creature_statless_singular ::= token_colors token_subtypes tt_creature "token"
+
+/* The revealed set and its per-player count are scoped to the same hand choice. */
+/* @sem Instruction::[ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Players{zone:Hand, players:One(Bound(0))}, kind:Card, filter:$card_filter}, count:AnyNumber, constraints:[]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}]}}, ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(Bound(0)), tokens:[TokenSpec{amount:Earlier{what:Revealed, measure:Count, by:Bound(0)}, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
+instructions_each_reveal_hand_tokens ::= "each" "player" "may" "reveal" "any" "number" "of" card_filter "cards" "from" "their" "hand" "." "then" "each" "player" "creates" "a" token_recipe "for" "each" "card" "they" "revealed" "this" "way"
+
+/* The count is tied to this return to owners' hands. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:$affected, destination:OwnersHand(CardArrival{}), qualifiers:[]}}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Transition{result:@marked, phase:Before}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+instructions_return_if_tokens ::= "return" affected "to" "their" "owners'" "hands" "." "then" "if" condition "," "create" "a" token_recipe "for" "each" "permanent" "returned" "to" "its" "owner's" "hand" "this" "way"
+
+/* Both the comparison and difference refer to this creation. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$value, words:CreatingEffect, recipe:CopyEach{objects:$affected, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, If{condition:Compare{left:CountObjects(Recorded(@marked)), test:NumberTest::Compare{comparison:Less, value:$value_2}}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Subtract([$value_2, CountObjects(Created(@marked))]), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+instructions_copy_fill_tokens ::= "choose" affected "." "for" "each" value "," "create" "a" "token" "that's" "a" "copy" "of" "it" "." "if" "you" "created" "fewer" "than" value "tokens" "this" "way" "," "create" "a" "number" "of" token_recipe "equal" "to" "the" "difference"

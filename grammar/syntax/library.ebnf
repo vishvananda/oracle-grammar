@@ -436,7 +436,7 @@ dig_rest_put ::= ("then")? "put" look_rest
 dig_rest_and ::= "and" look_rest
 
 /* Looked-at cards are revealed as they are taken; revealed ones are already shown. */
-dig_look_take ::= dig_reveal_each_to_hand | dig_reveal_one | dig_reveal_upto | dig_reveal_any | dig_reveal_top | dig_top_one | dig_put_take
+dig_look_take ::= dig_reveal_each_to_hand | dig_reveal_one | dig_reveal_upto | dig_reveal_any | dig_reveal_top | dig_top_one | dig_put_take | dig_reveal_three_each | dig_reveal_four_each
 
 /* A revealed card put back on top stays in the library; the reorder is its receipt. */
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:UpTo(Constant(1))}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@back(3)), end:Top, order:Chosen}}] */
@@ -668,7 +668,7 @@ cost_hand_on_top ::= clause_hand_on_top
 /* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:AnyNumber, constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
 clause_hand_any_number_battlefield ::= "put" "any" "number" "of" card_filter "cards" "from" "your" "hand" "onto" "the" "battlefield"
 
-a_card ::= a_card_exact_colors | a_card_chosen_permanent | a_card_mana_equal_player_counters | a_card_maximum_mana | a_card_prevalent_type | a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another | a_card_or | a_card_shared_or | a_card_basic_type | a_card_urzas | a_card_value_limit | a_card_mana_value_comparison | top_reveal_union_double_faced
+a_card ::= a_card_exact_colors | a_card_chosen_permanent | a_card_mana_equal_player_counters | a_card_maximum_mana | a_card_prevalent_type | a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another | a_card_or | a_card_shared_or | a_card_basic_type | a_card_urzas | a_card_value_limit | a_card_mana_value_comparison | top_reveal_union_double_faced | a_card_ability | a_card_three_types
 
 /* "A Mount creature card or a Plains card": either kind, each with its own noun. */
 /* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
@@ -4765,3 +4765,50 @@ instructions_repeat_exiled_card ::= repeat_exile_one_library_card "." "if" "it's
 /* The counted token creation is tied to this particular search and exile. */
 /* @sem Instruction::[Effect{result:@next, operation:$search_any_number}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:CountObjects(Transition{result:@prior, phase:Before}), words:CreatingEffect, recipe:$token_recipe_plain}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
 clause_search_exile_create_tokens ::= search_any_number "," "exile" "them" "," "then" "create" "that" "many" token_recipe_plain "." "then" "shuffle"
+
+/* The producer and the optional selection share the same mill receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$mill_payment_filter}, choose:Exactly($counter_amount)}], destination:OwnersHand(CardArrival{counters:[], states:[]})}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+instructions_mill_optional_hand_payment ::= "mill" card_count "." "you" "may" "put" counter_amount mill_payment_filter "from" "among" "the" "cards" "milled" "this" "way" "into" "your" "hand" "." "if" "you" "don't" "," conjoined
+
+mill_payment_filter ::= mill_payment_union | mill_payment_negative_pair
+
+/* @sem ObjectFilter::AnyOf([$filter_phrase, AllOf([$filter_phrase_2, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}])]) */
+mill_payment_union ::= filter_phrase "card" "or" "a" filter_phrase "card" "with" "mana" "value" value "or" "less"
+
+/* @sem ObjectFilter::AllOf([$adjective_nontype, $adjective_nontype_2]) */
+mill_payment_negative_pair ::= adjective_nontype "," adjective_nontype "card"
+
+/* A choice among three card qualities shares a single selection. */
+/* @sem ObjectFilter::AnyOf([$subtype_spelled, Subtype(Plains), $filter_phrase]) */
+a_card_three_types ::= "a" subtype_spelled "," "↑" "plains" "," "or" filter_phrase "card"
+
+/* Sequential distinct selections from one observed library population. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$filter_phrase}, count:UpTo($counter_amount), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Difference{objects:InZone{objects:Observed(@marked), zone:Library}, excluding:Union([Selected(@prior)])}, filter:$filter_phrase_2}, count:UpTo($counter_amount_2), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Difference{objects:InZone{objects:Observed(@marked), zone:Library}, excluding:Union([Selected(@back(3)), Selected(@prior)])}, filter:$filter_phrase_3}, count:UpTo($counter_amount_3), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Reveal{objects:Union([Selected(@back(4)), Selected(@back(3)), Selected(@prior)])}}, Effect{result:@next, operation:Move{objects:Union([Selected(@back(5)), Selected(@back(4)), Selected(@back(3))]), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+dig_reveal_three_each ::= "you" "may" "reveal" counter_amount filter_phrase "card" "," counter_amount filter_phrase "card" "," "and" "/" "or" counter_amount filter_phrase "card" "from" "among" "them" "and" "put" "them" "into" "your" "hand"
+
+/* Sequential distinct selections from one observed library population. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$filter_phrase}, count:UpTo($counter_amount), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Difference{objects:InZone{objects:Observed(@marked), zone:Library}, excluding:Union([Selected(@prior)])}, filter:$filter_phrase_2}, count:UpTo($counter_amount_2), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Difference{objects:InZone{objects:Observed(@marked), zone:Library}, excluding:Union([Selected(@back(3)), Selected(@prior)])}, filter:$filter_phrase_3}, count:UpTo($counter_amount_3), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Difference{objects:InZone{objects:Observed(@marked), zone:Library}, excluding:Union([Selected(@back(4)), Selected(@back(3)), Selected(@prior)])}, filter:$filter_phrase_4}, count:UpTo($counter_amount_4), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Reveal{objects:Union([Selected(@back(5)), Selected(@back(4)), Selected(@back(3)), Selected(@prior)])}}, Effect{result:@next, operation:Move{objects:Union([Selected(@back(6)), Selected(@back(5)), Selected(@back(4)), Selected(@back(3))]), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+dig_reveal_four_each ::= "you" "may" "reveal" counter_amount filter_phrase "card" "," counter_amount filter_phrase "card" "," counter_amount filter_phrase "card" "," "and" "/" "or" counter_amount filter_phrase "card" "from" "among" "them" "and" "put" "those" "cards" "into" "your" "hand"
+
+/* @sem $card_ability_qualifier */
+a_card_ability ::= "a" "card" card_ability_qualifier
+
+/* The immediately preceding look fixes the revealed card and its library. */
+/* @sem Instruction::[...$top_card_look, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[RevealTop($card_filter)]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:$token_groups, entry:BattlefieldArrival{}}}]}, otherwise:Program{}}, Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}] */
+look_reveal_create_then_draw ::= top_card_look "you" "may" "reveal" "it" "if" "it's" "a" card_filter "card" "." "create" token_groups "if" "you" "revealed" "it" "this" "way" "." "then" "draw" card_count
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$look_reveal_create_then_draw}} */
+triggered_look_reveal_create_then_draw ::= "at" turn_event "," look_reveal_create_then_draw "."
+
+/* The selected cards and shuffling player belong to the enclosing player loop. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(Bound(0)), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Bound(0))}}] */
+bound_search_put_tapped_shuffle ::= "puts" "those" "cards" "onto" "the" "battlefield" "tapped" "," "then" "shuffles"
+
+/* The maximum and each player's count remain distinct operands. */
+/* @sem Instruction::[Effect{result:@next, operation:BindValue{value:AmongPlayers{players:$players_singular, number:Permanents($filter_plural_2), aggregation:Maximum}}}, ForEachPlayer{players:Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Less, value:BoundValue(0)}}}, binding:0, body:Program{instructions:[Effect{result:@next, operation:Search{searcher:Bound(0), library_owner:Bound(0), choices:[_{filter:$filter_phrase, count:UpTo(Subtract(BoundValue(@prior), CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])})))}]}}, ...$bound_search_put_tapped_shuffle]}}] */
+players_fewer_max_search_difference ::= players_singular "who" "controls" "fewer" filter_plural "than" "the" "player" "who" "controls" "the" "most" filter_plural "searches" "their" "library" "for" "a" "number" "of" filter_phrase "cards" "less" "than" "or" "equal" "to" "the" "difference" "," bound_search_put_tapped_shuffle
+
+/* A singular player searches their own library, moves the selection under their
+   control, and shuffles. The selection remains tied to this search. */
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:$search_player, library_owner:$search_player, choices:[$player_search_one_choice]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player($search_player), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($search_player)}}] */
+clause_player_search_battlefield ::= search_player "searches" "their" "library" "for" player_search_one_choice "," "puts" "it" search_option_entry "," "then" "shuffles"

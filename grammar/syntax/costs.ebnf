@@ -40,7 +40,7 @@ cost_symbols ::= cost_mana | cost_tap | cost_untap_symbol
 cost_words ::= mined_cost | cost_words_owned
 
 /* Explicit verb-led payments exclude mined mana-only shorthand. */
-cost_words_owned ::= cost_exile_graveyard_equal_value | cost_exile_graveyard_mana_value | cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one | cost_or_choice | cost_exile_hand_mana_value_one | cost_exile_hand_mana_value_many | cost_put_exiled_card_graveyard | cost_remove_selected_counter | cost_remove_selected_named_counter | cost_exile_top_card | cost_remove_unspecified_count | cost_remove_unspecified_among | cost_remove_kind_among | cost_remove_kind_at_least_among | cost_remove_kind_count | cost_tap_named_source | cost_roll_die | cost_exile_card_hand | cost_sacrifice_description | cost_life_measured | cost_reveal_announced_hand_selection | cost_tap_any_population | cost_have_player_gain_control | cost_put_single_graveyard_cards | cost_sacrifice_copy_receipt | cost_return_unblocked_attacker | cost_reveal_chosen_value
+cost_words_owned ::= cost_exile_graveyard_equal_value | cost_exile_graveyard_mana_value | cost_exile_graveyard_selection | cost_opponent_token_creation | cost_energy | cost_life | cost_blight | cost_pay_repeated_mana | cost_sacrifice_self | cost_sacrifice | cost_sacrifice_another | cost_sacrifice_many | cost_discard | cost_discard_filtered | cost_discard_many | cost_tap_untapped | cost_tap_untapped_many | cost_tap_another_untapped | cost_exile_permanent | cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_cards_graveyard | cost_exile_kind_cards_graveyard | cost_exile_hand | cost_discard_random | cost_remove_pt_counter | cost_life_half | cost_discard_filtered_many | cost_discard_hand | cost_return_self | cost_exile_self | cost_remove_counters | cost_remove_any_counters | cost_collect_evidence | cost_exert | cost_discard_either_kind | cost_exile_top | cost_exile_graveyard_top | cost_return_many | cost_sacrifice_another_or | cost_reveal_self_hand | cost_behold | cost_behold_many | cost_behold_exile | cost_waterbend | cost_put_counter_on | cost_remove_a_counter_from | cost_remove_all_counters_from | cost_pay_for_each | cost_mill | cost_unattach_named_source | cost_constrained_selection | cost_exile_hand_selection | cost_put_counter_on_selected | cost_tap_counted_filter | cost_untap_counted_filter | cost_untap_single_filter | cost_reveal_filtered_hand | cost_return_to_owners_hand | cost_discard_postmodified | cost_discard_referenced_card | cost_object_action | cost_discard_either_card | cost_exile_any_graveyard_kind | cost_sacrifice_affected | cost_pay_mana_any_number | cost_add_mana | cost_sacrifice_half | cost_opponent_gains_life | cost_player_action_shared | cost_choose_number_between | cost_performed_library_move | cost_flip_coin_series | cost_choose_type_action | cost_exile_single_graveyard_selection | cost_exile_top_one | cost_or_choice | cost_exile_hand_mana_value_one | cost_exile_hand_mana_value_many | cost_put_exiled_card_graveyard | cost_remove_selected_counter | cost_remove_selected_named_counter | cost_exile_top_card | cost_remove_unspecified_count | cost_remove_unspecified_among | cost_remove_kind_among | cost_remove_kind_at_least_among | cost_remove_kind_count | cost_tap_named_source | cost_roll_die | cost_exile_card_hand | cost_sacrifice_description | cost_life_measured | cost_reveal_announced_hand_selection | cost_tap_any_population | cost_have_player_gain_control | cost_put_single_graveyard_cards | cost_sacrifice_copy_receipt | cost_return_unblocked_attacker | cost_reveal_chosen_value | cost_sacrifice_up_to | cost_mana_or_word_payment | cost_discard_or_qualified_card | cost_remove_one_of_two_counter_kinds
 
 /* Waterbend {N}: tapped artifacts and creatures pay for that generic mana. */
 /* @sem CostPart::Waterbend($mana_symbols) */
@@ -2025,3 +2025,65 @@ discarded_same_property ::= "with" "the" "same" "mana" "value" "as" "that" "card
 /* This wrapper starts a fresh ability result frame for the payment receipt. */
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_discard_same_value_search} */
 triggered_discard_same_value_search ::= event_clause "," program_discard_same_value_search "."
+
+/* Scope the receipt consumer to a mana payment followed by the single
+   creature sacrifice that supplies component 1. */
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))} */
+cost_single_creature_sacrifice ::= "sacrifice" "a" "creature"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_single_creature_sacrifice]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_same_mana_as_activation_sacrifice}, regeneration:true}}]}} */
+activated_sacrifice_same_mana_destroy ::= cost_mana "," "↑" cost_single_creature_sacrifice ":" "destroy" "each" filter_same_mana_as_activation_sacrifice "."
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_other_than_tapped_activation_creature}), index:0} */
+target_other_than_tapped_activation_creature ::= "target" filter_other_than_tapped_activation_creature
+
+/* The activation's sole tap cost supplies the exact receipt in its target. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[ChangeTapState{selections:[_{objects:One(AttachedTo(Source))}], tapped:true, symbol:false}]}, limits:ActivationLimits{condition:ObjectMatches{object:AttachedTo(Source), filter:Not(Tapped)}}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_other_than_tapped_activation_creature)), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}]}} */
+activated_tap_attached_other_pump ::= "tap" "enchanted" "creature" ":" target_other_than_tapped_activation_creature "gets" signed "/" signed duration "." "activate" "only" "if" "enchanted" "creature" "is" "untapped" "."
+
+/* Keep the casting payment and its dependent spell in one producer-consumer
+   scope so an unrelated casting cost cannot print as a sacrifice. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$cost_single_creature_sacrifice]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_shared_type_cast_sacrifice}, regeneration:false}}]}}] */
+line_sacrifice_shared_type_destroy ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_single_creature_sacrifice "." NEWLINE "destroy" "all" filter_shared_type_cast_sacrifice "." "they" "can't" "be" "regenerated" "."
+
+/* A bounded sacrifice selects from the stated battlefield population. */
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, choose:UpTo($value)} */
+cost_sacrifice_up_to ::= "sacrifice" "up" "to" value filter_plural
+
+/* The unique sacrifice is the second cost component in this complete activation. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_tap, $cost_sacrifice_up_to]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[If{condition:$sacrificed_type_count_condition, then:Program{instructions:$conjoined}, otherwise:Program{}}]}} */
+activated_tap_sacrifice_type_threshold ::= cost_tap "," "↑" cost_sacrifice_up_to ":" "if" sacrificed_type_count_condition "," conjoined "."
+
+/* @sem Condition::Compare{left:$second_sacrifice_card_type_count, test:$condition_at_least} */
+sacrificed_type_count_condition ::= "there" "were" condition_at_least second_sacrifice_card_type_count
+
+/* @sem Expr::CountDistinct{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:Before}, property:CardTypes} */
+second_sacrifice_card_type_count ::= "card" "types" "among" "the" "sacrificed" "permanents"
+
+/* The defending player chooses whether to pay the sacrifice cost. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:DefendingPlayerOf(EventSubject), cost:_{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun}, choose:Exactly(Constant(1))}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[GrantAbility(Static(_{kind:Ordinary, affected:Objects(One(Source)), changes:[Rule(Prohibit(BeBlocked(Any)))]}))], duration:$duration, evaluation:Snapshot}}]}, otherwise:_{}}]} */
+shared_defender_sacrifice_evasion ::= "it" "gains" '"' "↓" "this" "creature" "can't" "be" "blocked" '"' duration "unless" "defending" "player" "sacrifices" "a" noun "of" "their" "choice"
+
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:$event_self}, limits:TriggerLimits{}, announcement:@announcement, body:$shared_defender_sacrifice_evasion} */
+shared_self_attack_defender_payment ::= "whenever" event_self "attacks" "," shared_defender_sacrifice_evasion "."
+
+/* Alternative payments reuse complete cost parts and preserve each branch. */
+cost_word_after_mana ::= cost_discard | cost_discard_many | cost_discard_filtered | cost_remove_a_counter_from | cost_life | cost_sacrifice | cost_exile_hand
+
+/* @sem CostPart::Choice([_{parts:[$cost_mana]}, _{parts:[$cost_word_after_mana]}]) */
+cost_mana_or_word_payment ::= "pay" cost_mana "or" cost_word_after_mana
+
+/* The second discard omits its verb, but remains a separate payment. */
+/* @sem CostPart::Discard{count:Constant(1), filter:$filter_phrase} */
+cost_discard_an_filtered_card ::= "discard" "an" filter_phrase "card"
+
+/* @sem CostPart::Discard{count:Constant(1), filter:@and($filter_phrase, $modifier_with_keyword)} */
+cost_qualified_card_discard ::= "a" filter_phrase "card" modifier_with_keyword
+
+/* @sem CostPart::Choice([_{parts:[$cost_discard_an_filtered_card]}, _{parts:[$cost_qualified_card_discard]}]) */
+cost_discard_or_qualified_card ::= cost_discard_an_filtered_card "or" cost_qualified_card_discard
+
+/* Either counter kind is removed from one selected battlefield permanent.
+   The selected population and both counter kinds remain independent operands. */
+/* @sem CostPart::Choice([Cost{parts:[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counter_payment_source}), kind:$counter_kind, amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]}]}, Cost{parts:[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counter_payment_source}), kind:$counter_kind_2, amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]}]}]) */
+cost_remove_one_of_two_counter_kinds ::= "remove" "a" counter_kind "counter" "or" "a" counter_kind "counter" "from" counter_payment_source
