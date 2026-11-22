@@ -5544,3 +5544,54 @@ aura_upkeep_enchantment_event ::= "the" "beginning" "of" "the" "upkeep" "of" "en
 /* @prefer always */
 /* @sem Ability::Triggered{event:ZoneChange{objects:$event_self, to:Battlefield}, limits:_{}, announcement:@announcement, body:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:$exile_shared_battlefield_graveyard_targets}]}}]}} */
 shared_entry_optional_exile_groups ::= "when" event_self "enters" "," "you" "may" exile_shared_battlefield_graveyard_targets "."
+
+/* A controlled entrant is the event subject, independently of its controller. */
+/* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:$controlled_entrant} */
+event_controlled_entrant_zone ::= controlled_entrant "enters"
+
+/* @sem Condition::ObjectMatches{object:EventSubject, filter:Not(MadeBy(Source))} */
+condition_entrant_not_put_by_ability ::= "it" "wasn't" "put" "onto" "the" "battlefield" "with" "this" "ability"
+
+/* The comparison in the hand-entry instruction refers to this event subject. */
+/* @sem Ability::Triggered{event:$event_controlled_entrant_zone, intervening_if:$condition_entrant_not_put_by_ability, limits:_{}, announcement:@announcement, body:_{instructions:$optional_event_stat_hand_entry}} */
+triggered_optional_event_stat_entry ::= "whenever" event_controlled_entrant_zone "," "if" condition_entrant_not_put_by_ability "," optional_event_stat_hand_entry "."
+
+/* A quoted damage trigger keeps its own ability frame. */
+/* @sem Ability::Triggered{event:$event_combat_damage_player, limits:_{}, announcement:@announcement, body:$ring_threshold_recipient_loss} */
+quoted_damage_ring_threshold ::= "whenever" event_combat_damage_player "," ring_threshold_recipient_loss
+
+/* The attachment and creature host are separate event participants. */
+/* @sem EventSpec::Pair{event:BecomesAttachedTo, objects:SameObject($object_ref), others:$attachment_host_creature_filter} */
+shared_attachment_creature_event ::= "whenever" object_ref "becomes" "attached" "to" "a" attachment_host_creature_filter
+
+attachment_host_creature_filter ::= noun_creature | attachment_host_colored_creature
+
+/* @sem @and($adjective_color, $noun_creature) */
+attachment_host_colored_creature ::= adjective_color noun_creature
+
+/* @sem Ability::Triggered{event:$shared_attachment_creature_event, limits:TriggerLimits{}, announcement:@announcement, body:$attachment_host_state_program} */
+shared_attachment_host_trigger ::= shared_attachment_creature_event "," attachment_host_state_program "."
+
+/* Turn events can carry the same resolution payment program as other triggers. */
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$optional_cost_paid_program} */
+turn_optional_cost_paid ::= "at" turn_event "," optional_cost_paid_program
+
+/* The batch and its origin threshold refer to the same event group. */
+/* @sem EventSpec::Batch{event:Player{event:EntersUnderControl, players:All, objects:AllOf([Not(SameObject(Source)), $filter_plural, ControlledBy(One(AbilityController))])}, per:Whole} */
+event_other_controlled_batch_entry ::= "other" filter_plural "you" "control" "enter"
+
+/* @sem Ability::Triggered{event:$event_other_controlled_batch_entry, intervening_if:Compare{left:CountObjects(Matching{objects:EventGroup, filter:$event_group_graveyard_origin_plural}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}, limits:TriggerLimits{per_turn:1}, announcement:@announcement, body:$event_group_copy_program} */
+triggered_batch_origin_once ::= "whenever" value "or" "more" event_other_controlled_batch_entry "," "if" "they" event_group_graveyard_origin_plural "," event_group_copy_program "." "this" "ability" "triggers" "only" "once" "each" "turn" "."
+
+/* The attachment and host are distinct event roles; the comparison reads the attachment. */
+/* @prefer always */
+/* @sem EventSpec::Pair{event:BecomesAttachedTo, objects:AllOf([Subtype(Aura), ControlledBy(One(AbilityController))]), others:AllOf([$adjective_nontype, ControlledBy(OpponentsOf(AbilityController)), Property{property:ManaValue, test:NumberTest::Compare{comparison:$stat_comparison, value:ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown}}}])} */
+event_aura_attachment_value ::= "an" "Aura" "you" "control" "becomes" "attached" "to" "a" adjective_nontype "permanent" "an" "opponent" "controls" "with" "mana" "value" stat_comparison "that" "Aura's" "mana" "value"
+
+/* Compose the event and effect without losing either event role. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_aura_attachment_value, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$gain_control_event_other_while_attached}]}} */
+attachment_value_control_trigger ::= "whenever" event_aura_attachment_value "," gain_control_event_other_while_attached "."
+
+/* @sem Ability::Triggered{event:$event_many_die, limits:TriggerLimits{}, announcement:Announcement{}, body:$program_postfix_sacrifice_callback} */
+triggered_batch_death_postfix_sacrifice ::= "whenever" event_many_die "," program_postfix_sacrifice_callback "."

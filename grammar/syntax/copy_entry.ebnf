@@ -298,3 +298,15 @@ copy_set_enchantment ::= "it's" "an" "enchantment" "and" "loses" "all" "other" "
 /* A token's printed statistics, additional card types and intrinsic keyword. */
 /* @sem Vec<CopyException>::[SetPowerToughness{power:$token_stat, toughness:$token_stat_2}, AddCardTypes([Artifact, Creature]), AddAbilities([@scope($keyword_ability)])] */
 copy_stats_artifact_creature_keyword ::= "it's" "a" token_stat "/" token_stat "artifact" "creature" "in" "addition" "to" "its" "other" "types" "and" "has" keyword_ability
+
+/* A condition and an optional entry-copy action share the entering controller. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_explicit_ref)}, body:Program{instructions:[If{condition:$condition, then:Program{instructions:$entry_copy_optional_actions}, otherwise:Program{}}]}}) */
+conditional_entry_copy_ability ::= "if" condition "," "you" "may" "have" self_explicit_ref "enter" "as" entry_copy_optional_actions
+
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$conditional_entry_copy_action_choices}}] */
+entry_copy_optional_actions ::= conditional_entry_copy_action_choices
+conditional_entry_copy_action_choices ::= conditional_entry_copy_any_actions | entry_copy_actions
+
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_any}, exceptions:$entry_copy_tail})}}] */
+conditional_entry_copy_any_actions ::= "a" "copy" "of" entry_copy_any entry_copy_tail

@@ -6,7 +6,11 @@ mana_clause ::= mana_clause_plain | mana_clause_plain_you | mana_clause_optional
 mana_clause_plain ::= mana_clause_operation
 /* @sem Instruction::[Effect{result:@next, operation:$add_mana}] */
 mana_clause_plain_you ::= "you" add_mana
-mana_clause_operation ::= add_mana | add_mana_player | add_mana_any_combination | mana_add_counted | mana_add_counted_chosen
+mana_clause_operation ::= mana_add_for_target_cards | add_mana | add_mana_player | add_mana_any_combination | mana_add_counted | mana_add_counted_chosen
+
+/* Count the cards in the targeted player's stated zone for each unit. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$count_each_target_private_cards, production:$mana_for_each_existing, choice:Once}} */
+mana_add_for_target_cards ::= "add" mana_for_each_existing "for" "each" count_each_target_private_cards
 
 /* Counted units retain their production and choice independently. */
 /* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$value, production:$mana_production, choice:Once}} */
@@ -266,13 +270,14 @@ static_unspent_mana_becomes ::= "if" "you" "would" "lose" "unspent" "mana" "," "
 /* @sem ManaUse::Purpose(XCost) */
 mana_spend_x_cost ::= "spend" "this" "mana" "only" "on" "costs" "that" "contain" "{" "X" "}"
 
+/* @prefer always */
 /* @sem ManaUse::SpentOn{spells:$filter_phrase, changes:$static_changes, until:EndOfTurn} */
 mana_spent_on_changes_turn ::= "if" "that" "mana" "is" "spent" "on" "a" filter_phrase "spell" "," "it" static_changes "until" "end" "of" "turn"
 
 /* @sem ManaUse::SpentOn{spells:$filter_phrase, changes:$static_changes, until:Indefinite} */
 mana_spent_on_changes_indefinite ::= "if" "that" "mana" "is" "spent" "on" "a" filter_phrase "spell" "," "it" static_changes
 
-mana_spent_on_changes ::= mana_spent_on_changes_turn | mana_spent_on_changes_indefinite
+mana_spent_on_changes ::= mana_spent_on_changes_turn | mana_any_spent_on_changes_turn | mana_spent_on_changes_indefinite
 
 /* Both spend wordings share the same spell filter and entry consequence. */
 /* @sem ManaUse::SpentGives{spells:$mana_spent_counter_head, effects:[Term{family:EnterFlag, form:EntersWithACounter, operands:[Term{family:CounterType, form:PTCounter, operands:[Integer(1), Integer(1)]}]}]} */
@@ -419,3 +424,7 @@ defending_mana_abilities_and_loss ::= "defending" "player" "activate" "a" "mana"
 defending_mana_loss_delayed_program ::= "you" "may" "have" defending_mana_abilities_and_loss "." "if" "you" "do" "," "this" "creature" "assigns" "no" "combat" "damage" this_duration "and" "at" "the" "beginning" "of" "your" "next" "main" "phase" "this" "turn" "," "you" "add" "an" "amount" "of" "{" "C" "}" "equal" "to" "the" "amount" "of" "mana" "that" "player" "lost" "this" "way" "."
 
 mana_spell_keyword ::= keyword_name | kn_devoid
+
+/* Any portion of the produced mana qualifies the spell in the same way. */
+/* @sem ManaUse::SpentOn{spells:$filter_phrase, changes:$static_changes, until:EndOfTurn} */
+mana_any_spent_on_changes_turn ::= "if" "any" "of" "that" "mana" "is" "spent" "on" "a" filter_phrase "spell" "," "it" static_changes "until" "end" "of" "turn"

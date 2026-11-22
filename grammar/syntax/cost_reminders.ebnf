@@ -19,8 +19,16 @@ cycling_cost ::= keyword_cost_parts
 /* @sem Cost::Cost{parts:[...$cost_parts, Discard{count:Constant(1), filter:SameObject(Source)}]} */
 cycling_reminder_cost ::= cost_parts "," "↑" "discard" "this" "card"
 
-/* @sem Ability::Activated{origin:Equip, cost:$keyword_payment, limits:_{sorcery:true}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0}}}]}} */
-keyword_equip ::= "equip" keyword_payment
+/* The target phrase supplies the complete controlled-creature restriction. */
+equip_target_phrase ::= equip_target_creature | equip_target_commander
+/* @prefer always */
+/* @sem ObjectFilter::AllOf([CardType(Creature), ControlledBy(One(AbilityController))]) */
+equip_target_creature ::= "equip"
+/* @sem ObjectFilter::AllOf([CardType(Creature), State(Commander), ControlledBy(One(AbilityController))]) */
+equip_target_commander ::= "equip" "commander"
+
+/* @sem Ability::Activated{origin:Equip, cost:$keyword_payment, limits:_{sorcery:true}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$equip_target_phrase}), index:0}}}]}} */
+keyword_equip ::= equip_target_phrase keyword_payment
 
 /* An equip line with its own once-each-turn limit is a whole ability line. */
 /* @sem Ability::Activated{origin:Equip, cost:Cost{parts:$keyword_mana_parts}, limits:_{once_each_turn:true, sorcery:true}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0}}}]}} */
@@ -115,3 +123,14 @@ keyword_reduced_mana_parts ::= mana_symbols "." "this" "cost" "is" "reduced" "by
 /* Either payment retains its own current operands. */
 /* @sem CostPart::[Choice([$cost, Cost::Cost{parts:[Energy($energy_amount)]}])] */
 keyword_choice_mana_energy ::= "―" "pay" cost "or" energy_amount "."
+
+/* An equip ability retains its target and attaches the source; its conditional cost modifier is shared with other activated abilities. */
+/* @sem Ability::Activated{origin:Equip, cost:$keyword_payment, limits:_{sorcery:true, modifiers:$conditional_activation_reduction}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0}}}]}} */
+equip_conditional_activation_reduction ::= "equip" keyword_payment "." conditional_activation_reduction "."
+
+/* A subtype qualification restricts the equipped creature, independently of payment. */
+/* @sem ObjectFilter::AllOf([CardType(Creature), $subtype]) */
+equip_creature_subtype ::= subtype
+
+/* @sem Ability::Activated{origin:Equip, cost:$keyword_payment, limits:_{sorcery:true}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$equip_creature_subtype, ControlledBy(One(AbilityController))])}), index:0}}}]}} */
+keyword_equip_subtype ::= "equip" equip_creature_subtype keyword_payment
