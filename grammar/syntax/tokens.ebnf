@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted
+token_group ::= token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted
 
 token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle
 
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin
+created_token_name ::= created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1319,3 +1319,48 @@ instructions_return_if_tokens ::= "return" affected "to" "their" "owners'" "hand
 /* Both the comparison and difference refer to this creation. */
 /* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$value, words:CreatingEffect, recipe:CopyEach{objects:$affected, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, If{condition:Compare{left:CountObjects(Recorded(@marked)), test:NumberTest::Compare{comparison:Less, value:$value_2}}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Subtract([$value_2, CountObjects(Created(@marked))]), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
 instructions_copy_fill_tokens ::= "choose" affected "." "for" "each" value "," "create" "a" "token" "that's" "a" "copy" "of" "it" "." "if" "you" "created" "fewer" "than" value "tokens" "this" "way" "," "create" "a" "number" "of" token_recipe "equal" "to" "the" "difference"
+
+/* The two creations share the printed recipe and the same bound spell expenditure. */
+/* @sem Instruction::[Effect{result:@mark, operation:BindValue{value:ManaSpent{object:Source, filter:_{}, aggregation:Count}}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[BoundValue(@marked), BoundValue(@marked)], abilities:$token_abilities}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountCounters(_{recipients:Players(One(Bound(0))), kind:Named(PoisonCounter), information:CurrentOrLastKnown}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}}])), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[BoundValue(@marked), BoundValue(@marked)], abilities:$token_abilities}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+clause_mana_sized_token_poisoned_opponents ::= "create" "an" "X" "/" "X" token_colors token_subtypes token_types "token" "with" token_abilities "," "where" "X" "is" "the" "amount" "of" "mana" "spent" "to" "cast" "this" "spell" "." "then" "for" "each" "opponent" "with" number "or" "more" "poison" "counters" "," "you" "create" "another" "one" "of" "those" "tokens"
+
+/* @sem String::Hornet */
+created_name_hornet ::= "Hornet"
+
+/* The singular token and delayed destruction share the creating result. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe_explicit_name_with}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:Created(@marked), regeneration:true}}]}}}]} */
+program_create_named_token_destroy_end ::= "create" "a" token_recipe_explicit_name_with "." "destroy" "it" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem String::'Moloid' */
+created_name_moloid ::= "Moloid"
+
+/* A named token can finish its intrinsic ability list with a quoted sentence. */
+/* @sem String::'Spark Elemental' */
+created_name_spark_elemental ::= "Spark" "Elemental"
+
+/* @prefer always */
+/* @sem TokenRecipe::@token_abilities($token_recipe_explicit_name, $token_named_end_ability_list) */
+token_named_final_quote ::= token_recipe_explicit_name "." "it" "has" token_named_end_ability_list
+
+/* @sem Ability::[$token_ability, $token_ability_2, @holder($triggered_each_end_step)] */
+token_named_end_ability_list ::= token_ability "," token_ability "," "and" '"' triggered_each_end_step '"' 
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_named_final_quote}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+create_named_final_quote ::= "create" token_amount token_named_final_quote
+
+/* @prefer always */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$create_named_final_quote}]}} */
+activated_named_token_final_quote ::= cost ":" create_named_final_quote
+
+/* The trailing definition supplies the count for the independently described tokens. */
+/* @sem TokenSpec::TokenSpec{amount:$count_plural_attacking_you, words:CreatingEffect, recipe:$token_recipe} */
+token_defined_x_attacking_you ::= "X" token_recipe "," "where" "X" "is" "the" "number" "of" count_plural_attacking_you
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, AttackingDefender(Players(One(AbilityController)))])}) */
+count_plural_attacking_you ::= filter_plural "attacking" "you"
+
+/* The payment receipt and the resulting player count belong to the same
+   opponent loop; the token recipe and sacrifice cost remain independent. */
+/* @sem Instruction::[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:_{instructions:[Effect{result:@next, operation:PayCost{player:Bound(0), cost:$attack_sacrifice_payment, optional:true}}]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:CountPlayers(Intersection([OpponentsOf(AbilityController), Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Not(PlayerTook{player:Bound(0), result:@prior})}])])), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+clause_opponent_token_unless_payment ::= "for" "each" "opponent" "," "you" "create" "a" token_recipe "unless" "that" "player" attack_sacrifice_payment

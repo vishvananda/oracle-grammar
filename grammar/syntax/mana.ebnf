@@ -428,3 +428,10 @@ mana_spell_keyword ::= keyword_name | kn_devoid
 /* Any portion of the produced mana qualifies the spell in the same way. */
 /* @sem ManaUse::SpentOn{spells:$filter_phrase, changes:$static_changes, until:EndOfTurn} */
 mana_any_spent_on_changes_turn ::= "if" "any" "of" "that" "mana" "is" "spent" "on" "a" filter_phrase "spell" "," "it" static_changes "until" "end" "of" "turn"
+
+/* A defined count is bound once, then shared by independent mana branches. */
+/* @sem Instruction::[Effect{result:@mark, operation:BindValue{value:$value}}, ChooseOne{decider:AbilityController, options:[Program{instructions:$defined_mana_branch}, Program{instructions:$defined_mana_branch_2}]}] */
+instructions_defined_mana_choice ::= "add" defined_mana_branch "or" defined_mana_branch "," "where" "X" "is" value
+
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:BoundValue(@marked), production:$mana_production, choice:Once}}}] */
+defined_mana_branch ::= "X" mana_production

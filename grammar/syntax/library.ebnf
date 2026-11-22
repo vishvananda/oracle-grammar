@@ -360,7 +360,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand
+dig_block ::= dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -4812,3 +4812,56 @@ players_fewer_max_search_difference ::= players_singular "who" "controls" "fewer
    control, and shuffles. The selection remains tied to this search. */
 /* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:$search_player, library_owner:$search_player, choices:[$player_search_one_choice]}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player($search_player), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One($search_player)}}] */
 clause_player_search_battlefield ::= search_player "searches" "their" "library" "for" player_search_one_choice "," "puts" "it" search_option_entry "," "then" "shuffles"
+
+/* A revealed match can enter or remain to be put into its owner's hand.
+   The follow-up retains both movement receipts for the library remainder. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$until_entry_filter, count:Constant(1)}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Observed(@marked), filter:$until_entry_filter}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$until_entry_filter}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+until_entry_or_hand_an ::= reveal_until_your_library "an" until_entry_filter "card" "." "you" "may" "put" "that" "card" "onto" "the" "battlefield" "." "if" "you" "don't" "," "put" "it" "into" "your" "hand"
+
+/* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(3), phase:Before}, Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order} */
+reveal_entry_hand_rest ::= "put" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order
+
+/* @sem Instruction::[...$until_entry_or_hand_an, Effect{result:@next, operation:$reveal_entry_hand_rest}] */
+reveal_until_entry_or_hand_remainder ::= until_entry_or_hand_an "." reveal_entry_hand_rest
+
+/* The observation, selected matching card, and remainder share one loop player. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:Bound(0), filter:$card_filter, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:$bound_reveal_destination, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:Bound(0), library_owner:Bound(0), objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:Random}}] */
+bound_reveal_entry_remainder ::= "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" "a" card_filter "card" "," "puts" "it" bound_reveal_destination "," "and" "puts" "the" "rest" "on" "the" "bottom" "of" "their" "library" "in" "a" "random" "order"
+
+/* @sem Instruction::[ForEachPlayer{players:$loop_player_population, binding:0, body:Program{instructions:$bound_reveal_entry_remainder}}] */
+bound_players_reveal_entry ::= loop_player_population bound_reveal_entry_remainder
+
+/* @sem $bound_players_reveal_entry */
+instructions_then_bound_reveal_entry ::= "then" bound_players_reveal_entry
+
+/* @prefer always */
+/* @sem MovementDestination::Battlefield{controller:Player(Bound(0)), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+bound_reveal_entry_destination ::= "onto" "the" "battlefield"
+
+/* @sem MovementDestination::Battlefield{controller:Player(Bound(0)), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}} */
+bound_reveal_entry_tapped_destination ::= "onto" "the" "battlefield" "tapped"
+
+bound_reveal_destination ::= bound_reveal_entry_destination | bound_reveal_entry_tapped_destination
+
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:Bound(0), filter:$card_filter, count:$bound_reveal_plural_number}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:$bound_reveal_destination, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:Bound(0), library_owner:Bound(0), objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:Random}}] */
+bound_reveal_entries_remainder ::= "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" bound_reveal_plural_number card_filter "cards" "," "puts" "them" bound_reveal_destination "," "and" "puts" "the" "rest" "on" "the" "bottom" "of" "their" "library" "in" "a" "random" "order"
+
+/* @sem Instruction::[ForEachPlayer{players:$loop_player_population, binding:0, body:Program{instructions:$bound_reveal_entries_remainder}}] */
+bound_players_reveal_entries ::= loop_player_population bound_reveal_entries_remainder
+
+/* @sem $bound_players_reveal_entries */
+instructions_then_bound_reveal_entries ::= "then" bound_players_reveal_entries
+
+bound_reveal_plural_number ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n11 | n12 | n13 | n14 | n15 | n20 | n30 | number_hundred
+
+/* Keep the random selection, exile and permission in one receipt contract. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:$adjective_nontype}, count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:AnyType, condition:$attacked_type_pair_condition}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}]} */
+program_random_library_conditional_cast ::= "exile" "a" adjective_nontype "card" "from" "their" "library" "at" "random" "." "during" "any" "turn" attacked_type_pair_condition "," "you" "may" "cast" "that" "card" "and" "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "it" "."
+
+/* The singular top-library exile supplies both the conditional change and
+   the permission. Keeping the whole sequence together proves the receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($zone_that_player)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, If{condition:ObjectMatches{object:Result{result:@marked, phase:After, index:0}, filter:AllOf([Not(CardType(Land)), AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])}, then:Program{instructions:[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@marked, phase:After, index:0}), changes:[AddCardType($vowel_card_type)]}}]}, otherwise:Program{}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$duration, evaluation:LiveObjects}}] */
+exile_top_perpetual_type_permission ::= "exile" "the" "top" "card" "of" zone_that_player "library" "." "it" "perpetually" "becomes" "an" vowel_card_type "if" "it's" "a" "nonland" "permanent" "card" "." duration "," "you" "may" "play" "the" "exiled" "card"
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$exile_top_perpetual_type_permission}} */
+triggered_exile_top_perpetual_permission ::= event_clause "," exile_top_perpetual_type_permission "."

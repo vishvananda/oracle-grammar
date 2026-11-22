@@ -2087,3 +2087,16 @@ cost_discard_or_qualified_card ::= cost_discard_an_filtered_card "or" cost_quali
    The selected population and both counter kinds remain independent operands. */
 /* @sem CostPart::Choice([Cost{parts:[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counter_payment_source}), kind:$counter_kind, amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]}]}, Cost{parts:[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$counter_payment_source}), kind:$counter_kind_2, amount:Count(Exactly(Constant(1))), selection:_{player:AbilityController, count:Exactly(Constant(1))}}]}]}]) */
 cost_remove_one_of_two_counter_kinds ::= "remove" "a" counter_kind "counter" "or" "a" counter_kind "counter" "from" counter_payment_source
+
+/* The printed sacrificed creature is the sole creature paid by this activation.
+   Keep that producer and its counted mana symbols in the same ability scope. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$damage_sacrificed_creature_symbols}]}} */
+activated_sacrifice_creature_symbols ::= cost_mana "," "↑" "sacrifice" "a" "creature" ":" damage_sacrificed_creature_symbols "."
+
+/* @sem Operation::DealDamage{source:$damage_source_ref, recipients:$recipients, amount:$sacrificed_creature_symbols, preventable:true} */
+damage_sacrificed_creature_symbols ::= damage_source_ref "deals" "damage" "to" recipients "equal" "to" sacrificed_creature_symbols
+
+/* @sem Expr::CountManaSymbols{objects:Earlier{what:Sacrificed}, colors:[$sacrifice_symbol_color]} */
+sacrificed_creature_symbols ::= "the" "number" "of" sacrifice_symbol_color "mana" "symbols" "in" "the" "sacrificed" "creature's" "mana" "cost"
+
+sacrifice_symbol_color ::= dc_white | dc_blue | dc_black | dc_red | dc_green

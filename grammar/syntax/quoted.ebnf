@@ -2,7 +2,7 @@
    closed productions record that grammatical fact; no punctuation is inserted
    by the tokenizer and an unquoted program still needs its final period. */
 /* A leading time is a program only inside an already announced ability. */
-program_sentence ::= program_sentence_animated_quoted_static | program_exile_copy_return | program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast | program_each_exiles_top_play_permission | program_sentence_graveyard_cast_tax | program_sentence_reveal_die_result | program_sentence_random_hand_type_branch | program_self_bonus_controller_sacrifice | program_sentence_mana_next_entry | program_sentence_if_quoted_type_change | emblem_turn_pair_sentence | program_sentence_each_hand_perpetual | receipt_sacrifice_sentence | program_exile_copy_grant | program_chosen_opponent_permanent_restrictions | counter_target_land_followup_quoted | program_sentence_look_permanents_total_value | program_transform_enchantment_attach_controlled | program_chosen_color_combat_trigger
+program_sentence ::= program_sentence_perpetual_quoted_activation | program_sentence_animated_quoted_static | program_exile_copy_return | program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast | program_each_exiles_top_play_permission | program_sentence_graveyard_cast_tax | program_sentence_reveal_die_result | program_sentence_random_hand_type_branch | program_self_bonus_controller_sacrifice | program_sentence_mana_next_entry | program_sentence_if_quoted_type_change | emblem_turn_pair_sentence | program_sentence_each_hand_perpetual | receipt_sacrifice_sentence | program_exile_copy_grant | program_chosen_opponent_permanent_restrictions | counter_target_land_followup_quoted | program_sentence_look_permanents_total_value | program_transform_enchantment_attach_controlled | program_chosen_color_combat_trigger | program_random_library_conditional_cast
 
 /* This limits a successful performance, not the number of triggers. The
    offer owns the complete coordinated program. Declining it or failing a
@@ -85,8 +85,10 @@ verb_base_quoted_list ::= verb_base_quoted
 /* @sem Instruction::[...$verbs_base, ...$verb_base_quoted_list] */
 verbs_base_before_quoted ::= verbs_base "and" verb_base_quoted_list
 
-/* @sem Instruction::Effect{result:@next, operation:$create_base_quoted} */
-verb_base_quoted ::= create_base_quoted
+/* @sem Instruction::Effect{result:@next, operation:$create_quoted_operation} */
+verb_base_quoted ::= create_quoted_operation
+
+create_quoted_operation ::= create_base_quoted | create_each_defined_leading_quoted
 
 verbs_third_quoted ::= verb_third_quoted_list | verbs_third_before_quoted
 
@@ -124,7 +126,7 @@ token_groups_quoted_last ::= "and" token_group_quoted
 /* @sem TokenSpec::[$token_group, ...$token_groups_quoted_tail] */
 token_groups_quoted_more ::= token_group "," token_groups_quoted_tail
 
-token_group_quoted ::= token_defined_named_after_quoted | token_defined_quoted | token_copy_quoted | token_equal_then_quoted | token_explicit_artifact_quoted
+token_group_quoted ::= token_named_x_quoted | token_defined_named_after_quoted | token_defined_quoted | token_copy_quoted | token_equal_then_quoted | token_explicit_artifact_quoted | token_defined_named_activation_after
 /* @sem TokenSpec::TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe_quoted} */
 token_defined_quoted ::= token_amount token_recipe_quoted
 
@@ -585,3 +587,37 @@ token_creature_recipe_quoted ::= token_creature_statless_singular token_creature
 
 /* @sem $token_abilities_quoted */
 token_creature_description_quoted ::= "." "those" "creatures" "have" token_abilities_quoted
+
+/* A leading live count composes with a recipe whose quoted ability closes the sentence. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:$leading_count_each, words:CreatingEffect, recipe:$token_recipe_quoted}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+create_each_defined_leading_quoted ::= "for" "each" leading_count_each "," "create" "a" token_recipe_quoted
+
+/* The quoted activation already supplies the sentence-final punctuation. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$perpetual_quoted_activation_grant}]} */
+program_sentence_perpetual_quoted_activation ::= perpetual_quoted_activation_grant
+
+/* X describes the named batch; the quoted abilities belong to its tokens. */
+/* @sem TokenSpec::TokenSpec{amount:$value, words:CreatingEffect, recipe:@token_abilities($token_recipe_explicit_name_plural, $named_x_token_abilities)} */
+token_named_x_quoted ::= "X" token_recipe_explicit_name_plural "," "where" "X" "is" value "." "the" "tokens" "have" named_x_token_abilities
+
+/* Prefer the explicit token holder in this quoted creation context. */
+named_x_token_abilities ::= named_x_attack_abilities | token_abilities_quoted
+
+/* @prefer always */
+/* @sem Ability::[$named_x_attack_quote] */
+named_x_attack_abilities ::= named_x_attack_quote
+
+/* @prefer always */
+/* @sem Ability::@holder(Ability::Triggered{event:Object{event:Attacks, objects:SameObject(Source)}, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence}) */
+named_x_attack_quote ::= '"' "whenever" "this" "token" "attacks" "," program_sentence '"'
+
+/* A singular named token can state an intrinsic activation in a following sentence. */
+/* @prefer always */
+/* @sem TokenSpec::TokenSpec{amount:$named_token_singular_amount, words:CreatingEffect, recipe:@token_abilities($token_recipe_explicit_name, $token_named_activation_abilities)} */
+token_defined_named_activation_after ::= named_token_singular_amount token_recipe_explicit_name "." "it" "has" token_named_activation_abilities
+
+/* @sem Ability::[$token_named_activation_quote] */
+token_named_activation_abilities ::= token_named_activation_quote
+
+/* @sem Ability::@holder($activated_ability) */
+token_named_activation_quote ::= '"' activated_ability '"'

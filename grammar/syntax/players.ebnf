@@ -180,7 +180,7 @@ player_prohibit_named_spells ::= "cast" "spells" "with" "the" "chosen" "name"
    so all players perform one action before the next grouped action starts. */
 /* @sem @apply($announced_many_players, $uniform_player_verbs) */
 instructions_announced_players ::= announced_many_players "each" uniform_player_verbs
-announced_many_players ::= announced_all_players | announced_opponents
+announced_many_players ::= announced_all_players | announced_opponents | controller_and_scoped_players
 /* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:All})) */
 announced_all_players ::= "any" "number" "of" "target" "players"
 /* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:OpponentsOf(AbilityController)})) */
@@ -196,12 +196,12 @@ static_spell_keywords ::= spell_holders ("has" | "have") grants "."
 
 /* A bulk operation shares one fixed amount. Personal/query-based quantities
    retain the existing explicit ForEachPlayer contract. */
-uniform_player_verbs ::= uniform_player_one | uniform_player_more
+uniform_player_verbs ::= uniform_player_one | uniform_player_more | uniform_player_then
 /* @sem Instruction::[Effect{result:@next, operation:$uniform_player_operation}] */
 uniform_player_one ::= uniform_player_operation
 /* @sem Instruction::[...$uniform_player_one, ...$uniform_player_verbs] */
 uniform_player_more ::= uniform_player_one "and" uniform_player_verbs
-uniform_player_operation ::= uniform_mill_defined | uniform_mill | uniform_draw | uniform_discard | uniform_gain | uniform_lose
+uniform_player_operation ::= uniform_mill_defined | uniform_mill | uniform_draw | uniform_discard | uniform_discard_random | uniform_gain | uniform_lose
 /* @sem Operation::Mill{players:@subject, amount:$uniform_card_count} */
 uniform_mill ::= "mill" uniform_card_count
 /* @sem Operation::Draw{players:@subject, amount:$uniform_card_count} */
@@ -582,3 +582,23 @@ target_active_opponent ::= "target" "opponent" "whose" "turn" "it" "is"
 /* Each qualifying player's own life-loss total supplies the threshold. */
 /* @sem PlayerSet::Intersection([$players_singular, Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:LosesLife, players:One(Bound(0))}, window:ThisTurn, measure:TotalAmount}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}}]) */
 players_lost_life_threshold ::= players_singular "who" "lost" value "or" "more" "life" "this" "turn"
+
+/* The defender is bound independently from the attacking object. */
+/* @sem PlayerSet::Matching{binding:0, condition:PlayerDid{player:Bound(0), event:AttackedBy(SameObject($object_ref)), window:ThisTurn}} */
+players_attacked_by_ref_this_turn ::= "each" "player" object_ref "attacked" "this" "turn"
+
+/* @sem PlayerSet::Matching{binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Life}, test:NumberTest::Compare{comparison:Equal, value:$value}}} */
+players_exact_life ::= "each" "player" "with" "exactly" value "life"
+
+/* Opponents attacking the named defender, bound for a following action. */
+/* @sem PlayerSet::Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:PlayerAttacks{attacker:Bound(0), defender:$player_ref}}]) */
+players_opponents_attacking ::= "each" "opponent" "attacking" player_ref
+
+/* @sem PlayerSet::Union([One(AbilityController), Matching{binding:0, condition:PlayerIn{player:Bound(0), players:Scoped}}]) */
+controller_and_scoped_players ::= "you" "and" "those" "players"
+
+/* @sem Instruction::[...$uniform_player_one, ...$uniform_player_verbs] */
+uniform_player_then ::= uniform_player_one "," "then" uniform_player_verbs
+
+/* @sem Operation::Discard{players:@subject, amount:$uniform_card_count, random:true} */
+uniform_discard_random ::= "discard" uniform_card_count "at" "random"

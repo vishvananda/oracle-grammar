@@ -1,0 +1,967 @@
+{
+  "family": "stack-copy-exception-composition",
+  "cases": [
+    {
+      "name": "Iron Man, Bleeding Edge",
+      "text": "Flying\nWhenever you cast an artifact spell, you may copy it, except the copy isn't legendary. Do this only once each turn.",
+      "types": [
+        "Artifact",
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "CardType",
+                  "args": "Artifact"
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PlayersDo",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "any_one": false,
+                        "optional": true,
+                        "once_each_turn": true,
+                        "body": [
+                          {
+                            "kind": "Program",
+                            "args": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 0,
+                                    "operation": {
+                                      "kind": "CopyOnStack",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "object": {
+                                          "kind": "EventSubject"
+                                        },
+                                        "times": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        },
+                                        "targets": "Same",
+                                        "exceptions": [
+                                          {
+                                            "kind": "RemoveSupertypes",
+                                            "args": [
+                                              "Legendary"
+                                            ]
+                                          }
+                                        ],
+                                        "card": null
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "otherwise": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Jackal, Genius Geneticist",
+      "text": "Trample\nWhenever you cast a creature spell with mana value equal to Jackal's power, copy that spell, except the copy isn't legendary. Then put a +1/+1 counter on Jackal.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "Property",
+                      "args": {
+                        "property": "ManaValue",
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "ObjectProperty",
+                              "args": {
+                                "object": {
+                                  "kind": "Source"
+                                },
+                                "property": "Power",
+                                "information": "CurrentOrLastKnown"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CopyOnStack",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "object": {
+                          "kind": "EventSubject"
+                        },
+                        "times": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "targets": "Same",
+                        "exceptions": [
+                          {
+                            "kind": "RemoveSupertypes",
+                            "args": [
+                              "Legendary"
+                            ]
+                          }
+                        ],
+                        "card": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "PowerToughness": [
+                                1,
+                                1
+                              ]
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "The Sixth Doctor",
+      "text": "Whenever you cast a historic spell, copy it, except the copy isn't legendary. This ability triggers only once each turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AnyOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Artifact"
+                    },
+                    {
+                      "kind": "Supertype",
+                      "args": "Legendary"
+                    },
+                    {
+                      "kind": "Subtype",
+                      "args": "Saga"
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": 1,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CopyOnStack",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "object": {
+                          "kind": "EventSubject"
+                        },
+                        "times": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "targets": "Same",
+                        "exceptions": [
+                          {
+                            "kind": "RemoveSupertypes",
+                            "args": [
+                              "Legendary"
+                            ]
+                          }
+                        ],
+                        "card": null
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Iron Man, Bleeding Edge",
+      "text": "Flying\nWhenever you cast an artifact spell, you may copy it, except the copy is an artifact in addition to its other types. Do this only once each turn.",
+      "types": [
+        "Artifact",
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "CardType",
+                  "args": "Artifact"
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PlayersDo",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "any_one": false,
+                        "optional": true,
+                        "once_each_turn": true,
+                        "body": [
+                          {
+                            "kind": "Program",
+                            "args": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 0,
+                                    "operation": {
+                                      "kind": "CopyOnStack",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "object": {
+                                          "kind": "EventSubject"
+                                        },
+                                        "times": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        },
+                                        "targets": "Same",
+                                        "exceptions": [
+                                          {
+                                            "kind": "AddCardTypes",
+                                            "args": [
+                                              "Artifact"
+                                            ]
+                                          }
+                                        ],
+                                        "card": null
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "otherwise": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Unrelated Example",
+      "text": "Whenever you cast an artifact spell, copy it, except the copy is legendary.",
+      "reject": true
+    },
+    {
+      "name": "Jackal, Genius Geneticist",
+      "text": "Trample\nWhenever you cast an artifact spell with mana value equal to Jackal's power, copy that spell, except the copy isn't legendary. Then put a +1/+1 counter on Jackal.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Scientist",
+          "Villain"
+        ],
+        "mana_cost": [
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          1
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Artifact"
+                    },
+                    {
+                      "kind": "Property",
+                      "args": {
+                        "property": "ManaValue",
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "ObjectProperty",
+                              "args": {
+                                "object": {
+                                  "kind": "Source"
+                                },
+                                "property": "Power",
+                                "information": "CurrentOrLastKnown"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CopyOnStack",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "object": {
+                          "kind": "EventSubject"
+                        },
+                        "times": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "targets": "Same",
+                        "exceptions": [
+                          {
+                            "kind": "RemoveSupertypes",
+                            "args": [
+                              "Legendary"
+                            ]
+                          }
+                        ],
+                        "card": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "PowerToughness": [
+                                1,
+                                1
+                              ]
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Jackal, Genius Geneticist",
+      "text": "Trample\nWhenever you cast a creature spell with mana value equal to Jackal's toughness, copy that spell, except the copy isn't legendary. Then put a +1/+1 counter on Jackal.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Scientist",
+          "Villain"
+        ],
+        "mana_cost": [
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          1
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "Property",
+                      "args": {
+                        "property": "ManaValue",
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "ObjectProperty",
+                              "args": {
+                                "object": {
+                                  "kind": "Source"
+                                },
+                                "property": "Toughness",
+                                "information": "CurrentOrLastKnown"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CopyOnStack",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "object": {
+                          "kind": "EventSubject"
+                        },
+                        "times": {
+                          "kind": "Constant",
+                          "args": 1
+                        },
+                        "targets": "Same",
+                        "exceptions": [
+                          {
+                            "kind": "RemoveSupertypes",
+                            "args": [
+                              "Legendary"
+                            ]
+                          }
+                        ],
+                        "card": null
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Source"
+                                }
+                              }
+                            },
+                            "kind": {
+                              "PowerToughness": [
+                                1,
+                                1
+                              ]
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Iron Man, Bleeding Edge",
+      "text": "Flying\nWhenever you cast a creature spell, you may copy it, except the copy isn't legendary. Do this only once each turn.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Artifact",
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Hero"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          3,
+          5
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "CardType",
+                  "args": "Creature"
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PlayersDo",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "any_one": false,
+                        "optional": true,
+                        "once_each_turn": true,
+                        "body": [
+                          {
+                            "kind": "Program",
+                            "args": {
+                              "instructions": [
+                                {
+                                  "kind": "Effect",
+                                  "args": {
+                                    "result": 0,
+                                    "operation": {
+                                      "kind": "CopyOnStack",
+                                      "args": {
+                                        "actor": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "AbilityController"
+                                          }
+                                        },
+                                        "object": {
+                                          "kind": "EventSubject"
+                                        },
+                                        "times": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        },
+                                        "targets": "Same",
+                                        "exceptions": [
+                                          {
+                                            "kind": "RemoveSupertypes",
+                                            "args": [
+                                              "Legendary"
+                                            ]
+                                          }
+                                        ],
+                                        "card": null
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ],
+                        "otherwise": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

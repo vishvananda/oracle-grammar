@@ -973,7 +973,7 @@ controlled_explore_replacement ::= controlled_explore_event "," explore_twice_re
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_modification}) */
 entry_modified ::= object_ref "enters" entry_modification "."
 
-entry_modification ::= entry_convoked_counters | entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse | entry_foretold_counters
+entry_modification ::= entry_convoked_counters | entry_two_counter_kinds | entry_counter_for_each | entry_tapped_and_counters | entry_tapped_single_counter | entry_single_counter_her | entry_opponent_controller | entry_tapped_unless_either | entry_tapped_unless_either_reverse | entry_foretold_counters | entry_many_counters_him | entry_plural_counters_her | entry_counters_per_paired_mana | entry_escape_counter_alternative
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]} */
 entry_tapped_and_counters ::= "tapped" "and" "with" value counter_kind "counters" "on" "it"
@@ -2013,7 +2013,17 @@ replacement_owned_zone_redirect ::= "if" replacement_owned_death_or_card "," rep
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_graveyard_event, body:$replacement_zone_program} */
 replacement_zone_redirect ::= "if" replacement_graveyard_event "," replacement_zone_program "."
 
-replacement_graveyard_event ::= replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard
+replacement_graveyard_event ::= replacement_owned_battlefield_graveyard | replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard | replacement_your_card_graveyard | replacement_controlled_card_graveyard
+
+/* A singular object headed to its owner's graveyard retains its owner independently
+   of its battlefield controller. The two subtype words both constrain that object. */
+/* @sem ObjectFilter::AllOf([$creature_subtype, $creature_subtype_2]) */
+graveyard_two_creature_types ::= creature_subtype creature_subtype
+
+replacement_owned_graveyard_filter ::= graveyard_two_creature_types | filter_phrase
+
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf([$replacement_owned_graveyard_filter, OwnedBy(One(AbilityController))]), from:Battlefield, to:Graveyard} */
+replacement_owned_battlefield_graveyard ::= "a" replacement_owned_graveyard_filter "would" "be" "put" "into" "your" "graveyard" "from" "the" "battlefield"
 
 /* @sem ReplacementEvent::ZoneChange{objects:AllOf([Not(Token), $filter_phrase, ControlledBy(OpponentsOf(AbilityController))]), from:Battlefield, to:Graveyard} */
 replacement_death_controlled ::= "a" "nontoken" filter_phrase "an" "opponent" "controls" "would" "die"
@@ -2024,10 +2034,11 @@ replacement_owned_death_or_card ::= "a" "nontoken" filter_phrase "an" "opponent"
 /* @sem ReplacementEvent::ZoneChange{objects:AllOf([Any, OwnedBy(All)]), from:Battlefield, to:Graveyard} */
 replacement_permanent_graveyard ::= "a" "permanent" "would" "be" "put" "into" "a" "graveyard"
 
+/* @prefer always */
 /* @sem ReplacementEvent::ZoneChange{objects:AllOf([Any, OwnedBy(OpponentsOf(AbilityController)), Not(Token)]), to:Graveyard} */
 replacement_opponent_card_graveyard ::= "a" "card" "would" "be" "put" "into" "an" "opponent's" "graveyard" "from" "anywhere"
 
-replacement_zone_program ::= replacement_exile_it | replacement_exile_that_card | replacement_exile_gain_life
+replacement_zone_program ::= replacement_exile_it | replacement_exile_that_card | replacement_exile_gain_life | replacement_exile_card_and_operation
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]} */
 replacement_exile_it ::= "exile" "it" "instead"
@@ -3331,3 +3342,92 @@ controlled_entry_counters_and_type ::= singular_other_controlled_entry singular_
 /* The subject of this replacement is the player enchanted by its holder. */
 /* @sem Ability::Replacement{active:Battlefield, event:Player{event:LoseLife, players:One(EnchantedBy(Source))}, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:LoseLife{players:One(EventSubject), amount:Multiply([$replacement_life_factor, EventAmount])}}]}} */
 replacement_enchanted_life_factor ::= "if" "enchanted" "player" "would" "lose" "life" "," "they" "lose" replacement_life_factor "that" "much" "life" "instead" "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}, Effect{result:@next, operation:$operation}]} */
+replacement_exile_card_and_operation ::= "instead" "exile" "that" "card" "and" operation
+
+/* The card descriptor and the owner of its destination remain independent operands. */
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf([$replacement_card_descriptor, OwnedBy(One(AbilityController)), Not(Token)]), to:$enchanted_player_card_zone} */
+replacement_your_card_graveyard ::= "a" replacement_card_descriptor "would" "be" "put" "into" "your" enchanted_player_card_zone "from" "anywhere"
+
+replacement_card_descriptor ::= replacement_any_card | replacement_creature_card | replacement_land_card
+
+/* @sem ObjectFilter::Any */
+replacement_any_card ::= "card"
+
+/* @sem ObjectFilter::$noun_creature */
+replacement_creature_card ::= noun_creature "card"
+
+/* @sem ObjectFilter::$noun_land */
+replacement_land_card ::= noun_land "card"
+
+/* The controller at the event and the graveyard's owner are independent. */
+/* @prefer always */
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf(@unordered([$replacement_card_controller, $replacement_graveyard_owner, Not(Token)])), to:Graveyard} */
+replacement_controlled_card_graveyard ::= "a" "card" replacement_card_controller "would" "be" "put" "into" replacement_graveyard_owner "graveyard" "from" "anywhere"
+
+replacement_card_controller ::= replacement_card_not_yours | replacement_card_yours
+
+/* @sem ObjectFilter::ControlledBy(OthersThan(AbilityController)) */
+replacement_card_not_yours ::= "you" "didn't" "control"
+
+/* @sem ObjectFilter::ControlledBy(One(AbilityController)) */
+replacement_card_yours ::= "you" "controlled"
+
+replacement_graveyard_owner ::= replacement_graveyard_opponent_owner | replacement_graveyard_your_owner
+
+/* @sem ObjectFilter::OwnedBy(OpponentsOf(AbilityController)) */
+replacement_graveyard_opponent_owner ::= "an" "opponent's"
+
+/* @sem ObjectFilter::OwnedBy(One(AbilityController)) */
+replacement_graveyard_your_owner ::= "your"
+
+/* The creature antecedent belongs to the pending death event. */
+/* @sem ReplacementEvent::ZoneChange{objects:@and($noun_creature, $death_creature_controller), from:Battlefield, to:Graveyard} */
+death_creature_controlled_event ::= "a" noun_creature death_creature_controller "would" "die"
+
+death_creature_controller ::= modifier_opponent_controls | modifier_you_control
+
+/* The modified event records the creature used by the following property query. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}, Effect{result:@next, operation:$returned_creature_property_counters}]} */
+death_exile_property_counter_outcome ::= "instead" "exile" "it" "and" returned_creature_property_counters
+
+/* @sem Ability::Replacement{active:Battlefield, event:$death_creature_controlled_event, body:$death_exile_property_counter_outcome} */
+death_creature_property_counter_replacement ::= "if" death_creature_controlled_event "," death_exile_property_counter_outcome "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$number})}}]} */
+entry_many_counters_him ::= "with" number counter_kind "counters" "on" "him"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$number})}}]} */
+entry_plural_counters_her ::= "with" number counter_kind "counters" "on" "her"
+
+/* Paired colored mana counts preserve the spell and the color being counted. */
+/* @sem Expr::Divide{numerator:ManaSpent{object:$object_ref, filter:_{colors:[$paired_mana_color]}, aggregation:Count}, denominator:Constant(2), rounding:Down} */
+entry_paired_mana_count ::= paired_mana_color "spent" "to" "cast" object_ref
+
+paired_mana_color ::= paired_mana_white | paired_mana_blue | paired_mana_black | paired_mana_red | paired_mana_green
+
+/* @sem ManaColor::White */
+paired_mana_white ::= "{" "W" "}" "{" "W" "}"
+
+/* @sem ManaColor::Blue */
+paired_mana_blue ::= "{" "U" "}" "{" "U" "}"
+
+/* @sem ManaColor::Black */
+paired_mana_black ::= "{" "B" "}" "{" "B" "}"
+
+/* @sem ManaColor::Red */
+paired_mana_red ::= "{" "R" "}" "{" "R" "}"
+
+/* @sem ManaColor::Green */
+paired_mana_green ::= "{" "G" "}" "{" "G" "}"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters{kind:$counter_kind, amount:Multiply([$value, $entry_paired_mana_count])}}}]} */
+entry_counters_per_paired_mana ::= "with" value counter_kind "counters" "on" "it" "for" "each" entry_paired_mana_count
+
+/* Both counter clauses modify the same entering event; the alternative tests its subject. */
+/* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:$it_ordinary_pronoun, filter:State(Escaped)}, then:Program{instructions:[Effect{result:@next, operation:$entry_plural_counter_change_2}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$entry_plural_counter_change}]}}]} */
+entry_escape_counter_alternative ::= entry_plural_counter_change "." it_ordinary_pronoun "escapes" entry_plural_counter_change "instead"
+
+/* @sem Operation::ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})} */
+entry_plural_counter_change ::= "with" value counter_kind "counters" "on" "it"
