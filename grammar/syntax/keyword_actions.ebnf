@@ -1,8 +1,8 @@
 /* Keyword actions the ability's controller performs. A single application
    keeps the native absent amount; counted applications retain theirs. */
-keyword_action ::= roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | reverse_turn_order | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase | additional_phase_after | skip_next_your_part | you_skip_next_your_part | game_outcome | become_day_action | become_night_action
+keyword_action ::= roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | reverse_turn_order | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase | additional_phase_after | skip_next_your_part | you_skip_next_your_part | game_outcome | become_day_action | become_night_action | controller_incubates_defined
 
-investigate_action ::= investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times
+investigate_action ::= investigate_for_population | investigate_for_life_loss | investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{}} */
 investigate_once ::= "investigate"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:Constant(2)}} */
@@ -180,7 +180,7 @@ object_endures ::= object_ref "endures" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Saddle{object:$object_ref}} */
 object_becomes_saddled ::= object_ref "becomes" "saddled" "until" "end" "of" "turn"
 
-group_keyword_action ::= selected_group_keyword_action | goad_group_reference | goad_created_indefinitely | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions | shared_keyword_imperative | shared_opponent_keyword | shared_singular_keyword | detain_target_group | phase_out_chosen_population | each_phases_out | goad_named_for_object
+group_keyword_action ::= selected_group_keyword_action | goad_group_reference | goad_created_indefinitely | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions | shared_keyword_imperative | shared_opponent_keyword | shared_singular_keyword | detain_target_group | phase_out_chosen_population | each_phases_out | goad_named_for_object | phase_out_composed_population
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$affected} */
 affected_phase_out ::= affected "phase" "out"
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Connive, objects:$affected} */
@@ -402,3 +402,28 @@ become_day_action ::= "it" "becomes" "day"
 
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::BecomeNight} */
 become_night_action ::= "it" "becomes" "night"
+
+/* Counted investigations share ordinary population and history operands. */
+/* @sem Expr::CountObjects($affected) */
+investigate_object_count ::= affected
+
+/* @sem Expr::CountPlayers(Intersection([$players_singular, Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:LosesLife, players:One(Bound(0))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}])) */
+investigate_life_loss_count ::= players_singular "who" "lost" "life" "this" "turn"
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:$investigate_object_count}} */
+investigate_for_population ::= "investigate" "once" "for" investigate_object_count
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:$investigate_life_loss_count}} */
+investigate_for_life_loss ::= "investigate" "for" investigate_life_loss_count
+
+/* The X definition is reusable by counted keyword actions. */
+/* @sem $value */
+keyword_defined_x ::= "X" "," "where" "X" "is" value
+
+/* @sem Operation::Keyword{actor:One(ControllerOf(@it)), action:KeywordAction::Incubate{amount:$keyword_defined_x}} */
+controller_incubates_defined ::= "its" "controller" "incubates" keyword_defined_x
+
+phase_out_population ::= objects_all_of_that_type | objects_any_other_event_targets_controlled | objects_unchosen_except_reference
+
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$phase_out_population} */
+phase_out_composed_population ::= phase_out_population "phase" "out"

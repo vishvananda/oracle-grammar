@@ -98,7 +98,7 @@ replacement_plus_damage ::= "if" damage_event "," "it" "deals" "that" "much" "da
 /* @sem Ability::Replacement{active:Battlefield, event:$damage_event, body:Program{instructions:[Instruction::Effect{result:@next, operation:Operation::ModifyEvent{change:PreventAllButDamage($number)}}]}} */
 replacement_prevent_all_but ::= "if" damage_event "," "prevent" "all" "but" number "of" "that" "damage" "."
 
-damage_event ::= damage_event_colored_spell | spell_self_damage_event | generic_damage_event
+damage_event ::= damage_event_colored_spell | spell_self_damage_event | generic_damage_event | attached_damage_event | attached_damage_event_to
 
 /* A damage source of any kind: a spell, a permanent or a card. */
 damage_source ::= source_any | source_yours | source_opponents | source_yours_except | source_another_yours
@@ -2918,3 +2918,41 @@ chosen_flip_source_scaled ::= "the" "next" "time" "that" "source" "would" "deal"
 
 /* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@marked, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$prevented_body_plain} */
 chosen_flip_source_prevent ::= "the" "next" "time" "it" "would" "deal" "damage" this_duration "," prevented_body_plain
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:2}}}]} */
+replacement_token_double_outcome ::= "twice" "that" "many" "of" "those" "tokens" "are" "created" "instead"
+
+temporary_token_event ::= owned_token_event | replacement_filtered_token_event
+
+temporary_token_outcome ::= replacement_token_double_outcome | replacement_token_triple_outcome | replacement_extra_token_outcome
+
+/* @sem Operation::CreateReplacement{event:$temporary_token_event, limit:UntilExpired, duration:$duration, body:$temporary_token_outcome} */
+temporary_token_replacement ::= duration "," "if" temporary_token_event "," temporary_token_outcome
+
+/* An attached source and the recipient scope remain independent operands. */
+/* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($attached_ref), recipients:Any, kind:$event_damage_kind, grouping:SourceRecipient, subject:Recipient}) */
+attached_damage_event ::= attached_ref "would" "deal" event_damage_kind
+
+/* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($attached_ref), recipients:ObjectsAndPlayers{objects:$filter_phrase, players:All}, kind:$event_damage_kind, grouping:SourceRecipient, subject:Recipient}) */
+attached_damage_event_to ::= attached_ref "would" "deal" event_damage_kind "to" "a" filter_phrase "or" "player"
+
+/* The optional choice owns the selected object's receipt used by the copy.
+   The event amount remains the amount of the original creation event. */
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Replacement{active:Battlefield, event:$first_created_tokens_your_turn, body:$optional_chosen_copy_replacement}]} */
+conditional_first_created_token_copy ::= first_created_tokens_your_turn "," optional_chosen_copy_replacement "."
+
+/* @sem ReplacementEvent::FirstEachTurn(Tokens{tokens:Any, creators:One(AbilityController)}) */
+first_created_tokens_your_turn ::= "the" "first" "time" "you" "would" "create" "one" "or" "more" "tokens" "during" "each" "of" "your" "turns"
+
+optional_chosen_copy_replacement ::= optional_chosen_creature_copy | optional_chosen_permanent_copy
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$chosen_copy_creature_filter}, count:AsManyAsCan(Constant(1))}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:0, tokens:[_{amount:EventAmount, words:CreatingEffect, recipe:Copy{object:Result{result:@prior, phase:After, index:0}, exceptions:[]}}]}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1}}}]}}]} */
+optional_chosen_creature_copy ::= "you" "may" "instead" "choose" "a" chosen_copy_creature_filter "and" "create" "that" "many" "tokens" "that" "are" "copies" "of" "that" "creature"
+
+chosen_copy_creature_filter ::= noun_creature | chosen_copy_modified_creature
+
+/* @sem @and($noun_creature, $modifiers) */
+chosen_copy_modified_creature ::= noun_creature modifiers
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, count:AsManyAsCan(Constant(1))}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:0, tokens:[_{amount:EventAmount, words:CreatingEffect, recipe:Copy{object:Result{result:@prior, phase:After, index:0}, exceptions:[]}}]}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:ReplaceTokens{copies:1}}}]}}]} */
+optional_chosen_permanent_copy ::= "you" "may" "instead" "choose" "a" filter_phrase "and" "create" "that" "many" "tokens" "that" "are" "copies" "of" "that" "permanent"

@@ -1,0 +1,1475 @@
+{
+  "family": "retirement-53c0203a138d1547",
+  "cases": [
+    {
+      "name": "Reward the Faithful",
+      "text": "Any number of target players each gain life equal to the greatest mana value among permanents you control.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": "AnyNumber",
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "All"
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "amount": {
+                          "kind": "Aggregate",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Shared": "Battlefield"
+                                },
+                                "kind": "Permanent",
+                                "filter": {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "property": "ManaValue",
+                            "aggregation": "Maximum"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Temporary Truce",
+      "text": "Each player may draw up to two cards. For each card less than two a player draws this way, that player gains 2 life.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "All"
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "DrawUpTo",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "All"
+                        },
+                        "amount": {
+                          "kind": "Multiply",
+                          "args": [
+                            {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            {
+                              "kind": "Subtract",
+                              "args": [
+                                {
+                                  "kind": "Constant",
+                                  "args": 2
+                                },
+                                {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "MovedBy",
+                                    "args": {
+                                      "result": 0,
+                                      "phase": "After",
+                                      "player": {
+                                        "kind": "Acting"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Dune Chanter",
+      "text": "Reach\nLands you control and land cards you own that aren't on the battlefield are Deserts in addition to their other types.\nLands you control have \"{T}: Add one mana of any color.\"\n{T}: Mill two cards. You gain 1 life for each land card milled this way.",
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Reach"
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Land"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "AddLandType",
+                "args": "Desert"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "AnyZone",
+                "args": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Land"
+                    },
+                    {
+                      "kind": "OwnedBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "InZone",
+                        "args": {
+                          "Shared": "Battlefield"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "AddLandType",
+                "args": "Desert"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Land"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "GrantAbility",
+                "args": {
+                  "kind": "Activated",
+                  "args": {
+                    "origin": "Ordinary",
+                    "cost": {
+                      "parts": [
+                        "TapSymbol"
+                      ]
+                    },
+                    "limits": {
+                      "once": false,
+                      "once_each_turn": false,
+                      "sorcery": false,
+                      "condition": null,
+                      "activators": null,
+                      "keyword": null,
+                      "modifiers": []
+                    },
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "AddMana",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "mana": {
+                                  "ChooseOne": [
+                                    {
+                                      "Amount": {
+                                        "color": "White",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "Amount": {
+                                        "color": "Blue",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "Amount": {
+                                        "color": "Black",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "Amount": {
+                                        "color": "Red",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "Amount": {
+                                        "color": "Green",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "restriction": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 2
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "CardType",
+                                "args": "Land"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Gorging Vulture",
+      "text": "Flying\nWhen this creature enters, mill four cards. You gain 1 life for each creature card milled this way.",
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 4
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "CardType",
+                                "args": "Creature"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Tymaret, Chosen from Death",
+      "text": "Tymaret's toughness is equal to your devotion to black.\n{1}{B}: Exile up to two target cards from graveyards. You gain 1 life for each creature card exiled this way.",
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": {
+              "CharacteristicDefining": {
+                "keyword": null,
+                "contributes_to_color_identity": true
+              }
+            },
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "Source"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "SetToughness",
+                "args": {
+                  "kind": "CountManaSymbols",
+                  "args": {
+                    "objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "ControlledBy",
+                          "args": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "colors": [
+                      "Black"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 1
+                    },
+                    {
+                      "Color": "Black"
+                    }
+                  ]
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Card",
+                      "zones": [
+                        "Graveyard"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "UpTo": {
+                      "kind": "Constant",
+                      "args": 2
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Targets",
+                          "args": 0
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "CardType",
+                                "args": "Creature"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Angel of Destiny",
+      "text": "Whenever a creature you control deals combat damage to a player, you and that player each gain that much life.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "Union",
+                          "args": [
+                            {
+                              "kind": "One",
+                              "args": {
+                                "kind": "AbilityController"
+                              }
+                            },
+                            {
+                              "kind": "One",
+                              "args": {
+                                "kind": "EventSubject"
+                              }
+                            }
+                          ]
+                        },
+                        "amount": {
+                          "kind": "EventAmount"
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Invalid life gain",
+      "text": "You gain life for each card less than.",
+      "reject": true
+    },
+    {
+      "name": "Dune Chanter",
+      "text": "Reach\nLands you control and land cards you own that aren't on the battlefield are Deserts in addition to their other types.\nLands you control have \"{T}: Add one mana of any color.\"\n{T}: Mill two cards. You gain 1 life for each creature card milled this way.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Plant",
+          "Druid"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Reach"
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Land"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "AddLandType",
+                "args": "Desert"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "AnyZone",
+                "args": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Land"
+                    },
+                    {
+                      "kind": "OwnedBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "InZone",
+                        "args": {
+                          "Shared": "Battlefield"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "AddLandType",
+                "args": "Desert"
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "Zone",
+                "args": {
+                  "scope": {
+                    "Shared": "Battlefield"
+                  },
+                  "kind": "Permanent",
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Land"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "GrantAbility",
+                "args": {
+                  "kind": "Activated",
+                  "args": {
+                    "origin": "Ordinary",
+                    "cost": {
+                      "parts": [
+                        "TapSymbol"
+                      ]
+                    },
+                    "limits": {
+                      "once": false,
+                      "once_each_turn": false,
+                      "sorcery": false,
+                      "condition": null,
+                      "activators": null,
+                      "keyword": null,
+                      "modifiers": []
+                    },
+                    "announcement": {
+                      "targets": [],
+                      "modes": null
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "AddMana",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "mana": {
+                                  "ChooseOne": [
+                                    {
+                                      "Amount": {
+                                        "color": "White",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "Amount": {
+                                        "color": "Blue",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "Amount": {
+                                        "color": "Black",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "Amount": {
+                                        "color": "Red",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "Amount": {
+                                        "color": "Green",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "restriction": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 2
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "CardType",
+                                "args": "Creature"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Gorging Vulture",
+      "text": "Flying\nWhen this creature enters, mill four cards. You gain 1 life for each land card milled this way.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Bird"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Flying"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Mill",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 4
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Transition",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "After"
+                                }
+                              },
+                              "filter": {
+                                "kind": "CardType",
+                                "args": "Land"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Temporary Truce",
+      "text": "Each player may draw up to two cards. For each card less than two a player draws this way, that player gains 3 life.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "All"
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "DrawUpTo",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "GainLife",
+                      "args": {
+                        "players": {
+                          "kind": "All"
+                        },
+                        "amount": {
+                          "kind": "Multiply",
+                          "args": [
+                            {
+                              "kind": "Constant",
+                              "args": 3
+                            },
+                            {
+                              "kind": "Subtract",
+                              "args": [
+                                {
+                                  "kind": "Constant",
+                                  "args": 2
+                                },
+                                {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "MovedBy",
+                                    "args": {
+                                      "result": 0,
+                                      "phase": "After",
+                                      "player": {
+                                        "kind": "Acting"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

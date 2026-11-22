@@ -1872,3 +1872,13 @@ casting_history_drawn_card ::= "card" "you've" "drawn" "this" "turn"
 /* Sacrifice events only apply to permanents, irrespective of their controller. */
 /* @sem Expr::EventHistory{event:Player{event:Sacrifices, players:All, objects:Any}, window:ThisTurn, measure:Occurrences} */
 casting_history_sacrificed_permanent ::= "permanent" "sacrificed" "this" "turn"
+
+/* The payment is explicitly the sole removal component of this activation. */
+/* @sem Expr::Divide{numerator:PaidCountersRemoved{payment:Activation, component:[0]}, denominator:$value, rounding:Down} */
+paid_counter_groups ::= "for" "each" value "counters" "removed" "this" "way"
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::TakeExtraTurn{times:$paid_counter_groups}} */
+extra_turn_per_paid_counter_group ::= paid_counter_groups "," "take" "an" "extra" "turn" "after" "this" "one"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_remove_all_counters_from]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$extra_turn_per_paid_counter_group}]}} */
+activated_remove_counters_extra_turn ::= cost_remove_all_counters_from ":" extra_turn_per_paid_counter_group "."

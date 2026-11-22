@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped
+clause_search ::= clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_plural}, ...$search_plural_follow] */
@@ -352,7 +352,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter
+dig_block ::= reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -3962,3 +3962,35 @@ instructions_search_reveal_hand_discard ::= search "and" "reveal" "that" "card" 
 /* One top card per named vote, from the ability controller's library. */
 /* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:$count_each_vote, from:Top} */
 library_top_per_vote ::= "the" "top" "card" "of" "your" "library" "for" "each" count_each_vote
+
+/* The named-per-creature choice retains its population independently of the
+   card filter. The ordinary found-card action and shuffle follow the search. */
+/* @sem SearchChoice::SearchChoice{filter:$filter_phrase, count:AnyNumber, constraints:[NamedAfterOneEach($each_counter_creature)]} */
+search_choice_named_each_creature ::= "for" each_counter_creature "," "you" "may" "search" "your" "library" "for" ("a" | "an") filter_phrase "card" "with" "the" "same" "name" "as" "that" "creature"
+
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_named_each_creature]}}, Effect{result:@next, operation:$found_those_action}, ...$search_follow]}}] */
+clause_search_named_each ::= search_choice_named_each_creature "." found_those_action search_follow
+
+found_those_action ::= found_those_battlefield | found_those_battlefield_tapped | found_those_exile | found_those_reveal
+
+/* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}) */
+found_those_battlefield ::= "put" "those" "cards" "onto" "the" "battlefield"
+
+/* @sem Operation::@search_move_result(Operation::Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}) */
+found_those_battlefield_tapped ::= "put" "those" "cards" "onto" "the" "battlefield" "tapped"
+
+/* @sem Operation::Reveal{objects:Selected(@marked)} */
+found_those_reveal ::= "reveal" "those" "cards"
+
+/* @sem Operation::Move{objects:Selected(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+found_those_exile ::= "exile" "those" "cards"
+
+/* The observation and its remaining library cards share one scoped receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top}, Effect{result:@next, operation:$cloak_observed_cards}, Effect{result:@next, operation:$observed_remainder_bottom}] */
+dig_look_cloak ::= look_top "," cloak_observed_cards "," "and" observed_remainder_bottom
+
+/* @sem Operation::WithSelections{steps:[_{binding:@selection_id(0), objects:InZone{objects:Observed(@marked), zone:Library}, chooser:Players(One(AbilityController)), count:Exactly($value)}], action:Manifest{actor:One(AbilityController), source:Cards(Prepared(@selection_id(0))), cloak:true, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}} */
+cloak_observed_cards ::= "cloak" value "of" "them"
+
+/* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Bottom, order:$library_order} */
+observed_remainder_bottom ::= "put" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order

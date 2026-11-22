@@ -4552,7 +4552,7 @@ change_are_nth_chosen_land_type ::= change_are_first_chosen_land_type | change_a
 /* @sem Change::[Pump{power:$shared_pump_count, toughness:$shared_pump_count}] */
 shared_equal_count_pump ::= "gets" "+" "1" "/" "+" "1" "for" "each" shared_pump_count
 
-shared_pump_count ::= shared_unspent_mana_count | shared_unspent_color_count | shared_own_mana_symbols_count | shared_own_type_count
+shared_pump_count ::= shared_opponents_counter_count | shared_affected_color_count | shared_affected_creature_type_maximum | shared_affected_bushido_count | shared_unspent_mana_count | shared_unspent_color_count | shared_own_mana_symbols_count | shared_own_type_count
 
 /* @sem Expr::PlayerNumber{player:AbilityController, number:UnspentMana} */
 shared_unspent_mana_count ::= "unspent" "mana" "you" "have"
@@ -5329,9 +5329,9 @@ static_defining_holder_values ::= holder_possessive_ref "power" "and" "toughness
 
 /* These quantities are scoped to intrinsic stat definitions, leaving other
    consumers of value and their existing readings unchanged. */
-defining_named_stat_value ::= defining_graveyard_count | defining_graveyard_symbols | defining_max_hand | defining_half_max_life | defining_difference_opponent | defining_difference_max_player
+defining_named_stat_value ::= defining_graveyard_count | defining_graveyard_symbols | defining_max_hand | defining_half_max_life | defining_difference_opponent | defining_difference_max_player | defining_named_sacrifice_count
 
-defining_holder_stat_value ::= defining_symbols | defining_difference_max_player
+defining_holder_stat_value ::= defining_sacrificed_as_entered | defining_symbols | defining_difference_max_player
 
 /* @sem Expr::AmongPlayers{players:OpponentsOf(AbilityController), number:CardsInHand, aggregation:Maximum} */
 defining_max_hand ::= "the" "number" "of" "cards" "in" "the" "hand" "of" "the" "opponent" "with" "the" "most" "cards" "in" "hand"
@@ -7231,3 +7231,98 @@ conditional_untap_pumped_creatures ::= snapshot_controlled_creature_pump "." "if
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$conditional_untap_pumped_creatures}} */
 spell_conditional_untap_pumped_creatures ::= conditional_untap_pumped_creatures "."
+
+/* Quantities are evaluated for the affected object, or for the controller's opponents. */
+/* @sem Expr::CountCounters(_{recipients:Players(OpponentsOf(AbilityController)), kind:$counter_kind, information:CurrentOrLastKnown}) */
+shared_opponents_counter_count ::= counter_kind "counter" "your" "opponents" "have"
+
+/* @sem Expr::ObjectProperty{object:Affected, property:ColorCount, information:CurrentOrLastKnown} */
+shared_affected_color_count ::= "of" "its" "colors"
+
+/* @sem Expr::Minimum([CountDistinct{objects:One(Affected), property:CreatureTypes}, $value]) */
+shared_affected_creature_type_maximum ::= "of" "its" "creature" "types" "," "to" "a" "maximum" "of" value
+
+/* @sem Expr::ObjectProperty{object:Affected, property:BushidoValue, information:CurrentOrLastKnown} */
+shared_affected_bushido_count ::= "point" "of" "bushido" "it" "has"
+
+/* Player subjects and their turn rules compose independently. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players($players_singular), changes:[PlayerRule($singular_turn_player_rule)]} */
+static_singular_turn_player_rule ::= players_singular singular_turn_player_rule "."
+
+singular_turn_player_rule ::= turn_player_draw_limit | turn_player_sorcery_timing | turn_player_additional_land | turn_player_additional_lands
+
+/* @sem PlayerRule::LimitPerTurn{action:Draw, amount:$turn_draw_count} */
+turn_player_draw_limit ::= "can't" "draw" "more" "than" turn_draw_count "each" "turn"
+
+turn_draw_count ::= turn_draw_one | turn_draw_many
+
+/* @sem Expr::Constant(1) */
+turn_draw_one ::= "one" "card"
+
+/* @sem $count_plural */
+turn_draw_many ::= count_plural "cards"
+
+/* @sem PlayerRule::SpellTiming{spells:Any, timing:SorceryOnly} */
+turn_player_sorcery_timing ::= "can" "cast" "spells" "only" "any" "time" "they" "could" "cast" "a" "sorcery"
+
+/* @sem PlayerRule::AdditionalLandPlays(Exactly($counter_a)) */
+turn_player_additional_land ::= "may" "play" counter_a "additional" "land" "on" "each" "of" "their" "turns"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Players($player_keyword_all), changes:[PlayerRule($plural_turn_player_rule)]} */
+static_plural_turn_player_rule ::= player_keyword_all plural_turn_player_rule "."
+
+/* @sem PlayerRule::AdditionalLandPlays(Exactly($count_plural)) */
+turn_player_additional_lands ::= "may" "play" count_plural "additional" "lands" "on" "each" "of" "their" "turns"
+
+plural_turn_player_rule ::= turn_player_untap_limit | turn_player_untap_limit_many | turn_player_skip_untap
+
+/* @sem PlayerRule::UntapLimit{permanents:$filter_phrase, amount:Expr::Constant(1)} */
+turn_player_untap_limit ::= "can't" "untap" "more" "than" "one" filter_phrase "during" "their" "untap" "steps"
+
+/* @sem PlayerRule::UntapLimit{permanents:$filter_plural, amount:$count_plural} */
+turn_player_untap_limit_many ::= "can't" "untap" "more" "than" count_plural filter_plural "during" "their" "untap" "steps"
+
+/* @sem PlayerRule::Skip(Untap) */
+turn_player_skip_untap ::= "skip" "their" "untap" "steps"
+
+/* The cause filter and the player's action retain independent operands. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(CantBeCaused{action:$caused_player_action, by:$causing_spells_abilities})]} */
+static_controller_cause_restriction ::= causing_spells_abilities "can't" "cause" "you" "to" caused_player_action "."
+
+causing_spells_abilities ::= causing_opponents_spells_abilities | causing_your_spells_abilities | causing_active_opponents_spells_abilities
+
+/* @sem ObjectFilter::ControlledBy(OpponentsOf(AbilityController)) */
+causing_opponents_spells_abilities ::= "spells" "and" "abilities" "your" "opponents" "control"
+
+/* @sem ObjectFilter::ControlledBy(One(AbilityController)) */
+causing_your_spells_abilities ::= "spells" "and" "abilities" "you" "control"
+
+/* @sem ObjectFilter::ControlledBy(OpponentsOf(Active)) */
+causing_active_opponents_spells_abilities ::= "spells" "and" "abilities" "the" "active" "player's" "opponents" "control"
+
+caused_player_action ::= caused_sacrifice | player_prohibit_draw
+
+/* @sem PlayerAction::Sacrifice{objects:$filter_plural} */
+caused_sacrifice ::= "sacrifice" filter_plural
+
+/* The activated ability's kind, target population and reduction are independent. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(ActivationCost{abilities:$shared_targeted_activation, change:Reduce($generic_reduction_symbols)})]} */
+shared_you_targeted_activation_reduction ::= shared_targeted_activation "cost" generic_reduction_symbols "less" "to" "activate" "."
+
+/* @sem ObjectFilter::AllOf([OnStack($shared_activation_kind), TargetsAny(Objects($affected))]) */
+shared_targeted_activation ::= shared_activation_kind "abilities" "you" "activate" "that" "target" affected
+
+/* Payment prohibitions retain both the sacrificed population and payment purposes. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(All), changes:$shared_payment_prohibitions} */
+shared_players_payment_prohibition ::= "players" "can't" shared_payment_prohibitions "."
+
+/* @sem Change::[PlayerRule(Prohibit(PayLife(Spells(Any)))), PlayerRule(Prohibit(PayLife(Abilities(Any)))), PlayerRule(Prohibit(Sacrifice{objects:$filter_plural, paying:Spells(Any)})), PlayerRule(Prohibit(Sacrifice{objects:$filter_plural, paying:Abilities(Any)}))] */
+shared_payment_prohibitions ::= "pay" "life" "or" "sacrifice" filter_plural "to" "cast" "spells" "or" "activate" "abilities"
+
+/* @prefer always */
+/* @sem Expr::$defining_sacrificed_as_entered */
+defining_named_sacrifice_count ::= defining_sacrificed_as_entered
+
+/* The entering object is the holder of this defining ability. */
+/* @sem Expr::CountObjects(Matching{objects:SacrificedAsEntered(@self), filter:$filter_plural}) */
+defining_sacrificed_as_entered ::= "the" "number" "of" filter_plural "sacrificed" "as" "it" "entered"
