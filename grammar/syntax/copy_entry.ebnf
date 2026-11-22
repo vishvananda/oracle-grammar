@@ -33,7 +33,7 @@ copy_exception_plain_more ::= copy_exception_plain "and" copy_exceptions_plain
 /* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_plain] */
 copy_exception_quote_then_plain ::= copy_granted_sentence ("↓")? "and" copy_exceptions_plain
 
-copy_exceptions_closed ::= copy_same_name_goad_list | copy_exception_closed_one | copy_exception_plain_then_quote | copy_exception_quote_more | copy_keyword_then_quote
+copy_exceptions_closed ::= copy_current_then_quote | copy_same_name_goad_list | copy_exception_closed_one | copy_exception_plain_then_quote | copy_exception_quote_more | copy_keyword_then_quote
 
 /* @sem Vec<CopyException>::[$copy_granted_sentence] */
 copy_exception_closed_one ::= copy_granted_sentence
@@ -225,7 +225,7 @@ copy_exception_oxford_more ::= copy_exception_plain "," "and" copy_exceptions_pl
 /* @sem CopyException::AddSupertypes([Legendary]) */
 copy_add_legendary_retained ::= "it's" "legendary" "in" "addition" "to" "its" "other" "types"
 
-entry_copy_actions ::= entry_copy_plain_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many
+entry_copy_actions ::= entry_copy_plain_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color
 
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$entry_copy_tail})}}] */
 entry_copy_plain_actions ::= "a" "copy" "of" entry_copy_objects entry_copy_tail
@@ -274,3 +274,20 @@ entry_copy_creature_filter ::= noun_creature | entry_copy_creature_adjective | e
 entry_copy_creature_adjective ::= adjective entry_copy_creature_filter
 /* @sem @and($noun_creature, $modifiers) */
 entry_copy_creature_modified ::= noun_creature modifiers
+
+/* The antecedent of the retained-color phrase is explicitly a creature. */
+/* @sem CopyException::KeepColors */
+copy_creature_keep_color ::= "it" "doesn't" "copy" "that" "creature's" "color"
+
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$enchanted_creature_filter}, exceptions:[$copy_creature_keep_color, ...$copy_exceptions_closed]})}}] */
+entry_copy_creature_keep_color ::= "a" "copy" "of" "any" enchanted_creature_filter "on" "the" "battlefield" "," "except" copy_creature_keep_color "and" copy_exceptions_closed
+
+/* @sem CopyException::KeepColors */
+copy_artifact_keep_color ::= "it" "doesn't" "copy" "that" "artifact's" "color"
+
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun_artifact}, exceptions:[$copy_artifact_keep_color, ...$copy_exceptions_closed]})}}] */
+entry_copy_artifact_keep_color ::= "a" "copy" "of" "any" noun_artifact "on" "the" "battlefield" "," "except" copy_artifact_keep_color "and" copy_exceptions_closed
+
+/* A current ability and a quoted ability retain independent copy scopes. */
+/* @sem Vec<CopyException>::[$copy_has_current, $copy_quoted_ability] */
+copy_current_then_quote ::= copy_has_current "and" copy_quoted_ability

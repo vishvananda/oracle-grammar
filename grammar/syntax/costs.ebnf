@@ -635,7 +635,7 @@ cost_untap_single_filter ::= "untap" "a" filter_phrase
 /* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$card_filter} */
 cost_reveal_filtered_hand ::= "reveal" "a" card_filter "card" "in" "your" "hand"
 
-cost_one_permanent_selection ::= cost_another_nontoken_controlled | cost_one_plain_permanent
+cost_one_permanent_selection ::= cost_one_controlled_permanent | cost_another_nontoken_controlled | cost_one_plain_permanent
 
 /* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
 cost_owner_hand_destination ::= "to" "its" "owner's" "hand"
@@ -1806,7 +1806,7 @@ cost_tap_controlled_untapped ::= "tap" "an" "untapped" filter_phrase "you" "cont
 /* @sem CostPart::RevealChoice($revealed_choice_kind) */
 cost_reveal_chosen_value ::= "reveal" "the" revealed_choice_kind "you" "chose"
 
-revealed_choice_kind ::= revealed_creature_type | revealed_card_type | revealed_color | revealed_number
+revealed_choice_kind ::= revealed_player | revealed_creature_type | revealed_card_type | revealed_color | revealed_number
 
 /* @sem ValueKind::CreatureType */
 revealed_creature_type ::= "creature" "type"
@@ -1889,3 +1889,33 @@ self_return_battlefield_tapped_attacking ::= "return" self_ref "from" "your" "gr
 /* The selected hand card and its bounded characteristic stay in one payment. */
 /* @sem CostPart::Move{selections:[_{objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:TotalPowerAndToughness, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}])}), choose:Exactly($counter_amount)}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}} */
 hand_total_stats_entry ::= "put" counter_amount filter_phrase "card" "with" "total" "power" "and" "toughness" value "or" "less" "from" "your" "hand" "onto" "the" "battlefield"
+
+/* The optional payment and sacrifice share the holder as their source. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$holder_mana_payment, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:One($payment_self_creature)})}]}, otherwise:_{}}]} */
+holder_unless_payment_program ::= "sacrifice" payment_self_creature "unless" "you" "pay" holder_mana_payment "."
+
+/* @sem Cost::Cost{parts:[ManaCostOf(Source)]} */
+holder_mana_cost_payment ::= "its" "mana" "cost"
+
+holder_mana_payment ::= holder_mana_cost_payment | cost_mana
+
+/* @sem ObjectRef::@self */
+payment_self_creature ::= self_creature
+
+/* One controlled permanent returned as a payment retains its controller. */
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(AbilityController))])}, choose:Exactly(Constant(1))} */
+cost_one_controlled_permanent ::= "a" noun "you" "control"
+
+/* @sem ValueKind::Player */
+revealed_player ::= "player"
+
+/* The activation fixes the second component as a +1/+1 counter payment. */
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:PowerToughness([1, 1]), amount:Count(AtLeast($value))}]} */
+cost_remove_at_least_plus_counters ::= "remove" value "or" "more" "+" "1" "/" "+" "1" "counters" "from" self_explicit_ref
+
+/* This consumer is dispatched only with the matching payment below. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, Property{property:Power, test:NumberTest::Compare{comparison:LessOrEqual, value:PaidCountersRemoved{payment:Activation, component:[1]}}}])}), index:0})), changes:[SetController(AbilityController)], duration:Indefinite, evaluation:Snapshot} */
+paid_plus_counters_control ::= "gain" "control" "of" "target" noun "with" "power" "less" "than" "or" "equal" "to" "the" "number" "of" "+" "1" "/" "+" "1" "counters" "removed" "this" "way"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[TapSymbol, $cost_remove_at_least_plus_counters]}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$paid_plus_counters_control}]}} */
+activated_paid_plus_counters_control ::= "{" "T" "}" "," "↑" cost_remove_at_least_plus_counters ":" paid_plus_counters_control "."

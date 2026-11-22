@@ -1,0 +1,1443 @@
+{
+  "family": "defined-reveal-cast-remainder",
+  "cases": [
+    {
+      "name": "Sunbird's Invocation",
+      "text": "Whenever you cast a spell from your hand, reveal the top X cards of your library, where X is that spell's mana value. You may cast a spell with mana value X or less from among cards revealed this way without paying its mana cost. Put the rest on the bottom of your library in a random order.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Hand",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "BindValue",
+                      "args": {
+                        "value": {
+                          "kind": "ObjectProperty",
+                          "args": {
+                            "object": {
+                              "kind": "EventSubject"
+                            },
+                            "property": "ManaValue",
+                            "information": "CurrentOrLastKnown"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "BoundValue",
+                                    "args": 0
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "PlayWith",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "action": "CastSpell",
+                              "cards": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "LessOrEqual",
+                                          "value": {
+                                            "kind": "BoundValue",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Free",
+                                "spend_as": null,
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              },
+                              "group": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Sunbird's Invocation",
+      "text": "Whenever you cast a spell from your hand, reveal the top X cards of your library, where X is that spell's mana value. You may cast a spell with mana value X or less from among cards revealed this way without paying its mana cost. Put the rest on the bottom of your library in any order.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Hand",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "BindValue",
+                      "args": {
+                        "value": {
+                          "kind": "ObjectProperty",
+                          "args": {
+                            "object": {
+                              "kind": "EventSubject"
+                            },
+                            "property": "ManaValue",
+                            "information": "CurrentOrLastKnown"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "BoundValue",
+                                    "args": 0
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "PlayWith",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "action": "CastSpell",
+                              "cards": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "LessOrEqual",
+                                          "value": {
+                                            "kind": "BoundValue",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Free",
+                                "spend_as": null,
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              },
+                              "group": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Chosen"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Sunbird's Invocation",
+      "text": "Whenever you cast a spell from your hand, reveal the top X cards of your library, where X is your life total. You may cast a spell with mana value X or less from among cards revealed this way without paying its mana cost. Put the rest on the bottom of your library in a random order.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Hand",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "BindValue",
+                      "args": {
+                        "value": {
+                          "kind": "PlayerNumber",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "number": "Life"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "BoundValue",
+                                    "args": 0
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "PlayWith",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "action": "CastSpell",
+                              "cards": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "LessOrEqual",
+                                          "value": {
+                                            "kind": "BoundValue",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Free",
+                                "spend_as": null,
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              },
+                              "group": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Sunbird's Invocation",
+      "text": "Whenever you cast a spell from your hand, reveal the top X cards of your library, where X is that spell's mana value. You may cast two spells with mana value X or less from among cards revealed this way without paying their mana costs. Put the rest on the bottom of your library in a random order.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Hand",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "BindValue",
+                      "args": {
+                        "value": {
+                          "kind": "ObjectProperty",
+                          "args": {
+                            "object": {
+                              "kind": "EventSubject"
+                            },
+                            "property": "ManaValue",
+                            "information": "CurrentOrLastKnown"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "BoundValue",
+                                    "args": 0
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "PlayWith",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "action": "CastSpell",
+                              "cards": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "LessOrEqual",
+                                          "value": {
+                                            "kind": "BoundValue",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Free",
+                                "spend_as": null,
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              },
+                              "group": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Sunbird's Invocation",
+      "text": "Whenever you cast a spell from your hand, reveal the top X cards of your library, where X is that spell's mana value. You may cast a spell with mana value X or less from among cards exiled this way without paying its mana cost. Put the rest on the bottom of your library in a random order.",
+      "reject": true
+    },
+    {
+      "name": "Sunbird's Invocation",
+      "text": "Whenever you cast a spell from your hand, reveal the top X cards of your library, where X is that spell's mana value. You may cast a spell with mana value X or less from among cards revealed this way without paying its mana cost. Put the rest on the bottom of your library in any order.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 5
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Hand",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "BindValue",
+                      "args": {
+                        "value": {
+                          "kind": "ObjectProperty",
+                          "args": {
+                            "object": {
+                              "kind": "EventSubject"
+                            },
+                            "property": "ManaValue",
+                            "information": "CurrentOrLastKnown"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "BoundValue",
+                                    "args": 0
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "PlayWith",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "action": "CastSpell",
+                              "cards": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "LessOrEqual",
+                                          "value": {
+                                            "kind": "BoundValue",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Free",
+                                "spend_as": null,
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              },
+                              "group": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Chosen"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Sunbird's Invocation",
+      "text": "Whenever you cast a spell from your hand, reveal the top X cards of your library, where X is that spell's mana value. You may cast two spells with mana value X or less from among cards revealed this way without paying their mana costs. Put the rest on the bottom of your library in a random order.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 5
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Hand",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "BindValue",
+                      "args": {
+                        "value": {
+                          "kind": "ObjectProperty",
+                          "args": {
+                            "object": {
+                              "kind": "EventSubject"
+                            },
+                            "property": "ManaValue",
+                            "information": "CurrentOrLastKnown"
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "BoundValue",
+                                    "args": 0
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "PlayWith",
+                            "args": {
+                              "actor": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "action": "CastSpell",
+                              "cards": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 1
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Property",
+                                    "args": {
+                                      "property": "ManaValue",
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "LessOrEqual",
+                                          "value": {
+                                            "kind": "BoundValue",
+                                            "args": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "count": {
+                                "UpTo": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                }
+                              },
+                              "terms": {
+                                "limit": null,
+                                "during": null,
+                                "cost": "Free",
+                                "spend_as": null,
+                                "into_exile": false,
+                                "condition": null,
+                                "effects": [],
+                                "flash": false,
+                                "may_look": false,
+                                "then": null,
+                                "face_down": null
+                              },
+                              "group": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Observed",
+                                    "args": 1
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

@@ -401,3 +401,19 @@ unspent_mana_colorless ::= "becomes" "colorless"
 
 /* @sem PlayerRule::UnspentManaBecomes($mana_color_word) */
 unspent_mana_colored ::= "becomes" mana_color_word
+
+/* A chosen player receives the literal mana following the choice. */
+/* @sem Instruction::[Effect{result:@next, operation:$choose_a_player}, Effect{result:@next, operation:$chosen_player_literal_mana}] */
+instructions_choose_player_literal_mana ::= choose_a_player "." chosen_player_literal_mana
+
+/* @sem Operation::AddMana{players:One(Chosen), mana:$mana_bundle} */
+chosen_player_literal_mana ::= "that" "player" "adds" mana_bundle
+
+/* The defending player performs both actions together; the controlled population
+   remains an operand of the mana ability action. */
+/* @sem Operation::Together([KeywordEach{actor:One(DefendingPlayerOf(Source)), action:ObjectKeywordAction::ActivateManaAbility, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(DefendingPlayerOf(Source)))])}}, Keyword{actor:One(DefendingPlayerOf(Source)), action:KeywordAction::LoseUnspentMana}]) */
+defending_mana_abilities_and_loss ::= "defending" "player" "activate" "a" "mana" "ability" "of" "each" noun "they" "control" "and" "lose" "all" "unspent" "mana"
+
+/* Keep the mana-loss producer and its delayed count in the same contract. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:DefendingPlayerOf(Source), body:_{instructions:[Effect{result:@next, operation:$defending_mana_abilities_and_loss}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[Rule(CombatDamage(NoAssignment))], duration:$this_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:MainPhaseBegins, players:All}, start:Immediately, expires:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:Game(ManaLostThisWay), production:Amount{color:Colorless, amount:Constant(1)}, choice:Once}}}]}}}]}, otherwise:_{}}]} */
+defending_mana_loss_delayed_program ::= "you" "may" "have" defending_mana_abilities_and_loss "." "if" "you" "do" "," "this" "creature" "assigns" "no" "combat" "damage" this_duration "and" "at" "the" "beginning" "of" "your" "next" "main" "phase" "this" "turn" "," "you" "add" "an" "amount" "of" "{" "C" "}" "equal" "to" "the" "amount" "of" "mana" "that" "player" "lost" "this" "way" "."

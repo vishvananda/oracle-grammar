@@ -2,7 +2,7 @@
    closed productions record that grammatical fact; no punctuation is inserted
    by the tokenizer and an unquoted program still needs its final period. */
 /* A leading time is a program only inside an already announced ability. */
-program_sentence ::= program_exile_copy_return | program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast | program_each_exiles_top_play_permission | program_sentence_graveyard_cast_tax | program_sentence_reveal_die_result | program_sentence_random_hand_type_branch
+program_sentence ::= program_exile_copy_return | program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast | program_each_exiles_top_play_permission | program_sentence_graveyard_cast_tax | program_sentence_reveal_die_result | program_sentence_random_hand_type_branch | program_self_bonus_controller_sacrifice | program_sentence_mana_next_entry | program_sentence_if_quoted_type_change | emblem_turn_pair_sentence | program_sentence_each_hand_perpetual
 
 /* This limits a successful performance, not the number of triggers. The
    offer owns the complete coordinated program. Declining it or failing a
@@ -14,7 +14,7 @@ program_sentence_action_once ::= "you" "may" program "." action_once_suffix
 /* @sem () */
 action_once_suffix ::= "do" "this" "only" "once" "each" "turn" "."
 
-ordinary_program_sentence ::= program_sentence_mana_life_persists | program_sentence_search_and_move | program_sentence_die_table | program_sentence_added_die_table | program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment | program_tap_x_attack_rewards | explored_self_optional_copy | program_sentence_counter_choice_reflexive_modal | program_sentence_chosen_attackers | program_look_attacking_return
+ordinary_program_sentence ::= program_sentence_may_reflexive_quoted | program_sentence_mana_life_persists | program_sentence_search_and_move | program_sentence_die_table | program_sentence_added_die_table | program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment | program_tap_x_attack_rewards | explored_self_optional_copy | program_sentence_counter_choice_reflexive_modal | program_sentence_chosen_attackers | program_look_attacking_return
 
 /* @sem $program */
 program_sentence_plain ::= program "."
@@ -468,3 +468,21 @@ instructions_required_if_you_do_quoted ::= payment "." "if" "you" "do" "," claus
 /* A one-time boon creates a single-use trigger with its own event and body. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:$event_clause, duration:Indefinite, announcement:@announcement, body:$program, once:true}}] */
 clause_one_time_boon ::= "you" "get" "a" "one-time" "boon" "with" '"' event_clause "," program "." '"'
+
+/* The quoted callback closes the surrounding optional reflexive sentence. */
+/* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@mark, operation:$reflexive_pay_operation}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:Program{instructions:$clause_quoted}})}]}}]} */
+program_sentence_may_reflexive_quoted ::= "you" "may" reflexive_pay_operation "." "when" "you" "do" "," clause_quoted
+
+/* The quoted sentence supplies its own final punctuation. */
+/* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:$self_ref, filter:$filter_phrase}, then:Program{instructions:[Effect{result:@next, operation:$indefinite_quoted_type_change}]}, otherwise:Program{}}]} */
+program_sentence_if_quoted_type_change ::= "if" self_ref "is" "a" filter_phrase "," indefinite_quoted_type_change
+
+/* Two independently scoped abilities on the same emblem. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateEmblem{actor:One(AbilityController), abilities:[@scope($emblem_turn_clause), @scope($emblem_turn_clause_2)]}}]} */
+emblem_turn_pair_sentence ::= "you" "get" "an" "emblem" "with" '"' emblem_turn_clause '"' "and" '"' emblem_turn_clause "." '"'
+
+/* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$program} */
+emblem_turn_clause ::= "at" turn_event "," program
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$each_hand_card_perpetual_reduction}]} */
+program_sentence_each_hand_perpetual ::= each_hand_card_perpetual_reduction

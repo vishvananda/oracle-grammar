@@ -3091,7 +3091,7 @@ filter_controlled_extreme ::= filter_nonlist_head modifier_you_control "with" "t
 /* @sem @and($token_subtype, ObjectFilter::Token) */
 subtype_tokens ::= token_subtype "tokens"
 
-token_subtype ::= token_subtype_zombie_folded | subtype
+token_subtype ::= token_subtype_blood_folded | token_subtype_zombie_folded | subtype
 
 /* Sentence-initial Zombie folds when lowercase zombie is in the vocabulary. */
 /* @sem ObjectFilter::Subtype(Zombie) */
@@ -3455,3 +3455,14 @@ owned_opponent_target ::= "target" owned_entrant_filter
 /* The minimum is taken over the entire named battlefield population. */
 /* @sem ObjectFilter::AllOf([$filter_phrase, Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, property:$stat, aggregation:Minimum}}}]) */
 least_stat_battlefield ::= "the" filter_phrase "with" "the" "least" stat
+
+/* A colored permanent spell includes every permanent card type. */
+/* @sem ObjectFilter::AllOf([$adjective_color, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])]) */
+colored_permanent_spell_filter ::= adjective_color "permanent"
+
+/* A controlled optional target from a union, excluding a type and tokens. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($number), filter:AllOf([AnyOf([$noun, $noun_2]), ControlledBy(One(AbilityController)), Not($noun_3), Not(Token)])}), index:0} */
+optional_controlled_union_nontoken_target ::= "choose" "up" "to" number "target" noun "or" noun "you" "control" "that" "isn't" "a" noun "or" "token"
+
+/* @sem ObjectFilter::Subtype(Blood) */
+token_subtype_blood_folded ::= "blood"
