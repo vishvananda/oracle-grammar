@@ -1,0 +1,603 @@
+{
+  "family": "conditional-untap-and-combat",
+  "cases": [
+    {
+      "name": "Cunning Giant",
+      "text": "If this creature is unblocked, you may have it assign its combat damage to a creature defending player controls.",
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "State",
+                  "args": "Unblocked"
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Rule",
+                      "args": {
+                        "AssignDamageTo": {
+                          "players": null,
+                          "permanents": {
+                            "kind": "AllOf",
+                            "args": [
+                              {
+                                "kind": "CardType",
+                                "args": "Creature"
+                              },
+                              {
+                                "kind": "ControlledBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "DefendingPlayerOf",
+                                    "args": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Fall from Favor",
+      "text": "Enchanted creature doesn't untap during its controller's untap step unless that player is the monarch.",
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Not",
+              "args": {
+                "kind": "PlayerState",
+                "args": {
+                  "player": {
+                    "kind": "ControllerOf",
+                    "args": {
+                      "kind": "AttachedTo",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "state": "Monarch"
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AttachedTo",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Rule",
+                      "args": {
+                        "UntapStep": {
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "ControllerOf",
+                              "args": {
+                                "kind": "Affected"
+                              }
+                            }
+                          },
+                          "behavior": "Skip"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Hazy Homunculus",
+      "text": "This creature can't be blocked as long as defending player controls an untapped land.",
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Controls",
+              "args": {
+                "player": {
+                  "kind": "DefendingPlayerOf",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "filter": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "Tapped"
+                      }
+                    },
+                    {
+                      "kind": "CardType",
+                      "args": "Land"
+                    }
+                  ]
+                },
+                "minimum": 1
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Rule",
+                      "args": {
+                        "Prohibit": {
+                          "BeBlocked": {
+                            "kind": "Any"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Quest for Renewal",
+      "text": "As long as there are four or more quest counters on this enchantment, untap all creatures you control during each other player's untap step.",
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Counters",
+                  "args": {
+                    "kind": {
+                      "Named": "QuestCounter"
+                    },
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 4
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
+                              "kind": "ControlledBy",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Rule",
+                      "args": {
+                        "UntapStep": {
+                          "players": {
+                            "kind": "OthersThan",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "behavior": "Additional"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Example Sentinel",
+      "text": "This creature can't be blocked as long as defending player controls an untapped land and.",
+      "reject": true
+    },
+    {
+      "name": "Cunning Giant",
+      "text": "If this creature is unblocked, you may have it assign its combat damage to a land defending player controls.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Giant"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 5
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          4,
+          4
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "State",
+                  "args": "Unblocked"
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Rule",
+                      "args": {
+                        "AssignDamageTo": {
+                          "players": null,
+                          "permanents": {
+                            "kind": "AllOf",
+                            "args": [
+                              {
+                                "kind": "CardType",
+                                "args": "Land"
+                              },
+                              {
+                                "kind": "ControlledBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "DefendingPlayerOf",
+                                    "args": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Quest for Renewal",
+      "text": "Whenever a creature you control becomes tapped, you may put a quest counter on this enchantment.\nAs long as there are five or more quest counters on this enchantment, untap all creatures you control during each other player's untap step.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Object": {
+                "event": "BecomesTapped",
+                "objects": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "CardType",
+                      "args": "Creature"
+                    },
+                    {
+                      "kind": "ControlledBy",
+                      "args": {
+                        "kind": "One",
+                        "args": {
+                          "kind": "AbilityController"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "PutCounters",
+                              "args": {
+                                "placements": [
+                                  {
+                                    "recipients": {
+                                      "kind": "Objects",
+                                      "args": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Source"
+                                        }
+                                      }
+                                    },
+                                    "kind": {
+                                      "Named": "QuestCounter"
+                                    },
+                                    "amount": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    },
+                                    "selection": null
+                                  }
+                                ]
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Counters",
+                  "args": {
+                    "kind": {
+                      "Named": "QuestCounter"
+                    },
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 5
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "Zone",
+                      "args": {
+                        "scope": {
+                          "Shared": "Battlefield"
+                        },
+                        "kind": "Permanent",
+                        "filter": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "CardType",
+                              "args": "Creature"
+                            },
+                            {
+                              "kind": "ControlledBy",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Rule",
+                      "args": {
+                        "UntapStep": {
+                          "players": {
+                            "kind": "OthersThan",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          },
+                          "behavior": "Additional"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

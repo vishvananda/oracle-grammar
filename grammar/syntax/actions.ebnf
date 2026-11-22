@@ -10473,3 +10473,70 @@ target_counter_cleanup ::= "when" source_leaves_or_untaps "," "remove" "all" cou
 
 /* @sem Program::Program{instructions:[...$source_tapped_target_untap_rule, ...$source_tapped_target_counter_trigger, ...$target_counter_cleanup]} */
 source_tapped_target_counter_program ::= source_tapped_target_untap_rule "," "and" source_tapped_target_counter_trigger "." target_counter_cleanup
+
+/* Epic appends its keyword action to the spell's preceding instructions. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Epic}}]}} */
+shared_spell_epic ::= instructions "." NEWLINE "Epic"
+
+/* The copied card is the arrival of this exact exile payment. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One($object_ref)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, exceptions:[$copy_set_enchantment]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+clause_exile_receipt_copy ::= "you" "may" "exile" object_ref "." "if" "you" "do" "," "create" token_copy_single "that" "card" "," "except" copy_set_enchantment
+
+/* Used only inside the unattach-payment grant, which proves the Earlier test's producer. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:GrantingObject, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), amount:$number, preventable:true}}, If{condition:Not(Compare{left:Earlier{what:Unattached, measure:Count, filter:$subtype}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(GrantingObject)), changes:[SetController(ControllerOf(Target{slot:0, index:0}))], duration:Indefinite, evaluation:Snapshot}}]}, otherwise:_{}}]} */
+unattach_payment_damage_program ::= self_named "deals" number "damage" "to" "target" "creature" "." "that" "creature's" "controller" "gains" "control" "of" self_named "unless" "it" "was" "unattached" "from" "a" subtype "."
+
+/* A mana-spending condition is settled before the return. Both branches move
+   the same announced creature; the conditional counters belong to its entry. */
+/* @sem Instruction::[If{condition:$condition_symbol_spent, then:Program{instructions:[Effect{result:@next, operation:Move{objects:One($conditional_entry_creature), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, Constant(1)]], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:One($conditional_entry_creature), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}] */
+conditional_creature_return_entry ::= "return" conditional_entry_creature "to" "the" "battlefield" "." "if" condition_symbol_spent "," "that" "creature" "enters" "with" "an" "additional" counter_kind "counter" "on" "it"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+conditional_entry_creature ::= "target" "creature" "card" "from" "your" "graveyard"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$conditional_creature_return_entry}} */
+spell_conditional_creature_return_entry ::= conditional_creature_return_entry "."
+
+/* Keep both choice receipts in the scope that names their actual producers. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(AbilityController))])}, count:AsManyAsCan(Constant(1)), constraints:[]}}, ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase_2, ControlledBy(One(Bound(0))), Property{property:$stat, test:NumberTest::Compare{comparison:LessOrEqual, value:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:$stat, information:CurrentOrLastKnown}}}])}, count:AsManyAsCan(Constant(1)), constraints:[]}}]}}, If{condition:ObjectMatches{object:Result{result:@marked, phase:After, index:0}, filter:$filter_phrase_3}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase_4, Not(InSet(Union([Selected(@marked), Selected(@prior)])))])}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[]}}]}} */
+spell_compare_opponent_choices_exile ::= "choose" "a" filter_phrase "you" "control" "," "then" "each" "opponent" "chooses" "a" filter_phrase "they" "control" "with" "equal" "or" "lesser" stat "." "if" "you" "chose" "a" filter_phrase "this" "way" "," "exile" "each" filter_phrase "not" "chosen" "by" "any" "player" "this" "way" "."
+
+/* Two independently chosen permanent groups share one singular sacrificing player. */
+/* @sem Operation::Together([Sacrifice{players:One($player_ref), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly(Constant(1))}, Sacrifice{players:One($player_ref), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase_2}, choose:Exactly(Constant(1))}]) */
+sacrifice_player_pair_an_a ::= player_ref "sacrifices" "an" filter_phrase "and" "a" filter_phrase "of" "their" "choice"
+
+/* The count is the performed objects of this particular sacrifice payment.
+   Keeping the payment and its dependent instruction together proves the receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:_{parts:[Sacrifice{objects:$affected, choose:AnyNumber}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:_{instructions:[Effect{result:@next, operation:$sacrifice_receipt_consequence}]}, otherwise:_{}}]} */
+receipt_sacrifice_sentence ::= "you" "may" "sacrifice" "any" "number" "of" affected "." "if" "you" "do" "," sacrifice_receipt_consequence "."
+
+sacrifice_receipt_consequence ::= sacrifice_receipt_damage | sacrifice_receipt_draw
+
+/* @sem Operation::DealDamage{source:$object_ref, recipients:Objects($affected), amount:CountObjects(CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:Before}), preventable:true} */
+sacrifice_receipt_damage ::= object_ref "deals" "that" "much" "damage" "to" affected
+
+/* @sem Operation::Draw{players:One(AbilityController), amount:CountObjects(CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:Before})} */
+sacrifice_receipt_draw ::= "draw" "that" "many" "cards"
+
+/* A fresh spell scope makes the first announced creature slot zero. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions_chosen_fighters}} */
+spell_chosen_fighters ::= instructions_chosen_fighters "."
+
+/* The two announced creatures are distinct through their controller filters.
+   The conditional change belongs only to the first; fighting remains unconditional. */
+/* @sem Instruction::[...$chosen_fighter_conditional, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Fight{first:$chosen_controlled_fighter, second:$chosen_other_fighter}}}] */
+instructions_chosen_fighters ::= "choose" chosen_controlled_fighter "and" chosen_other_fighter "." chosen_fighter_conditional "." "then" "those" "creatures" "fight" "each" "other"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0} */
+chosen_controlled_fighter ::= "target" "creature" "you" "control"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(OthersThan(AbilityController))])}), index:0} */
+chosen_other_fighter ::= "target" "creature" "you" "don't" "control"
+
+chosen_fighter_conditional ::= chosen_fighter_if_first | chosen_fighter_if_type
+
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:0, index:0})), changes:$static_changes, duration:$duration, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+chosen_fighter_if_first ::= "if" condition "," "the" "creature" "you" "control" static_changes duration
+
+/* @sem Instruction::[If{condition:ObjectMatches{object:Target{slot:0, index:0}, filter:$filter_phrase}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:0, index:0})), changes:$static_changes, duration:$duration, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+chosen_fighter_if_type ::= "the" "creature" "you" "control" static_changes duration "if" "it's" "a" filter_phrase

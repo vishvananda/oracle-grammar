@@ -35,7 +35,7 @@ spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
 /* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
 awaken_land ::= "awaken" number
 
-kicker_branch_program ::= kicker_distinct_damage_program | kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller | program_discard_maximum_conditional | prevention_target_override_program | kicker_search_either_replacement | kicker_next_cast_conjure_discard | controlled_power_damage_kicked
+kicker_branch_program ::= kicker_distinct_damage_program | kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller | program_discard_maximum_conditional | prevention_target_override_program | kicker_search_either_replacement | kicker_next_cast_conjure_discard | controlled_power_damage_kicked | kicker_population_conditional_additional
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional
    cost was paid, this effect doesn't affect combat damage that would be dealt by red
    creatures": the paid prevention spares damage those sources deal. */
@@ -372,3 +372,19 @@ spell_cleave_damage_life_count ::= "cleave" mana_symbols NEWLINE self_explicit_r
 /* The kicked branch changes the amount while keeping both announced targets. */
 /* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([@agree($noun, $noun_3), ControlledBy(One(AbilityController))])}), index:0}, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun_2, ControlledBy(OpponentsOf(AbilityController))])}), index:0})), amount:Multiply(Constant(2), ObjectProperty{object:Target{slot:0, index:0}, property:Power, information:CurrentOrLastKnown}), preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([@agree($noun, $noun_3), ControlledBy(One(AbilityController))])}), index:0}, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun_2, ControlledBy(OpponentsOf(AbilityController))])}), index:0})), amount:ObjectProperty{object:Target{slot:0, index:0}, property:Power, information:CurrentOrLastKnown}, preventable:true}}]}}]} */
 controlled_power_damage_kicked ::= "target" noun "you" "control" "deals" "damage" "equal" "to" "its" "power" "to" "target" noun "an" "opponent" "controls" "." "if" "this" "spell" "was" "kicked" "," "the" noun "you" "control" "deals" "twice" "that" "much" "damage" "instead" "."
+
+/* Two independently described populations receive snapshot effects; kicker
+   decides only whether the second instruction happens. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One($retirement_population_controller))])}), changes:$retirement_plural_changes, duration:EndOfTurn, evaluation:Snapshot}}, If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$kicker_additional_population, ControlledBy(One($retirement_population_controller_2))])}), changes:$kicker_additional_pump, duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{}}]} */
+kicker_population_conditional_additional ::= filter_plural retirement_population_controller retirement_plural_changes "until" "end" "of" "turn" "." "if" "this" "spell" "was" "kicked" "," kicker_additional_population retirement_population_controller kicker_additional_pump "until" "end" "of" "turn" "."
+
+/* @sem @and($kicker_creature_subtype, ObjectFilter::CardType(Creature)) */
+kicker_additional_population ::= kicker_creature_subtype "creatures"
+
+kicker_creature_subtype ::= creature_subtype | kicker_zombie_capitalized
+
+/* @sem $noun_zombie_folded */
+kicker_zombie_capitalized ::= "↑" noun_zombie_folded
+
+/* @sem Change::[Change::Pump{power:$signed, toughness:$signed_2}] */
+kicker_additional_pump ::= "get" "an" "additional" signed "/" signed

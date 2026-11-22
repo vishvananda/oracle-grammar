@@ -345,7 +345,7 @@ activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card
 activated_self_graveyard_return ::= cost ":" self_graveyard_return "."
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
 activated_self_graveyard_return_limited ::= cost ":" self_graveyard_return "." activation_limits "."
-self_graveyard_return ::= self_return_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter
+self_graveyard_return ::= self_return_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter | self_return_battlefield_transformed | self_return_battlefield_face_choice | self_return_with_target_tapped
 /* @sem Operation::Move{objects:One($self_ref), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 self_return_hand ::= "return" self_ref "from" "your" "graveyard" "to" "your" "hand"
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
@@ -1919,3 +1919,41 @@ paid_plus_counters_control ::= "gain" "control" "of" "target" noun "with" "power
 
 /* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[TapSymbol, $cost_remove_at_least_plus_counters]}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$paid_plus_counters_control}]}} */
 activated_paid_plus_counters_control ::= "{" "T" "}" "," "↑" cost_remove_at_least_plus_counters ":" paid_plus_counters_control "."
+
+/* The copy refers to the single creature-type permanent paid in the third
+   activation component; keep this phrase inside the scoped activation below. */
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_plural, words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Activation, component:[2], view:Inputs, phase:Before}, index:0}, exceptions:[]}} */
+token_copy_sacrificed_activation_creature ::= token_copy_plural "the" "sacrificed" "creature"
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $creature_subtype)}, choose:Exactly(Expr::Constant(1))} */
+cost_sacrifice_another_creature_type ::= "sacrifice" "another" creature_subtype
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_tap, $cost_sacrifice_another_creature_type]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$token_copy_sacrificed_activation_creature], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]}} */
+activated_copy_sacrificed_creature ::= cost_mana "," cost_tap "," "↑" cost_sacrifice_another_creature_type ":" "create" token_copy_sacrificed_activation_creature "."
+
+/* Entry variants share the scoped self-return activation and trigger frames. */
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:$transformed_entry}, qualifiers:[]} */
+self_return_battlefield_transformed ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" transformed_entry
+
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[Optional{decider:AbilityController, entry:BattlefieldArrival{tapped:false, counters:[], states:[FaceDown]}}]}}, qualifiers:[]} */
+self_return_battlefield_face_choice ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "face" "up" "or" "face" "down"
+
+/* @sem Operation::Move{objects:Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject(Source), SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([$noun, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0})])}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]} */
+self_return_with_target_tapped ::= "return" "this" "card" "and" "target" noun "card" "from" "your" "graveyard" "to" "the" "battlefield" "tapped"
+
+/* The adjacent singular return establishes the arrival receipt used by the grant. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$self_return_battlefield_attached}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:[GrantAbility($token_quoted_sentence)]}}]} */
+self_return_attached_perpetual ::= self_return_battlefield_attached "." "this" "Aura" "perpetually" "gains" token_quoted_sentence
+
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$self_return_attached_perpetual})} */
+activated_self_return_perpetual ::= cost ":" self_return_attached_perpetual activation_limits "."
+
+/* @sem Cost::Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, choose:Exactly($counter_a)}]} */
+attack_sacrifice_payment ::= "sacrifices" counter_a filter_phrase "of" "their" "choice"
+
+/* Scope the color measurement to the third, singleton creature payment. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, TapSymbol, Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))}]}, limits:$activation_limits, announcement:@announcement, body:$sacrificed_creature_color_search_cast} */
+activated_sacrificed_creature_color_search ::= cost_mana "," "{T}" "," "↑" "sacrifice" "a" "creature" ":" sacrificed_creature_color_search_cast "." activation_limits "."
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, TapSymbol, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:@announcement, body:$opponent_search_exile_upkeep_program} */
+activated_sacrifice_self_search_upkeep ::= cost_mana "," "{T}" "," "↑" "sacrifice" "this" "artifact" ":" opponent_search_exile_upkeep_program "."

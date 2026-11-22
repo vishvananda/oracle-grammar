@@ -3005,3 +3005,35 @@ replacement_parity_source_multiplier ::= "if" parity_source_damage_event "," "it
 /* A parity restriction applies to the controlled damage source itself. */
 /* @sem ObjectFilter::AllOf([ControlledBy(One(AbilityController)), Property{property:ManaValue, test:$number_parity}]) */
 source_yours_mana_parity ::= "a" "source" "you" "control" "with" "an" number_parity "mana" "value"
+
+/* The player tapping and the source of the produced mana are independent
+   operands of the event; the outcome retains the event's mana type. */
+/* @sem ObjectFilter::AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)]) */
+tapped_mana_permanent ::= "permanent"
+
+tapped_mana_source ::= tapped_mana_permanent | noun_artifact | noun_creature | noun_enchantment | noun_land | noun_planeswalker | noun_battle
+
+/* @sem ReplacementEvent::ProduceMana{sources:$tapped_mana_source, by:AbilityController} */
+you_tap_for_mana_event ::= "you" "tap" "a" tapped_mana_source "for" "mana"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([Constant(2), EventAmount]))}}]} */
+mana_twice_outcome ::= "it" "produces" "twice" "as" "much" "of" "that" "mana" "instead"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([$value, EventAmount]))}}]} */
+mana_value_multiple_outcome ::= "it" "produces" value "times" "as" "much" "of" "that" "mana" "instead"
+
+mana_scaled_outcome ::= mana_twice_outcome | mana_value_multiple_outcome
+
+/* @sem Ability::Replacement{active:Battlefield, event:$you_tap_for_mana_event, body:$mana_scaled_outcome} */
+you_tap_mana_replacement ::= "if" you_tap_for_mana_event "," mana_scaled_outcome "."
+
+/* The spell filter belongs to the copy event, while the additional copy's
+   retargeting permission belongs to its replacement outcome. */
+/* @sem ReplacementEvent::CopySpell{players:One(AbilityController), spells:$spell_filter} */
+you_copy_spell_event ::= "you" "would" "copy" spell_filter "one" "or" "more" "times"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCopy{new_targets:true}}}]} */
+additional_spell_copy_outcome ::= "instead" "copy" "it" "that" "many" "times" "plus" "an" "additional" "time" "." "you" "may" "choose" "new" "targets" "for" "the" "additional" "copy"
+
+/* @sem Ability::Replacement{active:Battlefield, event:$you_copy_spell_event, body:$additional_spell_copy_outcome} */
+you_copy_spell_replacement ::= "if" you_copy_spell_event "," additional_spell_copy_outcome "."

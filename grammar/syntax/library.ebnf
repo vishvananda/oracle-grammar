@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each
+clause_search ::= clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_plural}, ...$search_plural_follow] */
@@ -4267,3 +4267,33 @@ exile_observed_library_up_to ::= "you" "may" "exile" value "of" "those" "cards" 
 
 /* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@mark, operation:$look_event_library_top}, ...$exile_observed_library_up_to]}}] */
 instructions_optional_event_library_split ::= "you" "may" look_event_library_top "." exile_observed_library_up_to
+
+/* Epic extends any complete spell instruction sequence without changing its operands. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Epic}}]}} */
+line_spell_epic ::= instructions "." NEWLINE "Epic"
+
+/* The first choice remains in both conditional branches; the extra choice is
+   available only when the condition holds. Both branches reveal and move the
+   actual search selection before shuffling. */
+/* @sem Instruction::[If{condition:$condition, then:_{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, $additional_search_choice]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}, otherwise:_{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered]}}, Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:Move{objects:Selected(@back(3)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}]}}] */
+clause_search_conditional_additional ::= "search" "your" "library" "for" search_choice_filtered "." "if" condition "," "you" "may" "search" "your" "library" "for" additional_search_choice "." "reveal" "those" "cards" "," "put" "them" "into" "your" "hand" "," "then" "shuffle"
+
+/* @sem SearchChoice::SearchChoice{filter:$search_filter, count:UpTo(Constant(1))} */
+additional_search_choice ::= "an" "additional" search_filter
+
+/* The cost-bearing wrapper fixes the unique sacrificed creature at component 2;
+   this program reads that input before payment and keeps the searched card's
+   exile result for the subsequent cast. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:AllOf([$filter_phrase, Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:Add(ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[2], view:Inputs, phase:Before}, index:0}, property:ColorCount, information:CurrentOrLastKnown}, $number_words)}}]), count:UpTo(Constant(1))}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}, Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:One(Result{result:@back(3), phase:After, index:0}), count:Exactly(Constant(1)), cost:Normal}}]}}]} */
+sacrificed_creature_color_search_cast ::= "count" "the" "colors" "of" "the" "sacrificed" "creature" "," "then" "search" "your" "library" "for" "a" filter_phrase "card" "that's" "exactly" "that" "many" "colors" "plus" number_words "." "exile" "that" "card" "," "then" "shuffle" "." "you" "may" "cast" "the" "exiled" "card"
+
+/* The searched card's exile arrival is shared by the temporary permission and
+   its delayed destination; the entire producer is kept in this scope. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:$look_target_opponent, choices:[_{filter:Any, count:AsManyAsCan(Constant(1))}]}}, Effect{result:@mark, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(Target{slot:0, index:0})}}] */
+opponent_search_exile_shuffle ::= "search" look_target_opponent "library" "for" "a" "card" "and" "exile" "it" "." "then" "that" "player" "shuffles"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:UntilNext{point:UpkeepBegins, players:One(AbilityController)}, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:One(AbilityController)}, start:Immediately, intervening_if:Compare{left:CountObjects(InZone{objects:One(Result{result:@marked, phase:After, index:0}), zone:Exile}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, body:_{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Result{result:@marked, phase:After, index:0}), zone:Exile}, destination:OwnersGraveyard(CardArrival{}), qualifiers:[]}}]}}}] */
+searched_exile_upkeep_permission ::= "until" "the" "beginning" "of" "your" "next" "upkeep" "," "you" "may" "play" "that" "card" "." "at" "the" "beginning" "of" "your" "next" "upkeep" "," "if" "you" "haven't" "played" "it" "," "put" "it" "into" "its" "owner's" "graveyard"
+
+/* @sem Program::Program{instructions:[...$opponent_search_exile_shuffle, ...$searched_exile_upkeep_permission]} */
+opponent_search_exile_upkeep_program ::= opponent_search_exile_shuffle "." searched_exile_upkeep_permission

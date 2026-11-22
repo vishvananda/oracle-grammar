@@ -100,7 +100,7 @@ current_card_ref ::= "that" "card"
 /* @sem ObjectRef::@remember_object(ObjectRef::@activation_exiled_card(ObjectRef::Query{objects:Zone{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}, index:0})) */
 linked_exiled_card ::= "the" "exiled" "card"
 
-target_card ::= target_card_opponent_library_arrival | target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard | target_card_exile_counter | target_card_arrived_this_turn | target_card_subtype_union_your_graveyard | optional_opponent_graveyard_card | optional_opponent_graveyard_filtered_card
+target_card ::= target_card_opponent_library_arrival | target_card_up_to_qualified_your_graveyard | target_card_qualified_after_your_graveyard | target_card_up_to_union_your_graveyard | target_card_other_your_graveyard | target_card_your_graveyard | target_any_card_your_graveyard | target_card_a_graveyard | target_any_card_a_graveyard | target_card_your_graveyard_with | target_card_opponent_graveyard | target_any_card_opponent_graveyard | target_card_that_player_graveyard | target_card_a_graveyard_up_to_one | target_card_ability_graveyard | target_typed_ability_graveyard | target_card_your_graveyard_opponent_choice | target_card_union_your_graveyard | target_card_exiled_with_source | target_non_subtype_union_graveyard | target_card_exile_counter | target_card_arrived_this_turn | target_card_subtype_union_your_graveyard | optional_opponent_graveyard_card | optional_opponent_graveyard_filtered_card | target_card_up_to_one_other_your_graveyard
 
 /* A card target is announced after a departure, so `another` excludes the new
    card, rather than the departed permanent or the candidate being filtered. */
@@ -1423,7 +1423,7 @@ linked_name_single ::= "with" "the" "same" "name" "as" "the" "exiled" "card"
 linked_name_any ::= "with" "the" "same" "name" "as" "a" "card" "exiled" "with" object_ref
 
 /* A singular spell's type and casting origin are independent operands. */
-exile_cast_spell ::= exile_cast_spell_any | exile_cast_spell_kind
+exile_cast_spell ::= exile_cast_spell_any | exile_cast_spell_kind | own_zone_cast_spell_kind
 
 /* @sem ObjectFilter::Cast{from:Shared(Exile)} */
 exile_cast_spell_any ::= "a" "spell" "you" "cast" "from" "exile"
@@ -1818,11 +1818,11 @@ modifier_name_first_printed_in_homelands ::= "with" "a" "name" "originally" "pri
 /* A voting comparison filters the named player set, preserving its binding. */
 voting_player_base ::= players_each_opponent | players_each | players_each_other | players_each_other_opponent
 
-/* @sem PlayerSet::Intersection([$voting_player_base, Matching{binding:0, condition:VotedAs{player:Bound(0), other:AbilityController, same:true}}]) */
-players_voted_same ::= voting_player_base "who" "voted" "for" "a" "choice" "you" "voted" "for"
+/* @sem PlayerSet::Intersection([$voting_player_base, Matching{binding:0, condition:$voting_choice_same}]) */
+players_voted_same ::= voting_player_base voting_choice_same
 
-/* @sem PlayerSet::Intersection([$voting_player_base, Matching{binding:0, condition:VotedAs{player:Bound(0), other:AbilityController, same:false}}]) */
-players_voted_different ::= voting_player_base "who" "voted" "for" "a" "choice" "you" "didn't" "vote" "for"
+/* @sem PlayerSet::Intersection([$voting_player_base, Matching{binding:0, condition:$voting_choice_different}]) */
+players_voted_different ::= voting_player_base voting_choice_different
 
 /* @prefer type(Creature) */
 /* @sem ObjectRef::Source */
@@ -3466,3 +3466,37 @@ optional_controlled_union_nontoken_target ::= "choose" "up" "to" number "target"
 
 /* @sem ObjectFilter::Subtype(Blood) */
 token_subtype_blood_folded ::= "blood"
+
+/* The spell filter and owned origin remain independent. */
+/* @sem ObjectFilter::AllOf([$own_zone_spell_filter, Cast{from:Players{zone:$own_cast_zone, players:One(AbilityController)}}]) */
+own_zone_cast_spell_kind ::= "a" own_zone_spell_filter "spell" "you" "cast" "from" own_cast_zone
+
+own_zone_spell_filter ::= filter_phrase | adjective_colorless
+
+/* The optional other target excludes the current event card, retaining its
+   graveyard identity independently of the destination of a later move. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(@current_named_object)), $noun, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0} */
+target_card_up_to_one_other_your_graveyard ::= "up" "to" "one" "other" "target" noun "card" "from" "your" "graveyard"
+
+/* @sem Condition::VotedAs{player:Bound(0), other:AbilityController, same:true} */
+voting_choice_same ::= "who" "voted" "for" "a" "choice" "you" "voted" "for"
+
+/* @sem Condition::VotedAs{player:Bound(0), other:AbilityController, same:false} */
+voting_choice_different ::= "who" "voted" "for" "a" "choice" "you" "didn't" "vote" "for"
+
+/* Plural populations compose with the same voting predicates. */
+voting_plural_population ::= voting_plural_opponents | voting_plural_players
+
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+voting_plural_opponents ::= "opponents"
+
+/* @sem PlayerSet::All */
+voting_plural_players ::= "players"
+
+/* @sem PlayerSet::Intersection([$voting_plural_population, Matching{binding:0, condition:$voting_choice_same}]) */
+voting_plural_same ::= voting_plural_population voting_choice_same
+
+/* @sem PlayerSet::Intersection([$voting_plural_population, Matching{binding:0, condition:$voting_choice_different}]) */
+voting_plural_different ::= voting_plural_population voting_choice_different
+
+voting_plural_filtered ::= voting_plural_same | voting_plural_different

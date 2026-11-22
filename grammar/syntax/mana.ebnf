@@ -286,8 +286,8 @@ mana_spent_counter_on ::= "if" "that" "mana" "is" "spent" "on" "a" filter_phrase
 /* @sem $filter_phrase */
 mana_spent_counter_cast ::= "if" "this" "mana" "is" "spent" "to" "cast" "a" filter_phrase "spell"
 
-/* @sem ObjectFilter::HasKeyword($keyword_name) */
-mana_spell_with_keyword ::= "a" "spell" "with" keyword_name
+/* @sem ObjectFilter::HasKeyword($mana_spell_keyword) */
+mana_spell_with_keyword ::= "a" "spell" "with" mana_spell_keyword
 
 /* @sem ObjectFilter::AllOf([HasKeywordFamily(Flashback), Cast{from:Players{zone:Graveyard, players:All}}]) */
 mana_spells_flashback_graveyard ::= "spells" "with" "flashback" "from" "a" "graveyard"
@@ -417,3 +417,5 @@ defending_mana_abilities_and_loss ::= "defending" "player" "activate" "a" "mana"
 /* Keep the mana-loss producer and its delayed count in the same contract. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:DefendingPlayerOf(Source), body:_{instructions:[Effect{result:@next, operation:$defending_mana_abilities_and_loss}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[Rule(CombatDamage(NoAssignment))], duration:$this_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:MainPhaseBegins, players:All}, start:Immediately, expires:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:Game(ManaLostThisWay), production:Amount{color:Colorless, amount:Constant(1)}, choice:Once}}}]}}}]}, otherwise:_{}}]} */
 defending_mana_loss_delayed_program ::= "you" "may" "have" defending_mana_abilities_and_loss "." "if" "you" "do" "," "this" "creature" "assigns" "no" "combat" "damage" this_duration "and" "at" "the" "beginning" "of" "your" "next" "main" "phase" "this" "turn" "," "you" "add" "an" "amount" "of" "{" "C" "}" "equal" "to" "the" "amount" "of" "mana" "that" "player" "lost" "this" "way" "."
+
+mana_spell_keyword ::= keyword_name | kn_devoid

@@ -117,7 +117,7 @@ token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted
 
-token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified
+token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -1173,3 +1173,42 @@ token_copy_exiled_modified ::= "a" "token" "that's" "a" "copy" "of" token_exiled
 /* The Cursed Role sets its enchanted creature’s base power and toughness. */
 /* @sem TokenRecipe::Defined{name:Explicit(Cursed), card_types:[Enchantment], subtypes:[Aura, Role], abilities:[Enchant{hosts:Permanents(CardType(Creature))}, Static(_{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[SetBasePowerToughness{power:Constant(1), toughness:Constant(1)}]})]} */
 cursed_role_recipe ::= "Cursed" "Role"
+
+/* Random Oracle copies compose their population and the comparison's object. */
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:CopyAtRandom{cards:$random_oracle_copy_cards}} */
+token_copy_random_oracle ::= token_copy_quantity "a" "random" random_oracle_copy_cards
+
+/* @sem Operand::Term{family:CardsInOracle, form:And, operands:[$random_oracle_excluded_type, Term{family:CardsInOracle, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]}, Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}, Term{family:CardsInOracle, form:ManaValueIs, operands:[Comparison([Equal, ObjectProperty{object:$object_ref, property:ManaValue, information:CurrentOrLastKnown}])]}]} */
+random_oracle_copy_cards ::= random_oracle_excluded_type creature_subtype "creature" "card" "with" "the" "same" "mana" "value" "as" object_ref
+
+/* @sem Operand::Term{family:CardsInOracle, form:IsNonCreatureType, operands:[Vocabulary{family:CreatureType, form:Shapeshifter}]} */
+random_oracle_excluded_type ::= "non-Shapeshifter"
+
+/* The token's two statistics both measure the grouped damage event. This
+   recipe is used only by the scoped grouped-creature-damage trigger below. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[EventAmount, EventAmount], abilities:[Keyword($keyword_value)]}) */
+group_damage_token_recipe ::= "X" "/" "X" token_colors token_subtypes token_types "token" "with" keyword_value
+
+/* The recipient grouping proves that the damage amount is that dealt by the
+   triggering creatures to the one player referenced in the where-clause. */
+/* @sem Ability::Triggered{event:Damage{source_kind:Permanent, sources:AllOf([CardType(Creature), ControlledBy(One(AbilityController)), HasKeyword($keyword_value)]), recipients:Players(All), kind:Combat, grouping:Recipient, subject:Source}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$group_damage_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]}} */
+triggered_group_damage_token ::= "whenever" "one" "or" "more" "creatures" "you" "control" "with" keyword_value "deal" "combat" "damage" "to" "a" "player" "," "create" "an" group_damage_token_recipe "," "where" "X" "is" "the" "amount" "of" "damage" "those" "creatures" "dealt" "to" "that" "player" "."
+
+/* The creation and its anaphoric counter placement share the creation receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$create_one_defined}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@prior)), kind:$counter_kind, amount:Earlier{what:LeftGraveyard, measure:Greatest(ManaValue)}}]}}]} */
+created_graveyard_counter_program ::= create_one_defined "," "then" "put" "a" "number" "of" counter_kind "counters" "on" "it" "equal" "to" "the" "greatest" "mana" "value" "among" "those" "cards"
+
+/* A required life payment and its dependent creation share the same value. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[Life($value)]}}}, If{condition:PaymentChosen(@last_result), then:_{instructions:[Effect{result:@next, operation:$create_one_defined}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@prior)), kind:$counter_kind, amount:$value}]}}]}, otherwise:_{}}]} */
+paid_created_counter_program ::= "pay" "X" "life" "," "where" "X" "is" value "." "if" "you" "do" "," create_one_defined "and" "put" "X" counter_kind "counters" "on" "it"
+
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+create_one_defined ::= "create" "a" token_recipe
+
+/* The discard itself supplies the receipt counted by the following token instruction. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}, Effect{result:@mark, operation:Discard{players:One(AbilityController), amount:$card_count_2, random:false}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountDistinct{objects:Transition{result:@marked, phase:After}, property:CardTypes}, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]}} */
+spell_draw_discard_distinct_tokens ::= "draw" card_count "," "then" "discard" card_count "." "create" "a" token_recipe "for" "each" "card" "type" "among" "cards" "discarded" "this" "way" "."
+
+/* The measured removal is exactly the second component of this activation. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])}), kind:PowerToughness(1, 1), amount:AmongThem(AtLeast(Constant(1)))}]}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:[Creature], subtypes:$token_subtypes, power_toughness:[PaidCountersRemoved{payment:Activation, component:[1]}, PaidCountersRemoved{payment:Activation, component:[1]}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]}} */
+activated_remove_among_scaled_token ::= cost_mana "," "↑" "remove" "one" "or" "more" "+" "1" "/" "+" "1" "counters" "from" "among" filter_plural "you" "control" ":" "create" "an" "X" "/" "X" token_colors token_subtypes "creature" "token" "," "where" "X" "is" "the" "number" "of" "+" "1" "/" "+" "1" "counters" "removed" "this" "way" "."
