@@ -1,0 +1,1729 @@
+{
+  "family": "relative discard seek and exile permission",
+  "cases": [
+    {
+      "name": "Ghitu Embercoiler",
+      "text": "At the beginning of your precombat main phase, you may discard a card. If you do, seek a card with greater mana value and exile it. Until the end of your next turn, you may play the exiled card.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "FirstMainPhaseBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Discard": {
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "filter": {
+                                  "kind": "Any"
+                                },
+                                "random": false
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "Property",
+                                            "args": {
+                                              "property": "ManaValue",
+                                              "test": {
+                                                "kind": "Compare",
+                                                "args": {
+                                                  "comparison": "Greater",
+                                                  "value": {
+                                                    "kind": "ObjectProperty",
+                                                    "args": {
+                                                      "object": {
+                                                        "kind": "Query",
+                                                        "args": {
+                                                          "objects": {
+                                                            "kind": "CostObjects",
+                                                            "args": {
+                                                              "payment": {
+                                                                "Resolution": 0
+                                                              },
+                                                              "component": [
+                                                                0
+                                                              ],
+                                                              "view": "Inputs",
+                                                              "phase": "Before"
+                                                            }
+                                                          },
+                                                          "index": 0
+                                                        }
+                                                      },
+                                                      "property": "ManaValue",
+                                                      "information": "CurrentOrLastKnown"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 1
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 2,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Result",
+                                            "args": {
+                                              "result": 3,
+                                              "phase": "After",
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": {
+                                  "UntilEndOfNextTurn": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Pilot Azure",
+      "text": "At the beginning of your precombat main phase, you may discard a creature card. If you do, seek a card with greater mana value and exile it. Until the end of your next turn, you may play the exiled card.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "FirstMainPhaseBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Discard": {
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "filter": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                "random": false
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "Property",
+                                            "args": {
+                                              "property": "ManaValue",
+                                              "test": {
+                                                "kind": "Compare",
+                                                "args": {
+                                                  "comparison": "Greater",
+                                                  "value": {
+                                                    "kind": "ObjectProperty",
+                                                    "args": {
+                                                      "object": {
+                                                        "kind": "Query",
+                                                        "args": {
+                                                          "objects": {
+                                                            "kind": "CostObjects",
+                                                            "args": {
+                                                              "payment": {
+                                                                "Resolution": 0
+                                                              },
+                                                              "component": [
+                                                                0
+                                                              ],
+                                                              "view": "Inputs",
+                                                              "phase": "Before"
+                                                            }
+                                                          },
+                                                          "index": 0
+                                                        }
+                                                      },
+                                                      "property": "ManaValue",
+                                                      "information": "CurrentOrLastKnown"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 1
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 2,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Result",
+                                            "args": {
+                                              "result": 3,
+                                              "phase": "After",
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": {
+                                  "UntilEndOfNextTurn": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Pilot Vermilion",
+      "text": "At the beginning of your precombat main phase, you may discard a card. If you do, seek a card with lesser mana value and exile it. Until the end of your next turn, you may play the exiled card.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "FirstMainPhaseBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Discard": {
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "filter": {
+                                  "kind": "Any"
+                                },
+                                "random": false
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "Property",
+                                            "args": {
+                                              "property": "ManaValue",
+                                              "test": {
+                                                "kind": "Compare",
+                                                "args": {
+                                                  "comparison": "Less",
+                                                  "value": {
+                                                    "kind": "ObjectProperty",
+                                                    "args": {
+                                                      "object": {
+                                                        "kind": "Query",
+                                                        "args": {
+                                                          "objects": {
+                                                            "kind": "CostObjects",
+                                                            "args": {
+                                                              "payment": {
+                                                                "Resolution": 0
+                                                              },
+                                                              "component": [
+                                                                0
+                                                              ],
+                                                              "view": "Inputs",
+                                                              "phase": "Before"
+                                                            }
+                                                          },
+                                                          "index": 0
+                                                        }
+                                                      },
+                                                      "property": "ManaValue",
+                                                      "information": "CurrentOrLastKnown"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 1
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 2,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Result",
+                                            "args": {
+                                              "result": 3,
+                                              "phase": "After",
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": {
+                                  "UntilEndOfNextTurn": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Pilot Ivory",
+      "text": "At the beginning of your precombat main phase, you may discard a card. If you do, seek a card with greater mana value and exile it. Until end of turn, you may play the exiled card.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "FirstMainPhaseBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Discard": {
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "filter": {
+                                  "kind": "Any"
+                                },
+                                "random": false
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "Property",
+                                            "args": {
+                                              "property": "ManaValue",
+                                              "test": {
+                                                "kind": "Compare",
+                                                "args": {
+                                                  "comparison": "Greater",
+                                                  "value": {
+                                                    "kind": "ObjectProperty",
+                                                    "args": {
+                                                      "object": {
+                                                        "kind": "Query",
+                                                        "args": {
+                                                          "objects": {
+                                                            "kind": "CostObjects",
+                                                            "args": {
+                                                              "payment": {
+                                                                "Resolution": 0
+                                                              },
+                                                              "component": [
+                                                                0
+                                                              ],
+                                                              "view": "Inputs",
+                                                              "phase": "Before"
+                                                            }
+                                                          },
+                                                          "index": 0
+                                                        }
+                                                      },
+                                                      "property": "ManaValue",
+                                                      "information": "CurrentOrLastKnown"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 1
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 2,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Result",
+                                            "args": {
+                                              "result": 3,
+                                              "phase": "After",
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Pilot Maroon",
+      "text": "At the beginning of your precombat main phase, you may discard a card. If you do, seek a card with greater mana value and sacrifice it. Until the end of your next turn, you may play the exiled card.",
+      "reject": true
+    },
+    {
+      "name": "Ghitu Embercoiler",
+      "text": "Prowess\nAt the beginning of your precombat main phase, you may discard a card. If you do, seek a card with lesser mana value and exile it. Until the end of your next turn, you may play the exiled card.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Wizard"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Prowess"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "FirstMainPhaseBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Discard": {
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "filter": {
+                                  "kind": "Any"
+                                },
+                                "random": false
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "Property",
+                                            "args": {
+                                              "property": "ManaValue",
+                                              "test": {
+                                                "kind": "Compare",
+                                                "args": {
+                                                  "comparison": "Less",
+                                                  "value": {
+                                                    "kind": "ObjectProperty",
+                                                    "args": {
+                                                      "object": {
+                                                        "kind": "Query",
+                                                        "args": {
+                                                          "objects": {
+                                                            "kind": "CostObjects",
+                                                            "args": {
+                                                              "payment": {
+                                                                "Resolution": 0
+                                                              },
+                                                              "component": [
+                                                                0
+                                                              ],
+                                                              "view": "Inputs",
+                                                              "phase": "Before"
+                                                            }
+                                                          },
+                                                          "index": 0
+                                                        }
+                                                      },
+                                                      "property": "ManaValue",
+                                                      "information": "CurrentOrLastKnown"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 1
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 2,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Result",
+                                            "args": {
+                                              "result": 3,
+                                              "phase": "After",
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": {
+                                  "UntilEndOfNextTurn": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Ghitu Embercoiler",
+      "text": "Prowess\nAt the beginning of your upkeep, you may discard a card. If you do, seek a card with greater mana value and exile it. Until the end of your next turn, you may play the exiled card.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Wizard"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          2
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Prowess"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Discard": {
+                                "count": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "filter": {
+                                  "kind": "Any"
+                                },
+                                "random": false
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "Property",
+                                            "args": {
+                                              "property": "ManaValue",
+                                              "test": {
+                                                "kind": "Compare",
+                                                "args": {
+                                                  "comparison": "Greater",
+                                                  "value": {
+                                                    "kind": "ObjectProperty",
+                                                    "args": {
+                                                      "object": {
+                                                        "kind": "Query",
+                                                        "args": {
+                                                          "objects": {
+                                                            "kind": "CostObjects",
+                                                            "args": {
+                                                              "payment": {
+                                                                "Resolution": 0
+                                                              },
+                                                              "component": [
+                                                                0
+                                                              ],
+                                                              "view": "Inputs",
+                                                              "phase": "Before"
+                                                            }
+                                                          },
+                                                          "index": 0
+                                                        }
+                                                      },
+                                                      "property": "ManaValue",
+                                                      "information": "CurrentOrLastKnown"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 1
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 2,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceUp",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "PlayerRule",
+                                    "args": {
+                                      "PlayPermission": {
+                                        "cards": {
+                                          "kind": "One",
+                                          "args": {
+                                            "kind": "Result",
+                                            "args": {
+                                              "result": 3,
+                                              "phase": "After",
+                                              "index": 0
+                                            }
+                                          }
+                                        },
+                                        "from": "Exile",
+                                        "action": "Either",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": {
+                                  "UntilEndOfNextTurn": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "evaluation": "LiveObjects"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

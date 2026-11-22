@@ -225,7 +225,7 @@ copy_exception_oxford_more ::= copy_exception_plain "," "and" copy_exceptions_pl
 /* @sem CopyException::AddSupertypes([Legendary]) */
 copy_add_legendary_retained ::= "it's" "legendary" "in" "addition" "to" "its" "other" "types"
 
-entry_copy_actions ::= entry_copy_plain_actions | entry_copy_temporary_actions
+entry_copy_actions ::= entry_copy_plain_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many
 
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$entry_copy_tail})}}] */
 entry_copy_plain_actions ::= "a" "copy" "of" entry_copy_objects entry_copy_tail
@@ -259,3 +259,18 @@ copy_he_exceptions ::= "his" "name" "is" SELF_NAME "and" "he's" "a" value "/" va
 /* The shared subject continues across both copy exceptions. */
 /* @sem Vec<CopyException>::[CopyException::RemoveSupertypes([Legendary]), CopyException::AddCreatureTypes($becomes_types)] */
 copy_not_legendary_and_type ::= "it" "isn't" "legendary" "and" "is" "a" becomes_types "in" "addition" "to" "its" "other" "types"
+
+/* The condition consumes the object selected by this exact entry-copy action. */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_controlled_creature, exceptions:[]})}}, If{condition:Compare{left:CountObjects(Matching{objects:Recorded(@prior), filter:ControlledBy(One(AbilityController))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Constant(1)})}}]}, otherwise:Program{}}] */
+entry_copy_controlled_counter_one ::= "a" "copy" "of" entry_copy_controlled_creature "," "except" "it" "enters" "with" "a" counter_kind "counter" "on" "it" "if" "you" "control" "that" "creature" "."
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_controlled_creature, exceptions:[]})}}, If{condition:Compare{left:CountObjects(Matching{objects:Recorded(@prior), filter:ControlledBy(One(AbilityController))}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$count_plural})}}]}, otherwise:Program{}}] */
+entry_copy_controlled_counter_many ::= "a" "copy" "of" entry_copy_controlled_creature "," "except" "it" "enters" "with" count_plural counter_kind "counters" "on" "it" "if" "you" "control" "that" "creature" "."
+
+/* The anaphor “that creature” requires a creature copy choice. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_creature_filter} */
+entry_copy_controlled_creature ::= "any" entry_copy_creature_filter "on" "the" "battlefield"
+entry_copy_creature_filter ::= noun_creature | entry_copy_creature_adjective | entry_copy_creature_modified
+/* @sem @and($adjective, $entry_copy_creature_filter) */
+entry_copy_creature_adjective ::= adjective entry_copy_creature_filter
+/* @sem @and($noun_creature, $modifiers) */
+entry_copy_creature_modified ::= noun_creature modifiers

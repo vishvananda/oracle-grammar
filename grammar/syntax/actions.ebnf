@@ -366,7 +366,7 @@ clause_may ::= "you" "may" may_body
 /* @sem Instruction::[Optional{decider:AbilityController, body:_{instructions:@optional_then($may_body, $conjoined)}}] */
 clause_may_then ::= "you" "may" may_body "," "then" conjoined
 
-may_body ::= put_private_card_counter_entry | graveyard_return_single | look_put_then_body | clause_have_continuous | clause_have_deal | clause_player_put_card | clause_imperative | clause_operation | clause_search | clause_search_where_split | clause_search_either | clause_exile_from | clause_put_from | clause_put_from_tapped | copy_ref_may_choose_target | clause_have_retained_animation | clause_exile_creature_group_choice | have_copy_of_scoped_graveyard_card | clause_have_assign_unblocked
+may_body ::= put_private_card_counter_entry | graveyard_return_single | look_put_then_body | clause_have_continuous | clause_have_deal | clause_player_put_card | clause_imperative | clause_operation | clause_search | clause_search_where_split | clause_search_either | clause_search_private_either | clause_exile_from | clause_put_from | clause_put_from_tapped | copy_ref_may_choose_target | clause_have_retained_animation | clause_exile_creature_group_choice | have_copy_of_scoped_graveyard_card | clause_have_assign_unblocked | clause_search_three_zones_battlefield
 
 /* A cost paid during resolution, and what depends on paying it. */
 payment ::= payment_remove_each_selected | payment_mana_and_graveyard_exile | payment_put_counters | payment_return_controlled_permanent | payment_put_hand_card | payment_hand_draw | resolution_life_sacrifice_cost | payment_remove_counters | cost | pay_mana | payment_sacrifice | payment_action | payment_exile | payment_return | payment_tap | payment_draw | payment_have_draw | payment_move_counters_source | payment_return_graveyard_union | payment_mana_and_discard | payment_put_hand_card_attacking | payment_exile_spell_and_named_cards | payment_return_owned_permanent | payment_choice_cost | payment_pair | payment_exile_other_colored_card | payment_reveal_own_hand | payment_mana_sacrifice_affected | payment_graveyard_to_library_bottom | payment_exiled_opponents_cards | payment_graveyard_card_bottom | payment_opponents_exiled_cards | payment_sacrifice_saddler | payment_exile_optional_opposing_permanent | payment_exile_controlled_or_graveyard | payment_event_player_return_card
@@ -10108,3 +10108,180 @@ program_exile_dead_evidence_return ::= "you" "may" "exile" "it" "and" "collect" 
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(OpponentsOf(AbilityController))])}), index:0} */
 delayed_chosen_creature ::= "target" "creature" "an" "opponent" "controls"
+
+/* The payment and ownership exchange refer to the two arrivals of this
+   exact exile instruction; keep the producer and its consumers in one scope. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Union([One(Source), One($owned_opponent_target)]), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:PayCost{player:OwnerOf($owned_opponent_target), cost:_{parts:[Life($number)]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:_{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Source), zone:Exile}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:_{instructions:[Effect{result:@next, operation:Exchange(_{kind:Ownership, first:Object(Result{result:@back(4), phase:After, index:0}), second:Object(Result{result:@back(4), phase:After, index:1})})}]}}] */
+instructions_exile_pair_ownership_payment ::= "exile" "this" "artifact" "and" owned_opponent_target "." "that" "player" "may" "pay" number "life" "." "if" "they" "do" "," "put" "this" "card" "into" "its" "owner's" "graveyard" "." "otherwise" "," "that" "player" "owns" "this" "card" "and" "you" "own" "the" "other" "exiled" "card"
+
+/* The test and its consequence consume this particular discard receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:Discard{players:One($discard_receipt_target), amount:$discard_receipt_count, random:false}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@last_result, phase:Before}, filter:$filter_phrase}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:$then_condition_program, otherwise:Program{}}] */
+instructions_discard_filtered_receipt ::= discard_receipt_target "discards" discard_receipt_count "." "if" "a" filter_phrase "card" "is" "discarded" "this" "way" "," then_condition_program
+
+discard_receipt_target ::= target_player | target_opponent
+
+discard_receipt_count ::= card_count_one | card_count_many
+
+/* A conditional replacement keeps the original target and the exile arrival together. */
+/* @sem Instruction::[If{condition:ObjectMatches{object:$target_object, filter:$return_exile_keyword}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:One($target_object), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@prior, phase:After, index:0}), zone:Exile}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:One($target_object), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}] */
+instructions_return_keyword_exile ::= "return" target_object "to" "its" "owner's" "hand" "." "if" "it" "has" return_exile_keyword "," "instead" "exile" "it" "," "then" "return" "that" "card" "to" "its" "owner's" "hand"
+
+return_exile_keyword ::= return_exile_unearth | condition_keyword_family
+
+/* @sem ObjectFilter::HasKeywordFamily(Unearth) */
+return_exile_unearth ::= "unearth"
+
+/* Return the card produced by a graveyard event, while it remains there. */
+/* @sem Operation::Move{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+return_event_card_your_hand ::= "return" "that" "card" "to" "your" "hand"
+
+/* The targeted opponent may choose to have this source deal damage to them. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:$target_opponent, cost:Cost{parts:[PlayerAction{player:Target{slot:@last_slot, index:0}, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One(Target{slot:@last_slot, index:0})), amount:$number, preventable:true}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:$return_event_card_your_hand}]}, otherwise:Program{}}]} */
+program_unless_opponent_source_damage ::= return_event_card_your_hand "unless" target_opponent "has" "this" "enchantment" "deal" number "damage" "to" "them"
+
+/* The graveyard event proves that the card is owned by the ability controller. */
+/* @sem Ability::Triggered{event:$event_put_your_graveyard, limits:TriggerLimits{}, announcement:@announcement, body:$program_unless_opponent_source_damage} */
+trigger_owned_graveyard_unless_damage ::= "whenever" event_put_your_graveyard "," program_unless_opponent_source_damage "."
+
+/* The delayed unattachment consumes the very attachment selected by this payment. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:_{parts:[PlayerAction{player:AbilityController, body:_{instructions:[Effect{result:@next, operation:AttachChosen{actor:One(AbilityController), attachments:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$subtype, ControlledBy(One(AbilityController))])}, count:Exactly(Constant(1)), hosts:One($that_noun)}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:_{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Unattach{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Inputs, phase:Before}, index:0}}}}]}}}]}, otherwise:_{}}] */
+instructions_optional_attach_delayed_unattach ::= "you" "may" "attach" "an" subtype "you" "control" "to" that_noun "." "if" "you" "do" "," "unattach" "it" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* The resolution-count callback announces its own targets, independently of
+   the enclosing ability and the preceding instructions. */
+/* @sem Instruction::[If{condition:Compare{left:TimesResolvedThisTurn, test:Compare{comparison:Equal, value:$resolution_ordinal}}, then:@reflexive(Program::Program{instructions:[Effect{result:@next, operation:ReflexiveTrigger{announcement:@announcement, body:Program{instructions:$conjoined}}}]}), otherwise:Program{}}] */
+resolution_count_callback ::= "when" "this" "ability" "resolves" "for" "the" resolution_ordinal "time" "this" "turn" "," conjoined
+
+/* Scope the exile producer and its delayed return together, across an intervening copy effect. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One($target_permanent), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:$controlled_subtypes_copy_target_until_end}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@back(4), phase:After, index:0}), zone:Exile}), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}}}]} */
+program_exile_copy_return ::= "exile" target_permanent "." controlled_subtypes_copy_target_until_end "." "return" "it" "to" "the" "battlefield" "under" "its" "owner's" "control" "at" "the" "beginning" "of" "the" "next" "end" "step" "."
+
+/* A death's destination remains the object returned by the delayed action. */
+/* @sem Operation::CreateDelayedTrigger{event:$delayed_move_end_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[$death_return_counters], states:[Changes($death_return_characteristics)]}}, qualifiers:[]}}]}} */
+delayed_death_return_modified ::= "return" "it" "to" "the" "battlefield" "under" "your" "control" death_return_counters "at" delayed_move_end_event "." death_return_characteristics
+
+death_return_counters ::= death_return_counter_one | death_return_counter_many
+
+/* @sem (CounterKind, Expr)::[$counter_kind, Constant(1)] */
+death_return_counter_one ::= "with" "an" "additional" counter_kind "counter" "on" "it"
+
+/* @sem (CounterKind, Expr)::[$counter_kind, @plural_amount($number_words)] */
+death_return_counter_many ::= "with" number_words "additional" counter_kind "counters" "on" "it"
+
+/* @sem Change::[Colors{mode:Add, colors:[$mana_color_word]}, CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
+death_return_characteristics ::= "that" "creature" "is" "a" mana_color_word becomes_types "in" "addition" "to" "its" "other" "colors" "and" "types"
+
+/* @sem Ability::Triggered{event:$death_return_creature_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$delayed_death_return_modified}]}} */
+triggered_delayed_death_return ::= "whenever" death_return_creature_event "," delayed_death_return_modified "."
+
+/* The anaphor in the entry characteristic requires a creature antecedent. */
+death_return_creature_event ::= death_return_qualified_creature_event | death_return_plain_creature_event
+
+/* @sem EventSpec::ZoneChange{objects:@and($noun_creature, $modifier_nonnumeric), from:Battlefield, to:Graveyard} */
+death_return_qualified_creature_event ::= "a" noun_creature modifier_nonnumeric "dies"
+
+/* @sem EventSpec::ZoneChange{objects:$noun_creature, from:Battlefield, to:Graveyard} */
+death_return_plain_creature_event ::= "a" noun_creature "dies"
+
+/* The tie explanation must name the same population and characteristic as
+   the selected extreme. Indestructibility is excluded after the minimum. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($least_stat_battlefield, ObjectFilter::AllOf([$plural_head, Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$plural_head}, property:$stat, aggregation:Minimum}}}]))}, filter:Not(HasKeyword(Indestructible))}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Destroy{objects:Selected(@prior), regeneration:false}}] */
+destroy_least_stat_tied ::= "destroy" least_stat_battlefield "." "it" "can't" "be" "regenerated" "." "if" "two" "or" "more" plural_head "are" "tied" "for" "least" stat "," "you" "choose" "one" "of" "them"
+
+/* The perpetual grant refers only to the immediately conjured library arrivals. */
+/* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Named($referenced_card_name), count:$number, destination:Library{position:Random, arrival:CardArrival{counters:[], states:[]}}}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:InSet(Transition{result:@prior, phase:After})}), changes:[GrantAbility($mechanic_bare)]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+instructions_conjure_library_perpetual_mechanic ::= "conjure" number "cards" "named" referenced_card_name "into" "your" "library" "." "they" "perpetually" "gain" mechanic_bare "." "then" "shuffle"
+
+/* The turn's player chooses whether to add or remove the same counter kind. */
+/* @sem Instruction::Optional{decider:EventSubject, body:Program{instructions:[ChooseOne{decider:EventSubject, options:[Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One($self_explicit_ref)), kind:Named(DoomCounter), amount:Constant(1)}]}}]}, Program{instructions:[Effect{result:@next, operation:RemoveCounters{removals:[_{player:EventSubject, recipients:Objects(One($self_explicit_ref)), kind:Named(DoomCounter), amount:Count(Exactly(Constant(1)))}]}}]}]}]}} */
+event_player_optional_counter_choice ::= "that" "player" "may" "put" "a" "doom" "counter" "on" self_explicit_ref "or" "remove" "a" "doom" "counter" "from" "it"
+
+/* The threshold and sacrifice refer to the same source; the callback is scoped
+   to the performed sacrifice and has its own announcement. */
+/* @sem Instruction::If{condition:ObjectMatches{object:Source, filter:Counters(_{kind:$counter_kind, comparison:GreaterOrEqual, value:$number})}, then:Program{instructions:[...$source_sacrifice_reflexive]}, otherwise:Program{}} */
+source_counter_threshold_sacrifice ::= "then" "if" "it" "has" number "or" "more" counter_kind "counters" "on" "it" "," source_sacrifice_reflexive
+
+/* @sem Instruction::[Effect{result:@mark, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:One($self_explicit_ref)})}, Effect{result:@next, operation:@reflexive(Operation::ReflexiveTrigger{performed:@marked, announcement:@announcement, body:$source_reflexive_damage_program})}] */
+source_sacrifice_reflexive ::= "sacrifice" self_explicit_ref "." "when" "you" "do" "," source_reflexive_damage_program
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun}), amount:$number, preventable:true}}]} */
+source_reflexive_damage_program ::= "it" "deals" number "damage" "to" "each" noun
+
+/* @sem Program::Program{instructions:[$event_player_optional_counter_choice, $source_counter_threshold_sacrifice]} */
+program_event_counter_choice_threshold ::= event_player_optional_counter_choice "." source_counter_threshold_sacrifice
+
+/* Each player chooses from their own battlefield population. */
+/* @sem Operation::ChooseObjects{player:Bound(0), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(Bound(0)))])}, count:AsManyAsCan(Constant(1))} */
+bound_choose_controlled_one ::= "chooses" "a" filter_phrase "they" "control"
+
+/* The remainder is the unselected portion of the preceding choice. */
+/* @sem ObjectSet::Unselected(@prior) */
+choice_unselected_remainder ::= "the" "rest"
+
+/* Choices precede a single sacrifice by the same player population. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:_{instructions:[Effect{result:@next, operation:$bound_choose_controlled_one}]}}, Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:$players_singular, objects:$choice_unselected_remainder})}] */
+instructions_players_choose_sacrifice_remainder ::= players_singular bound_choose_controlled_one "," "then" "sacrifices" choice_unselected_remainder
+
+/* The casting-time subtype condition changes the maximum announced mode count. */
+/* @sem ModeSelection::ModeSelection{count:ModeCount{minimum:Constant(1), maximum:Conditional{condition:Controls{player:AbilityController, filter:$subtype, minimum:1}, then:$number_words, otherwise:Constant(1)}}, options:$modes, rules:ModeRules{repetition:OnceEach, availability:Any, targets:MayShare, acceptance:Required}, mechanism:ModeMechanism::Announced{chooser:Controller, method:PlayerChoice}} */
+choose_cast_controlled_subtype ::= "choose" "one" "." "if" "you" "control" "a" subtype "as" "you" "cast" "this" "spell" "," "you" "may" "choose" number_words "instead" "." NEWLINE modes
+
+/* A controlled counter-bearing population and its matching anaphor. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($noun, $plural), ControlledBy(One(AbilityController)), Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})])} */
+controlled_counter_population_anaphor ::= noun "you" "control" "with" "a" counter_kind "counter" "on" "it" "." "those" plural
+
+/* @sem Instruction::[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:CountObjects($controlled_counter_population_anaphor)}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($controlled_counter_population_anaphor), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}] */
+instructions_count_controlled_counter_grant ::= "draw" "a" "card" "for" "each" controlled_counter_population_anaphor "gain" keyword_name duration
+
+/* The grant and delayed sacrifice refer to the same paid arrival. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:_{parts:[$hand_total_stats_entry]}, optional:true}}, If{condition:PaymentChosen(@marked), then:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})), changes:$static_changes, duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})})}]}}}]}, otherwise:_{}}] */
+instructions_paid_hand_entry_changes_sacrifice ::= "you" "may" hand_total_stats_entry "." "that" "creature" static_changes "." "at" "the" "beginning" "of" "the" "next" "end" "step" "," "sacrifice" "that" "creature"
+
+/* A random hand observation and both branches share the same card and player. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:RevealFromHand{actor:One(EventSubject), cards:Any, count:Constant(1), at_random:true}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@last_result), filter:$noun}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:One(Query{objects:Observed(@prior), index:0}), destination:Battlefield{controller:Player(EventSubject), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(EventSubject), action:CastSpell, cards:Recorded(@back(3)), count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]} */
+program_sentence_random_hand_type_branch ::= "that" "player" "reveals" "a" "card" "at" "random" "from" "their" "hand" "." "if" "it's" "a" noun "card" "," "the" "player" "puts" "it" "onto" "the" "battlefield" "." "otherwise" "," "the" "player" "casts" "it" "without" "paying" "its" "mana" "cost" "if" "able" "."
+
+/* A counter placement and a separately qualified land-type effect share the target. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$upkeep_nonbasic_filter, CardType(Land), ControlledBy(One(EventSubject))]), chooser:EventSubject}), index:0})), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@last_slot, index:0})), changes:[SetLandType(Vocabulary{family:LandType, form:@subtype_name($basic_land_type_named)})], duration:WhileMatches{object:Target{slot:@last_slot, index:0}, filter:Counters(_{kind:$counter_kind_2, comparison:Greater, value:Constant(0)})}, evaluation:Snapshot}}]} */
+upkeep_counter_land_body ::= "that" "player" "puts" "a" counter_kind "counter" "on" "target" upkeep_nonbasic_filter "land" "they" "control" "of" "their" "choice" "." "that" "land" "is" basic_land_type_named "for" "as" "long" "as" "it" "has" "a" counter_kind "counter" "on" "it" "."
+
+upkeep_nonbasic_filter ::= st_island_non | st_plains_non | st_swamp_non | st_mountain_non | st_forest_non
+
+/* Counting all permanents is shared by both parity tests; these branches only
+   install continuous effects and triggers, so neither changes that count. */
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:Any}), test:NumberTest::Compare{comparison:SameParity, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:$parity_population_pump}, Effect{result:@next, operation:$parity_mana_trigger}]}, otherwise:Program{}} */
+parity_odd_pump_mana ::= "if" "the" "number" "is" "odd" "," "until" "end" "of" "turn" "," parity_population_pump "and" parity_mana_trigger "."
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:Any}), test:NumberTest::Compare{comparison:SameParity, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:$parity_population_pump}, Effect{result:@next, operation:$parity_mountain_replacement}]}, otherwise:Program{}} */
+parity_even_pump_mana ::= "if" "the" "number" "is" "even" "," "until" "end" "of" "turn" "," parity_population_pump "and" parity_mountain_replacement "."
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[Pump{power:$signed, toughness:$signed_2}], duration:EndOfTurn, evaluation:Snapshot} */
+parity_population_pump ::= filter_plural "get" signed "/" signed
+
+/* @sem Operation::CreateTrigger{event:Player{event:TapsForMana, players:All, objects:$subtype}, duration:EndOfTurn, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(EventSubject), mana:Amount{color:$mana_color, amount:Constant(1)}}}]}} */
+parity_mana_trigger ::= "whenever" "a" "player" "taps" "a" subtype "for" "mana" "," "that" "player" "adds" "an" "additional" mana_color
+
+/* The repeated noun in this wording is deliberately fixed until a shared
+   typed co-reference guard can validate both mentions for parsing and print. */
+/* @sem Operation::GameEffect{until:EndOfTurn, effect:Term{family:GameEffect, form:PermanentsTappedByPlayerForManaProduceColorlessInstead, operands:[Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:Subtype(Mountain)}), Players(All)]}} */
+parity_mountain_replacement ::= "if" "a" "player" "taps" "a" "Mountain" "for" "mana" "," "that" "Mountain" "produces" "colorless" "mana" "instead" "of" "any" "other" "type"
+
+/* The random choice and the exile establish the card used by both the
+   permission and its cast callback. The marked result cannot come from a
+   different producer or destination. */
+/* @sem Instruction::[Effect{result:@next, operation:$random_library_player_choice}, ...$random_chosen_top_exile, ...$exile_owner_cast_permission] */
+instructions_random_library_exile_owner_permission ::= random_library_player_choice "." random_chosen_top_exile "." exile_owner_cast_permission
+
+/* @sem Operation::ChooseAtRandom{kind:Player, options:[$random_library_population]} */
+random_library_player_choice ::= "choose" random_library_population "at" "random"
+
+/* @sem Operand::Players(OpponentsOf(AbilityController)) */
+random_library_opponent ::= "an" "opponent"
+
+random_library_population ::= random_library_opponent | random_player_population
+
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(Chosen)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+random_chosen_top_exile ::= "exile" "the" "top" "card" "of" "that" "player's" "library"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@marked, phase:After, index:0}), from:Exile, action:Either, filter:Any}, terms:_{cost:Normal, spend_as:AnyColor, effects:[Program{instructions:[Effect{result:@next, operation:LoseLife{players:One(OwnerOf(Result{result:@marked, phase:After, index:0})), amount:ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}]}]}})], duration:$duration, evaluation:LiveObjects}}] */
+exile_owner_cast_permission ::= duration "," "you" "may" "play" "that" "card" "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "it" "." "when" "you" "cast" "a" "spell" "this" "way" "," "its" "owner" "loses" "life" "equal" "to" "its" "mana" "value"

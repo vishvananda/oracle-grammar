@@ -260,7 +260,7 @@ hand_battlefield_paid_spell ::= "you" "may" hand_battlefield_payment "." hand_ba
 /* @sem Cost::Cost{parts:[Move{selections:[_{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, choose:Exactly($counter_a)}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
 hand_battlefield_payment ::= "put" counter_a filter_phrase "card" "from" "your" "hand" "onto" "the" "battlefield"
 
-hand_battlefield_followup ::= hand_battlefield_unless_mana | hand_battlefield_granted_triggers
+hand_battlefield_followup ::= hand_battlefield_unless_mana | hand_battlefield_granted_triggers | hand_battlefield_perpetual_then_sacrifice
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[ManaCostReduced{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, reduction:$generic_reduction_symbols}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})}}]}, otherwise:Program{}}]} */
 hand_battlefield_unless_mana ::= "if" "you" "do" "," "sacrifice" "it" "unless" "you" "pay" "its" "mana" "cost" "reduced" "by" generic_reduction_symbols "."
@@ -272,3 +272,18 @@ hand_battlefield_granted_triggers ::= "that" "permanent" "gains" keyword_value "
    The target is shared by both branches; the granted ability owns its source. */
 /* @sem Instruction::[If{condition:ObjectMatches{object:$self_explicit_ref, filter:State(Saddled)}, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(InZone{objects:One($callback_flashback_target), zone:Graveyard}), changes:[GrantAbility(@holder(Ability::Casting(Permission{origin:Flashback, player:OwnerOf(Source), from:Players{zone:Graveyard, players:One(OwnerOf(Source))}, require:AnyOf([CardType(Instant), CardType(Sorcery)]), cost:$cost, leave_stack:Exile})))], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(InZone{objects:One($callback_flashback_target), zone:Graveyard}), changes:[GrantAbility(@holder(Ability::Casting(Permission{origin:Flashback, player:OwnerOf(Source), from:Players{zone:Graveyard, players:One(OwnerOf(Source))}, require:AnyOf([CardType(Instant), CardType(Sorcery)]), cost:Cost{parts:[ManaCostOf(Source)]}, leave_stack:Exile})))], duration:$duration, evaluation:Snapshot}}]}}] */
 instructions_flashback_saddled_alternative ::= callback_flashback_target "gains" "flashback" duration "." "the" "flashback" "cost" "is" "equal" "to" "its" "mana" "cost" "." "that" "card" "gains" "flashback" cost duration "instead" "if" self_explicit_ref "is" "saddled"
+
+/* Both effects refer to the singular performed hand-to-battlefield payment. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}), changes:$artifact_base_keyword_change}}, Effect{result:@next, operation:$hand_battlefield_delayed_sacrifice}]} */
+hand_battlefield_perpetual_then_sacrifice ::= "it" "perpetually" artifact_base_keyword_change "." hand_battlefield_delayed_sacrifice "."
+
+/* @sem Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})})}]}} */
+hand_battlefield_delayed_sacrifice ::= "sacrifice" "it" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* The follow-up refers to the exact hand-to-battlefield payment receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$payment_put_hand_card_attacking, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})), changes:$static_changes, duration:$duration, evaluation:Snapshot}}]}, otherwise:Program{}}]} */
+program_paid_hand_attack_changes ::= "you" "may" payment_put_hand_card_attacking "." "it" static_changes duration
+
+/* A resolved payment can gate a complete receipt-bound program. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:$program_paid_hand_attack_changes, otherwise:Program{}}] */
+clause_paid_program_hand_attack ::= "you" "may" payment "." "if" "you" "do" "," program_paid_hand_attack_changes

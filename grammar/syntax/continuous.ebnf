@@ -486,7 +486,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add | static_controlled_each_change | static_scalar_pump_override | static_attached_retained_color_type | static_extreme_population | static_untap_with_named_counter | static_unless_shares_most_common_color | static_untap_with_nonmana_ability | static_each_object_state | scalar_static_alternative | static_graveyard_permissions | static_graveyard_card_grant_during_turn | static_each_qualified_pump | scalar_subject_static_kind | static_attacked_population | static_linked_exile_threshold | static_loss_and_quoted_activation | static_pump_compound_population | static_team_subtype_keyword | static_landwalk_family_exception | static_subtype_token_keyword
+static_ability ::= static_nonmana_activation_cost_more | static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add | static_controlled_each_change | static_scalar_pump_override | static_attached_retained_color_type | static_extreme_population | static_untap_with_named_counter | static_unless_shares_most_common_color | static_untap_with_nonmana_ability | static_each_object_state | scalar_static_alternative | static_graveyard_permissions | static_graveyard_card_grant_during_turn | static_each_qualified_pump | scalar_subject_static_kind | static_attacked_population | static_linked_exile_threshold | static_loss_and_quoted_activation | static_pump_compound_population | static_team_subtype_keyword | static_landwalk_family_exception | static_subtype_token_keyword
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -3407,11 +3407,13 @@ static_equip_target_reduction ::= "this" "Equipment's" "equip" "ability" "costs"
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($prohibited_spell_population), changes:$spell_prohibition_changes} */
 static_prohibited_spell_population ::= prohibited_spell_population spell_prohibition_changes "."
 
-prohibited_spell_population ::= prohibited_spells_all | prohibited_spells_typed | prohibited_spells_shared_type | cross_spells
+prohibited_spell_population ::= prohibited_spells_all | prohibited_spells_typed | prohibited_spells_shared_type | cross_spells | prohibited_spells_restricted
 
+/* @prefer always */
 /* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:Any} */
 prohibited_spells_all ::= "spells"
 
+/* @prefer always */
 /* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:$card_filter} */
 prohibited_spells_typed ::= card_filter "spells"
 
@@ -3586,6 +3588,7 @@ spell_cost_power_threshold ::= "with" "power" value "or" "greater"
 static_opponents_cast_cost ::= cast_spells_filter "your" "opponents" "cast" "cost" spell_cost_change "to" "cast" "."
 
 /* Keyword payment adjustments retain the payer and current symbol operand. */
+/* @prefer always */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players($target_tax_casters), changes:[PlayerRule(KeywordCost{keyword:$payment_keyword, cards:Any, change:$keyword_payment_change})]}) */
 static_keyword_payment_change ::= payment_keyword "costs" target_tax_casters "pay" "cost" keyword_payment_change "."
 
@@ -7326,3 +7329,181 @@ defining_named_sacrifice_count ::= defining_sacrificed_as_entered
 /* The entering object is the holder of this defining ability. */
 /* @sem Expr::CountObjects(Matching{objects:SacrificedAsEntered(@self), filter:$filter_plural}) */
 defining_sacrificed_as_entered ::= "the" "number" "of" filter_plural "sacrificed" "as" "it" "entered"
+
+/* @sem ObjectSet::Zone{scope:Shared(Stack), kind:Spell, filter:$spell_population_filter} */
+prohibited_spells_restricted ::= spell_population_filter
+
+spell_population_filter ::= spell_population_filter_controlled_list | spell_population_filter_controlled | spell_population_filter_power | spell_population_filter_mana | spell_population_filter_x
+
+/* @sem @and(ObjectFilter::AnyOf([...$spell_type_commas, $spell_type_head]), ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))) */
+spell_population_filter_controlled_list ::= spell_type_commas "and" spell_type_head "spells" "you" "control"
+
+spell_type_head ::= spell_instant | spell_sorcery | noun
+
+spell_type_commas ::= spell_type_commas_more | spell_type_commas_last
+
+/* @sem ObjectFilter::[$spell_type_head, ...$spell_type_commas] */
+spell_type_commas_more ::= spell_type_head "," spell_type_commas
+
+/* @sem ObjectFilter::[$spell_type_head] */
+spell_type_commas_last ::= spell_type_head ","
+
+/* @sem @and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))) */
+spell_population_filter_controlled ::= filter_phrase "spells" "you" "control"
+
+spell_population_kind ::= adjective_nontype | filter_phrase
+
+/* @sem @and($spell_population_kind, $spell_cost_power_threshold) */
+spell_population_filter_power ::= spell_population_kind "spells" spell_cost_power_threshold
+
+/* @sem @and($spell_population_kind, $spell_cost_mana_threshold) */
+spell_population_filter_mana ::= spell_population_kind "spells" spell_cost_mana_threshold
+
+/* @sem @and($spell_population_kind, ObjectFilter::State(HasX)) */
+spell_population_filter_x ::= spell_population_kind "spells" "with" "{" "X" "}" "in" "their" "mana" "costs"
+
+/* A second timed change applies to the population affected by the copy. */
+/* @sem Instruction::[Effect{result:@next, operation:$copy_effect_for_followup}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Affected(@prior)), changes:$static_changes, duration:$duration, evaluation:Snapshot}}] */
+clause_copy_then_changes ::= copy_effect_for_followup "and" static_changes duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::$copy_followup_model)), changes:[CopyOf{object:$copy_followup_model, exceptions:[]}], duration:$copy_followup_duration, evaluation:Snapshot} */
+copy_effect_for_followup ::= affected "becomes" "a" "copy" "of" copy_followup_model copy_followup_duration
+
+copy_followup_model ::= copy_followup_target | copy_model_ref
+
+/* @prefer always */
+/* @sem ObjectRef::$target_permanent */
+copy_followup_target ::= target_permanent
+
+copy_followup_duration ::= copy_followup_end_of_turn | duration
+
+/* @prefer always */
+/* @sem Duration::EndOfTurn */
+copy_followup_end_of_turn ::= "until" "end" "of" "turn"
+
+/* The excluded target and its controller are independent operands of the live
+   population. This follow-up requires an already announced singleton target. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Target{slot:@last_slot, index:0})), $plural, ControlledBy(One(ControllerOf(Target{slot:@last_slot, index:0})))])}), changes:[Rule(Prohibit(Block(Any)))], duration:$this_duration, evaluation:LiveObjects} */
+other_target_controller_block_prohibition ::= "other" plural "that" "player" "controls" "can't" "block" this_duration
+
+/* The explicit creature callback anchors both the untap and the player to the
+   same announced object; keep the two-sentence anaphor scoped together. */
+/* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:One(Target{slot:@last_slot, index:0}), tapped:false}}, Effect{result:@next, operation:$other_target_controller_block_prohibition}] */
+untap_target_other_controller_block ::= "untap" "that" "creature" "." other_target_controller_block_prohibition
+
+/* A die adjustment retains its independently composed payment cost. */
+/* @sem PlayerRule::DiceChange{cost:Cost($cost)} */
+player_paid_die_adjustment ::= "you" "may" cost "." "if" "you" "do" "," "increase" "or" "decrease" "the" "result" "by" "1"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule($player_paid_die_adjustment)]} */
+static_after_controller_die_roll ::= "after" "you" "roll" "a" "die" "," player_paid_die_adjustment "."
+
+/* All three actions refer to the same explicitly named population. Keep both
+   durations independent and print each from its current operand. */
+/* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:$control_population, tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($control_population), changes:[SetController(AbilityController)], duration:$population_control_duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($control_population), changes:[GrantKeyword($control_population_keyword)], duration:$duration, evaluation:Snapshot}}] */
+instructions_untap_population_control_grants ::= "untap" control_population "and" "gain" "control" "of" "them" population_control_duration "." "they" "gain" control_population_keyword duration
+
+/* Controller-qualified filters are excluded: gaining control could change
+   their membership between the two effects. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:$control_population_type} */
+control_population ::= "all" control_population_type
+
+control_population_type ::= plural_creature | plural_artifact | plural_enchantment | plural_land | plural_planeswalker | plural_permanent
+
+/* Mid-sentence keyword spellings do not have the title-case alternative. */
+control_population_keyword ::= control_keyword_haste | control_keyword_flying | control_keyword_trample | control_keyword_vigilance
+
+/* @sem Keyword::Haste */
+control_keyword_haste ::= "haste"
+
+/* @sem Keyword::Flying */
+control_keyword_flying ::= "flying"
+
+/* @sem Keyword::Trample */
+control_keyword_trample ::= "trample"
+
+/* @sem Keyword::Vigilance */
+control_keyword_vigilance ::= "vigilance"
+
+population_control_duration ::= population_control_end_turn | duration
+
+/* @prefer always */
+/* @sem Duration::EndOfTurn */
+population_control_end_turn ::= "until" "end" "of" "turn"
+
+/* @prefer always */
+/* @sem Ability::Spell{announcement:@announcement, body:_{instructions:$instructions_untap_population_control_grants}} */
+spell_untap_population_control_grants ::= instructions_untap_population_control_grants "."
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AllOf([AbilityOf($activation_owner), Not(OnStack(Mana))]), change:Increase($kicker_operand_generic)})]}) */
+static_nonmana_activation_cost_more ::= "activated" "abilities" "of" activation_owner "cost" kicker_operand_generic "more" "to" "activate" "unless" "they're" "mana" "abilities" "."
+
+/* Universal keyword costs share the keyword and current payment adjustment. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(KeywordCost{keyword:$universal_payment_keyword, cards:Any, change:$keyword_payment_change})]}) */
+static_universal_keyword_payment ::= "all" universal_payment_keyword "costs" "cost" keyword_payment_change "."
+
+universal_payment_keyword ::= payment_keyword | universal_morph_keyword
+
+/* @sem Mechanic::Morph */
+universal_morph_keyword ::= "morph"
+
+/* A variable reduction is shared independently of its affected ability population. */
+/* @sem ActivationCostChange::ReduceX{amount:List([Vocabulary{family:CostReductionSymbolX, form:CostReduceX}]), times:$value} */
+activation_cost_variable_reduction ::= "{" "X" "}" "less" "to" "activate" "," "where" "X" "is" value
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:$activation_cost_variable_reduction, floor:1})]}) */
+static_activation_variable_floor ::= "activated" "abilities" "of" activation_owner "cost" activation_cost_variable_reduction "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "cost" "to" "less" "than" "one" "mana" "."
+
+/* A life payment buys a reduction in one specified colored mana symbol.
+   Keep the reduction symbol and its explanatory color together. */
+/* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:AllOf([$filter_phrase, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])]), modifier:PayToReduce{cost:Cost(Cost{parts:[$cost_life]}), mana:$life_payment_reduction}})]} */
+shared_life_payment_spell_reduction ::= "as" "an" "additional" "cost" "to" "cast" filter_phrase "spells" "," "you" "may" cost_life "." life_payment_reduction
+
+life_payment_reduction ::= life_payment_reduction_blue | life_payment_reduction_white | life_payment_reduction_black | life_payment_reduction_red | life_payment_reduction_green
+
+/* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostU}]) */
+life_payment_reduction_blue ::= "those" "spells" "cost" "{" "U" "}" "less" "to" "cast" "if" "you" "paid" "life" "this" "way" "." "this" "effect" "reduces" "only" "the" "amount" "of" "blue" "mana" "you" "pay" "."
+
+/* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostW}]) */
+life_payment_reduction_white ::= "those" "spells" "cost" "{" "W" "}" "less" "to" "cast" "if" "you" "paid" "life" "this" "way" "." "this" "effect" "reduces" "only" "the" "amount" "of" "white" "mana" "you" "pay" "."
+
+/* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostB}]) */
+life_payment_reduction_black ::= "those" "spells" "cost" "{" "B" "}" "less" "to" "cast" "if" "you" "paid" "life" "this" "way" "." "this" "effect" "reduces" "only" "the" "amount" "of" "black" "mana" "you" "pay" "."
+
+/* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostR}]) */
+life_payment_reduction_red ::= "those" "spells" "cost" "{" "R" "}" "less" "to" "cast" "if" "you" "paid" "life" "this" "way" "." "this" "effect" "reduces" "only" "the" "amount" "of" "red" "mana" "you" "pay" "."
+
+/* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostG}]) */
+life_payment_reduction_green ::= "those" "spells" "cost" "{" "G" "}" "less" "to" "cast" "if" "you" "paid" "life" "this" "way" "." "this" "effect" "reduces" "only" "the" "amount" "of" "green" "mana" "you" "pay" "."
+
+/* A paid die-result adjustment keeps its payment and usage limit as operands. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule($paid_die_adjustment)]}) */
+static_paid_die_adjustment ::= "after" "you" "roll" "a" "die" "," paid_die_adjustment
+
+/* @sem PlayerRule::DiceChange{cost:Cost($cost), limit:$turn_cast_limit} */
+paid_die_adjustment ::= "you" "may" cost "." "if" "you" "do" "," "increase" "or" "decrease" "the" "result" "by" "1" "." "do" "this" "only" turn_cast_limit "each" "turn" "."
+
+/* A controlled subtype population copies the target already named in this program. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$copy_controlled_subtype, ControlledBy(One(AbilityController))])}), changes:[CopyOf{object:Target{slot:@last_slot, index:0}, exceptions:[]}], duration:UntilNext{point:EndStepBegins, players:All}, evaluation:Snapshot} */
+controlled_subtypes_copy_target_until_end ::= copy_controlled_subtype "you" "control" "become" "copies" "of" "it" "until" "the" "next" "end" "step"
+
+/* Sentence-initial Clues folds to the existing lower-case vocabulary token. */
+copy_controlled_subtype ::= subtype_plural | copy_controlled_clues
+
+/* @sem ObjectFilter::Subtype(Clue) */
+copy_controlled_clues ::= "clues"
+
+/* Conditional protection clauses share the stated subject and duration. */
+/* @sem Instruction::If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), changes:[GrantKeyword(Protection(Objects(_{kind:Any, filter:$adjective_color})))], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{}} */
+controlled_creatures_conditional_protection ::= "from" adjective_color "if" condition
+
+/* @sem Instruction::[$controlled_creatures_conditional_protection] */
+controlled_creatures_protection_last ::= "," "and" controlled_creatures_conditional_protection
+
+/* @sem Instruction::[$controlled_creatures_conditional_protection, ...$controlled_creatures_protection_tail] */
+controlled_creatures_protection_more ::= "," controlled_creatures_conditional_protection controlled_creatures_protection_tail
+
+controlled_creatures_protection_tail ::= controlled_creatures_protection_last | controlled_creatures_protection_more
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[$controlled_creatures_conditional_protection, ...$controlled_creatures_protection_tail]}} */
+spell_conditional_controlled_creature_protections ::= "until" "end" "of" "turn" "," "creatures" "you" "control" "gain" "protection" controlled_creatures_conditional_protection controlled_creatures_protection_tail "."

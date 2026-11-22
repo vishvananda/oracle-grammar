@@ -345,7 +345,7 @@ activated_exile_self_after_limited ::= cost_parts "," "↑" "exile" "this" "card
 activated_self_graveyard_return ::= cost ":" self_graveyard_return "."
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$self_graveyard_return}]}})} */
 activated_self_graveyard_return_limited ::= cost ":" self_graveyard_return "." activation_limits "."
-self_graveyard_return ::= self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter
+self_graveyard_return ::= self_return_battlefield_tapped_attacking | self_return_battlefield_tapped_attacking_counter | self_return_and_optional_card | self_return_hand | self_return_battlefield | self_return_battlefield_attached | self_return_battlefield_tapped | self_return_battlefield_counter | self_return_battlefield_tapped_counter
 /* @sem Operation::Move{objects:One($self_ref), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
 self_return_hand ::= "return" self_ref "from" "your" "graveyard" "to" "your" "hand"
 /* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
@@ -1882,3 +1882,10 @@ extra_turn_per_paid_counter_group ::= paid_counter_groups "," "take" "an" "extra
 
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_remove_all_counters_from]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$extra_turn_per_paid_counter_group}]}} */
 activated_remove_counters_extra_turn ::= cost_remove_all_counters_from ":" extra_turn_per_paid_counter_group "."
+
+/* @sem Operation::Move{objects:One($self_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}, qualifiers:[]} */
+self_return_battlefield_tapped_attacking ::= "return" self_ref "from" "your" "graveyard" "to" "the" "battlefield" "tapped" "and" "attacking"
+
+/* The selected hand card and its bounded characteristic stay in one payment. */
+/* @sem CostPart::Move{selections:[_{objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:TotalPowerAndToughness, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}])}), choose:Exactly($counter_amount)}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}} */
+hand_total_stats_entry ::= "put" counter_amount filter_phrase "card" "with" "total" "power" "and" "toughness" value "or" "less" "from" "your" "hand" "onto" "the" "battlefield"
