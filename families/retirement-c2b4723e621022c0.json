@@ -1,0 +1,2033 @@
+{
+  "family": "chosen spell counter and seek",
+  "cases": [
+    {
+      "name": "baseline",
+      "text": "Choose target spell. Counter that spell unless its controller pays {2}.\nIf seven or more cards are in your graveyard, seek a creature card with the same mana value as the chosen spell.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "ControllerOf",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Mana": [
+                                {
+                                  "Generic": 2
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "PaymentChosen",
+                        "args": 0
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Counter",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersGraveyard": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "destination_when": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 7
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "AllOf",
+                                            "args": [
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Creature"
+                                              },
+                                              {
+                                                "kind": "Property",
+                                                "args": {
+                                                  "property": "ManaValue",
+                                                  "test": {
+                                                    "kind": "Compare",
+                                                    "args": {
+                                                      "comparison": "Equal",
+                                                      "value": {
+                                                        "kind": "ObjectProperty",
+                                                        "args": {
+                                                          "object": {
+                                                            "kind": "Target",
+                                                            "args": {
+                                                              "slot": 0,
+                                                              "index": 0
+                                                            }
+                                                          },
+                                                          "property": "ManaValue",
+                                                          "information": "CurrentOrLastKnown"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 3,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 2
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "payment three",
+      "text": "Choose target spell. Counter that spell unless its controller pays {3}.\nIf seven or more cards are in your graveyard, seek a creature card with the same mana value as the chosen spell.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "ControllerOf",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Mana": [
+                                {
+                                  "Generic": 3
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "PaymentChosen",
+                        "args": 0
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Counter",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersGraveyard": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "destination_when": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 7
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "AllOf",
+                                            "args": [
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Creature"
+                                              },
+                                              {
+                                                "kind": "Property",
+                                                "args": {
+                                                  "property": "ManaValue",
+                                                  "test": {
+                                                    "kind": "Compare",
+                                                    "args": {
+                                                      "comparison": "Equal",
+                                                      "value": {
+                                                        "kind": "ObjectProperty",
+                                                        "args": {
+                                                          "object": {
+                                                            "kind": "Target",
+                                                            "args": {
+                                                              "slot": 0,
+                                                              "index": 0
+                                                            }
+                                                          },
+                                                          "property": "ManaValue",
+                                                          "information": "CurrentOrLastKnown"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 3,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 2
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "threshold six",
+      "text": "Choose target spell. Counter that spell unless its controller pays {2}.\nIf six or more cards are in your graveyard, seek a creature card with the same mana value as the chosen spell.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "ControllerOf",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Mana": [
+                                {
+                                  "Generic": 2
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "PaymentChosen",
+                        "args": 0
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Counter",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersGraveyard": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "destination_when": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 6
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "AllOf",
+                                            "args": [
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Creature"
+                                              },
+                                              {
+                                                "kind": "Property",
+                                                "args": {
+                                                  "property": "ManaValue",
+                                                  "test": {
+                                                    "kind": "Compare",
+                                                    "args": {
+                                                      "comparison": "Equal",
+                                                      "value": {
+                                                        "kind": "ObjectProperty",
+                                                        "args": {
+                                                          "object": {
+                                                            "kind": "Target",
+                                                            "args": {
+                                                              "slot": 0,
+                                                              "index": 0
+                                                            }
+                                                          },
+                                                          "property": "ManaValue",
+                                                          "information": "CurrentOrLastKnown"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 3,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 2
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "artifact seek",
+      "text": "Choose target spell. Counter that spell unless its controller pays {2}.\nIf seven or more cards are in your graveyard, seek an artifact card with the same mana value as the chosen spell.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "ControllerOf",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Mana": [
+                                {
+                                  "Generic": 2
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "PaymentChosen",
+                        "args": 0
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Counter",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersGraveyard": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "destination_when": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 7
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "AllOf",
+                                            "args": [
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Artifact"
+                                              },
+                                              {
+                                                "kind": "Property",
+                                                "args": {
+                                                  "property": "ManaValue",
+                                                  "test": {
+                                                    "kind": "Compare",
+                                                    "args": {
+                                                      "comparison": "Equal",
+                                                      "value": {
+                                                        "kind": "ObjectProperty",
+                                                        "args": {
+                                                          "object": {
+                                                            "kind": "Target",
+                                                            "args": {
+                                                              "slot": 0,
+                                                              "index": 0
+                                                            }
+                                                          },
+                                                          "property": "ManaValue",
+                                                          "information": "CurrentOrLastKnown"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 3,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 2
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "missing spell antecedent",
+      "text": "Seek a creature card with the same mana value as the chosen spell.",
+      "reject": true
+    },
+    {
+      "name": "Silent Extraction",
+      "text": "Choose target spell. Counter that spell unless its controller pays {3}.\nIf seven or more cards are in your graveyard, seek a creature card with the same mana value as the chosen spell.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "ControllerOf",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Mana": [
+                                {
+                                  "Generic": 3
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "PaymentChosen",
+                        "args": 0
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Counter",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersGraveyard": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "destination_when": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 7
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "AllOf",
+                                            "args": [
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Creature"
+                                              },
+                                              {
+                                                "kind": "Property",
+                                                "args": {
+                                                  "property": "ManaValue",
+                                                  "test": {
+                                                    "kind": "Compare",
+                                                    "args": {
+                                                      "comparison": "Equal",
+                                                      "value": {
+                                                        "kind": "ObjectProperty",
+                                                        "args": {
+                                                          "object": {
+                                                            "kind": "Target",
+                                                            "args": {
+                                                              "slot": 0,
+                                                              "index": 0
+                                                            }
+                                                          },
+                                                          "property": "ManaValue",
+                                                          "information": "CurrentOrLastKnown"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 3,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 2
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Silent Extraction",
+      "text": "Choose target spell. Counter that spell unless its controller pays {2}.\nIf six or more cards are in your graveyard, seek a creature card with the same mana value as the chosen spell.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "ControllerOf",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Mana": [
+                                {
+                                  "Generic": 2
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "PaymentChosen",
+                        "args": 0
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Counter",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersGraveyard": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "destination_when": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 6
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "AllOf",
+                                            "args": [
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Creature"
+                                              },
+                                              {
+                                                "kind": "Property",
+                                                "args": {
+                                                  "property": "ManaValue",
+                                                  "test": {
+                                                    "kind": "Compare",
+                                                    "args": {
+                                                      "comparison": "Equal",
+                                                      "value": {
+                                                        "kind": "ObjectProperty",
+                                                        "args": {
+                                                          "object": {
+                                                            "kind": "Target",
+                                                            "args": {
+                                                              "slot": 0,
+                                                              "index": 0
+                                                            }
+                                                          },
+                                                          "property": "ManaValue",
+                                                          "information": "CurrentOrLastKnown"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 3,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 2
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Silent Extraction",
+      "text": "Choose target spell. Counter that spell unless its controller pays {2}.\nIf seven or more cards are in your graveyard, seek an artifact card with the same mana value as the chosen spell.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Green"
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Spell",
+                      "zones": [
+                        "Stack"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "ControllerOf",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "Mana": [
+                                {
+                                  "Generic": 2
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Not",
+                      "args": {
+                        "kind": "PaymentChosen",
+                        "args": 0
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Counter",
+                              "args": {
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Target",
+                                    "args": {
+                                      "slot": 0,
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersGraveyard": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "destination_when": null
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Zone",
+                            "args": {
+                              "scope": {
+                                "Players": {
+                                  "zone": "Graveyard",
+                                  "players": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              },
+                              "kind": "Card",
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 7
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Library",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AbilityController"
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "AllOf",
+                                            "args": [
+                                              {
+                                                "kind": "CardType",
+                                                "args": "Artifact"
+                                              },
+                                              {
+                                                "kind": "Property",
+                                                "args": {
+                                                  "property": "ManaValue",
+                                                  "test": {
+                                                    "kind": "Compare",
+                                                    "args": {
+                                                      "comparison": "Equal",
+                                                      "value": {
+                                                        "kind": "ObjectProperty",
+                                                        "args": {
+                                                          "object": {
+                                                            "kind": "Target",
+                                                            "args": {
+                                                              "slot": 0,
+                                                              "index": 0
+                                                            }
+                                                          },
+                                                          "property": "ManaValue",
+                                                          "information": "CurrentOrLastKnown"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": [
+                                        "AtRandom"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 3,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 2
+                                      },
+                                      "destination": {
+                                        "OwnersHand": {
+                                          "counters": [],
+                                          "states": []
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

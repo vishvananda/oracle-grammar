@@ -1338,7 +1338,7 @@ event_filter_attacks_defender ::= "a" filter_phrase "attacks" attack_defender
 /* @sem EventSpec::Attack{attackers:SameObject($object_ref), defenders:$attack_defender} */
 event_object_attacks_defender ::= object_ref "attacks" attack_defender
 
-attack_defender ::= attack_defender_object | attack_defender_enchanted | attack_defender_opponents_walkers | attack_defender_more_life | attack_defender_monarch | attack_defender_most_life
+attack_defender ::= attack_defender_control_count | attack_defender_object | attack_defender_enchanted | attack_defender_opponents_walkers | attack_defender_more_life | attack_defender_monarch | attack_defender_most_life
 
 /* @sem AttackDefenders::Objects($filter_phrase) */
 attack_defender_object ::= "a" filter_phrase
@@ -1676,7 +1676,7 @@ turn_random_exile_cast ::= "at" turn_event "," random_graveyard_exile_cast "."
 /* @sem Ability::Spell{body:Program{instructions:[Effect{result:@next, operation:CreateTrigger{event:ZoneChange{objects:SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0}), from:Battlefield, to:Graveyard}, duration:$this_duration, body:$death_followup_program, announcement:_{}}}]}, announcement:@announcement} */
 spell_choose_creature_death ::= "choose" "target" "creature" "." "when" "that" "creature" "dies" this_duration "," death_followup_program "."
 
-death_followup_program ::= death_owner_return_program | death_lesser_search_program
+death_followup_program ::= death_owner_return_program | death_lesser_search_program | death_exile_top_choose_play_program
 
 /* These event filters refer to the previously announced target. */
 /* @sem EventSpec::ZoneChange{objects:AllOf([SameObject(Target{slot:@last_slot, index:0}), ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard} */
@@ -3811,7 +3811,7 @@ shared_pair_event_clauses ::= event_clause "and" "whenever" event_you_draw_ordin
 /* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$receipt_followup_program} */
 triggered_receipt_followup ::= event_clause "," receipt_followup_program
 
-receipt_followup_program ::= exile_card_suspend_program | hand_exile_draw_play_program | face_down_exile_look_play_program | optional_exile_copy_quoted_program
+receipt_followup_program ::= named_exile_search_permission_program | exile_card_suspend_program | hand_exile_draw_play_program | face_down_exile_look_play_program | optional_exile_copy_quoted_program
 
 /* A card entering its owner’s graveyard from that owner’s library. */
 /* @sem EventSpec::ZoneChange{objects:AllOf([$library_to_graveyard_card_type, OwnedBy(One(AbilityController))]), from:Library, to:Graveyard} */
@@ -4991,3 +4991,22 @@ first_spell_grant_payer_line ::= first_unqualified_spell_turn_grant first_spell_
 
 /* @sem Ability::Triggered{event:Filtered{event:Spell{event:Cast, players:One(AbilityController), spells:NthCast{ordinal:Constant(1), spells:Any, by:One(AbilityController), scope:Turn}}, condition:PlayerIsActive(AbilityController)}, intervening_if:ObjectMatches{object:EventSubject, filter:ManaSpent{payers:OthersThan(AbilityController), comparison:GreaterOrEqual, value:Constant(1)}}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:Union([One(AbilityController), Matching{binding:0, condition:ObjectMatches{object:EventSubject, filter:ManaSpent{payers:One(Bound(0)), comparison:GreaterOrEqual, value:Constant(1)}}}]), amount:$card_count}}]}, announcement:@announcement} */
 first_spell_other_payer_trigger ::= "when" "you" "cast" "that" "spell" "," "if" "another" "player" "spent" "mana" "to" "cast" "it" "," "you" "and" "that" "player" "each" "draw" card_count "."
+
+/* The announced creature is both the damage recipient and the delayed event subject. */
+/* @sem Ability::Spell{body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:CardType(Creature)}), index:0})), amount:$number, preventable:true}}, Effect{result:@next, operation:CreateTrigger{event:ZoneChange{objects:SameObject(Target{slot:@last_slot, index:0}), from:Battlefield, to:Graveyard}, duration:$this_duration, body:$death_followup_program, announcement:_{}}}]}, announcement:@announcement} */
+spell_damage_creature_death ::= SELF_NAME "deals" number "damage" "to" "target" "creature" "." "when" "that" "creature" "dies" this_duration "," death_followup_program "."
+
+/* The defender references belong to this source attack, including the exile receipt. */
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:$event_self}, intervening_if:$condition_defending_hand_more_than_you, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$instructions_defender_top_cast_after_attack}} */
+triggered_source_attack_defender_hand ::= "whenever" event_self "attacks" "," "if" condition_defending_hand_more_than_you "," instructions_defender_top_cast_after_attack "."
+
+/* The count belongs to the defending player, not the attacking controller. */
+/* @sem AttackDefenders::Players(Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$count_plural}}}) */
+attack_defender_control_count ::= "a" "player" "who" "controls" count_plural "or" "more" plural
+
+/* The written possessive names the caster of the spell. */
+/* @sem EventSpec::Spell{event:Cast, players:OpponentsOf(AbilityController), spells:@and($spell_filter, ObjectFilter::Cast{from:Players{zone:Hand, players:One(CasterOf(Candidate))}})} */
+event_third_cast_from_hand ::= "an" "opponent" "casts" spell_filter "from" "their" "hand"
+
+/* @sem Ability::Triggered{event:$event_third_cast_from_hand, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$instructions_optional_reveal_shared_counter}} */
+ability_opponent_cast_from_hand ::= "whenever" event_third_cast_from_hand "," instructions_optional_reveal_shared_counter "."

@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast
+chapter_program ::= chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -187,3 +187,12 @@ chapter_exile_each_graveyard ::= "exile" "an" random_an_card_filter "card" "from
    and mana production are independent current operands. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:CountCounters(_{recipients:Objects(One(Source)), kind:Named(LoreCounter), information:CurrentOrLastKnown}), production:$mana_unit, choice:Once}}}, Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$random_an_card_filter, InSet(Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}))])}), count:Exactly(Constant(1)), terms:_{cost:Normal, spend_as:AnyType}}}]}}]} */
 chapter_lore_mana_linked_cast ::= "add" mana_unit "for" "each" "lore" "counter" "on" "this" "Saga" "." "you" "may" "cast" "an" random_an_card_filter "card" "exiled" "with" "this" "Saga" "," "and" "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "that" "spell"
+
+/* Repeated subjects retain independent amounts for the two actions. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:$number}}]} */
+chapter_draw_and_life ::= "you" "draw" card_count "and" "you" "lose" number "life"
+
+/* The type change applies to the arrivals of this exact return. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number_words), filter:AllOf([$noun, InZone(Players{zone:Graveyard, players:One(AbilityController)})]), constraints:[TotalProperty{property:ManaValue, comparison:LessOrEqual, amount:$number}]})), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[[$counter_kind, Constant(1)]], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Transition{result:@prior, phase:After}), changes:[AddCardType(Artifact)], duration:Indefinite, evaluation:Snapshot}}]} */
+chapter_capped_return_type ::= "choose" "up" "to" number_words "target" noun "cards" "with" "total" "mana" "value" number "or" "less" "in" "your" "graveyard" "." "return" "each" "of" "them" "to" "the" "battlefield" "with" "a" counter_kind "counter" "on" "it" "." "they're" "artifacts" "in" "addition" "to" "their" "other" "types"
+

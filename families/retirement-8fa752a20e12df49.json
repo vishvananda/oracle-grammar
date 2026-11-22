@@ -1,0 +1,1457 @@
+{
+  "family": "controlled-departure-reveal-selection",
+  "cases": [
+    {
+      "name": "baseline",
+      "text": "At the beginning of each end step, if a land you controlled was put into a graveyard from the battlefield this turn, reveal the top four cards of your library. You may put any number of Dwarf cards from among them into your hand. Put the rest on the bottom of your library in a random order.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "OwnedBy",
+                              "args": {
+                                "kind": "All"
+                              }
+                            }
+                          ]
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "Constant",
+                                    "args": 4
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Subtype",
+                                    "args": "Dwarf"
+                                  }
+                                }
+                              },
+                              "count": "AnyNumber",
+                              "constraints": [
+                                {
+                                  "CanMoveTo": {
+                                    "destination": {
+                                      "OwnersHand": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "amount",
+      "text": "At the beginning of each end step, if a land you controlled was put into a graveyard from the battlefield this turn, reveal the top three cards of your library. You may put any number of Dwarf cards from among them into your hand. Put the rest on the bottom of your library in a random order.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "OwnedBy",
+                              "args": {
+                                "kind": "All"
+                              }
+                            }
+                          ]
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "Constant",
+                                    "args": 3
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Subtype",
+                                    "args": "Dwarf"
+                                  }
+                                }
+                              },
+                              "count": "AnyNumber",
+                              "constraints": [
+                                {
+                                  "CanMoveTo": {
+                                    "destination": {
+                                      "OwnersHand": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "subtype",
+      "text": "At the beginning of each end step, if a land you controlled was put into a graveyard from the battlefield this turn, reveal the top four cards of your library. You may put any number of Elf cards from among them into your hand. Put the rest on the bottom of your library in a random order.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "OwnedBy",
+                              "args": {
+                                "kind": "All"
+                              }
+                            }
+                          ]
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "Constant",
+                                    "args": 4
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Subtype",
+                                    "args": "Elf"
+                                  }
+                                }
+                              },
+                              "count": "AnyNumber",
+                              "constraints": [
+                                {
+                                  "CanMoveTo": {
+                                    "destination": {
+                                      "OwnersHand": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "unsupported destination",
+      "text": "At the beginning of each end step, if a land you controlled was put into exile from the battlefield this turn, reveal the top four cards of your library. You may put any number of Dwarf cards from among them into your hand. Put the rest on the bottom of your library in a random order.",
+      "reject": true
+    },
+    {
+      "name": "The Lady of Otaria",
+      "text": "You may tap three untapped Dwarves you control rather than pay this spell's mana cost.\nAt the beginning of each end step, if a land you controlled was put into a graveyard from the battlefield this turn, reveal the top three cards of your library. You may put any number of Dwarf cards from among them into your hand. Put the rest on the bottom of your library in a random order.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Avatar"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          5,
+          5
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "AlternativeCost": {
+              "parts": [
+                {
+                  "ChangeTapState": {
+                    "selections": [
+                      {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "Not",
+                                  "args": {
+                                    "kind": "Tapped"
+                                  }
+                                },
+                                {
+                                  "kind": "Subtype",
+                                  "args": "Dwarf"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "choose": {
+                          "Exactly": {
+                            "kind": "Constant",
+                            "args": 3
+                          }
+                        }
+                      }
+                    ],
+                    "tapped": true,
+                    "symbol": false
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "OwnedBy",
+                              "args": {
+                                "kind": "All"
+                              }
+                            }
+                          ]
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "Constant",
+                                    "args": 3
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Subtype",
+                                    "args": "Dwarf"
+                                  }
+                                }
+                              },
+                              "count": "AnyNumber",
+                              "constraints": [
+                                {
+                                  "CanMoveTo": {
+                                    "destination": {
+                                      "OwnersHand": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "The Lady of Otaria",
+      "text": "You may tap three untapped Dwarves you control rather than pay this spell's mana cost.\nAt the beginning of each end step, if a land you controlled was put into a graveyard from the battlefield this turn, reveal the top four cards of your library. You may put any number of Elf cards from among them into your hand. Put the rest on the bottom of your library in a random order.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Avatar"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          5,
+          5
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "AlternativeCost": {
+              "parts": [
+                {
+                  "ChangeTapState": {
+                    "selections": [
+                      {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "Not",
+                                  "args": {
+                                    "kind": "Tapped"
+                                  }
+                                },
+                                {
+                                  "kind": "Subtype",
+                                  "args": "Dwarf"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "choose": {
+                          "Exactly": {
+                            "kind": "Constant",
+                            "args": 3
+                          }
+                        }
+                      }
+                    ],
+                    "tapped": true,
+                    "symbol": false
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "All"
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "AllOf",
+                          "args": [
+                            {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Land"
+                                },
+                                {
+                                  "kind": "ControlledBy",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "AbilityController"
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "kind": "OwnedBy",
+                              "args": {
+                                "kind": "All"
+                              }
+                            }
+                          ]
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Reveal",
+                            "args": {
+                              "objects": {
+                                "kind": "Take",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Zone",
+                                    "args": {
+                                      "scope": {
+                                        "Players": {
+                                          "zone": "Library",
+                                          "players": {
+                                            "kind": "One",
+                                            "args": {
+                                              "kind": "AbilityController"
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "kind": "Card",
+                                      "filter": {
+                                        "kind": "Any"
+                                      }
+                                    }
+                                  },
+                                  "count": {
+                                    "kind": "Constant",
+                                    "args": 4
+                                  },
+                                  "from": "Top"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "ChooseObjects",
+                            "args": {
+                              "player": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "Matching",
+                                "args": {
+                                  "objects": {
+                                    "kind": "InZone",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "zone": "Library"
+                                    }
+                                  },
+                                  "filter": {
+                                    "kind": "Subtype",
+                                    "args": "Elf"
+                                  }
+                                }
+                              },
+                              "count": "AnyNumber",
+                              "constraints": [
+                                {
+                                  "CanMoveTo": {
+                                    "destination": {
+                                      "OwnersHand": {
+                                        "counters": [],
+                                        "states": []
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Selected",
+                                "args": 1
+                              },
+                              "destination": {
+                                "OwnersHand": {
+                                  "counters": [],
+                                  "states": []
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 3,
+                          "operation": {
+                            "kind": "ReorderLibrary",
+                            "args": {
+                              "chooser": {
+                                "kind": "AbilityController"
+                              },
+                              "library_owner": {
+                                "kind": "AbilityController"
+                              },
+                              "objects": {
+                                "kind": "InZone",
+                                "args": {
+                                  "objects": {
+                                    "kind": "Difference",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Observed",
+                                        "args": 0
+                                      },
+                                      "excluding": {
+                                        "kind": "Union",
+                                        "args": [
+                                          {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "Before"
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "zone": "Library"
+                                }
+                              },
+                              "end": "Bottom",
+                              "order": "Random"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

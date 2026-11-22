@@ -2,7 +2,7 @@
    closed productions record that grammatical fact; no punctuation is inserted
    by the tokenizer and an unquoted program still needs its final period. */
 /* A leading time is a program only inside an already announced ability. */
-program_sentence ::= program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast | program_each_exiles_top_play_permission
+program_sentence ::= program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast | program_each_exiles_top_play_permission | program_sentence_graveyard_cast_tax
 
 /* This limits a successful performance, not the number of triggers. The
    offer owns the complete coordinated program. Declining it or failing a
@@ -22,7 +22,7 @@ program_sentence_plain ::= program "."
 /* @sem Program::Program{instructions:$instructions_quoted} */
 program_sentence_quoted ::= instructions_quoted
 
-instructions_quoted ::= instructions_conjure_perpetual | instructions_conjured_duplicate_grant | clause_quoted | instructions_before_quoted | instructions_between_quoted | instructions_closed_before_quoted | instructions_if_you_do_quoted | instructions_paid_token_quoted | instructions_chosen_hand_perpetual | instructions_opponent_tap_if_done_quoted | instructions_damage_excess_boon | instructions_named_legendary_scoped | instructions_named_artifact_token_quoted | instructions_exile_card_if_quoted_creation | instructions_then_no_counters_quoted_creation
+instructions_quoted ::= instructions_conjure_perpetual | instructions_conjured_duplicate_grant | clause_quoted | instructions_before_quoted | instructions_between_quoted | instructions_closed_before_quoted | instructions_if_you_do_quoted | instructions_paid_token_quoted | instructions_chosen_hand_perpetual | instructions_opponent_tap_if_done_quoted | instructions_damage_excess_boon | instructions_named_legendary_scoped | instructions_named_artifact_token_quoted | instructions_exile_card_if_quoted_creation | instructions_then_no_counters_quoted_creation | instructions_same_name_perpetual | instructions_required_if_you_do_quoted
 
 /* A final quoted grant closes both the token-only continuation and the paid
    conditional sentence. Its dependent effects still share the creation receipt. */
@@ -59,7 +59,7 @@ instructions_between_quoted ::= clause_quoted instructions_quoted
 /* @sem Instruction::[...$clause_quoted, ...$instructions] */
 instructions_after_quoted ::= clause_quoted "then"? instructions
 
-clause_quoted ::= clause_operation_create_quoted | clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted | clause_emblem_single_quoted | clause_exile_grant_turn_ability
+clause_quoted ::= clause_operation_create_quoted | clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted | clause_emblem_single_quoted | clause_exile_grant_turn_ability | clause_named_spell_grant_quoted | clause_one_time_boon
 
 /* An emblem's final quoted sentence also closes its enclosing sentence. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateEmblem{actor:One(PlayerRef::AbilityController), abilities:[$token_quoted_sentence]}}] */
@@ -456,3 +456,15 @@ death_subject_damage ::= "it" "deals" number "damage" "to" recipients
 /* @sem Ability::Triggered{event:$event_clause, intervening_if:$condition, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$clause_you_quoted}} */
 /* @prefer always */
 triggered_if_you_quoted ::= event_clause "," "if" condition "," clause_you_quoted
+
+/* A named source here identifies the spell, not an antecedent permanent. */
+/* @sem Instruction::[Effect{result:@next, operation:ChangeSpell{subject:One(Source), changes:$spell_gains_quoted_trigger}}] */
+clause_named_spell_grant_quoted ::= SELF_NAME spell_gains_quoted_trigger
+
+/* Required payment and its quoted conditional follow-up share the receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:false}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$clause_quoted}, otherwise:Program{}}] */
+instructions_required_if_you_do_quoted ::= payment "." "if" "you" "do" "," clause_quoted
+
+/* A one-time boon creates a single-use trigger with its own event and body. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:$event_clause, duration:Indefinite, announcement:@announcement, body:$program, once:true}}] */
+clause_one_time_boon ::= "you" "get" "a" "one-time" "boon" "with" '"' event_clause "," program "." '"'
