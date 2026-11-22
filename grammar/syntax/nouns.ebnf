@@ -1012,7 +1012,7 @@ players_each_opponent ::= "each" "opponent" | "each" "of" "your" "opponents"
 players_each ::= "each" "player"
 
 /* Damage recipients. */
-recipients ::= recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player
+recipients ::= recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player | recipients_target_opponent_and_controlled
 
 /* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_phrase, $filter_phrase_2])}) */
 recipients_each_and_each ::= "each" filter_phrase "and" "each" filter_phrase
@@ -3390,3 +3390,21 @@ graveyard_event_up_to_typed_cards ::= "up" "to" number "target" noun "cards" "fr
 
 /* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})})) */
 graveyard_your_up_to_cards ::= "up" "to" number "target" "cards" "from" "your" "graveyard"
+
+/* The targeted opponent also controls the named battlefield population. */
+/* @sem Recipients::Union([Players(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}), index:0})), Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, ControlledBy(One(Target{slot:@last_slot, index:0}))])})]) */
+recipients_target_opponent_and_controlled ::= "target" "opponent" "and" "each" noun "they" "control"
+
+/* The source restriction is shared by both combat and unrestricted damage. */
+/* @sem ObjectSet::$affected */
+unpreventable_damage_source ::= "that" "would" "be" "dealt" "by" affected
+
+/* @sem Ability::DamageCantBePrevented{sources:$unpreventable_damage_source, combat_only:false} */
+unpreventable_damage ::= "damage" unpreventable_damage_source? "can't" "be" "prevented" "."
+
+/* @sem Ability::DamageCantBePrevented{sources:$unpreventable_damage_source, combat_only:true} */
+unpreventable_combat_damage ::= "combat" "damage" unpreventable_damage_source? "can't" "be" "prevented" "."
+
+/* A quantified plural population, shared by conditions and events. */
+/* @sem $filter_plural */
+all_plural_population ::= "all" filter_plural

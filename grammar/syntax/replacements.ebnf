@@ -1213,7 +1213,7 @@ replacement_leave_loyalty ::= "if" "damage" "dealt" "to" "a" noun "you" "control
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:$entry_receipt_program}) */
 entry_receipt_ability ::= "as" self_ref "enters" "," entry_receipt_program "."
 
-entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program | entry_draft_exile_program | entry_removed_counter_doubled_program | entry_optional_exiled_payment_counters | entry_return_payment_program
+entry_receipt_program ::= entry_sacrifice_program | entry_removed_counter_program | entry_reveal_or_condition_program | entry_coin_program | entry_sacrifice_count_program | entry_sacrifice_stats_program | entry_optional_sacrifice_count_program | entry_dice_counter_program | entry_roll_stats_program | entry_draft_exile_program | entry_removed_counter_doubled_program | entry_optional_exiled_payment_counters | entry_return_payment_program | entry_discard_keyword_counter_program | entry_discard_keyword_counter_list_program
 
 /* @sem Operation::@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:$affected, choose:AnyNumber}) */
 entry_sacrifice_any ::= "sacrifice" "any" "number" "of" affected
@@ -2762,3 +2762,109 @@ clause_exile_and_return_delayed ::= exile_objects "and" "return" "it" "to" "the"
 /* A temporary replacement applies to damage from sources controlled by you. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:ControlledBy(One(AbilityController)), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Add([EventAmount, $number]))}}]}}}] */
 clause_controlled_damage_plus_turn ::= "if" "a" "source" "you" "control" "would" "deal" "damage" "this" "turn" "," "it" "deals" "that" "much" "damage" "plus" number "instead"
+
+/* The chosen card's exile is the producer of the conditional permission.
+   Keep the observation, selection and arrival together across the branch. */
+/* @sem Instruction::[...$instructions_hand_choice, Effect{result:@next, operation:$hand_exile}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:$exiled_play_action, filter:Any}, terms:_{cost:Normal, spend_as:$exiled_spending}})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}]}, otherwise:Program{}}] */
+instructions_hand_exile_conditional_permission ::= instructions_hand_choice "." hand_exile "." "if" condition "," "you" "may" exiled_play_action "that" "card" "for" "as" "long" "as" "it" "remains" "exiled" "," "and" exiled_spending
+
+/* Both consumers are scoped to this exact discard producer. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$card_filter}, count:AnyNumber}}, Effect{result:@mark, operation:DiscardObjects{objects:Selected(@prior)}}] */
+entry_discard_keyword_producer ::= "discard" "any" "number" "of" card_filter "cards"
+
+/* @sem Program::Program{instructions:[...$entry_discard_keyword_producer, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword($keyword_value)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Constant(1)})}}]}, otherwise:Program{}}]} */
+entry_discard_keyword_counter_program ::= entry_discard_keyword_producer "." "it" "enters" "with" "a" counter_kind "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" keyword_value
+
+/* @sem Program::Program{instructions:[...$entry_discard_keyword_producer, $entry_discard_keyword_first, ...$entry_discard_keyword_list]} */
+entry_discard_keyword_counter_list_program ::= entry_discard_keyword_producer "." entry_discard_keyword_first "." "the" "same" "is" "true" "for" entry_discard_keyword_list
+
+/* @sem Instruction::[$entry_discard_keyword_item, ...$entry_discard_keyword_tail] */
+entry_discard_keyword_list ::= entry_discard_keyword_item "," entry_discard_keyword_tail
+
+/* @sem Instruction::[$entry_discard_keyword_item, ...$entry_discard_keyword_tail] */
+entry_discard_keyword_tail_more ::= entry_discard_keyword_item "," entry_discard_keyword_tail
+
+/* @sem Instruction::[$entry_discard_keyword_item] */
+entry_discard_keyword_tail_last ::= "and" entry_discard_keyword_item
+
+entry_discard_keyword_tail ::= entry_discard_keyword_tail_more | entry_discard_keyword_tail_last
+
+entry_discard_keyword_item ::= entry_discard_keyword_flying | entry_discard_keyword_firststrike | entry_discard_keyword_doublestrike | entry_discard_keyword_deathtouch | entry_discard_keyword_hexproof | entry_discard_keyword_haste | entry_discard_keyword_indestructible | entry_discard_keyword_lifelink | entry_discard_keyword_menace | entry_discard_keyword_reach | entry_discard_keyword_trample | entry_discard_keyword_vigilance
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Flying)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(FlyingCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_flying ::= "flying"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(FirstStrike)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(FirstStrikeCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_firststrike ::= "first" "strike"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(DoubleStrike)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(DoubleStrikeCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_doublestrike ::= "double" "strike"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Deathtouch)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(DeathtouchCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_deathtouch ::= "deathtouch"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeywordFamily(Hexproof)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(HexproofCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_hexproof ::= "hexproof"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Haste)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(HasteCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_haste ::= "haste"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Indestructible)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(IndestructibleCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_indestructible ::= "indestructible"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Lifelink)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(LifelinkCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_lifelink ::= "lifelink"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Menace)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(MenaceCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_menace ::= "menace"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Reach)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(ReachCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_reach ::= "reach"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Trample)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(TrampleCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_trample ::= "trample"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Vigilance)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(VigilanceCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_vigilance ::= "vigilance"
+
+entry_discard_keyword_first ::= entry_discard_keyword_first_flying | entry_discard_keyword_first_firststrike | entry_discard_keyword_first_doublestrike | entry_discard_keyword_first_deathtouch | entry_discard_keyword_first_hexproof | entry_discard_keyword_first_haste | entry_discard_keyword_first_indestructible | entry_discard_keyword_first_lifelink | entry_discard_keyword_first_menace | entry_discard_keyword_first_reach | entry_discard_keyword_first_trample | entry_discard_keyword_first_vigilance
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Flying)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(FlyingCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_flying ::= "it" "enters" "with" "a" "flying" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "flying"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(FirstStrike)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(FirstStrikeCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_firststrike ::= "it" "enters" "with" "a" "first" "strike" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "first" "strike"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(DoubleStrike)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(DoubleStrikeCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_doublestrike ::= "it" "enters" "with" "a" "double" "strike" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "double" "strike"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Deathtouch)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(DeathtouchCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_deathtouch ::= "it" "enters" "with" "a" "deathtouch" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "deathtouch"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeywordFamily(Hexproof)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(HexproofCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_hexproof ::= "it" "enters" "with" "a" "hexproof" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "hexproof"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Haste)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(HasteCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_haste ::= "it" "enters" "with" "a" "haste" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "haste"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Indestructible)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(IndestructibleCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_indestructible ::= "it" "enters" "with" "a" "indestructible" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "indestructible"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Lifelink)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(LifelinkCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_lifelink ::= "it" "enters" "with" "a" "lifelink" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "lifelink"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Menace)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(MenaceCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_menace ::= "it" "enters" "with" "a" "menace" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "menace"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Reach)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(ReachCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_reach ::= "it" "enters" "with" "a" "reach" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "reach"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Trample)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(TrampleCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_trample ::= "it" "enters" "with" "a" "trample" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "trample"
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:HasKeyword(Vigilance)}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:Named(VigilanceCounter), amount:Constant(1)})}}]}, otherwise:Program{}} */
+entry_discard_keyword_first_vigilance ::= "it" "enters" "with" "a" "vigilance" "counter" "on" "it" "if" "a" "card" "discarded" "this" "way" "has" "vigilance"
+
+/* The repeated choice applies to the same event player set. */
+/* @sem Ability::VillainousChoiceTwice($transform_player_choice) */
+villainous_choice_repeat ::= "if" transform_player_choice "would" "face" "a" "villainous" "choice" "," "they" "face" "that" "choice" "an" "additional" "time" "."

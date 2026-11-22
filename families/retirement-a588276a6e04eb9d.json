@@ -1,0 +1,433 @@
+{
+  "family": "casting-before-declaration",
+  "cases": [
+    {
+      "name": "Rapid Fire",
+      "text": "Cast this spell only before blockers are declared.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "BeforeBlockersDeclared"
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Timing variant",
+      "text": "Cast this spell only before attackers are declared.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "BeforeAttackersDeclared"
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Invalid timing",
+      "text": "Cast this spell only after blockers are declared.",
+      "reject": true
+    },
+    {
+      "name": "Invalid subject",
+      "text": "Cast this spell only before creatures are declared.",
+      "reject": true
+    },
+    {
+      "name": "Rapid Fire",
+      "text": "Cast this spell only before attackers are declared.\nTarget creature gains first strike until end of turn. If it doesn't have rampage, that creature gains rampage 2 until end of turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "BeforeAttackersDeclared"
+            }
+          }
+        },
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "GrantKeyword",
+                            "args": {
+                              "kind": "FirstStrike"
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "Snapshot"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "ObjectMatches",
+                      "args": {
+                        "object": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "filter": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "HasKeywordFamily",
+                            "args": "Rampage"
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Objects": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "GrantAbility",
+                                    "args": {
+                                      "kind": "Mechanic",
+                                      "args": {
+                                        "mechanic": "Rampage",
+                                        "cost": null,
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 2
+                                        },
+                                        "filter": null
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "Snapshot"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Rapid Fire",
+      "text": "Cast this spell only before blockers are declared.\nTarget creature gains first strike until end of turn. If it doesn't have rampage, that creature gains rampage 3 until end of turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "BeforeBlockersDeclared"
+            }
+          }
+        },
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "GrantKeyword",
+                            "args": {
+                              "kind": "FirstStrike"
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "Snapshot"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "ObjectMatches",
+                      "args": {
+                        "object": {
+                          "kind": "Target",
+                          "args": {
+                            "slot": 0,
+                            "index": 0
+                          }
+                        },
+                        "filter": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "HasKeywordFamily",
+                            "args": "Rampage"
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "CreateContinuousEffect",
+                              "args": {
+                                "source": {
+                                  "kind": "Source"
+                                },
+                                "affected": {
+                                  "Objects": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Target",
+                                      "args": {
+                                        "slot": 0,
+                                        "index": 0
+                                      }
+                                    }
+                                  }
+                                },
+                                "changes": [
+                                  {
+                                    "kind": "GrantAbility",
+                                    "args": {
+                                      "kind": "Mechanic",
+                                      "args": {
+                                        "mechanic": "Rampage",
+                                        "cost": null,
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 3
+                                        },
+                                        "filter": null
+                                      }
+                                    }
+                                  }
+                                ],
+                                "duration": "EndOfTurn",
+                                "evaluation": "Snapshot"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

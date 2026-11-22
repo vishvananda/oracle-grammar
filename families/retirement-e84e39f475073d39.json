@@ -1,0 +1,570 @@
+{
+  "family": "retirement-e84e39f475073d39",
+  "cases": [
+    {
+      "name": "Timing One",
+      "text": "Cast this spell only after combat.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "AfterCombat"
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Timing Two",
+      "text": "Cast this spell only during combat.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "Combat"
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Timing Three",
+      "text": "Cast this spell only during the declare blockers step.",
+      "types": [
+        "Instant"
+      ],
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "DeclareBlockers"
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Timing Refusal",
+      "text": "Cast this spell only after combat tomorrow.",
+      "types": [
+        "Instant"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Glyph of Reincarnation",
+      "text": "Cast this spell only during combat.\nDestroy all creatures that were blocked by target Wall this turn. They can't be regenerated. For each creature that died this way, put a creature card from the graveyard of the player who controlled that creature the last time it became blocked by that Wall onto the battlefield under its owner's control.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Green"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "Combat"
+            }
+          }
+        },
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Subtype",
+                    "args": "Wall"
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Destroy",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Shared": "Battlefield"
+                            },
+                            "kind": "Permanent",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "Condition",
+                                  "args": {
+                                    "kind": "Compare",
+                                    "args": {
+                                      "left": {
+                                        "kind": "EventHistory",
+                                        "args": {
+                                          "event": {
+                                            "Pair": {
+                                              "event": "BecomesBlockedBy",
+                                              "objects": {
+                                                "kind": "SameObject",
+                                                "args": {
+                                                  "kind": "Candidate"
+                                                }
+                                              },
+                                              "others": {
+                                                "kind": "SameObject",
+                                                "args": {
+                                                  "kind": "Target",
+                                                  "args": {
+                                                    "slot": 0,
+                                                    "index": 0
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "window": "ThisTurn",
+                                          "measure": "Occurrences"
+                                        }
+                                      },
+                                      "test": {
+                                        "kind": "Compare",
+                                        "args": {
+                                          "comparison": "GreaterOrEqual",
+                                          "value": {
+                                            "kind": "Constant",
+                                            "args": 1
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "regeneration": false
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "ForEachObject",
+                  "args": {
+                    "objects": {
+                      "kind": "Transition",
+                      "args": {
+                        "result": 0,
+                        "phase": "Before"
+                      }
+                    },
+                    "binding": 0,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Group",
+                          "args": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "ChooseObjects",
+                                    "args": {
+                                      "player": {
+                                        "kind": "AbilityController"
+                                      },
+                                      "objects": {
+                                        "kind": "Zone",
+                                        "args": {
+                                          "scope": {
+                                            "Players": {
+                                              "zone": "Graveyard",
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "AsOf",
+                                                  "args": {
+                                                    "moment": {
+                                                      "LastEvent": {
+                                                        "event": {
+                                                          "Pair": {
+                                                            "event": "BecomesBlockedBy",
+                                                            "objects": {
+                                                              "kind": "SameObject",
+                                                              "args": {
+                                                                "kind": "Bound",
+                                                                "args": 0
+                                                              }
+                                                            },
+                                                            "others": {
+                                                              "kind": "SameObject",
+                                                              "args": {
+                                                                "kind": "Target",
+                                                                "args": {
+                                                                  "slot": 0,
+                                                                  "index": 0
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        },
+                                                        "window": "ThisTurn"
+                                                      }
+                                                    },
+                                                    "player": {
+                                                      "kind": "ControllerOf",
+                                                      "args": {
+                                                        "kind": "Bound",
+                                                        "args": 0
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "kind": "Card",
+                                          "filter": {
+                                            "kind": "CardType",
+                                            "args": "Creature"
+                                          }
+                                        }
+                                      },
+                                      "count": {
+                                        "AsManyAsCan": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      },
+                                      "constraints": []
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 2,
+                                  "operation": {
+                                    "kind": "Move",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Selected",
+                                        "args": 1
+                                      },
+                                      "destination": {
+                                        "Battlefield": {
+                                          "controller": "Owner",
+                                          "arrival": {
+                                            "controller": null,
+                                            "tapped": false,
+                                            "counters": [],
+                                            "states": []
+                                          }
+                                        }
+                                      },
+                                      "qualifiers": []
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Jabari's Influence",
+      "text": "Cast this spell only during the declare blockers step.\nGain control of target nonartifact, nonblack creature that attacked you this turn and put a -1/-0 counter on it.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Instant"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Casting",
+          "args": {
+            "Require": {
+              "kind": "Window",
+              "args": "DeclareBlockers"
+            }
+          }
+        },
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "CardType",
+                          "args": "Artifact"
+                        }
+                      },
+                      {
+                        "kind": "Not",
+                        "args": {
+                          "kind": "Color",
+                          "args": "Black"
+                        }
+                      },
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      {
+                        "kind": "Condition",
+                        "args": {
+                          "kind": "Compare",
+                          "args": {
+                            "left": {
+                              "kind": "EventHistory",
+                              "args": {
+                                "event": {
+                                  "Attack": {
+                                    "attackers": {
+                                      "kind": "SameObject",
+                                      "args": {
+                                        "kind": "Candidate"
+                                      }
+                                    },
+                                    "by": null,
+                                    "defenders": {
+                                      "Players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "AbilityController"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "window": "ThisTurn",
+                                "measure": "Occurrences"
+                              }
+                            },
+                            "test": {
+                              "kind": "Compare",
+                              "args": {
+                                "comparison": "GreaterOrEqual",
+                                "value": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Objects": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "Target",
+                              "args": {
+                                "slot": 0,
+                                "index": 0
+                              }
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "SetController",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        ],
+                        "duration": "Indefinite",
+                        "evaluation": "Snapshot"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Target",
+                                  "args": {
+                                    "slot": 0,
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "kind": {
+                              "PowerToughness": [
+                                -1,
+                                0
+                              ]
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
