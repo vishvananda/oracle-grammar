@@ -55,7 +55,7 @@ player_keyword_changes_comma ::= player_keyword_change "," "and"? player_keyword
 player_keyword ::= player_hexproof | player_shroud | player_protection | player_hexproof_from | player_protection_each
 
 /* Player prohibitions are rules on players, independently of object keywords. */
-player_rule_subject ::= player_rule_attacked_you_or_defender | player_rule_you | player_keyword_many | players_singular
+player_rule_subject ::= player_rule_attacked_you_or_defender | player_rule_you | player_keyword_many | players_singular | target_player_damage_history
 
 /* @sem PlayerSet::One(PlayerRef::AbilityController) */
 player_rule_you ::= "you"
@@ -567,3 +567,7 @@ player_prohibit_own_zone_land_cast ::= "play" "lands" "or" "cast" "spells" "from
 
 /* @sem Ability::Static{kind:Ordinary, affected:Players(One(AbilityController)), changes:$player_prohibit_own_zone_land_cast} */
 static_you_prohibit_own_zone ::= "you" "can't" player_prohibit_own_zone_land_cast "."
+
+/* The target is the recipient of the specified damage event, not its source. */
+/* @sem PlayerSet::One(PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:Matching{binding:0, condition:Compare{left:EventHistory{event:$past_bound_player_damage, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}}), index:0}) */
+target_player_damage_history ::= "target" "player" "who" past_bound_player_damage "this" "turn"

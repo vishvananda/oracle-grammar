@@ -101,3 +101,17 @@ dynamic_colored_type_addition ::= "becomes" "a" mana_color_word becomes_types "i
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$dynamic_colored_type_addition, duration:Indefinite, evaluation:Snapshot} */
 continuous_colored_type_addition_indefinite ::= affected dynamic_colored_type_addition
+
+/* The quoted ability is scoped to each animated object's holder. */
+/* @prefer always */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($group_subject)), changes:@retain_animation_types($plural_animation_with_trigger), duration:Indefinite, evaluation:Snapshot} */
+retained_animation_each_quoted ::= group_subject "each" plural_animation_with_trigger retention_plural
+
+/* @sem Change::[...$plural_named_animation, GrantKeyword($keyword_name), GrantKeyword($keyword_name_2), GrantAbility(@scope(Ability::Triggered{event:$animated_creature_leaves, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$quoted_conjure_battlefield_tapped}]}}))] */
+plural_animation_with_trigger ::= plural_named_animation "with" keyword_name "," keyword_name "," "and" '"' "when" animated_creature_leaves "," quoted_conjure_battlefield_tapped "." '"'
+
+/* @sem EventSpec::Object{event:LeavesBattlefield, objects:SameObject(Source)} */
+animated_creature_leaves ::= "this" "creature" "leaves" "the" "battlefield"
+
+/* @sem Operation::Conjure{actor:One(AbilityController), card:Named($referenced_card_name), count:$card_count, destination:Battlefield(BattlefieldArrival{tapped:true, counters:[], states:[]})} */
+quoted_conjure_battlefield_tapped ::= "conjure" card_count "named" referenced_card_name "onto" "the" "battlefield" "tapped"

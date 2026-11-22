@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot
+continuous_snapshot ::= continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -2433,8 +2433,9 @@ attack_player_payment_fixed ::= cost "for" "each" "creature" "they" "control" "t
 /* @sem Cost::Cost{parts:[ManaWithX{mana:[X], x:$value}]} */
 attack_player_payment_x ::= "{" "X" "}" "for" "each" "creature" "they" "control" "that's" "attacking" "you" "," "where" "X" "is" value
 
-attack_planeswalker_payment ::= attack_planeswalker_payment_fixed | attack_planeswalker_payment_x
+attack_planeswalker_payment ::= attack_planeswalker_payment_fixed | attack_planeswalker_payment_x | attack_planeswalker_payment_life
 
+/* @prefer always */
 /* @sem $cost */
 attack_planeswalker_payment_fixed ::= cost "for" "each" "of" "those" "creatures"
 
@@ -4978,6 +4979,7 @@ sharing_kind_more ::= sharing_kind "," sharing_kind_tail
 
 sharing_kind_tail ::= sharing_kind_last | sharing_kind_more
 
+/* @prefer always */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GainAbilitiesOf{objects:$affected, kinds:List([Term{family:CheckHasable, form:Flying}, ...$sharing_kind_tail])}], duration:$duration, evaluation:Snapshot}}] */
 share_flying ::= affected "gain" "flying" duration "if" "a" "creature" "you" "control" "has" "flying" "." "the" "same" "is" "true" "for" sharing_kind_tail
 
@@ -7439,6 +7441,7 @@ spell_untap_population_control_grants ::= instructions_untap_population_control_
 static_nonmana_activation_cost_more ::= "activated" "abilities" "of" activation_owner "cost" kicker_operand_generic "more" "to" "activate" "unless" "they're" "mana" "abilities" "."
 
 /* Universal keyword costs share the keyword and current payment adjustment. */
+/* @prefer always */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(KeywordCost{keyword:$universal_payment_keyword, cards:Any, change:$keyword_payment_change})]}) */
 static_universal_keyword_payment ::= "all" universal_payment_keyword "costs" "cost" keyword_payment_change "."
 
@@ -7826,3 +7829,65 @@ static_type_base_keyword_loss ::= affected "is" base_subtypes "." "it" "has" key
 /* The later loss removes other abilities; the written keyword is retained. */
 /* @sem Change::[...$base_artifact_creature, RemoveAllAbilities, GrantKeyword($keyword_value)] */
 static_artifact_base_keyword_loss ::= "is" base_artifact_creature "and" "has" keyword_value "," "and" "it" "loses" "all" "other" "abilities" "," "card" "types" "," "and" "creature" "types"
+
+/* A counter-qualified exile population independently supplies copied traits. */
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})])}) */
+shared_countered_exile_flying_an ::= "as" "long" "as" "an" "exiled" filter_phrase "card" "with" "a" counter_kind "counter" "on" "it" "has" "flying"
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Objects($affected), changes:[GainAbilitiesOf{objects:$shared_countered_exile_flying_an, kinds:$craft_shared_traits}]}) */
+static_countered_exile_shared_traits ::= shared_countered_exile_flying_an "," affected craft_shared_traits "."
+
+/* @sem PlayerSet::OpponentsOf(AbilityController) */
+target_choice_opponents ::= "while" "an" "opponent" "is" "choosing" "targets" "as" "part" "of" "casting" "a" "spell" "they" "control" "or" "activating" "an" "ability" "they" "control"
+
+/* @sem PlayerRule::TargetsMustInclude($filter_phrase) */
+target_choice_requirement ::= "that" "player" "must" "choose" "at" "least" "one" filter_phrase "on" "the" "battlefield" "if" "able"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Players($target_choice_opponents), changes:[PlayerRule($target_choice_requirement)]} */
+static_target_choice_requirement ::= target_choice_opponents "," target_choice_requirement "."
+
+/* Copy each listed ability from the controlled matching population. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[GainAbilitiesOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(AbilityController))])}, kinds:List([Term{family:CheckHasable, form:Flying}, ...$sharing_kind_tail])}], duration:$duration, evaluation:Snapshot}}] */
+share_controlled_flying_singular ::= affected "gains" "flying" duration "if" "you" "control" "a" filter_phrase "with" "flying" "." "the" "same" "is" "true" "for" sharing_kind_tail
+
+/* @sem Cost::Cost{parts:[Life($value)]} */
+attack_planeswalker_payment_life ::= value "life" "for" "each" "of" "those" "creatures"
+
+/* Combat restrictions apply to the live affected population. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$attack_you_or_planeswalkers_cost_rule, duration:$duration, evaluation:LiveObjects} */
+duration_affected_attack_cost ::= duration "," affected attack_you_or_planeswalkers_cost_rule
+
+/* The two changes share a target and a turn-long snapshot. The counted
+   population and both pairs of signed values remain independent operands. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:$additional_count_pump_changes, duration:EndOfTurn, evaluation:Snapshot} */
+continuous_target_additional_count_pump ::= target_object additional_count_pump_changes
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}, Pump{power:@times($signed_3, $count_controlled_population), toughness:@times($signed_4, $count_controlled_population)}] */
+additional_count_pump_changes ::= "gets" signed "/" signed "until" "end" "of" "turn" "." "it" "gets" "an" "additional" signed "/" signed "until" "end" "of" "turn" "for" "each" count_controlled_population
+
+/* A singular target receives a live rule restriction and a separately fixed
+   characteristic change; their durations and target remain independent. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:$rule_change, duration:$this_turn, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($target_object)), changes:$retained_singular_type, duration:$duration, evaluation:Snapshot}}] */
+clause_rule_type_pair ::= target_object rule_change this_turn "and" retained_singular_type duration
+
+/* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
+retained_singular_type ::= "becomes" "a" becomes_types "in" "addition" "to" "its" "other" "types"
+
+/* @sem Instruction::[...$clause_rule_type_pair, ...$instructions] */
+instructions_rule_type_newline ::= clause_rule_type_pair "." NEWLINE instructions
+
+/* @sem Mechanic::Buyback */
+universal_buyback_keyword ::= "buyback"
+
+unqualified_payment_keyword ::= universal_payment_keyword | universal_buyback_keyword
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(KeywordCost{keyword:$unqualified_payment_keyword, cards:Any, change:$keyword_payment_change})]}) */
+static_unqualified_keyword_payment ::= unqualified_payment_keyword "costs" "cost" keyword_payment_change "."
+
+/* The prohibition wording applies to the previously selected permanent. */
+/* @sem Change::[Rule(Prohibit(Attack(Any))), Rule(Prohibit(Block(Any))), Rule(Prohibit(Activate(Any)))] */
+chosen_permanent_combat_activation_restrictions ::= "it" "can't" "attack" "or" "block" "," "and" "its" "activated" "abilities" "can't" "be" "activated"
+
+/* A shared duration applies to two independently affected populations. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$singular_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[$grant_keyword], duration:$duration, evaluation:Snapshot}}] */
+clause_shared_temporary_changes ::= object_ref singular_pump "and" filter_plural "gain" grant_keyword duration

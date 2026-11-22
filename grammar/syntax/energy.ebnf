@@ -133,3 +133,11 @@ energy_tap_creatures ::= "tap" "all" "creatures" energy_tap_controller "controls
 
 /* @sem Instruction::[Effect{result:@next, operation:$energy_tap_creatures}, Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Energy}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Transition{result:@back(3), phase:Before}, count:UpTo(Performed(@prior))}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Selected(@prior)), kind:$counter_kind, amount:Constant(1)}]}}] */
 instructions_energy_tapped_counters ::= energy_tap_creatures "." "you" "may" "pay" "any" "amount" "of" "{" "E" "}" "." "if" "you" "do" "," "choose" "up" "to" "that" "many" "creatures" "tapped" "this" "way" "." "put" "a" counter_kind "counter" "on" "each" "of" "them"
+
+/* The variable characteristics refer to this payment, and the token's
+   characteristics and scoped abilities remain independent operands. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Energy}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Performed(@marked), Performed(@marked)], abilities:$token_abilities}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+clause_energy_payment_named_token ::= "you" "may" "pay" "one" "or" "more" "{E}" "." "if" "you" "do" "," "create" "an" "X" "/" "X" token_colors token_subtypes token_types "token" "named" created_token_name "with" token_abilities "," "where" "X" "is" "the" "amount" "of" "{E}" "paid" "this" "way"
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$clause_energy_payment_named_token}} */
+triggered_energy_payment_named_token ::= "at" turn_event "," clause_energy_payment_named_token "."

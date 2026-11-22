@@ -519,7 +519,7 @@ noun_outlaw ::= "outlaw"
 /* @sem ObjectFilter::CardType(Battle) */
 noun_battle ::= "battle"
 
-filter_plural ::= enchanted_ref_and_object | plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among | filter_plural_except_shared | filter_plural_quantified_three | plural_nonattacker_except_unable | plural_controlled_chosen_name | shared_literal_fold_526071ba63ca | filter_plural_folded_vampire
+filter_plural ::= plural_and_other_population | enchanted_ref_and_object | plural_everything | filter_plural_type_prefix | contextual_other_filter | filter_plural_tail | filter_plural_adjectives | filter_plural_comma | mined_plural | filter_plural_modified | plural_outlaws | color_outside_commander_identity | filter_each_property_among | filter_plural_except_shared | filter_plural_quantified_three | plural_nonattacker_except_unable | plural_controlled_chosen_name | shared_literal_fold_526071ba63ca | filter_plural_folded_vampire
 
 /* @sem @and($filter_outer_adjectives, $filter_plural) */
 filter_plural_adjectives ::= filter_outer_adjectives filter_plural
@@ -3500,3 +3500,22 @@ voting_plural_same ::= voting_plural_population voting_choice_same
 voting_plural_different ::= voting_plural_population voting_choice_different
 
 voting_plural_filtered ::= voting_plural_same | voting_plural_different
+
+/* The choice is made during target announcement; the ordinary chooser is implicit. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
+target_choice_yours ::= "target" filter_phrase "of" "your" "choice"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:$filter_phrase, chooser:OneOf(OpponentsOf(AbilityController))}), index:0} */
+target_choice_opponent ::= "target" filter_phrase "of" "an" "opponent's" "choice"
+
+/* An owned nontoken target keeps ownership independent of control. */
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Not(Token), $noun, OwnedBy(One(AbilityController))])}), index:0}) */
+owned_nontoken_target_set ::= "target" "nontoken" noun "you" "own"
+
+/* Each side retains its own population; only the latter excludes this source. */
+/* @sem ObjectFilter::AnyOf([$plural_simple, @and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $plural_simple_2)]) */
+plural_and_other_population ::= plural_simple "and" "other" plural_simple
+
+/* An announced permanent target controlled by an opponent. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$adjective_nontype, ControlledBy(OpponentsOf(AbilityController))])}), index:0} */
+target_opponents_qualified_permanent ::= "target" adjective_nontype "permanent" "an" "opponent" "controls"

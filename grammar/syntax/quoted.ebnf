@@ -2,7 +2,7 @@
    closed productions record that grammatical fact; no punctuation is inserted
    by the tokenizer and an unquoted program still needs its final period. */
 /* A leading time is a program only inside an already announced ability. */
-program_sentence ::= program_exile_copy_return | program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast | program_each_exiles_top_play_permission | program_sentence_graveyard_cast_tax | program_sentence_reveal_die_result | program_sentence_random_hand_type_branch | program_self_bonus_controller_sacrifice | program_sentence_mana_next_entry | program_sentence_if_quoted_type_change | emblem_turn_pair_sentence | program_sentence_each_hand_perpetual | receipt_sacrifice_sentence
+program_sentence ::= program_exile_copy_return | program_sentence_observed_event_hand_exile | program_sentence_perpetual_casting_grants | program_sentence_action_once | program_sentence_delayed_combat | ordinary_program_sentence | counter_receipt_double_sentence | counter_receipt_goad_sentence | program_sentence_conditional_instead | program_sentence_hand_perpetual | program_sentence_random_hand_perpetual | program_search_exile_permission | program_search_exile_cast_one | program_each_search_exile_cast | program_sentence_chosen_hand_spell_perpetual | program_sentence_revealed_mana_entry | program_sentence_chosen_combat_damage | program_sentence_face_down_hand | program_sentence_exile_grant_cast | program_sentence_seek_free_cast | program_each_exiles_top_play_permission | program_sentence_graveyard_cast_tax | program_sentence_reveal_die_result | program_sentence_random_hand_type_branch | program_self_bonus_controller_sacrifice | program_sentence_mana_next_entry | program_sentence_if_quoted_type_change | emblem_turn_pair_sentence | program_sentence_each_hand_perpetual | receipt_sacrifice_sentence | program_exile_copy_grant | program_chosen_opponent_permanent_restrictions
 
 /* This limits a successful performance, not the number of triggers. The
    offer owns the complete coordinated program. Declining it or failing a
@@ -59,7 +59,7 @@ instructions_between_quoted ::= clause_quoted instructions_quoted
 /* @sem Instruction::[...$clause_quoted, ...$instructions] */
 instructions_after_quoted ::= clause_quoted "then"? instructions
 
-clause_quoted ::= clause_operation_create_quoted | clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted | clause_emblem_single_quoted | clause_exile_grant_turn_ability | clause_named_spell_grant_quoted | clause_one_time_boon | clause_copy_permanent_grants
+clause_quoted ::= clause_operation_create_quoted | clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted | clause_emblem_single_quoted | clause_exile_grant_turn_ability | clause_named_spell_grant_quoted | clause_one_time_boon | clause_copy_permanent_grants | clause_one_time_cast_perpetual_boon
 
 /* An emblem's final quoted sentence also closes its enclosing sentence. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateEmblem{actor:One(PlayerRef::AbilityController), abilities:[$token_quoted_sentence]}}] */
@@ -490,3 +490,46 @@ program_sentence_each_hand_perpetual ::= each_hand_card_perpetual_reduction
 /* The payment and its later unattachment test form one activation contract. */
 /* @sem Change::[GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[TapSymbol, Unattach(GrantingObject)]}, limits:_{}, body:$unattach_payment_damage_program, announcement:@announcement}))] */
 closed_unattach_payment_grant ::= '"' "{" "T" "}" "," "↑" "unattach" self_named ":" unattach_payment_damage_program '"'
+
+/* The conditional continuation is tied to the entering spell's event subject;
+   the quoted consequence itself retains its own producer and receipt. */
+/* @sem Instruction::[...$entry_kicked_prefix, $entry_kicked_conditional_quoted] */
+entry_kicked_quoted_followup ::= entry_kicked_prefix "." entry_kicked_conditional_quoted
+
+entry_kicked_prefix ::= clause | personal_graveyard_return_clause
+
+/* @sem Instruction::[Effect{result:@next, operation:$personal_graveyard_return_hand}] */
+personal_graveyard_return_clause ::= personal_graveyard_return_hand
+
+/* @sem Instruction::If{condition:ObjectMatches{object:Source, filter:State(Kicked)}, then:Program{instructions:$conditional_duplicate_grant}, otherwise:Program{}} */
+entry_kicked_conditional_quoted ::= "if" "this" "spell" "was" "kicked" "," conditional_duplicate_grant
+
+/* @sem Ability::Triggered{event:$event_self_enters, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$entry_kicked_quoted_followup}} */
+triggered_entry_kicked_quoted_followup ::= "when" event_self_enters "," entry_kicked_quoted_followup
+
+/* The in-zone spelling is the default within this conditional duplicate phrase. */
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:InZone(Players{zone:Graveyard, players:OpponentsOf(AbilityController)})}), index:0} */
+conditional_duplicate_opponent_card ::= "target" "card" "in" "an" "opponent's" "graveyard"
+
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:OpponentsOf(PlayerRef::AbilityController)}))}), index:0} */
+conditional_duplicate_opponent_filtered ::= "target" card_filter "card" "in" "an" "opponent's" "graveyard"
+
+conditional_duplicate_target ::= conditional_duplicate_opponent_card | conditional_duplicate_opponent_filtered | conditional_duplicate_your_card | conditional_duplicate_your_filtered | conjured_duplicate_target
+
+/* @sem Instruction::[Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Duplicate(One($conditional_duplicate_target)), count:Constant(1), destination:Hand(CardArrival{counters:[], states:[]})}}, Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Result{result:@prior, phase:After, index:0}), changes:$closed_grants}}] */
+conditional_duplicate_grant ::= "conjure" "a" "duplicate" "of" conditional_duplicate_target "into" "your" "hand" "." "it" "perpetually" "gains" closed_grants
+
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:InZone(Players{zone:Graveyard, players:One(AbilityController)})}), index:0} */
+conditional_duplicate_your_card ::= "target" "card" "in" "your" "graveyard"
+
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+conditional_duplicate_your_filtered ::= "target" card_filter "card" "in" "your" "graveyard"
+
+/* The copy consumes the actual exile arrival, and the grant consumes the
+   token creation receipt. Keeping the three instructions together proves both links. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:AllOf([AnyOf([$adjective_color, $adjective_color_2, $adjective_color_3]), $noun, InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Result{result:@prior, phase:After, index:0}, exceptions:[CopyException::SetPowerToughness{power:$number_digits, toughness:$number_digits_2}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@prior)), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}]} */
+program_exile_copy_grant ::= "exile" "target" adjective_color "," adjective_color "," "or" adjective_color noun "card" "from" "your" "graveyard" "." "create" "a" "token" "that's" "a" "copy" "of" "that" "card" "," "except" "it's" number_digits "/" number_digits "." "it" "gains" keyword_name duration "."

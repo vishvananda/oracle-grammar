@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon
+created_token_name ::= created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1212,3 +1212,26 @@ spell_draw_discard_distinct_tokens ::= "draw" card_count "," "then" "discard" ca
 /* The measured removal is exactly the second component of this activation. */
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])}), kind:PowerToughness(1, 1), amount:AmongThem(AtLeast(Constant(1)))}]}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:[Creature], subtypes:$token_subtypes, power_toughness:[PaidCountersRemoved{payment:Activation, component:[1]}, PaidCountersRemoved{payment:Activation, component:[1]}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]}} */
 activated_remove_among_scaled_token ::= cost_mana "," "↑" "remove" "one" "or" "more" "+" "1" "/" "+" "1" "counters" "from" "among" filter_plural "you" "control" ":" "create" "an" "X" "/" "X" token_colors token_subtypes "creature" "token" "," "where" "X" "is" "the" "number" "of" "+" "1" "/" "+" "1" "counters" "removed" "this" "way" "."
+
+/* One creation is replaced by a different count of the same recipe and entry. */
+/* @sem Program::Program{instructions:[If{condition:$condition_died, then:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$count_plural, words:CreatingEffect, recipe:$singular_counted_token_recipe}], entry:BattlefieldArrival{tapped:true}}}]}, otherwise:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$singular_counted_token_recipe}], entry:BattlefieldArrival{tapped:true}}}]}}]} */
+program_tapped_token_death_replacement ::= "create" "a" "tapped" singular_counted_token_recipe "." "if" condition_died "," "create" count_plural "of" "those" "tokens" "instead" "."
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$program_tapped_token_death_replacement} */
+triggered_tapped_token_death_replacement ::= "at" turn_event "," program_tapped_token_death_replacement
+
+/* @sem String::'Nalaar Aetherjet' */
+created_name_nalaar_aetherjet ::= "Nalaar" "Aetherjet"
+
+/* Only the enclosing exile-payment activation may supply this receipt. */
+/* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:$paid_exile_token_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:[Keyword($keyword_value)], abilities_of:[CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, List([Term{family:CheckHasable, form:TriggeredAbility}])]}} */
+paid_exile_legendary_token ::= paid_exile_token_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" "with" keyword_value "and" "all" "triggered" "abilities" "of" "the" "exiled" "cards"
+
+paid_exile_token_name ::= paid_exile_name_vecna | explicit_legendary_name
+
+/* @sem TokenName::Explicit(Vecna) */
+paid_exile_name_vecna ::= "Vecna"
+
+/* The name is independent of the token characteristics. */
+/* @sem String::'Wirefly' */
+created_name_wirefly ::= "Wirefly"

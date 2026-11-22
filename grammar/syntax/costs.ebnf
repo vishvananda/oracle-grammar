@@ -1957,3 +1957,20 @@ activated_sacrificed_creature_color_search ::= cost_mana "," "{T}" "," "↑" "sa
 
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, TapSymbol, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:@announcement, body:$opponent_search_exile_upkeep_program} */
 activated_sacrifice_self_search_upkeep ::= cost_mana "," "{T}" "," "↑" "sacrifice" "this" "artifact" ":" opponent_search_exile_upkeep_program "."
+
+/* The copied abilities come from this activation's exile payment, component 1.
+   Keeping the payment and consumer together proves the receipt in both directions. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, $cost_exile_permanent]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[$paid_exile_legendary_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}]}} */
+activated_exile_abilities_token ::= "{" "T" "}" "," "↑" cost_exile_permanent ":" "create" paid_exile_legendary_token "."
+
+/* The copy refers to the singular second activation payment, not a prior effect.
+   Both descriptions constrain that same sacrificed object. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), ObjectFilter::@agree($filter_phrase, $filter_phrase_2))}, choose:Exactly(Constant(1))}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:[CopyOf{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, exceptions:$copy_exceptions_plain}], duration:Indefinite, evaluation:Snapshot}}]}} */
+activated_sacrifice_copy_payment ::= cost_mana "," "↑" "sacrifice" "another" filter_phrase ":" self_explicit_ref "becomes" "a" "copy" "of" "the" "sacrificed" filter_phrase "," "except" copy_exceptions_plain "."
+
+/* A target performs the draw as a component of the payer's resolution cost. */
+/* @sem CostPart::PlayerAction{player:$target_opponent, body:Program{instructions:[Effect{result:@next, operation:Draw{players:One($target_opponent), amount:$card_count}}]}} */
+cost_have_target_opponent_draw ::= "have" target_opponent "draw" card_count
+
+/* @sem Cost::Cost{parts:[$cost_sacrifice_many, $cost_life, $cost_have_target_opponent_draw]} */
+cost_sacrifice_life_opponent_draw ::= cost_sacrifice_many "," cost_life "," "and" cost_have_target_opponent_draw
