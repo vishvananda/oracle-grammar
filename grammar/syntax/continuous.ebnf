@@ -173,7 +173,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump | change_become_artifact_creature_singular | change_become_colored_base_retained | change_become_named_artifact_retained | change_granted_controller_activation
+change ::= pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump | change_become_artifact_creature_singular | change_become_colored_base_retained | change_become_named_artifact_retained | change_granted_controller_activation | plural_animation_with_grants | plural_granted_animation
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -604,7 +604,7 @@ static_negative_x ::= "-" "X"
 /* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One($object_ref), changes:$static_changes}}] */
 clause_perpetual_card_changes ::= object_ref "perpetually" static_changes
 
-static_changes ::= static_artifact_base_keyword_loss | shared_base_keyword | shared_artifact_stat_type | shared_base_keywords | shared_base_keywords_named | static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types | static_base_keyword_color_type
+static_changes ::= static_artifact_base_keyword_loss | shared_base_keyword | shared_artifact_stat_type | shared_base_keywords | shared_base_keywords_named | static_pump_keyword_color_type | static_changes_plain | defined_changes | change_independent_stats_where | static_creature_base | static_retained_creature | retained_plural_animation | static_base_and_retained_types | static_base_grant_and_retained_types | static_base_keyword_color_type | retained_colored_land_animation | retained_colored_dual_animation
 static_changes_plain ::= static_change | static_changes_and
 
 /* @sem Instruction::[Effect{result:@next, operation:$copy_effect_duration}] */
@@ -3756,7 +3756,7 @@ triggered_attachment_optional_copy ::= attachment_equipment_becomes_creature ","
 /* @sem Instruction::[Effect{result:@mark, operation:CreateContinuousEffect{source:Source, affected:Objects($control_all_untap_population), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:Affected(@marked), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Affected(@marked)), changes:$grants, duration:$duration_2, evaluation:Snapshot}}] */
 clause_control_all_untap_grant ::= "gain" "control" "of" control_all_untap_population duration "." "untap" "them" "." "they" "gain" grants duration
 
-control_all_untap_population ::= control_all_untap_creatures | control_all_untap_negated_permanents
+control_all_untap_population ::= control_all_untap_goaded_or_suspected | control_all_untap_creatures | control_all_untap_negated_permanents
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)} */
 control_all_untap_creatures ::= "all" "creatures"
@@ -7891,3 +7891,56 @@ chosen_permanent_combat_activation_restrictions ::= "it" "can't" "attack" "or" "
 /* A shared duration applies to two independently affected populations. */
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$singular_pump, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}), changes:[$grant_keyword], duration:$duration, evaluation:Snapshot}}] */
 clause_shared_temporary_changes ::= object_ref singular_pump "and" filter_plural "gain" grant_keyword duration
+
+/* Both effects use the same creature population; the second governs how those
+   creatures block, independently of the blocking requirement itself. */
+/* @sem ObjectFilter::AllOf([CardType(Creature), $plural_control_modifier]) */
+blocking_controlled_creatures ::= "creatures" plural_control_modifier
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$blocking_controlled_creatures}), changes:[Rule(RequireCombat{action:Block(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Decides(HowCreaturesBlock($blocking_controlled_creatures)))], duration:$this_duration, evaluation:LiveObjects}}] */
+clause_blocking_population_choice ::= blocking_controlled_creatures "block" this_duration "if" "able" "," "and" "you" "choose" "how" "those" "creatures" "block"
+
+/* A plural population can become a named creature with granted keywords. */
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Creature), ...$grants] */
+plural_animation_with_grants ::= "become" value "/" value becomes_types "creatures" "with" grants
+
+/* An animation can specify a different base size under a condition. Both
+   branches retain the artifact and creature type additions. */
+/* @sem Change::[AddCardType(Artifact), AddCardType(Creature), SetBasePowerToughness{power:$value, toughness:$value_2}] */
+change_becomes_artifact_creature_base ::= "becomes" "an" "artifact" "creature" "with" "base" "power" "and" "toughness" value "/" value
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}] */
+change_artifact_animation_alternative_base ::= "has" "base" "power" "and" "toughness" value "/" value
+
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($object_one)), changes:[AddCardType(Artifact), AddCardType(Creature), ...$change_artifact_animation_alternative_base], duration:EndOfTurn, evaluation:Snapshot}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($object_one)), changes:$change_becomes_artifact_creature_base, duration:EndOfTurn, evaluation:Snapshot}}]}}] */
+instead_artifact_animation ::= "until" "end" "of" "turn" "," object_one change_becomes_artifact_creature_base "." "if" condition "," "it" change_artifact_animation_alternative_base "until" "end" "of" "turn" "instead"
+
+/* Replace color words on a controlled enchantment and grant it upkeep.
+   Both the target color and upkeep cost remain independent operands. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:ColorWord, terms:_{count:Exactly(Constant(2)), options:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$adjective_color, CardType(Enchantment), ControlledBy(One(AbilityController)), Not(HasKeywordFamily(CumulativeUpkeep))])}), index:0})), changes:[ReplaceWord{from:Vocabulary{family:ColorWord, form:TheFirstChosenColorWord}, to:Vocabulary{family:ColorWord, form:TheSecondChosenColorWord}}, GrantAbility(Mechanic{mechanic:CumulativeUpkeep, cost:_{parts:[Mana($mana_symbols)]}})], duration:Indefinite, evaluation:Snapshot}}] */
+color_word_upkeep_program ::= "change" "the" "text" "of" "target" adjective_color "enchantment" "you" "control" "that" "doesn't" "have" "cumulative" "upkeep" "by" "replacing" "all" "instances" "of" "one" "color" "word" "with" "another" "." "that" "enchantment" "gains" '"' "cumulative" "upkeep" mana_symbols "." '"'
+
+/* One selected ability moves between distinct targets for the stated duration. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, Chosen(Ability)])}), index:0})), changes:[LosesAbility(Term{family:CheckHasable, form:TheChosenAbility})], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Not(SameObject(Target{slot:0, index:0})), $noun_2])}), index:0})), changes:[ChosenAbility], duration:$duration, evaluation:Snapshot}}] */
+chosen_ability_transfer_program ::= duration "," "target" noun "with" "the" "chosen" "ability" "loses" "it" "and" "another" "target" noun "gains" "it" "."
+
+/* Both follow-ups refer to the control effect’s captured population. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([AnyOf([State(Goaded), State(Suspected)]), CardType(Creature)])} */
+control_all_untap_goaded_or_suspected ::= "all" "goaded" "and/or" "suspected" "creatures"
+
+/* A shared stat-and-color description keeps both numerical operands editable. */
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, Colors{mode:Set, colors:[$mana_color_word]}] */
+colored_plural_stats ::= value "/" value mana_color_word
+
+/* The land remains a land while the creature card type is added. */
+/* @sem Change::[...$colored_plural_stats, AddCardType(Creature)] */
+retained_colored_land_animation ::= "are" colored_plural_stats "creatures" "that" "are" "still" "lands"
+
+/* Both type additions are explicit, and each subtype is its own operand. */
+/* @sem Change::[...$colored_plural_stats, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature), AddLandType($retained_land_singular), AddCardType(Land)] */
+retained_colored_dual_animation ::= "are" colored_plural_stats becomes_types "creatures" "and" retained_land_singular "lands" "in" "addition" "to" "their" "other" "types"
+
+/* A plural animation composes its type and stats with the ordinary grant list.
+   An explicit retention note applies its own inverse transformation. */
+/* @sem Change::[...$plural_named_animation, ...$grants] */
+plural_granted_animation ::= plural_named_animation "with" grants

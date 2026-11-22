@@ -1049,14 +1049,13 @@ replacement_any_player ::= "a" "player"
 /* @sem ReplacementEvent::Player{event:BeginExtraTurn, players:$replacement_event_player} */
 replacement_extra_turn_event ::= replacement_event_player "would" "begin" "an" "extra" "turn"
 
-/* @sem ReplacementEvent::Player{event:GainLife, players:$replacement_event_player} */
-replacement_gain_life_event ::= replacement_event_player "would" "gain" "life"
+replacement_gain_life_event ::= replacement_any_gain_life_event | replacement_controller_effect_gain_life_event
 
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_extra_turn_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}]}} */
 replacement_player_skip_extra ::= "if" replacement_extra_turn_event "," "that" "player" "skips" "that" "turn" "instead" "."
 
-/* @sem Ability::Replacement{active:Battlefield, event:$replacement_gain_life_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:LoseLife{players:One(EventSubject), amount:EventAmount}}]}} */
-replacement_player_lose_instead ::= "if" replacement_gain_life_event "," "that" "player" "loses" "that" "much" "life" "instead" "."
+/* @sem Ability::Replacement{active:Battlefield, event:$replacement_gain_life_event, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:Cancel}}, Effect{result:@next, operation:$replacement_life_loss}]}} */
+replacement_player_lose_instead ::= "if" replacement_gain_life_event "," replacement_life_loss "instead" "."
 
 /* Another source excludes the holder, independently of the event recipient. */
 /* @sem ObjectFilter::AllOf([Not(SameObject(Source)), $adjective_color, ControlledBy(One(AbilityController))]) */
@@ -3094,3 +3093,64 @@ replacement_controlled_subtype_damage_mill ::= "if" controlled_subtype_damage_pl
 entry_tapped_choice_ability ::= "you" "may" "have" object_ref "enter" "tapped" "." "if" "you" "do" "," entry_tapped_choice_consequence "."
 
 entry_tapped_choice_consequence ::= recipients_get_counters | you_gain_life
+
+/* A bounded exile choice and its counter consequence share one program so the
+   arrival count is tied to this particular move to exile. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:AnyZone(AllOf([$filter_phrase, InZone(Players{zone:Graveyard, players:One(AbilityController)})])), count:UpTo($number), constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+entry_exile_up_to_own_cards ::= "exile" "up" "to" number filter_phrase "cards" "from" "your" "graveyard"
+
+/* @sem Instruction::Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Multiply($value, CountObjects(Matching{objects:Transition{result:@prior, phase:After}, filter:AllOf([$filter_phrase, InZone(Shared(Exile))])}))})}} */
+entry_counters_per_exile_arrival ::= "it" "enters" "with" value counter_kind "counters" "on" "it" "for" "each" filter_phrase "card" "exiled" "this" "way"
+
+/* @sem Program::_{instructions:[...$entry_exile_up_to_own_cards, $entry_counters_per_exile_arrival]} */
+entry_exile_up_to_counter_program ::= entry_exile_up_to_own_cards "." entry_counters_per_exile_arrival
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_exile_up_to_counter_program}) */
+entry_exile_up_to_counter_ability ::= "as" object_ref "enters" "," entry_exile_up_to_counter_program "."
+
+/* Completion tests and counter quantities both consume this exile move's
+   recorded arrivals, not a later live query or an unrelated transition. */
+/* @sem BattlefieldState::CountersOfChoice{kinds:[PowerToughness([2, 0]), $counter_kind, PowerToughness([0, 2])], amount:CountObjects(Matching{objects:Matching{objects:Transition{result:@marked, phase:After}, filter:CardType(Creature)}, filter:InZone(Shared(Exile))})} */
+entry_exile_creature_counter_choices ::= "for" "each" "creature" "card" "exiled" "this" "way" "," "this" "creature" "enters" "with" "a" "+" "2" "/" "+" "0" "," counter_kind "," "or" "+" "0" "/" "+" "2" "counter" "on" "it"
+
+/* @sem Program::_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, count:AsManyAsCan($number), constraints:[]}}, Effect{result:@mark, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:InZone(Shared(Exile))}), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:Entry($entry_exile_creature_counter_choices)}}]}, otherwise:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(OwnersGraveyard)}}]}}]} */
+entry_exile_required_counter_program ::= "exile" number filter_phrase "cards" "from" "your" "graveyard" "." "if" "you" "can't" "," "put" "this" "creature" "into" "its" "owner's" "graveyard" "instead" "of" "onto" "the" "battlefield" "." entry_exile_creature_counter_choices
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_exile_required_counter_program}) */
+entry_exile_required_counter_ability ::= "as" object_ref "enters" "," entry_exile_required_counter_program "."
+
+/* @sem ReplacementEvent::Player{event:GainLife, players:$replacement_event_player} */
+replacement_any_gain_life_event ::= replacement_event_player "would" "gain" "life"
+
+/* GainLifeByEffect includes the causing spell or ability's controller. */
+/* @sem ReplacementEvent::Player{event:GainLifeByEffect, players:All} */
+replacement_controller_effect_gain_life_event ::= "a" "spell" "or" "ability" "would" "cause" "its" "controller" "to" "gain" "life"
+
+replacement_life_loss ::= replacement_event_player_loses_life | replacement_you_lose_life
+
+/* @sem Operation::LoseLife{players:One(EventSubject), amount:EventAmount} */
+replacement_event_player_loses_life ::= "that" "player" "loses" "that" "much" "life"
+
+/* @sem Operation::LoseLife{players:One(AbilityController), amount:EventAmount} */
+replacement_you_lose_life ::= "you" "lose" "that" "much" "life"
+
+/* The single discarded card is the kicker payment, and the following entry
+   clause is conditional on that same kicker. Keep both sides in one scope. */
+/* @sem Ability::[Mechanic{mechanic:Kicker, cost:Cost{parts:[$cost_mana, $discard_one_receipt_cost]}}, @entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(Source)}, body:Program{instructions:[If{condition:$condition_kicked, then:Program{instructions:$kicked_discard_entry_changes}, otherwise:Program{}}]}})] */
+line_kicker_discard_entry ::= "kicker" ("―" | "—") cost_mana "," "↑" discard_one_receipt_cost "." NEWLINE "if" condition_kicked "," "it" "enters" "with" kicked_discard_entry_changes "."
+
+/* The keyword and counter kind are independent entry modifications. */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Earlier{what:Discarded, measure:Of(ManaValue)}})}}, Effect{result:@next, operation:ModifyEvent{change:Entry(Changes([GrantKeyword($keyword_value)]))}}] */
+kicked_discard_entry_changes ::= keyword_value "and" "with" "X" counter_kind "counters" "on" "it" "," "where" "X" "is" "the" "discarded" "card's" "mana" "value"
+
+/* The attacking target is both the source of the prospective damage and the
+   recipient of the redirected event. This clause is scoped to an activation
+   with a single announced target. */
+/* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([Attacking, $noun])}), index:0}), recipients:Objects(SameObject(Source)), kind:Combat, grouping:SourceRecipient, subject:Recipient}) */
+next_attacker_damage_to_source_event ::= "target" "attacking" noun "would" "deal" "combat" "damage" "to" "this" "creature"
+
+/* @sem Operation::CreateReplacement{event:$next_attacker_damage_to_source_event, limit:NextOccurrence, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Objects(One(Target{slot:0, index:0})))}}]}} */
+next_attacker_damage_redirect ::= "the" "next" "time" next_attacker_damage_to_source_event this_duration "," "that" "creature" "deals" "that" "damage" "to" "itself" "instead"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$next_attacker_damage_redirect}]}} */
+activated_next_attacker_damage_redirect ::= cost ":" next_attacker_damage_redirect "."

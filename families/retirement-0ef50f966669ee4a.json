@@ -1,0 +1,768 @@
+{
+  "family": "retirement-0ef50f966669ee4a",
+  "cases": [
+    {
+      "name": "Shahrazad",
+      "text": "Players play a Magic subgame, using their libraries as their decks. Each player who doesn't win the subgame loses half their life, rounded up.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "PlaySubgame"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "Matching",
+                      "args": {
+                        "binding": 0,
+                        "condition": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "WonSubgame",
+                            "args": {
+                              "player": {
+                                "kind": "Bound",
+                                "args": 0
+                              },
+                              "result": 0
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Divide",
+                                  "args": {
+                                    "numerator": {
+                                      "kind": "PlayerNumber",
+                                      "args": {
+                                        "player": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        },
+                                        "number": "Life"
+                                      }
+                                    },
+                                    "denominator": {
+                                      "kind": "Constant",
+                                      "args": 2
+                                    },
+                                    "rounding": "Up"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Stairs to Infinity",
+      "text": "Players have no maximum hand size.\nWhenever you roll the planar die, draw a card.\nWhenever chaos ensues, reveal the top card of your planar deck. You may put it on the bottom of your planar deck.",
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "HandSize": "Unlimited"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "RollsPlanarDie",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "ChaosEnsues",
+                "players": {
+                  "kind": "All"
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "RevealTopOfPlanarDeck"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "TopOfPlanarDeckToBottom"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Stairs to Infinity",
+      "text": "Players have no maximum hand size.",
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "HandSize": "Unlimited"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Stairs to Infinity",
+      "text": "Whenever you roll the planar die, draw a card.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "RollsPlanarDie",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Unrelated fixture",
+      "text": "Players play a Magic subgame, using their graveyards as their decks.",
+      "reject": true
+    },
+    {
+      "name": "Shahrazad",
+      "text": "Players play a Magic subgame, using their libraries as their decks. Each player who doesn't win the subgame loses a third of their life, rounded up.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "PlaySubgame"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "Matching",
+                      "args": {
+                        "binding": 0,
+                        "condition": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "WonSubgame",
+                            "args": {
+                              "player": {
+                                "kind": "Bound",
+                                "args": 0
+                              },
+                              "result": 0
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Divide",
+                                  "args": {
+                                    "numerator": {
+                                      "kind": "PlayerNumber",
+                                      "args": {
+                                        "player": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        },
+                                        "number": "Life"
+                                      }
+                                    },
+                                    "denominator": {
+                                      "kind": "Constant",
+                                      "args": 3
+                                    },
+                                    "rounding": "Up"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Unrelated fixture",
+      "text": "Whenever chaos ensues, reveal the top card of your planar deck. You may put it on the bottom of an opponent’s planar deck.",
+      "reject": true
+    },
+    {
+      "name": "Stairs to Infinity",
+      "text": "Players have no maximum hand size.\nWhenever you roll the planar die, draw two cards.\nWhenever chaos ensues, reveal the top card of your planar deck. You may put it on the bottom of your planar deck.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Plane"
+        ],
+        "subtypes": [
+          "Xerex"
+        ],
+        "mana_cost": null,
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "All"
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "HandSize": "Unlimited"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "RollsPlanarDie",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Draw",
+                      "args": {
+                        "players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "amount": {
+                          "kind": "Constant",
+                          "args": 2
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Player": {
+                "event": "ChaosEnsues",
+                "players": {
+                  "kind": "All"
+                },
+                "objects": null
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "RevealTopOfPlanarDeck"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "AbilityController"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "action": "TopOfPlanarDeckToBottom"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Shahrazad",
+      "text": "Players play a Magic subgame, using their libraries as their decks. Each player who doesn't win the subgame loses a third of their life, rounded up.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": "PlaySubgame"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "Matching",
+                      "args": {
+                        "binding": 0,
+                        "condition": {
+                          "kind": "Not",
+                          "args": {
+                            "kind": "WonSubgame",
+                            "args": {
+                              "player": {
+                                "kind": "Bound",
+                                "args": 0
+                              },
+                              "result": 0
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Divide",
+                                  "args": {
+                                    "numerator": {
+                                      "kind": "PlayerNumber",
+                                      "args": {
+                                        "player": {
+                                          "kind": "Bound",
+                                          "args": 0
+                                        },
+                                        "number": "Life"
+                                      }
+                                    },
+                                    "denominator": {
+                                      "kind": "Constant",
+                                      "args": 3
+                                    },
+                                    "rounding": "Up"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
