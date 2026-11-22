@@ -50,8 +50,20 @@ fn one() -> Option<usize> {
     Some(1)
 }
 
+/// Synthetic family cases without full `context` often specify bare card types
+/// (e.g. `["Creature"]`) without supertypes even for legendary cards; keep
+/// `Names::of` tokenization unless `"Legendary"` is listed.
+fn case_lex_types(types: &[String]) -> &[String] {
+    if types.iter().any(|t| t == "Legendary") {
+        types
+    } else {
+        &[]
+    }
+}
+
 fn exact(engine: &Engine, case: &Case, reading: &Value) -> Result<bool, String> {
-    if let Some(key) = engine.derivation_of(&case.name, reading, &case.text)?
+    let lex = case_lex_types(&case.types);
+    if let Some(key) = engine.derivation_of_types(&case.name, lex, reading, &case.text)?
         && engine
             .print_keyed(&case.name, reading, &case.types, &key)?
             .as_deref()
@@ -59,10 +71,11 @@ fn exact(engine: &Engine, case: &Case, reading: &Value) -> Result<bool, String> 
     {
         return Ok(true);
     }
-    match engine.trail_of(&case.name, reading, &case.text)? {
-        Some(trail) => {
-            Ok(engine.print_trail(&case.name, reading, &trail)?.as_deref() == Some(&case.text))
-        }
+    match engine.trail_of_types(&case.name, lex, reading, &case.text)? {
+        Some(trail) => Ok(engine
+            .print_trail_types(&case.name, lex, reading, &trail)?
+            .as_deref()
+            == Some(&case.text)),
         None => Ok(false),
     }
 }
@@ -77,7 +90,8 @@ fn exact_authored(
 ) -> Result<bool, String> {
     let name = &case.name;
     let text = case.text.as_str();
-    if let Some(full) = engine.derivation_of(name, authored, text)? {
+    let lex = case_lex_types(types);
+    if let Some(full) = engine.derivation_of_types(name, lex, authored, text)? {
         let default = engine.productions_of(name, authored, types)?;
         let trimmed = Engine::trim_key(&full, &default);
         if engine
@@ -94,8 +108,11 @@ fn exact_authored(
             return Ok(true);
         }
     }
-    if let Some(trail) = engine.trail_of(name, authored, text)? {
-        return Ok(engine.print_trail(name, authored, &trail)?.as_deref() == Some(text));
+    if let Some(trail) = engine.trail_of_types(name, lex, authored, text)? {
+        return Ok(engine
+            .print_trail_types(name, lex, authored, &trail)?
+            .as_deref()
+            == Some(text));
     }
     Ok(false)
 }
@@ -118,7 +135,8 @@ fn check(engine: &Engine, off: &RuleSet, case: &Case) -> Result<usize, String> {
     if case.expected_notes.is_some() {
         return Err("expected_notes requires card context".into());
     }
-    let parsed = match engine.parse_without(&case.name, &case.text, off) {
+    let lex = case_lex_types(&case.types);
+    let parsed = match engine.parse_without_types(&case.name, &case.text, lex, off) {
         Err(Refusal::Limit(why)) => return Err(format!("work limit: {why}")),
         Err(_) if case.reject => return Ok(0),
         Err(why) => return Err(format!("unexpected refusal: {why:?}")),

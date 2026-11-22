@@ -31,18 +31,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect();
     let done = worker.spawn(move || -> Result<(), String> {
         if std::env::var_os("PROBE_MINED").is_some() {
-            let audited = engine.audited(&name, &text, &RuleSet::default())?;
+            let audited = engine.audited_types(&name, &types, &text, &RuleSet::default())?;
             for (_, abilities) in &audited {
                 println!("mined {abilities:?}");
             }
         }
         let off = engine.rule_set(|rule| without.iter().any(|p| rule.starts_with(p.as_str())));
         let parsed = engine
-            .parse_without(&name, &text, &off)
+            .parse_without_types(&name, &text, &types, &off)
             .map_err(|e| format!("{e:?}"))?;
         for reading in &parsed.readings {
             println!("{reading}");
-            if let Some(steps) = engine.derivation_of(&name, reading, &text)? {
+            if let Some(steps) = engine.derivation_of_types(&name, &types, reading, &text)? {
                 println!("  rules {steps:?}");
             }
             for print in engine.render(&name, reading, &types, 8)? {

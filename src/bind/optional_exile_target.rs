@@ -423,6 +423,15 @@ mod native_preflight {
         for case in cases {
             let name = case["name"].as_str().unwrap();
             let text = case["text"].as_str().unwrap();
+            let types: Vec<String> = case["types"]
+                .as_array()
+                .map(|items| {
+                    items
+                        .iter()
+                        .map(|item| item.as_str().unwrap().to_string())
+                        .collect()
+                })
+                .unwrap_or_default();
             let mut expected = case["reviewed_old_readings"].as_array().unwrap().clone();
             // Each selected source frame has one reviewed graveyard-card exile
             // operation; only its zero-or-one target view is an added meaning.
@@ -438,7 +447,7 @@ mod native_preflight {
             }
             expected.push(case["native"].clone());
             let actual = engine
-                .parse(name, text)
+                .parse_types(name, text, &types)
                 .unwrap_or_else(|why| panic!("{name}: {why:?}"))
                 .readings;
             assert!(

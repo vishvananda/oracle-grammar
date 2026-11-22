@@ -64,7 +64,7 @@ impl Engine {
         let mut lost = Vec::new();
         for text in texts {
             if Some(text.as_str()) != verified
-                && !self.reads_as_memo(memo.as_deref_mut(), name, &text, &wanted)
+                && !self.reads_as_memo(memo.as_deref_mut(), (name, types), &text, &wanted)
             {
                 lost.push(text);
             }

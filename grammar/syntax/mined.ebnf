@@ -2060,7 +2060,7 @@ m_you_play_a_filter_phrase_or_cast_a_p2 ::= "you" "play" "a" filter_phrase "or" 
 
 /* 1 cards, level:event, e.g. When the tenth +1/+1 counter is put on Shang-Chi, you draw five cards and gain 5 life. */
 /* @sem EventSpec::NthCounter(_{kind:Term{family:CounterType, form:PTCounter, operands:[Integer(1), Integer(1)]}, objects:SameObject(Source), nth:Constant(10)}) */
-m_the_tenth_counter_is_put_on ::= "the" "tenth" "+" "1" "/" "+" "1" "counter" "is" "put" "on" "Shang-Chi"
+m_the_tenth_counter_is_put_on ::= "the" "tenth" "+" "1" "/" "+" "1" "counter" "is" "put" "on" SELF_NAME
 
 /* 1 cards, level:event, e.g. Whenever you discard a Spirit card or a card with disturb, put a +1/+1 counter on this creature. */
 /* @sem EventSpec::Discard(_{players:One(AbilityController), cards:AnyOf([$filter_phrase, HasKeywordFamily(Disturb)]), kind:Any, grouping:Card}) */
@@ -2283,8 +2283,8 @@ m_recipients_has_fewer_than_value_counter_kind_counters ::= recipients "has" "fe
 m_a_filter_phrase_deals_damage_to_a_player ::= "a" filter_phrase "deals" "damage" "to" "a" "player" "or" filter_phrase
 
 /* 1 cards, level:condition, e.g. Whenever this creature blocks a creature, if at least one other Wall creature is blocking that creat */
-/* @sem Condition::AllOf([Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject($object_ref)), Subtype(Wall), $filter_phrase])}, filter:BlockingObject($object_ref_2)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}, Compare{left:CountObjects(Matching{objects:$affected, filter:BlockingObject($object_ref_3)}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}]) */
-m_at_least_value_other_object_ref_filter_phrase_is ::= "at" "least" value "other" object_ref filter_phrase "is" "blocking" object_ref "and" "no" affected "are" "blocking" object_ref
+/* @sem Condition::AllOf([Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), Subtype(Wall), $filter_phrase])}, filter:BlockingObject($object_ref)}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}, Compare{left:CountObjects(Matching{objects:$affected, filter:BlockingObject($object_ref_2)}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}}]) */
+m_at_least_value_other_object_ref_filter_phrase_is ::= "at" "least" value "other" "Wall" filter_phrase "is" "blocking" object_ref "and" "no" affected "are" "blocking" object_ref
 
 /* 1 cards, level:condition, e.g. At the beginning of your end step, if another Human died under your control this turn, create a Food */
 /* @sem Condition::Compare{left:EventHistory{event:ZoneChange{objects:AllOf([Not(SameObject(Source)), $filter_phrase, ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}} */
@@ -3019,7 +3019,7 @@ m_then_for_affected_create_counter_amount_token_that ::= "then" "for" affected "
 
 /* 1 cards, level:operation, e.g. Boast — {1}: You may have Arni's base power become 1 plus the greatest power among other creatures y */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[SetPower(Add([$value, Aggregate{objects:$affected, property:Power, aggregation:Maximum}]))], duration:$duration, evaluation:Snapshot} */
-m_have_s_base_power_become_value_plus ::= "have" "Arni's" "base" "power" "become" value "plus" "the" "greatest" "power" "among" affected duration
+m_have_s_base_power_become_value_plus ::= "have" SELF_NAME "'s" "base" "power" "become" value "plus" "the" "greatest" "power" "among" affected duration
 
 /* 1 cards, level:operation, e.g. Whenever a creature you control attacks or enters attacking, you may pay {1}{R}. If you do, you may  */
 /* @sem Operation::ChooseObjects{player:AbilityController, objects:Zone(_{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:ManaValue, test:NumberTest::Compare{comparison:Less, value:$value}}])}), count:AsManyAsCan($counter_amount)} */
@@ -5709,7 +5709,7 @@ m_copy_each_exiled_card_you_own_with ::= "copy" "each" "exiled" "card" "you" "ow
 
 /* 1 cards, level:operation, e.g. At the beginning of your end step, if you descended this turn, each opponent may discard a card or s */
 /* @sem Operation::DealDamage{source:Source, recipients:Players(Intersection([$players_singular, Matching{binding:0, condition:Not(PlayerTook{player:Bound(0), result:@prior})}])), amount:$value, preventable:true} */
-m_zoyowa_deals_value_damage_to_players_singular_who ::= "Zoyowa" "deals" value "damage" "to" players_singular "who" "didn't"
+m_zoyowa_deals_value_damage_to_players_singular_who ::= SELF_NAME "deals" value "damage" "to" players_singular "who" "didn't"
 
 /* 1 cards, level:operation, e.g. Whenever you put a sticker on this enchantment, it deals damage equal to the number of o's in name s */
 /* @sem Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:Stickers{objects:$affected, measure:Letter(Term{family:Letter, form:SingleLetter, operands:[Text(O)]})}, preventable:true} */
@@ -6313,7 +6313,7 @@ m_if_g_w_was_spent_to_cast ::= "if" "{" "G" "}" "{" "W" "}" "was" "spent" "to" "
 
 /* 1 cards, level:change, e.g. Enchanted creature loses all abilities and is a colorless Noggle with base power and toughness 1/1. */
 /* @sem Change::[RemoveAllAbilities, Colors{mode:Set}, CreatureTypes{mode:Set, types:Listed([Noggle])}, SetBasePowerToughness{power:$value, toughness:$value_2}] */
-m_loses_all_abilities_and_is_a_colorless_2 ::= "loses" "all" "abilities" "and" "is" "a" "colorless" SELF_NAME "with" "base" "power" "and" "toughness" value "/" value
+m_loses_all_abilities_and_is_a_colorless_2 ::= "loses" "all" "abilities" "and" "is" "a" "colorless" "Noggle" "with" "base" "power" "and" "toughness" value "/" value
 
 /* 1 cards, level:costpart, e.g. {1}{B}, Exile another creature card from your graveyard: Return this card from your graveyard to the */
 /* @sem CostPart::Move{selections:[_{objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Not(SameObject(Source))])}), choose:Exactly(Constant(1))}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
@@ -7208,7 +7208,7 @@ m_each_opponent_who_doesn_t_control_a ::= "each" "opponent" "who" "doesn't" "con
 
 /* 1 cards, level:instruction, e.g. {4}{U}{B}{R}: Exile Nicol Bolas, then return him to the battlefield transformed under his owner's co */
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:One($object_ref), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@prior, phase:After, index:0}), zone:Exile}), destination:Battlefield{controller:Owner, arrival:BattlefieldArrival{tapped:false, counters:[], states:[Transformed]}}, qualifiers:[]}}] */
-m_exile_object_ref_then_return_him_to_the ::= "exile" object_ref "then" "return" "him" "to" "the" "battlefield" "transformed" "under" "his" "owner's" "control"
+m_exile_object_ref_then_return_him_to_the ::= "exile" object_ref "," "then" "return" "him" "to" "the" "battlefield" "transformed" "under" "his" "owner's" "control"
 
 /* 1 cards, level:instruction, e.g. When you set this scheme in motion, each opponent chooses a creature they control, then sacrifices t */
 /* @sem Instruction::[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, ControlledBy(One(Bound(0)))])}, count:AsManyAsCan(Constant(1))}}]}}, Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:OpponentsOf(AbilityController), objects:Unselected(@prior)})}] */

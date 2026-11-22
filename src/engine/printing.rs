@@ -354,7 +354,7 @@ impl Engine {
                     let worth_reading =
                         failed.len() < READ_ANYWAY || self.means(name, trees, &wanted);
                     if worth_reading
-                        && self.reads_as_memo(memo.as_deref_mut(), name, &text, &wanted)
+                        && self.reads_as_memo(memo.as_deref_mut(), (name, types), &text, &wanted)
                     {
                         out.push(text);
                     } else {
@@ -421,7 +421,7 @@ impl Engine {
         let text = lines.join("\n");
         let wanted = canonical_abilities(abilities)?;
         Ok(self
-            .reads_as_memo(memo, name, &text, &wanted)
+            .reads_as_memo(memo, (name, types), &text, &wanted)
             .then_some(text))
     }
 
@@ -434,18 +434,14 @@ impl Engine {
         })
     }
 
-    pub(super) fn reads_as(&self, name: &str, text: &str, wanted: &Value) -> bool {
-        self.reads_as_memo(None, name, text, wanted)
-    }
-
     pub(super) fn reads_as_memo(
         &self,
         memo: Option<&mut FaceMemo>,
-        name: &str,
+        card: (&str, &[String]),
         text: &str,
         wanted: &Value,
     ) -> bool {
-        super::diagnostics::parse_with_memo(self, memo.map(|m| &mut m.parse), name, text)
+        super::diagnostics::parse_with_memo_types(self, memo.map(|m| &mut m.parse), card, text)
             .is_ok_and(|parsed| parsed.readings.contains(wanted))
     }
 
@@ -525,7 +521,7 @@ impl Engine {
         (cap, key, native): (usize, &[String], bool),
         mut memo: Option<&mut FaceMemo>,
     ) -> Result<Enumerated, String> {
-        let names = Names::of(name);
+        let names = Names::for_card(name, types);
         let named: rustc_hash::FxHashSet<(u32, usize)> = key
             .iter()
             .filter_map(|step| {
@@ -589,7 +585,17 @@ impl Engine {
         abilities: &Value,
         text: &str,
     ) -> Result<Option<Vec<String>>, String> {
-        self.key_of(name, abilities, text, false)
+        self.key_of((name, &[]), abilities, text, false)
+    }
+
+    pub fn derivation_of_types(
+        &self,
+        name: &str,
+        types: &[String],
+        abilities: &Value,
+        text: &str,
+    ) -> Result<Option<Vec<String>>, String> {
+        self.key_of((name, types), abilities, text, false)
     }
 
     /// Every production choice, including repeated choices and name spelling.
@@ -599,7 +605,17 @@ impl Engine {
         abilities: &Value,
         text: &str,
     ) -> Result<Option<Vec<String>>, String> {
-        self.key_of(name, abilities, text, true)
+        self.key_of((name, &[]), abilities, text, true)
+    }
+
+    pub fn trail_of_types(
+        &self,
+        name: &str,
+        types: &[String],
+        abilities: &Value,
+        text: &str,
+    ) -> Result<Option<Vec<String>>, String> {
+        self.key_of((name, types), abilities, text, true)
     }
 
     /// The key along which `text` prints from the abilities as given, else from
@@ -607,14 +623,14 @@ impl Engine {
     /// surfaces that miss the written wording; printing makes the same retry.
     fn key_of(
         &self,
-        name: &str,
+        card: (&str, &[String]),
         abilities: &Value,
         text: &str,
         ordered: bool,
     ) -> Result<Option<Vec<String>>, String> {
         super::validate_abilities(abilities)?;
         let surfaces = Self::native_surfaces(abilities, true)?;
-        if let Some(key) = self.surface_key(self.root, surfaces, name, text, ordered)? {
+        if let Some(key) = self.surface_key_types(self.root, surfaces, card, text, ordered)? {
             return Ok(Some(key));
         }
         let canonical = canonical_abilities(abilities)?;
@@ -622,7 +638,7 @@ impl Engine {
             return Ok(None);
         }
         let surfaces = Self::native_surfaces(&canonical, true)?;
-        self.surface_key(self.root, surfaces, name, text, ordered)
+        self.surface_key_types(self.root, surfaces, card, text, ordered)
     }
 
     pub(super) fn surface_key(
@@ -633,7 +649,18 @@ impl Engine {
         text: &str,
         ordered: bool,
     ) -> Result<Option<Vec<String>>, String> {
-        let names = Names::of(name);
+        self.surface_key_types(root, surfaces, (name, &[]), text, ordered)
+    }
+
+    pub(super) fn surface_key_types(
+        &self,
+        root: u32,
+        surfaces: Vec<Value>,
+        (name, types): (&str, &[String]),
+        text: &str,
+        ordered: bool,
+    ) -> Result<Option<Vec<String>>, String> {
+        let names = Names::for_card(name, types);
         let target = tokens::tokenize(text, &names, &self.grammar.vocabulary)?;
         if target.len() > self.limits.tokens {
             return Err("key target token limit".into());
@@ -681,6 +708,16 @@ impl Engine {
         abilities: &Value,
         trail: &[String],
     ) -> Result<Option<String>, String> {
+        self.print_trail_types(name, &[], abilities, trail)
+    }
+
+    pub fn print_trail_types(
+        &self,
+        name: &str,
+        types: &[String],
+        abilities: &Value,
+        trail: &[String],
+    ) -> Result<Option<String>, String> {
         super::validate_abilities(abilities)?;
         let wanted = canonical_abilities(abilities)?;
         // A trail found on the canonical form replays on its surfaces.
@@ -691,8 +728,8 @@ impl Engine {
         };
         for view in views {
             let surfaces = Self::native_surfaces(view, true)?;
-            for text in self.replayed_surfaces(self.root, surfaces, name, trail)? {
-                if self.reads_as(name, &text, &wanted) {
+            for text in self.replayed_surfaces_types(self.root, surfaces, (name, types), trail)? {
+                if self.reads_as_memo(None, (name, types), &text, &wanted) {
                     return Ok(Some(text));
                 }
             }
@@ -705,6 +742,16 @@ impl Engine {
         root: u32,
         surfaces: Vec<Value>,
         name: &str,
+        trail: &[String],
+    ) -> Result<Vec<String>, String> {
+        self.replayed_surfaces_types(root, surfaces, (name, &[]), trail)
+    }
+
+    pub(super) fn replayed_surfaces_types(
+        &self,
+        root: u32,
+        surfaces: Vec<Value>,
+        (name, types): (&str, &[String]),
         trail: &[String],
     ) -> Result<Vec<String>, String> {
         let (grouped, trail): (Vec<&String>, Vec<&String>) =
@@ -730,7 +777,7 @@ impl Engine {
         let (Some(steps), Some(spellings), Some(grouped)) = (steps, spellings, grouped) else {
             return Ok(Vec::new());
         };
-        let names = Names::of(name);
+        let names = Names::for_card(name, types);
         let mut texts = Vec::new();
         for surface in surfaces {
             let printed = Replay::run(&self.grammar, root, &surface, &steps, &spellings);
@@ -788,7 +835,7 @@ impl Engine {
         let saved_parse = std::mem::take(&mut memo.parse);
         let mut renderer = Renderer::new(&self.grammar, &self.style, 8, types.to_vec())
             .with_name(name)
-            .with_self_name(Names::of(name).printed(types))
+            .with_self_name(Names::for_card(name, types).printed(types))
             .with_face_memo(std::mem::take(memo));
         for surface in Self::native_surfaces(abilities, false)? {
             if let Some(best) = renderer.render(self.root, &surface).first() {

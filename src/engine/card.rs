@@ -97,7 +97,7 @@ impl Engine {
         if text.len() > 65_536 || name.len() > 4096 {
             return Err(Refusal::Limit("card text byte limit".into()));
         }
-        self.card_context(context).map_err(Refusal::Limit)?;
+        let types = self.card_context(context).map_err(Refusal::Limit)?;
         if let Some(source) = source {
             let visible = self
                 .card_input_context(name, text, context, source.printed_power_toughness.clone())
@@ -111,7 +111,7 @@ impl Engine {
             }
         }
         let root = self.card_root().map_err(Refusal::Binding)?;
-        let names = Names::of(name);
+        let names = Names::for_card(name, &types);
         let tokens =
             tokens::tokenize(text, &names, &self.grammar.vocabulary).map_err(Refusal::Lexical)?;
         let mut card_off = off.clone();

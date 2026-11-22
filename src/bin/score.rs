@@ -147,7 +147,7 @@ fn render_row_with_default(
     if !first {
         row["default"] = json!(printed);
         let default = engine.productions_of_memo(memo, name, abilities, types)?;
-        if let Some(full) = engine.derivation_of(name, abilities, text)? {
+        if let Some(full) = engine.derivation_of_types(name, types, abilities, text)? {
             score.reachable += 1;
             let trimmed = Engine::trim_key(&full, &default);
             // A key is a set, so a short one can make every candidate wrong the same way
@@ -173,8 +173,8 @@ fn render_row_with_default(
             any = found.is_some();
             row["key"] = json!(found.unwrap_or(&full));
             // A set cannot tell two uses of one rule apart, and an ordered key can.
-            if !any && let Some(trail) = engine.trail_of(name, abilities, text)? {
-                let replayed = engine.print_trail(name, abilities, &trail)?;
+            if !any && let Some(trail) = engine.trail_of_types(name, types, abilities, text)? {
+                let replayed = engine.print_trail_types(name, types, abilities, &trail)?;
                 any = replayed.as_deref() == Some(text);
                 if any {
                     score.ordered_keys += 1;
@@ -364,7 +364,8 @@ fn judge(
             }
         })
     } else {
-        engine.parse_without(name, &text, &options.off)
+        let types = oracle_ir_grammar::corpus::print_context(face);
+        engine.parse_without_types(name, &text, &types, &options.off)
     };
     match parsed {
         Err(refusal) => {

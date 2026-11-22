@@ -31,10 +31,76 @@ impl Names {
             names.push(short.to_string());
         }
         if let Some((short, _)) = full.split_once(" of ") {
-            names.push(short.to_string());
+            let short = short.trim_end_matches(',');
+            if !short.is_empty() {
+                names.push(short.to_string());
+            }
         }
         if let Some((short, _)) = full.split_once(" the ") {
-            names.push(short.to_string());
+            let short = short.trim_end_matches(',');
+            if !short.is_empty() {
+                names.push(short.to_string());
+            }
+        }
+        names.sort_by_key(|n| std::cmp::Reverse(n.len()));
+        names.dedup();
+        Self { names }
+    }
+
+    /// Card self-name spellings when the card's types are known (MTG CR 201.5c):
+    /// only Legendary cards refer to themselves by a shortened name; non-legendary
+    /// cards use only their full name. Empty `types` falls back to [`Names::of`].
+    pub fn for_card(full: &str, types: &[String]) -> Self {
+        if types.is_empty() {
+            return Self::of(full);
+        }
+        if !types.iter().any(|t| t == "Legendary") {
+            return Self {
+                names: vec![full.to_string()],
+            };
+        }
+        let mut names = vec![full.to_string()];
+        let mut has_sep = false;
+        for sep in [", ", " of ", " the ", " and the "] {
+            if let Some((short, _)) = full.split_once(sep) {
+                let short = short.trim_end_matches(',');
+                if !short.is_empty() {
+                    names.push(short.to_string());
+                }
+                has_sep = true;
+            }
+        }
+        let words: Vec<&str> = full.split_whitespace().collect();
+        if words.len() >= 3 {
+            if matches!(words[0], "Dr." | "Captain") {
+                let last = words[words.len() - 1].trim_end_matches(',');
+                if !last.is_empty() {
+                    names.push(format!("{} {last}", words[0]));
+                }
+            }
+            if words[0] == "King" {
+                let second = words[1].trim_end_matches(',');
+                if !second.is_empty() {
+                    names.push(format!("{} {second}", words[0]));
+                }
+            }
+        }
+        if !has_sep && words.len() >= 2 {
+            let first = words[0].trim_end_matches(',');
+            let planeswalker = types.iter().any(|t| t == "Planeswalker");
+            let background = types.iter().any(|t| t == "Background");
+            let is_subtype = types.iter().any(|t| t == first);
+            if first.len() >= 2
+                && !matches!(first, "The" | "A" | "An")
+                && !background
+                && if planeswalker {
+                    is_subtype
+                } else {
+                    !is_subtype
+                }
+            {
+                names.push(first.to_string());
+            }
         }
         names.sort_by_key(|n| std::cmp::Reverse(n.len()));
         names.dedup();
@@ -126,6 +192,33 @@ fn upper_first(word: &str) -> String {
 /// `this Case` on `Case of the Lost Witness` are types.
 fn after_article(previous: Option<&Token>) -> bool {
     matches!(previous, Some(Token::Word(word)) if matches!(word.as_str(), "a" | "an" | "another" | "this"))
+}
+
+/// A shortened self-name is not a self-reference when it starts a longer proper name
+/// (e.g. `Marit Lage`, `named Mitotic Slime`, `named Nissa's Chosen`).
+fn proper_name_prefix(text: &str, at: usize, length: usize) -> bool {
+    let after = &text[at + length..];
+    let after = after.strip_prefix(POSSESSIVE).unwrap_or(after);
+    after
+        .strip_prefix(' ')
+        .and_then(|rest| rest.chars().next())
+        .is_some_and(|ch| ch.is_ascii_uppercase())
+}
+
+/// A sentence-initial card name that spells a grammar verb before `target` (as on `Exile`
+/// and `Regenerate`) is that imperative verb, never a self-reference.
+fn imperative_verb(
+    text: &str,
+    at: usize,
+    length: usize,
+    before: &[Token],
+    vocabulary: &HashSet<String>,
+) -> bool {
+    starts_sentence(before) && text[at + length..].starts_with(" target") && {
+        let word = lower_first(&text[at..at + length]);
+        crate::print_trace::vocabulary_query(&word);
+        vocabulary.contains(word.as_str())
+    }
 }
 
 fn name_at(text: &str, at: usize, names: &Names) -> Option<(u8, usize)> {
@@ -225,7 +318,9 @@ fn scan(text: &str, names: &Names, vocabulary: &HashSet<String>) -> Result<Vec<T
         if word_start
             && !after_article(tokens.last())
             && let Some((index, length)) = name_at(text, at, names)
+            && !(index > 0 && proper_name_prefix(text, at, length))
             && !keyword_line(text, at, length, index, vocabulary)
+            && !imperative_verb(text, at, length, &tokens, vocabulary)
         {
             tokens.push(Token::SelfName(index));
             at += length;

@@ -78,7 +78,10 @@ impl Engine {
             if unverified_quotes && (!anchored || candidate) {
                 return Err("cannot verify Station source across an unlexable quoted line".into());
             }
-            let names = names.get_or_insert_with(|| Names::of(name));
+            let names = names.get_or_insert_with(|| {
+                let types = self.card_context(characteristics).unwrap_or_default();
+                Names::for_card(name, &types)
+            });
             let tokens = match tokens::tokenize(line, names, &self.grammar.vocabulary) {
                 Ok(tokens) => tokens,
                 Err(_) if line.contains('"') => {

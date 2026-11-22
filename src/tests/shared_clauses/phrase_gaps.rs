@@ -570,6 +570,140 @@ fn a_short_name_alone_on_its_line_is_its_keyword() {
 }
 
 #[test]
+fn card_types_govern_shortened_self_names_and_guards() {
+    use crate::tokens::{Names, Token};
+    let s = |xs: &[&str]| xs.iter().map(|t| (*t).to_string()).collect::<Vec<_>>();
+
+    // Trailing comma is trimmed before " the " / " of ".
+    assert_eq!(
+        Names::of("Yisan, the Wanderer Bard").names,
+        s(&["Yisan, the Wanderer Bard", "Yisan"])
+    );
+
+    // Non-legendary cards only use their full name (CR 201.5c).
+    assert_eq!(
+        Names::for_card("Knight of the Mists", &s(&["Creature", "Human", "Knight"])).names,
+        s(&["Knight of the Mists"])
+    );
+    assert_eq!(
+        Names::for_card("Noggle the Mind", &s(&["Enchantment", "Aura"])).names,
+        s(&["Noggle the Mind"])
+    );
+
+    // Legendary cards recognize CR 201.5c shortened forms without subtype false positives.
+    assert!(
+        Names::for_card(
+            "Garruk Relentless",
+            &s(&["Legendary", "Planeswalker", "Garruk"])
+        )
+        .names
+        .contains(&"Garruk".to_string())
+    );
+    assert!(
+        Names::for_card(
+            "Dr. Beverly Crusher",
+            &s(&["Legendary", "Creature", "Human"])
+        )
+        .names
+        .contains(&"Dr. Crusher".to_string())
+    );
+    assert!(
+        Names::for_card(
+            "Captain James T. Kirk",
+            &s(&["Legendary", "Creature", "Human"])
+        )
+        .names
+        .contains(&"Captain Kirk".to_string())
+    );
+    assert!(
+        Names::for_card(
+            "King Darien XLVIII",
+            &s(&["Legendary", "Creature", "Human"])
+        )
+        .names
+        .contains(&"King Darien".to_string())
+    );
+    assert!(
+        Names::for_card(
+            "Shang-Chi and the Ten Rings",
+            &s(&["Legendary", "Creature", "Human"])
+        )
+        .names
+        .contains(&"Shang-Chi".to_string())
+    );
+    assert!(
+        !Names::for_card("Sliver Overlord", &s(&["Legendary", "Creature", "Sliver"]))
+            .names
+            .contains(&"Sliver".to_string())
+    );
+    assert!(
+        !Names::for_card(
+            "Dragon Cultist",
+            &s(&["Legendary", "Enchantment", "Background"])
+        )
+        .names
+        .contains(&"Dragon".to_string())
+    );
+
+    // Proper-name prefixes after `named` or before an uppercase word stay literal words.
+    let marit = engine()
+        .tokens_of_types(
+            "Marit Lage's Slumber",
+            &s(&["Legendary", "Snow", "Enchantment"]),
+            "Create Marit Lage, a legendary 20/20 black Avatar creature token.",
+        )
+        .unwrap();
+    assert!(
+        !marit.iter().any(|t| matches!(t, Token::SelfName(_))),
+        "{marit:?}"
+    );
+    let nissa = engine()
+        .tokens_of_types(
+            "Nissa Revane",
+            &s(&["Legendary", "Planeswalker", "Nissa"]),
+            "Search your library for a card named Nissa's Chosen.",
+        )
+        .unwrap();
+    assert!(
+        !nissa.iter().any(|t| matches!(t, Token::SelfName(_))),
+        "{nissa:?}"
+    );
+    let gollum = engine()
+        .tokens_of_types(
+            "Gollum, Obsessed Stalker",
+            &s(&["Legendary", "Creature", "Halfling", "Horror"]),
+            "A creature named Gollum loses 2 life.",
+        )
+        .unwrap();
+    assert!(
+        gollum.iter().any(|t| matches!(t, Token::SelfName(1))),
+        "{gollum:?}"
+    );
+
+    // Sentence-initial imperative verbs before `target` stay verbs, not self-names.
+    let regen = engine()
+        .tokens_of_types(
+            "Regenerate",
+            &s(&["Instant"]),
+            "Regenerate target creature.",
+        )
+        .unwrap();
+    assert_eq!(regen[0], Token::Word("regenerate".into()), "{regen:?}");
+    let exile = engine()
+        .tokens_of_types("Exile", &s(&["Instant"]), "Exile target creature.")
+        .unwrap();
+    assert_eq!(exile[0], Token::Word("exile".into()), "{exile:?}");
+    let blaze = engine()
+        .tokens_of_types(
+            "Blaze",
+            &s(&["Sorcery"]),
+            "Blaze deals X damage to any target.",
+        )
+        .unwrap();
+    assert_eq!(blaze[0], Token::SelfName(0), "{blaze:?}");
+}
+
+#[test]
 fn reaching_a_counter_threshold_is_a_state_trigger() {
     let text = "When there are four or more time counters on this artifact, sacrifice it.";
     let mut counted = Vec::new();

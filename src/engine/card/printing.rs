@@ -72,7 +72,7 @@ impl Engine {
             return Err("card text byte limit".into());
         }
         reading.canonical()?;
-        self.card_context(context)?;
+        let types = self.card_context(context)?;
         let (root, surfaces) = if reading.notes.is_empty() {
             (self.root, Self::native_surfaces(&reading.abilities, true)?)
         } else {
@@ -81,7 +81,7 @@ impl Engine {
                 self.card_surfaces(reading, context, true)?,
             )
         };
-        self.surface_key(root, surfaces, name, text, ordered)
+        self.surface_key_types(root, surfaces, (name, &types), text, ordered)
     }
 
     pub fn print_card_trail(
@@ -95,14 +95,14 @@ impl Engine {
             return Err("card name byte limit".into());
         }
         let wanted = reading.canonical()?;
-        self.card_context(context)?;
+        let types = self.card_context(context)?;
         if reading.notes.is_empty() {
-            return self.print_trail(name, &reading.abilities, trail);
+            return self.print_trail_types(name, &types, &reading.abilities, trail);
         }
-        for text in self.replayed_surfaces(
+        for text in self.replayed_surfaces_types(
             self.card_root()?,
             self.card_surfaces(reading, context, true)?,
-            name,
+            (name, &types),
             trail,
         )? {
             if self.reads_as_card(name, &text, &wanted, context) {

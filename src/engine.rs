@@ -245,6 +245,22 @@ impl Engine {
         diagnostics::parse(self, name, text, off, false).result
     }
 
+    /// Parse with card type context (for CR 201.5c shortened self-names).
+    pub fn parse_types(&self, name: &str, text: &str, types: &[String]) -> Result<Parsed, Refusal> {
+        self.parse_without_types(name, text, types, &RuleSet::default())
+    }
+
+    /// Parse with card type context (for CR 201.5c shortened self-names) and `off` disabled.
+    pub fn parse_without_types(
+        &self,
+        name: &str,
+        text: &str,
+        types: &[String],
+        off: &RuleSet,
+    ) -> Result<Parsed, Refusal> {
+        diagnostics::parse_types(self, (name, types), text, off, false).result
+    }
+
     /// Every reading of a text, with the mined rules behind each of its abilities.
     /// Readings of tokens already made, or how far a parse got.
     pub fn read_tokens(&self, name: &str, tokens: &[tokens::Token]) -> Result<Vec<Value>, usize> {
@@ -356,7 +372,17 @@ impl Engine {
     /// not in the grammar. Tags keep readings of one value apart, so a card can hit the
     /// reading limit here and not in [`Engine::parse`].
     pub fn audited(&self, name: &str, text: &str, off: &RuleSet) -> Result<Vec<Audited>, String> {
-        let names = Names::of(name);
+        self.audited_types(name, &[], text, off)
+    }
+
+    pub fn audited_types(
+        &self,
+        name: &str,
+        types: &[String],
+        text: &str,
+        off: &RuleSet,
+    ) -> Result<Vec<Audited>, String> {
+        let names = Names::for_card(name, types);
         let Ok(tokens) = tokens::tokenize(text, &names, &self.grammar.vocabulary) else {
             return Ok(Vec::new());
         };
@@ -588,7 +614,21 @@ pub fn presentation_free(text: &str) -> String {
 impl Engine {
     /// The token stream a card's text scans to.
     pub fn tokens_of(&self, name: &str, text: &str) -> Result<Vec<tokens::Token>, String> {
-        tokens::tokenize(text, &Names::of(name), &self.grammar.vocabulary)
+        self.tokens_of_types(name, &[], text)
+    }
+
+    /// The token stream a card's text scans to with card type context (CR 201.5c).
+    pub fn tokens_of_types(
+        &self,
+        name: &str,
+        types: &[String],
+        text: &str,
+    ) -> Result<Vec<tokens::Token>, String> {
+        tokens::tokenize(
+            text,
+            &Names::for_card(name, types),
+            &self.grammar.vocabulary,
+        )
     }
 
     /// Whether the grammar derives these tokens, before any binding.

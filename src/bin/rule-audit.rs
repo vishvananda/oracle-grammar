@@ -55,6 +55,7 @@ mod source;
 /// One face as `score` reads it.
 struct Case<'a> {
     name: &'a str,
+    types: Vec<String>,
     text: String,
     gold: Value,
     input: source::Input,
@@ -65,6 +66,7 @@ impl<'a> Case<'a> {
         let input = source::input(engine, sources, face)?;
         Ok(Case {
             name: face["name"].as_str().unwrap_or_default(),
+            types: oracle_ir_grammar::corpus::print_context(face),
             text: engine.presentation_free(&input.text),
             gold: canonical_abilities(&face["abilities"])?,
             input,
@@ -81,7 +83,7 @@ impl<'a> Case<'a> {
                 .is_ok_and(|parsed| parsed.readings.iter().any(|r| r.abilities == *gold))
         } else {
             engine
-                .parse_without(name, text, off)
+                .parse_without_types(name, text, &self.types, off)
                 .is_ok_and(|parsed| parsed.readings.contains(gold))
         }
     }
@@ -140,7 +142,7 @@ fn judge(engine: &Engine, grammars: &Grammars, case: &Case) -> Face {
             (true, true) => &grammars.whole,
         }
     };
-    let derivations = match engine.audited(name, text, narrowest) {
+    let derivations = match engine.audited_types(name, &case.types, text, narrowest) {
         Ok(readings) => derivations(readings, gold),
         Err(why) => {
             face.unresolved = Some(why);
@@ -222,7 +224,9 @@ fn rescue(
 /// of this face is not to blame for a wrong one beside it.
 fn credit(engine: &Engine, case: &Case, face: &mut Face) {
     let gold = &case.gold;
-    let Ok(readings) = engine.audited(case.name, &case.text, &RuleSet::default()) else {
+    let Ok(readings) =
+        engine.audited_types(case.name, &case.types, &case.text, &RuleSet::default())
+    else {
         return;
     };
     let width = gold.as_array().map_or(0, Vec::len);

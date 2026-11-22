@@ -85,7 +85,7 @@ impl Engine {
         let mut evidence = Evidence::default();
         let result = run(
             self,
-            name,
+            (name, &[]),
             text,
             &RuleSet::default(),
             (true, true),
@@ -161,10 +161,20 @@ pub(super) fn parse(
     off: &RuleSet,
     capture: bool,
 ) -> Attempt {
+    parse_types(engine, (name, &[]), text, off, capture)
+}
+
+pub(super) fn parse_types(
+    engine: &Engine,
+    card: (&str, &[String]),
+    text: &str,
+    off: &RuleSet,
+    capture: bool,
+) -> Attempt {
     let mut evidence = Evidence::default();
     let result = run(
         engine,
-        name,
+        card,
         text,
         off,
         (capture, false),
@@ -174,17 +184,17 @@ pub(super) fn parse(
     Attempt { result, evidence }
 }
 
-pub(super) fn parse_with_memo(
+pub(super) fn parse_with_memo_types(
     engine: &Engine,
     memo: Option<&mut ParseMemo>,
-    name: &str,
+    card: (&str, &[String]),
     text: &str,
 ) -> Result<Parsed, Refusal> {
     let mut evidence = Evidence::default();
     let empty = RuleSet::default();
     run(
         engine,
-        name,
+        card,
         text,
         &empty,
         (false, false),
@@ -195,14 +205,14 @@ pub(super) fn parse_with_memo(
 
 fn run(
     engine: &Engine,
-    name: &str,
+    (name, types): (&str, &[String]),
     text: &str,
     off: &RuleSet,
     (capture, candidate_ir): (bool, bool),
     evidence: &mut Evidence,
     mut memo: Option<&mut ParseMemo>,
 ) -> Result<Parsed, Refusal> {
-    let names = Names::of(name);
+    let names = Names::for_card(name, types);
     let tokens = tokens::tokenize(text, &names, &engine.grammar.vocabulary).map_err(|why| {
         if capture {
             evidence.record(Stage::Lexical, None, &why);
