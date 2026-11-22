@@ -1198,7 +1198,7 @@ conditional_damage_as_long ::= "as" "long" "as" condition "," conditional_damage
 /* @sem Ability::Conditional{condition:$static_turn_window, then:[$conditional_damage_replacement]} */
 conditional_damage_during ::= static_turn_window "," conditional_damage_replacement
 
-conditional_damage_replacement ::= replacement_unblocked_to_controller | replacement_other_controlled_entry_counter | replacement_controlled_noncombat_bonus | replacement_draw_one_or_more_extra | replacement_draw_search_hand | replacement_prevent_all | replacement_prevent_targeting_spells | replacement_prevent_banded | replacement_leave_loyalty
+conditional_damage_replacement ::= replacement_controlled_source_double | replacement_redirect_filtered_damage | replacement_redirect_unblocked_combat | replacement_controller_infect | replacement_unblocked_to_controller | replacement_other_controlled_entry_counter | replacement_controlled_noncombat_bonus | replacement_draw_one_or_more_extra | replacement_draw_search_hand | replacement_prevent_all | replacement_prevent_targeting_spells | replacement_prevent_banded | replacement_leave_loyalty
 
 /* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Spell, sources:TargetsAny(Objects(One($object_ref_2))), recipients:Objects(SameObject($object_ref)), kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
 replacement_prevent_targeting_spells ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" object_ref "by" "spells" "that" "target" object_ref "."
@@ -2868,3 +2868,53 @@ entry_discard_keyword_first_vigilance ::= "it" "enters" "with" "a" "vigilance" "
 /* The repeated choice applies to the same event player set. */
 /* @sem Ability::VillainousChoiceTwice($transform_player_choice) */
 villainous_choice_repeat ::= "if" transform_player_choice "would" "face" "a" "villainous" "choice" "," "they" "face" "that" "choice" "an" "additional" "time" "."
+
+/* An entry choice composes with its optional payment, preserving its receipt. */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($object_ref)}, body:$entry_choice_body}) */
+entry_choice_ability ::= "as" object_ref "enters" "," entry_choice_body "."
+
+entry_choice_body ::= entry_choice_single | entry_choice_with_payment
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_choice_operation}]} */
+entry_choice_single ::= entry_choice_operation
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$entry_choice_operation}, Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$cost, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetTapped(true)}}]}, otherwise:Program{}}]} */
+entry_choice_with_payment ::= entry_choice_operation "." "then" "you" "may" cost "." "if" "you" "don't" "," "it" "enters" "tapped"
+
+entry_choice_operation ::= entry_opponent_creature_choice | entry_basic_land_choice | entry_card_type_except_pair
+
+/* @sem Operation::ChooseValue{choosers:One(OneOf(OpponentsOf(AbilityController))), kind:CreatureType, terms:_{count:Exactly(Constant(1)), options:[]}} */
+entry_opponent_creature_choice ::= "an" "opponent" "chooses" "a" "creature" "type"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(1)), options:[]}} */
+entry_basic_land_choice ::= "choose" "a" "basic" "land" "type"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{except:[$choice_card_type, $choice_card_type_2], count:Exactly(Constant(1))}} */
+entry_card_type_except_pair ::= "choose" "a" "card" "type" "other" "than" choice_card_type "or" choice_card_type
+
+/* Damage replacements remain independent of the condition that activates them. */
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Any, sources:ControlledBy(One(AbilityController)), recipients:ObjectsAndPlayers{objects:$filter_phrase, players:All}, kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetAmount(Multiply([Constant(2), EventAmount]))}}]}} */
+replacement_controlled_source_double ::= "if" "a" "source" "you" "control" "would" "deal" "damage" "to" "a" filter_phrase "or" "player" "," "it" "deals" "double" "that" "damage" "to" "that" "permanent" "or" "player" "instead" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Permanent, sources:$filter_plural, recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Objects($affected))}}]}} */
+replacement_redirect_filtered_damage ::= "all" "damage" "that" "would" "be" "dealt" "to" "you" "by" filter_plural "is" "dealt" "to" affected "instead" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Permanent, sources:AllOf([State(Unblocked), $filter_plural]), recipients:Players(One(AbilityController)), kind:Combat, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:RedirectDamage(Objects($affected))}}]}} */
+replacement_redirect_unblocked_combat ::= "all" "combat" "damage" "that" "would" "be" "dealt" "to" "you" "by" "unblocked" filter_plural "is" "dealt" "to" affected "instead" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Any, sources:Any, recipients:Players(One(AbilityController)), kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:DamageAsInfect}}]}} */
+replacement_controller_infect ::= "all" "damage" "is" "dealt" "to" "you" "as" "though" "its" "source" "had" "infect" "."
+
+/* @sem Ability::Replacement{active:Battlefield, event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+replacement_prevent_from_object ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "by" object_ref "."
+
+/* The pronoun tests the subject of the static clause; the other arm retains its own source. */
+/* @sem Ability::Conditional{condition:ObjectMatches{object:$object_ref, filter:$filter_phrase}, then:[Static(_{kind:Ordinary, affected:Objects(One($object_ref)), changes:$static_changes})], otherwise:[$replacement_prevent_from_object]} */
+conditional_object_static_otherwise_prevent ::= object_ref static_changes "as" "long" "as" "it's" "an" filter_phrase "." "otherwise" "," replacement_prevent_from_object
+
+/* The two wordings refer to the resolving source choice. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@marked, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$temporary_damage_change} */
+chosen_flip_source_scaled ::= "the" "next" "time" "that" "source" "would" "deal" "damage" this_duration "," temporary_damage_change
+
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@marked, phase:Before, index:0}), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$prevented_body_plain} */
+chosen_flip_source_prevent ::= "the" "next" "time" "it" "would" "deal" "damage" this_duration "," prevented_body_plain

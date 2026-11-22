@@ -1,6 +1,6 @@
 /* Keyword actions the ability's controller performs. A single application
    keeps the native absent amount; counted applications retain theirs. */
-keyword_action ::= roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | win_the_game | reverse_turn_order | skip_next_turn | skip_next_draw_step | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase
+keyword_action ::= roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | reverse_turn_order | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase | additional_phase_after | skip_next_your_part | you_skip_next_your_part | game_outcome | become_day_action | become_night_action
 
 investigate_action ::= investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{}} */
@@ -79,7 +79,6 @@ program_sentence_added_die_table ::= die_table_head "and" "add" value "." NEWLIN
 
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:Combat}} */
 additional_combat_phase ::= "after" "this" "phase" "," "there" "is" "an" "additional" "combat" "phase"
-    | "there" "is" "an" "additional" "combat" "phase" "after" "this" "phase"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:CombatAndMain}} */
 additional_combat_and_main_phase ::= "after" "this" "main" "phase" "," "there" "is" "an" "additional" "combat" "phase" "followed" "by" "an" "additional" "main" "phase"
     | "there" "is" "an" "additional" "combat" "phase" "after" "this" "phase" "," "followed" "by" "an" "additional" "main" "phase"
@@ -101,14 +100,8 @@ learn_action ::= "learn"
 end_the_turn ::= "end" "the" "turn"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Planeswalk} */
 planeswalk_action ::= "planeswalk"
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::WinGame} */
-win_the_game ::= "you" "win" "the" "game"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ReverseTurnOrder} */
 reverse_turn_order ::= "reverse" "the" "game's" "turn" "order"
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Skip{part:Turn}} */
-skip_next_turn ::= "you" "skip" "your" "next" "turn"
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Skip{part:DrawStep}} */
-skip_next_draw_step ::= "you" "skip" "your" "next" "draw" "step"
 
 /* A counted keyword action can name you, its actor, explicitly. */
 /* @sem $amount_keyword_action */
@@ -362,3 +355,50 @@ each_phases_out ::= objects_each "phases" "out"
 
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Goad{}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ChosenOn(_{kind:CardName, object:$object_ref})])}} */
 goad_named_for_object ::= "goad" "all" filter_plural "with" "a" "name" "chosen" "for" object_ref
+
+/* The following phase sequence is shared by the two postposed forms. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:$postposed_phases}} */
+additional_phase_after ::= "there" "is" "an" "additional" postposed_phases
+
+postposed_phases ::= postposed_combat | postposed_combat_main
+
+/* @sem AddedPhases::Combat */
+postposed_combat ::= "combat" "phase" "after" "this" "phase"
+
+/* @sem AddedPhases::CombatAndMain */
+postposed_combat_main ::= "combat" "phase" "after" "this" "phase" "followed" "by" "an" "additional" "main" "phase"
+
+/* Imperative and explicit-subject forms share the same turn-part operand. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Skip{part:$your_skipped_part}} */
+skip_next_your_part ::= "skip" "your" "next" your_skipped_part
+
+/* @sem $skip_next_your_part */
+you_skip_next_your_part ::= "you" skip_next_your_part
+
+your_skipped_part ::= your_skipped_turn | skipped_draw_step
+
+/* @sem SkippedPart::Turn */
+your_skipped_turn ::= "turn"
+
+/* Game results retain the controller identity in the enclosing operation. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:$game_result} */
+game_outcome ::= game_result
+
+game_result ::= game_draw_result | game_win_result
+
+/* @sem KeywordAction::DrawGame */
+game_draw_result ::= "the" "game" "is" "a" "draw"
+
+/* @sem KeywordAction::WinGame */
+game_win_result ::= "you" "win" "the" "game"
+
+/* Announce one graveyard target before the die roll; both rows use that target. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:$roll_die_action}, If{condition:AllOf([Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:_{instructions:[Optional{decider:AbilityController, body:_{instructions:[Effect{result:@next, operation:Move{objects:One($target_card_your_graveyard), destination:Library{position:Top, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}]}}]}, otherwise:_{}}, If{condition:AllOf([Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_3}}, Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_4}}]), then:_{instructions:[Effect{result:@next, operation:Move{objects:One(Target{slot:0, index:0}), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}, otherwise:_{}}]} */
+program_sentence_target_die_ranges ::= "choose" target_card_your_graveyard "," "then" roll_die_action "." NEWLINE number "―" number "|" "you" "may" "put" "that" "card" "on" "top" "of" "your" "library" "." NEWLINE number "―" number "|" "return" "that" "card" "to" "your" "hand" "."
+
+/* The impersonal day transition belongs to the ability controller. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::BecomeDay} */
+become_day_action ::= "it" "becomes" "day"
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::BecomeNight} */
+become_night_action ::= "it" "becomes" "night"

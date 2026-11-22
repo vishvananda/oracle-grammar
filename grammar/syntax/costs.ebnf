@@ -557,8 +557,8 @@ cost_pay_for_each ::= "pay" mana_symbols "for" "each" count_each
 cost_mill ::= "mill" card_count
 
 /* A limited alternative generic payment for a spell selected by origin and type. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$exile_cast_spell, modifier:Alternate{cost:Alternate($generic_alternative), limit:EachTurn(1)}})]}) */
-static_once_alternative_exile_cost ::= "once" "each" "turn" "," "you" "may" "pay" generic_alternative "rather" "than" "pay" "the" "mana" "cost" "for" exile_cast_spell "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$limited_exile_alternative}) */
+static_once_alternative_exile_cost ::= "once" "each" "turn" "," limited_exile_alternative "."
 /* @sem Operand::List([Term{family:ManaSymbol, form:ManaCostGeneric, operands:[Integer($number)]}]) */
 generic_alternative ::= "{" NUMBER "}"
 
@@ -846,7 +846,7 @@ alternative_discard_filtered_and_another ::= "discard" ("a" | "an") filter_phras
 /* @sem Cost::Cost{parts:[Discard{count:Constant(1), filter:$filter_phrase}, Discard{count:$count_plural, filter:Any}]} */
 alternative_discard_filtered_and_others ::= "discard" ("a" | "an") filter_phrase "card" "and" count_plural "other" "cards"
 
-casting_reduction_count ::= count_each_life_history | count_each | count_each_controlled_and_zone
+casting_reduction_count ::= casting_history_drawn_card | casting_history_sacrificed_permanent | count_each_life_history | count_each | count_each_controlled_and_zone
 
 /* Alternative complete payments retain each branch as its own cost. */
 /* @sem Cost::Cost{parts:[Choice([Cost::Cost{parts:$cost_parts}, Cost::Cost{parts:$cost_parts_2}])]} */
@@ -1302,7 +1302,7 @@ paid_removal_pump ::= "for" "each" "counter" "removed" "," affected "gets" "+" v
 activated_paid_removal_pump ::= cost_mana "," "↑" cost_remove_counters ":" paid_removal_pump "."
 
 /* Shared casting contexts for opponent cast history. */
-casting_opponent_history ::= casting_opponent_spell_threshold | casting_opponent_filtered_history
+casting_opponent_history ::= casting_opponent_draw_threshold | casting_opponent_searched_library | casting_opponent_spell_threshold | casting_opponent_filtered_history
 
 /* @sem Ability::Casting(If{condition:$casting_opponent_history, rule:AlternativeCost($alternative_payment)}) */
 casting_alternative_opponent_history ::= "if" casting_opponent_history "," "you" "may" alternative_payment rather_than_mana_cost "."
@@ -1858,3 +1858,17 @@ treasure_alternative_payment ::= "pay" mana_symbols rather_than_mana_cost "." "s
 casting_flash_behold_payment ::= "you" "may" "cast" "this" "spell" "as" "though" "it" "had" "flash" "if" "you" flash_behold_payment "as" "an" "additional" "cost" "to" "cast" "it" "."
 
 flash_behold_payment ::= cost_behold | cost_behold_many
+
+/* @sem Change::[PlayerRule(SpellCost{spells:$exile_cast_spell, modifier:Alternate{cost:Alternate($generic_alternative), limit:EachTurn(1)}})] */
+limited_exile_alternative ::= "you" "may" "pay" generic_alternative "rather" "than" "pay" "the" "mana" "cost" "for" exile_cast_spell
+
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$limited_exile_alternative})]} */
+own_turn_limited_exile_alternative ::= "once" "during" "each" "of" "your" "turns" "," limited_exile_alternative "."
+
+/* Counts keep the historical actor and event separately from the reduction. */
+/* @sem Expr::EventHistory{event:Player{event:Draws, players:One(AbilityController)}, window:ThisTurn, measure:Occurrences} */
+casting_history_drawn_card ::= "card" "you've" "drawn" "this" "turn"
+
+/* Sacrifice events only apply to permanents, irrespective of their controller. */
+/* @sem Expr::EventHistory{event:Player{event:Sacrifices, players:All, objects:Any}, window:ThisTurn, measure:Occurrences} */
+casting_history_sacrificed_permanent ::= "permanent" "sacrificed" "this" "turn"

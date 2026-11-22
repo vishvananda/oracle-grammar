@@ -1,0 +1,853 @@
+{
+  "family": "retirement-4330991f313d0d92",
+  "cases": [
+    {
+      "name": "Lyzolda, the Blood Witch Avatar",
+      "text": "As long as you have no cards in hand, if a source you control would deal damage to a permanent or player, it deals double that damage to that permanent or player instead.",
+      "types": [
+        "Vanguard"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Hand",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "ObjectsAndPlayers": {
+                          "objects": {
+                            "kind": "Any"
+                          },
+                          "players": {
+                            "kind": "All"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetAmount": {
+                                  "kind": "Multiply",
+                                  "args": [
+                                    {
+                                      "kind": "Constant",
+                                      "args": 2
+                                    },
+                                    {
+                                      "kind": "EventAmount"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Armament of Nyx",
+      "text": "Enchanted creature has double strike as long as it's an enchantment. Otherwise, prevent all damage that would be dealt by enchanted creature.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "AttachedTo",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "filter": {
+                  "kind": "CardType",
+                  "args": "Enchantment"
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "AttachedTo",
+                        "args": {
+                          "kind": "Source"
+                        }
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "GrantKeyword",
+                      "args": {
+                        "kind": "DoubleStrike"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Permanent",
+                      "sources": {
+                        "kind": "SameObject",
+                        "args": {
+                          "kind": "AttachedTo",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        }
+                      },
+                      "recipients": "Any",
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "PreventDamage"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Martyrs of Korlis",
+      "text": "As long as this creature is untapped, all damage that would be dealt to you by artifacts is dealt to this creature instead.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "Tapped"
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Permanent",
+                      "sources": {
+                        "kind": "CardType",
+                        "args": "Artifact"
+                      },
+                      "recipients": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "RedirectDamage": {
+                                  "kind": "Objects",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Phyrexian Unlife",
+      "text": "As long as you have 0 or less life, all damage is dealt to you as though its source had infect.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "PlayerNumber",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "number": "Life"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "LessOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "Any"
+                      },
+                      "recipients": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "DamageAsInfect"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Weathered Bodyguards",
+      "text": "As long as this creature is untapped, all combat damage that would be dealt to you by unblocked creatures is dealt to this creature instead.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "Tapped"
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Permanent",
+                      "sources": {
+                        "kind": "AllOf",
+                        "args": [
+                          {
+                            "kind": "State",
+                            "args": "Unblocked"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Creature"
+                          }
+                        ]
+                      },
+                      "recipients": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "kind": "Combat",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "RedirectDamage": {
+                                  "kind": "Objects",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Anthem of Rakdos",
+      "text": "As long as you have no cards in hand, if a source you control would deal damage to a permanent or player, it deals double that damage to that permanent or player instead.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Hand",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "Any"
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "Equal",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 0
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "recipients": {
+                        "ObjectsAndPlayers": {
+                          "objects": {
+                            "kind": "Any"
+                          },
+                          "players": {
+                            "kind": "All"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "SetAmount": {
+                                  "kind": "Multiply",
+                                  "args": [
+                                    {
+                                      "kind": "Constant",
+                                      "args": 2
+                                    },
+                                    {
+                                      "kind": "EventAmount"
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Invalid damage replacement",
+      "text": "As long as this creature is untapped, all damage that would be dealt to you by artifacts vanishes forever.",
+      "types": [
+        "Creature"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Martyrs of Korlis",
+      "text": "As long as this creature is untapped, all damage that would be dealt to you by creatures is dealt to this creature instead.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "White"
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          6
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "ObjectMatches",
+              "args": {
+                "object": {
+                  "kind": "Source"
+                },
+                "filter": {
+                  "kind": "Not",
+                  "args": {
+                    "kind": "Tapped"
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Permanent",
+                      "sources": {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      "recipients": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": {
+                                "RedirectDamage": {
+                                  "kind": "Objects",
+                                  "args": {
+                                    "kind": "One",
+                                    "args": {
+                                      "kind": "Source"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Phyrexian Unlife",
+      "text": "You don't lose the game for having 0 or less life.\nAs long as you have 1 or less life, all damage is dealt to you as though its source had infect.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "White"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Players": {
+                "kind": "One",
+                "args": {
+                  "kind": "AbilityController"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "PlayerRule",
+                "args": {
+                  "Prohibit": {
+                    "LoseGame": {
+                      "reason": "NonpositiveLife"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "PlayerNumber",
+                  "args": {
+                    "player": {
+                      "kind": "AbilityController"
+                    },
+                    "number": "Life"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "LessOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Replacement",
+                "args": {
+                  "active": "Battlefield",
+                  "event": {
+                    "Damage": {
+                      "source_kind": "Any",
+                      "sources": {
+                        "kind": "Any"
+                      },
+                      "recipients": {
+                        "Players": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        }
+                      },
+                      "kind": "Any",
+                      "grouping": "SourceRecipient",
+                      "subject": "Recipient"
+                    }
+                  },
+                  "body": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "ModifyEvent",
+                            "args": {
+                              "change": "DamageAsInfect"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

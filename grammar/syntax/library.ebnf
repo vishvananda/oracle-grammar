@@ -3948,3 +3948,17 @@ instructions_pay_life_look_choose_exile ::= "pay" "any" "amount" "of" "life" ","
    stopped card and the rest are both derived from this exact exile. */
 /* @sem Instruction::[Effect{result:@next, operation:RevealUntil{library:AbilityController, filter:$card_filter, count:Constant(1)}}, Effect{result:@mark, operation:Move{objects:Observed(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:$object_ref, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:One(Query{objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$card_filter}, index:0}), from:Exile, action:Either, filter:Any})], duration:WhileOnBattlefield($object_ref), evaluation:LiveObjects}}, Effect{result:@next, operation:Move{objects:InZone{objects:Matching{objects:Transition{result:@marked, phase:After}, filter:Not($card_filter)}, zone:Exile}, destination:Library{position:BottomRandom, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
 instructions_exile_until_play_remainder ::= "exile" "cards" "from" "the" "top" "of" "your" "library" "until" "you" "exile" "a" card_filter "card" "." "you" "may" "play" "that" "card" "for" "as" "long" "as" object_ref "remains" "on" "the" "battlefield" "." "put" "the" "rest" "of" "those" "exiled" "cards" "on" "the" "bottom" "of" "your" "library" "in" "a" "random" "order"
+
+/* Three independent choices retain the same search receipt through the follow-up. */
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered, $search_choice_filtered_2, $search_choice_filtered_3]} */
+search_three_choices ::= "search" "your" "library" "for" search_choice_filtered "," search_choice_filtered "," "and" search_choice_filtered
+
+/* @sem Instruction::[Effect{result:@mark, operation:$search_three_choices}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+instructions_search_three_reveal_hand ::= search_three_choices "." "reveal" "those" "cards" "," "put" "them" "into" "your" "hand" "," "then" "shuffle"
+
+/* @sem Instruction::[Effect{result:@mark, operation:$search}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Discard{players:One(AbilityController), amount:$card_count, random:true}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+instructions_search_reveal_hand_discard ::= search "and" "reveal" "that" "card" "." "put" "it" "into" "your" "hand" "," "then" "discard" card_count "at" "random" "." "then" "shuffle"
+
+/* One top card per named vote, from the ability controller's library. */
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:$count_each_vote, from:Top} */
+library_top_per_vote ::= "the" "top" "card" "of" "your" "library" "for" "each" count_each_vote

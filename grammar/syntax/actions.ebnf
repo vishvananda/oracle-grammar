@@ -7,7 +7,7 @@ add_mana ::= "add" ("an" "additional")? mana_production
 /* @sem Operation::AddMana{players:$players_singular, mana:$mana_production} */
 add_mana_player ::= players_singular "adds" ("an" "additional")? mana_production
 
-mana_production ::= mana_bundle | mana_or | mana_or_list | mana_any_color | mana_any_one_color | mana_or_chosen | mana_could_produce_color | mana_could_produce_type | mana_same_type_produced | mana_commander_identity | mana_colors_linked_card | mana_colors_linked_cards | mana_last_noted_type | mana_last_noted_amount | mana_two_distinct_colors | mana_colors_this_creature
+mana_production ::= mana_bundle | mana_or | mana_or_list | mana_any_color | mana_any_one_color | mana_or_chosen | mana_could_produce_color | mana_could_produce_type | mana_same_type_produced | mana_commander_identity | mana_colors_linked_card | mana_colors_linked_cards | mana_last_noted_type | mana_last_noted_amount | mana_two_distinct_colors | mana_colors_this_creature | mana_chosen_color_count
 
 /* Mana another permanent could make is chosen among its colors, or among its
    types when colorless counts too. */
@@ -74,8 +74,8 @@ put_counters_direct ::= "put" counter_amount counter_kind ("counter" | "counters
 /* A counted placement names its amount after its recipients or before them. */
 /* One recipient: a value naming "that creature" after a group would read as
    the source, not as each member. */
-/* @sem Operation::PutCounters{placements:[_{recipients:$counted_recipient, kind:$counter_kind, amount:$value}]} */
-put_counters_equal ::= "put" "a" "number" "of" counter_kind "counters" "on" counted_recipient "equal" "to" value
+/* @sem Operation::PutCounters{placements:[_{recipients:$counted_recipient, kind:$counter_kind, amount:$counter_amount_equal_to}]} */
+put_counters_equal ::= "put" "a" "number" "of" counter_kind "counters" "on" counted_recipient counter_amount_equal_to
 counted_recipient ::= counted_object | counted_reference | counted_created
 /* @sem Recipients::Objects(One($object_ref)) */
 counted_object ::= object_ref
@@ -83,8 +83,8 @@ counted_object ::= object_ref
 counted_reference ::= counter_choice_singular_reference
 /* @sem Recipients::Objects($created_singular_reference) */
 counted_created ::= created_singular_reference
-/* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:$value}]} */
-put_counters_equal_first ::= "put" "a" "number" "of" counter_kind "counters" "equal" "to" value "on" affected
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind, amount:$counter_amount_equal_to}]} */
+put_counters_equal_first ::= "put" "a" "number" "of" counter_kind "counters" counter_amount_equal_to "on" affected
 
 /* This recipient is chosen at resolution, without announcing a target. */
 /* @sem Operation::@counter_choice(Operation::PutCounters{placements:[_{recipients:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}), kind:$counter_kind, amount:$counter_amount, selection:_{player:AbilityController, count:$counter_single_choice}}]}) */
@@ -149,7 +149,7 @@ counter_pt_plus0_plus2 ::= "+" "0" "/" "+" "2"
 /* @sem CounterKind::PowerToughness(-1, 0) */
 counter_pt_minus1_minus0 ::= "-" "1" "/" "-" "0"
 
-action ::= draw_per_other_cast_history | wish_reveal_owned | copy_effect_indefinite_except | copy_effect_duration_except | copy_effect_indefinite | copy_effect_duration | keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | goad_while_present | clash_opponent | attach_each_host | attach_counted_to_host | attach_one_to_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_ordered_face_down | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | put_optional_graveyard_target_battlefield | move_battlefield | move_battlefield_attached | put_battlefield_attached | move_battlefield_counter | move_battlefield_tapped | move_battlefield_owner | move_battlefield_transformed | move_battlefield_owner_transformed | move_owner_counter_untapped | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | look_objects | prevent_clause | tap_or_untap | create_emblem | reveal_hand | remove_counters_from_affected | remove_all_counters_from_affected | put_that_many_counters | double_counters | put_counter_for_each | recipients_gets_counter | recipients_get_counter | recipients_gets_counters | support_action | choose_a_color | choose_a_card_name | choose_value | choose_cards_in_hand | flip_a_coin | add_mana_player | add_mana_for_affected | add_mana_for_each | add_mana_for_removed_counters | add_alternative_mana_for_removed_counters | add_mana_of_chosen_color | add_mana_any_combination | add_mana_amount_equal | create_tokens_tapped_attacking | create_tokens_attacking_player | abandon_this_scheme | you_gain_life | deal_damage_equal_counters | deal_damage_split_two | exile_target_players_graveyard | exile_all_graveyard_cards | exile_all_graveyards_cards | exile_all_hand_cards | exile_all_hand_face_down | exile_all_library_cards | exile_two_groups | exile_all_graveyards | exile_with_counters | exile_instead_of_dying | entries_with_counters_this_turn | exile_damaged_instead_of_dying | prevent_combat_damage_would_deal | gain_control_of | player_gains_control_of | gain_control_while_controlled | exile_top_cards_of_your_library | then_players_shuffle | look_at_top_x_cards | shuffle_your_library | search_library_for_cards | play_that_card_permission | cast_that_card_permission | cast_that_card_permission_spending | play_those_cards_permission | skip_controllers_next_untap | skip_controllers_next_untap_plural | skip_controller_next_untap_shared | skip_your_next_untap | duration_affected_static_changes | duration_affected_changes | base_power_toughness_for_duration | affected_also_changes | becomes_artifact_creature | attack_despite_defender | changes_while_tapped | loses_flying | attacks_if_able | perpetual_affected_changes | perpetual_prior_base_power | create_tokens_attacking_singular | create_tokens_attacking_plural | create_tokens_blocking_singular | counter_stack_action | return_history_cards_hand | return_arrived_graveyard_cards_hand | return_other_qualified_battlefield | return_each_qualified_battlefield | duration_added_color_type | sacrifice_each_by_controller | double_player_life_total | return_target_stack_spell_hand | note_information | temporary_graveyard_redirect | choose_suspended_remove_event_counters | remove_each_suspended_counters | deal_damage_split_recipients | deal_damage_split_half | exile_hand_graveyard_any | exile_hand_graveyard_cards | redirect_next_damage_to_owner | redirect_next_spell_damage_to_controller | multiply_chosen_creature_combat_damage | combat_reselect_target | combat_reselect_each | add_mana_each_craft_color | redirect_spell_damage_controller | conjure_named_battlefield | conjure_named_battlefield_tapped | move_to_modified_battlefield | return_filtered_permanents_hand | put_exiled_singular | put_exiled_plural | return_each_color_targets_hand | return_graveyard_personal_hand | return_graveyard_all_owners_hand | return_graveyard_selection_hand | return_each_color_hand | deal_damage_evenly_rounded | future_player_cast_effect | choose_creatures_pay_each | live_rule_while_tapped | skip_plural_controller_window | temporary_damage_replacement | temporary_prevent_replacement | op_each_damage_replacement | next_untap_replacement | return_optional_union_graveyard_hand | flip_counted_coins | seek_filtered_top_cards | seek_filtered_top_one | flip_coin_series_until | each_counter_kind_choice | exchange_owned_zones | return_linked_exile_to_owner | attach_each_attachment | player_looks_at_your_top | put_selected_private_cards | linked_card_owner_manifests_dread | player_manifests_dread | remove_plural_counters_from_affected | duplicate_chosen_counter_kind | random_number_choice_three | move_object_owners_library | hand_pick_single | conjure_each_shuffled_library | sacrifice_unless_any_player_pays | turn_targets_face_down_creatures | cast_free_graveyard_many | cast_free_graveyard_bounded_spell | cast_target_with_any_mana | conjure_named_graveyard | conjure_duplicate_graveyard | conjure_sacrificed_duplicate_graveyard | return_scoped_exiled_yours | return_scoped_exiled_owner_each | return_scoped_exiled_owner_plural | prevent_combat_damage_passive | copy_leading_duration_except | required_target_attack_source | perpetual_graveyard_unearth | flip_coin_for_each | draw_for_each_controlled_death | conjure_random_oracle_battlefield | conjure_planets_battlefield | conjure_event_controller_named | you_gain_life_for_each_private_card | damage_excess_to_creature_controller | exchange_two_target_players_life | transfer_counter_one_second | transfer_counter_kind_second | transfer_counters_any_second | transfer_counter_between_targets | move_chosen_spell_owner_library | remove_counter_for_each_live_card | swap_blocking_pair | mixed_target_set_color | look_random_hand_cards | linked_owner_creates_defined | pilot_land_while_present | pilot_until_spell_cast | recipients_gets_twice_event_counters | manifest_from_library | copy_effect_prefix_except | each_player_returns_linked_exile | put_countered_owned_exile_into_hand | put_counter_on_counter_group | discard_same_player_counters | return_with_your_arrival | return_with_owner_arrival | return_owner_counter_changes | move_observed_filtered_to_control | return_event_amount_controlled | move_selected_with_added_identity | exile_observed_face_down | shared_type_change_indefinite | shared_type_change_timed | random_graveyard_return | destroy_each_without_named_counter | move_owner_choice_library | move_your_library_depth | exile_matching_instead_of_dying | hand_cards_perpetual_reduction | subtype_base_keyword_effect | subtype_loss_effect | exile_card_per_player_down | exile_shuffled_pile | move_linked_target_graveyard | return_graveyard_targets_total_value | put_graveyard_population_battlefield | put_battlefield_graveyard_population | put_opponent_graveyard_targets_battlefield | return_battlefield_before_target | shuffle_your_graveyard_cards | shuffle_target_graveyard_cards | shuffle_self_graveyard_union | shuffle_self_common_graveyard_targets | put_other_graveyard_card_bottom | player_chooses_unrestricted_value | graveyard_entry_move_optional | graveyard_entry_move_range | graveyard_entry_return | leading_control_effect | leading_player_rule_effect | leading_self_stat_effect | create_each_tapped_attacking | outside_owned_put_top | outside_owned_shuffle | return_different_graveyard_cards | create_card_copy_one | create_card_copies | turn_selected_face_up | attach_enchanting_to_same_controller | have_player_sacrifice_choice | player_choose_sacrifice_shared | put_three_counters_shared_recipient | put_each_opponents_targets_library_depth | owner_moves_target_library_choice | put_population_owners_shuffle | copy_effect_leading_duration | untap_team_creatures | graveyard_cards_temporary_grant | action_temporary_replacement | exile_opponent_graveyard_targets | temporary_controller_mana_rule | shared_player_exiles_qualified_graveyard | have_event_controller_create_attacking | ante_single_library_top | distribute_counters_any | distribute_counters_counted_any | distribute_counters_snow_any | gain_control_compared_creature | exile_top_library_population | set_own_base_toughness | sacrifice_fraction_controller | sacrifice_event_quantity | move_exiled_keyword_to_owner_bottom | turn_affected_face_down_artifact_creature | swap_blocked_attackers | cast_free_filtered_graveyard_spell | exchange_referred_power | exile_per_player_selection | put_linked_exile_owner | put_linked_exile_yours | put_prior_transformed_owner | put_counter_each_first | get_player_counters | you_get_player_counters | recipients_get_counters | return_owned_linked_exile_hand | put_battlefield_controlled_attached | put_battlefield_controlled_chosen_attachment | return_opponent_targets_hand | player_returns_commanders | put_linked_battlefield_plain | put_linked_battlefield | return_up_to_your_graveyard_battlefield | copy_stack_ability_many | put_each_player_arrival | choose_up_to_owned_exile | remove_permanent_and_suspended_counters | put_each_suspended_counters | count_counter_population | add_mana_of_that_color | goaded_while_controller_keeps | each_host_optional_card_attachment | temporary_death_exile_return | move_player_graveyard_top_ordered | exile_death_subject_controller_graveyard | exile_target_card_with_counter_placement | play_counter_exile_card | double_controller_counters | exile_any_target_players_graveyards | create_role_on_event_member | shuffle_your_graveyard_targets | double_each_counter_kind | return_owned_exiled_qualified | bottom_other_exiled_qualified | return_battlefield_chosen_attachment | controlled_lands_retained_animation | return_graveyard_target_pair_battlefield | exile_opponent_permanent_threshold | opponent_spells_cost_until_next_turn | sacrifice_event_group_by_controllers
+action ::= draw_per_other_cast_history | wish_reveal_owned | copy_effect_indefinite_except | copy_effect_duration_except | copy_effect_indefinite | copy_effect_duration | keyword_action | return_card_attached_to_created_token | remove_from_combat_action | fight_action | connive_object_controller | move_same_controller_counters | move_mixed_target_hand | required_defender_attack | move_linked_cards_hand | manifest_dread | unattach_action | suspect_action | unsuspect_action | goad_while_present | clash_opponent | attach_each_host | attach_counted_to_host | attach_one_to_host | manifest_hand | cloak_hand | manifest_one | cloak_one | attach_objects | tap_objects | untap_objects | regenerate_objects | exile_objects | exile_ordered_face_down | exile_optional_graveyard_card_set | sacrifice_objects | sacrifice_choice | move_hand | move_graveyard | move_top | move_bottom | move_graveyard_top_ordered | move_graveyard_bottom_ordered | move_shuffled | put_optional_graveyard_target_battlefield | move_battlefield | move_battlefield_attached | put_battlefield_attached | move_battlefield_counter | move_battlefield_tapped | move_battlefield_owner | move_battlefield_transformed | move_battlefield_owner_transformed | move_owner_counter_untapped | move_owner_counter_one | move_owner_counter_many | move_battlefield_owner_tapped | reveal_top | look_top | look_objects | prevent_clause | tap_or_untap | create_emblem | reveal_hand | remove_counters_from_affected | remove_all_counters_from_affected | put_that_many_counters | double_counters | put_counter_for_each | recipients_gets_counter | recipients_get_counter | recipients_gets_counters | support_action | choose_a_color | choose_a_card_name | choose_value | choose_cards_in_hand | flip_a_coin | add_mana_player | add_mana_for_affected | add_mana_for_each | add_mana_for_removed_counters | add_alternative_mana_for_removed_counters | add_mana_of_chosen_color | add_mana_any_combination | add_mana_amount_equal | create_tokens_tapped_attacking | create_tokens_attacking_player | abandon_this_scheme | you_gain_life | deal_damage_equal_counters | deal_damage_split_two | exile_target_players_graveyard | exile_all_graveyard_cards | exile_all_graveyards_cards | exile_all_hand_cards | exile_all_hand_face_down | exile_all_library_cards | exile_two_groups | exile_all_graveyards | exile_with_counters | exile_instead_of_dying | entries_with_counters_this_turn | exile_damaged_instead_of_dying | prevent_combat_damage_would_deal | gain_control_of | player_gains_control_of | gain_control_while_controlled | exile_top_cards_of_your_library | then_players_shuffle | look_at_top_x_cards | shuffle_your_library | search_library_for_cards | play_that_card_permission | cast_that_card_permission | cast_that_card_permission_spending | play_those_cards_permission | skip_controllers_next_untap | skip_controllers_next_untap_plural | skip_controller_next_untap_shared | skip_your_next_untap | duration_affected_static_changes | duration_affected_changes | base_power_toughness_for_duration | affected_also_changes | becomes_artifact_creature | attack_despite_defender | changes_while_tapped | loses_flying | attacks_if_able | perpetual_affected_changes | perpetual_prior_base_power | create_tokens_attacking_singular | create_tokens_attacking_plural | create_tokens_blocking_singular | counter_stack_action | return_history_cards_hand | return_arrived_graveyard_cards_hand | return_other_qualified_battlefield | return_each_qualified_battlefield | duration_added_color_type | sacrifice_each_by_controller | double_player_life_total | return_target_stack_spell_hand | note_information | temporary_graveyard_redirect | choose_suspended_remove_event_counters | remove_each_suspended_counters | deal_damage_split_recipients | deal_damage_split_half | exile_hand_graveyard_any | exile_hand_graveyard_cards | redirect_next_damage_to_owner | redirect_next_spell_damage_to_controller | multiply_chosen_creature_combat_damage | combat_reselect_target | combat_reselect_each | add_mana_each_craft_color | redirect_spell_damage_controller | conjure_named_battlefield | conjure_named_battlefield_tapped | move_to_modified_battlefield | return_filtered_permanents_hand | put_exiled_singular | put_exiled_plural | return_each_color_targets_hand | return_graveyard_personal_hand | return_graveyard_all_owners_hand | return_graveyard_selection_hand | return_each_color_hand | deal_damage_evenly_rounded | future_player_cast_effect | choose_creatures_pay_each | live_rule_while_tapped | skip_plural_controller_window | temporary_damage_replacement | temporary_prevent_replacement | op_each_damage_replacement | next_untap_replacement | return_optional_union_graveyard_hand | flip_counted_coins | seek_filtered_top_cards | seek_filtered_top_one | flip_coin_series_until | each_counter_kind_choice | exchange_owned_zones | return_linked_exile_to_owner | attach_each_attachment | player_looks_at_your_top | put_selected_private_cards | linked_card_owner_manifests_dread | player_manifests_dread | remove_plural_counters_from_affected | duplicate_chosen_counter_kind | random_number_choice_three | move_object_owners_library | hand_pick_single | conjure_each_shuffled_library | sacrifice_unless_any_player_pays | turn_targets_face_down_creatures | cast_free_graveyard_many | cast_free_graveyard_bounded_spell | cast_target_with_any_mana | conjure_named_graveyard | conjure_duplicate_graveyard | conjure_sacrificed_duplicate_graveyard | return_scoped_exiled_yours | return_scoped_exiled_owner_each | return_scoped_exiled_owner_plural | prevent_combat_damage_passive | copy_leading_duration_except | required_target_attack_source | perpetual_graveyard_unearth | flip_coin_for_each | draw_for_each_controlled_death | conjure_random_oracle_battlefield | conjure_planets_battlefield | conjure_event_controller_named | you_gain_life_for_each_private_card | damage_excess_to_creature_controller | exchange_two_target_players_life | transfer_counter_one_second | transfer_counter_kind_second | transfer_counters_any_second | transfer_counter_between_targets | move_chosen_spell_owner_library | remove_counter_for_each_live_card | swap_blocking_pair | mixed_target_set_color | look_random_hand_cards | linked_owner_creates_defined | pilot_land_while_present | pilot_until_spell_cast | recipients_gets_twice_event_counters | manifest_from_library | copy_effect_prefix_except | each_player_returns_linked_exile | put_countered_owned_exile_into_hand | put_counter_on_counter_group | discard_same_player_counters | return_with_your_arrival | return_with_owner_arrival | return_owner_counter_changes | move_observed_filtered_to_control | return_event_amount_controlled | move_selected_with_added_identity | exile_observed_face_down | shared_type_change_indefinite | shared_type_change_timed | random_graveyard_return | destroy_each_without_named_counter | move_owner_choice_library | move_your_library_depth | exile_matching_instead_of_dying | hand_cards_perpetual_reduction | subtype_base_keyword_effect | subtype_loss_effect | exile_card_per_player_down | exile_shuffled_pile | move_linked_target_graveyard | return_graveyard_targets_total_value | put_graveyard_population_battlefield | put_battlefield_graveyard_population | put_opponent_graveyard_targets_battlefield | return_battlefield_before_target | shuffle_your_graveyard_cards | shuffle_target_graveyard_cards | shuffle_self_graveyard_union | shuffle_self_common_graveyard_targets | put_other_graveyard_card_bottom | player_chooses_unrestricted_value | graveyard_entry_move_optional | graveyard_entry_move_range | graveyard_entry_return | leading_control_effect | leading_player_rule_effect | leading_self_stat_effect | create_each_tapped_attacking | outside_owned_put_top | outside_owned_shuffle | return_different_graveyard_cards | create_card_copy_one | create_card_copies | turn_selected_face_up | attach_enchanting_to_same_controller | have_player_sacrifice_choice | player_choose_sacrifice_shared | put_three_counters_shared_recipient | put_each_opponents_targets_library_depth | owner_moves_target_library_choice | put_population_owners_shuffle | copy_effect_leading_duration | untap_team_creatures | graveyard_cards_temporary_grant | action_temporary_replacement | exile_opponent_graveyard_targets | temporary_controller_mana_rule | shared_player_exiles_qualified_graveyard | have_event_controller_create_attacking | ante_single_library_top | distribute_counters_any | distribute_counters_counted_any | distribute_counters_snow_any | gain_control_compared_creature | exile_top_library_population | set_own_base_toughness | sacrifice_fraction_controller | sacrifice_event_quantity | move_exiled_keyword_to_owner_bottom | turn_affected_face_down_artifact_creature | swap_blocked_attackers | cast_free_filtered_graveyard_spell | exchange_referred_power | exile_per_player_selection | put_linked_exile_owner | put_linked_exile_yours | put_prior_transformed_owner | put_counter_each_first | get_player_counters | you_get_player_counters | recipients_get_counters | return_owned_linked_exile_hand | put_battlefield_controlled_attached | put_battlefield_controlled_chosen_attachment | return_opponent_targets_hand | player_returns_commanders | put_linked_battlefield_plain | put_linked_battlefield | return_up_to_your_graveyard_battlefield | copy_stack_ability_many | put_each_player_arrival | choose_up_to_owned_exile | remove_permanent_and_suspended_counters | put_each_suspended_counters | count_counter_population | add_mana_of_that_color | goaded_while_controller_keeps | each_host_optional_card_attachment | temporary_death_exile_return | move_player_graveyard_top_ordered | exile_death_subject_controller_graveyard | exile_target_card_with_counter_placement | play_counter_exile_card | double_controller_counters | exile_any_target_players_graveyards | create_role_on_event_member | shuffle_your_graveyard_targets | double_each_counter_kind | return_owned_exiled_qualified | bottom_other_exiled_qualified | return_battlefield_chosen_attachment | controlled_lands_retained_animation | return_graveyard_target_pair_battlefield | exile_opponent_permanent_threshold | opponent_spells_cost_until_next_turn | sacrifice_event_group_by_controllers | receive_rounded_counters | receive_equal_counters | return_chosen_arrival_hand | return_chosen_arrivals_battlefield | add_each_color_population | add_event_controller_mana | add_mana_pair_defined
 
 /* Manifest dread yields one face-down creature for a later singular reference. */
 /* @sem Operation::@manifest_result(Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ManifestDread{}}) */
@@ -1757,8 +1757,8 @@ double_counters ::= "double" "the" "number" "of" counter_kind "counters" "on" af
 put_counter_for_each ::= "put" "a" counter_kind "counter" "on" affected "for" "each" count_each
 
 /* A recipient getting counters. */
-/* @sem Operation::PutCounters{placements:[_{recipients:$recipients, kind:$counter_kind, amount:$counter_amount}]} */
-recipients_gets_counter ::= recipients "gets" counter_amount counter_kind "counter"
+/* @sem Operation::PutCounters{placements:[_{recipients:$recipients, kind:$counter_kind, amount:$received_counter_amount}]} */
+recipients_gets_counter ::= recipients "gets" received_counter_amount counter_kind "counter"
 
 /* Recipients getting counters. */
 /* @sem Operation::PutCounters{placements:[_{recipients:$recipients, kind:$counter_kind, amount:$counter_amount}]} */
@@ -1773,15 +1773,15 @@ recipients_gets_counters ::= recipients "gets" value counter_kind "counters"
 support_action ::= "support" number
 
 /* Choosing one color. */
-/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[Term{family:ChoosableColor, form:AnyColor}]}} */
-choose_a_color ::= "choose" "a" "color"
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[$single_color_choice]}} */
+choose_a_color ::= "choose" single_color_choice
 
 /* Choosing a player, a type, a number or colors. */
-choose_value ::= choose_color_among_permanents | player_chooses_permanent_options | choose_many_colors | choose_card_types_five | choose_land_types_pair | choose_color_pair | choose_planeswalker_type | choose_two_basic_land_types | choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_number_between | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain | choose_ability_options_three | choose_color_type_options_five | choose_card_types_pair | choose_land_or_nonland | choose_ability_options | choose_number_threshold | choose_land_class | choose_direction
+choose_value ::= choose_color_among_permanents | player_chooses_permanent_options | choose_many_colors | choose_card_types_five | choose_land_types_pair | choose_color_pair | choose_planeswalker_type | choose_two_basic_land_types | choose_friend_or_foe | choose_opponent | choose_a_player | choose_land_type | choose_basic_land_type | choose_number_between | choose_a_number | choose_two_colors | choose_color_other | choose_creature_type_plain | choose_ability_options_three | choose_color_type_options_five | choose_card_types_pair | choose_land_or_nonland | choose_ability_options | choose_number_threshold | choose_land_class | choose_direction | choose_eight_creature_types | choose_hand_colors | choose_secret_interval | player_chooses_color | player_chooses_player | choose_color_word_shared | choose_letter_shared | choose_graveyard_color_shared | choose_unchosen_names_shared | choose_named_type | choose_card_types_three | choose_secret_player | choose_secret_creature_types_three
 /* @sem Operation::ChooseValue{choosers:$players_singular, kind:Word, terms:_{count:Exactly(Constant(1)), options:[Text(Friend), Text(Foe)]}} */
 choose_friend_or_foe ::= "for" players_singular "," "choose" "friend" "or" "foe"
-/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(All)]}} */
-choose_a_player ::= "choose" "a" "player"
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[$single_player_choice]}} */
+choose_a_player ::= "choose" single_player_choice
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:LandType, terms:_{count:Exactly(Constant(1)), options:[]}} */
 choose_land_type ::= "choose" "a" "land" "type"
 /* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(1)), options:[]}} */
@@ -9814,3 +9814,252 @@ noted_counter_plural_amount ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10 | n1
 /* The previously mentioned event group is sacrificed by its controllers. */
 /* @sem Operation::Sacrifice{players:All, objects:EventGroup} */
 sacrifice_event_group_by_controllers ::= "their" "controllers" "sacrifice" "them"
+
+/* The counted Before receipt belongs to this sacrifice, with matching nouns. */
+/* @sem Instruction::[Effect{result:@mark, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_plural, $noun)}, choose:AnyNumber})}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Multiply($number, CountObjects(Transition{result:@marked, phase:Before}))}}] */
+instructions_sacrifice_any_gain_life ::= "sacrifice" "any" "number" "of" filter_plural "." "you" "gain" number "life" "for" "each" noun "sacrificed" "this" "way"
+
+/* The failure clause refers to the immediately preceding player's payment. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:$player_ref, cost:Cost{parts:[$named_discard_part]}, optional:false}}, If{condition:Not(PaymentChosen(@last_result)), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+instructions_named_discard_failure ::= player_ref "discards" named_discard_part "." "if" "they" "can't" "," conjoined
+
+/* @sem CostPart::Discard{count:$card_count, filter:Chosen(CardName), random:false} */
+named_discard_part ::= card_count "with" "that" "name"
+
+/* The same object performs the unspecialize action and identifies its success. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Unspecialize($object_ref)]}, optional:false}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+instructions_unspecialize_success ::= object_ref "unspecializes" "." "if" "it" "unspecializes" "this" "way" "," conjoined
+
+/* Counter receipt amounts compose independently of their recipient and kind. */
+/* @sem Expr::Divide{numerator:$number, denominator:Constant(2), rounding:Up} */
+rounded_half_counter_amount ::= "half" number
+
+/* @sem Expr::$value */
+counter_amount_equal_to ::= "equal" "to" value
+
+/* @sem Expr::$counter_amount */
+additional_counter_amount ::= counter_amount "additional"
+
+received_counter_amount ::= counter_amount | additional_counter_amount
+
+/* @sem Operation::PutCounters{placements:[_{recipients:$recipients, kind:$counter_kind, amount:$rounded_half_counter_amount}]} */
+receive_rounded_counters ::= recipients "get" rounded_half_counter_amount counter_kind "counters" "," "rounded" "up"
+
+/* @sem Operation::PutCounters{placements:[_{recipients:$recipients, kind:$counter_kind, amount:$counter_amount_equal_to}]} */
+receive_equal_counters ::= recipients "gets" "a" "number" "of" counter_kind "counters" counter_amount_equal_to
+
+/* Announcement wording identifies cards that arrived in your graveyard this turn. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}), ObjectFilter::ArrivedThisTurn{from:Battlefield})}), index:0} */
+chosen_arrival_single ::= "target" card_filter "card" "in" "your" "graveyard" "that" "was" "put" "there" "from" "the" "battlefield" "this" "turn"
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}), ObjectFilter::ArrivedThisTurn{from:Battlefield})}), index:0} */
+chosen_arrival_optional ::= "up" "to" "one" "target" card_filter "card" "in" "your" "graveyard" "that" "was" "put" "there" "from" "the" "battlefield" "this" "turn"
+
+chosen_arrival_one ::= chosen_arrival_single | chosen_arrival_optional
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:@and($noun, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}), ObjectFilter::ArrivedThisTurn{from:Battlefield})})) */
+chosen_arrivals ::= "up" "to" number "target" noun "cards" "in" "your" "graveyard" "that" "were" "put" "there" "from" "the" "battlefield" "this" "turn"
+
+/* @sem Operation::Move{objects:One($chosen_arrival_one), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+return_chosen_arrival_hand ::= "choose" chosen_arrival_one "." "return" "it" "to" "your" "hand"
+
+/* @sem Operation::Move{objects:$chosen_arrivals, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]} */
+return_chosen_arrivals_battlefield ::= "choose" chosen_arrivals "." "return" "them" "to" "the" "battlefield"
+
+/* The chosen color and the quantity remain independent operands of a mana action. */
+/* @sem ManaProduction::Repeat{amount:$chosen_color_mana_count, production:Amount{color:Chosen, amount:Constant(1)}, choice:Once} */
+mana_chosen_color_count ::= "an" "amount" "of" "mana" "of" "that" "color" "equal" "to" chosen_color_mana_count
+
+/* @sem Expr::CountManaSymbols{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:ControlledBy(One(AbilityController))}, colors:[Chosen]} */
+chosen_color_devotion_count ::= "your" "devotion" "to" "that" "color"
+
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController)), Chosen(CreatureType)])}) */
+chosen_type_controlled_count ::= "the" "number" "of" filter_plural "you" "control" "of" "the" "chosen" "type"
+
+chosen_color_mana_count ::= chosen_color_devotion_count | chosen_type_controlled_count
+
+/* A shared verb introduces two independent choices by the same player. */
+/* @sem Instruction::[Effect{result:@next, operation:$choose_a_color}, Effect{result:@next, operation:$choice_after_and}] */
+instructions_choice_pair ::= choose_a_color "and" choice_after_and
+
+choice_after_and ::= choice_tail_creature_type | choice_tail_opponent | choice_tail_player | choice_tail_land_type
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}} */
+choice_tail_creature_type ::= "a" "creature" "type"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(OpponentsOf(AbilityController))]}} */
+choice_tail_opponent ::= "an" "opponent"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(All)]}} */
+choice_tail_player ::= "a" "player"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:LandType, terms:_{count:Exactly(Constant(1))}} */
+choice_tail_land_type ::= "a" "land" "type"
+
+/* Eight explicitly offered creature types, with each option retained. */
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1)), options:[Vocabulary{family:CreatureType, form:@subtype_name($choice_list_creature_subtype)}, Vocabulary{family:CreatureType, form:@subtype_name($choice_list_creature_subtype_2)}, Vocabulary{family:CreatureType, form:@subtype_name($choice_list_creature_subtype_3)}, Vocabulary{family:CreatureType, form:@subtype_name($choice_list_creature_subtype_4)}, Vocabulary{family:CreatureType, form:@subtype_name($choice_list_creature_subtype_5)}, Vocabulary{family:CreatureType, form:@subtype_name($choice_list_creature_subtype_6)}, Vocabulary{family:CreatureType, form:@subtype_name($choice_list_creature_subtype_7)}, Vocabulary{family:CreatureType, form:@subtype_name($choice_list_creature_subtype_8)}]}} */
+choose_eight_creature_types ::= "choose" choice_list_creature_subtype "," choice_list_creature_subtype "," choice_list_creature_subtype "," choice_list_creature_subtype "," choice_list_creature_subtype "," choice_list_creature_subtype "," choice_list_creature_subtype "," "or" choice_list_creature_subtype
+
+choice_list_creature_subtype ::= creature_subtype | subtype_marked_merfolk
+
+/* Choice domains remain separate from the actor and count. */
+/* @sem Operand::Term{family:ChoosableColor, form:ColorsInPlayersHand, operands:[Player(AbilityController)]} */
+colors_in_own_hand ::= "from" "among" "cards" "in" "your" "hand"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{options:[$colors_in_own_hand], count:UpTo($value)}} */
+choose_hand_colors ::= "choose" "up" "to" value "colors" colors_in_own_hand
+
+/* @sem Operand::[Comparison(GreaterOrEqual, $value), Comparison(LessOrEqual, $value_2)] */
+choice_inclusive_interval ::= "between" value "and" value
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Number, terms:_{options:$choice_inclusive_interval, secret:true, count:Exactly(Constant(1))}} */
+choose_secret_interval ::= "secretly" "choose" "a" "number" choice_inclusive_interval
+
+/* Shared choice domains also serve imperative choice instructions. */
+/* @sem Operand::Term{family:ChoosableColor, form:AnyColor} */
+single_color_choice ::= "a" "color"
+
+/* @sem Operand::Players(All) */
+single_player_choice ::= "a" "player"
+
+/* @sem Operation::ChooseValue{choosers:$players_singular, kind:Color, terms:_{count:Exactly(Constant(1)), options:[$single_color_choice]}} */
+player_chooses_color ::= players_singular "chooses" single_color_choice
+
+/* @sem Operation::ChooseValue{choosers:$players_singular, kind:Player, terms:_{count:Exactly(Constant(1)), options:[$single_player_choice]}} */
+player_chooses_player ::= players_singular "chooses" single_player_choice
+
+/* A source choice and coin result remain distinct across the outcome branches. */
+/* @sem Instruction::[Effect{result:@mark, operation:ChooseObjects{player:AbilityController, objects:DamageSources($damage_source), count:Exactly(Constant(1)), constraints:[]}}, Effect{result:@next, operation:$flip_a_coin}, If{condition:CoinFlip{result:@last_result, outcome:Won}, then:Program{instructions:[Effect{result:@next, operation:$chosen_flip_source_scaled}]}, otherwise:Program{instructions:[Effect{result:@next, operation:$chosen_flip_source_prevent}]}}] */
+instructions_chosen_source_flip ::= "choose" damage_source "and" flip_a_coin "." "if" "you" "win" "the" "flip" "," chosen_flip_source_scaled "." "if" "you" "lose" "the" "flip" "," chosen_flip_source_prevent
+
+/* Counts and step kinds compose independently for extra steps after a phase. */
+/* @sem Instruction::[Effect{result:@next, operation:AddPhases{actor:One(AbilityController), phases:$additional_step_kind, count:$extra_phase_step_count}}] */
+clause_extra_steps_after_phase ::= "you" "get" extra_phase_step_count "additional" additional_step_kind "steps" "after" "this" "phase"
+
+extra_phase_step_count ::= count_plural | extra_phase_event_count
+
+/* @sem @that_many */
+extra_phase_event_count ::= "that" "many"
+
+/* Reusable choice domains and their enclosing choice operations. */
+/* @sem Operand::Term{family:ChoosableColor, form:AnyColor} */
+choice_any_color_term ::= "a" "color"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[$choice_any_color_term]}} */
+choose_color_word_shared ::= "choose" choice_any_color_term "word"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Letter, terms:_{count:Exactly(Constant(1))}} */
+choose_letter_shared ::= "choose" "a" "letter"
+
+/* @sem Operand::Term{family:ChoosableColor, form:ColorsOfCardsInPlayersGraveyard, operands:[Filter($choice_graveyard_card), Player($choice_graveyard_possessive)]} */
+choice_graveyard_colors ::= "a" "color" "of" "a" choice_graveyard_card "in" choice_graveyard_possessive "graveyard"
+
+/* @sem ObjectFilter::Any */
+choice_graveyard_card ::= "card"
+
+/* @sem PlayerRef::AbilityController */
+choice_graveyard_possessive ::= "your"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[$choice_graveyard_colors]}} */
+choose_graveyard_color_shared ::= "choose" choice_graveyard_colors
+
+/* @sem Operand::Term{family:CardsInOracle, form:IsNamed, operands:[Term{family:NameFilter, form:NamedCard, operands:[Text($referenced_card_name)]}]} */
+choice_named_card ::= referenced_card_name
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardName, terms:_{count:Exactly(Constant(1)), unchosen:true, options:[Term{family:CardsInOracle, form:Or, operands:[$choice_named_card, $choice_named_card_2, $choice_named_card_3, $choice_named_card_4, $choice_named_card_5, $choice_named_card_6]}]}} */
+choose_unchosen_names_shared ::= "choose" "a" "card" "name" "that" "hasn't" "been" "chosen" "from" "among" choice_named_card "," choice_named_card "," choice_named_card "," choice_named_card "," choice_named_card "," "and" choice_named_card
+
+/* @sem Instruction::[Effect{result:@next, operation:$choose_number_threshold}, Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Color, terms:_{count:Exactly(Constant(1)), options:[$choice_any_color_term]}}}] */
+clause_threshold_and_color ::= choose_number_threshold "and" choice_any_color_term
+
+/* Choice kinds share the same controller and count contract. */
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:$choice_named_type, terms:_{count:Exactly(Constant(1))}} */
+choose_named_type ::= "choose" "a" choice_named_type
+
+choice_named_type ::= choice_named_nonbasic_land | choice_named_permanent
+
+/* @sem ValueKind::NonbasicLandType */
+choice_named_nonbasic_land ::= "nonbasic" "land" "type"
+
+/* @sem ValueKind::PermanentType */
+choice_named_permanent ::= "permanent" "type"
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CardType, terms:_{count:Exactly(Constant(1)), options:[$choice_triple_card_type, $choice_triple_card_type_2, $choice_triple_card_type_3]}} */
+choose_card_types_three ::= "choose" choice_triple_card_type "," choice_triple_card_type "," "or" choice_triple_card_type
+
+choice_triple_card_type ::= choice_card_type_artifact | choice_card_type_creature | choice_card_type_land
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{options:[Players($choice_life_candidates)], secret:true, count:Exactly(Constant(1))}} */
+choose_secret_player ::= "secretly" "choose" choice_life_candidates
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{options:[$choice_creature_type, $choice_creature_type_2, $choice_creature_type_3], secret:true, count:Exactly(Constant(1))}} */
+choose_secret_creature_types_three ::= "secretly" "choose" choice_creature_type "," choice_creature_type "," "or" choice_creature_type
+
+choice_creature_type ::= choice_creature_type_plain | choice_creature_type_marked_merfolk
+
+/* @sem Operand::Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)} */
+choice_creature_type_plain ::= creature_subtype
+
+/* @sem Operand::Vocabulary{family:CreatureType, form:Merfolk} */
+choice_creature_type_marked_merfolk ::= "↑" "merfolk"
+
+/* Mana operands preserve the population, each produced color, and current amount. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:ColorsAmong{objects:$mana_color_population, each:true}} */
+add_each_color_population ::= mana_color_population "," "add" "one" "mana" "of" "that" "color"
+
+/* @sem $affected */
+mana_color_population ::= "for" "each" "color" "among" affected
+
+/* The event subject supplies the controller; the production is independently reusable. */
+/* @sem Operation::AddMana{players:One(ControllerOf(EventSubject)), mana:$event_controller_mana} */
+add_event_controller_mana ::= "its" "controller" "adds" "an" "additional" event_controller_mana
+
+event_controller_mana ::= event_controller_mana_chosen | event_controller_mana_equal
+
+/* @sem ManaProduction::Amount{color:Chosen, amount:$value} */
+event_controller_mana_chosen ::= value "mana" "of" "the" "chosen" "color"
+
+/* @sem ManaProduction::Repeat{amount:$mana_equal_value, production:$mana_production, choice:Once} */
+event_controller_mana_equal ::= "amount" "of" mana_production "equal" "to" mana_equal_value
+
+/* The where-clause defines the common amount for two productions. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$mana_spell_intensity, production:All([$mana_production, $mana_production_2]), choice:Once}} */
+add_mana_pair_defined ::= "add" "X" mana_production "and" "X" mana_production "," "where" "X" "is" mana_spell_intensity
+
+/* Spell and Aura spellings denote the intensity of the current source. */
+/* @sem Expr::ObjectProperty{object:Source, property:Intensity, information:CurrentOrLastKnown} */
+mana_spell_intensity ::= "this" "spell's" "intensity"
+
+/* @sem Expr::ObjectProperty{object:Source, property:Intensity, information:CurrentOrLastKnown} */
+mana_aura_intensity ::= "this" "Aura's" "intensity"
+
+mana_equal_value ::= value | mana_aura_intensity
+
+/* The draw, reveal and both uses of the revealed card's mana value share
+   the draw receipt; the enclosing trigger fixes the creature event subject. */
+/* @sem Instruction::[Effect{result:@mark, operation:Draw{players:One(AbilityController), amount:Constant(1)}}, Effect{result:@next, operation:Reveal{objects:Transition{result:@marked, phase:After}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventSubject)), changes:[Pump{power:ObjectProperty{object:Query{objects:Transition{result:@marked, phase:After}, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}, toughness:ObjectProperty{object:Query{objects:Transition{result:@marked, phase:After}, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}}], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:LoseLife{players:One(AbilityController), amount:ObjectProperty{object:Query{objects:Transition{result:@marked, phase:After}, index:0}, property:$receipt_stat, information:CurrentOrLastKnown}}}] */
+drawn_card_value_pump_life ::= "draw" "a" "card" "and" "reveal" "it" "." "the" "creature" "gets" "+X/+X" duration "and" "you" "lose" "X" "life" "," "where" "X" "is" "that" "card's" receipt_stat
+
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:SameObject(AttachedTo(Source))}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$drawn_card_value_pump_life}} */
+attached_attack_draw_value_rewards ::= "whenever" "equipped" "creature" "attacks" "," drawn_card_value_pump_life "."
+
+/* The reveal and both rewards share the observed top-card receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:LibraryTops(All)}}, Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:CountObjects(Matching{objects:Observed(@marked), filter:Not(CardType(Land))}), production:$mana_unit, choice:Once}}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:CountObjects(Matching{objects:Observed(@marked), filter:Not(CardType(Land))})}}, Effect{result:@next, operation:Draw{players:All, amount:Constant(1)}}] */
+instructions_parley_mana_life ::= parley_reveal "add" mana_unit "and" "you" "gain" "1" "life" parley_draw
+
+/* A single drawn card is the producer for the reveal and property query. */
+/* @sem Instruction::[Effect{result:@mark, operation:Draw{players:One(AbilityController), amount:Constant(1)}}, Effect{result:@next, operation:Reveal{objects:Transition{result:@marked, phase:After}}}, Effect{result:@next, operation:RemoveCounters{removals:[_{player:AbilityController, recipients:Objects($affected), kind:$counter_kind, amount:Count(Exactly(ObjectProperty{object:Query{objects:Transition{result:@marked, phase:After}, index:0}, property:ManaValue, information:CurrentOrLastKnown}))}]}}] */
+instructions_draw_reveal_remove_value ::= "draw" "a" "card" "and" "reveal" "it" "." "remove" "a" "number" "of" counter_kind "counters" "equal" "to" "that" "card's" "mana" "value" "from" affected
+
+/* The death-event card and the exact conjured arrival remain paired through
+   both the perpetual change and the subsequent graveyard move. */
+/* @sem Instruction::[Effect{result:@next, operation:$conjure_named_death_graveyard}, Effect{result:@next, operation:EffectOn{subject:Objects(AnyZone(AnyOf([SameObject(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), SameObject(Result{result:@prior, phase:After, index:0})]))), effects:[Term{family:PerpetualEffect, form:DoubleCreaturesPowerAndToughness}]}}, Effect{result:@next, operation:Move{objects:Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:AnyOf([SameObject(Query{objects:InZone{objects:One(EventDestination), zone:Graveyard}, index:0}), SameObject(Result{result:@back(3), phase:After, index:0})])}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+instructions_conjure_death_pair ::= conjure_named_death_graveyard "." "perpetually" "double" "the" "power" "and" "toughness" "of" "this" "card" "and" "that" "card" "," "then" "shuffle" "them" "into" "their" "owner's" "library"
+
+/* @sem Operation::Conjure{actor:One(AbilityController), card:Named($referenced_card_name), count:Constant(1), destination:Graveyard(CardArrival{counters:[], states:[]})} */
+conjure_named_death_graveyard ::= "conjure" "a" "card" "named" referenced_card_name "into" "your" "graveyard"
+
+/* The count is tied to this exact battlefield-to-exile producer, and both
+   mentions describe the same population. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_plural, $filter_plural_2)}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Incubate{amount:CountObjects(Transition{result:@marked, phase:Before})}}}] */
+instructions_exile_incubate_count ::= "exile" "all" filter_plural "." "incubate" "X" "," "where" "X" "is" "the" "number" "of" filter_plural "exiled" "this" "way"

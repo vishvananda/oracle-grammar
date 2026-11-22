@@ -123,3 +123,13 @@ energy_tax_gain_reminded ::= "you" "get" energy_amount "(" "↓" energy_word_amo
 
 /* @sem Operation::GainLife{players:One(AbilityController), amount:$number} */
 energy_tax_life ::= "you" "gain" number "life"
+
+/* The continuation consumes the Before receipt of this exact creature-tap
+   producer and the payment receipt, in the same instruction sequence. */
+energy_tap_controller ::= target_player | target_opponent
+
+/* @sem Operation::SetTapped{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One($energy_tap_controller))])}, tapped:true} */
+energy_tap_creatures ::= "tap" "all" "creatures" energy_tap_controller "controls"
+
+/* @sem Instruction::[Effect{result:@next, operation:$energy_tap_creatures}, Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Energy}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Transition{result:@back(3), phase:Before}, count:UpTo(Performed(@prior))}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Selected(@prior)), kind:$counter_kind, amount:Constant(1)}]}}] */
+instructions_energy_tapped_counters ::= energy_tap_creatures "." "you" "may" "pay" "any" "amount" "of" "{" "E" "}" "." "if" "you" "do" "," "choose" "up" "to" "that" "many" "creatures" "tapped" "this" "way" "." "put" "a" counter_kind "counter" "on" "each" "of" "them"
