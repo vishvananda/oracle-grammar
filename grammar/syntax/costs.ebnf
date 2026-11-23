@@ -1503,8 +1503,7 @@ paired_sacrifice_population ::= plural "and" "/" "or" plural
 /* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Activated{origin:Ordinary, cost:Cost{parts:[Mana($mana_symbols), Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, limits:$limit_sorcery, announcement:@announcement, body:Program{instructions:$graveyard_exile_copy_body}})} */
 graveyard_exile_copy_activation ::= mana_symbols "," "↑" "exile" "this" "card" "from" "your" "graveyard" ":" graveyard_exile_copy_body "." limit_sorcery "."
 
-/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}, exceptions:$graveyard_copy_traits}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}), zone:Exile}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
-graveyard_exile_copy_body ::= "create" "a" "token" "that's" "a" "copy" "of" "it" "," "except" graveyard_copy_traits "." "shuffle" "the" "exiled" "card" "into" "its" "owner's" "library"
+graveyard_exile_copy_body ::= graveyard_exile_copy_original | graveyard_exile_sized_token
 
 /* @sem CopyException::[SetPowerToughness{power:$value, toughness:$value_2}, Colors{mode:Set, colors:Listed([$mana_color_word])}, AddCreatureTypes($becomes_types)] */
 graveyard_copy_traits ::= "it's" "a" value "/" value mana_color_word becomes_types "in" "addition" "to" "its" "other" "types"
@@ -1858,8 +1857,8 @@ casting_flash_behold_payment ::= "you" "may" "cast" "this" "spell" "as" "though"
 
 flash_behold_payment ::= cost_behold | cost_behold_many
 
-/* @sem Change::[PlayerRule(SpellCost{spells:$exile_cast_spell, modifier:Alternate{cost:Alternate($generic_alternative), limit:EachTurn(1)}})] */
-limited_exile_alternative ::= "you" "may" "pay" generic_alternative "rather" "than" "pay" "the" "mana" "cost" "for" exile_cast_spell
+/* @sem Change::[PlayerRule(SpellCost{spells:$limited_cast_spell, modifier:Alternate{cost:Alternate($generic_alternative), limit:EachTurn(1)}})] */
+limited_exile_alternative ::= "you" "may" "pay" generic_alternative "rather" "than" "pay" "the" "mana" "cost" "for" limited_cast_spell
 
 /* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$limited_exile_alternative})]} */
 own_turn_limited_exile_alternative ::= "once" "during" "each" "of" "your" "turns" "," limited_exile_alternative "."
@@ -2178,3 +2177,30 @@ life_bound_at_least ::= "greater" "than" "or" "equal" "to"
 life_bound_greater ::= "greater" "than"
 
 life_bound_comparison ::= life_bound_at_most | life_bound_at_least | life_bound_greater
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}, exceptions:$graveyard_copy_traits}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Query{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, index:0}), zone:Exile}), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+/* @prefer always */
+graveyard_exile_copy_original ::= "create" "a" "token" "that's" "a" "copy" "of" "it" "," "except" graveyard_copy_traits "." "shuffle" "the" "exiled" "card" "into" "its" "owner's" "library"
+
+/* The token size measures the actual source card paid as component one. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:$creature_stat, information:CurrentOrLastKnown}, ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:$creature_stat, information:CurrentOrLastKnown}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+graveyard_exile_sized_token ::= "create" "an" "X" "/" "X" token_colors token_subtypes token_types "token" "," "where" "X" "is" "this" "card's" creature_stat
+
+/* Keep the receipt address attached to the single-card discard producer. */
+/* @sem CostPart::Discard{count:Expr::Constant(1), filter:AnyOf(@unordered([$card_filter, $card_filter_2]))} */
+discard_one_either_filter ::= "discard" "a" card_filter "or" card_filter "card"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $discard_one_either_filter]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$discard_value_artifact_animation}]}} */
+activated_discard_value_animation ::= cost_mana "," "↑" discard_one_either_filter ":" discard_value_artifact_animation "."
+
+/* An X restriction qualifies the preceding casting mechanic independently of
+   the mechanic's payment and retains that payment for inverse printing. */
+/* @sem Operand::Term{family:CastModifier, form:XCantBeZero} */
+cast_x_cant_be_zero ::= "x" "can't" "be" "0"
+
+/* @sem Ability::Modified{ability:$keyword_kicker, modifier:$cast_x_cant_be_zero} */
+kicker_with_cast_x_restriction ::= keyword_kicker "." cast_x_cant_be_zero "."
+
+/* A trailing definition fixes X for the activation. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{modifiers:[ActivationRule(XIs(NumberTest::Compare{comparison:Equal, value:$value}))]}, announcement:@announcement, body:$program_sentence} */
+activated_defined_x ::= cost ":" program_sentence "x" "is" value "."

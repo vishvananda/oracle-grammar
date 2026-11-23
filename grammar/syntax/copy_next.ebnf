@@ -147,9 +147,9 @@ copy_stack_artifact ::= "the" "copy" "is" "an" "artifact" "in" "addition" "to" "
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May}}] */
 clause_copy_ref_and_new_targets ::= "copy" object_ref "," "and" "you" "may" "choose" "new" "targets" "for" "the" "copy"
 
-/* The copied object is the ability on the stack which targeted the creature. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventStackObject, times:Constant(1), targets:May}}]} */
-program_copy_targeting_ability ::= "copy" "that" "ability" "." "you" "may" "choose" "new" "targets" "for" "the" "copy" "."
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$copy_event_ability_with_retarget}]} */
+program_copy_targeting_ability ::= copy_event_ability_with_retarget "."
 
 /* @sem Ability::Triggered{event:$event_target_ability_singular, limits:TriggerLimits{per_turn:1}, announcement:@announcement, body:$program_copy_targeting_ability} */
 triggered_targeted_ability_copy_once ::= "whenever" event_target_ability_singular "," program_copy_targeting_ability "this" "ability" "triggers" "only" "once" "each" "turn" "."
@@ -283,3 +283,17 @@ copy_ref_stack_except ::= "copy" object_ref "," "except" copy_stack_type_additio
 
 /* @sem CopyException::AddCardTypes([$only_card_type]) */
 copy_stack_type_addition ::= "the" "copy" "is" only_card_type "in" "addition" "to" "its" "other" "types"
+
+/* The event supplies the copied stack object. The same action can be used
+   directly or in a program; the reference and permission are separate phrases. */
+/* @sem ObjectRef::EventStackObject */
+copy_event_ability_ref ::= "that" "ability"
+
+/* @sem () */
+copy_single_retarget_permission ::= "you" "may" "choose" "new" "targets" "for" "the" "copy"
+
+/* @sem Operation::CopyOnStack{actor:One(AbilityController), object:$copy_event_ability_ref, times:Constant(1), targets:May} */
+copy_event_ability_with_retarget ::= "copy" copy_event_ability_ref "." copy_single_retarget_permission
+
+/* @sem $copy_event_ability_with_retarget */
+optional_copy_event_ability ::= "you" "may" copy_event_ability_with_retarget

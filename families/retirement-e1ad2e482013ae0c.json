@@ -1,0 +1,1329 @@
+{
+  "family": "retirement-discard-draw-mana",
+  "cases": [
+    {
+      "name": "Neheb, Dreadhorde Champion",
+      "text": "Trample\nWhenever Neheb deals combat damage to a player or planeswalker, you may discard any number of cards. If you do, draw that many cards and add that much {R}. Until end of turn, you don't lose this mana as steps and phases end.",
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "AnyOf": [
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Players": {
+                        "kind": "All"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Objects": {
+                        "kind": "CardType",
+                        "args": "Planeswalker"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                }
+              ]
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "PlayerAction": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "body": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Group",
+                                      "args": {
+                                        "instructions": [
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048576,
+                                              "operation": {
+                                                "kind": "ChooseObjects",
+                                                "args": {
+                                                  "player": {
+                                                    "kind": "AbilityController"
+                                                  },
+                                                  "objects": {
+                                                    "kind": "Zone",
+                                                    "args": {
+                                                      "scope": {
+                                                        "Players": {
+                                                          "zone": "Hand",
+                                                          "players": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "AbilityController"
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "Card",
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      }
+                                                    }
+                                                  },
+                                                  "count": "AnyNumber",
+                                                  "constraints": []
+                                                }
+                                              }
+                                            }
+                                          },
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048577,
+                                              "operation": {
+                                                "kind": "DiscardObjects",
+                                                "args": {
+                                                  "objects": {
+                                                    "kind": "Selected",
+                                                    "args": 1048576
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "Transition",
+                                    "args": {
+                                      "result": 1048577,
+                                      "phase": "Before"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "AddMana",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "mana": {
+                                  "Repeat": {
+                                    "amount": {
+                                      "kind": "CountObjects",
+                                      "args": {
+                                        "kind": "Transition",
+                                        "args": {
+                                          "result": 1048577,
+                                          "phase": "Before"
+                                        }
+                                      }
+                                    },
+                                    "production": {
+                                      "Amount": {
+                                        "color": "Red",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    "choice": "Once"
+                                  }
+                                },
+                                "restriction": {
+                                  "Persists": "EndOfTurn"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": 1,
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Neheb, Dreadhorde Champion",
+      "text": "Trample\nWhenever Neheb deals combat damage to a player or planeswalker, you may discard any number of cards. If you do, draw that many cards and add that much {U}. Until end of turn, you don't lose this mana as steps and phases end.",
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "AnyOf": [
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Players": {
+                        "kind": "All"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Objects": {
+                        "kind": "CardType",
+                        "args": "Planeswalker"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                }
+              ]
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "PlayerAction": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "body": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Group",
+                                      "args": {
+                                        "instructions": [
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048576,
+                                              "operation": {
+                                                "kind": "ChooseObjects",
+                                                "args": {
+                                                  "player": {
+                                                    "kind": "AbilityController"
+                                                  },
+                                                  "objects": {
+                                                    "kind": "Zone",
+                                                    "args": {
+                                                      "scope": {
+                                                        "Players": {
+                                                          "zone": "Hand",
+                                                          "players": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "AbilityController"
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "Card",
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      }
+                                                    }
+                                                  },
+                                                  "count": "AnyNumber",
+                                                  "constraints": []
+                                                }
+                                              }
+                                            }
+                                          },
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048577,
+                                              "operation": {
+                                                "kind": "DiscardObjects",
+                                                "args": {
+                                                  "objects": {
+                                                    "kind": "Selected",
+                                                    "args": 1048576
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "Transition",
+                                    "args": {
+                                      "result": 1048577,
+                                      "phase": "Before"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "AddMana",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "mana": {
+                                  "Repeat": {
+                                    "amount": {
+                                      "kind": "CountObjects",
+                                      "args": {
+                                        "kind": "Transition",
+                                        "args": {
+                                          "result": 1048577,
+                                          "phase": "Before"
+                                        }
+                                      }
+                                    },
+                                    "production": {
+                                      "Amount": {
+                                        "color": "Blue",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    "choice": "Once"
+                                  }
+                                },
+                                "restriction": {
+                                  "Persists": "EndOfTurn"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": 1,
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Neheb, Dreadhorde Champion",
+      "text": "Trample\nWhenever Neheb deals combat damage to a player or creature, you may discard any number of cards. If you do, draw that many cards and add that much {R}. Until end of turn, you don't lose this mana as steps and phases end.",
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "AnyOf": [
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Players": {
+                        "kind": "All"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Objects": {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                }
+              ]
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "PlayerAction": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "body": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Group",
+                                      "args": {
+                                        "instructions": [
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048576,
+                                              "operation": {
+                                                "kind": "ChooseObjects",
+                                                "args": {
+                                                  "player": {
+                                                    "kind": "AbilityController"
+                                                  },
+                                                  "objects": {
+                                                    "kind": "Zone",
+                                                    "args": {
+                                                      "scope": {
+                                                        "Players": {
+                                                          "zone": "Hand",
+                                                          "players": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "AbilityController"
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "Card",
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      }
+                                                    }
+                                                  },
+                                                  "count": "AnyNumber",
+                                                  "constraints": []
+                                                }
+                                              }
+                                            }
+                                          },
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048577,
+                                              "operation": {
+                                                "kind": "DiscardObjects",
+                                                "args": {
+                                                  "objects": {
+                                                    "kind": "Selected",
+                                                    "args": 1048576
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "Transition",
+                                    "args": {
+                                      "result": 1048577,
+                                      "phase": "Before"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "AddMana",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "mana": {
+                                  "Repeat": {
+                                    "amount": {
+                                      "kind": "CountObjects",
+                                      "args": {
+                                        "kind": "Transition",
+                                        "args": {
+                                          "result": 1048577,
+                                          "phase": "Before"
+                                        }
+                                      }
+                                    },
+                                    "production": {
+                                      "Amount": {
+                                        "color": "Red",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    "choice": "Once"
+                                  }
+                                },
+                                "restriction": {
+                                  "Persists": "EndOfTurn"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": 1,
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Neheb, Dreadhorde Champion",
+      "text": "Trample\nWhenever Neheb deals combat damage to a player or planeswalker, you may discard any number of cards. If you do, draw those many cards and add that much {R}. Until end of turn, you don't lose this mana as steps and phases end.",
+      "reject": true
+    },
+    {
+      "name": "Neheb, Dreadhorde Champion",
+      "text": "Trample\nWhenever Neheb deals combat damage to a player or planeswalker, you may discard any number of cards. If you do, draw that many cards and add that much {U}. Until end of turn, you don't lose this mana as steps and phases end.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Zombie",
+          "Minotaur",
+          "Warrior"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          5,
+          4
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "AnyOf": [
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Players": {
+                        "kind": "All"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Objects": {
+                        "kind": "CardType",
+                        "args": "Planeswalker"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                }
+              ]
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "PlayerAction": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "body": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Group",
+                                      "args": {
+                                        "instructions": [
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048576,
+                                              "operation": {
+                                                "kind": "ChooseObjects",
+                                                "args": {
+                                                  "player": {
+                                                    "kind": "AbilityController"
+                                                  },
+                                                  "objects": {
+                                                    "kind": "Zone",
+                                                    "args": {
+                                                      "scope": {
+                                                        "Players": {
+                                                          "zone": "Hand",
+                                                          "players": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "AbilityController"
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "Card",
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      }
+                                                    }
+                                                  },
+                                                  "count": "AnyNumber",
+                                                  "constraints": []
+                                                }
+                                              }
+                                            }
+                                          },
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048577,
+                                              "operation": {
+                                                "kind": "DiscardObjects",
+                                                "args": {
+                                                  "objects": {
+                                                    "kind": "Selected",
+                                                    "args": 1048576
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "Transition",
+                                    "args": {
+                                      "result": 1048577,
+                                      "phase": "Before"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "AddMana",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "mana": {
+                                  "Repeat": {
+                                    "amount": {
+                                      "kind": "CountObjects",
+                                      "args": {
+                                        "kind": "Transition",
+                                        "args": {
+                                          "result": 1048577,
+                                          "phase": "Before"
+                                        }
+                                      }
+                                    },
+                                    "production": {
+                                      "Amount": {
+                                        "color": "Blue",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    "choice": "Once"
+                                  }
+                                },
+                                "restriction": {
+                                  "Persists": "EndOfTurn"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Neheb, Dreadhorde Champion",
+      "text": "Trample\nWhenever Neheb deals combat damage to a player or creature, you may discard any number of cards. If you do, draw that many cards and add that much {R}. Until end of turn, you don't lose this mana as steps and phases end.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Zombie",
+          "Minotaur",
+          "Warrior"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          5,
+          4
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Trample"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "AnyOf": [
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Players": {
+                        "kind": "All"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                },
+                {
+                  "Damage": {
+                    "source_kind": "Permanent",
+                    "sources": {
+                      "kind": "SameObject",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    },
+                    "recipients": {
+                      "Objects": {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      }
+                    },
+                    "kind": "Combat",
+                    "grouping": "SourceRecipient",
+                    "subject": "Source"
+                  }
+                }
+              ]
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "PayCost",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "cost": {
+                          "parts": [
+                            {
+                              "PlayerAction": {
+                                "player": {
+                                  "kind": "AbilityController"
+                                },
+                                "body": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Group",
+                                      "args": {
+                                        "instructions": [
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048576,
+                                              "operation": {
+                                                "kind": "ChooseObjects",
+                                                "args": {
+                                                  "player": {
+                                                    "kind": "AbilityController"
+                                                  },
+                                                  "objects": {
+                                                    "kind": "Zone",
+                                                    "args": {
+                                                      "scope": {
+                                                        "Players": {
+                                                          "zone": "Hand",
+                                                          "players": {
+                                                            "kind": "One",
+                                                            "args": {
+                                                              "kind": "AbilityController"
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "kind": "Card",
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      }
+                                                    }
+                                                  },
+                                                  "count": "AnyNumber",
+                                                  "constraints": []
+                                                }
+                                              }
+                                            }
+                                          },
+                                          {
+                                            "kind": "Effect",
+                                            "args": {
+                                              "result": 1048577,
+                                              "operation": {
+                                                "kind": "DiscardObjects",
+                                                "args": {
+                                                  "objects": {
+                                                    "kind": "Selected",
+                                                    "args": 1048576
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        "optional": true
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "PaymentChosen",
+                      "args": 0
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "CountObjects",
+                                  "args": {
+                                    "kind": "Transition",
+                                    "args": {
+                                      "result": 1048577,
+                                      "phase": "Before"
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "AddMana",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "mana": {
+                                  "Repeat": {
+                                    "amount": {
+                                      "kind": "CountObjects",
+                                      "args": {
+                                        "kind": "Transition",
+                                        "args": {
+                                          "result": 1048577,
+                                          "phase": "Before"
+                                        }
+                                      }
+                                    },
+                                    "production": {
+                                      "Amount": {
+                                        "color": "Red",
+                                        "amount": {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      }
+                                    },
+                                    "choice": "Once"
+                                  }
+                                },
+                                "restriction": {
+                                  "Persists": "EndOfTurn"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

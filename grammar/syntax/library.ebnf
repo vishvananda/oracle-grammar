@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population
+clause_search ::= clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_plural}, ...$search_plural_follow] */
@@ -338,7 +338,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed
+instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split
 
 /* A graveyard split may precede an independent instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_hand_graveyard_split, ...$instructions] */
@@ -5218,3 +5218,88 @@ hand_exile_property_test ::= "the" "card's" stat "is" number "or" bound
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions_observed_hand_exile_property}} */
 spell_observed_hand_exile_property ::= instructions_observed_hand_exile_property "."
+
+/* The optional look and the following permission refer to the same top card. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:LookAt{player:AbilityController, objects:$single_library_top}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:$single_library_top, filter:$optional_look_spell_filter}, count:Exactly(Constant(1)), terms:_{cost:Free}}}]}}]}, otherwise:Program{}}] */
+instructions_optional_look_top_free_cast ::= "you" "may" "look" "at" single_library_top "." "you" "may" "cast" "it" "without" "paying" "its" "mana" "cost" "if" "it's" optional_look_spell_filter "spell"
+
+optional_look_spell_filter ::= next_hand_spell_filter | optional_look_artifact_or_sorcery
+
+/* @sem ObjectFilter::AnyOf([$noun_artifact, $spell_sorcery]) */
+optional_look_artifact_or_sorcery ::= "an" noun_artifact "or" spell_sorcery
+
+/* This continuation is scoped to a preceding roll and its first consumer. */
+/* @sem Instruction::[Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:$search_filter_many, count:UpTo(DieResultAt{result:@back(3), index:1})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+search_other_die_result ::= "search" "your" "library" "for" "a" "number" "of" search_filter_many "equal" "to" "the" "other" "result" "," "put" "them" search_option_entry "," "then" "shuffle"
+
+/* The owner chooses which end of their library receives the object. */
+/* @sem MovementDestination::Library{position:TopOrBottom{chooser:Owners}, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}} */
+owner_library_end_choice ::= "on" "their" "choice" "of" "the" "top" "or" "bottom" "of" "their" "library"
+
+shuffle_owned_population ::= plural_permanent | plural_creature | plural_artifact | plural_enchantment | plural_land | plural_planeswalker | plural_token
+
+/* Keep the movement receipt attached to the reveal that counts it. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and( $shuffle_owned_population, ObjectFilter::OwnedBy(One(AbilityController)))}, destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:CountObjects(Transition{result:@prior, phase:Before}), from:Top}}}] */
+shuffle_owned_reveal_count ::= "shuffle" "all" shuffle_owned_population "you" "own" "into" "your" "library" "," "then" "reveal" "that" "many" "cards" "from" "the" "top" "of" "your" "library"
+
+/* Both departures and the remainder are bound to the same observation. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:AllOf([$subtype_negated, AnyOf([CardType(Artifact), CardType(Battle), CardType(Creature), CardType(Enchantment), CardType(Land), CardType(Planeswalker)])])}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Matching{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, filter:$filter_phrase}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(3), phase:Before}, Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}}] */
+put_revealed_pair_and_rest ::= "put" "all" subtype_negated "permanent" "cards" "revealed" "this" "way" "onto" "the" "battlefield" "," "then" "do" "the" "same" "for" filter_phrase "cards" "," "then" "put" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order
+
+/* @sem Instruction::[...$shuffle_owned_reveal_count, ...$put_revealed_pair_and_rest] */
+shuffle_owned_reveal_partition ::= shuffle_owned_reveal_count "." put_revealed_pair_and_rest
+
+/* The selection is tied to this controller's mill and its arrival receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}, count:UpTo(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+instructions_mill_choose_one_to_hand ::= "mill" card_count "." "put" "up" "to" "one" filter_phrase "card" "milled" "this" "way" "into" "your" "hand"
+
+/* The look permission is tied to the actual face-down exile arrival. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(EventSubject)}, kind:Card, filter:Any}, count:Constant(1), from:$ordered_end}, destination:Exile{visibility:FaceDown, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Visibility{objects:One(Result{result:@prior, phase:After, index:0}), audience:AffectedPlayer})], duration:WhileExiled(Result{result:@prior, phase:After, index:0}), evaluation:LiveObjects}}]} */
+program_hidden_event_player_card ::= "exile" "the" ordered_end "card" "of" "that" "player's" "library" "face" "down" "." "you" "may" "look" "at" "it" "for" "as" "long" "as" "it" "remains" "exiled" "."
+
+/* A search bounded by attackers retains its selection through the plural action. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_attacking_where]}}, Effect{result:@next, operation:$found_those_action}, ...$search_follow] */
+clause_search_attacking_where ::= "search" "your" "library" "for" search_choice_attacking_where "," found_those_action search_follow
+
+/* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:UpTo($value_attacking_you)} */
+search_choice_attacking_where ::= "up" "to" "X" search_filter_many "," "where" "X" "is" value_attacking_you
+
+/* The exile-until producer and the cast continuation share its actual arrival receipt. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:RevealUntil{library:Bound(0), filter:$adjective_nontype, count:$counter_amount}}, Effect{result:@mark, operation:Move{objects:Observed(@prior), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}, Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:Transition{result:@marked, phase:After}, filter:$adjective_nontype_2}, count:AnyNumber, cost:Free}}]}}] */
+instructions_players_exile_until_cast_any ::= players_singular "exiles" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "exile" counter_amount adjective_nontype "card" "." "you" "may" "cast" "any" "number" "of" "spells" "from" "among" "the" adjective_nontype "cards" "exiled" "this" "way" "without" "paying" "their" "mana" "costs"
+
+/* The observer also separates the observed library cards.  The following
+   choice composes with a separately expressed remainder destination. */
+/* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:$player_ref, objects:$your_top}}, Effect{result:@next, operation:Piles{actor:One($player_ref), objects:InZone{objects:Observed(@marked), zone:Library}, count:Constant(2), names:['face up', 'face down']}}] */
+player_look_separate_face_piles ::= player_ref "looks" "at" your_top "and" "separates" "them" "into" "a" "face-down" "pile" "and" "a" "face-up" "pile"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChoosePile{actor:One(AbilityController), then:OwnersHand}}, Effect{result:@next, operation:$face_pile_other_remainder}] */
+choose_face_pile_then_remainder ::= "put" "one" "pile" "into" "your" "hand" "and" face_pile_other_remainder
+
+/* @sem Operation::Move{objects:InZone{objects:Observed(@marked), zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+face_pile_other_remainder ::= "the" "other" "into" "your" "graveyard"
+
+/* @sem Instruction::[...$player_look_separate_face_piles, ...$choose_face_pile_then_remainder] */
+instructions_player_face_piles ::= player_look_separate_face_piles "." choose_face_pile_then_remainder
+
+/* One observed planar pair is placed at specified deck ends. The producer and
+   both moves stay together so the remainder always refers to this observation. */
+/* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:PlanarDeck, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(2), from:Top}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:PlanarDeck}, count:Exactly(Constant(1))}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersPlanarDeck{end:$planar_first_end, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:PlanarDeck}, destination:OwnersPlanarDeck{end:$planar_other_end, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+planar_look_split ::= "look" "at" "the" "top" "two" "cards" "of" "your" "planar" "deck" "," "put" "one" "on" planar_first_end "of" "your" "planar" "deck" "and" "the" "other" "on" planar_other_end
+
+/* @sem SequenceEnd::Bottom */
+planar_first_bottom ::= "the" "bottom"
+
+/* @sem SequenceEnd::Top */
+planar_first_top ::= "the" "top"
+
+planar_first_end ::= planar_first_bottom | planar_first_top
+
+/* @sem SequenceEnd::Top */
+planar_other_top ::= "top"
+
+/* @sem SequenceEnd::Bottom */
+planar_other_bottom ::= "bottom"
+
+planar_other_end ::= planar_other_top | planar_other_bottom

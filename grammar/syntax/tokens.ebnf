@@ -117,7 +117,7 @@ token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token
 
-token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle
+token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -325,7 +325,7 @@ attach_created_optional ::= "you" "may" attach_created_required
 
 /* A bare pronoun still needs current token focus. The explicit token noun
    names the prior produced batch even after another object was moved. */
-created_attachment_host ::= created_attachment_pronoun | created_attachment_token
+created_attachment_host ::= created_attachment_pronoun | created_attachment_token | created_attachment_the_token
 
 /* @sem ObjectSet::@created_reference_single */
 created_attachment_pronoun ::= "it"
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves
+created_token_name ::= created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1446,3 +1446,50 @@ create_copies_each_attached ::= copy_each_affected_plural_spec "attached" "to" o
 /* One token for every member of the measured player population. */
 /* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$count_players_less_life, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
 create_for_less_life_player ::= "then" "for" count_players_less_life "," "create" "a" token_recipe
+
+/* A random Equipment copy is attached using this creation's own receipt. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyAtRandom{cards:Term{family:CardsInOracle, form:And, operands:[Term{family:CardsInOracle, form:IsArtifactType, operands:[Vocabulary{family:ArtifactType, form:Equipment}]}, Term{family:CardsInOracle, form:ManaValueIs, operands:[Comparison([$stat_comparison, $value])]}]}}} */
+random_equipment_copy_token ::= "a" "token" "that's" "a" "copy" "of" "a" "random" "Equipment" "card" "with" "mana" "value" stat_comparison value
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$random_equipment_copy_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:Attach{attachments:Created(@prior), host:$object_ref}}]} */
+program_random_equipment_attach ::= "create" random_equipment_copy_token "." "attach" "that" "Equipment" "to" object_ref
+
+/* A following sentence describes the created Aura's intrinsic abilities. */
+/* @sem String::'Mark of the Rani' */
+created_name_mark_of_rani ::= "Mark" "of" "the" "Rani"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:Explicit($created_token_name), colors:$token_colors, card_types:[Enchantment], subtypes:[Aura], abilities:[$enchant_permanents, $static_ordinary_ability]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($object_ref)]}}}] */
+instructions_attached_named_aura_quoted ::= "create" counter_a token_colors "Aura" "enchantment" "token" "named" created_token_name "attached" "to" object_ref "." "that" "token" "has" enchant_permanents "and" '"' static_ordinary_ability '"'
+
+/* Statistics taken from the creature batch that triggered the enclosing ability. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$tt_creature, subtypes:$token_subtypes, power_toughness:[Aggregate{objects:EventGroup, property:$batch_creature_stat, aggregation:Sum}, Aggregate{objects:EventGroup, property:$batch_creature_stat, aggregation:Sum}]}) */
+batch_creature_stat_token_recipe ::= token_colors token_subtypes tt_creature "token" "with" "base" "power" "and" "toughness" "each" "equal" "to" "the" "total" batch_creature_stat "of" "those" "creatures"
+
+batch_creature_stat ::= stat_power | stat_toughness
+
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$batch_creature_stat_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+create_batch_stat_token ::= "create" "a" batch_creature_stat_token_recipe
+
+/* @sem ObjectSet::@created_named_reference */
+created_attachment_the_token ::= "the" "token"
+
+/* A copy chosen from a battlefield population keeps the population filter. */
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:CopyOne{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}, exceptions:[]}} */
+token_copy_population ::= token_copy_quantity "a" filter_phrase
+
+/* @prefer always */
+/* The copy consumes the arrival of this exile, while its recipient is the target's controller. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(1)), filter:@and(ObjectFilter::Not(SameObject(Source)), @and($adjective_nontype, ObjectFilter::Not(Token)))}), index:0}), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:CreateTokens{players:One(ControllerOf(Target{slot:0, index:0})), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Result{result:@marked, phase:After, index:0}, exceptions:$copy_nonlegendary_added_card_type}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
+exile_target_controller_copy ::= "exile" "up" "to" "one" "other" "target" adjective_nontype "," "nontoken" "permanent" "." "its" "controller" "creates" "a" "token" "that's" "a" "copy" "of" "it" "," "except" copy_nonlegendary_added_card_type
+
+copy_nonlegendary_added_card_type ::= copy_nonlegendary_artifact | copy_nonlegendary_enchantment
+
+/* @sem Vec<CopyException>::[CopyException::RemoveSupertypes([Legendary]), CopyException::AddCardTypes([Artifact])] */
+copy_nonlegendary_artifact ::= "it's" "not" "legendary" "and" "it's" "an" "artifact" "in" "addition" "to" "its" "other" "types"
+
+/* @prefer always */
+/* @sem Vec<CopyException>::[CopyException::RemoveSupertypes([Legendary]), CopyException::AddCardTypes([Enchantment])] */
+copy_nonlegendary_enchantment ::= "it's" "not" "legendary" "and" "it's" "an" "enchantment" "in" "addition" "to" "its" "other" "types"
+
+/* @sem Ability::Triggered{event:$event_self_enters, limits:_{}, announcement:@announcement, body:Program{instructions:$exile_target_controller_copy}} */
+triggered_exile_controller_copy ::= "when" event_self_enters "," exile_target_controller_copy "."

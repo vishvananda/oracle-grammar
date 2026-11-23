@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget
+object_set ::= objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -3719,3 +3719,73 @@ players_or_controller_permanent ::= "that" "permanent's" "controller" "or" "that
 /* A targeted player distinct from the source artifact owner. */
 /* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:OthersThan(OwnerOf(Source))}), index:0} */
 target_player_other_than_source_owner ::= "target" "player" "other" "than" "this" "artifact's" "owner"
+
+/* A random singular library card, bounded by its current mana value. */
+/* @sem ObjectSet::@selection(SelectionStep::_{binding:0, objects:Zone{scope:Players{zone:Library, players:One($target_possessive)}, kind:Card, filter:AllOf([$random_card_kind, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$number}}])}, chooser:Chance, count:AsManyAsCan(Expr::Constant(1))}) */
+objects_random_library_mana_ceiling ::= "a" "random" random_card_kind "card" "with" "mana" "value" number "or" "less" "from" target_possessive "library"
+
+/* A singular target for each opponent, qualified independently by its counter. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:OpponentsOf(AbilityController), each:UpTo(Constant(1))}, filter:AllOf([CardType(Creature), Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})])})) */
+opponent_counter_creature_targets ::= "choose" "up" "to" "one" "target" "creature" "they" "control" "with" "a" counter_kind "counter" "on" "it"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:PerPlayer{players:OpponentsOf(AbilityController), each:UpTo($number)}, filter:$adjective_nontype})) */
+opponent_named_permanent_targets ::= "up" "to" number "target" adjective_nontype "permanent" "that" "opponent" "controls"
+
+/* A limited alternative payment selects the singular spell independently of its cost. */
+limited_cast_spell ::= exile_cast_spell | foreign_owned_bounded_cast_spell
+
+/* @sem ObjectFilter::AllOf([OwnedBy(OthersThan(AbilityController)), $modifier_mana_value_bound]) */
+foreign_owned_bounded_cast_spell ::= "a" "spell" "you" "cast" "that" "you" "don't" "own" modifier_mana_value_bound
+
+/* A target ceiling defined by letters on name stickers of the named object. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo($sticker_letter_count), filter:$filter_plural})) */
+objects_up_to_sticker_letters ::= "up" "to" "X" "target" filter_plural "," "where" "X" "is" sticker_letter_count
+
+/* @sem Expr::Stickers{objects:One($object_ref), measure:Letter(Term{family:Letter, form:SingleLetter, operands:[$sticker_count_letter]})} */
+sticker_letter_count ::= "the" "number" "of" sticker_count_letter "in" "name" "stickers" "on" object_ref
+
+sticker_count_letter ::= sticker_letter_u | sticker_letter_a
+
+/* @sem Operand::Text(U) */
+sticker_letter_u ::= "u's"
+
+/* @sem Operand::Text(A) */
+sticker_letter_a ::= "a's"
+
+/* A protection quality takes the colors of the current affected population. */
+/* @sem ObjectFilter::SharesColorWithAny($affected) */
+protection_colors_among ::= "each" "color" "among" affected
+
+/* Only enclosing amass producer/consumer productions may use this receipt. */
+/* @sem Expr::ObjectProperty{object:Result{result:@marked, phase:After, index:0}, property:$creature_stat, information:CurrentOrLastKnown} */
+amassed_army_property ::= "the" "amassed" "Army's" creature_stat
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($filter_phrase, ObjectFilter::Property{property:$creature_stat, test:NumberTest::Compare{comparison:$stat_comparison, value:$amassed_army_property}})}), index:0} */
+amass_compared_target ::= "target" filter_phrase "with" creature_stat stat_comparison amassed_army_property
+
+/* A counted group of blocked targets, reusable by plural effects. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly($blocked_target_count), filter:AllOf([State(Blocked), $plural])})) */
+blocked_target_group ::= blocked_target_count "target" "blocked" plural
+
+blocked_target_count ::= blocked_target_x | count_plural
+
+/* @sem Expr::AnnouncedX */
+blocked_target_x ::= "x"
+
+/* An attacking creature, with an optional explicit color, remains a creature
+   for the later singular anaphor. */
+retirement_attacking_creature_filter ::= retirement_attacking_creature_plain | retirement_attacking_creature_color
+
+/* @sem ObjectFilter::@and($adjective_attacking, $noun_creature) */
+retirement_attacking_creature_plain ::= adjective_attacking noun_creature
+
+/* @sem ObjectFilter::@and($adjective_attacking, @and($adjective_color, $noun_creature)) */
+retirement_attacking_creature_color ::= adjective_attacking adjective_color noun_creature
+
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$retirement_attacking_creature_filter}), index:0} */
+retirement_optional_attacker ::= "up" "to" "one" "target" retirement_attacking_creature_filter
+
+retirement_choice_creature_filter ::= noun_creature | retirement_colored_creature
+
+/* @sem ObjectFilter::@and($adjective_color, $noun_creature) */
+retirement_colored_creature ::= adjective_color noun_creature

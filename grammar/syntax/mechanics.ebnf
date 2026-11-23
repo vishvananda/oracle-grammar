@@ -530,10 +530,7 @@ commander_chosen_property ::= self_text "is" "the" "chosen" "color" "."
 /* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:$cross_colors} */
 commander_defined_property ::= self_text "is" cross_colors "."
 
-/* Crew collects other untapped controlled creatures whose total power meets
-   the threshold. @and preserves the canonical filter order in both directions. */
-/* @sem Ability::Activated{origin:Crew, cost:Cost::Cost{parts:[Constrained{part:ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(SameObject(Source)), ObjectFilter::Not(Tapped))}, choose:AnyNumber}], tapped:true}, constraints:[TotalProperty{property:Power, comparison:GreaterOrEqual, amount:$number}]}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:EndOfTurn, evaluation:Snapshot}}]}} */
-crew_ability ::= "crew" number
+crew_ability ::= crew_unrestricted | crew_restricted
 
 /* Cost keywords hold their printed payment as the mechanic's cost. */
 /* @sem Ability::Mechanic{mechanic:$cost_keyword_name, cost:$keyword_payment} */
@@ -949,3 +946,13 @@ mechanic_trample_planeswalkers_name ::= "trample" "over" "planeswalkers"
 
 /* @sem Mechanic::Transfigure */
 mechanic_transfigure_name ::= "transfigure"
+
+/* Crew uses one payment contract for ordinary and restricted activations. */
+/* @sem Cost::Cost{parts:[Constrained{part:ChangeTapState{selections:[_{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), ObjectFilter::ControlledBy(One(AbilityController)), ObjectFilter::Not(SameObject(Source)), ObjectFilter::Not(Tapped))}, choose:AnyNumber}], tapped:true}, constraints:[TotalProperty{property:Power, comparison:GreaterOrEqual, amount:$number}]}]} */
+crew_payment ::= "crew" number
+
+/* @sem Ability::Activated{origin:Crew, cost:$crew_payment, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:EndOfTurn, evaluation:Snapshot}}]}} */
+crew_unrestricted ::= crew_payment
+
+/* @sem Ability::Activated{origin:Crew, cost:$crew_payment, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:EndOfTurn, evaluation:Snapshot}}]}} */
+crew_restricted ::= crew_payment "." activation_limits "."

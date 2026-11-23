@@ -1,0 +1,1037 @@
+{
+  "family": "conditional-replacement-trigger",
+  "cases": [
+    {
+      "name": "Ceta Sanctuary",
+      "text": "At the beginning of your upkeep, if you control a red or green permanent, draw a card, then discard a card. If you control a red permanent and a green permanent, instead draw two cards, then discard a card.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Controls",
+              "args": {
+                "player": {
+                  "kind": "AbilityController"
+                },
+                "filter": {
+                  "kind": "AnyOf",
+                  "args": [
+                    {
+                      "kind": "Color",
+                      "args": "Red"
+                    },
+                    {
+                      "kind": "Color",
+                      "args": "Green"
+                    }
+                  ]
+                },
+                "minimum": 1
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Controls",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "filter": {
+                              "kind": "Color",
+                              "args": "Red"
+                            },
+                            "minimum": 1
+                          }
+                        },
+                        {
+                          "kind": "Controls",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "filter": {
+                              "kind": "Color",
+                              "args": "Green"
+                            },
+                            "minimum": 1
+                          }
+                        }
+                      ]
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Tallyman of Nurgle",
+      "text": "Lifelink\nAt the beginning of your end step, if a creature died this turn, you draw a card and you lose 1 life. If seven or more creatures died this turn, instead you draw seven cards and you lose 7 life.",
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Lifelink"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "EventHistory",
+                          "args": {
+                            "event": {
+                              "ZoneChange": {
+                                "objects": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                "from": "Battlefield",
+                                "to": "Graveyard"
+                              }
+                            },
+                            "window": "ThisTurn",
+                            "measure": "Occurrences"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 7
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 7
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 7
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Tallyman of Nurgle",
+      "text": "At the beginning of your end step, if a creature died this turn, you draw a card and you lose 1 life. If seven or more creatures died this turn, instead you draw seven cards and you lose 7 life.",
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "EventHistory",
+                          "args": {
+                            "event": {
+                              "ZoneChange": {
+                                "objects": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                "from": "Battlefield",
+                                "to": "Graveyard"
+                              }
+                            },
+                            "window": "ThisTurn",
+                            "measure": "Occurrences"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 7
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 7
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 7
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Ceta Sanctuary",
+      "text": "At the beginning of your upkeep, if you control a red or green permanent, draw a card, then discard a card. If you control a red permanent and a green permanent, instead draw two cards, then discard a card. Afterwards, dance.",
+      "reject": true
+    },
+    {
+      "name": "Ceta Sanctuary",
+      "text": "At the beginning of your upkeep, if you control a red or green permanent, draw a card, then discard a card. If you control a red permanent and a green permanent, instead draw three cards, then discard a card.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Blue"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "UpkeepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Controls",
+              "args": {
+                "player": {
+                  "kind": "AbilityController"
+                },
+                "filter": {
+                  "kind": "AnyOf",
+                  "args": [
+                    {
+                      "kind": "Color",
+                      "args": "Red"
+                    },
+                    {
+                      "kind": "Color",
+                      "args": "Green"
+                    }
+                  ]
+                },
+                "minimum": 1
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "AllOf",
+                      "args": [
+                        {
+                          "kind": "Controls",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "filter": {
+                              "kind": "Color",
+                              "args": "Red"
+                            },
+                            "minimum": 1
+                          }
+                        },
+                        {
+                          "kind": "Controls",
+                          "args": {
+                            "player": {
+                              "kind": "AbilityController"
+                            },
+                            "filter": {
+                              "kind": "Color",
+                              "args": "Green"
+                            },
+                            "minimum": 1
+                          }
+                        }
+                      ]
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 3
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Discard",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                },
+                                "random": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Tallyman of Nurgle",
+      "text": "Lifelink\nAt the beginning of your end step, if a creature died this turn, you draw a card and you lose 2 life. If seven or more creatures died this turn, instead you draw seven cards and you lose 7 life.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Astartes",
+          "Warrior"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          2,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Lifelink"
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Turn": {
+                "point": "EndStepBegins",
+                "players": {
+                  "kind": "One",
+                  "args": {
+                    "kind": "AbilityController"
+                  }
+                }
+              }
+            },
+            "intervening_if": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "EventHistory",
+                  "args": {
+                    "event": {
+                      "ZoneChange": {
+                        "objects": {
+                          "kind": "CardType",
+                          "args": "Creature"
+                        },
+                        "from": "Battlefield",
+                        "to": "Graveyard"
+                      }
+                    },
+                    "window": "ThisTurn",
+                    "measure": "Occurrences"
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  }
+                }
+              }
+            },
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "EventHistory",
+                          "args": {
+                            "event": {
+                              "ZoneChange": {
+                                "objects": {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                "from": "Battlefield",
+                                "to": "Graveyard"
+                              }
+                            },
+                            "window": "ThisTurn",
+                            "measure": "Occurrences"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 7
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 7
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 1,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 7
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Draw",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "LoseLife",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "amount": {
+                                  "kind": "Constant",
+                                  "args": 2
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

@@ -44,7 +44,7 @@ copy_exception_plain_then_quote ::= copy_exception_plain "and" copy_exceptions_c
 /* @sem Vec<CopyException>::[$copy_granted_sentence, ...$copy_exceptions_closed] */
 copy_exception_quote_more ::= copy_granted_sentence ("↓")? "and" copy_exceptions_closed
 
-copy_exception_plain ::= copy_remove_current | copy_add_legendary_retained | copy_add_legendary | copy_self_name | copy_named_name | copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact | copy_has_current | copy_token_keyword | copy_add_creature_type_explicit
+copy_exception_plain ::= copy_remove_current | copy_add_legendary_retained | copy_add_legendary | copy_self_name | copy_named_name | copy_add_creature_type | copy_keyword_ability | copy_remove_legendary | token_copy_add_artifact | copy_has_current | copy_token_keyword | copy_add_creature_type_explicit | copy_add_legendary_snow_retained
 
 /* @sem CopyException::AddCreatureTypes($becomes_types) */
 copy_add_creature_type ::= "it's" ("a" | "an") becomes_types "in" "addition" "to" "its" "other" "types"
@@ -225,7 +225,7 @@ copy_exception_oxford_more ::= copy_exception_plain "," "and" copy_exceptions_pl
 /* @sem CopyException::AddSupertypes([Legendary]) */
 copy_add_legendary_retained ::= "it's" "legendary" "in" "addition" "to" "its" "other" "types"
 
-entry_copy_actions ::= entry_copy_plain_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color
+entry_copy_actions ::= entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color
 
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$entry_copy_tail})}}] */
 entry_copy_plain_actions ::= "a" "copy" "of" entry_copy_objects entry_copy_tail
@@ -327,3 +327,17 @@ copy_remove_current ::= "it" "doesn't" "have" "this" "ability"
 /* A copied object keeps both its printed base stats and a scoped quoted ability. */
 /* @sem Vec<CopyException>::[$copy_fixed_stats, $copy_quoted_ability] */
 copy_stats_and_quoted_ability ::= copy_fixed_stats "and" "has" copy_quoted_ability
+
+/* The condition tests the object selected by this copy action, not a later
+   battlefield query. Keep the producer and its recorded result in one phrase. */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$copy_exceptions_plain})}}, $entry_copy_conditional_followup] */
+entry_copy_conditional_actions ::= "a" "copy" "of" entry_copy_objects "," "except" copy_exceptions_plain "and" "," entry_copy_conditional_followup "."
+
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Recorded(@prior), filter:$filter_phrase}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:$entry_copy_conditional_effects}, otherwise:Program{}} */
+entry_copy_conditional_followup ::= "if" "it's" "a" filter_phrase "," entry_copy_conditional_effects
+
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}, Effect{result:@next, operation:ModifyEvent{change:Entry(Changes([Copiable([GrantAbility(Static(_{kind:CharacteristicDefining{keyword:Changeling, contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:[CreatureTypes{mode:Set, types:All}]}))])]))}}] */
+entry_copy_conditional_effects ::= "it" "enters" "with" value "additional" counter_kind "counters" "on" "it" "and" "has" "changeling"
+
+/* @sem CopyException::AddSupertypes([Legendary, Snow]) */
+copy_add_legendary_snow_retained ::= "it's" "legendary" "and" "snow" "in" "addition" "to" "its" "other" "types"
