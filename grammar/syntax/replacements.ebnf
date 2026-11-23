@@ -2011,7 +2011,7 @@ replacement_owned_zone_redirect ::= "if" replacement_owned_death_or_card "," rep
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_graveyard_event, body:$replacement_zone_program} */
 replacement_zone_redirect ::= "if" replacement_graveyard_event "," replacement_zone_program "."
 
-replacement_graveyard_event ::= replacement_card_or_token_your_zone | replacement_typed_card_graveyard | replacement_enchanted_controlled_death | replacement_owned_battlefield_graveyard | replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard | replacement_your_card_graveyard | replacement_controlled_card_graveyard | replacement_card_or_token_zone
+replacement_graveyard_event ::= replacement_card_or_token_your_zone | replacement_typed_card_graveyard | replacement_enchanted_controlled_death | replacement_owned_battlefield_graveyard | replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard | replacement_your_card_graveyard | replacement_controlled_card_graveyard | replacement_card_or_token_zone | replacement_colored_permanent_spell_card_graveyard | replacement_history_qualified_card_zone
 
 /* A singular object headed to its owner's graveyard retains its owner independently
    of its battlefield controller. The two subtype words both constrain that object. */
@@ -3888,3 +3888,21 @@ replacement_card_or_token_zone ::= "a" "card" "or" "token" "would" "be" "put" "i
 /* The prevention and its consumed receipt stay within the same replacement. */
 /* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($value), duration:$this_duration, body:$prevent_receipt_body} */
 prevent_next_with_receipt_shared ::= "prevent" "the" "next" value prevent_damage "that" "would" "be" "dealt" "to" prevent_to this_duration "." prevent_receipt_body
+
+/* A shared color union qualifies each of the three named object categories. */
+/* @sem ObjectFilter::AnyOf([$adjective_color, $adjective_color, $adjective_color, $adjective_color_2, $adjective_color_2, $adjective_color_2]) */
+replacement_color_union ::= adjective_color "or" adjective_color
+
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf([ $replacement_color_union, OwnedBy(All)]), to:Graveyard} */
+replacement_colored_permanent_spell_card_graveyard ::= "a" replacement_color_union "permanent" "," "spell" "," "or" "card" "not" "on" "the" "battlefield" "would" "be" "put" "into" "a" "graveyard"
+
+/* A card's activated ability, owner, destination and history independently
+   qualify the pending zone change. */
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf(@unordered([$replacement_card_ability, $replacement_graveyard_owner, $replacement_card_history])), to:$enchanted_player_card_zone} */
+replacement_history_qualified_card_zone ::= "a" "card" replacement_card_ability "would" "be" "put" "into" replacement_graveyard_owner enchanted_player_card_zone "from" "anywhere" "and" replacement_card_history
+
+/* @sem ObjectFilter::$cycling_ability_filter */
+replacement_card_ability ::= "that" "has" "a" cycling_ability_filter
+
+/* @sem ObjectFilter::Not(History{event:Cycled, window:ThisGame}) */
+replacement_card_history ::= "it" "wasn't" "cycled"

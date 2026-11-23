@@ -174,7 +174,7 @@ count_each_tapped ::= "creature" "tapped" "this" "way"
 
 /* What a card can be, away from the battlefield. `permanent` narrows nothing on the
    battlefield, but among cards it excludes instants and sorceries. */
-card_filter ::= card_subtype_list_typed | mined_cards | card_word | card_stacked | card_stacked_comma | card_stacked_either | card_stacked_type | card_or | card_list | card_filter_and | card_qualified_three | card_union_repeated_plural | card_named_or_an
+card_filter ::= card_subtype_list_typed | mined_cards | card_word | card_stacked | card_stacked_comma | card_stacked_either | card_stacked_either_union | card_stacked_type | card_or | card_list | card_filter_and | card_qualified_three | card_union_repeated_plural | card_named_or_an
 
 card_word ::= quality | card_noun | spell_instant | spell_sorcery
 
@@ -1446,3 +1446,11 @@ count_each_damage_to_you ::= "1" "damage" "dealt" "to" "you" "this" "turn"
 /* The definition remains an expression, reusable by counted actions. */
 /* @sem $value */
 intensify_defined_amount ::= "by" "X" "," "where" "X" "is" value
+
+/* Both written alternatives qualify the same union of card kinds. */
+/* @sem @and(ObjectFilter::AnyOf([$adjective_color, $adjective_color_2]), $card_or) */
+card_stacked_either_union ::= adjective_color "or" adjective_color card_or
+
+/* Ownership and control remain independent player roles. */
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, OwnedBy(One(AbilityController)), ControlledBy(OpponentsOf(AbilityController))])}) */
+count_owned_opponents_control ::= filter_phrase "you" "own" "that" "your" "opponents" "control"

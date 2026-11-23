@@ -62,3 +62,11 @@ exchange_neither_land ::= "two" "target" "lands" "controlled" "by" "different" "
 exchange_neither_planeswalker ::= "two" "target" "planeswalkers" "controlled" "by" "different" "players" "." NEWLINE? "if" "you" "control" "neither" "planeswalker"
 /* @sem ObjectFilter::CardType(Battle) */
 exchange_neither_battle ::= "two" "target" "battles" "controlled" "by" "different" "players" "." NEWLINE? "if" "you" "control" "neither" "battle"
+
+/* The selected permanent is distinct from the holder, and the exchange uses
+   the exact result of that choice. The possessive filter supplies its kind. */
+/* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(@self)), $possessive_permanent_filter])}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:Exchange{kind:TextBoxes, first:Object(@self), second:Object(Result{result:@prior, phase:After, index:0})}}]}}]} */
+optional_exchange_his_text_box ::= "you" "may" "exchange" "his" "text" "box" "and" "another" possessive_permanent_filter
+
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject($self_ref)}, body:$optional_exchange_his_text_box}) */
+entry_optional_text_box_exchange ::= "as" self_ref "enters" "," optional_exchange_his_text_box "."

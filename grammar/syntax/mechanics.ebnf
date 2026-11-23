@@ -121,7 +121,7 @@ spree_modes_one ::= spree_mode
 /* @sem SpreeMode::[$spree_mode, ...$spree_modes] */
 spree_modes_more ::= spree_mode NEWLINE spree_modes
 
-spree_mode ::= spree_mode_lose_abilities | spree_mode_choose_grant | spree_mode_plain
+spree_mode ::= spree_mode_exile_delayed_return | spree_mode_lose_abilities | spree_mode_choose_grant | spree_mode_plain | spree_mode_quoted
 
 /* Tiered: one mode, by name, adding its cost. The names mean nothing to the rules. */
 /* @sem Ability::[Ability::Tiered{modes:$tier_modes}] */
@@ -135,8 +135,7 @@ tier_modes_one ::= tier_mode
 /* @sem SpreeMode::[$tier_mode, ...$tier_modes] */
 tier_modes_more ::= tier_mode NEWLINE tier_modes
 
-/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:$program}}) */
-tier_mode ::= "•" tier_name "—" cost "—" program "."
+tier_mode ::= tier_mode_cross_slash | tier_mode_blade_beam | tier_mode_omnislash | tier_mode_plain
 
 /* Printed tier names come from this catalogue; any other words still parse. */
 /* @sem () */
@@ -966,3 +965,29 @@ crew_unrestricted ::= crew_payment
 
 /* @sem Ability::Activated{origin:Crew, cost:$crew_payment, limits:$activation_limits, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[AddCardType(Artifact), AddCardType(Creature)], duration:EndOfTurn, evaluation:Snapshot}}]}} */
 crew_restricted ::= crew_payment "." activation_limits "."
+
+/* Keep this explicit return wording within a spree mode. */
+/* @prefer always */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions_exile_target_delayed_return_it}}}) */
+spree_mode_exile_delayed_return ::= "+" cost "—" instructions_exile_target_delayed_return_it "."
+
+/* A quoted final ability closes the mode sentence at its own period. */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:$program_sentence_quoted}}) */
+spree_mode_quoted ::= "+" cost "—" program_sentence_quoted
+
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:$program}}) */
+tier_mode_plain ::= "•" tier_name "—" cost "—" program "."
+
+/* Canonical mode labels for these distinct destruction shapes. The operands
+   remain shared with ordinary target and population phrases. */
+/* @prefer always */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One($target_permanent), regeneration:true}}]}}}) */
+tier_mode_cross_slash ::= "•" "Cross-Slash" "—" cost "—" "destroy" target_permanent "."
+
+/* @prefer always */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:$objects_any_targets_different_controllers, regeneration:true}}]}}}) */
+tier_mode_blade_beam ::= "•" "Blade" "Beam" "—" cost "—" "destroy" objects_any_targets_different_controllers "."
+
+/* @prefer always */
+/* @sem @scope(SpreeMode::SpreeMode{cost:$cost, ability:Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:$objects_all, regeneration:true}}]}}}) */
+tier_mode_omnislash ::= "•" "Omnislash" "—" cost "—" "destroy" objects_all "."

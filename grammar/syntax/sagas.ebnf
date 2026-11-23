@@ -11,7 +11,7 @@ chapters_more ::= chapter_first NEWLINE chapter_tail
 
 chapter_first ::= chapter_1_final_quoted_grant | chapter_1_2_3_4_5_6 | chapter_1_quoted_token | chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
 
-chapter_tail ::= chapter | chapter_tail_more
+chapter_tail ::= chapter_next_entry_then_transform | chapter | chapter_tail_more
 
 /* @sem Ability::[...$chapter, ...$chapter_tail] */
 chapter_tail_more ::= chapter NEWLINE chapter_tail
@@ -266,3 +266,11 @@ optional_exile_each_graveyard ::= "you" "may" "exile" "a" noun "or" noun "card" 
 /* The permission is linked to the Saga, and its mana qualification applies to casting. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}), from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:AnyColor}})], duration:EndOfTurn, evaluation:LiveObjects}}]} */
 chapter_linked_exile_cast_any_color ::= "until" "end" "of" "turn" "," "you" "may" "cast" "spells" "from" "among" "cards" "exiled" "with" "this" "Saga" "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "those" "spells"
+
+/* The next cast trigger changes the creature spell’s own entry. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTrigger{event:Spell{event:Cast, players:One(AbilityController), spells:CardType(Creature)}, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:ChangeSpell{subject:One(EventSubject), changes:[EntersWithCounters(_{kind:$counter_kind, amount:Constant(1)})]}}]}, once:true}}]} */
+chapter_next_creature_entry_counter ::= "when" "you" "next" "cast" "a" "creature" "spell" this_duration "," "that" "creature" "enters" "with" "an" "additional" counter_kind "counter" "on" "it"
+
+/* Pair the independently parsed next-cast chapter with a transforming chapter. */
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_next_creature_entry_counter}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$saga_exile_return_transformed})] */
+chapter_next_entry_then_transform ::= "II" "—" chapter_next_creature_entry_counter "." NEWLINE "III" "—" saga_exile_return_transformed "."
