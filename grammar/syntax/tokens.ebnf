@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors
+token_recipe ::= named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors
 
 token_recipe_base ::= token_recipe_statless_named | token_recipe_statless_named_plural | token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani
+created_token_name ::= created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1030,7 +1030,7 @@ create_blocking_single ::= "create" "a" token_recipe "that's" "blocking" "target
 
 /* The token's literal name is independent of its source and characteristics. */
 /* @sem String::'Ajani''s Pridemate' */
-created_name_ajanis_pridemate ::= "Ajani" "'s" "Pridemate"
+created_name_ajanis_pridemate ::= "Ajani's" "Pridemate"
 
 /* The first action completes before the independent condition and creation. */
 /* @sem Instruction::[Effect{result:@next, operation:$operation}, If{condition:$condition_no_counters, then:Program{instructions:[$conditional_token_creation]}, otherwise:Program{}}] */
@@ -1788,3 +1788,28 @@ program_emerge_token_replacement ::= "create" "a" singular_counted_token_recipe 
 /* The event subject must be the source mentioned by the emerge condition. */
 /* @sem Ability::Triggered{event:$event_self_enters, limits:TriggerLimits{}, announcement:@announcement, body:$program_emerge_token_replacement} */
 triggered_self_entry_emerge_tokens ::= "when" event_self_enters "," program_emerge_token_replacement
+
+/* Both branches describe the same copied object and entry state; only the
+   amount changes when the separately stated condition holds. */
+/* @sem Program::Program{instructions:[If{condition:ObjectMatches{object:$object_ref, filter:$copy_override_filter}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}]}}]} */
+copy_attacking_conditional_quantity ::= "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" object_ref "." "if" "that" "creature" "is" "a" copy_override_filter "," "create" counter_amount "of" "those" "tokens" "instead" "."
+
+/* @sem ObjectFilter::AnyOf(@unordered([$subtype_spelled, $subtype_spelled_2, $subtype_spelled_3, $subtype_spelled_4])) */
+copy_override_filter ::= subtype_spelled "," subtype_spelled "," subtype_spelled "," "or" subtype_spelled
+
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:$copy_attacking_conditional_quantity} */
+triggered_copy_conditional_quantity ::= event_clause "," copy_attacking_conditional_quantity
+
+/* Keep the graveyard move and its token count in the same receipt scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:$put_each_linked_card, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:CountObjects(Transition{result:@marked, phase:After}), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+instructions_linked_graveyard_tokens ::= "put" put_each_linked_card "into" "its" "owner's" "graveyard" "," "then" "create" "a" token_recipe "for" "each" "card" "put" "into" "a" "graveyard" "this" "way"
+
+/* @sem Instruction::[...$instructions_linked_graveyard_tokens, ...$instructions] */
+instructions_linked_graveyard_tokens_more ::= instructions_linked_graveyard_tokens "." instructions
+
+/* A statless named snow artifact carries its own quoted ability. */
+/* @sem String::'Replicated Ring' */
+created_name_replicated_ring ::= "Replicated" "Ring"
+
+/* @sem TokenRecipe::Defined{name:Explicit($created_token_name), supertypes:[Snow], card_types:[Artifact], abilities:[$token_quoted]} */
+named_snow_artifact_recipe ::= "colorless" "snow" "artifact" "tokens" "named" created_token_name "with" token_quoted

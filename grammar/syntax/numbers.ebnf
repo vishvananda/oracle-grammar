@@ -348,7 +348,7 @@ value_twice ::= "twice" value
 /* @sem Expr::CountObjects($card_population) */
 value_number_cards ::= "the" "number" "of" card_population
 
-card_population ::= card_population_stickered_vowel | card_population_stickered_consonant | card_population_plain | card_population_filtered | card_population_named | card_population_cycling | card_population_same_name | card_population_linked | card_population_linked_any
+card_population ::= card_population_opponents_owned_exile | card_population_owned_exile | card_population_stickered_vowel | card_population_stickered_consonant | card_population_plain | card_population_filtered | card_population_named | card_population_cycling | card_population_same_name | card_population_linked | card_population_linked_any
 /* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:Any} */
 card_population_plain ::= "cards" "in" card_zone_scope
 /* @sem ObjectSet::Zone{scope:$card_zone_scope, kind:Card, filter:$card_filter} */
@@ -1491,3 +1491,14 @@ value_largest_shared_group ::= "the" "greatest" "number" "of" greatest_battlefie
 /* A counted live population keeps the state and controller with its filter. */
 /* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([State(Goaded), $filter_phrase, ControlledBy(One(AbilityController))])}) */
 count_each_goaded_controlled ::= "goaded" filter_phrase "you" "control"
+
+/* Maximum property of the current controlled battlefield population. */
+/* @sem Expr::Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(AbilityController)))}, property:$stat, aggregation:Maximum} */
+greatest_controlled_stat ::= "the" "greatest" stat "among" filter_plural "you" "control"
+
+/* Live exile cards remain filtered by their owner. */
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:OwnedBy(OpponentsOf(AbilityController))} */
+card_population_opponents_owned_exile ::= "cards" "your" "opponents" "own" "in" "exile"
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:OwnedBy(One(AbilityController))} */
+card_population_owned_exile ::= "cards" "you" "own" "in" "exile"

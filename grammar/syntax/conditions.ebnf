@@ -429,7 +429,7 @@ spent_or_more ::= number "or" "more"
 spent_type ::= mana_color_word | spent_colorless
 /* @sem ManaColor::Colorless */
 spent_colorless ::= "colorless"
-spent_spell ::= cast_it | cast_this_spell | named_spell
+spent_spell ::= cast_it | cast_this_spell | named_spell | cast_her
 
 /* The player is a lexical antecedent, not necessarily a chosen opponent. */
 /* @sem Condition::Compare{left:CountObjects(Zone{scope:Players{zone:Hand, players:One(PlayerRef::@that_player_literal)}, kind:Card, filter:Any}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:Any})}} */
@@ -933,7 +933,7 @@ cards_in_single_graveyard_threshold ::= "there" "are" value "or" "more" "cards" 
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:$object_attack_history} */
 condition_object_attack_history ::= object_ref object_attack_history
 
-object_attack_history ::= object_attacked_turn | object_attacked_combat | object_did_not_attack_turn | object_enlisted_combat | object_attacked_defender_turn
+object_attack_history ::= object_attacked_count_turn | object_attacked_turn | object_attacked_combat | object_did_not_attack_turn | object_enlisted_combat | object_attacked_defender_turn
 
 /* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Object{event:Attacks, objects:SameObject(Candidate)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}) */
 object_attacked_turn ::= "attacked" "this" "turn"
@@ -3623,3 +3623,22 @@ condition_paid_alternative ::= condition_control_other_event
 /* In this continuation, another excludes the subject of the triggering event. */
 /* @sem Condition::Controls{player:$condition_control_subject, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::EventSubject)), $filter_phrase), minimum:1} */
 condition_control_other_event ::= condition_control_subject "another" filter_phrase
+
+
+/* @sem Condition::ObjectMatches{object:Source, filter:State(Bargained)} */
+condition_this_spell_bargained ::= "this" "spell" "was" "bargained"
+
+/* @sem ObjectFilter::Condition(Compare{left:EventHistory{event:Object{event:Attacks, objects:SameObject(Candidate)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}) */
+object_attacked_count_turn ::= "attacked" number "or" "more" "times" "this" "turn"
+
+/* An empty filtered hand is a count of the controller's actual cards. */
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}} */
+condition_no_filtered_cards_hand ::= "you" "have" "no" filter_phrase "cards" "in" "your" "hand"
+
+/* The gendered self-reference follows the card's own naming convention. */
+/* @sem ObjectRef::@self */
+cast_her ::= "her"
+
+/* Compare like battlefield populations across all other players. */
+/* @sem Condition::Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$plural_head, ControlledBy(One(AbilityController))])}), test:NumberTest::Compare{comparison:Greater, value:AmongPlayers{players:OthersThan(AbilityController), number:Permanents($plural_head), aggregation:Maximum}}} */
+condition_control_more_each_other ::= "you" "control" "more" plural_head "than" "each" "other" "player"

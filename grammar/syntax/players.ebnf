@@ -85,7 +85,7 @@ player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
 player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
 
-continuous_player_prohibition ::= continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions
+continuous_player_prohibition ::= continuous_repeated_controller_prohibitions | continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
 continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
@@ -716,3 +716,10 @@ triggered_three_distinct_opponent_prohibitions ::= event_clause "," three_distin
 
 /* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:All, constraints:[AtRandom]}), index:0} */
 randomly_selected_target_player ::= "select" "target" "player" "at" "random"
+
+/* Repeated controller restrictions with the same turn window share one effect. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Prohibit($player_prohibited_action)), PlayerRule(Prohibit($repeated_controller_action))], duration:EndOfTurn, evaluation:LiveObjects} */
+continuous_repeated_controller_prohibitions ::= "you" "can't" player_prohibited_action "this" "turn" "," "you" "can't" repeated_controller_action "this" "turn"
+
+/* @sem $player_prohibited_action */
+repeated_controller_action ::= player_prohibited_action

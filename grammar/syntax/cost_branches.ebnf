@@ -35,7 +35,7 @@ spell_awaken ::= instructions "." NEWLINE awaken_land "―" keyword_payment
 /* @sem Instruction::Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Awaken{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$number}}} */
 awaken_land ::= "awaken" number
 
-kicker_branch_program ::= search_reveal_chosen_type_paid_destination | kicker_distinct_return_program | kicker_distinct_damage_program | kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller | program_discard_maximum_conditional | prevention_target_override_program | kicker_search_either_replacement | kicker_next_cast_conjure_discard | controlled_power_damage_kicked | kicker_population_conditional_additional | kicker_search_battlefield_animation | chosen_creatures_conditional_counter_fight | kicker_destroy_distinct_targets
+kicker_branch_program ::= seek_conditional_program | search_reveal_chosen_type_paid_destination | kicker_distinct_return_program | kicker_distinct_damage_program | kicker_exile_receipt_override | kicker_prevent_another_source | program_sentence | kicker_override_sentence | kicker_override_before | kicker_override_after | kicker_override_both | kicker_prevention_exception | retirement_target_damage_conditional | retirement_population_override | retirement_population_add_those | retirement_population_add_they | conditional_damage_to_creature_controller | program_discard_maximum_conditional | prevention_target_override_program | kicker_search_either_replacement | kicker_next_cast_conjure_discard | controlled_power_damage_kicked | kicker_population_conditional_additional | kicker_search_battlefield_animation | chosen_creatures_conditional_counter_fight | kicker_destroy_distinct_targets | kicker_conditional_extra_target_damage | conditional_then_opponent_damage_program
 /* "Prevent all combat damage that would be dealt this turn. If this spell's additional
    cost was paid, this effect doesn't affect combat damage that would be dealt by red
    creatures": the paid prevention spares damage those sources deal. */
@@ -439,3 +439,26 @@ search_reveal_chosen_type_paid_destination ::= "search" "your" "library" "for" s
 /* A conditional destruction announces a distinct second target only when kicked. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$filter_phrase}), index:0}), regeneration:true}}, If{condition:ObjectMatches{object:@self, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(Target{slot:0, index:0})), $filter_phrase_2)}), index:0}), regeneration:true}}]}, otherwise:Program{}}]} */
 kicker_destroy_distinct_targets ::= "destroy" "target" filter_phrase "." "if" "this" "spell" "was" "kicked" "," "destroy" "another" "target" filter_phrase "."
+
+/* The seek establishes the card referent for the conditional follow-up. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Group(Program{instructions:$clause_seek_card}), ...$seek_conditional_put]} */
+seek_conditional_program ::= clause_seek_card "." seek_conditional_put "."
+
+seek_conditional_put ::= seek_conditional_put_tapped | seek_conditional_put_untapped
+
+/* @prefer always */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Move{objects:One($current_card_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{}}] */
+seek_conditional_put_tapped ::= "if" condition "," "put" current_card_ref "onto" "the" "battlefield" "tapped"
+
+/* @prefer always */
+/* @sem Instruction::[If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:Move{objects:One($current_card_ref), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{}}] */
+seek_conditional_put_untapped ::= "if" condition "," "put" current_card_ref "onto" "the" "battlefield"
+
+/* Both parts are one damage event in the paid branch. */
+/* @sem Program::Program{instructions:[If{condition:$condition_cast_kicked, then:Program{instructions:[Effect{result:@next, operation:DealDamageParts{source:Source, parts:[_{recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$noun}), index:0})), amount:$number}, _{recipients:$recipients_player_or_walker, amount:$number_2}], preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$number, preventable:true}}]}}]} */
+kicker_conditional_extra_target_damage ::= SELF_NAME "deals" number "damage" "to" "target" noun "." "if" condition_cast_kicked "," "it" "also" "deals" number "damage" "to" recipients_player_or_walker "."
+
+/* A conditional creation precedes the separately announced per-opponent damage. */
+/* @sem Program::Program{instructions:[If{condition:$condition_cast_kicked, then:Program{instructions:[Effect{result:@next, operation:$create_one_defined}]}, otherwise:Program{}}, ...$opponent_chosen_damage]} */
+conditional_then_opponent_damage_program ::= "if" condition_cast_kicked "," create_one_defined "." NEWLINE opponent_chosen_damage "."

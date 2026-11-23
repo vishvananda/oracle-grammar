@@ -126,14 +126,14 @@ collect_evidence_action ::= "collect" "evidence" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Blight{amount:$value}} */
 blight_action ::= "blight" value
 /* Earthbending chooses its land as the action's own target. */
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Earthbend{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$value}} */
-earthbend_action ::= "earthbend" value
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Earthbend{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Land), ControlledBy(One(AbilityController))])}), index:0}, amount:$earthbend_amount}} */
+earthbend_action ::= "earthbend" earthbend_amount
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Amass{amount:$value, creature_type:@subtype_name($subtype_plural)}} */
 amass_action ::= "amass" subtype_plural value
 
 object_keyword_action ::= transform_object | goad_object | detain_object | convert_object | flip_object | airbend_object
     | assimilate_object | turn_object_face_up | turn_object_face_down | exchange_control_shared_pair | exchange_control_pair | exchange_control_constrained_pair | exchange_control_pair_shared_type | exchange_control_of_objects | unlock_door_of_object | lock_or_unlock_door
-    | object_explores | object_phases_out | object_intensifies | object_intensifies_defined | object_becomes_prepared | object_endures
+    | object_explores | object_explores_number_times | object_phases_out | object_intensifies | object_intensifies_defined | object_becomes_prepared | object_endures
     | object_becomes_saddled
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Transform{object:$object_ref}} */
 transform_object ::= "transform" object_ref
@@ -628,3 +628,12 @@ retarget_table_followup ::= retarget_and_copy_announced | retarget_only_announce
 investigate_for_each_controlled ::= "investigate" "for" "each" investigate_each_controlled_count
 
 investigate_each_controlled_count ::= count_each_goaded_controlled | count_each_controlled
+
+earthbend_amount ::= earthbend_plain_amount | keyword_defined_x
+
+/* @sem $value */
+/* @prefer always */
+earthbend_plain_amount ::= value
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Explore{object:$object_ref, times:$number}} */
+object_explores_number_times ::= object_ref "explores" number "times"

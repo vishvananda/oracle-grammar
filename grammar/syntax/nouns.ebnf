@@ -287,7 +287,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_attacking_creature | named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled
+target_object ::= target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -4324,3 +4324,15 @@ retarget_announced_targeted ::= "target" "spell" "or" "ability" "with" number_wo
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(EventSubject)))} */
 historical_event_subject_population ::= filter_plural "they" "controlled"
+
+/* The defender is a player in the current combat, independent of the source. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and($filter_phrase, ObjectFilter::ControlledBy(Matching{binding:0, condition:PlayerState{player:Bound(0), state:PossibleDefender}}))}), index:0} */
+defender_block_target ::= "target" filter_phrase "defending" "player" "controls"
+
+/* The saddled event subject is the other participant in this turn’s saddle event. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:AllOf([$filter_phrase, Condition(Compare{left:EventHistory{event:Pair{event:Saddles, objects:SameObject(Candidate), others:SameObject(EventSubject)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})])}), index:0} */
+target_saddler_of_event_subject ::= "target" filter_phrase "that" "saddled" "it" "this" "turn"
+
+/* Source-bound crew history, used only under the source-attack trigger. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:AllOf([$noun, Condition(Compare{left:EventHistory{event:Pair{event:Crews, objects:SameObject(Candidate), others:SameObject(Source)}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}})])}), index:0} */
+source_crewed_target ::= "target" noun "that" "crewed" "it" "this" "turn"
