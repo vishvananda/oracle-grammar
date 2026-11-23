@@ -59,7 +59,7 @@ instructions_between_quoted ::= clause_quoted instructions_quoted
 /* @sem Instruction::[...$clause_quoted, ...$instructions] */
 instructions_after_quoted ::= clause_quoted "then"? instructions
 
-clause_quoted ::= clause_operation_create_quoted | clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted | clause_emblem_single_quoted | clause_exile_grant_turn_ability | clause_named_spell_grant_quoted | clause_one_time_boon | clause_copy_permanent_grants | clause_one_time_cast_perpetual_boon | clause_created_gains_quoted | clause_prior_aura_two_activations | goaded_grant_quoted | clause_operation_you_create_quoted
+clause_quoted ::= clause_target_emblem_quoted | clause_operation_create_quoted | clause_perpetual_grant_quoted | clause_entry_counter_boon | clause_continuous_grant_quoted | clause_continuous_pump_grant_quoted | clause_post_move_grant_quoted | clause_imperative_quoted | clause_you_quoted | clause_third_quoted | clause_may_quoted | clause_emblem_quoted | clause_emblem_pair_quoted | clause_emblem_graveyard_permission | clause_emblem_hand_and_trigger | clause_copy_quoted | clause_emblem_single_quoted | clause_exile_grant_turn_ability | clause_named_spell_grant_quoted | clause_one_time_boon | clause_copy_permanent_grants | clause_one_time_cast_perpetual_boon | clause_created_gains_quoted | clause_prior_aura_two_activations | goaded_grant_quoted | clause_operation_you_create_quoted
 
 /* An emblem's final quoted sentence also closes its enclosing sentence. */
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::CreateEmblem{actor:One(PlayerRef::AbilityController), abilities:[$token_quoted_sentence]}}] */
@@ -728,3 +728,9 @@ goaded_grant_quoted ::= "it's" "goaded" "for" "the" "rest" "of" "the" "game" "an
 /* The explicit creator is the ability controller, independent of the first action. */
 /* @sem Instruction::[Effect{result:@next, operation:$operation}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:$token_groups_quoted, entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
 clause_operation_you_create_quoted ::= operation "and" "you" "create" token_groups_quoted
+
+/* The recipient creates the emblem; the quoted ability has its own holder. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateEmblem{actor:One($emblem_target_player), abilities:[$token_quoted_sentence]}}] */
+clause_target_emblem_quoted ::= emblem_target_player "gets" "an" "emblem" "with" token_quoted_sentence
+
+emblem_target_player ::= target_opponent | target_player

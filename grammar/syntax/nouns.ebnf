@@ -83,7 +83,7 @@ objects_four_targets ::= target_object "," target_object "," target_object "," "
 /* @sem ObjectSet::One($object_ref) */
 object_one ::= object_ref
 
-object_ref ::= combat_blocker_ref | combat_attacker_ref | target_optional_stack_spell | ordered_top_card | last_linked_card | last_linked_creature | current_card_ref | linked_exiled_card | mined_ref | self_ref | it_ref | target_object | attached_ref | target_card | activation_exiled_this_way
+object_ref ::= target_opponent_choice_not_controlled | combat_blocker_ref | combat_attacker_ref | target_optional_stack_spell | ordered_top_card | last_linked_card | last_linked_creature | current_card_ref | linked_exiled_card | mined_ref | self_ref | it_ref | target_object | attached_ref | target_card | activation_exiled_this_way
 
 /* Earlier's link belongs to the current ability holder. The binder checks its
    explicit anchor rather than accepting a target or a named outer creator. */
@@ -4132,3 +4132,23 @@ card_kind_union_three ::= filter_phrase "," filter_phrase "," "and" "/" "or" fil
 
 /* @sem ObjectFilter::AnyOf([$filter_phrase, $filter_phrase_2, $filter_phrase_3, $filter_phrase_4]) */
 card_kind_union_four ::= filter_phrase "," filter_phrase "," filter_phrase "," "and" "/" "or" filter_phrase
+
+/* The card filter and mana ceiling independently constrain this target. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo(Constant(1)), filter:AllOf([AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:@in_filter($value)}}]), InZone(Players{zone:Graveyard, players:One(AbilityController)})])}), index:0} */
+target_one_your_graveyard_mana_ceiling ::= "up" "to" "one" "target" card_filter "card" "with" "mana" "value" value "or" "less" "from" "your" "graveyard"
+
+/* A card type and its separately reusable numeric qualifier. */
+/* @sem ObjectFilter::AllOf([$filter_phrase, $modifier_mana_value_numeric]) */
+bounded_card_filter ::= filter_phrase "card" modifier_mana_value_numeric
+
+/* The choice belongs to an opponent; control remains independently restricted. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Expr::Constant(1)), filter:@and($filter_phrase, ObjectFilter::ControlledBy(OthersThan(AbilityController))), chooser:OneOf(OpponentsOf(AbilityController))}), index:0} */
+target_opponent_choice_not_controlled ::= "target" filter_phrase "of" "an" "opponent's" "choice" "you" "don't" "control"
+
+/* The chosen permanent and the targeted player's entire graveyard move together. */
+/* @sem ObjectSet::Union([Selected(@prior), Zone(_{scope:Players{zone:Graveyard, players:One(Target{slot:0, index:0})}, kind:Card, filter:Any})]) */
+selected_and_targeted_graveyard ::= "and" "their" "graveyard"
+
+/* The filter applies before taking cards in graveyard order. */
+/* @sem ObjectSet::Zone(_{scope:Players{zone:Graveyard, players:All}, kind:Card, filter:InSet(Take{objects:Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$adjective_color}), count:$value, from:$ordered_end})}) */
+ordered_filtered_graveyard_cards ::= "the" ordered_end value adjective_color "cards" "of" "your" "graveyard"

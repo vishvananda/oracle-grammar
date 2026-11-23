@@ -338,7 +338,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= grouped_reveal_opponent_partition | reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition | target_player_look_graveyard | foreign_look_graveyard_partition | dig_reveal_hand_graveyard_if | look_defined_take_shuffle | reveal_selected_hand | reveal_alternating_partition | reveal_alternating_rest_partition | reveal_until_all_observed
+instructions_dig ::= reveal_until_stat_reorder | grouped_reveal_opponent_partition | reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition | target_player_look_graveyard | foreign_look_graveyard_partition | dig_reveal_hand_graveyard_if | look_defined_take_shuffle | reveal_selected_hand | reveal_alternating_partition | reveal_alternating_rest_partition | reveal_until_all_observed | instructions_player_reveal_test_move
 
 /* A graveyard split may precede an independent instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_hand_graveyard_split, ...$instructions] */
@@ -360,7 +360,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= reveal_cast_types_partition | reveal_until_optional_entry_shuffle | dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder | dig_reveal_selected_split | dig_look_payment_partition
+dig_block ::= reveal_cast_types_partition | reveal_until_optional_entry_shuffle | dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder | dig_reveal_selected_split | dig_look_payment_partition | dig_reveal_distinct_choice
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -2370,7 +2370,7 @@ reveal_top_hand_value_loss ::= reveal_top_hand_that "." players_singular "loses"
 /* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}, choose:Exactly($counter_amount)}], destination:OwnersHand(CardArrival{counters:[], states:[]})}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:$program, otherwise:Program{}}] */
 instructions_mill_payment_milled ::= "mill" card_count "." "you" "may" "put" counter_amount filter_phrase "card" "from" "among" "the" "cards" "milled" "this" "way" "into" "your" "hand" "." "if" "you" "don't" "," program
 
-/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}, count:Exactly($counter_amount)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:$program, otherwise:Program{}}] */
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}, count:Exactly($counter_amount)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@back(3))), then:$program, otherwise:Program{}}] */
 instructions_mill_payment_them ::= "mill" card_count "." "you" "may" "put" counter_amount filter_phrase "card" "from" "among" "them" "into" "your" "hand" "." "if" "you" "don't" "," program
 
 /* Bind the reveal, matching card and library player in one producer scope. */
@@ -5974,3 +5974,50 @@ instructions_reveal_library_choose_kinds ::= reveal_own_library_cards "." "an" "
 /* Basic qualifies each member of the subtype disjunction. */
 /* @sem ObjectFilter::AllOf([Supertype(Basic), AnyOf([$subtype, Subtype(Plains), $subtype_2])]) */
 search_filter_basic_plains_list ::= "basic" subtype "," "↑" "plains" "," "or" subtype "card"
+
+/* A revealed library slice supplies both the choice and its remainder. */
+/* @sem SelectionConstraint::NoCommonProperty(ColorPairs) */
+revealed_color_pair_constraint ::= "for" "each" "color" "pair" "," "choose" "a" "card" "that's" "exactly" "those" "colors" "from" "among" "them"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AnyNumber, constraints:[$revealed_color_pair_constraint]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+revealed_distinct_choice_hand ::= revealed_color_pair_constraint "." "put" "the" "chosen" "cards" "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$revealed_distinct_choice_hand, $dig_rest_and] */
+dig_reveal_distinct_choice ::= reveal_top "." revealed_distinct_choice_hand dig_rest_and
+
+/* A reveal-until observation supplies the following characteristic change and
+   the library reorder. The whole contract retains its producer for printing. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_until_stat_head}, Effect{result:@next, operation:$revealed_stat_effect}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, end:Bottom, order:$library_order}}] */
+reveal_until_stat_reorder ::= reveal_until_stat_head "." revealed_stat_effect "." "put" "the" "revealed" "cards" "on" "the" "bottom" "of" "your" "library" library_order
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[SetPower(Multiply([$revealed_stat_factor, Earlier{what:Revealed, measure:Of(Power)}])), SetToughness(Multiply([$revealed_stat_factor_2, Earlier{what:Revealed, measure:Of(Toughness)}]))], duration:$duration, evaluation:Snapshot} */
+revealed_stat_effect ::= duration "," "this" "creature's" "base" "power" "becomes" revealed_stat_factor "that" "card's" "power" "and" "its" "base" "toughness" "becomes" revealed_stat_factor "that" "card's" "toughness"
+
+/* @sem Expr::Constant(2) */
+revealed_stat_factor ::= "twice"
+
+/* @sem Operation::RevealUntil{library:AbilityController, filter:$filter_phrase, count:$counter_amount} */
+reveal_until_stat_head ::= reveal_until_your_library counter_amount filter_phrase "card"
+
+/* The consumer is only available inside this scoped mill-and-move sequence. */
+/* @sem Instruction::[...$mill_hand_origin, ...$mill_hand_choices, If{condition:$mill_hand_none, then:Program{instructions:$conjoined}, otherwise:Program{}}] */
+instructions_mill_any_hand_none ::= mill_hand_origin "." mill_hand_choices "." "if" mill_hand_none "," conjoined
+
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}] */
+mill_hand_origin ::= "you" "mill" card_count
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:Transition{result:@marked, phase:After}, filter:AnyOf([$quality_unscoped, $filter_phrase])}, count:AnyNumber, constraints:[]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+mill_hand_choices ::= "you" "may" "put" "any" "number" "of" quality_unscoped "and" "/" "or" filter_phrase "cards" "from" "among" "them" "into" "your" "hand"
+
+/* @sem Condition::Compare{left:CountObjects(Transition{result:@last_result, phase:Before}), test:NumberTest::Compare{comparison:Equal, value:Constant(0)}} */
+mill_hand_none ::= "you" "put" "no" "cards" "into" "your" "hand" "this" "way"
+
+/* A tested observation remains in scope for the immediately following move. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:$player_revealed_destination, qualifiers:[]}}, Effect{result:@next, operation:$revealed_card_copy_self}]}, otherwise:Program{}}] */
+instructions_player_reveal_test_move ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," "the" "player" "puts" "the" "card" player_revealed_destination "and" revealed_card_copy_self
+
+/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
+player_revealed_destination ::= "into" "their" "graveyard"
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:[CopyOf{object:Earlier{what:Revealed}, exceptions:[]}], duration:Indefinite, evaluation:Snapshot} */
+revealed_card_copy_self ::= self_explicit_ref "becomes" "a" "copy" "of" "that" "card"

@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal
+token_group ::= named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal
 
 token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card
 
@@ -429,7 +429,7 @@ token_explicit_legendary ::= token_explicit_legendary_plain | token_explicit_leg
 token_explicit_legendary_plain ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token"
 /* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
 token_explicit_legendary_with ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
-explicit_legendary_name ::= explicit_token_boo | explicit_token_jumblebones | explicit_token_mowu | explicit_token_primo | explicit_token_scion_deep | explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami | explicit_token_darkstar | explicit_token_karox | explicit_token_marit_lage | explicit_token_angelo
+explicit_legendary_name ::= explicit_token_cragflame | explicit_token_boo | explicit_token_jumblebones | explicit_token_mowu | explicit_token_primo | explicit_token_scion_deep | explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami | explicit_token_darkstar | explicit_token_karox | explicit_token_marit_lage | explicit_token_angelo
 /* @sem TokenName::Explicit(Tiny) */
 explicit_token_tiny ::= "Tiny"
 /* @sem TokenName::Explicit('Stangg Twin') */
@@ -1693,3 +1693,16 @@ first_chosen_copy_plural ::= copy_token_plural_amount "tokens" "that" "are" "cop
 /* Both followups refer to the token produced by the enclosing creation. */
 /* @sem Instruction::[$conditional_token_grant, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:$created_ordinary_singular})}]}}}] */
 conditional_token_grant_sacrifice ::= conditional_token_grant "." "sacrifice" created_ordinary_singular "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* A named token and its two intrinsic abilities retain the token holder. */
+/* @sem TokenName::Explicit(Cragflame) */
+explicit_token_cragflame ::= "Cragflame"
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:$signed, toughness:$signed_2}, GrantKeyword($keyword_name), GrantKeyword($keyword_name_2), GrantKeyword($keyword_name_3)]} */
+equipped_creature_pump_three_keywords ::= "equipped" "creature" "gets" signed "/" signed "and" "has" keyword_name "," keyword_name "," "and" keyword_name
+
+/* @sem Ability::[@holder($equipped_creature_pump_three_keywords), @holder($keyword_equip)] */
+equipment_quoted_pump_and_equip ::= '"' equipped_creature_pump_three_keywords '"' "and" keyword_equip
+
+/* @sem TokenSpec::TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, abilities:$equipment_quoted_pump_and_equip}} */
+named_legendary_equipment_token ::= explicit_legendary_name "," counter_a "legendary" token_colors token_subtypes token_types "token" "with" equipment_quoted_pump_and_equip
