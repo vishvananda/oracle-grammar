@@ -338,7 +338,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition | target_player_look_graveyard | foreign_look_graveyard_partition | dig_reveal_hand_graveyard_if | look_defined_take_shuffle
+instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition | target_player_look_graveyard | foreign_look_graveyard_partition | dig_reveal_hand_graveyard_if | look_defined_take_shuffle | reveal_selected_hand | reveal_alternating_partition | reveal_alternating_rest_partition
 
 /* A graveyard split may precede an independent instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_hand_graveyard_split, ...$instructions] */
@@ -2751,7 +2751,7 @@ clause_search_constrained_plural ::= search_constrained_plural search_plural_fol
 /* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$constrained_plural_choice]} */
 search_constrained_plural ::= "search" "your" "library" "for" constrained_plural_choice
 
-constrained_plural_choice ::= search_choice_same_name | search_choice_distinct_not_self | search_choice_basic_or_subtype_distinct
+constrained_plural_choice ::= search_choice_same_name | search_choice_distinct_not_self | search_choice_basic_or_subtype_distinct | search_choice_different_names
 
 /* The selection is restricted to the arrivals of this exact library-exile action. */
 /* @sem Instruction::[Effect{result:@next, operation:$exile_top_cards_of_your_library}, Effect{result:@next, operation:Move{objects:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_phrase, InSet(Transition{result:@prior, phase:After})])}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
@@ -5465,3 +5465,49 @@ clause_you_shuffle_choice ::= "you" clause_shuffle_hand_choice
 /* Keep the seek producer in scope for both references to its hand arrival. */
 /* @sem Instruction::[...$clause_seek_card, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Duplicate(One(Result{result:@back(3), phase:After, index:0})), count:$count_plural, destination:Graveyard(CardArrival{counters:[], states:[]})}}] */
 clause_seek_put_duplicate ::= clause_seek_card "and" "put" "it" "into" "your" "graveyard" "," "then" "conjure" count_plural "duplicates" "of" "it" "into" "your" "graveyard"
+
+/* @sem SearchChoice::SearchChoice{filter:$card_filter, count:UpTo($count), constraints:[DifferentNames]} */
+search_choice_different_names ::= "up" "to" count card_filter "cards" "that" "have" "different" "names"
+
+/* A revealed library slice and a required selection from that same slice. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$revealed_number_to_hand] */
+reveal_selected_hand ::= reveal_top "." revealed_number_to_hand
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($number), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+revealed_number_to_hand ::= "put" number "of" "them" "into" "your" "hand"
+
+/* The remaining stages retain the initial observation, the chosen opponent and
+   each preceding selection's actual move or reorder receipt. */
+/* @prefer always */
+/* @sem Instruction::[...$reveal_fixed_partition_start, ...$observed_choose_opponent, ...$observed_opponent_first_bottom, ...$observed_controller_second_hand, ...$observed_opponent_second_bottom, $observed_final_hand] */
+reveal_alternating_partition ::= reveal_fixed_partition_start "." observed_choose_opponent "." observed_opponent_first_bottom "." observed_controller_second_hand "." observed_opponent_second_bottom "." observed_final_hand
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:Chosen, objects:InZone{objects:Difference{objects:Observed(@back(5)), excluding:Union([Transition{result:@back(3), phase:Before}])}, zone:Library}, count:AsManyAsCan($n1)}}, Effect{result:@next, operation:ReorderLibrary{chooser:Chosen, library_owner:AbilityController, objects:Selected(@prior), end:Bottom, order:Chosen}}] */
+observed_opponent_first_bottom ::= "they" "put" n1 "on" "the" "bottom" "of" "your" "library"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Difference{objects:Observed(@back(7)), excluding:Union([Transition{result:@back(5), phase:Before}, Transition{result:@prior, phase:Before}])}, zone:Library}, count:AsManyAsCan($n1), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+observed_controller_second_hand ::= "then" "you" "put" n1 "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:Chosen, objects:InZone{objects:Difference{objects:Observed(@back(9)), excluding:Union([Transition{result:@back(7), phase:Before}, Transition{result:@back(4), phase:Before}, Transition{result:@prior, phase:Before}])}, zone:Library}, count:AsManyAsCan($n1)}}, Effect{result:@next, operation:ReorderLibrary{chooser:Chosen, library_owner:AbilityController, objects:Selected(@prior), end:Bottom, order:Chosen}}] */
+observed_opponent_second_bottom ::= "then" "they" "put" n1 "on" "the" "bottom" "of" "your" "library"
+
+/* @prefer always */
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(11)), excluding:Union([Transition{result:@back(9), phase:Before}, Transition{result:@back(6), phase:Before}, Transition{result:@back(4), phase:Before}, Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}} */
+observed_final_hand ::= "put" "the" "other" "into" "your" "hand"
+
+/* @sem Instruction::[Effect{result:@next, operation:$choose_opponent}] */
+observed_choose_opponent ::= "then" choose_opponent
+
+/* Five revealed cards, four single choices: the final other is singular. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(5), from:Top}}}, ...$revealed_one_to_hand] */
+reveal_fixed_partition_start ::= "reveal" "the" "top" "five" "cards" "of" "your" "library" "." revealed_one_to_hand
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+revealed_one_to_hand ::= "put" "one" "of" "them" "into" "your" "hand"
+
+/* The plural remainder allows different initial slice and selection counts. */
+/* @sem Instruction::[...$reveal_selected_hand, ...$observed_choose_opponent, ...$observed_opponent_first_bottom, ...$observed_controller_second_hand, ...$observed_opponent_second_bottom, $observed_rest_hand] */
+reveal_alternating_rest_partition ::= reveal_selected_hand "." observed_choose_opponent "." observed_opponent_first_bottom "." observed_controller_second_hand "." observed_opponent_second_bottom "." observed_rest_hand
+
+/* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(11)), excluding:Union([Transition{result:@back(9), phase:Before}, Transition{result:@back(6), phase:Before}, Transition{result:@back(4), phase:Before}, Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}} */
+observed_rest_hand ::= "put" "the" "rest" "into" "your" "hand"

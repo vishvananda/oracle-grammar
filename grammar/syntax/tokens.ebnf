@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token
+token_group ::= token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal
 
 token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle
 
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani
+created_token_name ::= created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1560,3 +1560,22 @@ created_land_token_name ::= "Sanctum"
 
 /* @sem TokenSpec::TokenSpec{amount:$count_plural, words:CreatingEffect, recipe:Defined{name:Explicit($created_land_token_name), card_types:[Land], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})]}} */
 tapped_named_lands_spec ::= count_plural "tapped" "land" "tokens" "named" created_land_token_name "with" '"' cost ":" program "." '"'
+
+/* The explicit token name is independent of the creating source. */
+/* @sem String::'Koma''s Coil' */
+created_name_komas_coil ::= "Koma's" "Coil"
+
+/* The created token recipe and the counted history population are independent. */
+/* @sem TokenSpec::TokenSpec{amount:EventHistory{event:Player{event:CreatesToken, players:One(AbilityController), objects:$filter_phrase}, window:ThisTurn, measure:Occurrences}, words:Rules, recipe:$token_named_recipe} */
+token_named_created_history ::= "X" token_named_recipe "tokens" "," "where" "X" "is" "the" "number" "of" filter_phrase "tokens" "you" "created" "this" "turn"
+
+/* The die-result binder identifies the roll in the enclosing program. */
+/* @sem TokenSpec::TokenSpec{amount:$value_die_result, words:Rules, recipe:$token_named_recipe} */
+token_named_die_equal ::= "a" "number" "of" token_named_recipe "tokens" "equal" "to" value_die_result
+
+/* A single explicitly named legendary token supplies the antecedent for both delayed effects. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:$event_clause, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Object{event:LeavesBattlefield, objects:InSet(Created(@marked))}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(AbilityController), objects:One($self_explicit_ref)}}]}}}]} */
+created_legendary_token_linked_departures ::= "create" explicit_legendary_name "," "a" "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" "." "exile" "that" "token" event_clause "." "sacrifice" self_explicit_ref "when" "that" "token" "leaves" "the" "battlefield" "."
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$created_legendary_token_linked_departures} */
+triggered_created_legendary_linked_departures ::= event_clause "," created_legendary_token_linked_departures

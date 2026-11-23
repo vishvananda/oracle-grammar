@@ -144,3 +144,12 @@ voted_creature_counters_tap ::= "for" "each" "creature" "with" "one" "or" "more"
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$secret_controlled_creature_vote, ...$voted_creature_counters_tap]}} */
 spell_creature_vote_counters_tap ::= secret_controlled_creature_vote "." voted_creature_counters_tap "."
+
+/* A vote for the named option grants the controller one extra turn. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::TakeExtraTurn{times:$count_each_vote}} */
+extra_turn_per_vote ::= "for" "each" count_each_vote "," "take" "an" "extra" "turn" "after" "this" "one"
+
+/* Each voter supplies a separate selection; control applies to all selections. */
+/* @sem Instruction::[ForEachPlayer{players:Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($vote_word)}}, binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($vote_owned_noun, ObjectFilter::OwnedBy(One(Bound(0))))}, count:AsManyAsCan(Constant(1))}}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@prior)), changes:[SetController(AbilityController)], duration:Indefinite, evaluation:Snapshot}}] */
+clause_vote_owned_control ::= "for" "each" vote_word "vote" "," "choose" "a" vote_owned_noun "owned" "by" "the" "voter" "and" "gain" "control" "of" "it"
+vote_owned_noun ::= noun_permanent | noun_creature | noun_land | noun_planeswalker

@@ -2317,3 +2317,22 @@ paid_sacrifice_state ::= paid_sacrifice_suspected
 
 /* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
 holder_mana_symbols ::= mana_symbols
+
+/* A single sacrifice component fixes the activation receipt used by the
+   conditional phrase; no other payment can supply that receipt. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost::Cost{parts:[$cost_mana, $cost_sacrifice_another]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[$activation_receipt_pump, If{condition:$activation_sacrifice_receipt_condition, then:$then_condition_program, otherwise:Program{}}]}} */
+activated_mana_sacrifice_receipt ::= cost_mana "," "↑" cost_sacrifice_another ":" activation_receipt_pump "." "if" activation_sacrifice_receipt_condition "," then_condition_program "."
+
+/* @sem Condition::Compare{left:CountObjects(Matching{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:Before}, filter:$filter_phrase}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}} */
+activation_sacrifice_receipt_condition ::= "a" filter_phrase "was" "sacrificed" "this" "way"
+
+/* A pump cannot introduce another sacrifice receipt between payment and test. */
+/* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}} */
+activation_receipt_pump ::= self_explicit_ref "gets" signed "/" signed duration
+
+/* The second component is exactly one discarded card; the receipt test is
+   scoped to this activation and retains its pre-discard characteristics. */
+discard_receipt_first_cost ::= cost_tap | cost_mana
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$discard_receipt_first_cost, $discard_one_receipt_cost]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[...$instructions, If{condition:$discard_payment_card_was, then:$program, otherwise:Program{}}]}} */
+activated_discard_payment_test ::= discard_receipt_first_cost "," "↑" discard_one_receipt_cost ":" instructions "." "if" discard_payment_card_was "," program "."

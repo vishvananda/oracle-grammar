@@ -21,7 +21,7 @@ retention_type ::= "land" | "artifact" | "creature" | "enchantment" | "planeswal
 /* @sem () */
 retention_plural_type ::= "lands" | "artifacts" | "creatures" | "enchantments" | "planeswalkers"
 
-retained_animation ::= retained_animation_while_tapped | retained_animation_each | retained_animation_after | retained_animation_before | retained_animation_indefinite | retained_animation_existing | retained_animation_quoted
+retained_animation ::= retained_land_keyword_quote | retained_animation_while_tapped | retained_animation_each | retained_animation_after | retained_animation_before | retained_animation_indefinite | retained_animation_existing | retained_animation_quoted
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
 retained_animation_after ::= affected changes ("↓")? duration "." retention_note
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
@@ -146,3 +146,14 @@ change_is_snow ::= "is" "snow"
 
 /* @sem Change::[AddSupertype(Snow)] */
 change_are_snow ::= "are" "snow"
+
+/* A retained subtype and a granted keyword share one indefinite snapshot. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[CreatureTypes{mode:Add, types:Listed($becomes_type_one)}, GrantKeyword($keyword_value)], duration:Indefinite, evaluation:Snapshot} */
+continuous_retained_type_keyword ::= affected "becomes" "an" becomes_type_one "in" "addition" "to" "its" "other" "types" "and" "gains" keyword_value
+
+/* A retained source land receives the stated characteristics and scoped ability. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:$retained_land_keyword_quote_changes, duration:$duration, evaluation:Snapshot} */
+retained_land_keyword_quote ::= duration "," self_land retained_land_keyword_quote_changes "it's" "still" "a" "land"
+
+/* @sem Change::[SetBasePowerToughness{power:$number, toughness:$number_2}, Colors{mode:Set, colors:[$mana_color_word]}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature), GrantKeyword($keyword_name), GrantAbility(@scope($token_ability_sentence))] */
+retained_land_keyword_quote_changes ::= "becomes" "a" number "/" number mana_color_word becomes_types "creature" "with" keyword_name "and" '"' token_ability_sentence '"'

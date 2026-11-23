@@ -1,0 +1,1528 @@
+{
+  "family": "coin-life-stakes",
+  "cases": [
+    {
+      "name": "Game of Chaos",
+      "text": "Flip a coin. If you win the flip, you gain 1 life and target opponent loses 1 life, and you decide whether to flip again. If you lose the flip, you lose 1 life and that opponent gains 1 life, and that player decides whether to flip again. Double the life stakes with each flip.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "SetStake": {
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Group",
+                        "args": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 1,
+                                "operation": {
+                                  "kind": "FlipCoin",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "protocol": "Called"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "kind": "If",
+                              "args": {
+                                "condition": {
+                                  "kind": "CoinFlip",
+                                  "args": {
+                                    "result": 1,
+                                    "outcome": "Won"
+                                  }
+                                },
+                                "then": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 2,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 3,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 4,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "AbilityController"
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 5,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "otherwise": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 6,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 7,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 8,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 9,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Pilot Saffron 2",
+      "text": "Flip a coin. If you win the flip, you gain 2 life and target opponent loses 2 life, and you decide whether to flip again. If you lose the flip, you lose 2 life and that opponent gains 2 life, and that player decides whether to flip again. Double the life stakes with each flip.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "SetStake": {
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 2
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Group",
+                        "args": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 1,
+                                "operation": {
+                                  "kind": "FlipCoin",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "protocol": "Called"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "kind": "If",
+                              "args": {
+                                "condition": {
+                                  "kind": "CoinFlip",
+                                  "args": {
+                                    "result": 1,
+                                    "outcome": "Won"
+                                  }
+                                },
+                                "then": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 2,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 3,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 4,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "AbilityController"
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 5,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "otherwise": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 6,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 7,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 8,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 9,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "Pilot Saffron 3",
+      "text": "Flip a coin. If you win the flip, you gain 3 life and target opponent loses 3 life, and you decide whether to flip again. If you lose the flip, you lose 3 life and that opponent gains 3 life, and that player decides whether to flip again. Double the life stakes with each flip.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "SetStake": {
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 3
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Group",
+                        "args": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 1,
+                                "operation": {
+                                  "kind": "FlipCoin",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "protocol": "Called"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "kind": "If",
+                              "args": {
+                                "condition": {
+                                  "kind": "CoinFlip",
+                                  "args": {
+                                    "result": 1,
+                                    "outcome": "Won"
+                                  }
+                                },
+                                "then": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 2,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 3,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 4,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "AbilityController"
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 5,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "otherwise": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 6,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 7,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 8,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 9,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true
+    },
+    {
+      "name": "Pilot Saffron Refusal",
+      "text": "Flip a coin. If you win the flip, you gain 1 life and target opponent loses 2 life, and you decide whether to flip again. If you lose the flip, you lose 1 life and that opponent gains 1 life, and that player decides whether to flip again. Double the life stakes with each flip.",
+      "types": [
+        "Sorcery"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Game of Chaos",
+      "text": "Flip a coin. If you win the flip, you gain 2 life and target opponent loses 2 life, and you decide whether to flip again. If you lose the flip, you lose 2 life and that opponent gains 2 life, and that player decides whether to flip again. Double the life stakes with each flip.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "SetStake": {
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 2
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Group",
+                        "args": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 1,
+                                "operation": {
+                                  "kind": "FlipCoin",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "protocol": "Called"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "kind": "If",
+                              "args": {
+                                "condition": {
+                                  "kind": "CoinFlip",
+                                  "args": {
+                                    "result": 1,
+                                    "outcome": "Won"
+                                  }
+                                },
+                                "then": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 2,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 3,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 4,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "AbilityController"
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 5,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "otherwise": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 6,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 7,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 8,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 9,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Game of Chaos",
+      "text": "Flip a coin. If you win the flip, you gain 3 life and target opponent loses 3 life, and you decide whether to flip again. If you lose the flip, you lose 3 life and that opponent gains 3 life, and that player decides whether to flip again. Double the life stakes with each flip.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Keyword",
+                      "args": {
+                        "actor": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "action": {
+                          "SetStake": {
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 3
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Group",
+                        "args": {
+                          "instructions": [
+                            {
+                              "kind": "Effect",
+                              "args": {
+                                "result": 1,
+                                "operation": {
+                                  "kind": "FlipCoin",
+                                  "args": {
+                                    "player": {
+                                      "kind": "AbilityController"
+                                    },
+                                    "protocol": "Called"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "kind": "If",
+                              "args": {
+                                "condition": {
+                                  "kind": "CoinFlip",
+                                  "args": {
+                                    "result": 1,
+                                    "outcome": "Won"
+                                  }
+                                },
+                                "then": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 2,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 3,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 4,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "AbilityController"
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 5,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                "otherwise": {
+                                  "instructions": [
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 6,
+                                        "operation": {
+                                          "kind": "LoseLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 7,
+                                        "operation": {
+                                          "kind": "GainLife",
+                                          "args": {
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "Target",
+                                                "args": {
+                                                  "slot": 0,
+                                                  "index": 0
+                                                }
+                                              }
+                                            },
+                                            "amount": {
+                                              "kind": "Game",
+                                              "args": "Stake"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Effect",
+                                      "args": {
+                                        "result": 8,
+                                        "operation": {
+                                          "kind": "Keyword",
+                                          "args": {
+                                            "actor": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            },
+                                            "action": "DoubleStake"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "kind": "Optional",
+                                      "args": {
+                                        "decider": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        },
+                                        "body": {
+                                          "instructions": [
+                                            {
+                                              "kind": "Effect",
+                                              "args": {
+                                                "result": 9,
+                                                "operation": {
+                                                  "kind": "RepeatProcess"
+                                                }
+                                              }
+                                            }
+                                          ]
+                                        }
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
