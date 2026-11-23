@@ -85,7 +85,7 @@ player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
 player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
 
-continuous_player_prohibition ::= continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn
+continuous_player_prohibition ::= continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
 continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
@@ -606,3 +606,25 @@ uniform_discard_random ::= "discard" uniform_card_count "at" "random"
 /* Count the named population whose life is below the controller’s life. */
 /* @sem Expr::CountPlayers(Intersection([$players_singular, Matching{binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Life}, test:NumberTest::Compare{comparison:Less, value:PlayerNumber{player:AbilityController, number:Life}}}}])) */
 count_players_less_life ::= players_singular "who" "has" "less" "life" "than" "you"
+
+/* Passive prohibitions describe actions unavailable to all players. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(All), changes:$passive_player_rule_list, duration:$duration, evaluation:LiveObjects} */
+continuous_passive_player_rules ::= duration "," passive_player_rule_list
+
+passive_player_rule_list ::= passive_player_rule | passive_player_rule_more
+
+/* @sem Change::[...$passive_player_rule, ...$passive_player_rule_list] */
+passive_player_rule_more ::= passive_player_rule "and" passive_player_rule_list
+
+passive_player_rule ::= passive_cast_prohibition | passive_land_prohibition
+
+/* @sem Change::[PlayerRule(Prohibit(CastSpell{filter:$passive_prohibition_filter}))] */
+passive_cast_prohibition ::= "spells" passive_prohibition_filter "can't" "be" "cast"
+
+/* @sem Change::[PlayerRule(Prohibit(PlayLand{filter:$passive_prohibition_filter}))] */
+passive_land_prohibition ::= "lands" passive_prohibition_filter "can't" "be" "played"
+
+passive_prohibition_filter ::= passive_chosen_name | prohibited_printed_name
+
+/* @sem ObjectFilter::Chosen(CardName) */
+passive_chosen_name ::= "with" "the" "chosen" "name"

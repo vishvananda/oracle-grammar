@@ -1,5 +1,5 @@
 /* Costs and mana symbols. */
-cost ::= cost_standard | cost_pay_mana_or_words
+cost ::= cost_standard | cost_pay_mana_or_words | cost_reattach_player_subtype
 
 cost_parts ::= cost_parts_one | cost_parts_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
 
@@ -2213,3 +2213,14 @@ casting_sacrifice_scaled_life_followup ::= "as" "an" "additional" "cost" "to" "c
 /* The sole payment removes exactly the kind named by the pump's receipt. */
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:PowerToughness([1, 1]), amount:All}]}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$paid_pt_counter_removal_pump}]}} */
 activated_all_pt_counter_pump ::= "remove" "all" "+" "1" "/" "+" "1" "counters" "from" self_explicit_ref ":" paid_pt_counter_removal_pump "."
+
+/* Reassign a permanent of the named subtype from the controller to an opponent. */
+/* @sem Cost::Cost{parts:[ObjectAction{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$subtype, AttachedToPlayer(AbilityController)])}, action:AttachToPlayer(OpponentsOf(AbilityController))}]} */
+cost_reattach_player_subtype ::= "attach" "a" subtype "attached" "to" "you" "to" "one" "of" "your" "opponents"
+
+/* The casting payment proves the singleton named by the shared receipt phrase. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$receipt_cast_sacrifice_creature]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$casting_sacrifice_draw}]}}] */
+line_casting_sacrifice_draw ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," receipt_cast_sacrifice_creature "." NEWLINE casting_sacrifice_draw "."
+
+/* @sem Operation::Draw{players:One(AbilityController), amount:$casting_sacrificed_creature_stat} */
+casting_sacrifice_draw ::= "draw" "cards" "equal" "to" casting_sacrificed_creature_stat

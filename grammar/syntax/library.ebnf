@@ -338,7 +338,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split
+instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss
 
 /* A graveyard split may precede an independent instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_hand_graveyard_split, ...$instructions] */
@@ -360,7 +360,7 @@ dig_block_untaken ::= dig_look_split "." dig_untaken_if
 /* @sem Instruction::If{condition:Not(Compare{left:CountObjects(Union([Transition{result:@back(2), phase:Before}])), test:Compare{comparison:Greater, value:Constant(0)}}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
 dig_untaken_if ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
 
-dig_block ::= dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder | dig_reveal_selected_split | dig_look_payment_partition
+dig_block ::= reveal_until_optional_entry_shuffle | dig_reveal_shared_split | reveal_until_optional_entry_remainder | dig_reveal_keyword_distribution | dig_look_battlefield_value | dig_look_convoke_shuffle | dig_look_split | dig_look_joined | dig_reveal_split | dig_reveal_joined | dig_look_exile_other | dig_reveal_opponent_other | dig_look_conditional_rest | dig_look_random_exile | dig_reveal_opponent_choice | dig_reveal_two_entries | dig_reveal_entry_remainder | dig_look_manifest_other | dig_look_manifest_rest | dig_reveal_matching_graveyard | dig_look_named_hand | dig_look_exile_counter | dig_look_cloak | dig_look_plot | dig_defined_reveal_cast | dig_reveal_all_hand | reveal_until_entry_or_hand_remainder | dig_reveal_selected_split | dig_look_payment_partition
 
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$dig_follow_split] */
 dig_look_split ::= look_top "." dig_follow_split
@@ -1230,7 +1230,7 @@ program_sentence_search_and_move ::= search "and" found_action "." "then" "shuff
    A pure condition does not move the top card; each branch names that reveal's
    actual observation. The live-query branch remains separate for unpaid
    reveal/move payments, which have supplied no observation receipt. */
-observed_top_reveal_branch ::= observed_top_reveal_put | observed_top_reveal_may_put | top_reveal_draw | top_reveal_continuous | clause_you | top_reveal_you_and
+observed_top_reveal_branch ::= observed_top_entry_grant_sacrifice | observed_top_reveal_put | observed_top_reveal_may_put | top_reveal_draw | top_reveal_continuous | clause_you | top_reveal_you_and
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:$top_reveal_destination, qualifiers:[]}}] */
 observed_top_reveal_put ::= "put" top_reveal_it top_reveal_destination
 /* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:$observed_top_reveal_put}}] */
@@ -5327,3 +5327,53 @@ paid_singular_search ::= "search" "your" "library" "for" search_choice_filtered
 
 /* @sem Instruction::Effect{result:@next, operation:Shuffle{players:One(AbilityController)}} */
 paid_search_shuffle ::= "then" "shuffle"
+
+/* The optional entry and the subsequent shuffle retain their separate results. */
+/* @sem Instruction::[...$until_optional_entry, $then_shuffle_library] */
+reveal_until_optional_entry_shuffle ::= until_optional_entry "." then_shuffle_library
+
+/* @sem Instruction::Effect{result:@next, operation:Shuffle{players:One(AbilityController)}} */
+then_shuffle_library ::= "then" "shuffle"
+
+/* The loop consumes only the immediately preceding exile move, including its destination. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$exile_permanent_population_action}, ForEachObject{objects:Transition{result:@marked, phase:After}, binding:0, body:Program{instructions:$exiled_controller_shared_type_reveal}}]}} */
+spell_exile_each_controller_reveal ::= exile_permanent_population_action "." "for" "each" "permanent" "exiled" "this" "way" "," exiled_controller_shared_type_reveal "."
+
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:ControllerOf(Bound(0)), filter:Shares{property:CardTypes, with:Bound(0)}, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:Shares{property:CardTypes, with:Bound(0)}}, destination:Battlefield{controller:Player(ControllerOf(Bound(0))), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf(Bound(0)))}}] */
+exiled_controller_shared_type_reveal ::= "its" "controller" "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" "a" "card" "that" "shares" "a" "card" "type" "with" "it" "," "puts" "that" "card" "onto" "the" "battlefield" "," "then" "shuffles"
+
+/* The controller, revealed card, destination and shuffle share one bound object. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:RevealUntil{library:ControllerOf(Bound(0)), filter:$filter_phrase, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$filter_phrase}, destination:Battlefield{controller:Player(ControllerOf(Bound(0))), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf(Bound(0)))}}]} */
+bound_controller_reveal_card_battlefield_shuffle ::= "its" "controller" "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" ("a" | "an") filter_phrase "card" "," "puts" "that" "card" "onto" "the" "battlefield" "," "then" "shuffles" "the" "rest" "into" "their" "library"
+
+/* The demonstrative is tied to the target filter and the exile arrival receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:$plural_target_count, filter:@agree($filter_plural, $filter_plural_2)})), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, ForEachObject{objects:Transition{result:@marked, phase:After}, binding:0, body:$bound_controller_reveal_card_battlefield_shuffle}] */
+instructions_exile_targets_each_controller_reveal ::= "exile" plural_target_count "target" filter_plural "." "for" "each" "of" "those" filter_plural "," bound_controller_reveal_card_battlefield_shuffle
+
+/* One singular player loses life and exiles from that same player's library. */
+/* @sem Instruction::[Effect{result:@next, operation:LoseLife{players:One($player_ref), amount:$life_amount}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}] */
+clause_shared_life_exile_top ::= player_ref "loses" life_amount "and" "exiles" "the" "top" "card" "of" "their" "library"
+
+/* A required selection into its owner's hand, followed by a library remainder.
+   The later miss test refers to that particular move, not the reorder. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@marked), zone:Library}, filter:$a_card}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+dig_required_observed_hand ::= "put" a_card "from" "among" "them" "into" "your" "hand"
+
+/* @sem Instruction::Effect{result:@next, operation:$rest_bottom} */
+dig_required_hand_remainder ::= "and" rest_bottom
+
+/* @sem Instruction::If{condition:Not(ObjectMatches{object:Result{result:@back(2), phase:After, index:0}, filter:Any}), then:Program{instructions:$conjoined}, otherwise:Program{}} */
+dig_required_hand_miss ::= "if" "you" "didn't" "put" "a" "card" "into" "your" "hand" "this" "way" "," conjoined
+
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$dig_required_observed_hand, $dig_required_hand_remainder] */
+dig_reveal_required_hand_partition ::= reveal_top "." dig_required_observed_hand dig_required_hand_remainder
+
+/* @sem Instruction::[...$dig_reveal_required_hand_partition, $dig_required_hand_miss] */
+dig_reveal_required_hand_miss ::= dig_reveal_required_hand_partition "." dig_required_hand_miss
+
+/* The immediate battlefield entry supplies the incarnation used by both continuations. */
+/* @sem Instruction::[...$observed_top_reveal_battlefield, ...$entered_creature_timed_grant_sacrifice] */
+observed_top_entry_grant_sacrifice ::= observed_top_reveal_battlefield "." entered_creature_timed_grant_sacrifice
+
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
+observed_top_reveal_battlefield ::= "put" "it" "onto" "the" "battlefield"

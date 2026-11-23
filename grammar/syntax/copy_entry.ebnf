@@ -341,3 +341,18 @@ entry_copy_conditional_effects ::= "it" "enters" "with" value "additional" count
 
 /* @sem CopyException::AddSupertypes([Legendary, Snow]) */
 copy_add_legendary_snow_retained ::= "it's" "legendary" "and" "snow" "in" "addition" "to" "its" "other" "types"
+
+/* The target is announced by the choice; "other" excludes that same object. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(SameObject($target_permanent)), $copy_other_creature_filter)} */
+chosen_target_other_population ::= "choose" target_permanent "." "each" "other" copy_other_creature_filter
+
+copy_other_creature_filter ::= noun_creature | copy_other_modified_creature
+
+/* @sem @and($noun_creature, $modifiers) */
+copy_other_modified_creature ::= noun_creature modifiers
+
+/* @sem CopyException::RemoveSupertypes([Legendary]) */
+copy_those_creatures_not_legendary ::= "those" "creatures" "aren't" "legendary"
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($chosen_target_other_population), changes:[CopyOf{object:Target{slot:@last_slot, index:0}, exceptions:[$copy_those_creatures_not_legendary]}], duration:$duration, evaluation:Snapshot}}] */
+clause_chosen_target_other_copy ::= chosen_target_other_population "becomes" "a" "copy" "of" "it" duration "," "except" copy_those_creatures_not_legendary

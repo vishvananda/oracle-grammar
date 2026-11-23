@@ -1493,3 +1493,18 @@ copy_nonlegendary_enchantment ::= "it's" "not" "legendary" "and" "it's" "an" "en
 
 /* @sem Ability::Triggered{event:$event_self_enters, limits:_{}, announcement:@announcement, body:Program{instructions:$exile_target_controller_copy}} */
 triggered_exile_controller_copy ::= "when" event_self_enters "," exile_target_controller_copy "."
+
+/* The damage event supplies the amount; the immediately created token is the recipient. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$create_one_defined}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@prior)), kind:$counter_kind, amount:EventAmount}]}}]} */
+created_damage_counter_program ::= create_one_defined "." "put" "a" "number" "of" counter_kind "counters" "on" "it" "equal" "to" "the" "damage" "dealt"
+
+/* @sem Ability::Triggered{event:$event_group_combat_damage_to_player, limits:TriggerLimits{}, announcement:@announcement, body:$created_damage_counter_program} */
+triggered_group_damage_created_counters ::= "whenever" event_group_combat_damage_to_player "," created_damage_counter_program "."
+
+/* The delayed action refers to this creation's result, irrespective of earlier effects. */
+/* @sem Instruction::[Effect{result:@mark, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$owned_exile_card_with_counter, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}})}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, expires:EndOfCombat, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+instructions_copy_owned_exile_combat ::= "for" "each" owned_exile_card_with_counter "," "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" "it" "." "exile" "those" "tokens" "at" "end" "of" "combat"
+
+/* Preserve the independent unbounded delayed-trigger reading. */
+/* @sem Instruction::[Effect{result:@mark, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$owned_exile_card_with_counter, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}})}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
+instructions_copy_owned_exile_combat_unbounded ::= "for" "each" owned_exile_card_with_counter "," "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" "it" "." "exile" "those" "tokens" "at" "end" "of" "combat"

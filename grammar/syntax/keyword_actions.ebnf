@@ -132,7 +132,7 @@ earthbend_action ::= "earthbend" value
 amass_action ::= "amass" subtype_plural value
 
 object_keyword_action ::= transform_object | goad_object | detain_object | convert_object | flip_object | airbend_object
-    | assimilate_object | turn_object_face_up | turn_object_face_down | exchange_control_shared_pair | exchange_control_pair | exchange_control_pair_shared_type | exchange_control_of_objects | unlock_door_of_object | lock_or_unlock_door
+    | assimilate_object | turn_object_face_up | turn_object_face_down | exchange_control_shared_pair | exchange_control_pair | exchange_control_constrained_pair | exchange_control_pair_shared_type | exchange_control_of_objects | unlock_door_of_object | lock_or_unlock_door
     | object_explores | object_phases_out | object_intensifies | object_becomes_prepared | object_endures
     | object_becomes_saddled
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Transform{object:$object_ref}} */
@@ -158,8 +158,15 @@ exchange_control_of_objects ::= "exchange" "control" "of" object_ref "and" objec
 
 /* The fresh-slot reference is resolved before the target introduction at
    this same lexical position. Both indexes belong to this one group. */
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ExchangeControl{first:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:$filter_plural}), index:0}, second:Target{slot:@next_slot, index:1}}} */
-exchange_control_pair ::= "exchange" "control" "of" "two" "target" filter_plural
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ExchangeControl{first:$exchange_pair_target, second:Target{slot:@next_slot, index:1}}} */
+exchange_control_pair ::= "exchange" "control" "of" exchange_pair_target
+
+exchange_pair_target ::= exchange_pair_target_plain | exchange_pair_target_distinct_controllers
+/* @prefer always */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:$filter_plural}), index:0} */
+exchange_pair_target_plain ::= "two" "target" filter_plural
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:$filter_plural, constraints:[DifferentControllers]}), index:0} */
+exchange_pair_target_distinct_controllers ::= "two" "target" filter_plural "controlled" "by" "different" "players"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::UnlockDoor{object:$object_ref}} */
 unlock_door_of_object ::= "unlock" "a" "locked" "door" "of" object_ref
 
@@ -501,3 +508,11 @@ goad_each ::= "goad" "each" filter_phrase
 /* @prefer always */
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Goad{}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::ControlledBy(One(EventSubject)))}} */
 goad_each_event_player ::= "goad" "each" filter_phrase "that" "player" "controls"
+
+/* A constrained pair introduces a single target group; both exchange operands
+   refer to members of that same group. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:AllOf([Not(SameObject(Source)), $filter_plural]), constraints:[DifferentControllers]}), index:0} */
+two_other_targets_different_controllers ::= "two" "other" "target" filter_plural "controlled" "by" "different" "players"
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ExchangeControl{first:$two_other_targets_different_controllers, second:Target{slot:@next_slot, index:1}}} */
+exchange_control_constrained_pair ::= "exchange" "control" "of" two_other_targets_different_controllers
