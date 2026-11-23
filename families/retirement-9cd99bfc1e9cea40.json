@@ -1,0 +1,1838 @@
+{
+  "family": "secret-number-pair-match",
+  "cases": [
+    {
+      "name": "Expert-Level Safe",
+      "text": "{1}, {T}: You and target opponent each secretly choose 1, 2, or 3. Then those choices are revealed. If they match, sacrifice this artifact and put all cards exiled with it into their owners' hands. Otherwise, exile the top card of your library face down.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 1
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "Union",
+                      "args": [
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseValue",
+                              "args": {
+                                "choosers": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "kind": "Number",
+                                "terms": {
+                                  "options": [
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "GreaterOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "LessOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 3
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "except": [],
+                                  "count": {
+                                    "Exactly": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    }
+                                  },
+                                  "secret": true,
+                                  "unchosen": false,
+                                  "random": false,
+                                  "ordered": false
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RevealChoices",
+                      "args": {
+                        "kind": "Number"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "AmongPlayers",
+                          "args": {
+                            "players": {
+                              "kind": "All"
+                            },
+                            "number": "ChosenNumber",
+                            "aggregation": "Maximum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "AmongPlayers",
+                              "args": {
+                                "players": {
+                                  "kind": "All"
+                                },
+                                "number": "ChosenNumber",
+                                "aggregation": "Minimum"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Sacrifice",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Exile"
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "ExiledWith",
+                                          "args": {
+                                            "kind": "Source"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "zone": "Exile"
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersHand": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceDown",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": 1,
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Expert-Level Safe",
+      "text": "{2}, {T}: You and target opponent each secretly choose 1, 2, or 3. Then those choices are revealed. If they match, sacrifice this artifact and put all cards exiled with it into their owners' hands. Otherwise, exile the top card of your library face down.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 2
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "Union",
+                      "args": [
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseValue",
+                              "args": {
+                                "choosers": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "kind": "Number",
+                                "terms": {
+                                  "options": [
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "GreaterOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "LessOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 3
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "except": [],
+                                  "count": {
+                                    "Exactly": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    }
+                                  },
+                                  "secret": true,
+                                  "unchosen": false,
+                                  "random": false,
+                                  "ordered": false
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RevealChoices",
+                      "args": {
+                        "kind": "Number"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "AmongPlayers",
+                          "args": {
+                            "players": {
+                              "kind": "All"
+                            },
+                            "number": "ChosenNumber",
+                            "aggregation": "Maximum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "AmongPlayers",
+                              "args": {
+                                "players": {
+                                  "kind": "All"
+                                },
+                                "number": "ChosenNumber",
+                                "aggregation": "Minimum"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Sacrifice",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Exile"
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "ExiledWith",
+                                          "args": {
+                                            "kind": "Source"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "zone": "Exile"
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersHand": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceDown",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": 1,
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Expert-Level Safe",
+      "text": "{1}, {T}: You and target opponent each secretly choose 1, 2, or 3. Then those choices are revealed. If they match, sacrifice this artifact and put all cards exiled with it into their owners' hands. Otherwise, exile the top two cards of your library face down.",
+      "types": [
+        "Artifact"
+      ],
+      "expected": [
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 1
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "Union",
+                      "args": [
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseValue",
+                              "args": {
+                                "choosers": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "kind": "Number",
+                                "terms": {
+                                  "options": [
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "GreaterOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "LessOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 3
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "except": [],
+                                  "count": {
+                                    "Exactly": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    }
+                                  },
+                                  "secret": true,
+                                  "unchosen": false,
+                                  "random": false,
+                                  "ordered": false
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RevealChoices",
+                      "args": {
+                        "kind": "Number"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "AmongPlayers",
+                          "args": {
+                            "players": {
+                              "kind": "All"
+                            },
+                            "number": "ChosenNumber",
+                            "aggregation": "Maximum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "AmongPlayers",
+                              "args": {
+                                "players": {
+                                  "kind": "All"
+                                },
+                                "number": "ChosenNumber",
+                                "aggregation": "Minimum"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Sacrifice",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Exile"
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "ExiledWith",
+                                          "args": {
+                                            "kind": "Source"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "zone": "Exile"
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersHand": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "Constant",
+                                      "args": 2
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceDown",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": 1,
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Expert-Level Safe",
+      "text": "{1}, {T}: You and target opponent each secretly choose 1, 2, or 4. Then those choices are revealed. If they match, sacrifice this artifact and put all cards exiled with it into their owners' hands. Otherwise, exile the top card of your library face down.",
+      "types": [
+        "Artifact"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Expert-Level Safe",
+      "text": "When this artifact enters, exile the top two cards of your library face down.\n{2}, {T}: You and target opponent each secretly choose 1, 2, or 3. Then those choices are revealed. If they match, sacrifice this artifact and put all cards exiled with it into their owners' hands. Otherwise, exile the top card of your library face down.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceDown",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 2
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "Union",
+                      "args": [
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseValue",
+                              "args": {
+                                "choosers": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "kind": "Number",
+                                "terms": {
+                                  "options": [
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "GreaterOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "LessOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 3
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "except": [],
+                                  "count": {
+                                    "Exactly": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    }
+                                  },
+                                  "secret": true,
+                                  "unchosen": false,
+                                  "random": false,
+                                  "ordered": false
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RevealChoices",
+                      "args": {
+                        "kind": "Number"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "AmongPlayers",
+                          "args": {
+                            "players": {
+                              "kind": "All"
+                            },
+                            "number": "ChosenNumber",
+                            "aggregation": "Maximum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "AmongPlayers",
+                              "args": {
+                                "players": {
+                                  "kind": "All"
+                                },
+                                "number": "ChosenNumber",
+                                "aggregation": "Minimum"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Sacrifice",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Exile"
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "ExiledWith",
+                                          "args": {
+                                            "kind": "Source"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "zone": "Exile"
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersHand": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceDown",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Expert-Level Safe",
+      "text": "When this artifact enters, exile the top two cards of your library face down.\n{1}, {T}: You and target opponent each secretly choose 1, 2, or 3. Then those choices are revealed. If they match, sacrifice this artifact and put all cards exiled with it into their owners' hands. Otherwise, exile the top two cards of your library face down.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Artifact"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "from": null,
+                "to": "Battlefield"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceDown",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                {
+                  "Mana": [
+                    {
+                      "Generic": 1
+                    }
+                  ]
+                },
+                "TapSymbol"
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "ForEachPlayer",
+                  "args": {
+                    "players": {
+                      "kind": "Union",
+                      "args": [
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "binding": 0,
+                    "starting_with": null,
+                    "in_chosen_direction": false,
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 0,
+                            "operation": {
+                              "kind": "ChooseValue",
+                              "args": {
+                                "choosers": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Bound",
+                                    "args": 0
+                                  }
+                                },
+                                "kind": "Number",
+                                "terms": {
+                                  "options": [
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "GreaterOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 1
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "kind": "Comparison",
+                                      "args": [
+                                        "LessOrEqual",
+                                        {
+                                          "kind": "Constant",
+                                          "args": 3
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "except": [],
+                                  "count": {
+                                    "Exactly": {
+                                      "kind": "Constant",
+                                      "args": 1
+                                    }
+                                  },
+                                  "secret": true,
+                                  "unchosen": false,
+                                  "random": false,
+                                  "ordered": false
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "RevealChoices",
+                      "args": {
+                        "kind": "Number"
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "AmongPlayers",
+                          "args": {
+                            "players": {
+                              "kind": "All"
+                            },
+                            "number": "ChosenNumber",
+                            "aggregation": "Maximum"
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "Equal",
+                            "value": {
+                              "kind": "AmongPlayers",
+                              "args": {
+                                "players": {
+                                  "kind": "All"
+                                },
+                                "number": "ChosenNumber",
+                                "aggregation": "Minimum"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Sacrifice",
+                              "args": {
+                                "players": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "AbilityController"
+                                  }
+                                },
+                                "objects": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Source"
+                                  }
+                                },
+                                "choose": null
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Shared": "Exile"
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "ExiledWith",
+                                          "args": {
+                                            "kind": "Source"
+                                          }
+                                        }
+                                      }
+                                    },
+                                    "zone": "Exile"
+                                  }
+                                },
+                                "destination": {
+                                  "OwnersHand": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 4,
+                            "operation": {
+                              "kind": "Move",
+                              "args": {
+                                "objects": {
+                                  "kind": "Take",
+                                  "args": {
+                                    "objects": {
+                                      "kind": "Zone",
+                                      "args": {
+                                        "scope": {
+                                          "Players": {
+                                            "zone": "Library",
+                                            "players": {
+                                              "kind": "One",
+                                              "args": {
+                                                "kind": "AbilityController"
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "kind": "Card",
+                                        "filter": {
+                                          "kind": "Any"
+                                        }
+                                      }
+                                    },
+                                    "count": {
+                                      "kind": "Constant",
+                                      "args": 2
+                                    },
+                                    "from": "Top"
+                                  }
+                                },
+                                "destination": {
+                                  "Exile": {
+                                    "visibility": "FaceDown",
+                                    "arrival": {
+                                      "counters": [],
+                                      "states": []
+                                    }
+                                  }
+                                },
+                                "qualifiers": []
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

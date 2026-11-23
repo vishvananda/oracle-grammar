@@ -279,7 +279,7 @@ then_condition_plain ::= then_condition_body
 then_condition_where ::= then_condition_plain "," "where" "X" "is" value
 /* @sem Program::@where_snapshot($then_condition_plain, $value) */
 then_condition_where_snapshot ::= then_condition_plain "," "where" "X" "is" value
-then_condition_body ::= then_condition_also | conditional_top_card_permission | conjoined | clause_conditional_closed | instructions_reveal_until
+then_condition_body ::= clause_conditional_attach_chosen | then_condition_also | conditional_top_card_permission | conjoined | clause_conditional_closed | instructions_reveal_until
 
 /* A postposed condition tests at resolution, even as a trigger's first instruction. */
 /* @sem Instruction::[@resolution(Instruction::If{condition:$condition, then:Program{instructions:$condition_consequent}, otherwise:Program{}})] */
@@ -3917,3 +3917,12 @@ paid_target_prevention ::= "until" "end" "of" "turn" "," "you" "may" "pay" gener
 
 /* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:Target{slot:@last_slot, index:0}, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
 paid_target_shield ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "to" "that" "permanent" "or" "player" "this" "turn"
+
+/* A next-occurrence replacement keeps the source, damage kind, duration and outcome independent. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:$shared_damage_kind, grouping:SourceRecipient, subject:Recipient}), limit:NextOccurrence, duration:$this_duration, body:$next_object_damage_body} */
+next_object_damage_replacement ::= "the" "next" "time" object_ref "would" "deal" shared_damage_kind this_duration "," next_object_damage_body
+
+next_object_damage_body ::= temporary_damage_change | prevented_body_plain
+
+/* @sem Instruction::[Effect{result:@next, operation:$next_object_damage_replacement}] */
+next_object_damage_instruction ::= next_object_damage_replacement

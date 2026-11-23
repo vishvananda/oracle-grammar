@@ -317,3 +317,24 @@ active_target_attack ::= "the" "creature" "attacks" this_duration "if" "able"
 clause_constrained_exile_entry ::= "you" "may" "exile" "any" "number" "of" "cards" "from" "your" "graveyard" cost_constraint_distinct_card_types "." "if" "you" "do" "," "put" "a" paid_exile_entry_type "card" "from" "among" "them" "onto" "the" "battlefield" "with" "a" counter_kind "counter" "on" "it"
 
 paid_exile_entry_type ::= card_permanent | noun_creature | noun_land | noun_planeswalker | noun_battle
+
+/* This continuation is scoped to a singular creature paid from hand onto the
+   battlefield. Both mentions consume that exact payment receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$paid_creature_hand_entry, optional:true}}, If{condition:PaymentChosen(@marked), then:$paid_creature_grant_delayed_return, otherwise:Program{}}]} */
+program_paid_creature_delayed_sacrifice_return ::= "you" "may" paid_creature_hand_entry "." "if" "you" "do" "," paid_creature_grant_delayed_return
+
+/* @sem Cost::Cost{parts:[Move{selections:[_{objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:CardType(Creature)}, choose:Exactly(Constant(1))}], destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+paid_creature_hand_entry ::= "put" "a" "creature" "card" "from" "your" "hand" "onto" "the" "battlefield"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:$paid_creature_sacrifice_return}]} */
+paid_creature_grant_delayed_return ::= "that" "creature" "gains" keyword_name duration "." paid_creature_sacrifice_return "."
+
+/* @sem Operation::CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Sacrifice{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}}]}, optional:false}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Source), zone:Exile}, destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}}]}, otherwise:Program{}}]}} */
+paid_creature_sacrifice_return ::= "at" "the" "beginning" "of" "the" "next" "end" "step" "," "sacrifice" "that" "creature" "." "if" "you" "do" "," "return" "this" "card" "to" "the" "battlefield"
+
+/* The activation's explicit holder spelling is retained for this continuation. */
+/* @prefer always */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[...$cost_parts, $cost_exile_self_creature]}, limits:ActivationLimits{}, announcement:@announcement, body:$program_paid_creature_delayed_sacrifice_return} */
+activated_paid_creature_delayed_return ::= cost_parts "," "↑" cost_exile_self_creature ":" program_paid_creature_delayed_sacrifice_return
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+cost_exile_self_creature ::= "exile" "this" "creature"

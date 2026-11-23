@@ -4303,3 +4303,24 @@ hand_plural_filtered ::= card_filter "cards"
 /* @sem ObjectFilter::AllOf([$adjective_nontype, $adjective_nontype_2]) */
 /* @prefer always */
 filter_negative_type_pair ::= adjective_nontype "," adjective_nontype
+
+/* The in-worded target is kept distinct where a phrase defaults to that order. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Card, zones:[Graveyard]}), count:Exactly(Expr::Constant(1)), filter:@and($card_filter, ObjectFilter::InZone(Players{zone:Graveyard, players:One(PlayerRef::AbilityController)}))}), index:0} */
+return_target_card_in_your_graveyard ::= "target" card_filter "card" "in" "your" "graveyard"
+
+/* The enclosing discard trigger proves the card and graveyard owner. */
+/* @sem ObjectRef::Discarded */
+discard_event_card ::= "the" "discarded" "card"
+
+/* @sem ObjectSet::One(ObjectRef::Query{objects:InZone{objects:One($discard_event_card), zone:Graveyard}, index:0}) */
+discard_event_card_in_your_graveyard ::= discard_event_card "from" "your" "graveyard"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($counter_qualified_head, ObjectFilter::Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)}))} */
+each_positive_counter_population ::= "each" counter_qualified_head "with" "one" "or" "more" counter_kind "counters" "on" "it"
+
+/* A stack object eligible for a change to its existing targets. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Any, zones:[Stack]}), count:Exactly(Constant(1)), filter:TargetCount(GreaterOrEqual, $number_words)}), index:0} */
+retarget_announced_targeted ::= "target" "spell" "or" "ability" "with" number_words "or" "more" "targets"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_plural, ObjectFilter::ControlledBy(One(EventSubject)))} */
+historical_event_subject_population ::= filter_plural "they" "controlled"

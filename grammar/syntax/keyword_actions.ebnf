@@ -2,7 +2,7 @@
    keeps the native absent amount; counted applications retain theirs. */
 keyword_action ::= forage_action | roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | reverse_turn_order | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase | additional_phase_after | skip_next_your_part | you_skip_next_your_part | game_outcome | become_day_action | become_night_action | controller_incubates_defined | double_unspent_mana
 
-investigate_action ::= investigate_for_population | investigate_for_life_loss | investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times
+investigate_action ::= investigate_for_each_controlled | investigate_for_population | investigate_for_life_loss | investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{}} */
 investigate_once ::= "investigate"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:Constant(2)}} */
@@ -417,6 +417,7 @@ investigate_object_count ::= affected
 /* @sem Expr::CountPlayers(Intersection([$players_singular, Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:LosesLife, players:One(Bound(0))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}])) */
 investigate_life_loss_count ::= players_singular "who" "lost" "life" "this" "turn"
 
+/* @prefer always */
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:$investigate_object_count}} */
 investigate_for_population ::= "investigate" "once" "for" investigate_object_count
 
@@ -585,3 +586,45 @@ exchange_pair_card_type ::= "a" "card" "type"
 
 /* @sem CommonProperty::CreatureTypes */
 exchange_pair_creature_type ::= "a" "creature" "type"
+
+/* Announced graveyard targets supply the added quantity and the row antecedent. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:UpTo($number), filter:AllOf([$card_filter, InZone(Players{zone:Graveyard, players:One(AbilityController)})])})) */
+announced_die_graveyard_targets ::= "choose" "up" "to" number "target" card_filter "cards" "in" "your" "graveyard"
+
+/* These row bodies are scoped to the announced target group. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Targets(0), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}]} */
+die_target_return_row ::= "return" "those" "cards" "to" "your" "hand" "."
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Move{objects:Targets(0), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:Aggregate{objects:Targets(0), property:$stat, aggregation:Sum}}}]} */
+die_target_return_life_row ::= "return" "those" "cards" "to" "your" "hand" "." "you" "gain" "life" "equal" "to" "their" "total" stat "."
+die_target_row_body ::= die_target_return_row | die_target_return_life_row
+
+/* A two-range table compares one roll plus an announced group's total property. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:$roll_die_action}, If{condition:AllOf([Compare{left:Add(DieResult(@marked), Aggregate{objects:$announced_die_graveyard_targets, property:$stat, aggregation:Sum}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:Add(DieResult(@marked), Aggregate{objects:Targets(0), property:$stat, aggregation:Sum}), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$die_target_row_body, otherwise:Program{}}, If{condition:Compare{left:Add(DieResult(@marked), Aggregate{objects:Targets(0), property:$stat, aggregation:Sum}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_3}}, then:$die_target_row_body_2, otherwise:Program{}}]} */
+program_announced_targets_added_die_table ::= announced_die_graveyard_targets "." roll_die_action "and" "add" "the" "total" stat "of" "those" "cards" "." NEWLINE number "―" number "|" die_target_row_body NEWLINE number "⁺" "|" die_target_row_body
+
+/* @sem Ability::Spell{announcement:@announcement, body:$program_announced_targets_added_die_table} */
+spell_announced_targets_added_die_table ::= program_announced_targets_added_die_table
+
+/* An announced stack target is shared by the retarget and subsequent row. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$roll_die_action}, If{condition:AllOf([Compare{left:Add([DieResult(@last_result), $value]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:Add([DieResult(@last_result), $value]), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Retarget{actor:One(AbilityController), object:$retarget_announced_targeted, targets:May}}]}}]}, otherwise:_{}}, If{condition:Compare{left:Add([DieResult(@prior), $value]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_3}}, then:$retarget_table_followup, otherwise:_{}}]} */
+program_target_retarget_added_table ::= "choose" retarget_announced_targeted "." roll_die_action "and" "add" value "." NEWLINE number "―" number "|" "you" "may" "choose" "new" "targets" "for" "that" "spell" "or" "ability" "." NEWLINE number "⁺" "|" retarget_table_followup
+
+/* These sentences retain the previously announced stack target. */
+/* @sem Instruction::[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:Retarget{actor:One(AbilityController), object:Target{slot:@last_slot, index:0}, targets:May}}]}}] */
+retarget_announced_sentence ::= "you" "may" "choose" "new" "targets" "for" "that" "spell" "or" "ability" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:Target{slot:@last_slot, index:0}, times:Constant(1), targets:May}}] */
+copy_announced_sentence ::= "then" "copy" "it" "." "you" "may" "choose" "new" "targets" "for" "the" "copy" "."
+
+/* @sem Program::Program{instructions:[...$retarget_announced_sentence, ...$copy_announced_sentence]} */
+retarget_and_copy_announced ::= retarget_announced_sentence copy_announced_sentence
+
+/* @sem Program::Program{instructions:[...$retarget_announced_sentence]} */
+retarget_only_announced ::= retarget_announced_sentence
+
+retarget_table_followup ::= retarget_and_copy_announced | retarget_only_announced
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:$investigate_each_controlled_count}} */
+investigate_for_each_controlled ::= "investigate" "for" "each" investigate_each_controlled_count
+
+investigate_each_controlled_count ::= count_each_goaded_controlled | count_each_controlled
