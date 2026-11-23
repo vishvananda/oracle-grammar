@@ -411,8 +411,8 @@ unspent_mana_colored ::= "becomes" mana_color_word
 /* @sem Instruction::[Effect{result:@next, operation:$choose_a_player}, Effect{result:@next, operation:$chosen_player_literal_mana}] */
 instructions_choose_player_literal_mana ::= choose_a_player "." chosen_player_literal_mana
 
-/* @sem Operation::AddMana{players:One(Chosen), mana:$mana_bundle} */
-chosen_player_literal_mana ::= "that" "player" "adds" mana_bundle
+/* @sem Operation::AddMana{players:One(Chosen), mana:$chosen_player_mana} */
+chosen_player_literal_mana ::= "that" "player" "adds" chosen_player_mana
 
 /* The defending player performs both actions together; the controlled population
    remains an operand of the mana ability action. */
@@ -435,3 +435,45 @@ instructions_defined_mana_choice ::= "add" defined_mana_branch "or" defined_mana
 
 /* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:BoundValue(@marked), production:$mana_production, choice:Once}}}] */
 defined_mana_branch ::= "X" mana_production
+
+/* A paid land is named only inside the activation that selects it. */
+/* @sem ManaProduction::CouldProduce{objects:One(Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}), colors_only:false} */
+paid_land_mana_type ::= "one" "mana" "of" "any" "type" "that" "land" "could" "produce"
+
+/* @sem ManaProduction::CouldProduce{objects:One(Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}), colors_only:true} */
+paid_land_mana_color ::= "one" "mana" "of" "any" "color" "that" "land" "could" "produce"
+
+paid_land_mana ::= paid_land_mana_type | paid_land_mana_color
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_tap, $cost_untap_tapped_land]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$paid_land_mana}}]}} */
+activated_untap_land_mana ::= cost_tap "," "↑" cost_untap_tapped_land ":" "add" paid_land_mana "."
+
+/* The repeated object description is checked against the sacrifice payment by
+   the enclosing activation; it is not an independently scoped antecedent. */
+/* @sem $filter_phrase */
+sacrificed_mana_description ::= "one" "mana" "of" "any" "type" "the" "sacrificed" filter_phrase "could" "produce"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_phrase, $sacrificed_mana_description)}, choose:Exactly(Constant(1))}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:CouldProduce{objects:Earlier{what:Sacrificed}, colors_only:false}}}]}} */
+activated_sacrifice_producible_mana_a ::= "sacrifice" "a" filter_phrase ":" "add" sacrificed_mana_description "."
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_phrase, $sacrificed_mana_description)}, choose:Exactly(Constant(1))}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:CouldProduce{objects:Earlier{what:Sacrificed}, colors_only:false}}}]}} */
+activated_sacrifice_producible_mana_an ::= "sacrifice" "an" filter_phrase ":" "add" sacrificed_mana_description "."
+
+/* The counted receipt is the sacrifice in the second activation-cost component;
+   matching the two filters keeps the printed population tied to that producer. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_plural, $filter_head)}, choose:AtLeast(Constant(1))}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$choose_a_color}, Effect{result:@next, operation:AddMana{players:$players_singular, mana:Repeat{amount:Multiply([$value, CountObjects(CostObjects{payment:Activation, component:[1], view:Performed, phase:Before})]), production:Amount{color:Chosen, amount:Constant(1)}, choice:Once}}}]}} */
+activated_sacrifice_chosen_mana ::= "{" "T" "}" "," "↑" "sacrifice" "one" "or" "more" filter_plural ":" choose_a_color "." players_singular "adds" value "mana" "of" "the" "chosen" "color" "for" "each" filter_head "sacrificed" "this" "way" "."
+
+/* The activation cost fixes the receipt's component and its sacrificed object.
+   The mana and spending qualification remain independently composable. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}, production:$mana_production, choice:Once}} */
+mana_from_activation_artifact_cost ::= "add" "an" "amount" "of" mana_production "equal" "to" "the" "sacrificed" "artifact's" "mana" "value"
+
+/* @sem Instruction::[Effect{result:@next, operation:$mana_from_activation_artifact_cost}] */
+mana_activation_artifact_clause ::= mana_from_activation_artifact_cost
+
+/* @sem Vec<Instruction>::@restricted_mana($mana_activation_artifact_clause, $mana_spending) */
+mana_activation_artifact_restricted ::= mana_activation_artifact_clause "." mana_spending
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Artifact)}, choose:Exactly(Constant(1))}]}, limits:_{}, announcement:@announcement, body:Program{instructions:$mana_activation_artifact_restricted}} */
+ability_artifact_cost_mana ::= "{T}" "," "↑" "sacrifice" "an" "artifact" ":" mana_activation_artifact_restricted "."

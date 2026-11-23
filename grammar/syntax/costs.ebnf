@@ -1088,7 +1088,7 @@ cost_choose_number_between ::= choose_number_between
 /* @sem Change::[ActivationRule(Cost{modifier:Reduce{reductions:[ManaReduction{amount:@times($braced_amount, $activation_live_count)}], spill_into_generic:true}})] */
 activation_live_reduction ::= "this" "ability" "costs" braced_amount "less" "to" "activate" "for" "each" activation_live_count
 
-activation_live_count ::= count_each_land_type | count_each_permanent | count_each_card_hand | count_each_card_graveyard
+activation_live_count ::= count_each_land_type | count_each_permanent | activation_count_other_source | count_each_other | count_each_card_hand | count_each_card_graveyard
 
 /* A conditional casting reduction with the condition stated first. */
 /* @sem Ability::Casting(If{condition:$condition, rule:ReduceCost([_{amount:$braced_amount}])}) */
@@ -2100,3 +2100,39 @@ damage_sacrificed_creature_symbols ::= damage_source_ref "deals" "damage" "to" r
 sacrificed_creature_symbols ::= "the" "number" "of" sacrifice_symbol_color "mana" "symbols" "in" "the" "sacrificed" "creature's" "mana" "cost"
 
 sacrifice_symbol_color ::= dc_white | dc_blue | dc_black | dc_red | dc_green
+
+/* The selected single land supplies a later mana-production reference. */
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Tapped, ObjectFilter::CardType(Land), $paid_land_controller)}, choose:Exactly(Expr::Constant(1))}], tapped:false} */
+cost_untap_tapped_land ::= "untap" "a" "tapped" "land" paid_land_controller
+
+paid_land_controller ::= modifier_opponent_controls | modifier_you_control
+
+/* A cast restriction qualifies the preceding alternate-cost mechanic. */
+/* @sem Ability::Modified{ability:$flashback_word_cost_mechanic, modifier:$cast_this_way_x_nonzero} */
+modified_flashback_cast_restriction ::= flashback_word_cost_mechanic cast_this_way_x_nonzero "."
+
+/* @sem Ability::Mechanic{mechanic:Flashback, cost:$cost} */
+flashback_word_cost_mechanic ::= "flashback" "―" cost "."
+
+/* @sem Operand::Term{family:CastModifier, form:XCantBeZero} */
+cast_this_way_x_nonzero ::= "if" "you" "cast" "this" "spell" "this" "way" "," "↑" "x" "can't" "be" "0"
+
+/* A cost-bearing activated mechanic can carry an explicit activation condition. */
+/* @sem Ability::Modified{ability:$conditional_activated_mechanic, modifier:$activate_only_if_modifier} */
+conditional_mechanic_activation ::= conditional_activated_mechanic "." activate_only_if_modifier "."
+
+/* @sem Ability::Mechanic{mechanic:$activated_mechanic_name, cost:$keyword_payment} */
+conditional_activated_mechanic ::= activated_mechanic_name keyword_payment
+
+activated_mechanic_name ::= mechanic_specialize_name | mechanic_scavenge_name | mechanic_encore_name | mechanic_embalm_name | mechanic_eternalize_name | mechanic_outlast_name | mechanic_transmute_name | mechanic_reconfigure_name | mechanic_fortify_name | mechanic_aura_swap_name | mechanic_transfigure_name
+
+/* @sem Operand::Term{family:ActivateModifier, form:ActivateOnlyIf, operands:[Condition($condition)]} */
+activate_only_if_modifier ::= "activate" "only" "if" condition
+
+/* In an activation modifier, other excludes the source of that ability. */
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $other_count_filter)}) */
+activation_count_other_source ::= "other" other_count_filter
+
+/* Scope the consumer with the exact singleton creature casting payment it names. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))}]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:$casting_sacrifice_life_then_operation}}] */
+line_casting_sacrifice_life_then_operation ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "sacrifice" "a" "creature" "." NEWLINE casting_sacrifice_life_then_operation "."

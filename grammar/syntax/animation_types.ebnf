@@ -21,7 +21,7 @@ retention_type ::= "land" | "artifact" | "creature" | "enchantment" | "planeswal
 /* @sem () */
 retention_plural_type ::= "lands" | "artifacts" | "creatures" | "enchantments" | "planeswalkers"
 
-retained_animation ::= retained_animation_each | retained_animation_after | retained_animation_before | retained_animation_indefinite | retained_animation_existing | retained_animation_quoted
+retained_animation ::= retained_animation_while_tapped | retained_animation_each | retained_animation_after | retained_animation_before | retained_animation_indefinite | retained_animation_existing | retained_animation_quoted
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
 retained_animation_after ::= affected changes ("↓")? duration "." retention_note
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($changes), duration:$duration, evaluation:Snapshot} */
@@ -29,6 +29,10 @@ retained_animation_before ::= duration "," affected changes "." retention_note
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:@retain_animation_types($dynamic_animation), duration:Indefinite, evaluation:Snapshot} */
 retained_animation_indefinite ::= affected dynamic_animation "." retention_note
+
+/* The ability source supplies the duration independently of the affected object. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($affected), changes:@retain_animation_types($changes), duration:WhileMatches{object:$self_ref, filter:Tapped}, evaluation:Snapshot} */
+retained_animation_while_tapped ::= affected changes "for" "as" "long" "as" self_ref "remains" "tapped" "." retention_note
 
 /* Existing operations supply their own target/group and duration operands. */
 /* @sem Operation::@retain_animation($mined_operation) */
@@ -63,6 +67,7 @@ legendary_animation_with ::= legendary_animation "with" grants
 continuous_retained_inline_indefinite ::= affected dynamic_animation retention_suffix
 /* "Is" immediately after a battlefield return supplies an entry characteristic
    (CR611.2e); "becomes" creates a later continuous effect. */
+/* @prefer always */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$dynamic_type_addition, duration:Indefinite, evaluation:Snapshot} */
 continuous_type_addition_indefinite ::= affected dynamic_type_addition
 /* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}] */
@@ -115,3 +120,7 @@ animated_creature_leaves ::= "this" "creature" "leaves" "the" "battlefield"
 
 /* @sem Operation::Conjure{actor:One(AbilityController), card:Named($referenced_card_name), count:$card_count, destination:Battlefield(BattlefieldArrival{tapped:true, counters:[], states:[]})} */
 quoted_conjure_battlefield_tapped ::= "conjure" card_count "named" referenced_card_name "onto" "the" "battlefield" "tapped"
+
+/* A creature acquires the named creature type indefinitely. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(@self)), changes:[CreatureTypes{mode:Add, types:Listed([@subtype_name($becomes_creature_subtype)])}], duration:Indefinite, evaluation:Snapshot} */
+self_creature_becomes_type ::= self_creature "becomes" "a" becomes_creature_subtype

@@ -115,7 +115,7 @@ token_groups_tapped_last ::= "and" token_group_tapped
 /* @sem TokenSpec::[$token_group_tapped, ...$token_groups_tapped_tail] */
 token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
-token_group ::= token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted
+token_group ::= token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token
 
 token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle
 
@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors
+token_recipe ::= token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors
 
 token_recipe_base ::= token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -1364,3 +1364,56 @@ count_plural_attacking_you ::= filter_plural "attacking" "you"
    opponent loop; the token recipe and sacrifice cost remain independent. */
 /* @sem Instruction::[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:_{instructions:[Effect{result:@next, operation:PayCost{player:Bound(0), cost:$attack_sacrifice_payment, optional:true}}]}}, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:CountPlayers(Intersection([OpponentsOf(AbilityController), Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Not(PlayerTook{player:Bound(0), result:@prior})}])])), words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}] */
 clause_opponent_token_unless_payment ::= "for" "each" "opponent" "," "you" "create" "a" token_recipe "unless" "that" "player" attack_sacrifice_payment
+
+/* An attached Aura carries an enchant restriction and a separately scoped
+   activated ability granted to its affected host. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:Explicit(Settlement), colors:$token_colors, card_types:[Enchantment], subtypes:[Aura], abilities:[Enchant{hosts:Permanents($filter_phrase)}, Static{kind:Ordinary, affected:Objects($affected), changes:[GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:$program}))]}]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($object_ref)]}}}]} */
+program_sentence_attached_aura_grant ::= "create" counter_a token_colors "Aura" "enchantment" "token" "named" "Settlement" "attached" "to" object_ref "." "it" "has" "enchant" filter_phrase "and" '"' affected "has" "'" cost ":" program "." "'" '"'
+
+/* The copied permanent is chosen from the current controlled population. */
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyOne{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Supertype(Legendary)), $filter_phrase, ControlledBy(One(AbilityController))])}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+shared_copy_controlled_operation ::= "create" "a" "token" "that's" "a" "copy" "of" "a" "nonlegendary" filter_phrase "you" "control"
+
+/* The repeated literal identifies the token whose intrinsic definition is quoted. */
+/* @sem TokenSpec::TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:Explicit(Beau), supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[Constant(0), Constant(0)], abilities:[Static(_{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:[SetBasePowerToughness{power:$value, toughness:$value}]})]}} */
+named_legendary_defining_token ::= "Beau" "," counter_a "legendary" token_colors token_subtypes token_types "token" "with" '"' "Beau's" "power" "and" "toughness" "are" "each" "equal" "to" value "." '"'
+
+/* A quoted final period closes the creation sentence. */
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$named_legendary_defining_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}} */
+triggered_named_defining_token ::= event_clause "," "create" named_legendary_defining_token
+
+/* The quoted characteristic definition supplies the token's intrinsic statistics.
+   Its offset also determines the printed base toughness of the token recipe. */
+/* @sem TokenRecipe::Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Constant(0), $number_digits], abilities:[@scope(Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(Source)), changes:[SetBasePowerToughness{power:$value, toughness:Add([$value, $number_digits])}]})]} */
+token_recipe_quoted_defining_offset ::= token_colors token_subtypes token_types "token" "with" '"' "this" "token's" "power" "is" "equal" "to" value "and" "its" "toughness" "is" "equal" "to" "that" "number" "plus" number_digits "." '"'
+
+/* The quoted ability contains the sentence-final period. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe_quoted_defining_offset}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+program_quoted_defining_token_creation ::= "create" token_amount token_recipe_quoted_defining_offset
+
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+plural_post_color_token_recipe ::= token_stat "/" token_stat token_subtypes token_types "tokens" "that" "are" token_colors
+
+/* A singular created token remains the referent of the later sacrifice. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:$token_recipe} */
+singular_cleanup_defined_token ::= "a" token_recipe
+
+singular_cleanup_token ::= singular_cleanup_defined_token | token_copy_exiled_singular
+
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:$delayed_move_your_end, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}} */
+singular_created_sacrifice_cleanup ::= "sacrifice" "it" "at" delayed_move_your_end
+
+/* Scope both the creation and its delayed consumer, with optional intervening grant. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$singular_cleanup_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, $singular_created_sacrifice_cleanup] */
+singular_creation_sacrifice ::= "create" singular_cleanup_token "." singular_created_sacrifice_cleanup
+
+/* @sem Instruction::[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$singular_cleanup_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@marked)), changes:$grants, duration:$duration, evaluation:Snapshot}}, $singular_created_sacrifice_cleanup] */
+singular_creation_grant_sacrifice ::= "create" singular_cleanup_token "." "it" "gains" grants duration "." singular_created_sacrifice_cleanup
+
+singular_creation_cleanup_instructions ::= singular_creation_sacrifice | singular_creation_grant_sacrifice
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$singular_creation_cleanup_instructions}} */
+triggered_singular_creation_sacrifice ::= event_clause "," singular_creation_cleanup_instructions "."
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$singular_creation_cleanup_instructions}} */
+turn_singular_creation_sacrifice ::= "at" turn_event "," singular_creation_cleanup_instructions "."

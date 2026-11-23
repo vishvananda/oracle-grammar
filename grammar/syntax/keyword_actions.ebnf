@@ -64,7 +64,7 @@ die_rows ::= die_rows_one | die_rows_more
 die_rows_one ::= die_row
 /* @sem Instruction::[$die_row, ...$die_rows] */
 die_rows_more ::= die_row NEWLINE die_rows
-die_row ::= die_row_range | die_row_exact | die_row_at_least | die_row_at_most
+die_row ::= die_row_range_sacrifice_choice | die_row_exact_extreme_that_player | die_row_range | die_row_exact | die_row_at_least | die_row_at_most
 /* @sem Instruction::If{condition:AllOf([Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$program_sentence, otherwise:_{}} */
 die_row_range ::= number ("―" | "‑") number "|" program_sentence
 /* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:$program_sentence, otherwise:_{}} */
@@ -115,8 +115,8 @@ adapt_action ::= "adapt" value
 bolster_action ::= "bolster" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Incubate{amount:$value}} */
 incubate_action ::= "incubate" value
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Discover{amount:$value}} */
-discover_action ::= "discover" value
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Discover{amount:$discover_amount}} */
+discover_action ::= "discover" discover_amount
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Monstrosity{amount:$monstrosity_amount}} */
 monstrosity_action ::= "monstrosity" monstrosity_amount
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Fateseal{amount:$value}} */
@@ -132,7 +132,7 @@ earthbend_action ::= "earthbend" value
 amass_action ::= "amass" subtype_plural value
 
 object_keyword_action ::= transform_object | goad_object | detain_object | convert_object | flip_object | airbend_object
-    | assimilate_object | turn_object_face_up | turn_object_face_down | exchange_control_shared_pair | exchange_control_pair | exchange_control_of_objects | unlock_door_of_object | lock_or_unlock_door
+    | assimilate_object | turn_object_face_up | turn_object_face_down | exchange_control_shared_pair | exchange_control_pair | exchange_control_pair_shared_type | exchange_control_of_objects | unlock_door_of_object | lock_or_unlock_door
     | object_explores | object_phases_out | object_intensifies | object_becomes_prepared | object_endures
     | object_becomes_saddled
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Transform{object:$object_ref}} */
@@ -462,3 +462,28 @@ shared_singular_d6_action ::= "rolls" "a" "d6"
 
 /* @sem KeywordAction::RollDie{sides:4} */
 shared_singular_d4_action ::= "rolls" "a" "d4"
+
+/* These rows keep their explicit choice and bound-player wording in die tables. */
+/* @prefer always */
+/* @sem Instruction::If{condition:AllOf([Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:Program{instructions:[Effect{result:@next, operation:@apply($players_singular, $sacrifice_choice_third_plain)}]}, otherwise:_{}} */
+die_row_range_sacrifice_choice ::= number "―" number "|" players_singular sacrifice_choice_third_plain "."
+
+/* @prefer always */
+/* @sem Instruction::If{condition:Compare{left:DieResult(@marked), test:NumberTest::Compare{comparison:Equal, value:$number}}, then:Program{instructions:$die_extreme_that_player}, otherwise:_{}} */
+die_row_exact_extreme_that_player ::= number "|" die_extreme_that_player "."
+
+/* @sem Instruction::[ForEachPlayer{players:$hand_plural_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(Bound(0)), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_nonlist_head, ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Expr::Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($plural_head, ObjectFilter::ControlledBy(One(Bound(0))))}, property:$stat, aggregation:$extreme_aggregation}}})}, choose:AsManyAsCan(Constant(1))})}]}}] */
+die_extreme_that_player ::= hand_plural_players "sacrifices" "a" filter_nonlist_head "with" "the" extreme_aggregation stat "among" plural_head "that" "player" "controls"
+
+discover_amount ::= value | excess_damage_x_amount
+
+/* @sem Expr::ExcessDamage{result:@prior, to:Any} */
+excess_damage_x_amount ::= "X" "," "where" "X" "is" "that" "excess" "damage"
+
+/* This action is only dispatched under a trigger that supplies excess damage. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Amass{amount:EventAmount, creature_type:@subtype_name($subtype_plural)}} */
+amass_excess_damage ::= "amass" subtype_plural "X" "," "where" "X" "is" "that" "excess" "damage"
+
+/* One target group holds both objects and the shared type constraint. */
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ExchangeControl{first:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:AllOf([Not(Supertype(Basic)), $adjective_nontype]), constraints:[CommonProperty(CardTypes)]}), index:0}, second:Target{slot:@next_slot, index:1}}} */
+exchange_control_pair_shared_type ::= "exchange" "control" "of" "two" "target" "nonbasic" "," adjective_nontype "permanents" "that" "share" "a" "card" "type"
