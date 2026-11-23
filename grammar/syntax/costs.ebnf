@@ -2348,3 +2348,12 @@ scoped_spell_discard_one ::= "discard" card_count_one "that" "shares" "a" "color
 
 /* @sem CostPart::Discard{count:$card_count_many, filter:SharesColorWith(Scoped)} */
 scoped_spell_discard_many ::= "discard" card_count_many "that" "share" "a" "color" "with" "that" "spell"
+
+/* An enchantment's exile payment composes with the scoped creature-return program. */
+/* @prefer always */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[...$cost_parts, Move{selections:[_{objects:One(Source)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$instructions_exile_creatures_combat_return}} */
+activated_enchantment_exile_creatures_return ::= cost_parts "," "↑" "exile" "this" "enchantment" ":" instructions_exile_creatures_combat_return "."
+
+/* The payment and damage consumer share the same singleton casting receipt. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$receipt_cast_sacrifice_creature]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$damage_casting_sacrificed_stat_amount_first}, Effect{result:@next, operation:$operation}]}}] */
+line_cast_sacrifice_damage_followup ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," receipt_cast_sacrifice_creature "." NEWLINE damage_casting_sacrificed_stat_amount_first "." operation "."

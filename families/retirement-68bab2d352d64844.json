@@ -1,0 +1,986 @@
+{
+  "family": "exile-batch-cast-permission",
+  "cases": [
+    {
+      "name": "Dead Man's Chest",
+      "text": "Enchant creature an opponent controls\nWhen enchanted creature dies, exile cards equal to its power from the top of its owner's library. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Enchant",
+          "args": {
+            "hosts": {
+              "Permanents": {
+                "kind": "AllOf",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "ControlledBy",
+                    "args": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "AttachedTo",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                },
+                "from": "Battlefield",
+                "to": "Graveyard"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "OwnerOf",
+                                        "args": {
+                                          "kind": "EventSubject"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "ObjectProperty",
+                              "args": {
+                                "object": {
+                                  "kind": "EventSubject"
+                                },
+                                "property": "Power",
+                                "information": "CurrentOrLastKnown"
+                              }
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermissionWith": {
+                                "permission": {
+                                  "PlayPermission": {
+                                    "cards": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 0,
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "from": "Exile",
+                                    "action": "CastSpell",
+                                    "filter": {
+                                      "kind": "Any"
+                                    }
+                                  }
+                                },
+                                "terms": {
+                                  "limit": null,
+                                  "during": null,
+                                  "cost": "Normal",
+                                  "spend_as": "AnyType",
+                                  "into_exile": false,
+                                  "condition": null,
+                                  "effects": [],
+                                  "flash": false,
+                                  "may_look": false,
+                                  "then": null,
+                                  "face_down": null
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "WhileAnyExiled": {
+                            "kind": "Transition",
+                            "args": {
+                              "result": 0,
+                              "phase": "After"
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": null
+    },
+    {
+      "name": "Shadow of the Enemy",
+      "text": "Exile all creature cards from target player's graveyard. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "All"
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Players": {
+                                "zone": "Graveyard",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Creature"
+                                },
+                                {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "Players": {
+                                      "zone": "Graveyard",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermissionWith": {
+                                "permission": {
+                                  "PlayPermission": {
+                                    "cards": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 0,
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "from": "Exile",
+                                    "action": "CastSpell",
+                                    "filter": {
+                                      "kind": "Any"
+                                    }
+                                  }
+                                },
+                                "terms": {
+                                  "limit": null,
+                                  "during": null,
+                                  "cost": "Normal",
+                                  "spend_as": "AnyType",
+                                  "into_exile": false,
+                                  "condition": null,
+                                  "effects": [],
+                                  "flash": false,
+                                  "may_look": false,
+                                  "then": null,
+                                  "face_down": null
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "WhileAnyExiled": {
+                            "kind": "Transition",
+                            "args": {
+                              "result": 0,
+                              "phase": "After"
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": null
+    },
+    {
+      "name": "Shadow of the Enemy",
+      "text": "Exile all artifact cards from target player's graveyard. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them.",
+      "types": [
+        "Sorcery"
+      ],
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "All"
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Players": {
+                                "zone": "Graveyard",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Artifact"
+                                },
+                                {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "Players": {
+                                      "zone": "Graveyard",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermissionWith": {
+                                "permission": {
+                                  "PlayPermission": {
+                                    "cards": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 0,
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "from": "Exile",
+                                    "action": "CastSpell",
+                                    "filter": {
+                                      "kind": "Any"
+                                    }
+                                  }
+                                },
+                                "terms": {
+                                  "limit": null,
+                                  "during": null,
+                                  "cost": "Normal",
+                                  "spend_as": "AnyType",
+                                  "into_exile": false,
+                                  "condition": null,
+                                  "effects": [],
+                                  "flash": false,
+                                  "may_look": false,
+                                  "then": null,
+                                  "face_down": null
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "WhileAnyExiled": {
+                            "kind": "Transition",
+                            "args": {
+                              "result": 0,
+                              "phase": "After"
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true,
+      "readings": null
+    },
+    {
+      "name": "Unrelated Example",
+      "text": "Draw a card. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them.",
+      "types": [
+        "Sorcery"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Shadow of the Enemy",
+      "text": "Exile all artifact cards from target player's graveyard. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Black"
+          },
+          {
+            "Color": "Black"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "All"
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Zone",
+                          "args": {
+                            "scope": {
+                              "Players": {
+                                "zone": "Graveyard",
+                                "players": {
+                                  "kind": "All"
+                                }
+                              }
+                            },
+                            "kind": "Card",
+                            "filter": {
+                              "kind": "AllOf",
+                              "args": [
+                                {
+                                  "kind": "CardType",
+                                  "args": "Artifact"
+                                },
+                                {
+                                  "kind": "InZone",
+                                  "args": {
+                                    "Players": {
+                                      "zone": "Graveyard",
+                                      "players": {
+                                        "kind": "One",
+                                        "args": {
+                                          "kind": "Target",
+                                          "args": {
+                                            "slot": 0,
+                                            "index": 0
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermissionWith": {
+                                "permission": {
+                                  "PlayPermission": {
+                                    "cards": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 0,
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "from": "Exile",
+                                    "action": "CastSpell",
+                                    "filter": {
+                                      "kind": "Any"
+                                    }
+                                  }
+                                },
+                                "terms": {
+                                  "limit": null,
+                                  "during": null,
+                                  "cost": "Normal",
+                                  "spend_as": "AnyType",
+                                  "into_exile": false,
+                                  "condition": null,
+                                  "effects": [],
+                                  "flash": false,
+                                  "may_look": false,
+                                  "then": null,
+                                  "face_down": null
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "WhileAnyExiled": {
+                            "kind": "Transition",
+                            "args": {
+                              "result": 0,
+                              "phase": "After"
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Dead Man's Chest",
+      "text": "Enchant creature an opponent controls\nWhen enchanted creature dies, exile cards equal to its toughness from the top of its owner's library. You may cast spells from among those cards for as long as they remain exiled, and mana of any type can be spent to cast them.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [
+          "Aura"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Enchant",
+          "args": {
+            "hosts": {
+              "Permanents": {
+                "kind": "AllOf",
+                "args": [
+                  {
+                    "kind": "CardType",
+                    "args": "Creature"
+                  },
+                  {
+                    "kind": "ControlledBy",
+                    "args": {
+                      "kind": "OpponentsOf",
+                      "args": {
+                        "kind": "AbilityController"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "ZoneChange": {
+                "objects": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "AttachedTo",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                },
+                "from": "Battlefield",
+                "to": "Graveyard"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "OwnerOf",
+                                        "args": {
+                                          "kind": "EventSubject"
+                                        }
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "ObjectProperty",
+                              "args": {
+                                "object": {
+                                  "kind": "EventSubject"
+                                },
+                                "property": "Toughness",
+                                "information": "CurrentOrLastKnown"
+                              }
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermissionWith": {
+                                "permission": {
+                                  "PlayPermission": {
+                                    "cards": {
+                                      "kind": "Transition",
+                                      "args": {
+                                        "result": 0,
+                                        "phase": "After"
+                                      }
+                                    },
+                                    "from": "Exile",
+                                    "action": "CastSpell",
+                                    "filter": {
+                                      "kind": "Any"
+                                    }
+                                  }
+                                },
+                                "terms": {
+                                  "limit": null,
+                                  "during": null,
+                                  "cost": "Normal",
+                                  "spend_as": "AnyType",
+                                  "into_exile": false,
+                                  "condition": null,
+                                  "effects": [],
+                                  "flash": false,
+                                  "may_look": false,
+                                  "then": null,
+                                  "face_down": null
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "WhileAnyExiled": {
+                            "kind": "Transition",
+                            "args": {
+                              "result": 0,
+                              "phase": "After"
+                            }
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
