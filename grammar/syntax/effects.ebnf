@@ -1182,14 +1182,12 @@ clause_exile_any_number_controlled ::= "exile" "any" "number" "of" filter_plural
 clause_exile_selection_next_upkeep ::= "exile" "any" "number" "of" filter_plural "." "return" "those" "cards" "to" "the" "battlefield" battlefield_control "at" "the" "beginning" "of" "your" "next" "upkeep"
 
 /* Event-specific replacement bodies avoid pairing damage prevention with a draw. */
-/* @sem Operation::CreateReplacement{event:$next_self_damage_event, limit:NextOccurrence, duration:$this_duration, body:$prevent_event_damage_body} */
-timed_next_damage_replacement ::= "the" "next" "time" next_self_damage_event this_duration "," prevent_event_damage_body
+/* @sem Operation::CreateReplacement{event:$next_damage_event, limit:NextOccurrence, duration:$this_duration, body:$prevented_body} */
+timed_next_damage_replacement ::= "the" "next" "time" next_damage_event this_duration "," prevented_body
 
 /* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($self_explicit_ref), recipients:$replacement_damage_to, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
 next_self_damage_event ::= self_explicit_ref "would" "deal" "damage" "to" replacement_damage_to
 
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]} */
-prevent_event_damage_body ::= "prevent" "that" "damage"
 
 /* Mana replacement predicates and replacement amounts retain independent operands. */
 /* @sem Operation::CreateReplacement{event:$mana_replacement_event, limit:UntilExpired, duration:$duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:$mana_replacement_change}}]}} */
@@ -2534,3 +2532,12 @@ optional_player_have_damage ::= player_ref "may" "have" object_ref "deal" value 
 
 /* @sem Instruction::[...$optional_player_have_damage, If{condition:Not(PaymentChosen(@prior)), then:$program, otherwise:Program{}}] */
 clause_declined_player_damage ::= optional_player_have_damage "." "if" "that" "player" "doesn't" "," program
+
+/* The target's controller may choose the source dealing damage to that same player. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:ControllerOf($target_permanent), cost:Cost{parts:[PlayerAction{player:ControllerOf($target_permanent), body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One(ControllerOf($target_permanent))), amount:$number, preventable:true}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One($target_permanent), regeneration:true}}]}, otherwise:Program{}}] */
+clause_destroy_controller_damage_choice ::= "destroy" target_permanent "unless" "its" "controller" "has" "this" "creature" "deal" number "damage" "to" "them"
+
+next_damage_event ::= next_self_damage_event | next_object_damage_event
+
+/* @sem ReplacementEvent::Damage(_{source_kind:Permanent, sources:SameObject($object_ref), recipients:Any, kind:Any, grouping:SourceRecipient, subject:Recipient}) */
+next_object_damage_event ::= object_ref "would" "deal" "damage"
