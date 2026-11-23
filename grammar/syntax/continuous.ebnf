@@ -2826,7 +2826,7 @@ graveyard_cast_blitz ::= "blitz"
 /* @sem Mechanic::Mutate */
 graveyard_cast_mutate ::= "mutate"
 
-graveyard_cast_mechanic ::= graveyard_cast_blitz | graveyard_cast_mutate
+graveyard_cast_mechanic ::= graveyard_cast_blitz | graveyard_cast_mutate | graveyard_cast_bestow
 
 /* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any}, terms:_{cost:Alternate(Cost($cost)), into_exile:true}})]})} */
 static_graveyard_cast_alternate ::= "as" "long" "as" condition "," graveyard_cast_phrase "by" "paying" cost "rather" "than" "paying" "its" "mana" "cost" "." "if" "you" "cast" "this" "card" "this" "way" "and" "it" "would" "be" "put" "into" "your" "graveyard" "," "exile" "it" "instead" "."
@@ -3637,7 +3637,7 @@ animation_spell_color_protection ::= "protection" "from" "each" "of" "that" "spe
 /* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$affected, from:Graveyard, action:CastSpell, filter:Any}, terms:$graveyard_cast_terms})]})} */
 static_graveyard_cast_terms ::= "you" "may" "cast" affected "from" "your" "graveyard" graveyard_cast_terms "."
 
-graveyard_cast_terms ::= graveyard_cast_alternate_sacrifice | graveyard_cast_alternate | graveyard_cast_alternate_counters | graveyard_cast_warp | graveyard_cast_extra_each
+graveyard_cast_terms ::= graveyard_cast_finality_entry | graveyard_cast_alternate_sacrifice | graveyard_cast_alternate | graveyard_cast_alternate_counters | graveyard_cast_warp | graveyard_cast_extra_each
 
 /* @sem PlayTerms::PlayTerms{cost:Alternate(Cost($cost))} */
 graveyard_cast_alternate ::= "by" "paying" cost "rather" "than" "paying" "its" "mana" "cost"
@@ -9153,3 +9153,16 @@ controlled_land_forest ::= "forests"
 /* A static animation retains the planeswalker card type while setting creature subtypes. */
 /* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Creature), GrantKeyword($keyword_name)] */
 static_retained_walker_creature_keyword ::= "is" "a" value "/" value becomes_types "creature" "with" keyword_name "that's" "still" "a" "planeswalker"
+
+/* @sem Mechanic::Bestow */
+graveyard_cast_bestow ::= "bestow"
+
+/* The cast phrase supplies the antecedent for the entry term. */
+/* @sem PlayTerms::PlayTerms{cost:Normal, effects:[$graveyard_cast_entry_effect]} */
+graveyard_cast_finality_entry ::= "." "if" "you" "do" "," graveyard_cast_entry_effect
+
+/* @sem Operand::List([Term{family:EnterFlag, form:EntersWithACounter, operands:[Vocabulary{family:CounterType, form:FinalityCounter}]}]) */
+graveyard_cast_entry_effect ::= "it" "enters" "with" "a" "finality" "counter" "on" "it"
+
+/* @sem Ability::Scoped{zones:[Graveyard], condition:$condition, ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermission{cards:$graveyard_cast_phrase, from:Graveyard, action:CastSpell, filter:Any})]})} */
+static_graveyard_cast_if ::= graveyard_cast_phrase "if" condition "."

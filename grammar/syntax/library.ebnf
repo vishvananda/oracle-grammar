@@ -278,7 +278,7 @@ your_top_slice ::= "the" "top" top_count "of" "your" "library"
 /* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(PlayerRef::AbilityController)}, kind:Card, filter:Any}, count:$card_count_that_many, from:Top} */
 your_top_counted ::= card_count_that_many "from" "the" "top" "of" "your" "library"
 
-top_count ::= top_one | top_many
+top_count ::= top_x_plus | top_one | top_many
 
 /* @sem Expr::Constant(1) */
 top_one ::= "card"
@@ -5643,3 +5643,42 @@ look_reveal_artifact_card ::= "an" noun_artifact "card"
    top-card query; the reflexive recipient is the named damage source. */
 /* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, Effect{result:@next, operation:Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:DealDamage{source:$self_ref_named, recipients:Objects(One($self_ref_named)), amount:ObjectProperty{object:Query{objects:Observed(@marked), index:0}, property:ManaValue, information:CurrentOrLastKnown}, preventable:true}}] */
 reveal_top_hand_reflexive_damage ::= "reveal" "the" "top" "card" "of" "your" "library" "and" "put" "it" "into" "your" "hand" "." self_ref_named "deals" "damage" "to" "himself" "equal" "to" "that" "card's" "mana" "value"
+
+/* The selected damage recipient is announced before the mill; the maximum
+   measures exactly that mill's arrival receipt. */
+/* @sem Vec<Instruction>::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:DealDamage{source:$self_explicit_ref, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:Aggregate{objects:Transition{result:@marked, phase:After}, property:ManaValue, aggregation:Maximum}, preventable:true}}] */
+choose_target_mill_max_damage ::= "choose" "any" "target" "," "then" "mill" card_count "." self_explicit_ref "deals" "damage" "to" "that" "permanent" "or" "player" "equal" "to" "the" "greatest" "mana" "value" "among" "the" "milled" "cards"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$choose_target_mill_max_damage}} */
+activated_choose_target_mill_max_damage ::= cost ":" choose_target_mill_max_damage "."
+
+/* Both the test and its inverse are tied to the event player's mill. */
+/* @sem Vec<Instruction>::[Effect{result:@mark, operation:Mill{players:One(EventSubject), amount:CountObjects(Damage(Source))}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$filter_phrase}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:$clause}, otherwise:Program{}}] */
+event_player_damage_mill_test ::= "that" "player" "mills" "a" "card" "for" "each" "1" "damage" "dealt" "to" "them" "." "if" "the" "player" "mills" "at" "least" "one" filter_phrase "card" "this" "way" "," clause
+
+/* @sem Ability::Triggered{event:$event_group_combat_damage_to_player, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$event_player_damage_mill_test}} */
+triggered_group_damage_mill_test ::= "whenever" event_group_combat_damage_to_player "," event_player_damage_mill_test "."
+
+/* The reveal, selection and both destinations form one scoped receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(2), from:Top}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@prior), zone:Library}, count:AsManyAsCan(Constant(1)), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+instructions_reveal_two_hand_other ::= "reveal" "the" "top" "two" "cards" "of" "your" "library" "." "put" "one" "of" "them" "into" "your" "hand" "and" "the" "other" "into" "your" "graveyard"
+
+/* The selected pile and remainder both derive from the same reveal. */
+/* @sem Instruction::[Effect{result:@next, operation:$reveal_top}, Effect{result:@next, operation:SeparatePiles{separator:AbilityController, chooser:OneOf(OpponentsOf(AbilityController)), objects:InZone{objects:Observed(@prior), zone:Library}}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(4)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+instructions_reveal_pile_hand_other ::= reveal_top "and" "separate" "them" "into" "two" "piles" "." "an" "opponent" "chooses" "one" "of" "those" "piles" "." "put" "that" "pile" "into" "your" "hand" "and" "the" "other" "into" "your" "graveyard"
+
+/* The plus operand remains part of the revealed library slice. */
+/* @sem Expr::Add([AnnouncedX, $number]) */
+top_x_plus ::= "X" "plus" number "cards"
+
+/* Both actions name the same target's owner. */
+/* @sem Instruction::[Effect{result:@next, operation:$owner_shuffles_target}, Effect{result:@next, operation:Draw{players:One(OwnerOf(Target{slot:@last_slot, index:0})), amount:$card_count}}] */
+instructions_owner_shuffle_draw ::= owner_shuffles_target "," "then" "draws" card_count
+
+/* The conditional tests the hand move from the immediately preceding pair. */
+/* @sem Instruction::[...$instructions_reveal_two_hand_other, If{condition:Compare{left:CountObjects(Matching{objects:Union([Transition{result:@back(2), phase:Before}]), filter:$card_filter}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:GainLife{players:One(AbilityController), amount:$number}}]}, otherwise:Program{}}] */
+instructions_reveal_two_hand_other_gain ::= instructions_reveal_two_hand_other "." "if" "you" "put" "an" card_filter "card" "into" "your" "hand" "this" "way" "," "you" "gain" number "life"
+
+/* The discover actor and measured object are tied to the shuffled target. */
+/* @sem Instruction::[Effect{result:@next, operation:$owner_shuffles_target}, Effect{result:@next, operation:Keyword{actor:One(OwnerOf(Target{slot:@last_slot, index:0})), action:Discover{amount:ObjectProperty{object:Target{slot:@last_slot, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}}] */
+instructions_owner_shuffle_discover ::= owner_shuffles_target "." "then" "that" "player" "discovers" "X" "," "where" "X" "is" "its" "mana" "value"
