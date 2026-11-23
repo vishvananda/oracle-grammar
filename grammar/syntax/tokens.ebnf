@@ -164,7 +164,7 @@ token_named_tapped ::= token_amount "tapped" token_named_recipe ("token" | "toke
 /* @sem TokenSpec::TokenSpec{amount:$count_each, words:Rules, recipe:$token_named_recipe} */
 token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_each
 
-token_recipe ::= token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors
+token_recipe ::= token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors
 
 token_recipe_base ::= token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -1508,3 +1508,17 @@ instructions_copy_owned_exile_combat ::= "for" "each" owned_exile_card_with_coun
 /* Preserve the independent unbounded delayed-trigger reading. */
 /* @sem Instruction::[Effect{result:@mark, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$owned_exile_card_with_counter, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}})}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:CombatEnds, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@marked), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}] */
 instructions_copy_owned_exile_combat_unbounded ::= "for" "each" owned_exile_card_with_counter "," "create" "a" "tapped" "and" "attacking" "token" "that's" "a" "copy" "of" "it" "." "exile" "those" "tokens" "at" "end" "of" "combat"
+
+/* The Rock name proves that the named sacrifice pays with this granting token. */
+/* @sem TokenRecipe::Defined{ name:Explicit(Rock), colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, abilities:[$token_rock_quoted, $keyword_equip] } */
+token_recipe_rock_equipment ::= token_colors token_subtypes token_types "token" "named" "Rock" "with" token_rock_quoted "and" keyword_equip
+
+/* @sem Ability::@holder($token_equipped_sacrifice_damage) */
+token_rock_quoted ::= '"' token_equipped_sacrifice_damage '"'
+
+/* This grant belongs to the equipped creature; sacrificing Rock pays with the granting Equipment. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[GrantAbility(@scope($equipped_rock_damage_activation))]} */
+token_equipped_sacrifice_damage ::= "equipped" "creature" "has" "'" equipped_rock_damage_activation
+
+/* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Mana($mana_symbols), TapSymbol, Sacrifice{objects:One(GrantingObject)}]}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:$number, preventable:true}}]}, announcement:@announcement} */
+equipped_rock_damage_activation ::= mana_symbols "," "{" "T" "}" "," "↑" "sacrifice" "Rock" ":" "this" "creature" "deals" number "damage" "to" "any" "target'"

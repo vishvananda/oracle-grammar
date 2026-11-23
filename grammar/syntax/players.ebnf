@@ -85,7 +85,7 @@ player_prohibition ::= player_prohibited_action
 /* @sem Change::[...$player_prohibition, ...$player_prohibitions] */
 player_prohibitions_more ::= player_prohibition ("or" | "and") player_prohibitions
 
-continuous_player_prohibition ::= continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn
+continuous_player_prohibition ::= continuous_passive_player_rules | continuous_event_subject_next_turn | continuous_player_prohibition_last | continuous_player_prohibition_first | continuous_all_player_rules_turn | continuous_only_player_actions
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_rule_subject), changes:$player_prohibitions, duration:$duration, evaluation:LiveObjects} */
 continuous_player_prohibition_last ::= player_rule_subject "can't" player_prohibitions duration
@@ -628,3 +628,18 @@ passive_prohibition_filter ::= passive_chosen_name | prohibited_printed_name
 
 /* @sem ObjectFilter::Chosen(CardName) */
 passive_chosen_name ::= "with" "the" "chosen" "name"
+
+/* Only the named players may perform either action; everyone else is restricted. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($only_player_exclusions), changes:[PlayerRule(Prohibit($player_prohibited_action_2)), PlayerRule(Prohibit($player_prohibited_action))], duration:$duration, evaluation:LiveObjects} */
+continuous_only_player_actions ::= duration "," only_player_exclusions "can" player_prohibited_action "and" player_prohibited_action
+
+/* @sem PlayerSet::Intersection([OthersThan($only_first_player), OthersThan(Chosen)]) */
+only_player_exclusions ::= "only" only_first_player "and" "the" "chosen" "player"
+
+/* @sem PlayerRef::AbilityController */
+only_first_you ::= "you"
+
+/* @sem PlayerRef::Active */
+only_first_active ::= "the" "active" "player"
+
+only_first_player ::= only_first_you | only_first_active

@@ -1,0 +1,1313 @@
+{
+  "family": "retirement-sacrifice-repeat",
+  "cases": [
+    {
+      "name": "Forbidden Ritual",
+      "text": "Sacrifice a nontoken permanent. If you do, target opponent loses 2 life unless that player sacrifices a permanent of their choice or discards a card. You may repeat this process any number of times.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Sacrifice",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Battlefield"
+                                  },
+                                  "kind": "Permanent",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "Token"
+                                    }
+                                  }
+                                }
+                              },
+                              "choose": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "ObjectMatches",
+                            "args": {
+                              "object": {
+                                "kind": "Result",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "Before",
+                                  "index": 0
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Target",
+                                        "args": {
+                                          "slot": 0,
+                                          "index": 0
+                                        }
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Choice": [
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Sacrifice": {
+                                                      "objects": {
+                                                        "kind": "Zone",
+                                                        "args": {
+                                                          "scope": {
+                                                            "Shared": "Battlefield"
+                                                          },
+                                                          "kind": "Permanent",
+                                                          "filter": {
+                                                            "kind": "Any"
+                                                          }
+                                                        }
+                                                      },
+                                                      "choose": {
+                                                        "Exactly": {
+                                                          "kind": "Constant",
+                                                          "args": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Discard": {
+                                                      "count": {
+                                                        "kind": "Constant",
+                                                        "args": 1
+                                                      },
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      },
+                                                      "random": false
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "If",
+                                "args": {
+                                  "condition": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "PaymentChosen",
+                                      "args": 1
+                                    }
+                                  },
+                                  "then": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 2,
+                                          "operation": {
+                                            "kind": "LoseLife",
+                                            "args": {
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Target",
+                                                  "args": {
+                                                    "slot": 0,
+                                                    "index": 0
+                                                  }
+                                                }
+                                              },
+                                              "amount": {
+                                                "kind": "Constant",
+                                                "args": 2
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "otherwise": {
+                                    "instructions": []
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Optional",
+                                "args": {
+                                  "decider": {
+                                    "kind": "AbilityController"
+                                  },
+                                  "body": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 3,
+                                          "operation": {
+                                            "kind": "RepeatProcess"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Quiet Omen",
+      "text": "Sacrifice a nontoken permanent. If you do, target opponent loses 3 life unless that player sacrifices a permanent of their choice or discards a card. You may repeat this process any number of times.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Sacrifice",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Battlefield"
+                                  },
+                                  "kind": "Permanent",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "Token"
+                                    }
+                                  }
+                                }
+                              },
+                              "choose": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "ObjectMatches",
+                            "args": {
+                              "object": {
+                                "kind": "Result",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "Before",
+                                  "index": 0
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Target",
+                                        "args": {
+                                          "slot": 0,
+                                          "index": 0
+                                        }
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Choice": [
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Sacrifice": {
+                                                      "objects": {
+                                                        "kind": "Zone",
+                                                        "args": {
+                                                          "scope": {
+                                                            "Shared": "Battlefield"
+                                                          },
+                                                          "kind": "Permanent",
+                                                          "filter": {
+                                                            "kind": "Any"
+                                                          }
+                                                        }
+                                                      },
+                                                      "choose": {
+                                                        "Exactly": {
+                                                          "kind": "Constant",
+                                                          "args": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Discard": {
+                                                      "count": {
+                                                        "kind": "Constant",
+                                                        "args": 1
+                                                      },
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      },
+                                                      "random": false
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "If",
+                                "args": {
+                                  "condition": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "PaymentChosen",
+                                      "args": 1
+                                    }
+                                  },
+                                  "then": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 2,
+                                          "operation": {
+                                            "kind": "LoseLife",
+                                            "args": {
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Target",
+                                                  "args": {
+                                                    "slot": 0,
+                                                    "index": 0
+                                                  }
+                                                }
+                                              },
+                                              "amount": {
+                                                "kind": "Constant",
+                                                "args": 3
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "otherwise": {
+                                    "instructions": []
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Optional",
+                                "args": {
+                                  "decider": {
+                                    "kind": "AbilityController"
+                                  },
+                                  "body": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 3,
+                                          "operation": {
+                                            "kind": "RepeatProcess"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Silent Pact",
+      "text": "Sacrifice a nontoken permanent. If you do, target opponent loses 2 life unless that player sacrifices a permanent of their choice or discards two cards. You may repeat this process any number of times.",
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Sacrifice",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Battlefield"
+                                  },
+                                  "kind": "Permanent",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "Token"
+                                    }
+                                  }
+                                }
+                              },
+                              "choose": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "ObjectMatches",
+                            "args": {
+                              "object": {
+                                "kind": "Result",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "Before",
+                                  "index": 0
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Target",
+                                        "args": {
+                                          "slot": 0,
+                                          "index": 0
+                                        }
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Choice": [
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Sacrifice": {
+                                                      "objects": {
+                                                        "kind": "Zone",
+                                                        "args": {
+                                                          "scope": {
+                                                            "Shared": "Battlefield"
+                                                          },
+                                                          "kind": "Permanent",
+                                                          "filter": {
+                                                            "kind": "Any"
+                                                          }
+                                                        }
+                                                      },
+                                                      "choose": {
+                                                        "Exactly": {
+                                                          "kind": "Constant",
+                                                          "args": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Discard": {
+                                                      "count": {
+                                                        "kind": "Constant",
+                                                        "args": 2
+                                                      },
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      },
+                                                      "random": false
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "If",
+                                "args": {
+                                  "condition": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "PaymentChosen",
+                                      "args": 1
+                                    }
+                                  },
+                                  "then": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 2,
+                                          "operation": {
+                                            "kind": "LoseLife",
+                                            "args": {
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Target",
+                                                  "args": {
+                                                    "slot": 0,
+                                                    "index": 0
+                                                  }
+                                                }
+                                              },
+                                              "amount": {
+                                                "kind": "Constant",
+                                                "args": 2
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "otherwise": {
+                                    "instructions": []
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Optional",
+                                "args": {
+                                  "decider": {
+                                    "kind": "AbilityController"
+                                  },
+                                  "body": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 3,
+                                          "operation": {
+                                            "kind": "RepeatProcess"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Empty Vow",
+      "text": "Sacrifice a nontoken permanent. If an opponent does, target opponent loses 2 life unless that player sacrifices a permanent of their choice or discards a card. You may repeat this process any number of times.",
+      "reject": true
+    },
+    {
+      "name": "Forbidden Ritual",
+      "text": "Sacrifice a nontoken permanent. If you do, target opponent loses 3 life unless that player sacrifices a permanent of their choice or discards a card. You may repeat this process any number of times.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Black"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Sacrifice",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Battlefield"
+                                  },
+                                  "kind": "Permanent",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "Token"
+                                    }
+                                  }
+                                }
+                              },
+                              "choose": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "ObjectMatches",
+                            "args": {
+                              "object": {
+                                "kind": "Result",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "Before",
+                                  "index": 0
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Target",
+                                        "args": {
+                                          "slot": 0,
+                                          "index": 0
+                                        }
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Choice": [
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Sacrifice": {
+                                                      "objects": {
+                                                        "kind": "Zone",
+                                                        "args": {
+                                                          "scope": {
+                                                            "Shared": "Battlefield"
+                                                          },
+                                                          "kind": "Permanent",
+                                                          "filter": {
+                                                            "kind": "Any"
+                                                          }
+                                                        }
+                                                      },
+                                                      "choose": {
+                                                        "Exactly": {
+                                                          "kind": "Constant",
+                                                          "args": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Discard": {
+                                                      "count": {
+                                                        "kind": "Constant",
+                                                        "args": 1
+                                                      },
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      },
+                                                      "random": false
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "If",
+                                "args": {
+                                  "condition": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "PaymentChosen",
+                                      "args": 1
+                                    }
+                                  },
+                                  "then": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 2,
+                                          "operation": {
+                                            "kind": "LoseLife",
+                                            "args": {
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Target",
+                                                  "args": {
+                                                    "slot": 0,
+                                                    "index": 0
+                                                  }
+                                                }
+                                              },
+                                              "amount": {
+                                                "kind": "Constant",
+                                                "args": 3
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "otherwise": {
+                                    "instructions": []
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Optional",
+                                "args": {
+                                  "decider": {
+                                    "kind": "AbilityController"
+                                  },
+                                  "body": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 3,
+                                          "operation": {
+                                            "kind": "RepeatProcess"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Forbidden Ritual",
+      "text": "Sacrifice a nontoken permanent. If you do, target opponent loses 2 life unless that player sacrifices a permanent of their choice or discards two cards. You may repeat this process any number of times.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Sorcery"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Black"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Spell",
+          "args": {
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": "Player",
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "Any"
+                  },
+                  "players": {
+                    "kind": "OpponentsOf",
+                    "args": {
+                      "kind": "AbilityController"
+                    }
+                  },
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Repeatable",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 0,
+                          "operation": {
+                            "kind": "Sacrifice",
+                            "args": {
+                              "players": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "AbilityController"
+                                }
+                              },
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Battlefield"
+                                  },
+                                  "kind": "Permanent",
+                                  "filter": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "Token"
+                                    }
+                                  }
+                                }
+                              },
+                              "choose": {
+                                "AsManyAsCan": {
+                                  "kind": "Constant",
+                                  "args": 1
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "If",
+                        "args": {
+                          "condition": {
+                            "kind": "ObjectMatches",
+                            "args": {
+                              "object": {
+                                "kind": "Result",
+                                "args": {
+                                  "result": 0,
+                                  "phase": "Before",
+                                  "index": 0
+                                }
+                              },
+                              "filter": {
+                                "kind": "Any"
+                              }
+                            }
+                          },
+                          "then": {
+                            "instructions": [
+                              {
+                                "kind": "Effect",
+                                "args": {
+                                  "result": 1,
+                                  "operation": {
+                                    "kind": "PayCost",
+                                    "args": {
+                                      "player": {
+                                        "kind": "Target",
+                                        "args": {
+                                          "slot": 0,
+                                          "index": 0
+                                        }
+                                      },
+                                      "cost": {
+                                        "parts": [
+                                          {
+                                            "Choice": [
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Sacrifice": {
+                                                      "objects": {
+                                                        "kind": "Zone",
+                                                        "args": {
+                                                          "scope": {
+                                                            "Shared": "Battlefield"
+                                                          },
+                                                          "kind": "Permanent",
+                                                          "filter": {
+                                                            "kind": "Any"
+                                                          }
+                                                        }
+                                                      },
+                                                      "choose": {
+                                                        "Exactly": {
+                                                          "kind": "Constant",
+                                                          "args": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                ]
+                                              },
+                                              {
+                                                "parts": [
+                                                  {
+                                                    "Discard": {
+                                                      "count": {
+                                                        "kind": "Constant",
+                                                        "args": 2
+                                                      },
+                                                      "filter": {
+                                                        "kind": "Any"
+                                                      },
+                                                      "random": false
+                                                    }
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "optional": true
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "If",
+                                "args": {
+                                  "condition": {
+                                    "kind": "Not",
+                                    "args": {
+                                      "kind": "PaymentChosen",
+                                      "args": 1
+                                    }
+                                  },
+                                  "then": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 2,
+                                          "operation": {
+                                            "kind": "LoseLife",
+                                            "args": {
+                                              "players": {
+                                                "kind": "One",
+                                                "args": {
+                                                  "kind": "Target",
+                                                  "args": {
+                                                    "slot": 0,
+                                                    "index": 0
+                                                  }
+                                                }
+                                              },
+                                              "amount": {
+                                                "kind": "Constant",
+                                                "args": 2
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  },
+                                  "otherwise": {
+                                    "instructions": []
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "Optional",
+                                "args": {
+                                  "decider": {
+                                    "kind": "AbilityController"
+                                  },
+                                  "body": {
+                                    "instructions": [
+                                      {
+                                        "kind": "Effect",
+                                        "args": {
+                                          "result": 3,
+                                          "operation": {
+                                            "kind": "RepeatProcess"
+                                          }
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              }
+                            ]
+                          },
+                          "otherwise": {
+                            "instructions": []
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

@@ -338,7 +338,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss
+instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition
 
 /* A graveyard split may precede an independent instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_hand_graveyard_split, ...$instructions] */
@@ -1849,8 +1849,8 @@ library_except_bottom ::= "all" "but" "the" "bottom" "card" "of" player_possessi
 /* @sem Instruction::[Effect{result:@mark, operation:$exile_top_card_receipt}, If{condition:ObjectMatches{object:Result{result:@marked, phase:After, index:0}, filter:$card_filter}, then:Program{instructions:$exiled_top_branch}, otherwise:Program{instructions:$exiled_top_branch_2}}] */
 instructions_exiled_top_object_otherwise ::= exile_top_card_receipt "." "if" "it's" "a" card_filter "card" "," exiled_top_branch "." "otherwise" "," exiled_top_branch
 
-/* @sem Operation::@exiled_card_result(Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
-exile_top_card_you ::= "exile" "the" "top" "card" "of" "your" "library"
+/* @sem Operation::@exiled_card_result(Operation::Move{objects:$hidden_library_top_card, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}) */
+exile_top_card_you ::= "exile" hidden_library_top_card
 
 exiled_top_branch ::= exiled_top_create_tokens | exiled_top_cast_it | exiled_top_to_hand | exiled_top_put_counter
 
@@ -5377,3 +5377,27 @@ observed_top_entry_grant_sacrifice ::= observed_top_reveal_battlefield "." enter
 
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}] */
 observed_top_reveal_battlefield ::= "put" "it" "onto" "the" "battlefield"
+
+/* Scope the look, sacrifice payment, its mana-value query and both reorder
+   branches together, so the inverse cannot attach the receipt to another cost. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$look_top_spelled_count}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:_{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))}]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:_{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Matching{objects:InZone{objects:Observed(@back(3)), zone:Library}, filter:AllOf([$card_filter, Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:Add($number_digits, ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(1), component:[0], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown})}}])}, count:UpTo(Constant(1)), constraints:[CanMoveTo{destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@back(5)), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}}]}, otherwise:_{instructions:[Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Observed(@back(6)), zone:Library}, end:Bottom, order:$library_order}}]}}]} */
+look_sacrifice_mana_value_entry ::= look_top_spelled_count "." "then" "you" "may" "sacrifice" "a" "creature" "." "if" "you" "do" "," "you" "may" "put" "a" card_filter "card" "with" "mana" "value" "X" "or" "less" "from" "among" "those" "cards" "onto" "the" "battlefield" "," "where" "X" "is" number_digits "plus" "the" "sacrificed" "creature's" "mana" "value" "." "put" "the" "rest" "on" "the" "bottom" "of" "your" "library" library_order "."
+
+/* The partition and its damage consumer share the reveal observation. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$own_reveal_partition_program, Effect{result:@next, operation:$reveal_partition_source_damage}]}} */
+spell_reveal_partition_source_damage ::= own_reveal_partition_program "." reveal_partition_source_damage "."
+
+/* @sem Operation::DealDamage{source:Source, recipients:Players(One(AbilityController)), amount:CountObjects(Observed(@back(4))), preventable:true} */
+reveal_partition_source_damage ::= SELF_NAME "deals" "damage" "to" "you" "equal" "to" "the" "number" "of" "cards" "revealed" "this" "way"
+
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:Constant(1), from:Top} */
+hidden_library_top_card ::= "the" "top" "card" "of" "your" "library"
+
+/* Keep the sacrificed population and its counted reveal together so the
+   inverse cannot attach this wording to a different transition producer. */
+/* @sem Instruction::[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@agree($filter_plural, $filter_plural_2)}, choose:AsManyAsCan($number)})}, Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$filter_phrase, count:CountObjects(Transition{result:@prior, phase:Before})}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$filter_phrase}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:$rest_bottom}] */
+sacrifice_count_reveal_partition ::= "sacrifice" number filter_plural "," "then" reveal_until_your_library "a" "number" "of" filter_phrase "cards" "equal" "to" "the" "number" "of" filter_plural "sacrificed" "this" "way" "." "put" "those" "cards" until_destination "and" rest_bottom
+
+/* Keep the revealed partition together before an independent following instruction. */
+/* @sem Instruction::[...$instructions_reveal_until, ...$instructions] */
+reveal_until_then_instructions ::= instructions_reveal_until "." instructions

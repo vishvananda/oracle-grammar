@@ -126,7 +126,7 @@ affected_other ::= contextual_other_filter
 /* @sem ObjectFilter::@other_filter(ObjectFilter::@and(ObjectFilter::Not(ObjectFilter::SameObject(@other_reference(ObjectFilter::$filter_plural))), $filter_plural)) */
 contextual_other_filter ::= "other" filter_plural
 
-duration ::= until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep | until_next_end_step | while_you_control | while_on_battlefield | until_player_planeswalks | while_you_control_and_tapped
+duration ::= until_named_next_turn | until_next_end_step | until_beginning_next_upkeep | duration_die_roll_earliest | until_end_of_turn | until_end_of_combat | until_your_next_turn | until_end_of_your_next_turn | this_turn | this_combat | until_end_of_next_upkeep | until_next_upkeep | until_next_end_step | while_you_control | while_on_battlefield | until_player_planeswalks | while_you_control_and_tapped
 
 /* "For as long as you control this creature": the effect ends when you stop
    controlling that object. */
@@ -173,7 +173,7 @@ changes_and ::= change "and" changes
 /* @sem Change::[...$change, ...$changes] */
 changes_comma ::= change "," "and"? changes
 
-change ::= change_becomes_colored_retained_type | pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump | change_become_artifact_creature_singular | change_become_colored_base_retained | change_become_named_artifact_retained | change_granted_controller_activation | plural_animation_with_grants | plural_granted_animation | change_becomes_colored_creature_retained_base | change_colored_named_creature_replacement | change_has_all_nonlegendary_names
+change ::= change_becomes_colored_retained_type | pilot_animation_change | change_add_color_card_type | change_color_of_mana | change_loses_keyword | change_lose_keyword | change_lose_all_abilities | change_has_base_power_toughness | change_is_all_creature_types | change_is_basic_land_type | change_are_basic_land_type | change_supertype_snow | change_color_set | change_pump | change_grant | change_pump_for_each_sum | change_pump_for_each | change_becomes | change_also_type | change_becomes_with_add | change_become_artifact_creatures | change_become_artifact_creatures_base | change_loses_creature_types | change_lose_creature_types | change_add_artifact_subtype | change_add_food_artifact | change_is_legendary | change_are_legendary | change_is_every_basic_land_type | change_are_every_basic_land_type | change_set_only_card_type | change_have_base_toughness | change_is_three_basic_land_types | change_lose_keywords | change_loses_keywords | change_twice_negative_pump | change_become_artifact_creature_singular | change_become_colored_base_retained | change_become_named_artifact_retained | change_granted_controller_activation | plural_animation_with_grants | plural_granted_animation | change_becomes_colored_creature_retained_base | change_colored_named_creature_replacement | change_has_all_nonlegendary_names | change_combat_subject_draw_grant
 
 /* "Loses all creature types": an empty creature type list replaces the old one. */
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed([])}] */
@@ -830,8 +830,8 @@ replacement_enters_counters_equal ::= self_ref "enters" "with" "a" "number" "of"
    while this permanent is on the battlefield. */
 /* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$entry_counter_amount})}}]}} */
 replacement_each_enters_counters ::= entry_each_objects "enters" "with" entry_counter_amount counter_kind ("counter" | "counters") "on" "it" "."
-/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:@times($counter_amount, $count_each)})}}]}} */
-replacement_each_enters_counters_for_each ::= entry_each_objects "enters" "with" counter_amount "additional" counter_kind "counter" "on" "it" "for" "each" count_each "."
+/* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:@times($counter_amount, $entry_each_counter_count)})}}]}} */
+replacement_each_enters_counters_for_each ::= entry_each_objects "enters" "with" counter_amount "additional" counter_kind "counter" "on" "it" "for" "each" entry_each_counter_count "."
 /* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]}} */
 replacement_each_enters_counters_equal ::= entry_each_objects "enters" "with" "a" "number" "of" "additional" counter_kind "counters" "on" "it" "equal" "to" value "."
 /* @sem Ability::Replacement{active:Battlefield, event:Enter{objects:$entry_each_objects}, body:Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:$value})}}]}} */
@@ -5862,10 +5862,10 @@ subtype_loss_effect ::= affected "becomes" subtype_and_loss_changes "," "and" ob
 until_beginning_next_upkeep ::= "until" "the" "beginning" "of" next_upkeep_player "next" "upkeep"
 
 /* Spell-cost rules share the cost modifier and the quantified spell filter. */
-/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$ordered_cast_spell, modifier:$spell_cost_change})]}) */
-static_ordered_spell_cost ::= ordered_cast_spell "costs" spell_cost_change "to" "cast" "."
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$ordered_cast_spell, modifier:$ordered_spell_cost_tail})]}) */
+static_ordered_spell_cost ::= ordered_cast_spell "costs" ordered_spell_cost_tail "."
 
-ordered_cast_spell ::= ordered_filtered_cast_spell | ordered_unfiltered_cast_spell
+ordered_cast_spell ::= ordered_filtered_cast_spell | ordered_unfiltered_cast_spell | ordered_x_cast_spell
 
 /* @sem ObjectFilter::NthCast{ordinal:$cast_order, spells:$filter_phrase, by:One(AbilityController), scope:Turn} */
 ordered_filtered_cast_spell ::= "the" cast_order filter_phrase "spell" "you" "cast" "each" "turn"
@@ -8564,8 +8564,7 @@ counter_defined_creature_static ::= "this" "creature's" "power" "and" "toughness
 /* @sem Change::[CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Artifact), AddCardType(Creature), GrantAbility($counter_defined_creature_static)] */
 counter_defined_artifact_animation ::= "a" becomes_types "artifact" "creature" "with" '"' counter_defined_creature_static '"'
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$counter_defined_artifact_animation, duration:$duration, evaluation:Snapshot} */
-counter_animated_operation ::= duration "," affected "becomes" counter_defined_artifact_animation
+counter_animated_operation ::= counter_artifact_animated_operation | counter_retained_animated_operation
 
 /* An indefinite characteristic change fixes its current affected objects. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$animation_plain, duration:Indefinite, evaluation:Snapshot} */
@@ -8817,3 +8816,114 @@ indefinite_keyword_trigger_changes ::= "gains" keyword_value "and" shared_grante
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$indefinite_keyword_trigger_changes, duration:Indefinite, evaluation:Snapshot}}]} */
 program_sentence_indefinite_keyword_trigger ::= affected indefinite_keyword_trigger_changes
+
+/* The named player owns the expiration turn. */
+/* @sem Duration::UntilNextTurn($named_next_turn_player) */
+until_named_next_turn ::= "until" named_next_turn_player "next" "turn"
+
+/* @sem PlayerRef::Chosen */
+named_next_turn_chosen ::= "the" "chosen" "player's"
+
+/* @sem PlayerRef::Active */
+named_next_turn_active ::= "the" "active" "player's"
+
+named_next_turn_player ::= named_next_turn_chosen | named_next_turn_active
+
+entry_each_counter_count ::= entry_existing_count | count_each
+
+/* The entering event subject is not part of the already-present population. */
+/* @sem Expr::CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::EventSubject)), $filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)))}) */
+entry_existing_count ::= filter_phrase "you" "already" "control"
+
+/* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}] */
+base_stats_pair ::= value "/" value
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$base_stats_pair, duration:Indefinite, evaluation:Snapshot} */
+population_base_stats_indefinite ::= "the" "base" "power" "and" "toughness" "of" affected "become" base_stats_pair
+
+/* The damage event binds the subject whose current or last-known property is drawn. */
+/* @sem Change::[GrantAbility(@scope(Ability::Triggered{event:$event_combat_damage_player, limits:_{}, announcement:@announcement, body:$combat_subject_draw_program}))] */
+change_combat_subject_draw_grant ::= "gains" '"' "whenever" event_combat_damage_player "," combat_subject_draw_program "," '"'
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:ObjectProperty{object:EventSubject, property:$combat_subject_draw_property, information:CurrentOrLastKnown}}}]} */
+combat_subject_draw_program ::= "draw" "cards" "equal" "to" "its" combat_subject_draw_property
+
+/* @sem Property::Toughness */
+combat_subject_draw_property ::= "toughness"
+
+/* The named copy subject is the antecedent of “it”; the target's linked
+   exile set remains associated with that same source. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Exile]}), count:Exactly(Constant(1)), filter:AllOf([$noun, InSet(Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith(Source)}))])}), index:0} */
+copy_target_card_exiled_with_it ::= "target" noun "card" "exiled" "with" "it"
+
+/* @sem Vec<CopyException>::[$copy_fixed_stats, $copy_current_payload] */
+copy_stats_has_current ::= copy_fixed_stats "and" "has" copy_current_payload
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_ref_named)), changes:[CopyOf{object:$copy_target_card_exiled_with_it, exceptions:$copy_stats_has_current}], duration:Indefinite, evaluation:Snapshot} */
+copy_self_linked_card_stats ::= self_ref_named "becomes" "a" "copy" "of" copy_target_card_exiled_with_it "," "except" copy_stats_has_current
+
+/* The entrant is the antecedent of "it" even when the recipient is named
+   between the event and the copy action. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@copy_subject(ObjectSet::$affected, ObjectRef::EventSubject)), changes:[CopyOf{object:EventSubject, exceptions:$copy_exceptions_plain}], duration:$duration, evaluation:Snapshot} */
+event_copy_become_duration_except ::= affected "become" "a" "copy" "of" "it" duration "," "except" copy_exceptions_plain
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$event_copy_become_duration_except}]}}]}} */
+triggered_optional_event_copy ::= event_clause "," "you" "may" "have" event_copy_become_duration_except "."
+
+/* The quoted activation has its own holder and announcement. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($controlled_subtype_population), changes:[$single_quoted_activation]} */
+static_controlled_subtype_single_quote ::= controlled_subtype_population "have" single_quoted_activation
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$subtype_plural, ControlledBy(One(AbilityController))])} */
+controlled_subtype_population ::= subtype_plural "you" "control"
+
+/* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$single_quoted_body})) */
+single_quoted_activation ::= "'" cost ":" single_quoted_body "." "'"
+
+single_quoted_body ::= quoted_land_damage_body | program
+
+/* The explicit land source is scoped to this quoted activation. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:$recipients_any_target, amount:$number, preventable:true}}]} */
+quoted_land_damage_body ::= "this" "land" "deals" number "damage" "to" recipients_any_target
+
+/* @prefer always */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$counter_defined_artifact_animation, duration:$duration, evaluation:Snapshot} */
+counter_artifact_animated_operation ::= duration "," affected "becomes" counter_defined_artifact_animation
+
+/* The quoted definition belongs to the animated object's granted ability. */
+/* @sem Change::[CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature), GrantAbility($counter_defined_creature_static)] */
+counter_defined_retained_animation ::= "a" becomes_types "creature" "in" "addition" "to" "its" "other" "types" "and" "gains" '"' counter_defined_creature_static '"'
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$counter_defined_retained_animation, duration:$duration, evaluation:Snapshot} */
+counter_retained_animated_operation ::= duration "," affected "becomes" counter_defined_retained_animation
+
+/* An animation sets its creature subtype while adding the two card types. */
+/* @sem Change::[SetBasePowerToughness{power:$number_digits, toughness:$number_digits_2}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, AddCardType(Artifact), AddCardType(Creature)] */
+conditional_artifact_animation_changes ::= number_digits "/" number_digits becomes_types "artifact" "creature"
+
+/* The controlled population, targeted source, duration and spending color are
+   independent operands of the temporary ability-copying effect. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$subtype, ControlledBy(One(AbilityController))])}), changes:[GainAbilitiesOf{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ControlledBy(OpponentsOf(AbilityController))])}), index:0}), kinds:Term{family:CheckHasable, form:ActivatedAbility}, spend_as:ColorAsAnyColor($mana_color_word)}], duration:$duration, evaluation:Snapshot}}]} */
+controlled_type_copy_activated_program ::= "each" subtype "you" "control" "gains" "all" "activated" "abilities" "of" "target" noun "an" "opponent" "controls" duration "." "you" "may" "spend" mana_color_word "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "activate" "those" "abilities"
+
+/* @sem ObjectFilter::NthCast{ordinal:$cast_order, spells:State(HasX), by:One(AbilityController), scope:Turn} */
+ordered_x_cast_spell ::= "the" cast_order "spell" "you" "cast" "with" "{" "X" "}" "in" "its" "mana" "cost" "each" "turn"
+
+ordered_spell_cost_tail ::= ordered_spell_cost_plain | ordered_spell_cost_per_counter
+
+/* @sem $spell_cost_change */
+ordered_spell_cost_plain ::= spell_cost_change "to" "cast" /* @prefer always */
+
+/* @sem SpellCostModifier::Reduce{reductions:[_{amount:@times($braced_number, $ordered_counter_count)}], spill_into_generic:true} */
+ordered_spell_cost_per_counter ::= braced_number "less" "to" "cast" "for" "each" ordered_counter_count
+
+/* @sem Expr::CountCounters(_{recipients:Objects($affected), kind:$counter_kind, information:CurrentOrLastKnown}) */
+ordered_counter_count ::= counter_kind "counter" "on" affected
+
+/* Both plural follow-ups use the movement's own arrival receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:$put_single_graveyard_targets}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Transition{result:@marked, phase:After}), changes:$static_changes, duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Transition{result:@marked, phase:After}})}]}}}] */
+put_graveyard_targets_grant_sacrifice ::= put_single_graveyard_targets "." "they" static_changes duration "." "sacrifice" "them" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$put_graveyard_targets_grant_sacrifice}} */
+put_graveyard_targets_grant_sacrifice_spell ::= put_graveyard_targets_grant_sacrifice "."
