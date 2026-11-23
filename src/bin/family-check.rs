@@ -395,7 +395,7 @@ fn check_case(
     check(engine, off, case)
 }
 
-const MAX_FAMILY_FILES: usize = 4096;
+const MAX_FAMILY_FILES: usize = 16_384;
 const MAX_FIXTURE_BYTES: usize = 4 * 1024 * 1024;
 const MAX_TOTAL_BYTES: usize = 1024 * 1024 * 1024;
 const MAX_TOTAL_CASES: usize = 262_144;
@@ -403,7 +403,7 @@ const MAX_TOTAL_CASES: usize = 262_144;
 fn family_paths(args: &[String]) -> Result<Vec<&String>, String> {
     let paths: Vec<_> = args.iter().filter(|a| !a.starts_with("--")).collect();
     if paths.is_empty() || paths.len() > MAX_FAMILY_FILES {
-        return Err("usage: family-check <family.json>... (at most 4096) [--compositional] [--module=name=path]...".into());
+        return Err("usage: family-check <family.json>... (at most 16384) [--compositional] [--module=name=path]...".into());
     }
     for arg in args.iter().filter(|a| a.starts_with("--")) {
         if arg != "--compositional" && !arg.starts_with("--module=") {

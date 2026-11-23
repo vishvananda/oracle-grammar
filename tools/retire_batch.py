@@ -398,7 +398,7 @@ def _candidate_helper_snapshot(spec, checkpoint, source, folder):
 
 def _optimized_families(source, helpers, folder, threads):
     names = r.read(source/'tests/families.json')
-    if not isinstance(names, list) or not 1 <= len(names) <= 4096:
+    if not isinstance(names, list) or not 1 <= len(names) <= 16384:
         raise ValueError('optimized family registry is invalid')
     paths = [source/_baseline_fixture_path(name) for name in names]
     env = {k: v for k, v in os.environ.items() if not k.startswith('ORACLE_GRAMMAR_')}
@@ -1623,7 +1623,7 @@ def _stage_trial(context, entries, label, *, merge_conflict_limit=1):
                 raise ValueError('baseline family changed during staging')
             fixtures = ([source/name for name, _ in context['baseline']]
                         + [source/path for path in manifest['fixtures']] + [path for path, _ in additions])
-            if len(fixtures) > 4096:
+            if len(fixtures) > 16384:
                 raise ValueError('trial exceeds family-check fixture limit')
             descriptions = ([{'fixture': name, 'kind': 'baseline'} for name, _ in context['baseline']]
                             + [{'fixture': name, 'kind': 'prior-proposal'} for name in manifest['fixtures']]

@@ -65,8 +65,8 @@ fn family_argument_count_accepts_large_batches_and_rejects_excess() {
     let mut args = vec!["family.json".to_string(); 65];
     args.push("--compositional".into());
     assert_eq!(family_paths(&args).unwrap().len(), 65);
-    args.extend(vec!["another.json".to_string(); 4031]);
-    assert_eq!(family_paths(&args).unwrap().len(), 4096);
+    args.extend(vec!["another.json".to_string(); 16_319]);
+    assert_eq!(family_paths(&args).unwrap().len(), 16_384);
     args.push("excess.json".into());
     assert!(family_paths(&args).is_err());
 }
