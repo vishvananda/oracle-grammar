@@ -1,0 +1,1037 @@
+{
+  "family": "retirement-cc5b212b45a61b14",
+  "cases": [
+    {
+      "name": "Etrata, the Silencer",
+      "text": "Etrata can't be blocked.\nWhenever Etrata deals combat damage to a player, exile target creature that player controls and put a hit counter on that card. That player loses the game if they own three or more exiled cards with hit counters on them. Etrata's owner shuffles Etrata into their library.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "Source"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Rule",
+                "args": {
+                  "Prohibit": {
+                    "BeBlocked": {
+                      "kind": "Any"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Result",
+                                  "args": {
+                                    "result": 0,
+                                    "phase": "After",
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "HitCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Exile"
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Counters",
+                                    "args": {
+                                      "kind": {
+                                        "Named": "HitCounter"
+                                      },
+                                      "comparison": "Greater",
+                                      "value": {
+                                        "kind": "Constant",
+                                        "args": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "filter": {
+                                "kind": "OwnedBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 3
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "action": "LoseGame"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "destination": {
+                          "Library": {
+                            "position": "Shuffled",
+                            "order": "DestinationDefault",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": false
+    },
+    {
+      "name": "Etrata, the Silencer",
+      "text": "Whenever Etrata deals combat damage to a player, Etrata's owner shuffles Etrata into their library.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "destination": {
+                          "Library": {
+                            "position": "Shuffled",
+                            "order": "DestinationDefault",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Etrata, the Silencer",
+      "text": "Whenever Etrata deals combat damage to a player, Etrata's owner shuffles Etrata into their library. leftovers",
+      "types": [
+        "Creature"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Etrata, the Silencer",
+      "text": "Whenever Etrata deals combat damage to a player, Etrata's owner shuffles Etrata into their graveyard.",
+      "types": [
+        "Creature"
+      ],
+      "reject": true
+    },
+    {
+      "name": "Etrata, the Silencer",
+      "text": "Etrata can't be blocked.\nWhenever Etrata deals combat damage to a player, exile target artifact that player controls and put a hit counter on that card. That player loses the game if they own three or more exiled cards with hit counters on them. Etrata's owner shuffles Etrata into their library.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Vampire",
+          "Assassin"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          3,
+          5
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "Source"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Rule",
+                "args": {
+                  "Prohibit": {
+                    "BeBlocked": {
+                      "kind": "Any"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Artifact"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Result",
+                                  "args": {
+                                    "result": 0,
+                                    "phase": "After",
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "HitCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Exile"
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Counters",
+                                    "args": {
+                                      "kind": {
+                                        "Named": "HitCounter"
+                                      },
+                                      "comparison": "Greater",
+                                      "value": {
+                                        "kind": "Constant",
+                                        "args": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "filter": {
+                                "kind": "OwnedBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 3
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "action": "LoseGame"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "destination": {
+                          "Library": {
+                            "position": "Shuffled",
+                            "order": "DestinationDefault",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Etrata, the Silencer",
+      "text": "Etrata can't be blocked.\nWhenever Etrata deals combat damage to a player, exile target creature that player controls and put a hit counter on that card. That player loses the game if they own four or more exiled cards with hit counters on them. Etrata's owner shuffles Etrata into their library.",
+      "context": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Vampire",
+          "Assassin"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 2
+          },
+          {
+            "Color": "Blue"
+          },
+          {
+            "Color": "Black"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          3,
+          5
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "Source"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Rule",
+                "args": {
+                  "Prohibit": {
+                    "BeBlocked": {
+                      "kind": "Any"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Permanent",
+                "sources": {
+                  "kind": "SameObject",
+                  "args": {
+                    "kind": "Source"
+                  }
+                },
+                "recipients": {
+                  "Players": {
+                    "kind": "All"
+                  }
+                },
+                "kind": "Combat",
+                "grouping": "SourceRecipient",
+                "subject": "Source"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [
+                {
+                  "slot": 0,
+                  "kind": {
+                    "Object": {
+                      "kind": "Permanent",
+                      "zones": [
+                        "Battlefield"
+                      ]
+                    }
+                  },
+                  "count": {
+                    "Exactly": {
+                      "kind": "Constant",
+                      "args": 1
+                    }
+                  },
+                  "filter": {
+                    "kind": "AllOf",
+                    "args": [
+                      {
+                        "kind": "CardType",
+                        "args": "Creature"
+                      },
+                      {
+                        "kind": "ControlledBy",
+                        "args": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "players": null,
+                  "distribute": null,
+                  "constraints": [],
+                  "chooser": null
+                }
+              ],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Target",
+                            "args": {
+                              "slot": 0,
+                              "index": 0
+                            }
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "PutCounters",
+                      "args": {
+                        "placements": [
+                          {
+                            "recipients": {
+                              "kind": "Objects",
+                              "args": {
+                                "kind": "One",
+                                "args": {
+                                  "kind": "Result",
+                                  "args": {
+                                    "result": 0,
+                                    "phase": "After",
+                                    "index": 0
+                                  }
+                                }
+                              }
+                            },
+                            "kind": {
+                              "Named": "HitCounter"
+                            },
+                            "amount": {
+                              "kind": "Constant",
+                              "args": 1
+                            },
+                            "selection": null
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "If",
+                  "args": {
+                    "condition": {
+                      "kind": "Compare",
+                      "args": {
+                        "left": {
+                          "kind": "CountObjects",
+                          "args": {
+                            "kind": "Matching",
+                            "args": {
+                              "objects": {
+                                "kind": "Zone",
+                                "args": {
+                                  "scope": {
+                                    "Shared": "Exile"
+                                  },
+                                  "kind": "Card",
+                                  "filter": {
+                                    "kind": "Counters",
+                                    "args": {
+                                      "kind": {
+                                        "Named": "HitCounter"
+                                      },
+                                      "comparison": "Greater",
+                                      "value": {
+                                        "kind": "Constant",
+                                        "args": 0
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "filter": {
+                                "kind": "OwnedBy",
+                                "args": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "test": {
+                          "kind": "Compare",
+                          "args": {
+                            "comparison": "GreaterOrEqual",
+                            "value": {
+                              "kind": "Constant",
+                              "args": 4
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "then": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 2,
+                            "operation": {
+                              "kind": "Keyword",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "action": "LoseGame"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    "otherwise": {
+                      "instructions": []
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 3,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "Source"
+                          }
+                        },
+                        "destination": {
+                          "Library": {
+                            "position": "Shuffled",
+                            "order": "DestinationDefault",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

@@ -165,7 +165,7 @@ next_upkeep_player ::= zone_your | zone_that_player
 /* A deadline a sentence states after its verb. */
 this_duration ::= this_turn | this_combat
 
-changes ::= changes_pump_and_valued_mechanic | changes_pump_and_creature_types | change | changes_and | changes_comma
+changes ::= changes_pump_and_valued_mechanic | changes_pump_and_creature_types | change | changes_and | changes_comma | changes_keyword_loss_and_creature_types
 
 /* @sem Change::[...$change, ...$changes] */
 changes_and ::= change "and" changes
@@ -1291,7 +1291,7 @@ static_quoted_grant ::= affected static_changes_closed
 
 /* A change list whose last change grants a quoted ability: "gets +2/+2 and has flying
    and "{R}: …"". Its quote closes the sentence. */
-static_changes_closed ::= static_color_and_closed_grants | static_changes_closed_has | static_changes_closed_have | static_changes_closed_more | static_base_closed_grants | static_base_closed_grants_oxford
+static_changes_closed ::= static_color_and_closed_grants | static_changes_closed_has | static_changes_closed_have | static_changes_closed_more | static_base_closed_grants | static_base_closed_grants_oxford | static_color_closed_more
 /* @sem $closed_grants */
 static_changes_closed_has ::= "has" closed_grants
 /* @sem $closed_grants */
@@ -1894,6 +1894,7 @@ changes_while_tapped ::= affected tapped_continuous_changes "for" "as" "long" "a
 
 /* Losing flying for a duration. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[LosesAbility(Term{family:CheckHasable, form:Flying})], duration:$duration, evaluation:Snapshot} */
+/* @prefer always */
 loses_flying ::= affected "loses" "flying" duration
 
 /* A requirement to attack. */
@@ -2276,11 +2277,11 @@ static_cast_graveyard_using_sneak ::= "you" "may" "cast" card_filter "spells" "f
 
 /* Keyword removal shares its native check term; each inflection owns one
    print shape, independently of the affected object's source identity. */
-/* @sem Change::[LosesAbility($lost_keyword)] */
-change_loses_keyword ::= "loses" lost_keyword
+/* @sem Change::[LosesAbility($lost_keyword_singular)] */
+change_loses_keyword ::= "loses" lost_keyword_singular
 /* @sem Change::[LosesAbility($lost_keyword)] */
 change_lose_keyword ::= "lose" lost_keyword
-lost_keyword ::= lost_indestructible | lost_flying | lost_first_strike | lost_trample | lost_defender | lost_infect | lost_nonmana_abilities | lost_this_ability | lost_shadow | lost_landwalk | lost_swampwalk | lost_bands_with_other
+lost_keyword ::= lost_indestructible | lost_flying | lost_first_strike | lost_trample | lost_defender | lost_infect | lost_nonmana_abilities | lost_this_ability | lost_shadow | lost_landwalk | lost_swampwalk | lost_bands_with_other | lost_any_landwalk
 /* @sem Operand::Term{family:CheckHasable, form:Flying, operands:[]} */
 lost_flying ::= "flying"
 /* @sem Operand::Term{family:CheckHasable, form:FirstStrike, operands:[]} */
@@ -9906,3 +9907,104 @@ static_color_and_closed_grants ::= static_is_color "and" "has" closed_grants
 
 /* @sem Operand::Term{family:CheckHasable, form:AnyBandsWithOthers, operands:[]} */
 lost_bands_with_other ::= "all" '"' "↓" "bands" "with" "other" '"' "abilities"
+
+/* A singular subject loses a named ability for the stated duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$change_loses_keyword, duration:$duration, evaluation:Snapshot} */
+affected_loses_keyword_duration ::= affected change_loses_keyword duration
+
+/* A singular color change followed by the final quoted grant. */
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}, ...$static_changes_closed] */
+static_color_closed_more ::= "is" mana_color_word "," "and" static_changes_closed
+
+/* Both follow-ups name the same previously affected population. */
+/* @sem Instruction::[Effect{result:@next, operation:SetTapped{objects:Affected(@prior), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Affected(@back(3))), changes:$plural_additional_pump, duration:$duration, evaluation:Snapshot}}] */
+prior_creatures_untap_additional ::= "untap" "those" "creatures" "and" "they" plural_additional_pump duration
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+plural_additional_pump ::= "get" "an" "additional" signed "/" signed
+
+/* A complete choice program is replaced when the subsequent condition holds. */
+/* @sem Program::Program{instructions:$instructions_gains_keyword_choice} */
+choice_keyword_fallback ::= instructions_gains_keyword_choice
+
+/* @sem Instruction::[If{condition:$choice_replacement_condition, then:$program, otherwise:$choice_keyword_fallback}] */
+instructions_choice_conditional_instead ::= choice_keyword_fallback "." "if" choice_replacement_condition "," program "instead"
+
+/* @sem Condition::ObjectMatches{object:$that_noun, filter:$replacement_named_state} */
+choice_replacement_condition ::= that_noun "is" replacement_named_state
+
+replacement_named_state ::= it_state | condition_state
+
+/* Choosing the replaced type is implicit in this text-changing instruction. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1)), options:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ReplaceWord{from:Term{family:CreatureTypeVariable, form:TheChosenCreatureType}, to:Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}}], duration:Indefinite, evaluation:Snapshot}}] */
+instructions_replace_creature_type_word ::= "change" "the" "text" "of" affected "by" "replacing" "all" "instances" "of" "one" "creature" "type" "with" creature_subtype
+
+/* A creature population gets temporary changes, then that same population is untapped. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($pump_untap_creatures), changes:[...$plural_pump_change, ...$plural_gain_change], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:$pump_untap_creatures}}] */
+instructions_creature_pump_grant_untap ::= pump_untap_creatures plural_pump_change "and" plural_gain_change duration "." "untap" "those" "creatures"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::CardType(Creature), $pump_untap_controller)} */
+pump_untap_creatures ::= "creatures" pump_untap_controller
+
+pump_untap_controller ::= modifier_you_control | modifier_not_controlled | modifier_opponent_controls
+
+/* This producer guarantees that the affected snapshot consists of creatures,
+   so the follow-up names precisely that recorded population. */
+/* @sem Instruction::[Effect{result:@next, operation:$controlled_creatures_snapshot}, $untap_affected_creatures] */
+clause_creatures_snapshot_untap ::= controlled_creatures_snapshot "." untap_affected_creatures
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), $creature_controller_modifier])}), changes:$plural_snapshot_change, duration:$duration, evaluation:Snapshot} */
+controlled_creatures_snapshot ::= "creatures" creature_controller_modifier plural_snapshot_change duration
+
+creature_controller_modifier ::= modifier_you_control | modifier_opponents_control
+
+plural_snapshot_change ::= plural_snapshot_pump | plural_snapshot_grant
+
+/* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
+plural_snapshot_pump ::= "get" signed "/" signed
+
+/* @sem $grants */
+plural_snapshot_grant ::= "gain" grants
+
+/* @sem Instruction::Effect{result:@next, operation:SetTapped{objects:Affected(@prior)}} */
+untap_affected_creatures ::= "untap" "those" "creatures"
+
+/* A controlled target remains the same object through untapping and a temporary grant. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$control_untap_creature_filter}), index:0})), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:One(Target{slot:0, index:0}), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:0, index:0})), changes:[GrantKeyword($keyword_name)], duration:$duration_2, evaluation:Snapshot}}] */
+control_untap_creature_keyword ::= "gain" "control" "of" "target" control_untap_creature_filter duration "." "untap" "that" "creature" "." "it" "gains" keyword_name duration
+
+control_untap_creature_filter ::= noun_creature | control_untap_qualified_creature
+
+/* @sem @and($adjective, $noun_creature) */
+control_untap_qualified_creature ::= adjective noun_creature
+
+/* The quoted ability is scoped to the granted holder. */
+/* @sem Instruction::[Effect{result:@next, operation:CreatePerpetualEffect{objects:One(Target{slot:0, index:0}), changes:[GrantAbility($creature_quoted_static)]}}] */
+target_perpetual_quoted_grant ::= "it" "perpetually" "gains" creature_quoted_static
+
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(Source)), changes:$creature_quoted_changes} */
+creature_quoted_static ::= '"' "this" "creature" creature_quoted_changes "." '"'
+
+creature_quoted_changes ::= creature_quoted_attack | creature_quoted_block
+
+/* @sem Change::[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})] */
+creature_quoted_attack ::= "attacks" "each" "combat" "if" "able"
+
+/* @sem Change::[Rule(RequireCombat{action:Block(Any), amount:AtLeast(Constant(1))})] */
+creature_quoted_block ::= "blocks" "each" "combat" "if" "able"
+
+/* @prefer always */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$control_untap_creature_keyword, ...$target_perpetual_quoted_grant]}} */
+spell_control_untap_perpetual ::= control_untap_creature_keyword "." target_perpetual_quoted_grant
+
+/* @sem Operand::Term{family:CheckHasable, form:AnyLandwalk, operands:[]} */
+lost_any_landwalk ::= "all" "landwalk" "abilities"
+
+/* A loss and a type replacement share the same affected set and duration. */
+/* @sem Change::[...$change_loses_keyword, ...$change_creature_types] */
+changes_keyword_loss_and_creature_types ::= change_loses_keyword "and" change_creature_types
+
+lost_keyword_singular ::= lost_flanking | lost_keyword
+
+/* @sem Operand::Term{family:CheckHasable, form:Flanking, operands:[]} */
+lost_flanking ::= "flanking"
