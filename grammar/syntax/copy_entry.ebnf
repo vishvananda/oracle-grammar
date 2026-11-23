@@ -225,7 +225,7 @@ copy_exception_oxford_more ::= copy_exception_plain "," "and" copy_exceptions_pl
 /* @sem CopyException::AddSupertypes([Legendary]) */
 copy_add_legendary_retained ::= "it's" "legendary" "in" "addition" "to" "its" "other" "types"
 
-entry_copy_actions ::= entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color
+entry_copy_actions ::= entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_added_type_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color
 
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$entry_copy_tail})}}] */
 entry_copy_plain_actions ::= "a" "copy" "of" entry_copy_objects entry_copy_tail
@@ -373,3 +373,11 @@ instructions_then_optional_hand_exile_copy ::= clause "." "then" instructions_op
 /* Replacement characteristics and the granted keyword are copiable values. */
 /* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$value, toughness:$value_2}, CopyException::Colors{mode:Set, colors:Listed($token_colors)}, CopyException::SetTypes{card_types:[Creature], subtypes:$token_subtypes}, CopyException::SetCardTypes([Creature]), CopyException::AddAbilities([Keyword($keyword_value)])] */
 copy_creature_stats_color_keyword ::= "it's" "a" value "/" value token_colors token_subtypes "creature" "with" keyword_value
+
+/* The copied permanent keeps its types while gaining the stated card type. */
+/* @sem Vec<CopyException>::[CopyException::AddCardTypes([$only_card_type])] */
+entry_copy_add_card_type_tail ::= "," "except" "it's" only_card_type "in" "addition" "to" "its" "other" "types" "."
+
+/* An explicit battlefield choice composes with the retained type. */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$entry_copy_any}, exceptions:$entry_copy_add_card_type_tail})}}] */
+entry_copy_added_type_actions ::= "a" "copy" "of" entry_copy_any entry_copy_add_card_type_tail

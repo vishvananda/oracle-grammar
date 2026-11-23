@@ -9,7 +9,7 @@ chapters_one ::= chapter_first
 /* @sem Ability::[...$chapter_first, ...$chapter_tail] */
 chapters_more ::= chapter_first NEWLINE chapter_tail
 
-chapter_first ::= chapter_1_final_quoted_grant | chapter_1_2_3_4_5_6 | chapter_1_quoted_token | chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
+chapter_first ::= chapter_1_2_closed_activation | chapter_1_final_quoted_grant | chapter_1_2_3_4_5_6 | chapter_1_quoted_token | chapter_1_modal | chapter_1_2_modal | chapter_1_2_3_modal | chapter_1_2_3_4_modal | chapter_1 | chapter_1_2 | chapter_1_2_3 | chapter_1_2_3_4
 
 chapter_tail ::= chapter_next_entry_then_transform | chapter | chapter_tail_more
 
@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color
+chapter_program ::= chapter_counter_creatures_one | chapter_counter_creatures_many | chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -274,3 +274,22 @@ chapter_next_creature_entry_counter ::= "when" "you" "next" "cast" "a" "creature
 /* Pair the independently parsed next-cast chapter with a transforming chapter. */
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_next_creature_entry_counter}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$saga_exile_return_transformed})] */
 chapter_next_entry_then_transform ::= "II" "—" chapter_next_creature_entry_counter "." NEWLINE "III" "—" saga_exile_return_transformed "."
+
+/* A closed quoted activation supplies the chapter's final punctuation. The
+   affected population and the granted ability retain their separate scopes. */
+/* @prefer always */
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_timed_activation}), @scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_timed_activation})] */
+chapter_1_2_closed_activation ::= "i" "," "II" "—" chapter_timed_activation
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected_plural)), changes:[$grant_quoted_activation], duration:$duration, evaluation:Snapshot}}]} */
+chapter_timed_activation ::= duration "," affected_plural "gain" grant_quoted_activation
+
+/* Capture the population before placing counters; the follow-up applies to
+   the same population even when a counter placement fails. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:NoteObjects{objects:$each_counter_creature}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Selected(@marked)), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@marked)), changes:$static_changes, duration:$duration, evaluation:Snapshot}}]} */
+chapter_counter_creatures_one ::= "put" "a" counter_kind "counter" "on" each_counter_creature "." "those" "creatures" static_changes duration
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:NoteObjects{objects:$each_counter_creature}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Selected(@marked)), kind:$counter_kind, amount:$number_words}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@marked)), changes:$static_changes, duration:$duration, evaluation:Snapshot}}]} */
+chapter_counter_creatures_many ::= "put" number_words counter_kind "counters" "on" each_counter_creature "." "those" "creatures" static_changes duration
