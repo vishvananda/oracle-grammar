@@ -694,3 +694,22 @@ distinct_opponent_action_second ::= player_prohibited_action
 
 /* @sem $player_prohibited_action */
 distinct_opponent_action_third ::= player_prohibited_action
+
+/* @sem PlayerRef::FirstWilling(OpponentsOf(AbilityController)) */
+willing_payment_opponent ::= "any" "opponent"
+
+players_with_controlled_permanent ::= players_with_controlled_permanent_a | players_with_controlled_permanent_an
+
+/* @sem PlayerSet::Intersection([$players_unqualified_singular, Matching{binding:0, condition:Controls{player:Bound(0), filter:$filter_phrase, minimum:1}}]) */
+players_with_controlled_permanent_a ::= players_unqualified_singular "who" "controls" "a" filter_phrase
+
+/* @sem PlayerSet::Intersection([$players_unqualified_singular, Matching{binding:0, condition:Controls{player:Bound(0), filter:$filter_phrase, minimum:1}}]) */
+players_with_controlled_permanent_an ::= players_unqualified_singular "who" "controls" "an" filter_phrase
+
+/* Three separately announced optional opponents must be pairwise distinct.
+   The final sentence constrains all three targets, not a fourth action. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:UpTo(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}))), changes:[PlayerRule(Prohibit($player_prohibited_action))], duration:$duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:UpTo(Constant(1)), filter:Any, players:OpponentsOf(AbilityController), constraints:[DifferentFromTarget(0)]}))), changes:[PlayerRule(Prohibit($player_prohibited_action_2))], duration:$duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:UpTo(Constant(1)), filter:Any, players:OpponentsOf(AbilityController), constraints:[DifferentFromTarget(0), DifferentFromTarget(1)]}))), changes:[PlayerRule(Prohibit($player_prohibited_action_3))], duration:$duration, evaluation:LiveObjects}}]} */
+three_distinct_opponent_prohibitions ::= duration "," "up" "to" "one" "target" "opponent" "can't" player_prohibited_action "," "up" "to" "one" "target" "opponent" "can't" player_prohibited_action "," "and" "up" "to" "one" "target" "opponent" "can't" player_prohibited_action "." "you" "can't" "choose" "any" "player" "as" "a" "target" "more" "than" "once" "."
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$three_distinct_opponent_prohibitions} */
+triggered_three_distinct_opponent_prohibitions ::= event_clause "," three_distinct_opponent_prohibitions

@@ -148,3 +148,11 @@ triggered_energy_payment_named_token ::= "at" turn_event "," clause_energy_payme
 energy_get_controlled ::= "get" "{E}" "for" "each" count_each_controlled
 /* @sem Operation::Keyword{actor:@subject, action:KeywordAction::GainEnergy{amount:$count_each_controlled}} */
 energy_gets_controlled ::= "gets" "{E}" "for" "each" count_each_controlled
+
+/* Keep the variable token characteristics bound to this energy payment. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:Energy}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Performed(@marked), Performed(@marked)]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+clause_energy_payment_token ::= "you" "may" "pay" "one" "or" "more" "{E}" "." "if" "you" "do" "," "create" "an" "X" "/" "X" token_colors token_subtypes token_types "token" "," "where" "X" "is" "the" "amount" "of" "{E}" "paid" "this" "way"
+
+/* The initial operation and the payment clause compose into an activation. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$operation}, ...$clause_energy_payment_token]}} */
+activation_operation_energy_token ::= cost ":" operation "," "then" clause_energy_payment_token "."

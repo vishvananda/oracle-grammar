@@ -164,7 +164,7 @@ replacement_draw_empty_before ::= "if" draw_event "while" "your" "library" "has"
 replacement_draw_may_instead ::= "if" draw_event "," "you" "may" instructions "instead" "."
 
 /* The shield an instant leaves behind. */
-prevent_clause ::= redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents
+prevent_clause ::= redirect_unblocked_combat_timed | next_combat_redirect | next_adapt_replacement | next_entry_replacement | next_roll_replacement | shield_each_next | shield_by_next | shield_next_occurrence | redirect_next_occurrence | redirect_next_amount | redirect_next_pair | prevent_distributed_targets | prevent_combat_to_by | prevent_next | prevent_all | prevent_all_dealt | prevent_radiance | prevent_all_late_to | prevent_all_to_by_permanents | prevent_all_to_by_permanents_late | prevent_all_to_by_sources | prevent_all_by_permanents | prevent_all_by_permanents_late | prevent_all_by_sources | prevent_all_target_deals | prevent_from_event | prevent_except_event | prevent_named_plane_event | prevent_damage_target_range | prevent_spell_damage | prevent_would_deal | replacement_damage_fixed_amount | redirect_target_to_holder | prevent_all_with_receipt_to | prevent_all_with_receipt_by | prevent_next_with_receipt_to | prevent_next_each | prevent_next_late | prevent_next_granting_spell | redirect_all_to_by_permanents | prevent_next_with_receipt_shared
 
 /* The named recipient is included even when colorless. The other population
    must be creatures sharing its color, with the original object excluded. */
@@ -2011,7 +2011,7 @@ replacement_owned_zone_redirect ::= "if" replacement_owned_death_or_card "," rep
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_graveyard_event, body:$replacement_zone_program} */
 replacement_zone_redirect ::= "if" replacement_graveyard_event "," replacement_zone_program "."
 
-replacement_graveyard_event ::= replacement_card_or_token_your_zone | replacement_typed_card_graveyard | replacement_enchanted_controlled_death | replacement_owned_battlefield_graveyard | replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard | replacement_your_card_graveyard | replacement_controlled_card_graveyard
+replacement_graveyard_event ::= replacement_card_or_token_your_zone | replacement_typed_card_graveyard | replacement_enchanted_controlled_death | replacement_owned_battlefield_graveyard | replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard | replacement_your_card_graveyard | replacement_controlled_card_graveyard | replacement_card_or_token_zone
 
 /* A singular object headed to its owner's graveyard retains its owner independently
    of its battlefield controller. The two subtype words both constrain that object. */
@@ -2506,6 +2506,7 @@ prevent_all_with_receipt_to ::= "prevent" "all" prevent_damage "that" "would" "b
 /* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Permanent, sources:$filter_plural, recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:$prevent_receipt_body} */
 prevent_all_with_receipt_by ::= "prevent" "all" prevent_damage "that" "would" "be" "dealt" "by" filter_plural this_duration "." prevent_receipt_body
 
+/* @prefer always */
 /* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:$prevent_to_you_and_or, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$this_duration, body:$prevent_receipt_body} */
 prevent_next_with_receipt_to ::= "prevent" "the" "next" number "damage" "that" "would" "be" "dealt" "to" prevent_to_you_and_or this_duration "." prevent_receipt_body
 
@@ -3879,3 +3880,11 @@ replacement_create_extra_many_outcome ::= "instead" "create" "those" "tokens" "p
 replacement_extra_count ::= count_plural
 
 replacement_extra_outcome ::= replacement_create_extra_outcome | replacement_create_extra_many_outcome
+
+/* Cards and tokens share the owner and destination of the impending event. */
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf([Any, OwnedBy(All)]), to:$enchanted_player_card_zone} */
+replacement_card_or_token_zone ::= "a" "card" "or" "token" "would" "be" "put" "into" "a" enchanted_player_card_zone "from" "anywhere"
+
+/* The prevention and its consumed receipt stay within the same replacement. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:$prevent_to, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($value), duration:$this_duration, body:$prevent_receipt_body} */
+prevent_next_with_receipt_shared ::= "prevent" "the" "next" value prevent_damage "that" "would" "be" "dealt" "to" prevent_to this_duration "." prevent_receipt_body

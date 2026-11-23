@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= controlled_subtype_temporary_keyword | controlled_creature_color_pump | continuous_grant_own_mana_cost | continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot | temporary_grant_equal_own_mana | temporary_harmonize_mana_cost | combat_relative_stats | land_animation_retained | switch_each_population_stats | continuous_negative_population_pump | chosen_target_colors_protection | continuous_defined_pump_keyword | targeted_color_scaled_snapshot | continuous_controlled_subtypes_grant
+continuous_snapshot ::= controlled_subtype_temporary_keyword | controlled_creature_color_pump | continuous_grant_own_mana_cost | continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot | temporary_grant_equal_own_mana | temporary_harmonize_mana_cost | combat_relative_stats | land_animation_retained | switch_each_population_stats | continuous_negative_population_pump | chosen_target_colors_protection | continuous_defined_pump_keyword | targeted_color_scaled_snapshot | continuous_controlled_subtypes_grant | controlled_three_subject_temporary_keyword
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -222,9 +222,10 @@ change_becomes_plain ::= ("becomes" | "become" | "is" | "are") animation_plain
 /* @sem $animation_with */
 change_becomes_with ::= ("becomes" | "become" | "is" | "are") animation_with
 
-animation_description ::= animation_plain | animation_with
+animation_description ::= animation_plain | animation_with | animation_legendary_named
 /* @sem Change::[Change::SetBasePowerToughness{power:$number, toughness:$number_2}, ...$becomes_kind] */
 animation_plain ::= ("a" | "an") number "/" number becomes_kind
+/* @prefer always */
 /* @sem Change::[Change::SetBasePowerToughness{power:$number, toughness:$number_2}, ...$becomes_kind, ...$grants] */
 animation_with ::= ("a" | "an") number "/" number becomes_kind "with" grants
 
@@ -1632,8 +1633,9 @@ continuous_chosen_creature_type ::= affected "becomes" "that" "type" duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Add}], duration:$duration, evaluation:Snapshot} */
 continuous_chosen_creature_type_retained ::= affected "becomes" "that" "type" retention_addition duration
 
-/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
-clause_creature_type_choice_timed ::= affected "becomes" "the" "creature" "type" "of" "your" "choice" duration
+/* @sem Instruction::[Effect{result:@next, operation:$embedded_creature_type_choice}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
+/* @prefer always */
+clause_creature_type_choice_timed ::= affected "becomes" embedded_creature_type_choice duration
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:CreatureType, mode:Set}], duration:Indefinite, evaluation:Snapshot}}] */
 clause_creature_type_choice_indefinite ::= affected "becomes" "the" "creature" "type" "of" "your" "choice"
 /* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:BasicLandType, terms:_{count:Exactly(Constant(1))}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType{kind:LandType, mode:Set}], duration:$duration, evaluation:Snapshot}}] */
@@ -2695,7 +2697,7 @@ first_cast_spell_subject ::= "the" "first" first_cast_spell_filter "spell" "you"
 
 first_cast_spell_filter ::= filter_phrase | adjective_nontype | adjective_historic
 
-stack_granted_mechanic ::= mechanic_convoke | bare_improvise | bare_demonstrate | bare_rebound | granted_sticker_kicker
+stack_granted_mechanic ::= mechanic_convoke | bare_improvise | bare_demonstrate | bare_rebound | granted_sticker_kicker | granted_freerunning
 
 /* @sem Ability::Mechanic{mechanic:StickerKicker, cost:$cost} */
 granted_sticker_kicker ::= "sticker" "kicker" cost
@@ -6558,14 +6560,15 @@ top_library_cast_permission ::= "cast" "a" "spell" "from" "the" "top" "of" "your
 graveyard_cast_single_changes ::= "cast" "a" filter_phrase "spell" "from" "your" "graveyard"
 
 /* The named attacker and the first creature refer to the triggering object. */
+/* @prefer always */
 /* @sem ObjectSet::One(EventSubject) */
 event_attacker_subject ::= "the" "creature" "that" "attacked"
 
 /* @sem ObjectSet::One(EventSubject) */
 event_first_creature ::= "the" "first" "creature"
 
-/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($event_attacker_subject), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
-event_subject_snapshot ::= event_attacker_subject static_changes duration
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects($event_snapshot_subject), changes:$static_changes, duration:$duration, evaluation:Snapshot} */
+event_subject_snapshot ::= event_snapshot_subject static_changes duration
 
 /* @sem Change::[Rule(CombatDamage(NoAssignment))] */
 no_combat_assignment_singular ::= "assigns" "no" "combat" "damage"
@@ -6583,7 +6586,7 @@ control_left_player ::= "the" "player" "to" "your" "left"
 /* @sem PlayerRef::Extreme{players:All, number:Permanents($filter_plural), highest:true} */
 control_most_player ::= "the" "player" "who" "controls" "the" "most" filter_plural
 
-control_indefinite_player ::= control_right_player | control_left_player | control_most_player
+control_indefinite_player ::= control_right_player | control_left_player | control_most_player | control_random_target_opponent
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[SetController($control_indefinite_player)], duration:Indefinite, evaluation:Snapshot} */
 control_indefinite ::= control_indefinite_player "gains" "control" "of" affected
@@ -9617,3 +9620,50 @@ controlled_grant_humans ::= "humans"
 /* A plural land population retains its land type while gaining creature stats. */
 /* @sem Change::[SetBasePowerToughness{power:$value, toughness:$value_2}, AddCardType(Creature)] */
 static_retained_land_creature_stats ::= "are" value "/" value "creatures" "that" "are" "still" "lands"
+
+/* A three-part controlled population can share a temporary keyword grant. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$controlled_three_subject, ControlledBy(One(AbilityController))])}), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot} */
+controlled_three_subject_temporary_keyword ::= controlled_three_subject "you" "control" "gain" keyword_name duration
+
+/* @sem ObjectFilter::AnyOf([$controlled_three_first_subtype, $subtype_plural, $filter_plural_adjectives]) */
+controlled_three_subject ::= controlled_three_first_subtype "," subtype_plural "," "and" filter_plural_adjectives
+
+/* @sem ObjectFilter::Subtype(Aura) */
+controlled_three_first_subtype ::= "auras"
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OpponentsOf(AbilityController), constraints:[AtRandom]}), index:0} */
+control_random_target_opponent ::= "target" "opponent" "chosen" "at" "random"
+
+/* A legendary animation names the resulting object and retains its printed keyword. */
+/* @sem Change::[AddSupertype(Legendary), SetBasePowerToughness{power:$number, toughness:$number_2}, ...$legendary_creature_kind, GrantKeyword($keyword_name), SetName($referenced_card_name)] */
+animation_legendary_named ::= "a" "legendary" number "/" number legendary_creature_kind "with" keyword_name "named" referenced_card_name
+
+/* The crewed Vehicle is the other participant in a paired event. */
+/* @sem ObjectSet::One(EventOther) */
+event_other_vehicle_subject ::= "that" "Vehicle"
+
+event_snapshot_subject ::= event_attacker_subject | event_other_vehicle_subject
+
+/* @sem Ability::Mechanic{mechanic:Freerunning, cost:$cost} */
+granted_freerunning ::= "freerunning" cost
+
+/* The named creature population is the producer of both later references. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$pump_attacking_creatures}), changes:[Pump{power:$signed, toughness:$signed_2}], duration:$duration, evaluation:Snapshot}}, If{condition:$condition, then:Program{instructions:[Effect{result:@next, operation:SetTapped{objects:Affected(@marked), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Affected(@marked)), changes:[Pump{power:$signed_3, toughness:$signed_4}], duration:$duration_2, evaluation:Snapshot}}]}, otherwise:Program{}}] */
+creature_pump_conditional_untap ::= pump_attacking_creatures "get" signed "/" signed duration "." "if" condition "," "untap" "those" "creatures" "and" "they" "get" "an" "additional" signed "/" signed duration
+
+/* @sem ObjectFilter::AllOf([Attacking, CardType(Creature)]) */
+pump_attacking_creatures ::= "attacking" "creatures"
+
+/* The event subject is the player receiving control. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[SetController(EventSubject)], duration:Indefinite, evaluation:Snapshot} */
+event_player_gains_control ::= "they" "gain" "control" "of" affected
+
+/* @sem Operation::ChooseValue{choosers:One(AbilityController), kind:CreatureType, terms:_{count:Exactly(Constant(1))}} */
+embedded_creature_type_choice ::= "the" "creature" "type" "of" "your" "choice"
+
+/* @sem Instruction::[Effect{result:@next, operation:$embedded_creature_type_choice}, Effect{result:@next, operation:CreateContinuousEffect{source:$object_ref, affected:Objects(One($object_ref)), changes:[ChosenType{kind:CreatureType, mode:Add}], duration:$duration, evaluation:Snapshot}}] */
+clause_ref_add_creature_type_choice ::= object_ref "becomes" embedded_creature_type_choice "in" "addition" "to" "its" "other" "types" duration
+
+/* This anaphor is only used inside the explicit target-choice program. */
+/* @sem Change::[Rule(UntapStep{players:One(ControllerOf(Affected)), behavior:Skip})] */
+chosen_creature_skip_next_untap ::= "the" "chosen" "creature" "doesn't" "untap" "during" "its" "controller's" "next" "untap" "step"

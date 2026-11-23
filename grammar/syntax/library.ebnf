@@ -1,7 +1,7 @@
 /* Searching and inspecting a library. */
 
 /* What was found stays the referent of `it` until the search is over. */
-clause_search ::= clause_search_repeat_values | clause_search_player_margin_split | clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where | clause_search_single_sentence_hand | clause_search_instead_reveal | clause_search_reveal_distinct_random
+clause_search ::= clause_search_repeat_values | clause_search_player_margin_split | clause_search_constrained_plural | clause_search_general | clause_search_any_number | clause_search_graveyard_pair | clause_search_sentence_follow | clause_search_counted | clause_search_single_depth | clause_search_three_colors_graveyard | clause_search_conditional_entry | clause_search_library_pair | clause_search_reveal_branch | clause_search_three_reveal_hand | clause_search_basic_types_tapped | clause_search_named_each | clause_search_conditional_additional | clause_search_exile_create_tokens | clause_search_keyword_graveyard | clause_search_five_choices | clause_search_then_operation | clause_search_if_found | clause_search_sacrificed_reveal | clause_random_search | clause_search_named_population | clause_search_attacking_where | clause_search_single_sentence_hand | clause_search_instead_reveal | clause_search_reveal_distinct_random | search_two_zones_exile_rest_reorder
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_follow] */
 clause_search_general ::= search search_follow
 /* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search_plural}, ...$search_plural_follow] */
@@ -6021,3 +6021,56 @@ player_revealed_destination ::= "into" "their" "graveyard"
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One($self_explicit_ref)), changes:[CopyOf{object:Earlier{what:Revealed}, exceptions:[]}], duration:Indefinite, evaluation:Snapshot} */
 revealed_card_copy_self ::= self_explicit_ref "becomes" "a" "copy" "of" "that" "card"
+
+/* The observed card and the remaining library are tied to this reveal. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:AbilityController, filter:$reveal_until_card, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$reveal_until_card}, destination:$until_destination, qualifiers:[]}}, Effect{result:@next, operation:$shuffle_other_revealed_library}] */
+reveal_single_move_shuffle ::= reveal_until_your_library reveal_until_card "," "put" "that" "card" until_destination "," shuffle_other_revealed_library
+
+/* @sem Operation::Shuffle{players:One(AbilityController)} */
+shuffle_other_revealed_library ::= "then" "shuffle" "all" "other" "cards" "revealed" "this" "way" "into" "your" "library"
+
+/* The sacrificed target determines the controller in the following reveal sequence. */
+/* @sem Instruction::[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(ControllerOf($target_permanent)), objects:One($target_permanent)})}] */
+controller_sacrifices_target ::= "the" "controller" "of" target_permanent "sacrifices" "it"
+
+/* Keep the reveal, its matching card, and the player who shuffles in one scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:RevealUntil{library:ControllerOf(Target{slot:@last_slot, index:0}), filter:$card_filter, count:Constant(1)}}, Effect{result:@next, operation:Move{objects:Matching{objects:Observed(@marked), filter:$card_filter}, destination:Battlefield{controller:Player(ControllerOf(Target{slot:@last_slot, index:0})), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(ControllerOf(Target{slot:@last_slot, index:0}))}}] */
+controller_reveals_an_entry_shuffle ::= "reveals" "cards" "from" "the" "top" "of" "their" "library" "until" "they" "reveal" "an" card_filter "card" "." "that" "player" "puts" "that" "card" "onto" "the" "battlefield" "," "then" "shuffles" "all" "other" "cards" "revealed" "this" "way" "into" "their" "library"
+
+/* @sem Instruction::[...$controller_sacrifices_target, ...$controller_reveals_an_entry_shuffle] */
+sacrifice_controller_reveal_entry ::= controller_sacrifices_target "," "then" controller_reveals_an_entry_shuffle
+
+/* The cast and declined branch refer to this single top-card exile receipt. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:Move{objects:$own_library_top_card, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:One(Result{result:@marked, phase:After, index:0}), count:Exactly(Constant(1)), cost:Normal}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@prior)), then:$program, otherwise:Program{}}]} */
+program_exile_top_cast_declined ::= "exile" own_library_top_card "." "you" "may" "cast" "that" "card" "." "if" "you" "don't" "," program
+
+/* The choice consumes the immediately preceding exile's actual arrivals. The
+   producer and choice are one unit so inverse printing proves the receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:$choice_exile_top, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Transition{result:@marked, phase:After}, count:AsManyAsCan(Constant(1))}}] */
+clause_exile_top_choose_one ::= "exile" choice_exile_top choice_exile_join "choose" "one" "of" "them"
+
+choice_exile_top ::= choice_exile_top_fixed | choice_exile_top_event
+
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:$top_count, from:Top} */
+choice_exile_top_fixed ::= "the" "top" top_count "of" "your" "library"
+
+/* @sem ObjectSet::Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:EventAmount, from:Top} */
+choice_exile_top_event ::= "that" "many" "cards" "from" "the" "top" "of" "your" "library"
+
+/* @sem () */
+choice_exile_join ::= "." | "," "then"
+
+/* The chosen opponent and the difference search share one population filter. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Player, terms:_{count:Exactly(Constant(1)), options:[Players(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})}}}]))]}}}, Effect{result:@next, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:$filter_phrase, count:UpTo(Subtract(CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Chosen))])}), CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})))}]}}] */
+choose_more_and_search_difference ::= "choose" "an" "opponent" "who" "controls" "more" filter_plural "than" "you" "." "search" "your" "library" "for" "a" "number" "of" filter_phrase "cards" "equal" "to" "the" "difference"
+
+/* Partition the searched selection, retaining its receipt for both moves. */
+/* @sem Instruction::[Effect{result:@next, operation:Reveal{objects:Selected(@prior)}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Selected(@back(3)), count:AsManyAsCan($value)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Selected(@back(5)), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+searched_reveal_partition_tapped_hand ::= "reveal" "those" "cards" "," "put" value "of" "them" "onto" "the" "battlefield" "tapped" "and" "the" "rest" "into" "your" "hand" "," "then" "shuffle"
+
+/* @sem Instruction::[...$choose_more_and_search_difference, ...$searched_reveal_partition_tapped_hand] */
+instructions_choose_more_search_partition ::= choose_more_and_search_difference "," searched_reveal_partition_tapped_hand
+
+/* The search receipt is shared by the exclusion and library reorder. */
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:Any, count:AsManyAsCan($card_count)}], also:[Graveyard]}}, Effect{result:@next, operation:Move{objects:Difference{objects:Union([Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), Zone(_{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any})]), excluding:Selected(@marked)}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:Selected(@marked), end:$cost_library_end, order:$library_order}}] */
+search_two_zones_exile_rest_reorder ::= "search" "your" "library" "and" "graveyard" "for" card_count "and" "exile" "the" "rest" "." "put" "the" "chosen" "cards" cost_library_end "of" "your" "library" library_order

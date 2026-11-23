@@ -635,7 +635,7 @@ cost_untap_single_filter ::= "untap" "a" filter_phrase
 /* @sem CostPart::Reveal{count:Exactly(Constant(1)), filter:$card_filter} */
 cost_reveal_filtered_hand ::= "reveal" "a" card_filter "card" "in" "your" "hand"
 
-cost_one_permanent_selection ::= cost_one_controlled_permanent | cost_another_nontoken_controlled | cost_one_plain_permanent
+cost_one_permanent_selection ::= cost_one_controlled_permanent | cost_another_nontoken_controlled | cost_one_plain_permanent | cost_another_controlled
 
 /* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
 cost_owner_hand_destination ::= "to" "its" "owner's" "hand"
@@ -644,7 +644,7 @@ cost_owner_hand_destination ::= "to" "its" "owner's" "hand"
 /* @sem CostPart::Move{selections:[$graveyard_exile_selection], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
 cost_exile_graveyard_selection ::= "exile" graveyard_exile_selection
 
-graveyard_exile_selection ::= graveyard_exile_at_least | graveyard_exile_other | graveyard_exile_any_other
+graveyard_exile_selection ::= graveyard_exile_at_least | graveyard_exile_other | graveyard_exile_any_other | graveyard_exile_another_filtered
 /* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, choose:AtLeast($value)} */
 graveyard_exile_at_least ::= value "or" "more" filter_phrase "cards" "from" "your" "graveyard"
 /* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Not(SameObject(Source))}, choose:Exactly($value)} */
@@ -2490,3 +2490,48 @@ activated_remove_named_counters_gain_life ::= cost_tap "," "↑" "remove" "all" 
 /* The ordered population is shared independently of the payment action. */
 /* @sem CostPart::Move{selections:[_{objects:$ordered_filtered_graveyard_cards}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
 cost_exile_ordered_graveyard_population ::= "exile" ordered_filtered_graveyard_cards
+
+/* A choice of one or several matching permanents is part of the payment. */
+/* @sem Cost::Cost{parts:[$cost_sacrifice]} */
+chosen_sacrifice_one ::= cost_sacrifice "of" "their" "choice"
+
+/* @sem Cost::Cost{parts:[$cost_sacrifice_many]} */
+chosen_sacrifice_many ::= cost_sacrifice_many "of" "their" "choice"
+
+chosen_sacrifice_payment ::= chosen_sacrifice_one | chosen_sacrifice_many
+
+/* A single other card retains both the filter and the source exclusion. */
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $filter_phrase)}, choose:Exactly(Constant(1))} */
+graveyard_exile_another_filtered ::= "another" filter_phrase "card" "from" "your" "graveyard"
+
+/* Alternative mana and life payments share the event player's decision. */
+/* @sem Cost::Cost{parts:[Choice([Cost{parts:[Mana($mana_symbols)]}, Cost{parts:[Life($number)]}])]} */
+event_player_mana_or_life_payment ::= "pay" mana_symbols "or" number "life"
+
+/* The casting payment proves the singleton permanent measured by the draw. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$cost_sacrifice]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$casting_sacrifice_property_draw}]}}] */
+line_casting_sacrifice_property_draw ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," cost_sacrifice "." NEWLINE casting_sacrifice_property_draw "."
+
+/* This phrase is only used within the singleton casting sacrifice scope. */
+/* @sem Operation::Draw{players:One(AbilityController), amount:$casting_single_payment_property} */
+casting_sacrifice_property_draw ::= "draw" "cards" "equal" "to" "the" casting_single_payment_property "of" "the" "sacrificed" "permanent"
+
+/* Keep the measured payment and its draw consumer in the same program. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:PayAnyAmount{actor:One(AbilityController), resource:$payment_resource}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Performed(@marked)}}]}, otherwise:Program{}}]} */
+optional_any_resource_draw_program ::= "you" "may" "pay" "any" "amount" "of" payment_resource "." "if" "you" "do" "," "draw" "that" "many" "cards" "."
+
+/* The pronoun refers to the player bound by the enclosing event. */
+/* @sem Operation::PayCost{player:EventSubject, cost:$cost, optional:true} */
+event_subject_pay_cost_offer ::= "they" "may" "pay" cost
+
+/* Bind the declined payment test to its immediately preceding payment. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:$event_subject_pay_cost_offer}, If{condition:Not(PaymentChosen(@marked)), then:$program, otherwise:Program{}}]} */
+event_subject_declined_payment_program ::= event_subject_pay_cost_offer "." "if" "they" "don't" "," program
+
+/* A full sentence continuation retains its own final punctuation. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:$event_subject_pay_cost_offer}, If{condition:Not(PaymentChosen(@marked)), then:$program_sentence, otherwise:Program{}}]} */
+event_subject_declined_payment_sentence ::= event_subject_pay_cost_offer "." "if" "they" "don't" "," program_sentence
+
+/* The selected permanent is another object controlled by the ability controller. */
+/* @sem CostObjectSelection::CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), $filter_phrase, ControlledBy(One(AbilityController))])}, choose:Exactly(Constant(1))} */
+cost_another_controlled ::= "another" filter_phrase "you" "control"

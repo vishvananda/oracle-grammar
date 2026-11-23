@@ -1,0 +1,1325 @@
+{
+  "family": "scoped-exile-choice",
+  "cases": [
+    {
+      "name": "Feldon, Ronom Excavator",
+      "text": "Haste\nFeldon can't block.\nWhenever Feldon is dealt damage, exile that many cards from the top of your library. Choose one of them. Until the end of your next turn, you may play that card.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Keyword",
+          "args": {
+            "kind": "Haste"
+          }
+        },
+        {
+          "kind": "Static",
+          "args": {
+            "kind": "Ordinary",
+            "affected": {
+              "Objects": {
+                "kind": "One",
+                "args": {
+                  "kind": "Source"
+                }
+              }
+            },
+            "changes": [
+              {
+                "kind": "Rule",
+                "args": {
+                  "Prohibit": {
+                    "Block": {
+                      "kind": "Any"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Damage": {
+                "source_kind": "Any",
+                "sources": {
+                  "kind": "Any"
+                },
+                "recipients": {
+                  "Objects": {
+                    "kind": "SameObject",
+                    "args": {
+                      "kind": "Source"
+                    }
+                  }
+                },
+                "kind": "Any",
+                "grouping": "Recipient",
+                "subject": "Recipient"
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "EventAmount"
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "objects": {
+                          "kind": "Transition",
+                          "args": {
+                            "result": 0,
+                            "phase": "After"
+                          }
+                        },
+                        "count": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        },
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermission": {
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "from": "Exile",
+                                "action": "Either",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": {
+                          "UntilEndOfNextTurn": {
+                            "kind": "AbilityController"
+                          }
+                        },
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Magmatic Channeler",
+      "text": "As long as there are four or more instant and/or sorcery cards in your graveyard, this creature gets +3/+1.\n{T}, Discard a card: Exile the top two cards of your library, then choose one of them. You may play that card this turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "AnyOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Instant"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Sorcery"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 4
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Pump",
+                      "args": {
+                        "power": {
+                          "kind": "Constant",
+                          "args": 3
+                        },
+                        "toughness": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol",
+                {
+                  "Discard": {
+                    "count": {
+                      "kind": "Constant",
+                      "args": 1
+                    },
+                    "filter": {
+                      "kind": "Any"
+                    },
+                    "random": false
+                  }
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "objects": {
+                          "kind": "Transition",
+                          "args": {
+                            "result": 0,
+                            "phase": "After"
+                          }
+                        },
+                        "count": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        },
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermission": {
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "from": "Exile",
+                                "action": "Either",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Magmatic Channeler",
+      "text": "As long as there are four or more instant and/or sorcery cards in your graveyard, this creature gets +3/+1.\n{T}, Discard a card: Exile the top three cards of your library, then choose one of them. You may play that card this turn.",
+      "types": [
+        "Creature"
+      ],
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "AnyOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Instant"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Sorcery"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 4
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Pump",
+                      "args": {
+                        "power": {
+                          "kind": "Constant",
+                          "args": 3
+                        },
+                        "toughness": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol",
+                {
+                  "Discard": {
+                    "count": {
+                      "kind": "Constant",
+                      "args": 1
+                    },
+                    "filter": {
+                      "kind": "Any"
+                    },
+                    "random": false
+                  }
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "Constant",
+                              "args": 3
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "objects": {
+                          "kind": "Transition",
+                          "args": {
+                            "result": 0,
+                            "phase": "After"
+                          }
+                        },
+                        "count": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        },
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermission": {
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "from": "Exile",
+                                "action": "Either",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Quiet Study",
+      "text": "Exile the top two cards of your library, then choose one of the graveyard.",
+      "reject": true
+    },
+    {
+      "name": "Magmatic Channeler",
+      "text": "As long as there are four or more instant and/or sorcery cards in your graveyard, this creature gets +3/+1.\n{T}, Discard a card: Exile the top three cards of your library, then choose one of them. You may play that card this turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Wizard"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "AnyOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Instant"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Sorcery"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 4
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Pump",
+                      "args": {
+                        "power": {
+                          "kind": "Constant",
+                          "args": 3
+                        },
+                        "toughness": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol",
+                {
+                  "Discard": {
+                    "count": {
+                      "kind": "Constant",
+                      "args": 1
+                    },
+                    "filter": {
+                      "kind": "Any"
+                    },
+                    "random": false
+                  }
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "Constant",
+                              "args": 3
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "objects": {
+                          "kind": "Transition",
+                          "args": {
+                            "result": 0,
+                            "phase": "After"
+                          }
+                        },
+                        "count": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        },
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermission": {
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "from": "Exile",
+                                "action": "Either",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Magmatic Channeler",
+      "text": "As long as there are four or more instant and/or sorcery cards in your graveyard, this creature gets +2/+1.\n{T}, Discard a card: Exile the top two cards of your library, then choose one of them. You may play that card this turn.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Creature"
+        ],
+        "subtypes": [
+          "Human",
+          "Wizard"
+        ],
+        "mana_cost": [
+          {
+            "Generic": 1
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": [
+          1,
+          3
+        ],
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Conditional",
+          "args": {
+            "condition": {
+              "kind": "Compare",
+              "args": {
+                "left": {
+                  "kind": "CountObjects",
+                  "args": {
+                    "kind": "Zone",
+                    "args": {
+                      "scope": {
+                        "Players": {
+                          "zone": "Graveyard",
+                          "players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        }
+                      },
+                      "kind": "Card",
+                      "filter": {
+                        "kind": "AnyOf",
+                        "args": [
+                          {
+                            "kind": "CardType",
+                            "args": "Instant"
+                          },
+                          {
+                            "kind": "CardType",
+                            "args": "Sorcery"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "test": {
+                  "kind": "Compare",
+                  "args": {
+                    "comparison": "GreaterOrEqual",
+                    "value": {
+                      "kind": "Constant",
+                      "args": 4
+                    }
+                  }
+                }
+              }
+            },
+            "then": [
+              {
+                "kind": "Static",
+                "args": {
+                  "kind": "Ordinary",
+                  "affected": {
+                    "Objects": {
+                      "kind": "One",
+                      "args": {
+                        "kind": "Source"
+                      }
+                    }
+                  },
+                  "changes": [
+                    {
+                      "kind": "Pump",
+                      "args": {
+                        "power": {
+                          "kind": "Constant",
+                          "args": 2
+                        },
+                        "toughness": {
+                          "kind": "Constant",
+                          "args": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "otherwise": []
+          }
+        },
+        {
+          "kind": "Activated",
+          "args": {
+            "origin": "Ordinary",
+            "cost": {
+              "parts": [
+                "TapSymbol",
+                {
+                  "Discard": {
+                    "count": {
+                      "kind": "Constant",
+                      "args": 1
+                    },
+                    "filter": {
+                      "kind": "Any"
+                    },
+                    "random": false
+                  }
+                }
+              ]
+            },
+            "limits": {
+              "once": false,
+              "once_each_turn": false,
+              "sorcery": false,
+              "condition": null,
+              "activators": null,
+              "keyword": null,
+              "modifiers": []
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "Take",
+                          "args": {
+                            "objects": {
+                              "kind": "Zone",
+                              "args": {
+                                "scope": {
+                                  "Players": {
+                                    "zone": "Library",
+                                    "players": {
+                                      "kind": "One",
+                                      "args": {
+                                        "kind": "AbilityController"
+                                      }
+                                    }
+                                  }
+                                },
+                                "kind": "Card",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            },
+                            "count": {
+                              "kind": "Constant",
+                              "args": 2
+                            },
+                            "from": "Top"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 1,
+                    "operation": {
+                      "kind": "ChooseObjects",
+                      "args": {
+                        "player": {
+                          "kind": "AbilityController"
+                        },
+                        "objects": {
+                          "kind": "Transition",
+                          "args": {
+                            "result": 0,
+                            "phase": "After"
+                          }
+                        },
+                        "count": {
+                          "AsManyAsCan": {
+                            "kind": "Constant",
+                            "args": 1
+                          }
+                        },
+                        "constraints": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 2,
+                    "operation": {
+                      "kind": "CreateContinuousEffect",
+                      "args": {
+                        "source": {
+                          "kind": "Source"
+                        },
+                        "affected": {
+                          "Players": {
+                            "kind": "One",
+                            "args": {
+                              "kind": "AbilityController"
+                            }
+                          }
+                        },
+                        "changes": [
+                          {
+                            "kind": "PlayerRule",
+                            "args": {
+                              "PlayPermission": {
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Result",
+                                    "args": {
+                                      "result": 1,
+                                      "phase": "After",
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "from": "Exile",
+                                "action": "Either",
+                                "filter": {
+                                  "kind": "Any"
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "duration": "EndOfTurn",
+                        "evaluation": "LiveObjects"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}
