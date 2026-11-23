@@ -5511,3 +5511,27 @@ reveal_alternating_rest_partition ::= reveal_selected_hand "." observed_choose_o
 
 /* @sem Instruction::Effect{result:@next, operation:Move{objects:InZone{objects:Difference{objects:Observed(@back(11)), excluding:Union([Transition{result:@back(9), phase:Before}, Transition{result:@back(6), phase:Before}, Transition{result:@back(4), phase:Before}, Transition{result:@prior, phase:Before}])}, zone:Library}, destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}} */
 observed_rest_hand ::= "put" "the" "rest" "into" "your" "hand"
+
+/* The count is read from the immediately preceding counter removal.  Keep
+   the producer in the enclosing clause to constrain the inverse as well. */
+/* @sem Instruction::[Effect{result:@next, operation:$remove_counted_counters}, ...$removed_counters_look_hand] */
+clause_remove_counters_look_hand ::= remove_counted_counters "." removed_counters_look_hand
+
+/* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:CountersRemoved(@prior), from:Top}}}, ...$look_put_split] */
+removed_counters_look_hand ::= "look" "at" "that" "many" "cards" "from" "the" "top" "of" "your" "library" "." look_put_split
+
+/* The abbreviated top refers to the library shuffled immediately before it. */
+/* @sem Instruction::[Effect{result:@next, operation:$shuffle_your_library}, Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$card_count, from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+shuffle_then_exile_top ::= shuffle_your_library "," "then" "exile" "the" "top" card_count
+
+/* The casting permission consumes the immediately preceding exile arrival. */
+/* @sem Instruction::[...$shuffle_then_exile_top, Effect{result:@next, operation:PlayCards{actor:One(AbilityController), action:CastSpell, cards:Matching{objects:Transition{result:@prior, phase:After}, filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:$value}}}, count:AnyNumber, cost:Free}}] */
+shuffle_exile_cast_bounded ::= shuffle_then_exile_top "." "you" "may" "cast" "any" "number" "of" "spells" "with" "mana" "value" value "or" "less" "from" "among" "them" "without" "paying" "their" "mana" "costs"
+
+/* Each player's two selections are distinct, and the remainder excludes the
+   cards actually moved from that player's observation. */
+/* @sem Instruction::[ForEachPlayer{players:All, binding:0, body:_{instructions:[Effect{result:@next, operation:LookAt{player:Bound(0), objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Bound(0))}, kind:Card, filter:Any}), count:$card_count, from:Top}}}, Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Matching{objects:InZone{objects:Observed(@prior), zone:Library}, filter:$filter_phrase}, count:UpTo($counter_amount), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Matching{objects:Difference{objects:InZone{objects:Observed(0), zone:Library}, excluding:Union([Selected(@prior)])}, filter:$filter_phrase_2}, count:UpTo($counter_amount_2), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Reveal{objects:Union([Selected(1), Selected(@prior)])}}, Effect{result:@next, operation:Move{objects:Union([Selected(1), Selected(2)]), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:Bound(0), library_owner:Bound(0), objects:InZone{objects:Difference{objects:Observed(0), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Bottom, order:$library_order}}]}}] */
+each_player_look_two_choices ::= "each" "player" "looks" "at" "the" "top" card_count "of" "their" "library" "and" "may" "reveal" counter_amount filter_phrase "card" "and" "/" "or" counter_amount filter_phrase "card" "from" "among" "them" "." "each" "player" "puts" "the" "cards" "they" "revealed" "this" "way" "into" "their" "hand" "and" "the" "rest" "on" "the" "bottom" "of" "their" "library" library_order
+
+/* @sem Instruction::[...$each_player_look_two_choices, ...$instructions] */
+each_player_look_two_choices_more ::= each_player_look_two_choices "." instructions

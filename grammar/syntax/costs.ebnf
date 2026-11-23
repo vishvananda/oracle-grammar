@@ -2336,3 +2336,15 @@ discard_receipt_first_cost ::= cost_tap | cost_mana
 
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$discard_receipt_first_cost, $discard_one_receipt_cost]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[...$instructions, If{condition:$discard_payment_card_was, then:$program, otherwise:Program{}}]}} */
 activated_discard_payment_test ::= discard_receipt_first_cost "," "↑" discard_one_receipt_cost ":" instructions "." "if" discard_payment_card_was "," program "."
+
+/* A spell's controller may replace its mana cost with a scoped payment. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(SpellCost{spells:$limited_free_spell, modifier:Alternate{cost:Alternate(Cost{parts:[$scoped_spell_payment]})}})]}) */
+static_controller_alternate_spell_cost ::= "rather" "than" "pay" "the" "mana" "cost" "for" limited_free_spell "," "its" "controller" "may" scoped_spell_payment "."
+
+scoped_spell_payment ::= scoped_spell_discard_one | scoped_spell_discard_many
+
+/* @sem CostPart::Discard{count:$card_count_one, filter:SharesColorWith(Scoped)} */
+scoped_spell_discard_one ::= "discard" card_count_one "that" "shares" "a" "color" "with" "that" "spell"
+
+/* @sem CostPart::Discard{count:$card_count_many, filter:SharesColorWith(Scoped)} */
+scoped_spell_discard_many ::= "discard" card_count_many "that" "share" "a" "color" "with" "that" "spell"

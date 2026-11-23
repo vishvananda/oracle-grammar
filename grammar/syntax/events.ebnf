@@ -6426,3 +6426,13 @@ creature_damage_stat_comparison ::= "equal" "to" "that" "creature's" creature_st
 
 /* @sem Ability::Triggered{event:$creature_stat_damage_event, intervening_if:$creature_damage_stat_comparison, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence} */
 creature_damage_stat_trigger ::= "whenever" creature_stat_damage_event creature_damage_stat_comparison "," program_sentence
+
+/* The combat event establishes the antecedent for this damage-source batch. */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects(Damage(Source)), kind:$counter_kind, amount:$counter_amount}]} */
+damage_source_group_counter ::= "put" counter_amount counter_kind "counter" "on" "each" "of" "those" "creatures"
+
+/* @sem Instruction::[Effect{result:@next, operation:$damage_source_group_counter}, Effect{result:@next, operation:$operation}] */
+damage_source_group_counter_followup ::= damage_source_group_counter "and" operation
+
+/* @sem Ability::Triggered{event:$event_group_combat_recipient, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$damage_source_group_counter_followup}} */
+triggered_damage_source_group_counter_followup ::= "whenever" event_group_combat_recipient "," damage_source_group_counter_followup "."

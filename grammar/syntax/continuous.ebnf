@@ -1584,7 +1584,7 @@ private_plains ::= "Plains"
 
 /* New explicitly plural subjects never flow into singular has/gets grammar.
    Legacy greatest_* owners keep their existing checked declarations unchanged. */
-plural_private_subject ::= private_owned_nonbattlefield_cards | private_all_graveyard_cards | private_any_graveyard_cards
+plural_private_subject ::= private_any_hands_cards | private_any_libraries_cards | private_owned_nonbattlefield_cards | private_all_graveyard_cards | private_any_graveyard_cards
 /* @sem Ability::[Static{kind:Ordinary, affected:Objects($cross_battlefield_subject), changes:$plural_private_changes}, Static{kind:Ordinary, affected:Objects($plural_private_subject), changes:$plural_private_changes}] */
 line_plural_private_zone_static ::= cross_battlefield_subject "and" plural_private_subject plural_private_changes "."
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($plural_private_subject), changes:$plural_private_changes} */
@@ -1592,7 +1592,7 @@ static_plural_private_zone ::= plural_private_subject plural_private_changes "."
 plural_private_changes ::= plural_private_change | plural_private_changes_more
 /* @sem Change::[...$plural_private_change, ...$plural_private_changes] */
 plural_private_changes_more ::= plural_private_change ("and" | "," "and"?) plural_private_changes
-plural_private_change ::= private_land_type_add | target_ban_plural | static_basic | plural_private_pump | plural_private_grant
+plural_private_change ::= private_plural_lose_all_abilities | private_land_type_add | target_ban_plural | static_basic | plural_private_pump | plural_private_grant
 /* @sem Change::[Pump{power:$signed, toughness:$signed_2}] */
 plural_private_pump ::= "get" signed "/" signed
 /* Same granted-ability owner as the established nonbattlefield-owned grants:
@@ -2027,7 +2027,7 @@ top_play_cards ::= "play" "cards"
    Rogue, and Wizard spells", "artifact spells and colorless spells", "spells with mana
    value 4 or greater", "creature spells of the chosen type". */
 cast_spells_filter ::= cast_folded_zombie_spells | cast_adjective_list_spells | cast_any_spells | cast_kind_spells | cast_kind_pair_spells | cast_kind_list_spells | cast_two_kinds_spells | cast_modified_spells | cast_kind_modified_spells | cast_chosen_type_spells
-plural_kind ::= filter_phrase | quality | noun_elemental_folded
+plural_kind ::= plural_kind_existing | spell_instant | spell_sorcery
 /* @sem ObjectFilter::Any */
 cast_any_spells ::= "spells"
 /* @sem $plural_kind */
@@ -2150,11 +2150,12 @@ static_named_spells_uncastable ::= "spells" "with" "the" "chosen" "name" "can't"
    one mana" has a floor of one. */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($generic_reduction_symbols)})]}) */
 static_activation_cost_less ::= "activated" "abilities" "of" activation_owner "cost" generic_reduction_symbols "less" "to" "activate" "."
+/* @prefer always */
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($generic_reduction_symbols), floor:1})]}) */
 static_activation_cost_less_floor ::= "activated" "abilities" "of" activation_owner "cost" generic_reduction_symbols "less" "to" "activate" "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "cost" "to" "less" "than" "one" "mana" "."
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Increase($kicker_operand_generic)})]}) */
 static_activation_cost_more ::= "activated" "abilities" "of" activation_owner "cost" kicker_operand_generic "more" "to" "activate" "."
-activation_owner ::= activation_owner_group | activation_owner_one | activation_owner_named | activation_owner_graveyard_cards
+activation_owner ::= activation_owner_group | activation_owner_one | activation_owner_named | activation_owner_graveyard_cards | activation_owner_zone_cards
 /* @sem ObjectFilter::Chosen(CardName) */
 activation_owner_named ::= "sources" "with" "the" "chosen" "name"
 /* @sem ObjectFilter::$filter_plural */
@@ -4587,7 +4588,7 @@ shared_pump_and_blockers ::= "gets" signed "/" signed "and" shared_blockers_requ
 /* @sem Ability::Conditional{condition:$condition, then:[$shared_conditional_player_body]} */
 shared_as_long_as_player_rule ::= "as" "long" "as" condition "," shared_conditional_player_body
 
-shared_conditional_player_body ::= static_cast_kind_as_though_flash | static_cycling_alternate_payment | static_player_prohibition | shared_damage_no_life_loss | shared_damage_life_floor
+shared_conditional_player_body ::= static_activation_ability_cost_floor | static_cast_kind_as_though_flash | static_cycling_alternate_payment | static_player_prohibition | shared_damage_no_life_loss | shared_damage_life_floor
 
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:Cycling, cards:Any, change:Alternate($kicker_operand_generic)})]}) */
 static_cycling_alternate_payment ::= "you" "may" "pay" kicker_operand_generic "rather" "than" "pay" "cycling" "costs" "."
@@ -9039,3 +9040,76 @@ graveyard_creature_cast_entry ::= "you" "may" "cast" "creature" "spells" modifie
 
 /* @sem Operand::List([Term{family:SpellEffect, form:EntersWithACounter, operands:[Vocabulary{family:CounterType, form:FinalityCounter}]}]) */
 graveyard_cast_creature_entry ::= "if" "you" "cast" "a" "spell" "this" "way" "," "that" "creature" "enters" "with" "a" "finality" "counter" "on" "it" "."
+
+/* Retaining the land type makes the new creature types additive. */
+/* @sem Change::[...$retained_creature_animation, ...$grants] */
+retained_creature_animation_grants ::= retained_creature_animation "with" grants
+
+/* Hand-based keyword actions share their card filter and cost adjustment. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(KeywordCost{keyword:$hand_keyword_action, cards:$hand_keyword_cards, change:Reduce($single_generic_reduction)})]}) */
+static_hand_keyword_reduction ::= hand_keyword_action hand_keyword_cards "from" "your" "hand" "costs" single_generic_reduction "less" "."
+
+hand_keyword_action ::= hand_keyword_plot | hand_keyword_foretell
+
+/* @sem Mechanic::Plot */
+hand_keyword_plot ::= "plotting"
+
+/* @sem Mechanic::Foretell */
+hand_keyword_foretell ::= "foretelling"
+
+hand_keyword_cards ::= hand_keyword_any_cards | hand_keyword_filtered_cards
+
+/* @sem ObjectFilter::Any */
+hand_keyword_any_cards ::= "cards"
+
+/* @sem ObjectFilter::$filter_phrase */
+hand_keyword_filtered_cards ::= filter_phrase "cards"
+
+/* A turn restriction wraps a cast permission with its own zone, filter and payment. */
+/* @sem Ability::Conditional{condition:$cast_window_your_turn, then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$turn_zone_additional_cast]})]} */
+turn_zone_additional_permission ::= "during" cast_window_your_turn "," turn_zone_additional_cast "."
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Players{zone:$own_cast_zone, players:One(AbilityController)}, kind:Card, filter:Any}), from:$own_cast_zone, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Additional(Cost{parts:[$cast_pay_life_part]})}}) */
+turn_zone_additional_cast ::= "you" "may" "cast" cast_spells_filter "from" own_cast_zone "by" cast_pay_life_part "in" "addition" "to" "their" "other" "costs"
+
+/* The zone and generic reduction remain independent operands of the rule. */
+/* @sem ObjectFilter::AllOf([Any, InZone(Players{zone:$own_cast_zone, players:One(AbilityController)})]) */
+activation_owner_zone_cards ::= "cards" "in" own_cast_zone
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AbilityOf($activation_owner), change:Reduce($activation_generic_reduction), floor:1})]}) */
+static_activation_ability_cost_floor ::= "activated" "abilities" "of" activation_owner "cost" activation_generic_reduction "less" "to" "activate" "." "this" "effect" "can't" "reduce" "the" "mana" "in" "that" "ability's" "activation" "cost" "to" "less" "than" "one" "mana" "."
+
+/* Both choices replace the same affected objects for the written duration. */
+/* @sem Instruction::[ChooseOne{decider:AbilityController, options:[Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[RemoveAllAbilities, ...$replacement_creature_form], duration:$duration, evaluation:Snapshot}}]}, Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[RemoveAllAbilities, ...$replacement_creature_form_2], duration:$duration, evaluation:Snapshot}}]}]}] */
+clause_choice_replacement_animation ::= duration "," affected "loses" "all" "abilities" "and" "becomes" "your" "choice" "of" replacement_creature_form "or" replacement_creature_form
+
+/* @sem Change::[Colors{mode:Set, colors:[$mana_color_word]}, CreatureTypes{mode:Set, types:Listed($becomes_types)}, SetCardTypes([Creature]), SetBasePowerToughness{power:$value, toughness:$value_2}] */
+replacement_creature_form ::= "a" mana_color_word becomes_types "creature" "with" "base" "power" "and" "toughness" value "/" value
+
+plural_kind_existing ::= filter_phrase | quality | noun_elemental_folded /* @prefer always */
+
+/* The permission belongs to the individual card receiving the ability. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:One(Source), from:Graveyard, action:Either, filter:Any}, terms:_{cost:Normal}})]})} */
+graveyard_quoted_play_permission ::= "you" "may" "play" "this" "card" "from" "your" "graveyard"
+
+/* All players’ current cards in the named private zone. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Hand, players:All}, kind:Card, filter:Any} */
+private_any_hands_cards ::= "cards" "in" "hands"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Library, players:All}, kind:Card, filter:Any} */
+private_any_libraries_cards ::= "cards" "in" "libraries"
+
+/* @sem Change::[RemoveAllAbilities] */
+private_plural_lose_all_abilities ::= "lose" "all" "abilities"
+
+/* The chosen player owns both the requirement and its next-turn window. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players(One($next_turn_target_possessive)), changes:[PlayerRule(MustAttack{attackers:$plural, defenders:Objects(SameObject(Source))})], duration:DuringNextTurn($next_turn_target_possessive), evaluation:LiveObjects} */
+next_turn_target_player_attack_source ::= "during" next_turn_target_possessive "next" "turn" "," plural "that" "player" "controls" "attack" SELF_NAME "if" "able"
+
+next_turn_target_possessive ::= next_turn_target_opponent_possessive | next_turn_target_player_possessive
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:OpponentsOf(PlayerRef::AbilityController)}), index:0} */
+next_turn_target_opponent_possessive ::= "target" "opponent's"
+
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:All}), index:0} */
+next_turn_target_player_possessive ::= "target" "player's"

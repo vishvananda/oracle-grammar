@@ -117,7 +117,7 @@ token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal
 
-token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle
+token_copy ::= token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -284,7 +284,7 @@ tt_enchantment_creature ::= "enchantment" "creature"
 /* @sem CardType::[Land, Creature] */
 tt_land_creature ::= "land" "creature"
 
-token_named_recipe ::= tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites | tn_baneslayer_angel | tn_vibranium | tn_walker | tn_feroz_ban
+token_named_recipe ::= tn_black_lotus | tn_shard | tn_powerstone | tn_blood | tn_clue | tn_food | tn_gold | tn_junk | tn_lander | tn_map | tn_mutagen | tn_treasure | tn_spellgorger_weird | tn_mutavault | tn_tarmogoyf | tn_scryb_sprites | tn_baneslayer_angel | tn_vibranium | tn_walker | tn_feroz_ban
 
 /* @sem TokenRecipe::Defined{name:FromSubtypes, card_types:[Artifact], subtypes:[Blood], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:_{parts:[Mana([Generic(1)]), TapSymbol, Discard{count:Expr::Constant(1), filter:Any}, Sacrifice{objects:One(Source)}]}, limits:_{}, announcement:_{}, body:_{instructions:[Effect{result:@next, operation:Draw{players:One(AbilityController), amount:Expr::Constant(1)}}]}})]} */
 tn_blood ::= "Blood"
@@ -429,7 +429,7 @@ token_explicit_legendary ::= token_explicit_legendary_plain | token_explicit_leg
 token_explicit_legendary_plain ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token"
 /* @sem TokenSpec::TokenSpec{amount:$counter_amount, words:CreatingEffect, recipe:Defined{name:$explicit_legendary_name, supertypes:[Legendary], colors:$token_colors, subtypes:$token_subtypes, card_types:$token_types, power_toughness:[$token_stat, $token_stat_2], abilities:$token_ability_description}} */
 token_explicit_legendary_with ::= explicit_legendary_name "," counter_amount "legendary" token_stat "/" token_stat token_colors token_subtypes token_types "token" token_ability_description
-explicit_legendary_name ::= explicit_token_jumblebones | explicit_token_mowu | explicit_token_primo | explicit_token_scion_deep | explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami | explicit_token_darkstar | explicit_token_karox | explicit_token_marit_lage | explicit_token_angelo
+explicit_legendary_name ::= explicit_token_boo | explicit_token_jumblebones | explicit_token_mowu | explicit_token_primo | explicit_token_scion_deep | explicit_voja | explicit_voja_fenstalker | explicit_voja_friend | explicit_token_tiny | explicit_token_stangg_twin | explicit_token_tuktuk_returned | explicit_token_urami | explicit_token_darkstar | explicit_token_karox | explicit_token_marit_lage | explicit_token_angelo
 /* @sem TokenName::Explicit(Tiny) */
 explicit_token_tiny ::= "Tiny"
 /* @sem TokenName::Explicit('Stangg Twin') */
@@ -1176,8 +1176,7 @@ cursed_role_recipe ::= "Cursed" "Role"
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:CopyAtRandom{cards:$random_oracle_copy_cards}} */
 token_copy_random_oracle ::= token_copy_quantity "a" "random" random_oracle_copy_cards
 
-/* @sem Operand::Term{family:CardsInOracle, form:And, operands:[$random_oracle_excluded_type, Term{family:CardsInOracle, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]}, Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}, Term{family:CardsInOracle, form:ManaValueIs, operands:[Comparison([Equal, ObjectProperty{object:$object_ref, property:ManaValue, information:CurrentOrLastKnown}])]}]} */
-random_oracle_copy_cards ::= random_oracle_excluded_type creature_subtype "creature" "card" "with" "the" "same" "mana" "value" "as" object_ref
+random_oracle_copy_cards ::= random_oracle_copy_same_value | random_oracle_copy_mana_value
 
 /* @sem Operand::Term{family:CardsInOracle, form:IsNonCreatureType, operands:[Vocabulary{family:CreatureType, form:Shapeshifter}]} */
 random_oracle_excluded_type ::= "non-Shapeshifter"
@@ -1579,3 +1578,67 @@ created_legendary_token_linked_departures ::= "create" explicit_legendary_name "
 
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$created_legendary_token_linked_departures} */
 triggered_created_legendary_linked_departures ::= event_clause "," created_legendary_token_linked_departures
+
+/* @sem TokenRecipe::Named('Black Lotus') */
+tn_black_lotus ::= "Black" "Lotus"
+
+/* The chosen Oracle card type and mana value are independent operands. */
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:CopyAtRandom{cards:$random_mana_copy_cards}} */
+token_copy_random_mana_card ::= token_copy_quantity random_mana_copy_cards "chosen" "at" "random"
+
+/* @sem Operand::Term{family:CardsInOracle, form:And, operands:[$random_copy_card_type, Term{family:CardsInOracle, form:ManaValueIs, operands:[Comparison([Equal, $number])]}]} */
+random_mana_copy_cards ::= random_copy_card_type "card" "with" "mana" "value" number
+
+random_copy_card_type ::= random_copy_creature | random_copy_artifact | random_copy_instant | random_copy_sorcery
+
+/* @sem $conjured_oracle_creature */
+random_copy_creature ::= "a" conjured_oracle_creature
+
+/* @sem $conjured_oracle_artifact */
+random_copy_artifact ::= "an" conjured_oracle_artifact
+
+/* @sem $conjured_oracle_instant */
+random_copy_instant ::= "an" conjured_oracle_instant
+
+/* @sem $conjured_oracle_sorcery */
+random_copy_sorcery ::= "a" conjured_oracle_sorcery
+
+/* @prefer always */
+/* @sem Operand::Term{family:CardsInOracle, form:And, operands:[$random_oracle_excluded_type, Term{family:CardsInOracle, form:IsCreatureType, operands:[Vocabulary{family:CreatureType, form:@subtype_name($creature_subtype)}]}, Term{family:CardsInOracle, form:IsCardtype, operands:[Vocabulary{family:CardType, form:Creature}]}, Term{family:CardsInOracle, form:ManaValueIs, operands:[Comparison([Equal, ObjectProperty{object:$object_ref, property:ManaValue, information:CurrentOrLastKnown}])]}]} */
+random_oracle_copy_same_value ::= random_oracle_excluded_type creature_subtype "creature" "card" "with" "the" "same" "mana" "value" "as" object_ref
+
+/* @sem Operand::Term{family:CardsInOracle, form:And, operands:[$conjured_oracle_type, Term{family:CardsInOracle, form:ManaValueIs, operands:[Comparison([Equal, $number])]}]} */
+random_oracle_copy_mana_value ::= conjured_oracle_type "card" "with" "mana" "value" number
+
+/* @sem TokenName::Explicit(Boo) */
+explicit_token_boo ::= "Boo"
+
+/* The amount is the damage from this specific preceding loop, not an
+   arbitrary performed-action receipt. Both the comparison and damage use the
+   same current population filter. */
+/* @sem Instruction::ForEachPlayer{players:Intersection([$players_singular, Matching{binding:0, condition:Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), test:NumberTest::Compare{comparison:Greater, value:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})}}}]), binding:0, body:_{instructions:[Effect{result:@next, operation:DealDamage{source:$object_ref, recipients:Players(One(Bound(0))), amount:Subtract(CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}), CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(AbilityController))])})), preventable:true}}]}} */
+controlled_difference_damage_loop ::= object_ref "deals" "damage" "to" players_singular "who" "controls" "more" filter_plural "than" "you" "equal" "to" "the" "difference"
+
+/* @sem Instruction::[ $controlled_difference_damage_loop, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Performed(@prior), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}} ] */
+controlled_difference_damage_named_tokens ::= controlled_difference_damage_loop "." "then" "create" "a" "number" "of" token_named_recipe "tokens" "equal" "to" "the" "damage" "dealt" "this" "way"
+
+/* @prefer always */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$controlled_difference_damage_named_tokens}} */
+spell_controlled_difference_damage_named_tokens ::= controlled_difference_damage_named_tokens "."
+
+/* The cleanup is tied to the receipt produced by the preceding copy loop. */
+/* @sem Program::Program{instructions:[...$blocking_copy_loop, $blocking_copy_cleanup]} */
+program_blocking_copies_cleanup ::= blocking_copy_loop "." blocking_copy_cleanup
+
+/* @sem Instruction::[ForEachObject{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_phrase, AttackingDefender(PlayersAndPlaneswalkers(One(AbilityController)))])}, binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:Bound(0), exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[Blocking(Bound(0))]}}}]}}] */
+blocking_copy_loop ::= "for" "each" filter_phrase "attacking" "you" "or" "a" "planeswalker" "you" "control" "," "create" "a" "token" "that's" "a" "copy" "of" "that" "creature" "and" "that's" "blocking" "that" "creature"
+
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(0), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
+blocking_copy_cleanup ::= "exile" "those" "tokens" "at" token_cleanup_event
+
+/* Each created token is required to attack the player bound by the loop. */
+/* @sem Program::Program{instructions:[ForEachPlayer{players:OpponentsOf(AbilityController), binding:0, body:Program{instructions:[Effect{result:@next, operation:$create_one_defined}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@prior)), changes:[Rule(RequireCombat{action:Attack(Players(One(Bound(0)))), amount:AtLeast(Constant(1))})], duration:Indefinite, evaluation:LiveObjects}}]}}]} */
+per_opponent_create_attacking_token ::= "for" "each" "opponent" "," create_one_defined "that" "attacks" "that" "player" "each" "combat" "if" "able"
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$per_opponent_create_attacking_token} */
+triggered_per_opponent_attacking_token ::= event_clause "," per_opponent_create_attacking_token "."
