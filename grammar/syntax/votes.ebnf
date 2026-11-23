@@ -153,3 +153,10 @@ extra_turn_per_vote ::= "for" "each" count_each_vote "," "take" "an" "extra" "tu
 /* @sem Instruction::[ForEachPlayer{players:Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($vote_word)}}, binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($vote_owned_noun, ObjectFilter::OwnedBy(One(Bound(0))))}, count:AsManyAsCan(Constant(1))}}]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Selected(@prior)), changes:[SetController(AbilityController)], duration:Indefinite, evaluation:Snapshot}}] */
 clause_vote_owned_control ::= "for" "each" vote_word "vote" "," "choose" "a" vote_owned_noun "owned" "by" "the" "voter" "and" "gain" "control" "of" "it"
 vote_owned_noun ::= noun_permanent | noun_creature | noun_land | noun_planeswalker
+
+/* Both outcomes use their own printed vote conditions and actions. */
+/* @sem Instruction::[If{condition:$condition_most_votes, then:Program{instructions:[Effect{result:@next, operation:$planeswalk_action}]}, otherwise:Program{instructions:[]}}, If{condition:$condition_most_votes_or_tied, then:Program{instructions:[Effect{result:@next, operation:$temporary_chaos_action}]}, otherwise:Program{instructions:[]}}] */
+planeswalk_vote_outcomes ::= "if" condition_most_votes "," planeswalk_action "." "if" condition_most_votes_or_tied "," temporary_chaos_action
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions_discard_hand_mana_draw, ...$clause_word_vote, ...$planeswalk_vote_outcomes]}} */
+spell_discard_receipt_word_vote ::= instructions_discard_hand_mana_draw "." NEWLINE clause_word_vote "." planeswalk_vote_outcomes "."

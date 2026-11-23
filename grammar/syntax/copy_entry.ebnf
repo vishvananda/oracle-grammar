@@ -356,3 +356,16 @@ copy_those_creatures_not_legendary ::= "those" "creatures" "aren't" "legendary"
 
 /* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($chosen_target_other_population), changes:[CopyOf{object:Target{slot:@last_slot, index:0}, exceptions:[$copy_those_creatures_not_legendary]}], duration:$duration, evaluation:Snapshot}}] */
 clause_chosen_target_other_copy ::= chosen_target_other_population "becomes" "a" "copy" "of" "it" duration "," "except" copy_those_creatures_not_legendary
+
+/* The producer is a one-card hand-to-exile payment; the copy consumes that
+   exact payment's arrival, including during inverse rendering. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$cost_exile_hand]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, exceptions:$copy_artifact_creature_exceptions}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}] */
+instructions_optional_hand_exile_copy ::= "you" "may" cost_exile_hand "." "if" "you" "do" "," "create" token_copy_quantity "the" "exiled" "card" "," "except" copy_artifact_creature_exceptions
+
+/* @sem Vec<CopyException>::[CopyException::SetPowerToughness{power:$number_digits, toughness:$number_digits_2}, CopyException::AddCreatureTypes($becomes_types), CopyException::AddCardTypes([Artifact, Creature])] */
+copy_artifact_creature_exceptions ::= "it's" "a" number_digits "/" number_digits becomes_types "artifact" "creature" "in" "addition" "to" "its" "other" "types"
+
+/* The explicit sequential connective follows a complete preceding clause. */
+/* @prefer always */
+/* @sem Instruction::[...$clause, ...$instructions_optional_hand_exile_copy] */
+instructions_then_optional_hand_exile_copy ::= clause "." "then" instructions_optional_hand_exile_copy

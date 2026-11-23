@@ -2013,7 +2013,7 @@ replacement_owned_zone_redirect ::= "if" replacement_owned_death_or_card "," rep
 /* @sem Ability::Replacement{active:Battlefield, event:$replacement_graveyard_event, body:$replacement_zone_program} */
 replacement_zone_redirect ::= "if" replacement_graveyard_event "," replacement_zone_program "."
 
-replacement_graveyard_event ::= replacement_enchanted_controlled_death | replacement_owned_battlefield_graveyard | replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard | replacement_your_card_graveyard | replacement_controlled_card_graveyard
+replacement_graveyard_event ::= replacement_typed_card_graveyard | replacement_enchanted_controlled_death | replacement_owned_battlefield_graveyard | replacement_death_controlled | replacement_owned_death_or_card | replacement_permanent_graveyard | replacement_opponent_card_graveyard | replacement_your_card_graveyard | replacement_controlled_card_graveyard
 
 /* A singular object headed to its owner's graveyard retains its owner independently
    of its battlefield controller. The two subtype words both constrain that object. */
@@ -2038,7 +2038,7 @@ replacement_permanent_graveyard ::= "a" "permanent" "would" "be" "put" "into" "a
 /* @sem ReplacementEvent::ZoneChange{objects:AllOf([Any, OwnedBy(OpponentsOf(AbilityController)), Not(Token)]), to:Graveyard} */
 replacement_opponent_card_graveyard ::= "a" "card" "would" "be" "put" "into" "an" "opponent's" "graveyard" "from" "anywhere"
 
-replacement_zone_program ::= replacement_return_owner_hand | replacement_put_owner_library_top | replacement_exile_it | replacement_exile_that_card | replacement_exile_gain_life | replacement_exile_card_and_operation
+replacement_zone_program ::= replacement_exile_card_counter_an | replacement_exile_card_counter_a | replacement_exile_card_counters | replacement_return_owner_hand | replacement_put_owner_library_top | replacement_exile_it | replacement_exile_that_card | replacement_exile_gain_life | replacement_exile_card_and_operation | replacement_exile_with_counter
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}]} */
 replacement_exile_it ::= "exile" "it" "instead"
@@ -3754,3 +3754,33 @@ equipped_damage_factor_outcome ::= "it" "deals" damage_factor "that" "damage" "t
 
 /* @sem Ability::Replacement{active:Battlefield, event:$other_equipped_combat_event, body:$equipped_damage_factor_outcome} */
 replacement_other_equipped_combat ::= "if" other_equipped_combat_event "," equipped_damage_factor_outcome "."
+
+/* The card type union belongs to the moving card; ownership and token status
+   remain independent of its destination. */
+/* @sem ObjectFilter::AnyOf([$spell_type_after_an, $spell_type_after_or]) */
+replacement_card_type_union ::= spell_type_after_an "or" spell_type_after_or
+
+/* @sem ReplacementEvent::ZoneChange{objects:AllOf([$replacement_card_type_union, OwnedBy(All), Not(Token)]), to:Graveyard} */
+replacement_typed_card_graveyard ::= "an" replacement_card_type_union "card" "would" "be" "put" "into" "a" "graveyard" "from" "anywhere"
+
+/* The counter is part of the replacement destination, not a separate action. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Constant(1)})}}]} */
+replacement_exile_card_counter_an ::= "exile" "that" "card" "with" "an" counter_kind "counter" "on" "it" "instead"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Constant(1)})}}]} */
+replacement_exile_card_counter_a ::= "exile" "that" "card" "with" "a" counter_kind "counter" "on" "it" "instead"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:@plural_amount($counter_amount)})}}]} */
+replacement_exile_card_counters ::= "exile" "that" "card" "with" counter_amount counter_kind "counters" "on" "it" "instead"
+
+/* The counter is added to the same event whose destination is changed. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ModifyEvent{change:SetDestination(Exile)}}, Effect{result:@next, operation:ModifyEvent{change:AddCounters(_{kind:$counter_kind, amount:Constant(1)})}}]} */
+replacement_exile_with_counter ::= "instead" "exile" "it" "with" "a" counter_kind "counter" "on" "it"
+
+/* The entering holder chooses a different controlled permanent of the stated kind. */
+/* @sem Operation::ChooseObjects{player:AbilityController, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(@self)), $filter_phrase, ControlledBy(One(AbilityController))])}, count:AsManyAsCan(Constant(1))} */
+choose_another_controlled_permanent ::= "choose" "another" filter_phrase "you" "control"
+
+/* @prefer always */
+/* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(@self)}, body:Program{instructions:[Effect{result:@next, operation:$choose_another_controlled_permanent}]}}) */
+entry_choose_another_controlled ::= "as" self_holder_text "enters" "," choose_another_controlled_permanent "."

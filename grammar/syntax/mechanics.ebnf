@@ -633,10 +633,20 @@ mechanic_starting_intensity_name ::= "starting" "intensity"
 mechanic_affinity ::= "affinity" "for" filter_plural
 /* Devour alone eats creatures; a named devour eats its own kind. */
 mechanic_devour ::= mechanic_devour_creatures | mechanic_devour_named
-/* @sem Ability::Mechanic{mechanic:Devour, amount:$value, filter:CardType(Creature)} */
-mechanic_devour_creatures ::= "devour" value
-/* @sem Ability::Mechanic{mechanic:Devour, amount:$value, filter:$filter_phrase} */
-mechanic_devour_named ::= "devour" filter_phrase value
+/* @sem Ability::Mechanic{mechanic:Devour, amount:$devour_amount, filter:CardType(Creature)} */
+mechanic_devour_creatures ::= "devour" devour_amount
+/* @sem Ability::Mechanic{mechanic:Devour, amount:$devour_amount, filter:$filter_phrase} */
+mechanic_devour_named ::= "devour" filter_phrase devour_amount
+
+/* The mechanic supplies the producer for this count; its filter remains independent. */
+devour_amount ::= devour_plain_amount | devour_defined_amount
+/* @prefer always */
+/* @sem $value */
+devour_plain_amount ::= value
+/* @sem $devour_count */
+devour_defined_amount ::= "X" "," "where" "X" "is" devour_count
+/* @sem Expr::Earlier{what:Devoured, measure:Count, filter:$filter_plural} */
+devour_count ::= "the" "number" "of" filter_plural "devoured" "this" "way"
 /* @sem Ability::Mechanic{mechanic:Champion, filter:$filter_phrase} */
 mechanic_champion ::= "champion" ("a" | "an") filter_phrase
 

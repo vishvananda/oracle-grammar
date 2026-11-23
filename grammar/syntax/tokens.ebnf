@@ -1642,3 +1642,28 @@ per_opponent_create_attacking_token ::= "for" "each" "opponent" "," create_one_d
 
 /* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$per_opponent_create_attacking_token} */
 triggered_per_opponent_attacking_token ::= event_clause "," per_opponent_create_attacking_token "."
+
+/* This recipe is used only within the scoped two-player exchange below. */
+/* @sem TokenRecipe::Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[Maximum(Subtract(PlayerNumber{player:Target{slot:0, index:0}, number:Life}, PlayerNumber{player:Target{slot:1, index:0}, number:Life}), Subtract(PlayerNumber{player:Target{slot:1, index:0}, number:Life}, PlayerNumber{player:Target{slot:0, index:0}, number:Life})), Maximum(Subtract(PlayerNumber{player:Target{slot:0, index:0}, number:Life}, PlayerNumber{player:Target{slot:1, index:0}, number:Life}), Subtract(PlayerNumber{player:Target{slot:1, index:0}, number:Life}, PlayerNumber{player:Target{slot:0, index:0}, number:Life}))]} */
+exchange_life_difference_token_recipe ::= "X" "/" "X" token_colors token_subtypes token_types "token" "," "where" "X" "is" "the" "difference" "between" "those" "players'" "life" "totals"
+
+/* The counted battlefield population and the copied event subject are independent. */
+/* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[_{amount:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(DefendingPlayerOf(Source)))])}), words:CreatingEffect, recipe:Copy{object:EventSubject, exceptions:[]}}], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}} */
+create_counted_attacking_event_copies ::= "create" "X" "tokens" "that" "are" "copies" "of" "it" "and" "that" "are" "tapped" "and" "attacking" "," "where" "X" "is" "the" "number" "of" filter_plural "defending" "player" "controls"
+
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:$event_holder}, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$create_counted_attacking_event_copies}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:Move{objects:Created(@back(3)), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}}]}} */
+trigger_counted_attacking_copies ::= "whenever" event_holder "attacks" "," create_counted_attacking_event_copies "." "exile" "the" "tokens" "at" "the" "beginning" "of" "the" "next" "end" "step" "."
+
+/* Payment and its per-player token count are paired in one program. */
+/* @sem Program::Program{instructions:[ForEachPlayer{players:All, binding:0, body:_{instructions:[Effect{result:@mark, operation:PayAnyAmount{actor:One(Bound(0)), resource:Mana}}]}}, Effect{result:@next, operation:CreateTokens{players:All, tokens:[_{amount:Performed(@marked), words:CreatingEffect, recipe:$paid_mana_plural_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+program_each_mana_paid_tokens ::= "each" "player" "may" "pay" "any" "amount" "of" "mana" "." "then" "each" "player" "creates" "a" "number" "of" paid_mana_plural_token_recipe "equal" "to" "the" "amount" "of" "mana" "they" "paid" "this" "way"
+
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}) */
+paid_mana_plural_token_recipe ::= token_stat "/" token_stat token_colors token_subtypes token_types "tokens"
+
+/* The damage recipients create the token, and its creation receipt identifies the goaded object. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(EventSubject), tokens:[$token_defined_quoted], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@marked)), changes:[Rule(GoadedBy(AbilityController))], duration:Indefinite, evaluation:LiveObjects}}]} */
+combat_recipient_creates_goaded_token ::= "that" "player" "creates" token_defined_quoted "the" "token" "is" "goaded" "for" "the" "rest" "of" "the" "game"
+
+/* @sem Ability::Triggered{event:$event_controlled_subtypes_combat_player, limits:TriggerLimits{}, announcement:@announcement, body:$combat_recipient_creates_goaded_token} */
+triggered_controlled_group_recipient_token ::= "whenever" event_controlled_subtypes_combat_player "," combat_recipient_creates_goaded_token "."

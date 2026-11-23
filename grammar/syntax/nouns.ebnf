@@ -572,7 +572,7 @@ plural_equipped_head ::= plural_atomic | plural_equipped_qualified
 /* @sem @and($adjective, $plural_equipped_head) */
 plural_equipped_qualified ::= adjective plural_equipped_head
 
-plural_atomic ::= exchange_plural_battle | plural_goblins_lower | plural_outlaw | plural_creature | plural_artifact | plural_enchantment | plural_land | plural_permanent | plural_planeswalker | subtype_plural | plural_token | plural_commander | subtype_plural | plural_folded_rat | plural_folded_goblin | controlled_type_marked_goblins
+plural_atomic ::= plural_survivors_word | exchange_plural_battle | plural_goblins_lower | plural_outlaw | plural_creature | plural_artifact | plural_enchantment | plural_land | plural_permanent | plural_planeswalker | subtype_plural | plural_token | plural_commander | subtype_plural | plural_folded_rat | plural_folded_goblin | controlled_type_marked_goblins
 
 /* @sem ObjectFilter::State(Commander) */
 plural_commander ::= "commanders"
@@ -1011,7 +1011,7 @@ players_each_opponent ::= "each" "opponent" | "each" "of" "your" "opponents"
 players_each ::= "each" "player"
 
 /* Damage recipients. */
-recipients ::= recipients_target_group_with_keyword | recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player | recipients_target_opponent_and_controlled | recipients_random_damage_target | recipients_previously_damaged_target | recipients_opponent_or_battle | recipients_any_target_not_subtype | recipients_chosen_player | recipients_each_without_four_keywords
+recipients ::= recipients_defined_up_to_targets | recipients_target_group_with_keyword | recipients_players_and_protected | recipients_attacked_player_target | mined_recipients | recipients_each_and_each | recipients_any_target | recipients_player_or_walker | recipients_opponent_or_walker | recipients_each | recipients_objects | recipients_players | recipients_you | recipients_both | recipients_many | recipients_them | recipients_attacked | recipients_opponents_and_theirs | recipients_player_and_theirs | recipients_opponent_and_theirs | recipients_objects_and_players | recipients_token_player_walker | recipients_player_or_battle | recipients_target_and_each_other | recipients_any_target_opponent_choice | recipients_each_opponents_pair | recipients_target_opponent_controls | recipients_opponent_or_two_controlled | recipients_target_spell_controller | recipients_target_described_spell_controller | recipients_attached_controller | recipients_each_two_types_that_player | recipients_damage_event_permanent_or_player | recipients_target_opponent_and_controlled | recipients_random_damage_target | recipients_previously_damaged_target | recipients_opponent_or_battle | recipients_any_target_not_subtype | recipients_chosen_player | recipients_each_without_four_keywords
 
 /* @sem Recipients::Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([$filter_phrase, $filter_phrase_2])}) */
 recipients_each_and_each ::= "each" filter_phrase "and" "each" filter_phrase
@@ -2002,8 +2002,7 @@ linked_card_type_possessive ::= "the" "exiled" "card's"
 chosen_player_ref ::= "the" "chosen" "player"
 
 /* A card matching the chosen card type. The enclosing clause supplies the population. */
-/* @sem ObjectFilter::Chosen(CardType) */
-revealed_count_chosen_card ::= "card" "of" "the" "chosen" "type"
+revealed_count_chosen_card ::= revealed_count_chosen_type | revealed_count_chosen_name
 
 /* Creature populations for a per-recipient characteristic. */
 each_counter_creature ::= each_counter_other_controlled | each_counter_controlled | each_counter_any
@@ -4007,3 +4006,46 @@ bounded_graveyard_population ::= "all" filter_phrase "cards" "in" "graveyards" c
 
 /* @sem ObjectSet::Union([$affected, $bounded_battlefield_population, $bounded_graveyard_population]) */
 bounded_source_and_populations ::= affected "," bounded_battlefield_population "," "and" bounded_graveyard_population
+
+/* @sem ObjectFilter::Chosen(CardType) */
+revealed_count_chosen_type ::= "card" "of" "the" "chosen" "type"
+
+/* @sem ObjectFilter::Chosen(CardName) */
+revealed_count_chosen_name ::= "card" "with" "the" "chosen" "name"
+
+/* An announced, arbitrary-size group of graveyard cards of either named type. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:AnyNumber, filter:AnyOf([$noun, $noun_2])})) */
+chosen_graveyard_group ::= "choose" "any" "number" "of" "target" noun "and" "/" "or" noun "cards" "in" "graveyards"
+
+/* Ownership applies to the entire union in every zone. */
+/* @sem ObjectSet::AnyZone(AllOf([AllOf([$subtype_negated, AnyOf([$spell_instant, $spell_sorcery])]), OwnedBy(One(AbilityController))])) */
+owned_filtered_cards ::= "all" subtype_negated spell_instant "and" spell_sorcery "cards" "you" "own"
+
+/* The most recent selection supplies the objects. */
+/* @sem ObjectSet::Selected(@prior) */
+chosen_permanents_selection ::= "each" "permanent" "chosen" "this" "way"
+
+/* The comparison ranges over precisely the same filtered graveyard as the selection. */
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:Power, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, property:Power, aggregation:Maximum}}}])} */
+greatest_owned_graveyard_card_tied_power ::= "the" filter_phrase "card" "in" "your" "graveyard" "with" "the" "greatest" "power" "." "if" "two" "or" "more" "cards" "are" "tied" "for" "greatest" "power" "," "you" "choose" "one" "of" "them"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:Toughness, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, property:Toughness, aggregation:Maximum}}}])} */
+greatest_owned_graveyard_card_tied_toughness ::= "the" filter_phrase "card" "in" "your" "graveyard" "with" "the" "greatest" "toughness" "." "if" "two" "or" "more" "cards" "are" "tied" "for" "greatest" "toughness" "," "you" "choose" "one" "of" "them"
+
+/* @sem ObjectSet::Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:AllOf([$filter_phrase, Property{property:$creature_stat, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$filter_phrase}, property:$creature_stat, aggregation:Maximum}}}])} */
+greatest_owned_graveyard_card ::= "the" filter_phrase "card" "in" "your" "graveyard" "with" "the" "greatest" creature_stat
+
+/* The chosen object belongs to the current player loop, not the ability holder. */
+/* @sem ObjectFilter::AllOf([Not(SameObject(Earlier{what:Selected, by:Bound(0)})), $filter_plural, Not(Shares{property:CreatureTypes, with:Earlier{what:Selected, by:Bound(0)}})]) */
+other_unshared_chosen_population ::= "other" filter_plural "they" "control" "that" "don't" "share" "a" "creature" "type" "with" "the" "chosen" "creature" "they" "control"
+
+/* Survivor is also a lowercase keyword token in this vocabulary. */
+/* @sem ObjectFilter::Subtype(Survivor) */
+plural_survivors_word ::= "survivors"
+
+/* The X definition belongs to the announced target count. */
+/* @sem Recipients::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:UpTo($target_count_definition), filter:Any})) */
+recipients_defined_up_to_targets ::= "each" "of" "up" "to" "X" "targets" "," "where" "X" "is" target_count_definition
+
+/* @sem Expr::TimesKicked($object_ref) */
+target_count_definition ::= "the" "number" "of" "times" object_ref "was" "kicked"
