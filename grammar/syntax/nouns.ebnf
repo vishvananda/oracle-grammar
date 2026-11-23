@@ -943,13 +943,12 @@ players_each_other_opponent ::= "each" "other" "opponent"
 /* @sem PlayerSet::OthersThan(@other_party) */
 players_each_other ::= "each" "other" "player"
 
-/* @sem PlayerSet::One(PlayerRef::PlayerOrControllerOf(Targets(@last_slot))) */
-players_or_controller ::= "that" "player" "or" "that" "planeswalker's" "controller"
+players_or_controller ::= players_or_controller_planeswalker | players_or_controller_permanent
 
 /* @sem PlayerSet::One($player_ref) */
 player_one ::= player_ref
 
-player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner | attacking_player | damage_source_controller | extreme_life_player | extreme_hand_player | that_attacking_player | that_attacking_event_player | target_player_lost_life | event_card_owner | source_named_controller
+player_ref ::= active_player_ref | mined_player | target_player | target_opponent | that_player | defending_player | its_controller | its_owner | target_player_dealt | stack_controller | history_damage_controller | explicit_object_controller | explicit_object_owner | attacking_player | damage_source_controller | extreme_life_player | extreme_hand_player | that_attacking_player | that_attacking_event_player | target_player_lost_life | event_card_owner | source_named_controller | event_subject_card_owner | target_player_other_than_source_owner
 
 /* "That source's controller": the controller of the event's damage source. */
 /* @sem PlayerRef::ControllerOf(EventSubject) */
@@ -3705,3 +3704,18 @@ modifier_with_disturb ::= "with" "disturb"
 
 /* @sem ObjectFilter::HasKeywordFamily(Decayed) */
 modifier_with_decayed ::= "with" "decayed"
+
+/* The owner is that of the card named by the current event. */
+/* @sem PlayerRef::OwnerOf(EventSubject) */
+event_subject_card_owner ::= "that" "card's" "owner"
+
+/* @prefer always */
+/* @sem PlayerSet::One(PlayerRef::PlayerOrControllerOf(Targets(@last_slot))) */
+players_or_controller_planeswalker ::= "that" "player" "or" "that" "planeswalker's" "controller"
+
+/* @sem PlayerSet::One(PlayerRef::PlayerOrControllerOf(Targets(@last_slot))) */
+players_or_controller_permanent ::= "that" "permanent's" "controller" "or" "that" "player"
+
+/* A targeted player distinct from the source artifact owner. */
+/* @sem PlayerRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Expr::Constant(1)), filter:Any, players:OthersThan(OwnerOf(Source))}), index:0} */
+target_player_other_than_source_owner ::= "target" "player" "other" "than" "this" "artifact's" "owner"

@@ -2136,3 +2136,45 @@ activation_count_other_source ::= "other" other_count_filter
 /* Scope the consumer with the exact singleton creature casting payment it names. */
 /* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))}]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:$casting_sacrifice_life_then_operation}}] */
 line_casting_sacrifice_life_then_operation ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "sacrifice" "a" "creature" "." NEWLINE casting_sacrifice_life_then_operation "."
+
+/* The written definition is scoped to its actual cost producer. The shared
+   pump fragment leaves X symbolic until the enclosing payment binds it. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:Multiply([Constant(-1), AnnouncedX]), toughness:Multiply([Constant(-1), AnnouncedX])}], duration:$duration, evaluation:Snapshot} */
+receipt_negative_pump ::= affected "gets" "-" "X" "/" "-" "X" duration
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:AnnouncedX, toughness:AnnouncedX}], duration:$duration, evaluation:Snapshot} */
+receipt_positive_pump ::= affected "gets" "+" "X" "/" "+" "X" duration
+
+/* @sem CostPart::Move{selections:[CostObjectSelection{objects:Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:Any}, choose:AnyNumber}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}} */
+receipt_exile_any_graveyard ::= "exile" "any" "number" "of" "cards" "from" "your" "graveyard"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, $receipt_exile_any_graveyard]}, limits:ActivationLimits{}, announcement:@announcement, body:@where(Program::Program{instructions:[Effect{result:@next, operation:$receipt_negative_pump}]}, Expr::CountObjects(CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}))} */
+activated_exile_count_pump ::= "{" "T" "}" "," "↑" receipt_exile_any_graveyard ":" receipt_negative_pump "," "where" "X" "is" "the" "number" "of" "cards" "exiled" "this" "way" "."
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $discard_one_receipt_cost]}, limits:ActivationLimits{}, announcement:@announcement, body:@where(Program::Program{instructions:[Effect{result:@next, operation:$receipt_positive_pump}]}, Expr::ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown})} */
+activated_discard_value_pump ::= cost_mana "," "↑" discard_one_receipt_cost ":" receipt_positive_pump "," "where" "X" "is" "the" "discarded" "card's" "mana" "value" "."
+
+/* @sem CostPart::Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:Exactly(Constant(1))} */
+receipt_cast_sacrifice_creature ::= "sacrifice" "a" "creature"
+
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$receipt_cast_sacrifice_creature]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:@where(Program::Program{instructions:[Effect{result:@next, operation:$receipt_negative_pump}]}, Expr::ObjectProperty{object:Query{objects:CostObjects{payment:Casting{ability:0}, component:[0], view:Inputs, phase:Before}, index:0}, property:Power, information:CurrentOrLastKnown})}] */
+line_cast_sacrifice_power_pump ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," receipt_cast_sacrifice_creature "." NEWLINE receipt_negative_pump "," "where" "X" "is" "the" "sacrificed" "creature's" "power" "."
+
+/* This payment's bound refers to the enclosing life-gain event. */
+/* @sem Cost::Cost{parts:[ManaXBounded{mana:[X], comparison:$life_bound_comparison, value:EventAmount}]} */
+life_gained_bounded_x_cost ::= "pay" "{" "X" "}" "," "where" "X" "is" life_bound_comparison "the" "amount" "of" "life" "you" "gained"
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$life_gained_bounded_x_cost, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]} */
+life_gained_bounded_x_payment ::= "you" "may" life_gained_bounded_x_cost "." "if" "you" "do" "," program "."
+
+/* @prefer always */
+/* @sem Comparison::LessOrEqual */
+life_bound_at_most ::= "less" "than" "or" "equal" "to"
+
+/* @sem Comparison::GreaterOrEqual */
+life_bound_at_least ::= "greater" "than" "or" "equal" "to"
+
+/* @sem Comparison::Greater */
+life_bound_greater ::= "greater" "than"
+
+life_bound_comparison ::= life_bound_at_most | life_bound_at_least | life_bound_greater

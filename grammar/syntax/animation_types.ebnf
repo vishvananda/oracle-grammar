@@ -124,3 +124,14 @@ quoted_conjure_battlefield_tapped ::= "conjure" card_count "named" referenced_ca
 /* A creature acquires the named creature type indefinitely. */
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(@self)), changes:[CreatureTypes{mode:Add, types:Listed([@subtype_name($becomes_creature_subtype)])}], duration:Indefinite, evaluation:Snapshot} */
 self_creature_becomes_type ::= self_creature "becomes" "a" becomes_creature_subtype
+
+/* An explicitly named source retains its planeswalker type when animated. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:@retain_animation_types($animation_plain), duration:EndOfTurn, evaluation:Snapshot} */
+source_retained_turn_animation ::= "until" "end" "of" "turn" "," self_named "becomes" animation_plain "that's" "still" "a" "planeswalker"
+
+/* The pronoun is scoped to the named source in the preceding animation. */
+/* @sem Operation::CreateReplacement{event:Damage(_{source_kind:Any, sources:Any, recipients:Objects(SameObject(Source)), kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:EndOfTurn, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}} */
+source_him_turn_prevention ::= "prevent" "all" "damage" "that" "would" "be" "dealt" "to" "him" "this" "turn"
+
+/* @sem Instruction::[Effect{result:@next, operation:$source_retained_turn_animation}, Effect{result:@next, operation:$source_him_turn_prevention}] */
+instructions_source_animation_prevention ::= source_retained_turn_animation "." source_him_turn_prevention

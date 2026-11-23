@@ -1016,13 +1016,11 @@ scoped_paid_token_program ::= "you" "may" pay_mana "." "if" "you" "do" "," condi
 /* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_reference, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
 scoped_token_exile_end ::= "exile" created_reference "at" "the" "beginning" "of" "the" "next" "end" "step"
 
-/* This plural recipe keeps the creation and its later sacrifice in one scope. */
-/* @sem TokenSpec::TokenSpec{amount:$number, words:CreatingEffect, recipe:Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}} */
-temporary_attacking_token_group ::= number token_stat "/" token_stat token_colors token_subtypes token_types "tokens"
 
-/* @sem Operation::CreateTrigger{event:$event, duration:$this_duration, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$temporary_attacking_token_group], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]}} */
-temporary_trigger_attacking_tokens ::= "whenever" event this_duration "," "create" temporary_attacking_token_group "that" "are" "tapped" "and" "attacking" "." "sacrifice" "them" "at" "the" "beginning" "of" "the" "next" "end" "step"
+/* @sem Operation::CreateTrigger{event:$event, duration:$this_duration, announcement:@announcement, body:$temporary_attacking_tokens_program} */
+temporary_trigger_attacking_tokens ::= "whenever" event this_duration "," temporary_attacking_tokens_program
 
+/* @prefer always */
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$temporary_trigger_attacking_tokens}]}} */
 activated_temporary_trigger_attacking_tokens ::= cost ":" temporary_trigger_attacking_tokens "."
 
@@ -1417,3 +1415,34 @@ triggered_singular_creation_sacrifice ::= event_clause "," singular_creation_cle
 
 /* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$singular_creation_cleanup_instructions}} */
 turn_singular_creation_sacrifice ::= "at" turn_event "," singular_creation_cleanup_instructions "."
+
+/* Keep the producing destruction and its per-controller receipt together: the
+   Before transition records only permanents actually destroyed. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_plural}, regeneration:true}}, ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(Bound(0)), tokens:[TokenSpec{amount:CountObjects(Matching{objects:Transition{result:@prior, phase:Before}, filter:ControlledBy(One(Bound(0)))}), words:CreatingEffect, recipe:$singular_counted_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]}} */
+spell_destroy_each_controller_token ::= "destroy" "all" filter_plural "." "for" "each" "permanent" "destroyed" "this" "way" "," "its" "controller" "creates" "a" singular_counted_token_recipe "."
+
+/* The existence test consumes this particular destruction receipt, not the
+   target's attempted characteristics when destruction fails. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One($target_object), regeneration:true}}, If{condition:Compare{left:CountObjects(Matching{objects:Transition{result:@last_result, phase:Before}, filter:$filter_phrase}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}, otherwise:Program{}}]}} */
+spell_destroy_if_matching_named_token ::= "destroy" target_object "." "if" "an" filter_phrase "is" "destroyed" "this" "way" "," "create" "a" token_named_recipe "token" "."
+
+/* The creation and its delayed sacrifice share one result binding. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:$token_groups, entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]} */
+temporary_attacking_tokens_program ::= "create" token_groups "that" "are" "tapped" "and" "attacking" "." "sacrifice" "them" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* The copied population and the attachment destination remain independent. */
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:$affected, exceptions:[]}} */
+copy_each_affected_spec ::= "for" affected "," "create" "a" "token" "that's" "a" "copy" "of" "that" "permanent"
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[$copy_each_affected_spec], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($object_ref)]}}) */
+create_copy_each_attached ::= copy_each_affected_spec "attached" "to" object_ref
+
+/* @sem TokenSpec::TokenSpec{amount:$copy_token_plural_amount, words:CreatingEffect, recipe:CopyEach{objects:$affected, exceptions:[]}} */
+copy_each_affected_plural_spec ::= "for" affected "," "create" copy_token_plural_amount "tokens" "that" "are" "copies" "of" "that" "permanent"
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[$copy_each_affected_plural_spec], entry:BattlefieldArrival{tapped:false, counters:[], states:[AttachedTo($object_ref)]}}) */
+create_copies_each_attached ::= copy_each_affected_plural_spec "attached" "to" object_ref
+
+/* One token for every member of the measured player population. */
+/* @sem Operation::@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$count_players_less_life, words:CreatingEffect, recipe:$token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+create_for_less_life_player ::= "then" "for" count_players_less_life "," "create" "a" token_recipe

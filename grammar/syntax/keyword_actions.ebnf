@@ -180,7 +180,7 @@ object_endures ::= object_ref "endures" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Saddle{object:$object_ref}} */
 object_becomes_saddled ::= object_ref "becomes" "saddled" "until" "end" "of" "turn"
 
-group_keyword_action ::= selected_single_keyword_action | selected_group_keyword_action | goad_group_reference | goad_created_indefinitely | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions | shared_keyword_imperative | shared_opponent_keyword | shared_singular_keyword | detain_target_group | phase_out_chosen_population | each_phases_out | goad_named_for_object | phase_out_composed_population
+group_keyword_action ::= selected_any_keyword_action | selected_single_keyword_action | selected_group_keyword_action | goad_group_reference | goad_created_indefinitely | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions | shared_keyword_imperative | shared_opponent_keyword | shared_singular_keyword | detain_target_group | phase_out_chosen_population | each_phases_out | goad_named_for_object | phase_out_composed_population | goad_each_event_player | goad_each
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$affected} */
 affected_phase_out ::= affected "phase" "out"
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Connive, objects:$affected} */
@@ -487,3 +487,17 @@ amass_excess_damage ::= "amass" subtype_plural "X" "," "where" "X" "is" "that" "
 /* One target group holds both objects and the shared type constraint. */
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ExchangeControl{first:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(2)), filter:AllOf([Not(Supertype(Basic)), $adjective_nontype]), constraints:[CommonProperty(CardTypes)]}), index:0}, second:Target{slot:@next_slot, index:1}}} */
 exchange_control_pair_shared_type ::= "exchange" "control" "of" "two" "target" "nonbasic" "," adjective_nontype "permanents" "that" "share" "a" "card" "type"
+
+/* The controller chooses any number from the named population, then applies
+   the same keyword action to those selected objects. */
+/* @sem Operation::WithSelections{steps:[_{binding:@selection_id(0), objects:$affected, chooser:Players(One(AbilityController)), count:AnyNumber}], action:KeywordEach{actor:One(AbilityController), action:$selected_keyword_verb, objects:Prepared(@selection_id(0))}} */
+selected_any_keyword_action ::= selected_keyword_verb "any" "number" "of" affected
+
+/* Apply a keyword action to each member of a written population. */
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Goad{}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$filter_phrase}} */
+goad_each ::= "goad" "each" filter_phrase
+
+/* The player named by a preceding event controls the affected population. */
+/* @prefer always */
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Goad{}, objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($filter_phrase, ObjectFilter::ControlledBy(One(EventSubject)))}} */
+goad_each_event_player ::= "goad" "each" filter_phrase "that" "player" "controls"

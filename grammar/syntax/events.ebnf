@@ -601,7 +601,7 @@ event_gain_life_third ::= event_player "gains" "life"
 event_lose_life ::= event_player "loses" "life"
 
 /* Points in a turn. */
-turn_event ::= turn_end_combat_your_turn | turn_first_main | turn_end_any | turn_end_combat | turn_controller_upkeep | turn_controller_draw | turn_controller_end | turn_upkeep | turn_draw | turn_end | turn_combat | turn_combat_each | turn_second_main | turn_each_main | turn_each_postcombat_main | turn_first_game_upkeep | turn_each_end_step | turn_each_first_main | turn_chosen_upkeep | turn_each_end | turn_enchanted_postcombat | turn_enchanted_main | turn_combat_opponent
+turn_event ::= turn_monarch_end | turn_end_combat_your_turn | turn_first_main | turn_end_any | turn_end_combat | turn_controller_upkeep | turn_controller_draw | turn_controller_end | turn_upkeep | turn_draw | turn_end | turn_combat | turn_combat_each | turn_second_main | turn_each_main | turn_each_postcombat_main | turn_first_game_upkeep | turn_each_end_step | turn_each_first_main | turn_chosen_upkeep | turn_each_end | turn_enchanted_postcombat | turn_enchanted_main | turn_combat_opponent
 
 /* These headers name two independent trigger events. The shared inverse tries
    both event bindings, while the alternative index preserves the written order. */
@@ -1031,8 +1031,7 @@ event_controlled_self_or_a_enters ::= event_self "or" controlled_entrant_a "ente
 triggered_self_entry_if_cast ::= ("when" | "whenever") self_ref "enters" "," "if" "you" "cast" "it" "," cast_entry_destroy_program
 
 /* This opt-in body has no unproved target-introduction/otherwise anaphors. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$destroy}]} */
-cast_entry_destroy_program ::= destroy "."
+cast_entry_destroy_program ::= cast_entry_destroy_only | exile_each_opponent_controller_draw
 
 /* A departed holder's counter count is last-known information. Both echoes use
    that count, and `other` excludes the named owner rather than the controller. */
@@ -3666,8 +3665,7 @@ aura_upkeep_land ::= "at" aura_upkeep_land_event "," aura_upkeep_land_body "."
 /* @sem Ability::Triggered{event:$aura_upkeep_permanent_event, limits:_{}, announcement:@announcement, body:$aura_upkeep_permanent_body} */
 aura_upkeep_permanent ::= "at" aura_upkeep_permanent_event "," aura_upkeep_permanent_body "."
 
-/* @sem EventSpec::Turn{point:UpkeepBegins, players:One(ControllerOf(@enchanted_operand(ObjectRef::AttachedTo(Source))))} */
-aura_upkeep_creature_event ::= "the" "beginning" "of" "the" "upkeep" "of" "enchanted" "creature's" "controller"
+aura_upkeep_creature_event ::= aura_creature_controller_upkeep | aura_creature_controller_end_step | aura_creature_controller_draw_step
 
 /* @sem EventSpec::Turn{point:UpkeepBegins, players:One(ControllerOf(@enchanted_operand(ObjectRef::AttachedTo(Source))))} */
 aura_upkeep_artifact_event ::= "the" "beginning" "of" "the" "upkeep" "of" "enchanted" "artifact's" "controller"
@@ -5862,3 +5860,111 @@ scry_event_sized_operation ::= event_sized_target_counter | event_sized_target_t
 /* The excess-damage event supplies the amount consumed by the amass action. */
 /* @sem Ability::Triggered{event:$event_singular_excess_damage, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$amass_excess_damage}]}} */
 triggered_amass_excess_damage ::= "whenever" event_singular_excess_damage "," amass_excess_damage "."
+
+/* Combat on an opponent's turn supplies the event subject to its body. */
+/* @sem EventSpec::Turn{point:CombatBegins, players:OpponentsOf(AbilityController)} */
+opponent_combat_event ::= "the" "beginning" "of" "combat" "on" "each" "opponent's" "turn"
+
+/* @sem Ability::Triggered{event:$opponent_combat_event, limits:_{}, announcement:@announcement, body:$combat_payment_program} */
+triggered_opponent_combat_payment ::= "at" opponent_combat_event "," combat_payment_program
+
+/* @sem Ability::Triggered{event:$opponent_combat_event, intervening_if:$condition, limits:_{}, announcement:@announcement, body:$combat_x_payment_program} */
+triggered_opponent_combat_if_payment ::= "at" opponent_combat_event "," "if" condition "," combat_x_payment_program
+
+/* @sem Ability::Triggered{event:$turn_combat, limits:_{}, announcement:@announcement, body:$combat_optional_grant_program} */
+triggered_combat_optional_grant ::= "at" turn_combat "," combat_optional_grant_program
+
+/* @sem Ability::Triggered{event:$turn_combat, limits:_{}, announcement:@announcement, body:$dice_table_program} */
+triggered_combat_dice_table ::= "at" turn_combat "," dice_table_program
+
+/* A defending player's planeswalkers and that player share the attack batch. */
+/* @sem EventSpec::Batch{event:Attack{attackers:Any, by:OpponentsOf(AbilityController), defenders:PlayersAndPlaneswalkers(One(AbilityController))}, per:Defender} */
+event_opponent_attacks_you_planeswalkers ::= "an" "opponent" "attacks" "you" "and" "/" "or" "planeswalkers" "you" "control"
+
+/* The selected group remains an announcement target of the outer ability. */
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:InSet($selected_two_creature_targets), recipients:Any, kind:Combat, grouping:Source, subject:Source}) */
+selected_group_combat_event ::= "choose" selected_two_creature_targets "." "until" "your" "next" "turn" "," "whenever" "either" "of" "those" "creatures" "deals" "combat" "damage"
+
+/* The two legal sole-target domains are preserved independently. */
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:AllOf([$filter_instant_or_sorcery, AnyOf([AllOf([OnStack(SingleTarget), TargetsAny(Players(OpponentsOf(AbilityController)))]), AllOf([OnStack(SingleTarget), TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:ControlledBy(OpponentsOf(AbilityController))}))])])])} */
+event_next_cast_opponent_single ::= "when" "you" "next" "cast" "an" filter_instant_or_sorcery "spell" "that" "targets" "only" "a" "single" "opponent" "or" "a" "single" "permanent" "an" "opponent" "controls"
+
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(Constant(2)), filter:CardType(Creature)})) */
+selected_two_creature_targets ::= "up" "to" "two" "target" "creatures"
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$destroy}]} */
+cast_entry_destroy_only ::= destroy "."
+
+/* A source attacks in the same batch as at least one creature of the named subtype. */
+/* @sem EventSpec::Batch{event:Attack{attackers:$subtype, defenders:Any}, per:Whole, count:[GreaterOrEqual, Constant(1)], including:$self_explicit_ref} */
+event_source_and_subtype_attack ::= self_explicit_ref "and" "at" "least" "one" subtype "attack"
+
+/* @sem EventSpec::$event_source_and_subtype_attack */
+clause_source_and_subtype_attack ::= "whenever" event_source_and_subtype_attack
+
+/* The bound in this payment is the amount of this exact life-gain event. */
+/* @sem Ability::Triggered{event:$event_gain_life, limits:TriggerLimits{}, announcement:@announcement, body:$life_gained_bounded_x_payment} */
+life_gain_bounded_payment_trigger ::= "whenever" event_gain_life "," life_gained_bounded_x_payment
+
+/* @prefer always */
+/* @sem EventSpec::Turn{point:UpkeepBegins, players:One(ControllerOf(@enchanted_operand(ObjectRef::AttachedTo(Source))))} */
+aura_creature_controller_upkeep ::= "the" "beginning" "of" "the" "upkeep" "of" "enchanted" "creature's" "controller"
+
+/* @sem EventSpec::Turn{point:EndStepBegins, players:One(ControllerOf(@enchanted_operand(ObjectRef::AttachedTo(Source))))} */
+aura_creature_controller_end_step ::= "the" "beginning" "of" "the" "end" "step" "of" "enchanted" "creature's" "controller"
+
+/* @sem EventSpec::Turn{point:DrawStepBegins, players:One(ControllerOf(@enchanted_operand(ObjectRef::AttachedTo(Source))))} */
+aura_creature_controller_draw_step ::= "the" "beginning" "of" "the" "draw" "step" "of" "enchanted" "creature's" "controller"
+
+/* @sem EventSpec::Turn{point:EndStepBegins, players:Matching{binding:0, condition:PlayerState{player:Bound(0), state:Monarch}}} */
+turn_monarch_end ::= "the" "beginning" "of" "the" "monarch's" "end" "step"
+
+/* Keep the unqualified end-step spelling for this reusable condition and any body. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:$turn_end_any, intervening_if:$attachment_threshold_condition, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence} */
+triggered_end_step_attachment_threshold ::= "at" turn_end_any "," "if" attachment_threshold_condition "," program_sentence
+
+/* This phrase's other-permanent exclusion is anchored to the damage source. */
+/* @sem Ability::Triggered{event:Damage(_{source_kind:Permanent, sources:$event_self, recipients:Players($combat_damage_player_set), kind:Combat, grouping:SourceRecipient, subject:Source}), limits:TriggerLimits{}, announcement:@announcement, body:$program_optional_other_sacrifice_draw_life} */
+triggered_self_combat_sacrifice_receipt ::= "whenever" event_self "deals" "combat" "damage" "to" combat_damage_player_set "," program_optional_other_sacrifice_draw_life "."
+
+/* The becoming player is the ability controller; the trigger composes with any program. */
+/* @sem EventSpec::Player{event:BecomesMonarch, players:One(AbilityController)} */
+event_whenever_you_become_monarch ::= "whenever" "you" "become" "the" "monarch"
+
+/* The same-value instruction is meaningful only under the discover event that
+   supplies its amount. Keep that event and its consumer in one contract. */
+/* @sem EventSpec::$controller_discovers */
+discover_controller_event_clause ::= "whenever" "you" controller_discovers
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Discover{amount:EventAmount}}}]} */
+discover_again_event_value_program ::= "discover" "again" "for" "the" "same" "value" "."
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$discover_controller_event_clause, limits:TriggerLimits{per_turn:1}, announcement:@announcement, body:$discover_again_event_value_program} */
+discover_again_limited_trigger ::= discover_controller_event_clause "," discover_again_event_value_program "this" "ability" "triggers" "only" "once" "each" "turn" "."
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$discover_controller_event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$discover_again_event_value_program} */
+discover_again_trigger ::= discover_controller_event_clause "," discover_again_event_value_program
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$discover_controller_event_clause, limits:TriggerLimits{per_turn:2}, announcement:@announcement, body:$discover_again_event_value_program} */
+discover_again_twice_trigger ::= discover_controller_event_clause "," discover_again_event_value_program "this" "ability" "triggers" "only" "twice" "each" "turn" "."
+
+/* Fixed amounts compose independently of the discover-event value. */
+/* @sem Ability::Triggered{event:$discover_controller_event_clause, limits:TriggerLimits{per_turn:1}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$discover_literal_action}]}} */
+discover_fixed_limited_trigger ::= discover_controller_event_clause "," discover_literal_action "." "this" "ability" "triggers" "only" "once" "each" "turn" "."
+
+/* @sem Ability::Triggered{event:$discover_controller_event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$discover_literal_action}]}} */
+discover_fixed_trigger ::= discover_controller_event_clause "," discover_literal_action "."
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Discover{amount:$discover_literal_number}} */
+discover_literal_action ::= "discover" discover_literal_number
+
+discover_literal_number ::= number_digits | number_words
+
+discover_shared_trigger ::= discover_again_limited_trigger | discover_again_trigger | discover_again_twice_trigger | discover_fixed_limited_trigger | discover_fixed_trigger
+
+/* @sem Ability::$discover_shared_trigger */
+discover_shared_ability ::= discover_shared_trigger

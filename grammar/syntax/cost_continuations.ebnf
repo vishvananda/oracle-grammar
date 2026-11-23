@@ -287,3 +287,27 @@ program_paid_hand_attack_changes ::= "you" "may" payment_put_hand_card_attacking
 /* A resolved payment can gate a complete receipt-bound program. */
 /* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$payment, optional:true}}, If{condition:PaymentChosen(@last_result), then:$program_paid_hand_attack_changes, otherwise:Program{}}] */
 clause_paid_program_hand_attack ::= "you" "may" payment "." "if" "you" "do" "," program_paid_hand_attack_changes
+
+/* The controller can choose damage from the source to themself.
+   The paid and unpaid branches retain the announced target. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:ControllerOf(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AnyOf([$noun, $noun_2])}), index:0}), cost:Cost{parts:[PlayerAction{player:ControllerOf(Target{slot:@last_slot, index:0}), body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One(ControllerOf(Target{slot:@last_slot, index:0}))), amount:$number_2, preventable:true}}]}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$paid_choice_followup, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@last_slot, index:0})), amount:$number, preventable:true}}]}}]} */
+controller_damage_unless_sentence ::= SELF_NAME "deals" number "damage" "to" "target" noun "or" noun "unless" "its" "controller" "has" SELF_NAME "deal" number "damage" "to" "them" "." "if" "they" "do" "," paid_choice_followup
+
+/* A resolution payment gates the following instruction sequence. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[$discard_one_payment]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:$instructions}, otherwise:Program{}}]} */
+paid_choice_followup ::= "you" "may" discard_one_payment "." "if" "you" "do" "," instructions "."
+
+/* The active player's controller of the chosen permanent may pay an X
+   amount defined by that same target. Declining runs the continuation. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:ControllerOf(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$st_wall_non, $noun_creature, ControlledBy(One(Active)), State(ControlledSinceTurnBegan)])}), index:0}), cost:Cost{parts:[ManaWithX{mana:[X], x:$active_target_stat}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:$active_payment_declined, otherwise:Program{}}]} */
+active_control_payment_sentence ::= "choose" "target" st_wall_non noun_creature "the" "active" "player" "has" "controlled" "continuously" "since" "the" "beginning" "of" "the" "turn" "." "that" "player" "may" "pay" "{" "X" "}" "," "where" "X" "is" active_target_stat "." "if" "they" "don't" "pay" "," active_payment_declined "."
+
+/* @sem Expr::ObjectProperty{object:Target{slot:@last_slot, index:0}, property:$stat, information:CurrentOrLastKnown} */
+active_target_stat ::= "that" "creature's" stat
+
+/* A normal operation followed by a delayed end-step program. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$active_target_attack}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:$program}}]} */
+active_payment_declined ::= active_target_attack "," "and" "at" "the" "beginning" "of" "the" "next" "end" "step" "," program
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Target{slot:@last_slot, index:0})), changes:[Rule(RequireCombat{action:Attack(Any), amount:AtLeast(Constant(1))})], duration:$this_duration, evaluation:LiveObjects} */
+active_target_attack ::= "the" "creature" "attacks" this_duration "if" "able"
