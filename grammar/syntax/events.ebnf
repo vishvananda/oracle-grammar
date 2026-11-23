@@ -1424,7 +1424,7 @@ triggered_exiled_holder_event ::= exiled_holder_counter_event "while" "it's" "ex
 /* @sem EventSpec::State{condition:$state_trigger_condition} */
 event_state_condition ::= state_trigger_condition
 
-state_trigger_condition ::= condition_named_counters_fewer_him | condition_battlefield_none | condition_state_controller_count | condition_state_controller_life | condition_state_opponents_none | condition_existential_hand | condition_existential_graveyard_count | condition_holder_no_named_counters
+state_trigger_condition ::= condition_named_counters_fewer_him | condition_battlefield_none | condition_state_controller_count | condition_state_controller_life | condition_state_opponents_none | condition_existential_hand | condition_existential_graveyard_count | condition_holder_no_named_counters | condition_holder_counters_at_least
 
 /* A graveyard-local trigger composes its event, its explicit location test,
    and a resolution program. */
@@ -5085,7 +5085,7 @@ history_battlefield_graveyard_arrival ::= filter_phrase "was" "put" "into" "a" "
 /* @sem EventSpec::ZoneChange{objects:AllOf([$filter_plural, ControlledBy(One(AbilityController))]), from:Battlefield, to:Graveyard} */
 plural_zone_history ::= filter_plural "died" "under" "your" "control"
 
-other_zone_history ::= history_other_target_death | history_other_source_controlled_death | history_referenced_or_another_entry_controlled
+other_zone_history ::= history_other_target_death | history_other_source_controlled_death | history_referenced_or_another_entry_controlled | history_alternative_controlled_entry
 
 /* @sem EventSpec::ZoneChange{objects:AllOf([Not(SameObject(Target{slot:0, index:0})), $filter_phrase]), from:Battlefield, to:Graveyard} */
 history_other_target_death ::= "another" filter_phrase "died"
@@ -5139,7 +5139,7 @@ referenced_actions_or_target_clause ::= "whenever" referenced_actions_or_spell_t
 event_reference_or_equipped_damage ::= object_ref "or" "equipped" "creature" "deals" shared_damage_kind "to" passive_combat_player
 
 /* Historical object events capture the affected filter independently of the quantifier. */
-history_some_object_event ::= history_owned_card_departure | history_owned_card_departure_an | history_controlled_exploration
+history_some_object_event ::= history_opponent_controlled_entry | history_owned_card_departure | history_owned_card_departure_an | history_controlled_exploration
 
 /* @sem EventSpec::Object{event:LeavesGraveyard, objects:AllOf([$filter_phrase, OwnedBy(One(AbilityController))])} */
 history_owned_card_departure ::= "a" filter_phrase "card" "left" "your" "graveyard"
@@ -6767,3 +6767,31 @@ creature_death_characteristic_counter_trigger ::= "whenever" creature_death_for_
 /* The entry normal form records the entrant's written controller filter. */
 /* @sem EventSpec::AnyOf([Object{event:$event_object_transition, objects:$controlled_entrant}, Player{event:EntersUnderControl, players:All, objects:$controlled_entrant}]) */
 event_controlled_entry_or_object_transition ::= controlled_entrant "enters" "or" event_object_transition
+
+/* The controller of the dying object is the payer named by the following pronoun. */
+/* @sem EventSpec::ZoneChange{objects:AllOf([$filter_phrase, ControlledBy(OpponentsOf(AbilityController))]), from:Battlefield, to:Graveyard} */
+event_opponent_controlled_dies ::= "whenever" "a" filter_phrase "an" "opponent" "controls" "dies"
+
+/* An existential state trigger keeps the opponent bound within the life test. */
+/* @sem EventSpec::State{condition:ExistsPlayer{players:OpponentsOf(AbilityController), binding:0, condition:Compare{left:PlayerNumber{player:Bound(0), number:Life}, test:NumberTest::Compare{comparison:LessOrEqual, value:$number}}}} */
+event_opponent_life_at_most ::= "when" "an" "opponent" "has" number "or" "less" "life"
+
+/* The source attack determines the defending player for the shared program. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:$event_self}, limits:_{}, announcement:@announcement, body:$shared_defender_discard_extreme_program} */
+triggered_attack_defender_discard_extreme ::= "whenever" event_self "attacks" "," shared_defender_discard_extreme_program "."
+
+/* An entry event retains the filter and the controller at the event. */
+/* @sem EventSpec::ZoneChange{objects:@and($filter_phrase, ObjectFilter::ControlledBy(OpponentsOf(AbilityController))), to:Battlefield} */
+history_opponent_controlled_entry ::= "a" filter_phrase "entered" "the" "battlefield" "under" "an" "opponent's" "control"
+
+/* The exclusion belongs to the first alternative, not the whole union. */
+/* @sem ObjectFilter::AnyOf([AllOf([Not(SameObject(Source)), $filter_phrase]), $filter_phrase_2]) */
+other_or_an_filter ::= "another" filter_phrase "or" "an" filter_phrase
+
+/* @sem EventSpec::ZoneChange{objects:AllOf([ControlledBy(One(AbilityController)), $other_or_an_filter]), to:Battlefield} */
+history_alternative_controlled_entry ::= other_or_an_filter "entered" "the" "battlefield" "under" "your" "control"
+
+/* Keep the "that many" payment in the scope of its mana-value antecedent. */
+/* @sem Ability::Triggered{event:$event_dies, intervening_if:$event_mana_value_was_at_least, limits:TriggerLimits{}, announcement:@announcement, body:$event_mana_value_counter_payment_return} */
+triggered_death_mana_value_counter_payment ::= "whenever" event_dies "," "if" event_mana_value_was_at_least "," event_mana_value_counter_payment_return "."

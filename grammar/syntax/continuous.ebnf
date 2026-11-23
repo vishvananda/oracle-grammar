@@ -2,7 +2,7 @@
 
 /* Changes that alter characteristics fix their affected objects when the effect
    starts; changes to rules follow the objects that match while it lasts (CR 611.2c). */
-continuous_snapshot ::= controlled_subtype_temporary_keyword | controlled_creature_color_pump | continuous_grant_own_mana_cost | continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot | temporary_grant_equal_own_mana | temporary_harmonize_mana_cost | combat_relative_stats | land_animation_retained | switch_each_population_stats | continuous_negative_population_pump | chosen_target_colors_protection | continuous_defined_pump_keyword | targeted_color_scaled_snapshot
+continuous_snapshot ::= controlled_subtype_temporary_keyword | controlled_creature_color_pump | continuous_grant_own_mana_cost | continuous_target_additional_count_pump | continuous_each_snapshot | continuous_keyword_pump_own_power | qualified_creature_literal_pump | continuous_snapshot_plain | continuous_spell_grant | copied_base_stats | continuous_lose_all_become | continuous_standalone_base_power | continuous_base_and_keyword_end_turn | continuous_qualified_snapshot | continuous_defined_snapshot | continuous_defined_pump | retained_population_snapshot | continuous_until_object_leaves | temporary_graveyard_grant | defined_pump_power | defined_pump_both | event_subject_snapshot | continuous_defined_equal_pump | continuous_defined_power_pump | continuous_plural_pump_grant | prior_creatures_pump | continuous_defined_x_snapshot | temporary_grant_equal_own_mana | temporary_harmonize_mana_cost | combat_relative_stats | land_animation_retained | switch_each_population_stats | continuous_negative_population_pump | chosen_target_colors_protection | continuous_defined_pump_keyword | targeted_color_scaled_snapshot | continuous_controlled_subtypes_grant
 
 /* "Loses all abilities and becomes" a new creature until the duration ends; the
    layers, not the written order, decide how the changes combine. */
@@ -107,7 +107,7 @@ counter_group_reference ::= "they" | "those" "creatures" | "those" "permanents"
 /* @sem Instruction::[Instruction::Effect{result:@next, operation:Operation::DealDamage{source:$object_ref, recipients:$recipients, amount:$number, preventable:true}}, Instruction::Effect{result:@next, operation:Operation::CreateContinuousEffect{source:Source, affected:Objects(One($object_ref)), changes:$changes, duration:$duration, evaluation:Snapshot}}] */
 clause_damage_and_change ::= object_ref "deals" number "damage" "to" recipients "and" changes duration
 
-affected ::= affected_without_counters | affected_other_controlled_attacking_player | affected_union_with_other_controlled | affected_landwalk_family_plural | cross_spells | owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference | affected_chosen_planeswalker_plural | affected_without_keyword_pair | affected_without_keyword_pair_reverse | controlled_not_owned_each | affected_each_counter_an | affected_nth_chosen_type | objects_each_counter_qualified | affected_all_attacking_defender | named_and_other_controlled_population | affected_controlled_pair_mana_bound | affected_opponents_union | shared_type_with_referent_population | each_controlled_abilityless_population | affected_team_controlled
+affected ::= same_mana_value_referenced_population | affected_without_counters | affected_other_controlled_attacking_player | affected_union_with_other_controlled | affected_landwalk_family_plural | cross_spells | owned_commander_population | affected_keyword_plural | affected_targets_each | affected_pair_each | group_subject | object_set | affected_plural | affected_other | counter_choice_reference | affected_chosen_planeswalker_plural | affected_without_keyword_pair | affected_without_keyword_pair_reverse | controlled_not_owned_each | affected_each_counter_an | affected_nth_chosen_type | objects_each_counter_qualified | affected_all_attacking_defender | named_and_other_controlled_population | affected_controlled_pair_mana_bound | affected_opponents_union | shared_type_with_referent_population | each_controlled_abilityless_population | affected_team_controlled
 
 counter_choice_reference ::= counter_choice_singular_reference | counter_choice_group_reference
 /* @sem ObjectSet::@counter_reference_single */
@@ -9590,3 +9590,26 @@ random_grant_event ::= event_clause | whenever_controlled_entrant_zone_change
 
 /* @sem Ability::Triggered{event:$random_grant_event, limits:_{}, announcement:@announcement, body:$random_grant_event_subject_program} */
 triggered_random_grant_event_subject ::= random_grant_event "," random_grant_event_subject_program
+
+/* The intervening condition establishes the antecedent of "it". */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[SetBasePowerToughness{power:$number_digits, toughness:$number_digits_2}, CreatureTypes{mode:Add, types:Listed($becomes_types)}, AddCardType(Creature)], duration:Indefinite, evaluation:Snapshot} */
+source_becomes_typed_creature ::= "it" "becomes" "a" number_digits "/" number_digits becomes_types "creature"
+
+/* Keyword payment reductions retain the payer, mechanic and generic amount. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($target_tax_casters), changes:[PlayerRule(KeywordCost{keyword:$reduced_payment_keyword, cards:Any, change:Reduce($keyword_reduction_amount)})]}) */
+static_keyword_payment_reduction ::= reduced_payment_keyword "costs" target_tax_casters "pay" "cost" keyword_reduction_amount "less" "."
+
+/* @sem Mechanic::Dash */
+reduced_payment_keyword ::= "dash"
+
+/* @sem Operand::Term{family:CostReductionSymbol, form:CostReduceGeneric, operands:[Integer($number)]} */
+keyword_reduction_amount ::= "{" NUMBER "}"
+
+/* The controlled subtype population is fixed when the keyword is granted. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$controlled_grant_subtype, ControlledBy(One(AbilityController))])}), changes:[GrantKeyword($keyword_name)], duration:$duration, evaluation:Snapshot} */
+continuous_controlled_subtypes_grant ::= controlled_grant_subtype "you" "control" "gain" keyword_name duration
+
+controlled_grant_subtype ::= controlled_grant_humans | subtype_plural
+
+/* @sem ObjectFilter::Subtype(Human) */
+controlled_grant_humans ::= "humans"

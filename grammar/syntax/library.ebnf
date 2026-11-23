@@ -162,7 +162,7 @@ search_either_one ::= "and" found_action
 /* @sem Instruction::[Effect{result:@next, operation:$found_action}, Effect{result:@next, operation:$found_action_2}] */
 search_either_two ::= "," found_action "," ("and" | "then") found_action
 
-search_filter ::= search_filter_four_keywords | search_filter_permanent_kind | search_filter_subtype_list | search_filter_plain | search_filter_modified | search_filter_either | search_filter_either_bare | search_filter_distinct_controlled_name | search_filter_shared_object_name | search_filter_keyword_alternative
+search_filter ::= search_filter_four_keywords | search_filter_permanent_kind | search_filter_subtype_list | search_filter_plain | search_filter_modified | search_filter_either | search_filter_either_bare | search_filter_distinct_controlled_name | search_filter_shared_object_name | search_filter_keyword_alternative | search_filter_basic_plains_list
 
 /* "A basic land card or a Desert card": either kind, each with its own noun. */
 /* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
@@ -672,7 +672,7 @@ clause_hand_any_number_battlefield ::= "put" "any" "number" "of" card_filter "ca
 a_card ::= a_card_exact_colors | a_card_chosen_permanent | a_card_mana_equal_player_counters | a_card_maximum_mana | a_card_prevalent_type | a_card_any_with | a_card_any | a_card_kind | a_card_with | a_card_another | a_card_or | a_card_shared_or | a_card_basic_type | a_card_urzas | a_card_value_limit | a_card_mana_value_comparison | top_reveal_union_double_faced | a_card_ability | a_card_three_types
 
 /* "A Mount creature card or a Plains card": either kind, each with its own noun. */
-/* @sem ObjectFilter::AnyOf([$card_filter, $card_filter_2]) */
+/* @sem ObjectFilter::AnyOf(@unordered([$card_filter, $card_filter_2])) */
 a_card_or ::= ("a" | "an") card_filter "card" "or" ("a" | "an")? card_filter "card"
 
 /* "Another creature card from your graveyard": any but this card. */
@@ -5954,3 +5954,23 @@ player_observed_hand ::= "into" "their" "hand"
 
 /* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$player_observed_top_test}} */
 trigger_player_observed_top_test ::= "at" turn_event "," player_observed_top_test "."
+
+/* A whole-library observation feeds a categorized choice; the next actions
+   consume that choice rather than an independent query. */
+/* @sem Operation::Reveal{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}} */
+reveal_own_library_cards ::= "reveal" "the" "cards" "in" "your" "library"
+
+/* @sem ObjectFilter::AllOf([$adjective_nontype, $adjective_nontype_2]) */
+negative_card_pair ::= adjective_nontype "," adjective_nontype "card"
+
+/* The three filters are independently reusable selection operands. */
+/* @sem SelectionConstraint::OneForEach([$noun, $noun_2, $negative_card_pair]) */
+observed_three_card_kinds ::= "a" noun "card" "," "a" noun "card" "," "and" "a" negative_card_pair
+
+/* The producer and both consumers share one instruction scope. */
+/* @sem Instruction::[Effect{result:@next, operation:$reveal_own_library_cards}, Effect{result:@next, operation:ChooseObjects{player:OneOf(OpponentsOf(AbilityController)), objects:InZone{objects:Observed(@prior), zone:Library}, count:AsManyAsCan(Constant(3)), constraints:[$observed_three_card_kinds]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+instructions_reveal_library_choose_kinds ::= reveal_own_library_cards "." "an" "opponent" "chooses" "from" "among" "them" observed_three_card_kinds "." "you" "put" "the" "chosen" "cards" "into" "your" "hand" "." "then" "shuffle"
+
+/* Basic qualifies each member of the subtype disjunction. */
+/* @sem ObjectFilter::AllOf([Supertype(Basic), AnyOf([$subtype, Subtype(Plains), $subtype_2])]) */
+search_filter_basic_plains_list ::= "basic" subtype "," "↑" "plains" "," "or" subtype "card"

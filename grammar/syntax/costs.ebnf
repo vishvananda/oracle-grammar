@@ -2432,3 +2432,39 @@ discard_replacement_quality ::= adjective_multicolored | adjective_monocolored
 discard_replacement_explicit_dealer ::= self_explicit_ref
 
 discard_replacement_dealer ::= discard_replacement_explicit_dealer | damage_source_ref
+
+/* The later sentence bounds the payment, while the continuation remains a program. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[ManaXBounded{mana:[X], comparison:LessOrEqual, value:$x_payment_bound}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:$program, otherwise:Program{}}]} */
+program_optional_x_bounded ::= "you" "may" "pay" "{" "X" "}" "." "if" "you" "do" "," program "." "x" "can't" "be" "greater" "than" x_payment_bound
+
+x_payment_bound ::= x_payment_life_lost | value
+
+/* @sem Expr::EventHistory{event:Player{event:LosesLife, players:One(AbilityController)}, window:ThisTurn, measure:TotalAmount} */
+x_payment_life_lost ::= "the" "amount" "of" "life" "you" "lost" "this" "turn"
+
+/* The event player makes the payment; the continuation consumes that payment result. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:EventSubject, cost:$event_subject_payment_cost_phrase, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:$event_subject_payment_reward}]}, otherwise:Program{}}]} */
+event_subject_payment_sentence ::= event_subject_payment_cost_phrase "." "if" "the" "player" "does" "," event_subject_payment_reward "."
+
+event_subject_payment_cost_phrase ::= event_attacker_discard_payment | event_player_mana_payment
+
+/* @sem Cost::Cost{parts:[$event_subject_discard_part]} */
+event_attacker_discard_payment ::= "that" "attacking" "player" "may" event_subject_discard_part
+
+event_subject_discard_part ::= cost_discard | cost_discard_filtered | cost_discard_many | cost_discard_filtered_many
+
+/* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
+event_player_mana_payment ::= "they" "may" "pay" mana_symbols
+
+event_subject_payment_reward ::= event_subject_draw_reward | event_subject_delayed_draw_reward
+
+/* @sem Operation::Draw{players:One(EventSubject), amount:$card_count} */
+event_subject_draw_reward ::= "they" "draw" card_count
+
+/* @sem Operation::CreateDelayedTrigger{event:$resolving_return_time, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:$event_subject_draw_reward}]}} */
+event_subject_delayed_draw_reward ::= event_subject_draw_reward resolving_return_time
+
+/* Used only where the immediately preceding condition names this value. */
+/* @sem CostPart::RemoveCounters{removals:[CounterRemoval{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:$counter_kind, amount:Count(Exactly(ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown}))}]} */
+cost_remove_event_mana_value_counters ::= "remove" "that" "many" counter_kind "counters" "from" self_explicit_ref

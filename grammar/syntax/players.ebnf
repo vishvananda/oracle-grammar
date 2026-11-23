@@ -180,7 +180,7 @@ player_prohibit_named_spells ::= "cast" "spells" "with" "the" "chosen" "name"
    so all players perform one action before the next grouped action starts. */
 /* @sem @apply($announced_many_players, $uniform_player_verbs) */
 instructions_announced_players ::= announced_many_players "each" uniform_player_verbs
-announced_many_players ::= announced_all_players | announced_opponents | controller_and_scoped_players | controller_and_another_target_player | announced_up_to_players
+announced_many_players ::= announced_all_players | announced_opponents | controller_and_scoped_players | controller_and_another_target_player | announced_up_to_players | announced_fixed_target_players
 /* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:All})) */
 announced_all_players ::= "any" "number" "of" "target" "players"
 /* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:OpponentsOf(AbilityController)})) */
@@ -671,3 +671,26 @@ announced_up_to_players ::= "up" "to" number "target" "players"
 
 /* @sem PlayerAction::BecomeMonarch */
 player_prohibit_become_monarch ::= "become" "the" "monarch"
+
+/* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly($announced_fixed_count), filter:Any, players:All})) */
+announced_fixed_target_players ::= announced_fixed_count "target" "players"
+
+announced_fixed_count ::= announced_fixed_count_words | number
+
+/* @prefer always */
+/* @sem $number_words */
+announced_fixed_count_words ::= number_words
+
+/* Three separately announced opponents have independent prohibitions. The
+   trailing sentence supplies pairwise target distinctness for the entire list. */
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$distinct_opponent_prohibitions}} */
+triggered_distinct_opponent_prohibitions ::= event_clause "," distinct_opponent_prohibitions "." "you" "can't" "choose" "any" "player" "as" "a" "target" "more" "than" "once" "."
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:UpTo(Constant(1)), filter:Any, players:OpponentsOf(AbilityController)}))), changes:[PlayerRule(Prohibit($player_prohibited_action))], duration:$duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:UpTo(Constant(1)), filter:Any, players:OpponentsOf(AbilityController), constraints:[DifferentFromTarget(0)]}))), changes:[PlayerRule(Prohibit($distinct_opponent_action_second))], duration:$duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:UpTo(Constant(1)), filter:Any, players:OpponentsOf(AbilityController), constraints:[DifferentFromTarget(0), DifferentFromTarget(1)]}))), changes:[PlayerRule(Prohibit($distinct_opponent_action_third))], duration:$duration, evaluation:LiveObjects}}] */
+distinct_opponent_prohibitions ::= duration "," "up" "to" "one" "target" "opponent" "can't" player_prohibited_action "," "up" "to" "one" "target" "opponent" "can't" distinct_opponent_action_second "," "and" "up" "to" "one" "target" "opponent" "can't" distinct_opponent_action_third
+
+/* @sem $player_prohibited_action */
+distinct_opponent_action_second ::= player_prohibited_action
+
+/* @sem $player_prohibited_action */
+distinct_opponent_action_third ::= player_prohibited_action
