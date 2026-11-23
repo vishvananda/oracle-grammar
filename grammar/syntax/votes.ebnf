@@ -160,3 +160,19 @@ planeswalk_vote_outcomes ::= "if" condition_most_votes "," planeswalk_action "."
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions_discard_hand_mana_draw, ...$clause_word_vote, ...$planeswalk_vote_outcomes]}} */
 spell_discard_receipt_word_vote ::= instructions_discard_hand_mana_draw "." NEWLINE clause_word_vote "." planeswalk_vote_outcomes "."
+
+/* A vote outcome can trigger an ordinary keyword action for the controller. */
+/* @sem Instruction::[If{condition:$condition_most_votes, then:Program{instructions:[Effect{result:@next, operation:$vote_keyword_action}]}, otherwise:Program{}}] */
+clause_vote_keyword_winner ::= "if" condition_most_votes "," vote_keyword_action
+
+/* @sem Instruction::[If{condition:$condition_most_votes_or_tied, then:Program{instructions:[Effect{result:@next, operation:$vote_keyword_action}]}, otherwise:Program{}}] */
+clause_vote_keyword_winner_or_tied ::= "if" condition_most_votes_or_tied "," vote_keyword_action
+
+vote_keyword_action ::= planeswalk_action | vote_chaos_ensues
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::ChaosEnsues} */
+vote_chaos_ensues ::= "chaos" "ensues"
+
+/* Search and vote paragraphs compose their independently declared instructions. */
+/* @sem Ability::[Spell{announcement:@announcement, body:Program{instructions:[...$clause_search_plural_follow, ...$clause_word_vote, ...$clause_vote_keyword_winner, ...$clause_vote_keyword_winner_or_tied]}}] */
+line_search_vote_outcomes ::= clause_search_plural_follow "." NEWLINE clause_word_vote "." clause_vote_keyword_winner "." clause_vote_keyword_winner_or_tied "."

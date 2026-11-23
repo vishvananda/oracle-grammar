@@ -2357,3 +2357,44 @@ activated_enchantment_exile_creatures_return ::= cost_parts "," "↑" "exile" "t
 /* The payment and damage consumer share the same singleton casting receipt. */
 /* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[$receipt_cast_sacrifice_creature]}, optional:false, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$damage_casting_sacrificed_stat_amount_first}, Effect{result:@next, operation:$operation}]}}] */
 line_cast_sacrifice_damage_followup ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," receipt_cast_sacrifice_creature "." NEWLINE damage_casting_sacrificed_stat_amount_first "." operation "."
+
+/* The two-part activation fixes the singleton exile payment at component 1;
+   the property phrase is available only within this proved payment frame. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_exile_graveyard]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:LoseLife{players:$players_singular, amount:$activation_exile_input_property}}]}} */
+activated_graveyard_exile_input_loss ::= cost_mana "," "↑" cost_exile_graveyard ":" players_singular "loses" "life" "equal" "to" activation_exile_input_property "."
+
+/* @sem Expr::ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:$receipt_stat, information:CurrentOrLastKnown} */
+activation_exile_input_property ::= "the" "exiled" "card's" receipt_stat
+
+/* The receipt refers to the sole, singular creature selected by this tap cost. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$tap_creature_receipt_cost]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$tap_creature_receipt_pump}]}} */
+activated_tap_creature_receipt_pump ::= tap_creature_receipt_cost ":" tap_creature_receipt_pump "."
+
+/* @sem CostPart::ChangeTapState{selections:[CostObjectSelection{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::Tapped), $tap_creature_receipt_filter)}, choose:Exactly(Expr::Constant(1))}], tapped:true} */
+tap_creature_receipt_cost ::= "tap" "an" "untapped" tap_creature_receipt_filter
+
+tap_creature_receipt_filter ::= tap_creature_controlled | tap_creature_color_controlled | tap_creature_other_controlled | tap_creature_color_other_controlled
+
+/* @sem @and($noun_creature, $modifier_you_control) */
+tap_creature_controlled ::= noun_creature modifier_you_control
+
+/* @sem @and($adjective_color, $noun_creature, $modifier_you_control) */
+tap_creature_color_controlled ::= adjective_color noun_creature modifier_you_control
+
+/* @sem @and($noun_creature, $modifier_you_control, $modifier_other_than_self) */
+tap_creature_other_controlled ::= noun_creature modifier_you_control modifier_other_than_self
+
+/* @sem @and($adjective_color, $noun_creature, $modifier_you_control, $modifier_other_than_self) */
+tap_creature_color_other_controlled ::= adjective_color noun_creature modifier_you_control modifier_other_than_self
+
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[0], view:Inputs, phase:Before}, index:0}, property:$tap_creature_property, information:CurrentOrLastKnown}, toughness:$value}], duration:$duration, evaluation:Snapshot} */
+tap_creature_receipt_pump ::= affected "gets" "+" "X" "/" "+" value duration "," "where" "X" "is" "the" tap_creature_property "of" "the" "creature" "tapped" "this" "way"
+
+tap_creature_property ::= stat_power | stat_toughness | stat_mana_value
+
+/* The receipt belongs to this exact casting sacrifice component. */
+/* @sem Ability::[Casting(AdditionalCost{cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Creature)}, choose:AnyNumber}]}, repetition:Once}), Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$casting_sacrifice_count_pump}]}}] */
+line_cast_sacrifice_count_pump ::= "as" "an" "additional" "cost" "to" "cast" "this" "spell" "," "sacrifice" "any" "number" "of" "creatures" "." NEWLINE casting_sacrifice_count_pump "."
+
+/* @sem Ability::Mechanic{mechanic:Foretell, cost:_{parts:[ManaCostReduced{reduction:$single_generic_reduction}]}} */
+foretell_reduced_grant ::= "foretell" "." "its" "foretell" "cost" "is" "equal" "to" "its" "mana" "cost" "reduced" "by" single_generic_reduction

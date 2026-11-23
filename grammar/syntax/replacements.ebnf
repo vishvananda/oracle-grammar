@@ -3784,3 +3784,18 @@ choose_another_controlled_permanent ::= "choose" "another" filter_phrase "you" "
 /* @prefer always */
 /* @sem Ability::@entering_controller(Ability::Replacement{active:SourceEntering, event:Enter{objects:SameObject(@self)}, body:Program{instructions:[Effect{result:@next, operation:$choose_another_controlled_permanent}]}}) */
 entry_choose_another_controlled ::= "as" self_holder_text "enters" "," choose_another_controlled_permanent "."
+
+/* The choice and the replacement share the exact chosen source; the body
+   consumes the result of this replacement's own prevention. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:DamageSources($next_chosen_sources), count:Exactly(Constant(1))}}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:$next_chosen_to, kind:Any, grouping:SourceRecipient, subject:Recipient}), limit:TotalDamage($number), duration:$this_duration, body:$chosen_prevention_damage_body}}] */
+instructions_chosen_source_prevention_receipt ::= "prevent" "the" "next" number "damage" "that" "a" next_chosen_sources "would" "deal" next_chosen_to this_duration "." chosen_prevention_damage_body
+
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:ModifyEvent{change:PreventDamage}}, If{condition:Compare{left:Performed(@marked), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$self_ref_named, recipients:$recipients_any_target, amount:Performed(@marked), preventable:true}}]}, otherwise:Program{}}]} */
+chosen_prevention_damage_body ::= "if" "damage" "is" "prevented" "this" "way" "," self_ref_named "deals" "that" "much" "damage" "to" recipients_any_target
+
+/* A damage source is chosen at resolution and used by the adjacent shield. */
+/* @sem Operation::ChooseObjects{player:AbilityController, objects:DamageSources(Any), count:Exactly(Constant(1))} */
+chosen_damage_source ::= "a" "source" "of" "your" "choice"
+
+/* @sem Instruction::[Effect{result:@next, operation:$chosen_damage_source}, Effect{result:@next, operation:CreateReplacement{event:Damage(_{source_kind:Any, sources:SameObject(Result{result:@prior, phase:Before, index:0}), recipients:Any, kind:$prevent_damage, grouping:SourceRecipient, subject:Recipient}), limit:UntilExpired, duration:$this_duration, body:_{instructions:[Effect{result:@next, operation:ModifyEvent{change:PreventDamage}}]}}}] */
+instructions_chosen_source_prevention ::= "prevent" "all" prevent_damage chosen_damage_source "would" "deal" this_duration

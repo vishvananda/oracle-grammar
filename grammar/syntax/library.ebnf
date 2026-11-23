@@ -5890,3 +5890,14 @@ reveal_until_all_one ::= reveal_until_your_library reveal_until_card
 
 /* @sem Operation::RevealUntil{library:AbilityController, filter:$card_filter, count:$count_plural} */
 reveal_until_all_many ::= reveal_until_your_library count_plural card_filter "cards"
+
+/* A plural search keeps plural references in its follow-up actions. */
+/* @sem Instruction::[Instruction::Effect{result:@mark, operation:$search}, ...$search_plural_follow] */
+clause_search_plural_follow ::= search search_plural_follow
+
+/* Keep the mill producer and its counted arrival receipt in one print contract. */
+/* @sem Instruction::[Effect{result:@mark, operation:Mill{players:One(AbilityController), amount:$card_count}}, Effect{result:@next, operation:CreateTrigger{event:Object{event:Attacks, objects:CardType(Creature)}, duration:EndOfTurn, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventSubject)), changes:[Pump{power:@times($number_digits, Expr::CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$noun})), toughness:@times($number_digits_2, Expr::CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$noun}))}], duration:EndOfTurn, evaluation:Snapshot}}]}}}] */
+instructions_mill_attack_receipt_pump ::= "mill" card_count "." "whenever" "a" "creature" "attacks" "this" "turn" "," "it" "gets" "+" number_digits "/" "+" number_digits "until" "end" "of" "turn" "for" "each" noun "card" "put" "into" "your" "graveyard" "this" "way"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions_mill_attack_receipt_pump}} */
+spell_mill_attack_receipt_pump ::= instructions_mill_attack_receipt_pump "."

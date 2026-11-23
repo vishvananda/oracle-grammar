@@ -533,3 +533,25 @@ prior_phase_group ::= prior_phase_creatures | prior_phase_permanents
 prior_phase_creatures ::= "those" "creatures"
 /* @sem ObjectSet::Affected(@prior) */
 prior_phase_permanents ::= "those" "permanents"
+
+/* A detain target keeps the opponent controller predicate on its announcement. */
+/* @sem Instruction::[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Detain{object:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ControlledBy(OpponentsOf(AbilityController))])}), index:0}}}}] */
+clause_detain_opponent_controlled ::= "detain" "target" noun "an" "opponent" "controls"
+
+/* Repeat the same exploration with the same subject and actor. */
+/* @sem Instruction::[Effect{result:@next, operation:$object_explores}, Effect{result:@next, operation:$object_explores}] */
+instructions_explore_twice ::= object_explores "," "then" "it" "explores" "again"
+
+/* Each named player performs the keyword action with a separately bound actor. */
+/* @sem Instruction::[ForEachPlayer{players:$keyword_loop_players, binding:0, body:Program{instructions:[Effect{result:@next, operation:Keyword{actor:One(Bound(0)), action:$keyword_action_third}}]}}] */
+clause_each_player_keyword_action ::= keyword_loop_players keyword_action_third
+
+keyword_loop_players ::= players_each_opponent | players_each
+
+keyword_action_third ::= blights_third | discovers_third
+
+/* @sem KeywordAction::Blight{amount:$value} */
+blights_third ::= "blights" value
+
+/* @sem KeywordAction::Discover{amount:$value} */
+discovers_third ::= "discovers" value
