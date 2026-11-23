@@ -4473,7 +4473,7 @@ event_named_attack ::= event_named "attack"
 /* @sem EventSpec::Object{event:PhasesOut, objects:SameObject($object_ref)} */
 event_phases_out ::= object_ref "phases" "out"
 
-combat_damage_player_set ::= combat_damage_any_player | combat_damage_player_more_permanents
+combat_damage_player_set ::= combat_damage_any_player | combat_damage_player_more_permanents | event_enchanted_player
 
 /* @sem PlayerSet::All */
 combat_damage_any_player ::= "a" "player"
@@ -6325,3 +6325,51 @@ controlled_target_any_kind_pair ::= noun "or" noun
 /* Zone-entry spelling retains the entrant's controller restriction. */
 /* @sem EventSpec::ZoneChange{objects:$controlled_entry_filter, to:Battlefield} */
 shared_controlled_entry_zone_clause ::= "whenever" "a" controlled_entry_filter "enters"
+
+/* The pronoun in the linked-token population names this departing holder. */
+/* @sem Ability::Triggered{event:$event_self_leaves, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$delayed_linked_token_move}]}} */
+triggered_source_leaves_linked_tokens ::= "when" event_self_leaves "," delayed_linked_token_move "."
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$program_unless_player_pays_defined_x} */
+triggered_unless_player_pays_defined_x ::= event_clause "," program_unless_player_pays_defined_x "."
+
+/* The ordinal is per casting player, over the qualified spells. */
+/* @sem EventSpec::NthEachTurn{event:Spell{event:Cast, players:$event_player, spells:$spell_adjectives}, test:NumberTest::Compare{comparison:Equal, value:Expr::Constant(1)}} */
+event_clause_player_first_qualified_spell ::= "whenever" event_player "casts" "their" "first" spell_adjectives "spell" "each" "turn"
+
+/* @sem Ability::Triggered{event:$event_clause, intervening_if:$shared_holder_is_a_filter, limits:TriggerLimits{}, announcement:@announcement, body:$shared_it_becomes_vowel_type} */
+shared_trigger_holder_condition_animation ::= event_clause "," "if" shared_holder_is_a_filter "," shared_it_becomes_vowel_type
+
+/* The condition supplies the object and counter kind counted by the token's
+   entry, so the anaphor cannot escape this trigger's scope. */
+/* @sem Ability::Triggered{event:$event_self_dies, intervening_if:ObjectMatches{object:Source, filter:@agree(ObjectFilter::Counters{kind:$counter_kind, comparison:GreaterOrEqual, value:$value}, ObjectFilter::Counters{kind:$counter_kind_2, comparison:GreaterOrEqual, value:$value})}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateDelayedTrigger{event:$delayed_move_any_end, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:Copy{object:EventSubject, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[[$counter_kind, Divide{numerator:CountCounters{recipients:Objects(One(EventSubject)), kind:$counter_kind, information:CurrentOrLastKnown}, denominator:Constant(2), rounding:$rounding_words}]], states:[]}}}]}}}]}} */
+triggered_death_counter_copy_entry ::= "when" event_self_dies "," "if" "it" "had" value "or" "more" counter_kind "counters" "on" "it" "," "create" token_copy_single "it" "at" delayed_move_any_end "." "the" "token" "enters" "with" "half" "that" "many" counter_kind "counters" "on" "it" "," rounding_words "."
+
+/* The explicit self-entry event proves the cost condition's event subject. */
+/* @sem Ability::Triggered{event:$event_self_enters, limits:_{}, announcement:@announcement, body:$entry_subject_cost_replacement} */
+triggered_self_entry_cost_replacement ::= "when" event_self_enters "," entry_subject_cost_replacement
+
+/* Restrict the anaphor in the payment program to this creature recipient. */
+/* @sem EventSpec::Damage{source_kind:Permanent, sources:$event_object, recipients:Objects(CardType(Creature)), kind:Combat, grouping:SourceRecipient, subject:Source} */
+combat_damage_creature_payment_event ::= event_object "deals" "combat" "damage" "to" "a" "creature"
+
+/* @prefer always */
+/* @sem Ability::Triggered{event:$combat_damage_creature_payment_event, limits:TriggerLimits{}, announcement:@announcement, body:$damaged_creature_controller_unless_program} */
+combat_damage_creature_unless_payment_trigger ::= "whenever" combat_damage_creature_payment_event "," damaged_creature_controller_unless_program "."
+
+/* @sem EventSpec::Turn{point:EndStepBegins, players:One(Chosen)} */
+chosen_player_next_end_event ::= "the" "beginning" "of" "that" "player's" "next" "end" "step"
+
+/* Damage is grouped by the damaging creature and the attached planeswalker;
+   the event subject is the creature, not the Aura or its host. */
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:$attached_host_damage_creature, recipients:Objects(SameObject(AttachedTo(Source))), kind:Any, grouping:SourceRecipient, subject:Source}) */
+attached_planeswalker_damage_event ::= "whenever" "a" attached_host_damage_creature "deals" "damage" "to" "enchanted" "planeswalker"
+
+attached_host_damage_creature ::= noun_creature | attached_host_damage_colored_creature
+
+/* @sem @and($adjective_color, $noun_creature) */
+attached_host_damage_colored_creature ::= adjective_color noun_creature
+
+/* The creature event and its demonstrative action share the event subject. */
+/* @sem Ability::Triggered{event:$attached_planeswalker_damage_event, limits:_{}, announcement:@announcement, body:_{instructions:$retirement_event_action}} */
+attached_planeswalker_damage_trigger ::= attached_planeswalker_damage_event "," retirement_event_action "."

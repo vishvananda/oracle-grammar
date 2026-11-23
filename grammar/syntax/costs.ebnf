@@ -1895,7 +1895,7 @@ holder_unless_payment_program ::= "sacrifice" payment_self_creature "unless" "yo
 /* @sem Cost::Cost{parts:[ManaCostOf(Source)]} */
 holder_mana_cost_payment ::= "its" "mana" "cost"
 
-holder_mana_payment ::= holder_mana_cost_payment | cost_mana
+holder_mana_payment ::= holder_mana_cost_payment | holder_mana_symbols
 
 /* @sem ObjectRef::@self */
 payment_self_creature ::= self_creature
@@ -2285,3 +2285,35 @@ play_activation_exiled_card ::= "you" "may" "play" "that" "card" this_duration
 
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$face_up_single_permanent_payment]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$play_activation_exiled_card}]}} */
 activated_face_up_payment_play ::= face_up_single_permanent_payment ":" play_activation_exiled_card "."
+
+/* The source's controller makes the payment and receives the conditional draw. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:ControllerOf(EventSubject), cost:Cost{parts:[$cost_life]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Draw{players:One(ControllerOf(EventSubject)), amount:$card_count}}]}, otherwise:Program{}}]} */
+program_event_controller_payment_draw ::= "its" "controller" "may" cost_life "." "if" "they" "do" "," "they" "draw" card_count "."
+
+/* A player may pay a defined X to prevent the ensuing program. */
+/* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:$player_ref, cost:$ward_defined_x_cost, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:$program, otherwise:Program{}}]} */
+program_unless_player_pays_defined_x ::= program "unless" player_ref "pays" ward_defined_x_cost
+
+/* @sem CostPart::RemoveCounters{removals:[_{player:AbilityController, recipients:Objects(One($self_explicit_ref)), kind:Named(EyeballCounter), amount:All}]} */
+cost_all_eyeball_counters ::= "remove" "all" "eyeball" "counters" "from" self_explicit_ref
+
+/* The singular creature cost supplies component 1 of this activation.  Both
+   replacement branches and the tested property remain independently editable. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_tap, $cost_single_creature_sacrifice]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$activation_sacrifice_stat_replacement}} */
+activated_sacrifice_stat_replacement ::= cost_tap "," "↑" cost_single_creature_sacrifice ":" activation_sacrifice_stat_replacement "."
+
+/* @sem Instruction::[If{condition:ObjectMatches{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, filter:Property{property:$stat, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value}}}, then:Program{instructions:$instead_action_2}, otherwise:Program{instructions:$instead_action}}] */
+activation_sacrifice_stat_replacement ::= instead_action "." NEWLINE? "if" "the" "sacrificed" "creature's" stat "was" value "or" "greater" "," instead_action "instead"
+
+/* The inspected object is the single permanent paid in the second component;
+   both printed descriptions constrain that same payment. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), ObjectFilter::@agree($filter_phrase, $filter_phrase_2))}, choose:Exactly(Constant(1))}]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[If{condition:ObjectMatches{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, filter:$paid_sacrifice_state}, then:Program{instructions:$instead_draw_action_2}, otherwise:Program{instructions:$instead_draw_action}}]}} */
+activated_sacrifice_state_draw_instead ::= cost_mana "," "↑" "sacrifice" "another" filter_phrase ":" instead_draw_action "." "if" "the" "sacrificed" filter_phrase "was" paid_sacrifice_state "," instead_draw_action "instead" "."
+
+/* @sem ObjectFilter::State(Suspected) */
+paid_sacrifice_suspected ::= "suspected"
+
+paid_sacrifice_state ::= paid_sacrifice_suspected
+
+/* @sem Cost::Cost{parts:[Mana($mana_symbols)]} */
+holder_mana_symbols ::= mana_symbols

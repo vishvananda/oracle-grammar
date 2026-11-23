@@ -338,7 +338,7 @@ look_battlefield_tapped ::= "onto" "the" "battlefield" "tapped"
 /* Looking at or revealing the top of your library, taking some of those cards and
    putting the rest away. The take chooses from the observed cards still in the
    library; the rest excludes what the move took. Later sentences follow the block. */
-instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition
+instructions_dig ::= reveal_until_filtered_hand_partition | grouped_look_put_more | clause_look_target_library_exile | look_target_library_optional_shuffle | look_split_cast_origin_instead | dig_block | dig_block_more | dig_block_untaken | dig_optional_reveal_joined | dig_look_keep_exile | reveal_until_exile_prefixed | shuffle_owned_reveal_partition | planar_look_split | dig_reveal_required_hand_miss | sacrifice_count_reveal_partition | target_player_look_graveyard | foreign_look_graveyard_partition | dig_reveal_hand_graveyard_if | look_defined_take_shuffle
 
 /* A graveyard split may precede an independent instruction. */
 /* @sem Instruction::[Effect{result:@mark, operation:$look_top}, ...$look_hand_graveyard_split, ...$instructions] */
@@ -2828,10 +2828,10 @@ instructions_each_reveal_until_graveyard ::= players_singular "reveals" "cards" 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:LimitX{test:Compare{comparison:Greater, value:Constant(0)}}}, ...$instructions]}} */
 spell_instructions_positive_x ::= instructions "." "x" "can't" "be" "0" "."
 
-/* A choice from your hand moves into your shuffled library. The move receipt
+/* A choice from your hand or graveyard moves into your shuffled library. The move receipt
    remains available to an ordinary following instruction. */
-/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One(AbilityController)}, kind:Card, filter:$shuffle_hand_card_kind}, count:$shuffle_hand_count}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
-clause_shuffle_hand_choice ::= "shuffle" shuffle_hand_count shuffle_hand_card_kind "from" "your" "hand" "into" "your" "library"
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:$shuffle_choice_zone, players:One(AbilityController)}, kind:Card, filter:$shuffle_hand_card_kind}, count:$shuffle_hand_count}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Library{position:Shuffled, order:DestinationDefault, arrival:CardArrival{counters:[], states:[]}}, qualifiers:[]}}] */
+clause_shuffle_hand_choice ::= "shuffle" shuffle_hand_count shuffle_hand_card_kind "from" shuffle_choice_zone "into" "your" "library"
 
 /* @sem Count::AnyNumber */
 shuffle_hand_any_count ::= "any" "number" "of"
@@ -5401,3 +5401,67 @@ sacrifice_count_reveal_partition ::= "sacrifice" number filter_plural "," "then"
 /* Keep the revealed partition together before an independent following instruction. */
 /* @sem Instruction::[...$instructions_reveal_until, ...$instructions] */
 reveal_until_then_instructions ::= instructions_reveal_until "." instructions
+
+/* The selected cards leave the observed target library; its remainder stays on top. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($value), constraints:[CanMoveTo{destination:OwnersGraveyard(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:Target{slot:@last_slot, index:0}, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Top, order:Chosen}}] */
+observed_target_library_to_graveyard ::= "put" value "of" "them" "into" "their" "graveyard"
+
+/* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One($possessive_target_player)}, kind:Card, filter:Any}, count:$top_count, from:Top}}}, ...$observed_target_library_to_graveyard] */
+target_player_look_graveyard ::= "look" "at" "the" "top" top_count "of" possessive_target_player "library" "." observed_target_library_to_graveyard
+
+/* The selected cards move to their owners' graveyards; the rest stays in the
+   same targeted library, excluding the actual move's before receipt. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($value), constraints:[CanMoveTo{destination:OwnersGraveyard(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:ReorderLibrary{chooser:AbilityController, library_owner:Target{slot:@last_slot, index:0}, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@prior, phase:Before}])}, zone:Library}, end:Top, order:Chosen}}] */
+foreign_observed_graveyard_split ::= "put" value "of" "those" "cards" "into" "that" "player's" "graveyard" "and" "the" "rest" "on" "top" "of" "their" "library" "in" "any" "order"
+
+/* @sem Instruction::[Effect{result:@mark, operation:LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One($target_possessive)}, kind:Card, filter:Any}, count:$top_count, from:Top}}}, ...$foreign_observed_graveyard_split] */
+foreign_look_graveyard_partition ::= "look" "at" "the" "top" top_count "of" target_possessive "library" "." foreign_observed_graveyard_split
+
+/* This producer fixes the hand destination before the receipt is tested. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($look_hand_count), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:$dig_hand_rest}, If{condition:Compare{left:CountObjects(Matching{objects:Union([Transition{result:@back(2), phase:Before}]), filter:$filter_phrase}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:$program, otherwise:_{}}] */
+dig_reveal_hand_graveyard_if ::= reveal_top "." "put" look_hand_count "into" "your" "hand" "and" dig_hand_rest "." "if" "you" "put" "an" filter_phrase "card" "into" "your" "hand" "this" "way" "," program
+
+dig_hand_rest ::= hand_other_graveyard | rest_graveyard
+
+/* @prefer always */
+/* @sem Operation::Move{objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(2), phase:Before}])}, zone:Library}, destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]} */
+hand_other_graveyard ::= "the" "other" "into" "your" "graveyard"
+
+/* The activation's third cost is the matching eyeball-counter payment. */
+/* @sem Operation::LookAt{player:AbilityController, objects:Take{objects:Zone{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}, count:PaidCountersRemoved{payment:Activation, component:[2]}, from:Top}} */
+look_paid_eyeball_counters ::= "look" "at" "the" "top" "X" "cards" "of" "your" "library" "," "where" "X" "is" "the" "number" "of" "eyeball" "counters" "removed" "this" "way"
+
+/* Reuse the observed-card hand partition within the scoped payment ability. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, TapSymbol, $cost_all_eyeball_counters]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:$look_paid_eyeball_counters}, ...$look_put_split]}} */
+activation_look_paid_eyeball ::= cost_mana "," "{T}" "," "↑" cost_all_eyeball_counters ":" look_paid_eyeball_counters "." look_put_split "."
+
+/* The defined look and its take share the observed library population. */
+/* @sem Instruction::[Effect{result:@mark, operation:$look_top_defined_life}, ...$observed_take_hand_shuffle] */
+look_defined_take_shuffle ::= look_top_defined_life "." observed_take_hand_shuffle
+
+/* @sem Operation::LookAt{player:AbilityController, objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(AbilityController)}, kind:Card, filter:Any}), count:$life_paid_with_source, from:Top}} */
+look_top_defined_life ::= "look" "at" "the" "top" "X" "cards" "of" "your" "library" "," "where" "X" "is" life_paid_with_source
+
+/* @sem Expr::Game(LifePaid) */
+life_paid_with_source ::= "the" "amount" "of" "life" "paid" "with" SELF_NAME
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:InZone{objects:Observed(@marked), zone:Library}, count:AsManyAsCan($value), constraints:[CanMoveTo{destination:OwnersHand(CardArrival{counters:[], states:[]})}]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+observed_take_hand_shuffle ::= "put" value "of" "them" "into" "your" "hand" "," "then" "shuffle"
+
+shuffle_choice_zone ::= shuffle_choice_hand | your_graveyard
+
+/* @prefer always */
+/* @sem $your_hand */
+shuffle_choice_hand ::= your_hand
+
+/* @prefer always */
+/* @sem $clause_shuffle_hand_choice */
+shuffle_choice_before_then ::= clause_shuffle_hand_choice
+
+/* @prefer always */
+/* @sem $clause_shuffle_hand_choice */
+clause_you_shuffle_choice ::= "you" clause_shuffle_hand_choice
+
+/* Keep the seek producer in scope for both references to its hand arrival. */
+/* @sem Instruction::[...$clause_seek_card, Effect{result:@next, operation:Move{objects:One(Result{result:@prior, phase:After, index:0}), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}, Effect{result:@next, operation:Conjure{actor:One(AbilityController), card:Duplicate(One(Result{result:@back(3), phase:After, index:0})), count:$count_plural, destination:Graveyard(CardArrival{counters:[], states:[]})}}] */
+clause_seek_put_duplicate ::= clause_seek_card "and" "put" "it" "into" "your" "graveyard" "," "then" "conjure" count_plural "duplicates" "of" "it" "into" "your" "graveyard"

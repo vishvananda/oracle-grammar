@@ -2248,3 +2248,12 @@ instead_controlled_creatures_event_subtype ::= instead_other_controlled_creature
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(SameObject(Source)), CardType(Creature), ControlledBy(One(AbilityController))])} */
 instead_other_controlled_creatures ::= "other" "creatures" "you" "control"
+
+/* A named player may have a source deal damage to them to prevent an action. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:$player_ref, cost:Cost{parts:[PlayerAction{player:$player_ref, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$object_ref, recipients:Players(One($player_ref)), amount:$value, preventable:true}}]}}]}, optional:true}}, If{condition:Not(PaymentChosen(@marked)), then:Program{instructions:@apply(PlayerSet::One($player_ref), $verbs_third)}, otherwise:Program{}}] */
+clause_singular_unless_has_damage ::= player_ref verbs_third "unless" "that" "player" "has" object_ref "deal" value "damage" "to" "them"
+
+/* The damaged creature's controller may pay to prevent the stated program. */
+/* @prefer always */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:ControllerOf(Damage(Recipient)), cost:$cost, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:$program, otherwise:Program{}}]} */
+damaged_creature_controller_unless_program ::= program "unless" "that" "creature's" "controller" "pays" cost

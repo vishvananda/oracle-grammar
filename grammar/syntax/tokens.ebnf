@@ -1522,3 +1522,41 @@ token_equipped_sacrifice_damage ::= "equipped" "creature" "has" "'" equipped_roc
 
 /* @sem Ability::Activated{origin:Ordinary, cost:_{parts:[Mana($mana_symbols), TapSymbol, Sacrifice{objects:One(GrantingObject)}]}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:DamageRecipient, count:Exactly(Constant(1)), filter:Any})), amount:$number, preventable:true}}]}, announcement:@announcement} */
 equipped_rock_damage_activation ::= mana_symbols "," "{" "T" "}" "," "↑" "sacrifice" "Rock" ":" "this" "creature" "deals" number "damage" "to" "any" "target'"
+
+/* A per-controller population binds the creator and each copied permanent to
+   the same controller. The object set is reusable independently of creation. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun_creature, $noun_token, ControlledBy(One(Bound(0)))])} */
+controller_creature_token_population ::= noun_creature noun_token "on" "the" "battlefield"
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun_creature, ControlledBy(One(Bound(0)))])} */
+controller_creature_population ::= noun_creature "on" "the" "battlefield"
+
+controller_copy_population ::= controller_creature_token_population | controller_creature_population
+
+/* @sem $counter_a */
+controller_copy_token_singular ::= counter_a "token"
+
+/* @sem $controller_copy_plural_amount */
+controller_copy_token_plural ::= controller_copy_plural_amount "tokens"
+
+controller_copy_plural_amount ::= n2 | n3 | n4 | n5 | n6 | n7 | n8 | n9 | n10
+
+controller_copy_token_quantity ::= controller_copy_token_singular | controller_copy_token_plural
+
+/* @sem Instruction::[ForEachPlayer{players:All, binding:0, body:_{instructions:[Effect{result:@next, operation:CreateTokens{players:One(Bound(0)), tokens:[_{amount:$controller_copy_token_quantity, words:CreatingEffect, recipe:CopyEach{objects:$controller_copy_population, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
+clause_controller_copy_each ::= "for" "each" controller_copy_population "," "its" "controller" "creates" controller_copy_token_quantity "that's" "a" "copy" "of" "that" "creature"
+
+/* Two token alternatives share the imperative and each keeps its own result. */
+/* @sem Instruction::[ChooseOne{decider:AbilityController, options:[$token_choice_option, $token_choice_option_2]}] */
+/* @prefer always */
+clause_create_token_pair_choice ::= "create" token_choice_option "or" token_choice_option
+
+/* The quoted activation is scoped to the created land's ability holder. */
+/* @sem TokenSpec::TokenSpec{amount:$counter_a, words:CreatingEffect, recipe:Defined{name:Explicit($created_land_token_name), card_types:[Land], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})]}} */
+tapped_named_land_spec ::= counter_a "tapped" "land" "token" "named" created_land_token_name "with" '"' cost ":" program "." '"'
+
+/* @sem String::Sanctum */
+created_land_token_name ::= "Sanctum"
+
+/* @sem TokenSpec::TokenSpec{amount:$count_plural, words:CreatingEffect, recipe:Defined{name:Explicit($created_land_token_name), card_types:[Land], abilities:[@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:_{}, announcement:@announcement, body:$program})]}} */
+tapped_named_lands_spec ::= count_plural "tapped" "land" "tokens" "named" created_land_token_name "with" '"' cost ":" program "." '"'
