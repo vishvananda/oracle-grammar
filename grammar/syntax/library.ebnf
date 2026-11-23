@@ -5303,3 +5303,27 @@ planar_other_top ::= "top"
 planar_other_bottom ::= "bottom"
 
 planar_other_end ::= planar_other_top | planar_other_bottom
+
+/* The opponent partitions the search selection. Keep both moves tied to that
+   choice even though the first move intervenes before the remainder. */
+/* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_distinct_partition_choice]}}, Effect{result:@next, operation:Reveal{objects:Selected(@marked)}}, Effect{result:@next, operation:ChooseObjects{player:OneOf(OpponentsOf(AbilityController)), objects:Selected(@marked), count:AsManyAsCan($count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersGraveyard(CardArrival{}), qualifiers:[]}}, Effect{result:@next, operation:Move{objects:Unselected(@back(3)), destination:Battlefield{controller:Player(AbilityController), arrival:$search_option_entry}, qualifiers:[]}}, Effect{result:@next, operation:Shuffle{players:One(AbilityController)}}] */
+instructions_search_reveal_opponent_partition ::= "search" "your" "library" "for" search_distinct_partition_choice "and" "reveal" "them" "." "an" "opponent" "chooses" count "of" "those" "cards" "." "put" "the" "chosen" "cards" "into" "your" "graveyard" "and" "the" "rest" search_option_entry "," "then" "shuffle"
+
+/* @sem SearchChoice::SearchChoice{filter:$search_filter_many, count:UpTo($count), constraints:[DifferentNames]} */
+search_distinct_partition_choice ::= "up" "to" count search_filter_many "with" "different" "names"
+
+/* The payment and the search are scoped together: the comparison below reads
+   the input of this one-artifact sacrifice and this search's selection. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Artifact)}, choose:Exactly(Constant(1))}]}, optional:false}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@mark, operation:$paid_singular_search}, $sacrificed_artifact_search_value_branch, $paid_search_shuffle]}, otherwise:Program{}}]}} */
+spell_sacrificed_artifact_search_value ::= "sacrifice" "an" "artifact" "." "if" "you" "do" "," paid_singular_search "." sacrificed_artifact_search_value_branch "." paid_search_shuffle "."
+
+/* Compare the found card with the paid artifact, then offer the difference. */
+/* @sem Instruction::If{condition:Compare{left:CountObjects(Matching{objects:Selected(@marked), filter:Property{property:ManaValue, test:NumberTest::Compare{comparison:LessOrEqual, value:ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(@prior), component:[0], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}}}}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}}, then:Program{instructions:[Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[ManaWithX{mana:[X], x:Subtract(Earlier{what:Found, measure:Of(ManaValue)}, ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(@back(4)), component:[0], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown})}]}, optional:true}}, If{condition:PaymentChosen(@last_result), then:Program{instructions:[Effect{result:@next, operation:Move{objects:Selected(@marked), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[]}}, qualifiers:[]}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Move{objects:Selected(@marked), destination:OwnersGraveyard(CardArrival{counters:[], states:[]}), qualifiers:[]}}]}}]}} */
+sacrificed_artifact_search_value_branch ::= "if" "that" "card's" "mana" "value" "is" "less" "than" "or" "equal" "to" "the" "sacrificed" "artifact's" "mana" "value" "," "put" "it" "onto" "the" "battlefield" "." "if" "it's" "greater" "," "you" "may" "pay" "{" "X" "}" "," "where" "X" "is" "the" "difference" "." "if" "you" "do" "," "put" "it" "onto" "the" "battlefield" "." "if" "you" "don't" "," "put" "it" "into" "its" "owner's" "graveyard"
+
+/* A singular search selection for receipt-bound continuations. */
+/* @sem Operation::Search{searcher:AbilityController, library_owner:AbilityController, choices:[$search_choice_filtered]} */
+paid_singular_search ::= "search" "your" "library" "for" search_choice_filtered
+
+/* @sem Instruction::Effect{result:@next, operation:Shuffle{players:One(AbilityController)}} */
+paid_search_shuffle ::= "then" "shuffle"

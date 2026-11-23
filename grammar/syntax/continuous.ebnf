@@ -5701,7 +5701,7 @@ shared_observed_literal_8da9cdc19794 ::= bare_riot | bare_training | bare_unleas
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$shared_indefinite_change, duration:Indefinite, evaluation:Snapshot} */
 shared_type_change_indefinite ::= affected shared_indefinite_change
 
-shared_indefinite_change ::= shared_creature_type_set | shared_land_type_change | shared_creature_animation | shared_add_island_type | shared_add_basic_land_type
+shared_indefinite_change ::= shared_creature_type_set | shared_land_type_change | shared_creature_animation | shared_add_island_type | shared_add_basic_land_type | shared_artifact_replacement_activation
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$shared_timed_change, duration:$until_end_of_turn, evaluation:Snapshot} */
 shared_type_change_timed ::= affected shared_timed_change until_end_of_turn
@@ -8738,3 +8738,23 @@ chosen_color_land ::= "land's"
 
 /* @sem ObjectFilter::CardType(Planeswalker) */
 chosen_color_planeswalker ::= "planeswalker's"
+
+/* A per-population generic reduction keeps its factor and live set independent. */
+/* @sem SpellCostModifier::Reduce{reductions:[_{amount:@times($braced_number, Expr::CountObjects($affected))}], spill_into_generic:true} */
+spell_cost_less_per_population ::= braced_number "less" "to" "cast" "for" affected
+
+/* A player's spell class and the reduction are separate operands. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$cast_spells_filter, modifier:$spell_cost_less_per_population})]}) */
+static_cast_population_reduction ::= cast_spells_filter "you" "cast" "cost" spell_cost_less_per_population "."
+
+/* The turn window wraps the independently described static ability. */
+/* @sem Ability::Conditional{condition:$window_your_turn, then:[$static_cast_population_reduction]} */
+turn_cast_population_reduction ::= window_your_turn "," static_cast_population_reduction
+
+/* The quoted activation belongs to the affected permanent, independently of the source. */
+/* @sem Change::[...$singular_artifact_type_change, RemoveAllAbilities, GrantAbility($granted_activated_unpunctuated)] */
+shared_artifact_replacement_activation ::= "becomes" "a" singular_artifact_type_change "with" granted_activated_unpunctuated "and" "loses" "all" "other" "card" "types" "and" "abilities"
+
+/* This pump is used only inside an activation that proves its counter payment. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Pump{power:Multiply([$signed_literal, PaidCountersRemoved{payment:Activation, component:[0]}]), toughness:Multiply([$signed_literal_2, PaidCountersRemoved{payment:Activation, component:[0]}])}], duration:$duration, evaluation:Snapshot} */
+paid_pt_counter_removal_pump ::= affected "gets" signed_literal "/" signed_literal duration "for" "each" "+" "1" "/" "+" "1" "counter" "removed" "this" "way"

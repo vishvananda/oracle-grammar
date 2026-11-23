@@ -13499,3 +13499,98 @@ exile_payment_card_filter_an_artifact ::= "an" noun_artifact
 exile_payment_card_filter_an_enchantment ::= "an" noun_enchantment
 
 exile_payment_card_filter ::= exile_payment_card_filter_a | exile_payment_card_filter_an_artifact | exile_payment_card_filter_an_enchantment
+
+/* The mill and cast share the same producer and player population. */
+/* @sem Instruction::[Effect{result:@next, operation:Mill{players:All, amount:$mill_cast_amount}}, Effect{result:@next, operation:PlayWith{actor:One(AbilityController), action:CastSpell, cards:Recorded(@prior), count:PerPlayer{players:All, each:UpTo($card_count_one)}, terms:_{cost:Free}}}] */
+instructions_each_mill_cast_per_player ::= "each" "player" "mills" mill_cast_amount "." "for" "each" "player" "," "you" "may" "cast" card_count_one "that" "player" "milled" "this" "way" "without" "paying" "its" "mana" "cost"
+
+/* This amount refers to the enclosing event, not the preceding result. */
+/* @sem Expr::EventAmount */
+mill_cast_event_amount ::= "that" "many" "cards"
+
+/* @sem $count_plural */
+mill_cast_fixed_amount ::= count_plural "cards"
+
+/* The event group reading remains distinct from EventAmount. */
+/* @sem Expr::CountObjects(EventGroup) */
+mill_cast_event_group_amount ::= "that" "many" "cards"
+
+mill_cast_amount ::= mill_cast_event_amount | mill_cast_event_group_amount | mill_cast_fixed_amount
+
+/* These placements are scoped to the source-attacks trigger. */
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects(One($target_source_defender_choice)), kind:$counter_kind, amount:$counter_amount}]} */
+source_defender_counter_single ::= "put" counter_amount counter_kind "counter" "on" target_source_defender_choice
+
+/* @sem Operation::PutCounters{placements:[_{recipients:Objects(One($target_source_defender_choice)), kind:$counter_kind, amount:$counter_amount}]} */
+source_defender_counter_plural ::= "put" counter_amount counter_kind "counters" "on" target_source_defender_choice
+
+source_defender_counter_placement ::= source_defender_counter_single | source_defender_counter_plural
+
+/* The event subject is the source, so its defending player chooses. */
+/* @sem Ability::Triggered{event:Object{event:Attacks, objects:$event_self}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$source_defender_counter_placement}]}} */
+source_attack_defender_counter_trigger ::= "whenever" event_self "attacks" "," source_defender_counter_placement "."
+
+/* The observation and choice address the same player's hand; the discard uses the selection. */
+/* @sem Instruction::[Effect{result:@next, operation:LookAt{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One($target_possessive)}, kind:Card, filter:Any}}}, Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Zone{scope:Players{zone:Hand, players:One($target_possessive)}, kind:Card, filter:Any}, count:AsManyAsCan(Constant(1))}}, Effect{result:@next, operation:DiscardObjects{objects:Selected(@prior)}}] */
+instructions_look_hand_choose_discard ::= "look" "at" target_possessive "hand" "and" "choose" "a" "card" "from" "it" "." "that" "player" "discards" "that" "card"
+
+/* The random hand selection, exile receipt, permission and delayed cleanup are
+   one scope: both later references name the arrival of this exact move. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:EventSubject, objects:Zone(_{scope:Players{zone:Hand, players:One(EventSubject)}, kind:Card, filter:$random_exile_hand_filter}), count:AsManyAsCan(Constant(1)), constraints:[AtRandom]}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:Exile{visibility:FaceUp, arrival:_{}}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(EventSubject)), changes:[PlayerRule(PlayPermission{cards:One(Result{result:@prior, phase:After, index:0}), from:Exile, action:Either, filter:Any})], duration:$random_exile_permission_duration, evaluation:LiveObjects}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:_{instructions:[Effect{result:@next, operation:Move{objects:InZone{objects:One(Result{result:@back(4), phase:After, index:0}), zone:Exile}, destination:$random_exile_cleanup_destination}}]}}}] */
+instructions_random_hand_exile_play_cleanup ::= "that" "player" "exiles" random_exile_hand_filter "at" "random" "from" "their" "hand" "." "the" "player" "may" "play" "that" "card" random_exile_permission_duration "." "at" "the" "beginning" "of" "the" "next" "end" "step" "," "if" "the" "player" "hasn't" "played" "the" "card" "," "they" "put" "it" "into" "their" random_exile_cleanup_destination
+
+random_exile_hand_filter ::= random_exile_any_card | random_exile_typed_card
+
+/* @sem ObjectFilter::Any */
+random_exile_any_card ::= "a" "card"
+
+/* @sem $card_noun */
+random_exile_typed_card ::= "a" card_noun "card"
+
+random_exile_cleanup_destination ::= random_exile_cleanup_graveyard | random_exile_cleanup_hand
+
+/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
+random_exile_cleanup_graveyard ::= "graveyard"
+
+/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
+random_exile_cleanup_hand ::= "hand"
+
+random_exile_permission_duration ::= this_turn | this_combat
+
+/* The exclusion names the one card paid into exile by this same optional action. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One($current_card_ref)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:Move{objects:@zone_members(ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([Not(SameObject(Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0})), ExiledWith($object_ref)])}), destination:$linked_other_destination, qualifiers:[]}}]}, otherwise:Program{}}] */
+instructions_optional_exile_linked_other ::= "you" "may" "exile" current_card_ref "." "if" "you" "do" "," "return" "each" "other" "card" "exiled" "with" object_ref linked_other_destination
+
+linked_other_destination ::= linked_other_graveyard | linked_other_hand
+
+/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
+linked_other_graveyard ::= "to" "its" "owner's" "graveyard"
+
+/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
+linked_other_hand ::= "to" "its" "owner's" "hand"
+
+/* Keep the exile producer and both uses of its receipt in one scope. */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:LibraryTops(All), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Transition{result:@marked, phase:After}), kind:$counter_kind, amount:Constant(1)}]}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects($affected), kind:$counter_kind_2, amount:CountObjects(Matching{objects:Transition{result:@marked, phase:After}, filter:$adjective_nontype})}]}}] */
+instructions_exile_each_library_counter_count ::= "exile" "the" "top" "card" "of" "each" "player's" "library" "and" "put" "a" counter_kind "counter" "on" "each" "of" "them" "." "put" "a" counter_kind "counter" "on" affected "for" "each" adjective_nontype "card" "exiled" "this" "way"
+
+/* The second chooser is the controller of the first announced target; the
+   repeated nouns identify those same targets in the coin-flip branches. */
+/* @sem Instruction::[Effect{result:@next, operation:FlipCoin{player:AbilityController, protocol:@coin_protocol}}, If{condition:CoinFlip{result:@last_result, outcome:Won}, then:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([@agree($noun, $noun_3), ControlledBy(OpponentsOf(AbilityController))])}), index:0}), regeneration:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:Destroy{objects:One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@agree($noun_2, $noun_4), chooser:ControllerOf(Target{slot:0, index:0})}), index:0}), regeneration:true}}]}}] */
+chosen_targets_coin_destroy ::= "you" "choose" "target" noun "an" "opponent" "controls" "," "and" "that" "opponent" "chooses" "target" noun "." "flip" "a" "coin" "." "if" "you" "win" "the" "flip" "," "destroy" "the" noun "you" "chose" "." "if" "you" "lose" "the" "flip" "," "destroy" "the" noun "your" "opponent" "chose"
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$chosen_targets_coin_destroy}} */
+activated_chosen_targets_coin ::= cost ":" chosen_targets_coin_destroy "."
+
+/* Scope the destruction receipt together with the copy; the two noun forms must agree. */
+/* @sem Instruction::[Effect{result:@next, operation:Destroy{objects:Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(AnnouncedX), filter:@agree($plural, $noun)})), regeneration:true}}, If{condition:$copy_receipt_condition, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:Constant(1), words:CreatingEffect, recipe:CopyEach{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:InSet(Recorded(@prior))}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, ...$created_tokens_keyword_exile]}, otherwise:Program{}}] */
+destroy_target_copies_conditional ::= "destroy" "up" "to" "X" "target" plural "." "if" copy_receipt_condition "," "for" "each" noun "destroyed" "this" "way" "," "create" "a" "token" "that's" "a" "copy" "of" "it" "." created_tokens_keyword_exile
+
+/* The cleanup acts on the token creation immediately preceding this continuation. */
+/* @sem Instruction::[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Created(@prior)), changes:[GrantKeyword($keyword_name)], duration:Indefinite, evaluation:Snapshot}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:EndStepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:Created(@back(4)), destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}]}}}] */
+created_tokens_keyword_exile ::= "those" "tokens" "gain" keyword_name "." "exile" "them" "at" "the" "beginning" "of" "the" "next" "end" "step"
+
+/* @sem Condition::Compare{left:AnnouncedX, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}} */
+copy_receipt_condition ::= "X" "is" number "or" "more"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$destroy_target_copies_conditional}} */
+spell_destroy_target_copies_conditional ::= destroy_target_copies_conditional "."

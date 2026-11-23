@@ -31,8 +31,7 @@ mana_clause_restricted ::= mana_clause "." mana_spending
 
 /* Mana that triggers when it's spent on a spell: the trigger is the mana's own
    restriction, and the rest of the ability is its body. */
-/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($program)}}}] */
-instructions_mana_spent_trigger ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" spell_filter "," program
+instructions_mana_spent_trigger ::= instructions_mana_spent_active | instructions_mana_spent_passive
 
 mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat | mana_spend_only_countered | mana_spent_gives_riot | mana_spend_x_cost | mana_spent_on_changes | mana_spent_counter
 /* @sem $mana_use */
@@ -477,3 +476,14 @@ mana_activation_artifact_restricted ::= mana_activation_artifact_clause "." mana
 
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[TapSymbol, Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:CardType(Artifact)}, choose:Exactly(Constant(1))}]}, limits:_{}, announcement:@announcement, body:Program{instructions:$mana_activation_artifact_restricted}} */
 ability_artifact_cost_mana ::= "{T}" "," "↑" "sacrifice" "an" "artifact" ":" mana_activation_artifact_restricted "."
+
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($program)}}}] */
+instructions_mana_spent_active ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" spell_filter "," program
+
+/* The passive subject refers to the mana just produced; the nested body is
+   evaluated in the spending event and refers to that event's spell. */
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($spent_spell_body)}}}] */
+instructions_mana_spent_passive ::= "add" mana_production "." "when" "that" "mana" "is" "spent" "to" "cast" spell_filter "," spent_spell_body
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventSubject, times:Constant(1), targets:May}}]} */
+spent_spell_body ::= "copy" "that" "spell" "and" "you" "may" "choose" "new" "targets" "for" "the" "copy"
