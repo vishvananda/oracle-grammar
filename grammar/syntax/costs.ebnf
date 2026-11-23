@@ -2398,3 +2398,37 @@ line_cast_sacrifice_count_pump ::= "as" "an" "additional" "cost" "to" "cast" "th
 
 /* @sem Ability::Mechanic{mechanic:Foretell, cost:_{parts:[ManaCostReduced{reduction:$single_generic_reduction}]}} */
 foretell_reduced_grant ::= "foretell" "." "its" "foretell" "cost" "is" "equal" "to" "its" "mana" "cost" "reduced" "by" single_generic_reduction
+
+/* The only payment component is a singular face-up exile. The complete
+   activation proves the origin of the card named by the definition. */
+receipt_single_exile_payment ::= cost_exile_graveyard | cost_exile_card_graveyard | cost_exile_top_one
+
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$receipt_single_exile_payment]}, limits:ActivationLimits{}, announcement:@announcement, body:@where(Program::Program{instructions:[Effect{result:@next, operation:$receipt_x_counter_placement}]}, Expr::ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[0], view:Performed, phase:After}, index:0}, property:ManaValue, information:CurrentOrLastKnown})} */
+activated_exile_value_counters ::= receipt_single_exile_payment ":" receipt_x_counter_placement "," "where" "X" "is" "the" "exiled" "card's" "mana" "value" "."
+
+/* The second payment is one discarded card, so its performed receipt is the
+   card tested by the following replacement. The condition is local to this
+   activation and cannot bind an unrelated payment. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$discard_receipt_first_cost, $discard_replacement_cost]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:$discard_damage_replacement}} */
+activated_discard_damage_replacement ::= discard_receipt_first_cost "," "↑" discard_replacement_cost ":" discard_damage_replacement "."
+
+discard_replacement_cost ::= cost_discard | cost_discard_filtered | cost_discard_random_one
+
+/* @sem CostPart::Discard{count:Constant(1), filter:Any, random:true} */
+cost_discard_random_one ::= "discard" "a" "card" "at" "random"
+
+/* The two branches share a target but retain independently editable sources
+   and amounts. The local condition selects the actual discard receipt. */
+/* @sem Instruction::[@repeated_damage_actor(Instruction::If{condition:$discard_replacement_condition, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$discard_replacement_dealer, recipients:$recipients_any_target, amount:$number_2, preventable:true}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:DealDamage{source:$damage_source_ref, recipients:Targets(@last_slot), amount:$number, preventable:true}}]}})] */
+discard_damage_replacement ::= damage_source_ref "deals" number "damage" "to" recipients_any_target "." NEWLINE? "if" discard_replacement_condition "," discard_replacement_dealer "deals" number "damage" "instead"
+
+/* @sem Condition::Compare{left:CountObjects(Matching{objects:CostObjects{payment:Activation, component:[1], view:Performed, phase:After}, filter:$discard_replacement_quality}), test:NumberTest::Compare{comparison:Greater, value:Constant(0)}} */
+discard_replacement_condition ::= "the" "discarded" "card" "was" discard_replacement_quality
+
+discard_replacement_quality ::= adjective_multicolored | adjective_monocolored
+
+/* @prefer always */
+/* @sem $self_explicit_ref */
+discard_replacement_explicit_dealer ::= self_explicit_ref
+
+discard_replacement_dealer ::= discard_replacement_explicit_dealer | damage_source_ref

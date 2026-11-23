@@ -297,3 +297,12 @@ copy_event_ability_with_retarget ::= "copy" copy_event_ability_ref "." copy_sing
 
 /* @sem $copy_event_ability_with_retarget */
 optional_copy_event_ability ::= "you" "may" copy_event_ability_with_retarget
+
+/* The two spells are the copied object and its copy; keep that shared object
+   in the producer and the conditional effect when either operand is edited. */
+/* @sem Instruction::[Effect{result:@next, operation:PayCost{player:AbilityController, cost:Cost{parts:[PlayerAction{player:AbilityController, body:Program{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May}}]}}]}, optional:true}}, If{condition:PaymentChosen(@prior), then:Program{instructions:[Effect{result:@next, operation:EffectOn{subject:EachSpell(AnyOf([SameObject($object_ref), SameObject(Earlier{what:CopiedSpell})])), effects:[$copy_pair_spell_effect], until:Indefinite}}]}, otherwise:Program{}}] */
+clause_optional_copy_pair_effect ::= "you" "may" "copy" object_ref "." "if" "you" "do" "," "those" "spells" "gain" copy_pair_spell_effect "." copy_single_retarget_permission
+
+copy_pair_spell_effect ::= copy_pair_wither | gained_spell_effect
+/* @sem Operand::Term{family:SpellEffect, form:Wither} */
+copy_pair_wither ::= "wither"

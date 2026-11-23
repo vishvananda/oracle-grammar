@@ -1,5 +1,5 @@
 /* Noun phrases. Filters compose: adjectives before a head, modifiers after. */
-object_set ::= objects_each_that_crewed_this_turn | objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters | objects_it_and_target | graveyard_cards_arrived_battlefield_this_turn | same_name_graveyard_battlefield_population
+object_set ::= enchanted_creature_and_attached_population | objects_each_that_crewed_this_turn | objects_targets_common_creature_type | objects_each_controlled_chosen_land_type | graveyard_your_up_to_cards | graveyard_event_up_to_cards | graveyard_event_up_to_typed_cards | objects_each_three_mana | objects_prior_targets_filtered | objects_any_other_targets | objects_each_controlled_union | group_reference | drafted_cards_reference | graveyard_target_cards | qualified_set | created_reference | mined_set | object_one | objects_all_sharing | objects_all | objects_each | objects_each_other | objects_all_other | objects_targets | objects_other_targets | objects_all_two | objects_random | objects_random_cards | objects_two_targets | objects_three_targets | objects_four_targets | objects_target_and_up_to | objects_target_and_all | objects_target_and_named | objects_pair_both | objects_that_and_self | objects_target_and_each_other | objects_self_and_target | ordered_cards | linked_exiled_cards | event_amount_library_end | objects_each_controlled_mana_ability | objects_each_controlled_exhaust | objects_team_targets | filtered_cards_in_target_hand | objects_each_controlled_and_or_union | objects_targets_different_controllers | all_private_library_cards | library_except_bottom | objects_optional_three_kinds | objects_up_to_count_without_mana | linked_battlefield_creature_set | objects_target_and_color_sharing | objects_each_chosen_land_type | mixed_target_graveyard_union | library_top_per_vote | target_linked_exiled_card_set | objects_target_total_budget | objects_up_to_sticker_letters | objects_it_and_target | graveyard_cards_arrived_battlefield_this_turn | same_name_graveyard_battlefield_population
 
 /* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($target_object), SameObject($other_target_up_to)])} */
 objects_target_and_up_to ::= target_object "and" other_target_up_to
@@ -287,7 +287,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_attacking_creature | named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_extreme_battlefield | target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled
+target_object ::= target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -925,7 +925,7 @@ bound_less ::= "less"
 bound_greater ::= "greater"
 
 /* Players. */
-players_singular ::= players_coin_tails | players_empty_hand | players_unqualified_singular | players_voted_same | players_voted_different | players_chosen_extreme_life | players_tapped_for_mana_this_turn | players_controlling_filter | players_event_controller_opponents | players_event_player_opponents | players_controlling_an | players_your_teammates | players_most_controlled | players_enchanted_opponent | players_qualified | players_unqualified | players_with_counter_threshold
+players_singular ::= players_each_last_chose | players_coin_tails | players_empty_hand | players_unqualified_singular | players_voted_same | players_voted_different | players_chosen_extreme_life | players_tapped_for_mana_this_turn | players_controlling_filter | players_event_controller_opponents | players_event_player_opponents | players_controlling_an | players_your_teammates | players_most_controlled | players_enchanted_opponent | players_qualified | players_unqualified | players_with_counter_threshold
 
 /* A Curse's player: the player this Aura enchants. */
 /* @sem PlayerSet::One(PlayerRef::EnchantedBy(ObjectRef::Source)) */
@@ -2662,7 +2662,7 @@ filter_three_heads ::= list_head "," list_head "," "or" list_head
 /* @sem ObjectFilter::AnyOf([$noun, AllOf([$noun_2, $modifier_with_keyword_family]), $noun_3]) */
 filter_three_heads_middle_keyword ::= noun "," noun modifier_with_keyword_family "," "or" noun
 
-modifier_with_keyword_family ::= modifier_with_disturb | modifier_with_decayed
+modifier_with_keyword_family ::= modifier_with_disturb | modifier_with_decayed | modifier_with_soulbond
 
 /* @sem ObjectFilter::AnyOf([ObjectFilter::Attacking, ObjectFilter::Blocking]) */
 modifier_relative_combat ::= "that's" "attacking" "or" "blocking"
@@ -4057,3 +4057,58 @@ modifier_monarch_controls ::= "the" "monarch" "controls"
 filter_plural_nameless ::= nameless_plural_base "that" "don't" "have" "a" "name"
 
 nameless_plural_base ::= filter_plural_tail | filter_plural_type_prefix
+
+/* The target's mana value is compared with the triggering object's last known value. */
+/* @sem ObjectFilter::Property{property:ManaValue, test:NumberTest::Compare{comparison:Less, value:ObjectProperty{object:EventSubject, property:ManaValue, information:CurrentOrLastKnown}}} */
+lesser_event_mana_value ::= "with" "lesser" "mana" "value"
+
+/* @sem ObjectSet::One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Card, zones:[Graveyard]}), count:Exactly(Constant(1)), filter:@and($filter_phrase, $lesser_event_mana_value, ObjectFilter::InZone(Players{zone:Graveyard, players:One(AbilityController)}))}), index:0}) */
+target_lesser_event_graveyard_card ::= "target" filter_phrase "card" lesser_event_mana_value "from" "your" "graveyard"
+
+/* The exclusion and controller qualify both arms of the target union. */
+/* @sem ObjectFilter::AllOf([Not(SameObject(Source)), $plural_and_or, ControlledBy(One(AbilityController))]) */
+controlled_other_union ::= plural_and_or "you" "control"
+
+/* The named creature remains the announced target for later references. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0} */
+copy_chosen_creature ::= "target" "creature" "you" "control"
+
+/* One target per player, with no two controlled by the same player. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(CountPlayers(All)), filter:AllOf([$noun, ControlledBy(All)]), constraints:[DifferentControllers]})) */
+each_player_distinct_controlled_target ::= "target" noun "that" "player" "controls"
+
+/* The ownership test refers to the surrounding per-player binding. */
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([InSet($exile_linked_population), OwnedBy(One(Bound(0)))])}) */
+bound_owned_linked_cards ::= "all" "cards" "they" "own" exile_linked_population
+
+/* X bounds both the number of targets and the distributed counter total. */
+/* @sem ObjectSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:UpTo(CastX(EventSubject)), filter:AllOf([Not(SameObject(Source)), $plural, ControlledBy(One(AbilityController))]), distribute:CastX(EventSubject)})) */
+event_x_distribution_targets ::= "any" "number" "of" "other" "target" plural "you" "control"
+
+/* The bound controller is the target permanent's controller, independent of the ability controller. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([$noun, ControlledBy(Matching{binding:0, condition:Controls{player:Bound(0), filter:$controlled_basic_land, minimum:1}})])}), index:0} */
+target_controller_controls_land ::= "target" noun "whose" "controller" "controls" controlled_basic_land
+
+/* @sem PlayerSet::Matching{binding:0, condition:VotedFor{player:Bound(0), option:Word($last_choice_word)}} */
+players_each_last_chose ::= "each" "player" "who" "last" "chose" last_choice_word
+
+/* The anaphor names the same enchanted creature that heads this population. */
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AnyOf([SameObject($enchanted_creature_ref), AllOf([AttachedTo(SameObject($enchanted_creature_ref)), $filter_plural])])} */
+enchanted_creature_and_attached_population ::= enchanted_creature_ref "and" "all" filter_plural "attached" "to" "that" "creature"
+
+/* Exile permission populations preserve ownership and counter identity. */
+permission_exile_cards ::= permission_linked_exile_cards | permission_owned_counter_exile_cards
+
+/* @sem ObjectSet::Zone{scope:Shared(Exile), kind:Card, filter:AllOf([OwnedBy(One(AbilityController)), Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})])} */
+permission_owned_counter_exile_cards ::= "cards" "you" "own" "in" "exile" "with" counter_kind "counters" "on" "them"
+
+/* The exiler and counter qualify the same live exile population. */
+/* @sem ObjectSet::Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([ExiledBy{player:AbilityController}, Counters(_{kind:$counter_kind, comparison:Greater, value:Constant(0)})])}) */
+exiled_by_you_with_counters ::= "cards" "you" "exiled" "that" "have" counter_kind "counters" "on" "them"
+
+/* A trailing exception excludes the members described by its plural filter. */
+/* @sem ObjectFilter::Not($filter_plural) */
+except_plural_filter ::= "except" "for" filter_plural
+
+/* @sem ObjectFilter::HasKeywordFamily(Soulbond) */
+modifier_with_soulbond ::= "with" "soulbond"

@@ -491,3 +491,16 @@ spent_spell_body ::= "copy" "that" "spell" "and" "you" "may" "choose" "new" "tar
 /* The spell color count is an independent current filter operand. */
 /* @sem ObjectFilter::Property{property:ColorCount, test:NumberTest::Compare{comparison:Equal, value:$value}} */
 spells_exact_color_count ::= "spells" "with" "exactly" value "colors"
+
+/* A single creature payment and its property receipt are one contract. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $retirement_choice_creature_filter)}, choose:Exactly(Constant(1))}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Inputs, phase:Before}, index:0}, property:$creature_stat, information:CurrentOrLastKnown}, production:$mana_production, choice:Once}, restriction:$mana_persists_combat}}]}, otherwise:Program{}}] */
+optional_other_creature_payment_mana ::= "you" "may" "sacrifice" "another" retirement_choice_creature_filter "." "if" "you" "do" "," "add" "an" "amount" "of" mana_production "equal" "to" "the" "sacrificed" "creature's" creature_stat "." mana_persists_combat
+
+/* A choice of player can supply the actor of a following third-person action. */
+/* @sem Instruction::[Effect{result:@next, operation:$choice_tail_player}, Effect{result:@next, operation:$chosen_player_action}] */
+instructions_chosen_player_action ::= choice_tail_player "of" "your" "choice" chosen_player_action
+
+chosen_player_action ::= chosen_player_adds_mana
+
+/* @sem Operation::AddMana{players:One(Chosen), mana:$mana_production} */
+chosen_player_adds_mana ::= "adds" mana_production

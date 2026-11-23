@@ -33,7 +33,7 @@ copied_toughness ::= ("↓")?
 
 /* A leading duration changes the same game rules as a trailing duration. The
    affected object query remains live; no characteristic snapshot is created. */
-continuous_live ::= continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking | continuous_qualified_live | continuous_attack_defender_plural | continuous_named_targeting_exception | event_subject_rule
+continuous_live ::= continuous_phase_rule_leading | continuous_live_plural_target_ban | continuous_live_trailing | continuous_live_leading | continuous_live_except_by | continuous_live_cant_block_object | continuous_live_plural_opponent_colored_target_ban | continuous_live_source_power_block | continuous_live_object_next_turn | continuous_live_controlled | continuous_sector_blocking | continuous_qualified_live | continuous_attack_defender_plural | continuous_named_targeting_exception | event_subject_rule
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$rule_duration, evaluation:LiveObjects} */
 continuous_live_trailing ::= affected rule_changes ("↓")? rule_duration
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_changes, duration:$duration, evaluation:LiveObjects} */
@@ -388,7 +388,7 @@ rule_changes ::= rule_change | rule_changes_and
 /* @sem Change::[...$rule_change, ...$rule_changes] */
 rule_changes_and ::= rule_change "and" rule_changes
 
-rule_change ::= combat_attack_block_you | combat_attack_block_controller | attack_group_also_rule | attack_planeswalker_only_cost_rule | defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule | rule_blocked_greater_power | change_skip_controllers_untap | rule_block_extra_one | rule_block_extra_many | rule_blocked_chosen_color | rule_attack_scoped_players | block_controller_count_rule | blocked_shared_type_rule | combat_tap_payment_rule | rule_attack_player_unless_history
+rule_change ::= rule_cant_phase_out | combat_attack_block_you | combat_attack_block_controller | attack_group_also_rule | attack_planeswalker_only_cost_rule | defender_damage_sg | defender_damage_pl | rule_block_unlimited | rule_declared_blocker_cost | rule_skip_untap_controller | rule_defending_attack | rule_cant_attack_you | rule_cant_attack_you_only | rule_block_limit | rule_attack_haste | rule_cant_block | rule_cant_be_blocked | rule_cant_be_blocked_by | rule_cant_attack | rule_cant_attack_or_block | rule_cant_attack_player_again | rule_attack_unless_paid | rule_attack_block_unless_paid | rule_block_only | rule_attacks_if_able | rule_blocks_if_able | rule_cant_become_suspected | rule_cant_be_sacrificed | rule_no_combat_assignment | rule_must_be_blocked | rule_tap_power | rule_cant_be_targeted | rule_prohibit_action | change_only_attack_alone | change_cant_attack_block_extra | attack_group_requirement | attack_you_cost_rule | attack_you_or_planeswalkers_cost_rule | attack_you_pay_cost_rule | block_payment_rule | block_group_rule | block_comparison_rule | rule_blocked_greater_power | change_skip_controllers_untap | rule_block_extra_one | rule_block_extra_many | rule_blocked_chosen_color | rule_attack_scoped_players | block_controller_count_rule | blocked_shared_type_rule | combat_tap_payment_rule | rule_attack_player_unless_history
 
 /* A spell is a stack object of kind Spell; "abilities" are every other stack
    object, and an ability "from" a source is an ability of that source. "Spells or
@@ -486,7 +486,7 @@ rule_attacks_if_able ::= ("attacks" | "attack") "each" "combat" "if" "able"
 /* @sem Change::[Change::Rule(RequireCombat{action:Block(Any), amount:AtLeast(Expr::Constant(1))})] */
 rule_blocks_if_able ::= ("blocks" | "block") "each" "combat" "if" "able"
 
-static_ability ::= shared_self_repeated_combat_rules | shared_each_assignment_static | static_player_possessive_activation_ban | static_nonmana_activation_cost_more | static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add | static_controlled_each_change | static_scalar_pump_override | static_attached_retained_color_type | static_extreme_population | static_untap_with_named_counter | static_unless_shares_most_common_color | static_untap_with_nonmana_ability | static_each_object_state | scalar_static_alternative | static_graveyard_permissions | static_graveyard_card_grant_during_turn | static_each_qualified_pump | scalar_subject_static_kind | static_attacked_population | static_linked_exile_threshold | static_loss_and_quoted_activation | static_pump_compound_population | static_team_subtype_keyword | static_landwalk_family_exception | static_subtype_token_keyword | static_filtered_targeted_spell_cost | static_subtype_tokens_additive_grants | static_colored_attack_sacrifice | static_self_also_type_list | static_type_base_keyword_loss | static_attached_keyword_defined_mechanic | static_keyword_activation_payment | static_pump_other_controlled
+static_ability ::= shared_self_repeated_combat_rules | shared_each_assignment_static | static_player_possessive_activation_ban | static_nonmana_activation_cost_more | static_humans_have_chosen_abilities | static_drawn_cards_spell_cost | static_controlled_defender | static_counter_placement_list | static_defender_control_restriction | static_exert_without_followup | static_possessive_activation_ban | static_chosen_activation_ban | static_combat_activation_restrictions | static_counter_removal_prohibition | static_cast_graveyard_using_sneak | static_graveyard_cards_grant_during_turn | static_graveyard_card_grant | static_graveyard_cards_grant | static_combat_cap | static_alternative_spell_cost | static_linked_card_stats | static_linked_card_power_keyword | static_target_tax | static_target_activation_tax | static_global_legend_rule | static_spell_keywords | static_opponent_attack_haste | static_graveyard_card_exact_color_jump_start | static_attached_counter_population | scalar_subject_static_condition | scalar_subject_static_otherwise | static_ordinary_ability | static_pump_ability | static_definition_during_turn | static_definition_if | static_paired_both | static_paired_each | static_play_lands_from_graveyard | static_self_chosen_type_add | static_self_chosen_color | static_self_skip_untap_if | static_grant_then_lose_other | static_continuing_animation | static_attached_color_pump | static_grouped_count_pump | static_controller_assignment | static_window_suffix | static_self_chosen_land_type_add | static_controlled_each_change | static_scalar_pump_override | static_attached_retained_color_type | static_extreme_population | static_untap_with_named_counter | static_unless_shares_most_common_color | static_untap_with_nonmana_ability | static_each_object_state | scalar_static_alternative | static_graveyard_permissions | static_graveyard_card_grant_during_turn | static_each_qualified_pump | scalar_subject_static_kind | static_attacked_population | static_linked_exile_threshold | static_loss_and_quoted_activation | static_pump_compound_population | static_team_subtype_keyword | static_landwalk_family_exception | static_subtype_token_keyword | static_filtered_targeted_spell_cost | static_subtype_tokens_additive_grants | static_colored_attack_sacrifice | static_self_also_type_list | static_type_base_keyword_loss | static_attached_keyword_defined_mechanic | static_keyword_activation_payment | static_pump_other_controlled | static_linked_lands_cast | static_controller_turn_spell_cost
 
 /* Each combat's attacking or blocking group holds at most this many creatures, and
    every creature is subject to the cap. A cap on attacking one defender is the
@@ -2904,8 +2904,8 @@ turn_exile_permission_if ::= "during" "your" "turn" "," "if" condition "," turn_
 
 turn_exile_permissions ::= exile_lands_and_spells | exile_cast_flash | exile_cast_additional | exile_play_linked | exile_play_counter | exile_play_life
 
-/* @sem Change::[PlayerRule(PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:CastSpell, filter:Any})] */
-exile_lands_and_spells ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" permission_linked_exile_cards
+/* @sem Change::[PlayerRule(PlayPermission{cards:$permission_exile_cards, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermission{cards:$permission_exile_cards, from:Exile, action:CastSpell, filter:Any})] */
+exile_lands_and_spells ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" permission_exile_cards
 
 /* @sem Change::[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:CastSpell, filter:Any}, terms:_{cost:Normal, spend_as:AnyType, flash:true}})] */
 exile_cast_flash ::= "you" "may" "cast" permission_linked_exile_cards "and" "you" "may" "cast" "them" "as" "though" "they" "had" "flash" "." "mana" "of" "any" "type" "can" "be" "spent" "to" "cast" "those" "spells"
@@ -9439,3 +9439,154 @@ foretell_eligible_hand_cards ::= "each" adjective_nontype "card" "in" "your" "ha
 
 /* @sem Ability::Static{kind:Ordinary, affected:Objects($foretell_eligible_hand_cards), changes:[GrantAbility($foretell_reduced_grant)]} */
 static_grant_reduced_foretell ::= foretell_eligible_hand_cards "has" foretell_reduced_grant "."
+
+/* The offset repeats the same measured value in both characteristics. */
+/* @sem Change::SetBasePowerToughness{power:$value, toughness:Add([$value, $value_2])} */
+defining_power_with_toughness_offset ::= "power" "is" "equal" "to" value "and" "its" "toughness" "is" "equal" "to" "that" "number" "plus" value
+
+/* @prefer always */
+/* @sem Ability::@defining_static(Ability::Static{kind:Ordinary, affected:Objects(One($named_possessive_ref)), changes:[$defining_power_with_toughness_offset]}) */
+static_named_power_with_offset ::= named_possessive_ref defining_power_with_toughness_offset "."
+
+/* Preserve the leading wording for the phase prohibition when printing. */
+/* @prefer always */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$rule_cant_phase_out, duration:$duration, evaluation:LiveObjects} */
+continuous_phase_rule_leading ::= duration "," affected rule_cant_phase_out
+
+/* A prohibition applies to the affected objects for the enclosing duration. */
+/* @sem Change::[Rule(Prohibit(PhaseOut))] */
+rule_cant_phase_out ::= "can't" "phase" "out"
+
+/* The same linked-exile permission also stands alone as a static ability. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$exile_lands_and_spells}) */
+static_linked_exile_permissions ::= exile_lands_and_spells "."
+
+/* A choice between two named land types retains both vocabulary operands. */
+/* @sem Instruction::[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:LandType, terms:_{count:Exactly(Constant(1)), options:[$article_land_type, $article_land_type_2]}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[ChosenType(_{kind:LandType, mode:Add})], duration:$duration, evaluation:Snapshot}}] */
+clause_land_type_pair_timed ::= affected "becomes" article_land_type "or" article_land_type duration
+
+article_land_type ::= article_land_type_a | article_land_type_an
+
+/* @sem Operand::$consonant_choice_land_type */
+article_land_type_a ::= "a" consonant_choice_land_type
+
+/* @sem Operand::$choice_land_type_island */
+article_land_type_an ::= "an" choice_land_type_island
+
+consonant_choice_land_type ::= choice_land_type_plains | choice_land_type_swamp | choice_land_type_mountain | choice_land_type_forest
+
+/* Linked exile permissions share the same card population and casting terms. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$linked_lands_cast_changes}) */
+static_linked_lands_cast ::= linked_lands_cast_changes "."
+
+/* @sem Change::[PlayerRule(PlayPermission{cards:$linked_permission_population, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$linked_permission_population, from:Exile, action:CastSpell, filter:Any}, terms:$linked_cast_spending_terms})] */
+linked_lands_cast_changes ::= "you" "may" "play" "lands" "and" "cast" "spells" "from" "among" linked_permission_population "." linked_cast_spending_terms
+
+linked_permission_population ::= permission_linked_exile_cards | permission_owned_linked_exile_cards
+
+linked_cast_spending_terms ::= linked_cast_spending_any_color | linked_cast_spending_any_type
+
+/* @sem PlayTerms::PlayTerms{cost:Normal, spend_as:AnyColor} */
+linked_cast_spending_any_color ::= "if" "you" "cast" "a" "spell" "this" "way" "," "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "it"
+
+/* @sem PlayTerms::PlayTerms{cost:Normal, spend_as:AnyType} */
+linked_cast_spending_any_type ::= "if" "you" "cast" "a" "spell" "this" "way" "," "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "type" "to" "cast" "it"
+
+/* A spell population, a cost modifier, and its caster's turn exception compose. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players($spell_cost_turn_casters), changes:[PlayerRule(SpellCost{spells:$each_spell_cost_filter, modifier:$spell_cost_change})]}) */
+static_controller_turn_spell_cost ::= each_spell_cost_filter "costs" spell_cost_change "to" "cast" spell_cost_turn_casters "."
+
+each_spell_cost_filter ::= each_unfiltered_cost_spell | each_filtered_cost_spell
+
+/* @sem ObjectFilter::Any */
+each_unfiltered_cost_spell ::= "each" "spell"
+
+/* @sem ObjectFilter::$filter_phrase */
+each_filtered_cost_spell ::= "each" filter_phrase "spell"
+
+/* @sem PlayerSet::OthersThan(Active) */
+spell_cost_turn_casters ::= "except" "during" "its" "controller's" "turn"
+
+/* A singular cast population and a reduction per matching target compose independently. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[PlayerRule(SpellCost{spells:$target_count_cast_subject, modifier:$spell_cost_per_matching_target})]}) */
+static_singular_target_count_cost ::= target_count_cast_subject "you" "cast" "costs" spell_cost_per_matching_target "."
+
+/* The affected spell supplies the target set; the filter and reduction factor are operands. */
+/* @sem SpellCostModifier::Reduce{reductions:[_{amount:@times($braced_number, Expr::CountObjects(Matching{objects:TargetsOf(Affected), filter:$filter_phrase}))}], spill_into_generic:true} */
+spell_cost_per_matching_target ::= braced_number "less" "to" "cast" "for" "each" filter_phrase "it" "targets"
+
+/* Prefer the conjunction spelling for this singular cost construction. */
+target_count_cast_subject ::= target_count_cast_union | target_count_cast_single | singular_cast_cost_any
+
+/* @sem $card_filter_and */
+target_count_cast_union ::= "each" card_filter_and "spell" /* @prefer always */
+
+/* @sem $card_word */
+target_count_cast_single ::= "each" card_word "spell"
+
+/* Capture the controlled creature population once for both follow-ups. */
+/* @sem Instruction::[Effect{result:@mark, operation:CreateContinuousEffect{source:Source, affected:Objects($controlled_creature_population), changes:[SetController(AbilityController)], duration:$duration, evaluation:Snapshot}}, Effect{result:@next, operation:SetTapped{objects:Affected(@marked), tapped:false}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(Affected(@marked)), changes:$grants, duration:$duration_2, evaluation:Snapshot}}] */
+clause_control_creatures_untap_grant ::= "gain" "control" "of" controlled_creature_population duration "." "untap" "those" "creatures" "." "they" "gain" grants duration
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One($control_creature_player))])} */
+controlled_creature_population ::= "all" "creatures" control_creature_player "controls"
+
+control_creature_player ::= target_opponent | target_player
+
+/* The paired prohibitions share a player effect; the sacrifice operand is the
+   population of the immediately preceding characteristic effect. */
+/* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Players(One(AbilityController)), changes:[PlayerRule(Prohibit(AttackInto(Players(One($that_player))))), PlayerRule(Prohibit(Sacrifice{objects:InSet(Affected(@prior))}))], duration:EndOfTurn, evaluation:LiveObjects}} */
+clause_restrict_attack_sacrifice_prior ::= "you" "can't" "attack" that_player "this" "turn" "." "you" "can't" "sacrifice" "those" "creatures" "this" "turn"
+
+/* The unconditional frame shares its permission clause with turn restrictions. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$exile_lands_and_spells}) */
+static_exile_lands_and_spells ::= exile_lands_and_spells "."
+
+/* Linked exile sources and the playable population are independent operands. */
+/* @sem Change::PlayerRule(PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:AllOf([$filter_plural, ExiledWith($linked_exile_card_source)])}), from:Exile, action:PlayLand, filter:Any}) */
+linked_exile_land_play_change ::= "play" filter_plural "from" "among" linked_exile_card_source
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$linked_exile_land_play_change]}) */
+static_linked_exile_land_play ::= "you" "may" linked_exile_land_play_change "."
+
+/* A plural spell limit qualifies the linked permission as a whole. */
+/* @sem PlayLimit::EachTurn(2) */
+linked_cast_limit_two ::= "two" "spells"
+
+/* @sem PlayLimit::EachTurn(3) */
+linked_cast_limit_three ::= "three" "spells"
+
+linked_cast_plural_limit ::= linked_cast_limit_two | linked_cast_limit_three
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$permission_linked_exile_cards, from:Exile, action:CastSpell, filter:Any}, terms:_{limit:$linked_cast_plural_limit, cost:Normal}}) */
+linked_cast_plural_permission ::= "you" "may" "cast" "spells" "from" "among" permission_linked_exile_cards "." "you" "can't" "cast" "more" "than" linked_cast_plural_limit "this" "way" "each" "turn"
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$linked_cast_plural_permission]}) */
+static_linked_cast_plural_permission ::= linked_cast_plural_permission "."
+
+/* Both permissions refer to the same population; spending applies only to spells. */
+/* @sem Change::[PlayerRule(PlayPermission{cards:$exiled_by_you_with_counters, from:Exile, action:PlayLand, filter:Any}), PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$exiled_by_you_with_counters, from:Exile, action:CastSpell, filter:$cast_spells_filter}, terms:_{cost:Normal, spend_as:AnyColor}})] */
+exiled_counter_land_and_spell_permissions ::= "you" "may" "play" "lands" "and" "cast" cast_spells_filter "from" "among" exiled_by_you_with_counters "," "and" "you" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "those" "spells"
+
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:$exiled_counter_land_and_spell_permissions}) */
+static_exiled_counter_permissions ::= exiled_counter_land_and_spell_permissions "."
+
+/* Randomly chosen abilities are granted to the subject of the triggering event. */
+/* @sem Operand::Ability(Keyword($keyword_name)) */
+random_grant_option_keyword ::= keyword_name
+
+/* @sem Operand::Ability(Keyword(Protection(Objects(_{kind:Any, filter:$adjective_color})))) */
+random_grant_option_protection ::= "protection" "from" adjective_color
+
+random_grant_option ::= random_grant_option_keyword | random_grant_option_protection
+
+/* @sem Operand::[$random_grant_option, $random_grant_option_2, $random_grant_option_3, $random_grant_option_4, $random_grant_option_5, $random_grant_option_6, $random_grant_option_7] */
+random_grant_seven_options ::= random_grant_option "," random_grant_option "," random_grant_option "," random_grant_option "," random_grant_option "," random_grant_option "," "and" random_grant_option
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChooseValue{choosers:One(AbilityController), kind:Ability, terms:_{options:$random_grant_seven_options, random:true, count:Exactly($number)}}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(EventSubject)), changes:[ChosenAbility], duration:Indefinite, evaluation:Snapshot}}]} */
+random_grant_event_subject_program ::= "it" "gains" number "abilities" "chosen" "at" "random" "from" "among" random_grant_seven_options "."
+
+random_grant_event ::= event_clause | whenever_controlled_entrant_zone_change
+
+/* @sem Ability::Triggered{event:$random_grant_event, limits:_{}, announcement:@announcement, body:$random_grant_event_subject_program} */
+triggered_random_grant_event_subject ::= random_grant_event "," random_grant_event_subject_program

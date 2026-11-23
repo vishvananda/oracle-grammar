@@ -5901,3 +5901,56 @@ instructions_mill_attack_receipt_pump ::= "mill" card_count "." "whenever" "a" "
 
 /* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:$instructions_mill_attack_receipt_pump}} */
 spell_mill_attack_receipt_pump ::= instructions_mill_attack_receipt_pump "."
+
+/* The selected player's bottom card remains distinct from the top-card receipt. */
+/* @sem Operation::Move{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Bottom}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]} */
+player_exiles_bottom_card ::= player_ref "exiles" "the" "bottom" "card" "of" "their" "library"
+
+/* The counter amount names the graveyard move in the preceding pile process.
+   Keep that producer inside this contract so inverse printing checks its destination. */
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[...$instructions_reveal_pile_hand_other, Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$token_defined], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:PutCounters{placements:[_{recipients:Objects(Created(@prior)), kind:$counter_kind, amount:CountObjects(Transition{result:@back(3), phase:Before})}]}}]}} */
+spell_revealed_pile_graveyard_token_counters ::= instructions_reveal_pile_hand_other "." "create" token_defined "," "then" "put" "a" counter_kind "counter" "on" "it" "for" "each" "card" "put" "into" "your" "graveyard" "this" "way" "."
+
+/* A revealed library slice supplies the pile population and the eventual
+   remainder; the chosen cards' move supplies the exclusion receipt. */
+/* @sem Instruction::[Effect{result:@mark, operation:$reveal_top}, ...$revealed_pile_split, ...$revealed_pile_take, Effect{result:@next, operation:$revealed_pile_rest}] */
+instructions_reveal_pile_selection ::= reveal_top "and" revealed_pile_split "." revealed_pile_take "," "then" revealed_pile_rest
+
+/* @sem Instruction::[Effect{result:@next, operation:SeparatePiles{separator:AbilityController, chooser:OneOf(OpponentsOf(AbilityController)), objects:InZone{objects:Observed(@marked), zone:Library}}}] */
+revealed_pile_split ::= "separate" "them" "into" "two" "piles" "." "an" "opponent" "chooses" "one" "of" "those" "piles"
+
+/* @sem Instruction::[Effect{result:@next, operation:ChooseObjects{player:AbilityController, objects:Selected(@prior), count:AsManyAsCan($pile_card_count)}}, Effect{result:@next, operation:Move{objects:Selected(@prior), destination:OwnersHand(CardArrival{counters:[], states:[]}), qualifiers:[]}}] */
+revealed_pile_take ::= "put" pile_card_count "from" "the" "chosen" "pile" "into" "your" "hand"
+
+/* @sem Expr::Constant(1) */
+pile_card_count_one ::= "a" "card"
+
+/* @sem $number */
+pile_card_count_many ::= number "cards"
+
+pile_card_count ::= pile_card_count_one | pile_card_count_many
+
+/* @sem Operation::ReorderLibrary{chooser:AbilityController, library_owner:AbilityController, objects:InZone{objects:Difference{objects:Observed(@marked), excluding:Union([Transition{result:@back(1), phase:Before}])}, zone:Library}, end:Bottom, order:$library_order} */
+revealed_pile_rest ::= "put" "all" "other" "cards" "revealed" "this" "way" "on" "the" "bottom" "of" "your" "library" library_order
+
+/* A player's observed top card is tested before the branch resolves. The
+   branch is restricted to consumers of that same observation. */
+/* @sem Instruction::[Effect{result:@mark, operation:Reveal{objects:Take{objects:Zone{scope:Players{zone:Library, players:One($player_ref)}, kind:Card, filter:Any}, count:Constant(1), from:Top}}}, If{condition:Compare{left:CountObjects(Matching{objects:Observed(@marked), filter:$top_reveal_quality}), test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}, then:Program{instructions:$player_observed_top_branch}, otherwise:Program{}}] */
+player_observed_top_test ::= player_ref "reveals" "the" "top" "card" "of" "their" "library" "." "if" "it's" top_reveal_quality "," player_observed_top_branch
+
+player_observed_top_branch ::= player_observed_top_move_copy | top_reveal_draw
+
+/* The move consumes the observation and the copy refers to the revealed card. */
+/* @sem Instruction::[Effect{result:@next, operation:Move{objects:Observed(@marked), destination:$player_observed_destination, qualifiers:[]}}, Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[CopyOf{object:Earlier{what:Revealed}, exceptions:[]}], duration:Indefinite, evaluation:Snapshot}}] */
+player_observed_top_move_copy ::= "the" "player" "puts" "the" "card" player_observed_destination "and" "this" "enchantment" "becomes" "a" "copy" "of" "that" "card"
+
+player_observed_destination ::= player_observed_graveyard | player_observed_hand
+
+/* @sem MovementDestination::OwnersGraveyard(CardArrival{counters:[], states:[]}) */
+player_observed_graveyard ::= "into" "their" "graveyard"
+
+/* @sem MovementDestination::OwnersHand(CardArrival{counters:[], states:[]}) */
+player_observed_hand ::= "into" "their" "hand"
+
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:$player_observed_top_test}} */
+trigger_player_observed_top_test ::= "at" turn_event "," player_observed_top_test "."

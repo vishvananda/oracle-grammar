@@ -150,7 +150,7 @@ token_defined_each_tapped ::= ("a" | "an") "tapped" token_recipe "for" "each" co
 /* @sem TokenSpec::TokenSpec{amount:$value, words:CreatingEffect, recipe:$token_recipe} */
 token_defined_equal ::= "a" "number" "of" token_recipe "equal" "to" value
 
-token_amount ::= counter_amount | token_that_many
+token_amount ::= counter_amount | token_that_many | token_amount_difference
 
 /* @sem @that_many */
 token_that_many ::= "that" "many"
@@ -1369,6 +1369,7 @@ program_sentence_attached_aura_grant ::= "create" counter_a token_colors "Aura" 
 
 /* The copied permanent is chosen from the current controlled population. */
 /* @sem Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:CopyOne{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([Not(Supertype(Legendary)), $filter_phrase, ControlledBy(One(AbilityController))])}, exceptions:[]}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}} */
+/* @prefer always */
 shared_copy_controlled_operation ::= "create" "a" "token" "that's" "a" "copy" "of" "a" "nonlegendary" filter_phrase "you" "control"
 
 /* The repeated literal identifies the token whose intrinsic definition is quoted. */
@@ -1667,3 +1668,24 @@ combat_recipient_creates_goaded_token ::= "that" "player" "creates" token_define
 
 /* @sem Ability::Triggered{event:$event_controlled_subtypes_combat_player, limits:TriggerLimits{}, announcement:@announcement, body:$combat_recipient_creates_goaded_token} */
 triggered_controlled_group_recipient_token ::= "whenever" event_controlled_subtypes_combat_player "," combat_recipient_creates_goaded_token "."
+
+/* A granted combat-end ability belongs to the resulting copy. */
+/* @sem CopyException::AddAbilities([@scope(Ability::Triggered{event:Turn{point:CombatEnds, players:All}, limits:_{}, announcement:@announcement, body:$program})]) */
+copy_end_combat_ability ::= "it" "has" '"' "at" "end" "of" "combat" "," program "." '"'
+
+/* A token count may be an announced amount reduced by a stated amount. */
+/* @sem Expr::Subtract([$number_x, $number_words]) */
+token_amount_difference ::= number_x "minus" number_words
+
+/* A player who chose a first object creates their own copy; the copy
+   exception remains an independent operand of the token recipe. */
+/* @sem Instruction::[ForEachPlayer{players:Matching{binding:0, condition:ChoseNth{player:Bound(0), nth:1}}, binding:0, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(Bound(0)), tokens:[$first_chosen_copy_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}] */
+each_player_copies_first_chosen ::= "each" "player" "creates" first_chosen_copy_token
+
+first_chosen_copy_token ::= first_chosen_copy_singular | first_chosen_copy_plural
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:Copy{object:NthChosen{index:0, by:Bound(0)}, exceptions:$copy_exceptions_plain}} */
+first_chosen_copy_singular ::= "a" "token" "that's" "a" "copy" "of" "the" "first" "creature" "they" "chose" "," "except" copy_exceptions_plain
+
+/* @sem TokenSpec::TokenSpec{amount:$copy_token_plural_amount, words:CreatingEffect, recipe:Copy{object:NthChosen{index:0, by:Bound(0)}, exceptions:$copy_exceptions_plain}} */
+first_chosen_copy_plural ::= copy_token_plural_amount "tokens" "that" "are" "copies" "of" "the" "first" "creature" "they" "chose" "," "except" copy_exceptions_plain

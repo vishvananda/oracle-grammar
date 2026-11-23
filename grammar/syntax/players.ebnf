@@ -1,6 +1,6 @@
 /* Player keywords are player rules, not object characteristics. Their affected
    player set remains live for the duration of a continuous effect. */
-continuous_players ::= continuous_players_last | continuous_players_first
+continuous_players ::= continuous_players_last | continuous_players_first | continuous_player_hand_size
 
 /* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_keyword_gain), changes:$player_keyword_changes, duration:$duration, evaluation:LiveObjects} */
 continuous_players_last ::= player_keyword_gain player_keyword_changes duration
@@ -107,7 +107,7 @@ all_player_rule_more_turn ::= all_player_rule_turn "and" all_player_rule_list_tu
 /* @sem PlayerAction::PlayLand{filter:Any} */
 player_prohibit_land ::= "play" "lands"
 
-player_prohibited_action ::= player_prohibit_attack_recipient | player_named_land_prohibition | player_prohibit_attack_creatures | player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells
+player_prohibited_action ::= player_prohibit_become_monarch | player_prohibit_attack_recipient | player_named_land_prohibition | player_prohibit_attack_creatures | player_prohibit_receive_counters | player_prohibit_land | player_prohibit_spells | player_prohibit_typed_spells | player_prohibit_named_spells | player_prohibit_land_from_zone | player_prohibit_draw | player_prohibit_gain_life | player_prohibit_lose_life | player_prohibit_win | player_prohibit_lose | player_prohibit_search | player_prohibit_discard | player_prohibit_cycle | player_prohibit_counters | player_prohibit_cast_qualified | player_prohibit_pay_life_spells
 /* @sem PlayerAction::Draw */
 player_prohibit_draw ::= "draw" "cards"
 /* @sem PlayerAction::GainLife */
@@ -180,7 +180,7 @@ player_prohibit_named_spells ::= "cast" "spells" "with" "the" "chosen" "name"
    so all players perform one action before the next grouped action starts. */
 /* @sem @apply($announced_many_players, $uniform_player_verbs) */
 instructions_announced_players ::= announced_many_players "each" uniform_player_verbs
-announced_many_players ::= announced_all_players | announced_opponents | controller_and_scoped_players
+announced_many_players ::= announced_all_players | announced_opponents | controller_and_scoped_players | controller_and_another_target_player | announced_up_to_players
 /* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:All})) */
 announced_all_players ::= "any" "number" "of" "target" "players"
 /* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:AnyNumber, filter:Any, players:OpponentsOf(AbilityController)})) */
@@ -650,3 +650,24 @@ player_prohibit_attack_recipient ::= "attack" recipients
 /* The attack event subject is the attacking player, not the defender. */
 /* @sem PlayerSet::Union([One(AbilityController), One(EventSubject)]) */
 controller_and_attacker ::= "you" "and" "the" "attacking" "player"
+
+/* Each player chooses from that player's own battlefield population. */
+/* @sem Instruction::[ForEachPlayer{players:$players_singular, binding:0, body:Program{instructions:[Effect{result:@next, operation:ChooseObjects{player:Bound(0), objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$filter_plural, ControlledBy(One(Bound(0)))])}, count:Between{minimum:$value, maximum:$value_2}}}]}}] */
+each_player_choice_range ::= players_singular "chooses" value "or" value filter_plural "they" "control"
+
+/* The target must be distinct from the ability controller. */
+/* @sem PlayerSet::Union([One(AbilityController), One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:Exactly(Constant(1)), filter:Any, players:OthersThan(AbilityController)}), index:0})]) */
+controller_and_another_target_player ::= "you" "and" "another" "target" "player"
+
+/* A resolving hand-size rule retains its affected players and duration. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Players($player_keyword_have), changes:$unlimited_hand_size_change, duration:$duration, evaluation:LiveObjects} */
+continuous_player_hand_size ::= player_keyword_have unlimited_hand_size_change duration
+
+/* @sem Change::[PlayerRule(HandSize(Unlimited))] */
+unlimited_hand_size_change ::= "no" "maximum" "hand" "size"
+
+/* @sem PlayerSet::Targets(@target(TargetSpec::TargetSpec{slot:@slot, kind:Player, count:UpTo($number), filter:Any, players:All})) */
+announced_up_to_players ::= "up" "to" number "target" "players"
+
+/* @sem PlayerAction::BecomeMonarch */
+player_prohibit_become_monarch ::= "become" "the" "monarch"
