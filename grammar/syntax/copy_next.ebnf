@@ -323,6 +323,7 @@ next_copy_activated_ability ::= "activated" "ability"
 
 next_copy_ability_kind ::= next_copy_loyalty_ability | next_copy_activated_ability
 
+/* @prefer always */
 /* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:Activated{players:One(AbilityController), abilities:$next_copy_ability_kind}, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:CopyOnStack{actor:One(AbilityController), object:EventStackObject, times:Constant(1), targets:May}}]}, once:true}}] */
 copy_next_activated_retarget ::= "copy" "the" "next" next_copy_ability_kind "you" "activate" this_duration "when" "you" "activate" "it" "." "you" "may" "choose" "new" "targets" "for" "the" "copy"
 
@@ -359,3 +360,29 @@ target_spell_targeting_you ::= "target" stack_target_spell_filter "spell" "that"
 
 /* @sem ObjectFilter::TargetsAny(Players(One(AbilityController))) */
 spell_targets_you_filter ::= "targets" "you"
+
+/* A next activation and the action on its stack object compose independently. */
+/* @sem ObjectFilter::AllOf([OnStack(Keyword(Exhaust)), Not(OnStack(Mana))]) */
+next_activation_exhaust_nonmana ::= "an" "exhaust" "ability" "that" "isn't" "a" "mana" "ability"
+
+/* @sem $next_copy_loyalty_ability */
+next_activation_loyalty ::= "a" next_copy_loyalty_ability
+
+/* @sem $next_copy_activated_ability */
+next_activation_activated ::= "an" next_copy_activated_ability
+
+next_activation_filter ::= next_activation_exhaust_nonmana | next_activation_loyalty | next_activation_activated
+
+/* @sem EventSpec::Activated{players:One(AbilityController), abilities:$next_activation_filter} */
+next_activation_event ::= "you" "next" "activate" next_activation_filter
+
+/* @sem Operation::CopyOnStack{actor:One(AbilityController), object:EventStackObject, times:Constant(1), targets:May} */
+next_activation_copy_once ::= "copy" "it" "." copy_single_retarget_permission
+
+/* @sem Operation::CopyOnStack{actor:One(AbilityController), object:EventStackObject, times:Constant(2), targets:May} */
+next_activation_copy_twice ::= "copy" "it" "twice" "." copy_single_retarget_permission
+
+next_activation_copy_action ::= next_activation_copy_once | next_activation_copy_twice
+
+/* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:$next_activation_event, duration:$this_duration, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$next_activation_copy_action}]}, once:true}}] */
+clause_next_activation_action ::= "when" next_activation_event this_duration "," next_activation_copy_action

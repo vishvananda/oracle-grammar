@@ -567,7 +567,7 @@ static_ability_where ::= affected static_numeric_x "," "where" "X" "is" static_d
 /* @sem @where($static_numeric_changes, $value) */
 defined_changes ::= static_numeric_changes "," "where" "X" "is" value
 
-static_numeric_changes ::= static_numeric_x | static_numeric_prefix | static_numeric_suffix
+static_numeric_changes ::= static_numeric_x | static_numeric_prefix | static_numeric_suffix | static_numeric_anaphor_prefix
 /* @sem Change::[...$static_change, ...$static_numeric_changes] */
 static_numeric_prefix ::= static_change ("and" | "," "and"?) static_numeric_changes
 /* @sem Change::[...$static_numeric_x, ...$static_changes_plain] */
@@ -2247,7 +2247,7 @@ static_graveyard_card_grant ::= "each" graveyard_grant_filter "card" "in" "your"
 /* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Players{zone:Graveyard, players:One(AbilityController)}, kind:Card, filter:$graveyard_grant_filter}), changes:[GrantAbility(@holder($graveyard_granted_ability))]} */
 static_graveyard_cards_grant ::= graveyard_grant_filter "cards" "in" "your" "graveyard" "have" graveyard_granted_ability "."
 graveyard_grant_filter ::= graveyard_grant_qualified_union | card_word | card_stacked_type | card_or | card_filter_and | graveyard_grant_qualified | graveyard_grant_subtype_pair | graveyard_grant_colors_creature
-graveyard_granted_ability ::= graveyard_granted_escape | graveyard_flashback | mechanic_cost_keyword | mechanic_valued_keyword | keyword_unearth | bare_retrace | graveyard_granted_scavenge | graveyard_granted_unearth | graveyard_granted_mayhem | graveyard_granted_variable_mechanic | graveyard_granted_encore
+graveyard_granted_ability ::= graveyard_granted_escape | graveyard_flashback | mechanic_cost_keyword | mechanic_valued_keyword | keyword_unearth | bare_retrace | graveyard_granted_scavenge | graveyard_granted_unearth | graveyard_granted_mayhem | graveyard_granted_variable_mechanic | graveyard_granted_encore | graveyard_granted_embalm
 /* @sem Ability::Mechanic{mechanic:Scavenge, cost:Cost{parts:[ManaCostOf(Source)]}} */
 graveyard_granted_scavenge ::= "scavenge" "." "the" "scavenge" "cost" "is" "equal" "to" "its" "mana" "cost"
 /* @sem Ability::Mechanic{mechanic:Unearth, cost:Cost{parts:[ManaCostOf(Source)]}} */
@@ -11082,8 +11082,8 @@ unique_destroyed_only_by_single_source ::= "can't" "be" "destroyed" "by" "lethal
 /* @sem Change::[Rule(Unique(BlockedOnlyByAll))] */
 unique_blocked_only_by_all ::= "can't" "be" "blocked" "unless" "all" "creatures" "defending" "player" "controls" "block" "it"
 
-/* @sem Ability::Static(_{kind:Ordinary, affected:Objects(AnyZone(SameObject(Source))), changes:[Rule(Unique(CastWhileSearched))]}) */
-unique_cast_while_searched ::= "while" "you're" "searching" "your" "library" "," "you" "may" "cast" "this" "card" "from" "your" "library" "."
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($any_zone_source_card), changes:[Rule(Unique(CastWhileSearched))]} */
+unique_cast_while_searched ::= "while" "you're" "searching" "your" "library" "," "you" "may" "cast" any_zone_source_card "from" "your" "library" "."
 
 /* @sem Ability::Unique(NeverNight) */
 unique_never_night ::= "it" "can't" "become" "night" "."
@@ -11241,10 +11241,9 @@ word_replacement_creature_type_except_choice ::= "change" "the" "text" "of" "tar
 /* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:Zone(_{scope:Shared(Exile), kind:Card, filter:ExiledWith($self_ref_holder)}), from:Exile, action:Either, filter:AnyOf([CardType(Land), Any])}, terms:_{limit:EachTurn(1), during:One(Affected), cost:Normal, spend_as:AnyColor, effects:[Program{instructions:[Effect{result:@next, operation:Move{objects:Take{objects:Zone(_{scope:Players{zone:Library, players:One(Affected)}, kind:Card, filter:Any}), count:Constant(1), from:Top}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}]}})]}) */
 static_each_turn_exiled_play_exile_top ::= "during" "each" "player's" "turn" "," "that" "player" "may" "play" "a" "land" "or" "cast" "a" "spell" "from" "among" "cards" "exiled" "with" self_ref_holder "," "and" "they" "may" "spend" "mana" "as" "though" "it" "were" "mana" "of" "any" "color" "to" "cast" "that" "spell" "." "when" "they" "do" "," "exile" "the" "top" "card" "of" "their" "library" "."
 
-/* Each affected artifact becomes an Equipment whose equip cost and granted
-   power bonus both measure that Equipment's own mana value. */
-/* @sem Ability::Static{kind:Ordinary, affected:Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$adjective_nontype, Not(Subtype(Equipment)), $noun])}), changes:[AddArtifactType(Equipment), GrantAbility(@scope(Ability::Activated{origin:Equip, cost:Cost{parts:[ManaWithX{mana:[X], x:ObjectProperty{object:Source, property:ManaValue, information:CurrentOrLastKnown}}]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AllOf([CardType(Creature), ControlledBy(One(AbilityController))])}), index:0}}}]}})), GrantAbility(Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:ObjectProperty{object:Source, property:ManaValue, information:CurrentOrLastKnown}, toughness:Constant(0)}]})]} */
-static_artifacts_equipment_mana_value ::= "each" adjective_nontype "," "non-Equipment" noun "is" "an" "Equipment" "with" "equip" "{" "X" "}" "and" '"' "equipped" "creature" "gets" "+" "X" "/" "+" "0" "," '"' "where" "X" "is" "that" "artifact's" "mana" "value" "."
+/* A singular distribution composes with Equipment changes and retains its filters. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects($equipment_distribution), changes:$equipment_defined_x_changes} */
+static_artifacts_equipment_mana_value ::= equipment_distribution equipment_defined_x_changes "."
 
 /* A conditional static ability can grant a holder upkeep payment trigger. */
 /* @sem Ability::Conditional{condition:$condition, then:[Static{kind:Ordinary, affected:Objects($affected), changes:[GrantAbility(@holder($retirement_quoted_turn_payment))]}], otherwise:[]} */
@@ -11488,3 +11487,67 @@ cast_conditioned_creature_pumps ::= "target" "creature" cast_conditioned_initial
 
 /* @sem Ability::Spell{announcement:_{modes:$cast_conditioned_creature_pumps}, body:_{}} */
 spell_cast_conditioned_creature_pumps ::= cast_conditioned_creature_pumps
+
+/* @sem ObjectSet::Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and($adjective_nontype, ObjectFilter::Not(Subtype(Equipment)), $noun)} */
+equipment_distribution ::= "each" adjective_nontype "," "non-Equipment" noun
+
+/* The definition binds both the equip payment and the quoted bonus to the
+   Equipment's mana value. Keep the two uses in the same phrase. */
+/* @sem Change::[AddArtifactType(Equipment), GrantAbility(@scope($equipment_defined_x_equip)), GrantAbility($equipment_defined_x_pump)] */
+equipment_defined_x_changes ::= "is" "an" "Equipment" "with" equipment_defined_x_equip "and" '"' equipment_defined_x_pump "," '"' "where" "X" "is" "that" "artifact's" "mana" "value"
+
+/* @sem Ability::Activated{origin:Equip, cost:Cost{parts:[ManaWithX{mana:[X], x:ObjectProperty{object:Source, property:ManaValue, information:CurrentOrLastKnown}}]}, limits:ActivationLimits{sorcery:true}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:Attach{attachments:One(Source), host:Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:$equip_target_phrase}), index:0}}}]}} */
+equipment_defined_x_equip ::= equip_target_phrase "{" "X" "}"
+
+equipment_defined_x_pump ::= equipment_defined_x_pump_source | equipment_defined_x_pump_affected
+
+/* @prefer always */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:ObjectProperty{object:Source, property:ManaValue, information:CurrentOrLastKnown}, toughness:$signed_literal}]} */
+equipment_defined_x_pump_source ::= "equipped" "creature" "gets" "+" "X" "/" signed_literal
+
+/* Preserve the independently supported affected-object reading. */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One(AttachedTo(Source))), changes:[Pump{power:ObjectProperty{object:Affected, property:ManaValue, information:CurrentOrLastKnown}, toughness:$signed_literal}]} */
+equipment_defined_x_pump_affected ::= "equipped" "creature" "gets" "+" "X" "/" signed_literal
+
+/* The receiving card is the source of its granted embalm cost. */
+/* @sem Ability::Mechanic{mechanic:Embalm, cost:Cost{parts:[ManaCostOf(Source)]}} */
+graveyard_granted_embalm ::= "embalm" "." "its" "embalm" "cost" "is" "equal" "to" "its" "mana" "cost"
+
+/* Retained types accompany a temporary animation of the affected object. */
+/* @sem Operation::CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:$retained_creature_animation, duration:$duration, evaluation:Snapshot} */
+affected_retained_creature_animation ::= affected "becomes" retained_creature_animation duration "." retention_note
+
+/* The second clause refers back to the same singular affected object. */
+/* @sem Change::[...$static_change, ...$static_numeric_x] */
+static_numeric_anaphor_prefix ::= static_change "," "and" "it" static_numeric_x
+
+/* The granted trigger composes a turn event with the attached-cost payment. */
+/* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$attached_cost_sacrifice_program} */
+retirement_quoted_attached_cost_turn ::= "at" turn_event "," attached_cost_sacrifice_program
+
+/* An artifact host grants this reusable turn/payment trigger to that host. */
+/* @prefer always */
+/* @sem Ability::Static{kind:Ordinary, affected:Objects(One($attached_payment_artifact)), changes:[GrantAbility(@holder($retirement_quoted_attached_cost_turn))]} */
+attached_artifact_payment_grant ::= attached_payment_artifact "has" '"' retirement_quoted_attached_cost_turn '"'
+
+/* @sem ObjectRef::@enchanted_operand(ObjectRef::AttachedTo(Source)) */
+attached_payment_artifact ::= "enchanted" "artifact"
+
+/* Attached combat restriction and separately scoped granted activation. */
+/* @prefer always */
+/* @sem Ability::[Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:$rule_cant_attack_or_block}, Static{kind:Ordinary, affected:Objects(One($attached_ref)), changes:[$attached_limited_grant]}] */
+attached_combat_limited_grant ::= attached_ref rule_cant_attack_or_block "and" "has" attached_limited_grant
+
+/* @sem Change::GrantAbility(@scope(Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_limits, announcement:@announcement, body:$grantor_sacrifice_draw_program})) */
+attached_limited_grant ::= '"' cost ":" grantor_sacrifice_draw_program "." activation_limits "." '"'
+
+/* Preserve the independently supported combined permission reading. */
+/* @sem Ability::Conditional{condition:PlayerIsActive(AbilityController), then:[Static(_{kind:Ordinary, affected:Players(One(AbilityController)), changes:[$recent_graveyard_combined_permission]})]} */
+recent_graveyard_combined_turn_permission ::= "during" "each" "of" "your" "turns" "," recent_graveyard_combined_permission "."
+
+/* @sem Change::PlayerRule(PlayPermissionWith{permission:PlayPermission{cards:$recent_graveyard_permission_cards, from:Graveyard, action:Either, filter:$turn_history_any_spell}, terms:_{limit:EachTurn(1), cost:Normal}}) */
+recent_graveyard_combined_permission ::= "you" "may" "play" "a" "land" "and" "cast" turn_history_any_spell "from" "among" recent_graveyard_permission_cards
+
+/* The card's identity is independent of the zone in which the rule applies. */
+/* @sem ObjectSet::AnyZone(SameObject(Source)) */
+any_zone_source_card ::= self_card

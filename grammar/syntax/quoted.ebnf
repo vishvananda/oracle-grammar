@@ -14,7 +14,7 @@ program_sentence_action_once ::= "you" "may" program "." action_once_suffix
 /* @sem () */
 action_once_suffix ::= "do" "this" "only" "once" "each" "turn" "."
 
-ordinary_program_sentence ::= program_paid_creature_delayed_sacrifice_return | program_private_choice_incorporate | program_conditional_copy_exception | program_sentence_may_reflexive_quoted | program_sentence_mana_life_persists | program_sentence_search_and_move | program_sentence_die_table | program_sentence_added_die_table | program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment | program_tap_x_attack_rewards | explored_self_optional_copy | program_sentence_counter_choice_reflexive_modal | program_sentence_chosen_attackers | program_look_attacking_return | program_damage_other_controller_type_grant | active_control_payment_sentence | program_sentence_indefinite_keyword_trigger | program_counters_controlled_target_conditional_animation | program_target_retarget_added_table | program_choice_timed_player_rule | program_exile_receipt_die_table | program_sentence_grouped_die_table
+ordinary_program_sentence ::= program_counter_target_land_animation | program_paid_creature_delayed_sacrifice_return | program_private_choice_incorporate | program_conditional_copy_exception | program_sentence_may_reflexive_quoted | program_sentence_mana_life_persists | program_sentence_search_and_move | program_sentence_die_table | program_sentence_added_die_table | program_sentence_seek_engines | program_sentence_delayed_coin | program_sentence_indefinite_bonus | program_sentence_repeat_mana | program_sentence_move_attachment | program_sentence_plain | program_sentence_quoted | program_sentence_reflexive_modal | program_sentence_reduced_payment | program_tap_x_attack_rewards | explored_self_optional_copy | program_sentence_counter_choice_reflexive_modal | program_sentence_chosen_attackers | program_look_attacking_return | program_damage_other_controller_type_grant | active_control_payment_sentence | program_sentence_indefinite_keyword_trigger | program_counters_controlled_target_conditional_animation | program_target_retarget_added_table | program_choice_timed_player_rule | program_exile_receipt_die_table | program_sentence_grouped_die_table
 
 /* @sem $program */
 program_sentence_plain ::= program "."
@@ -855,8 +855,7 @@ instructions_after_boon_line ::= clause_one_time_cast_boon NEWLINE instructions
 /* @sem Instruction::[Effect{result:@next, operation:CreateTrigger{event:$event_cast, duration:Indefinite, announcement:@announcement, body:$boon_spell_choice, once:true}}] */
 clause_one_time_cast_boon ::= "you" "get" "a" "one-time" "boon" "with" '"' "when" event_cast "," boon_spell_choice "." '"'
 
-/* @sem Program::Program{instructions:[ChooseOne{decider:AbilityController, options:[Program{instructions:[Effect{result:@next, operation:ChangeSpell{subject:One(EventSubject), changes:[GrantKeyword($keyword_name)]}}]}, Program{instructions:[Effect{result:@next, operation:ChangeSpell{subject:One(EventSubject), changes:[GrantKeyword($keyword_name_2)]}}]}]}]} */
-boon_spell_choice ::= "it" "gains" "your" "choice" "of" keyword_name "or" keyword_name
+boon_spell_choice ::= boon_keyword_choice | boon_additional_entry_counters
 
 /* The trigger and its target belong to the copied token's ability frame. */
 /* @sem Ability::Triggered{event:ZoneChange{objects:SameObject(Source), to:Battlefield}, limits:_{}, body:_{instructions:[Effect{result:@next, operation:Keyword{actor:One(AbilityController), action:KeywordAction::Fight{first:Source, second:$target_up_to_one}}}]}, announcement:@announcement} */
@@ -888,3 +887,10 @@ anaphoric_damage_program ::= it_ref "deals" number "damage" "to" recipients
 
 /* @sem Change::[$grant_cast_player_damage_trigger] */
 closed_cast_player_damage_grant ::= grant_cast_player_damage_trigger
+
+/* @prefer always */
+/* @sem Program::Program{instructions:[ChooseOne{decider:AbilityController, options:[Program{instructions:[Effect{result:@next, operation:ChangeSpell{subject:One(EventSubject), changes:[GrantKeyword($keyword_name)]}}]}, Program{instructions:[Effect{result:@next, operation:ChangeSpell{subject:One(EventSubject), changes:[GrantKeyword($keyword_name_2)]}}]}]}]} */
+boon_keyword_choice ::= "it" "gains" "your" "choice" "of" keyword_name "or" keyword_name
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:ChangeSpell{subject:One(EventSubject), changes:[EntersWithCounters(_{kind:$counter_kind, amount:Constant(1)}), EntersWithCounters(_{kind:$counter_kind_2, amount:Constant(1)})]}}]} */
+boon_additional_entry_counters ::= "that" "creature" "enters" "with" "an" "additional" counter_kind "counter" "and" counter_kind "counter" "on" "it"

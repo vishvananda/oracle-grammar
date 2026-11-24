@@ -615,3 +615,13 @@ mana_distinct_clause ::= "add" mana_two_different_colors
 
 /* @sem Vec<Instruction>::@restricted_mana($mana_distinct_clause, $mana_spending) */
 mana_distinct_clause_restricted ::= mana_distinct_clause "." mana_spending
+
+/* The spending event supplies the spell subject for the resolution action. */
+/* @sem Instruction::[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$mana_production, restriction:WhenSpent{spells:$spell_filter, body:Program($spent_event_program)}}}] */
+instructions_mana_spent_active_event ::= "add" mana_production "." "when" "you" "spend" "this" "mana" "to" "cast" spell_filter "," spent_event_program
+
+/* @sem Program::Program{instructions:[Optional{decider:AbilityController, body:Program{instructions:[Effect{result:@next, operation:$spent_event_resolving_exile}]}}]} */
+spent_event_program ::= "you" "may" spent_event_resolving_exile
+
+/* @sem Operation::EffectOn{subject:Objects(One(EventSubject)), effects:[Term{family:SpellEffect, form:AsResolves, operands:[List([Term{family:ResolveAction, form:ExileResolvingSpell}])]}]} */
+spent_event_resolving_exile ::= "exile" "that" "spell" "instead" "of" "putting" "it" "into" "its" "owner's" "graveyard" "as" "it" "resolves"

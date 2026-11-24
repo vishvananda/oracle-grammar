@@ -111,7 +111,7 @@ controlled_entrant_a ::= ("a" | "an") controlled_entry_filter
 /* @sem ObjectFilter::@and(ObjectFilter::Not(SameObject(Source)), $controlled_entry_filter) */
 controlled_entrant_another ::= "another" controlled_entry_filter
 
-controlled_entry_filter ::= controlled_entry_plain | controlled_entry_modified
+controlled_entry_filter ::= controlled_entry_plain | controlled_entry_modified | controlled_entry_double_faced
 /* @sem ObjectFilter::@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))) */
 controlled_entry_plain ::= filter_phrase "you" "control"
 /* @sem ObjectFilter::@and($filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController)), $modifiers) */
@@ -7733,3 +7733,81 @@ event_cast_single_creature ::= "whenever" "you" "cast" "a" "spell" "that" "targe
 
 /* @sem Ability::Triggered{event:$event_cast_single_creature, limits:TriggerLimits{}, announcement:@announcement, body:$sole_target_conditional_program} */
 triggered_single_creature_followup ::= event_cast_single_creature "," sole_target_conditional_program
+
+/* @sem EventSpec::Batch{event:Attack{attackers:$filter_plural, defenders:Players(One(AbilityController))}, per:Defender, count:[GreaterOrEqual, $value]} */
+counted_attack_you_when ::= "when" value "or" "more" filter_plural "attack" "you"
+
+/* @sem Ability::Triggered{event:$counted_attack_you_when, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$delayed_combat_action}]}} */
+triggered_counted_attack_delayed_combat ::= counted_attack_you_when "," delayed_combat_action "."
+
+/* Damage from the equipped permanent retains the source/recipient pairing. */
+/* @sem EventSpec::Damage(_{source_kind:Permanent, sources:SameObject(AttachedTo(Source)), recipients:Players(All), kind:Combat, grouping:SourceRecipient, subject:Source}) */
+event_equipped_combat_player ::= "equipped" "creature" "deals" "combat" "damage" "to" "a" "player"
+
+/* A turn trigger can resolve a complete conditional program. */
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:$postfix_conditional_program} */
+triggered_turn_postfix_conditional ::= "at" turn_event "," postfix_conditional_program "."
+
+/* A double-faced entrant keeps its type and controller as separate filters. */
+/* @prefer always */
+/* @sem ObjectFilter::@and(ObjectFilter::State(DoubleFaced), $filter_phrase, ObjectFilter::ControlledBy(One(PlayerRef::AbilityController))) */
+controlled_entry_double_faced ::= "double-faced" filter_phrase "you" "control"
+
+/* One printed threshold applies to each of the three spell characteristics. */
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:AnyOf([Property{property:Power, test:NumberTest::Compare{comparison:Equal, value:$value}}, Property{property:Toughness, test:NumberTest::Compare{comparison:Equal, value:$value}}, Property{property:ManaValue, test:NumberTest::Compare{comparison:Equal, value:$value}}])} */
+cast_spell_with_shared_characteristic_value ::= "you" "cast" "a" "spell" "with" "power" "," "toughness" "," "or" "mana" "value" value
+
+/* @sem EventSpec::@either_event($event_when, $cast_spell_with_shared_characteristic_value) */
+shared_event_and_cast_characteristic ::= event_when "and" "whenever" cast_spell_with_shared_characteristic_value
+
+/* Compose an event with its milling and optional action program. */
+/* @sem Ability::Triggered{event:$event_combat_ref_to_player, limits:_{}, announcement:@announcement, body:$mill_then_evidence_callback} */
+triggered_event_mill_then_reflexive ::= "whenever" event_combat_ref_to_player "," mill_then_evidence_callback "."
+
+/* An entering Aura may replace its enchant restriction before resolving an
+   independently described follow-up. The two quoted filters remain independent. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:$aura_source_entry, intervening_if:$aura_entry_battlefield_condition, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[$aura_enchant_restriction_swap, ...$aura_attached_move_and_delayed_sacrifice]}} */
+aura_entry_restriction_swap_trigger ::= aura_source_entry "," "if" aura_entry_battlefield_condition "," aura_enchant_restriction_swap aura_attached_move_and_delayed_sacrifice "."
+
+/* @prefer always */
+/* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(One(Source)), changes:[LosesAbility(Term{family:CheckHasable, form:Enchant, operands:[Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:$noun})]}), GrantAbility(Enchant{hosts:Permanents(AllOf([$noun_2, MadeBy(Source)]))})], duration:Indefinite, evaluation:Snapshot}} */
+aura_enchant_restriction_swap ::= "it" "loses" '"' "↓" "enchant" noun "card" "in" "a" "graveyard" '"' "and" "gains" '"' "↓" "enchant" noun "put" "onto" "the" "battlefield" "with" "this" "Aura" "." '"'
+
+/* The attach and delayed sacrifice use the actual arrival of this move. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@mark, operation:Move{objects:One(AttachedTo(Source)), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:true, counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Attach{attachments:One(Source), host:Result{result:@marked, phase:After, index:0}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Object{event:LeavesBattlefield, objects:SameObject(Source)}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Sacrifice{players:One(ControllerOf(EventSubject)), objects:One(Result{result:@marked, phase:After, index:0})}}]}}}] */
+aura_attached_move_and_delayed_sacrifice ::= "put" "enchanted" "creature" "card" "onto" "the" "battlefield" "tapped" "under" "your" "control" "and" "attach" "this" "Aura" "to" "it" "." "when" "this" "Aura" "leaves" "the" "battlefield" "," "that" "creature's" "controller" "sacrifices" "it"
+
+/* @sem EventSpec::ZoneChange{objects:SameObject(Source), to:Battlefield} */
+aura_source_entry ::= "when" "this" "Aura" "enters"
+
+/* @sem Condition::ObjectMatches{object:Source, filter:InZone(Shared(Battlefield))} */
+aura_entry_battlefield_condition ::= "it's" "on" "the" "battlefield"
+
+/* Limit the graveyard reference to the controller's discard event. */
+discarded_group_graveyard_event ::= event_discard_many | event_you_discard_filtered_batch
+
+/* @sem Ability::Triggered{event:$discarded_group_graveyard_event, limits:TriggerLimits{}, announcement:@announcement, body:$discarded_group_graveyard_action} */
+triggered_discarded_group_graveyard ::= "whenever" discarded_group_graveyard_event "," discarded_group_graveyard_action "."
+
+/* Keep the named-card origin together with the linked exile return, rather
+   than adding another reading to every generic graveyard trigger. */
+/* @sem Ability::Triggered{event:ZoneChange{objects:SameObject(Source), to:Graveyard}, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$put_exiled_plural}]}} */
+triggered_named_graveyard_linked_return ::= "when" self_text "is" "put" "into" "a" "graveyard" "from" "anywhere" "," put_exiled_plural "."
+
+/* An entry from any zone except the two named origins. */
+/* @sem EventSpec::ZoneChangeFromElsewhere{objects:SameObject(Source), except:[Graveyard, Exile], to:Battlefield} */
+shared_self_entry_except_graveyard_exile ::= "this" "creature" "enters" "from" "anywhere" "other" "than" "a" "graveyard" "or" "exile"
+
+/* Compose an entry event, intervening condition, and a die-result table. */
+/* @sem Ability::Triggered{event:$shared_self_entry_except_graveyard_exile, intervening_if:$shared_entry_named_count_condition, limits:TriggerLimits{}, announcement:@announcement, body:$shared_twenty_sided_die_table} */
+shared_entry_condition_die_table ::= "when" shared_self_entry_except_graveyard_exile "," "if" shared_entry_named_count_condition "," shared_twenty_sided_die_table
+
+/* The condition's anaphor belongs to the creature attack event in this frame. */
+/* @prefer always */
+/* @sem Ability::Triggered{event:$event_creature_attack_batch, intervening_if:$condition_attack_group_defender_count, limits:TriggerLimits{}, announcement:@announcement, body:$program_sentence} */
+triggered_creature_attack_group_threshold ::= "whenever" event_creature_attack_batch "," "if" condition_attack_group_defender_count "," program_sentence
+
+/* @sem EventSpec::Batch{event:Attack{attackers:CardType(Creature), by:$event_player, defenders:Any}, per:Whole} */
+event_creature_attack_batch ::= event_player "attacks" "with" "creatures"

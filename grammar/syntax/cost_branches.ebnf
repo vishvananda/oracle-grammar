@@ -469,11 +469,11 @@ conditional_then_opponent_damage_program ::= "if" condition_cast_kicked "," crea
 spell_teamwork_paid_exile_branch ::= "teamwork" NUMBER NEWLINE clause_top_exile_play_those "." "if" "this" "spell" "was" "cast" "using" "teamwork" "," clause "."
 
 /* A kicked spell may add damage to a distinct target after an ordinary action. */
-/* @sem Program::Program{instructions:[Effect{result:@next, operation:$spared_return}, If{condition:ObjectMatches{object:Source, filter:State(Kicked)}, then:Program{instructions:[$kicker_spell_damage_another]}, otherwise:Program{}}]} */
-kicker_prior_action_spell_damage ::= spared_return "." "if" "this" "spell" "was" "kicked" "," kicker_spell_damage_another "."
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:$spared_return}, If{condition:ObjectMatches{object:Source, filter:State(Kicked)}, then:Program{instructions:[$kicker_damage_another]}, otherwise:Program{}}]} */
+kicker_prior_action_spell_damage ::= spared_return "." "if" "this" "spell" "was" "kicked" "," kicker_damage_another "."
 
 /* @sem Instruction::Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(Target{slot:0, index:0})), $filter_phrase)}), index:0})), amount:$number, preventable:true}} */
-kicker_spell_damage_another ::= "it" "deals" number "damage" "to" "another" "target" filter_phrase
+kicker_spell_damage_another ::= "it" "deals" number "damage" "to" "another" "target" filter_phrase /* @prefer always */
 
 /* The spell deals damage measured from the attempted destruction target, even if destruction fails. */
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:Destroy{objects:One($target_permanent), regeneration:true}}, If{condition:ObjectMatches{object:Source, filter:State(Kicked)}, then:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Objects(One($target_permanent_2)), amount:ObjectProperty{object:Target{slot:0, index:0}, property:$stat_mana_value, information:CurrentOrLastKnown}, preventable:true}}]}, otherwise:Program{}}]} */
@@ -493,3 +493,9 @@ kicker_replacement_standard ::= "instead" clause | clause "instead"
 /* A replacement search keeps its own selection and follow-up episode. */
 /* @sem Instruction::[Effect{result:@mark, operation:Search{searcher:AbilityController, library_owner:AbilityController, choices:[_{filter:$filter_phrase, count:UpTo($value)}]}}, ...$search_plural_follow] */
 kicker_replacement_counted_search ::= "instead" "search" "your" "library" "for" value filter_phrase "cards" search_plural_follow
+
+kicker_damage_another ::= kicker_spell_damage_another | kicker_prior_target_damage_another
+
+/* The pronoun can also refer to the previously announced target. */
+/* @sem Instruction::Effect{result:@next, operation:DealDamage{source:Target{slot:0, index:0}, recipients:Objects(One(Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(Target{slot:0, index:0})), $filter_phrase)}), index:0})), amount:$number, preventable:true}} */
+kicker_prior_target_damage_another ::= "it" "deals" number "damage" "to" "another" "target" filter_phrase

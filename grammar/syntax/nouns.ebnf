@@ -287,7 +287,7 @@ that_noun ::= qualified_noun
 /* Attachment subjects can name an object without replacing their host pronoun. */
 qualified_noun ::= named_attacking_creature | named_subtype | named_creature | named_permanent | named_artifact | named_enchantment | named_land | named_spell | named_planeswalker | named_creature_or_planeswalker | named_equipment | named_aura | named_vehicle
 
-target_object ::= target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_controlled_subtype_or_filter | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled | target_opponent_choice_controlled | target_attacked_this_turn | target_relative_event_stat | target_attached_to_permanent
+target_object ::= target_saddler_of_event_subject | target_controller_controls_land | target_extreme_battlefield | target_controlled_kind_union | target_controlled_subtype_or_filter | target_attacking_alone | target_event_subject_choice | target_up_to_one_other_attacking | target_combat_counterpart | target_excluding_named | target_permanent | target_either_kind | target_another | target_up_to_one | target_up_to_one_other | target_event_player_choice | target_defending_player_choice | target_up_to_one_defending_controlled | target_blocking_controlled | target_opponent_choice_controlled | target_attacked_this_turn | target_relative_event_stat | target_attached_to_permanent | target_six_subtype_union
 
 /* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(ObjectDomain{kind:Permanent, zones:[Battlefield]}), count:UpTo(Expr::Constant(1)), filter:$filter_phrase}), index:0} */
 target_up_to_one ::= "up" "to" "one" "target" filter_phrase
@@ -4919,3 +4919,33 @@ visited_attractions_count ::= "the" "number" "of" "Attractions" "you've" "visite
 
 /* @sem ObjectFilter::Not(ObjectFilter::CardType(Battle)) */
 non_battle ::= "nonbattle"
+
+/* A six-way subtype list denotes one target in the shared battlefield. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Permanent, zones:[Battlefield]}), count:Exactly(Constant(1)), filter:AnyOf([$union_subtype, $union_subtype_2, $union_subtype_3, $union_subtype_4, $union_subtype_5, $union_subtype_6])}), index:0} */
+target_six_subtype_union ::= "target" union_subtype "," union_subtype "," union_subtype "," union_subtype "," union_subtype "," "or" union_subtype
+
+union_subtype ::= subtype | union_cat_subtype
+
+/* @sem ObjectFilter::Subtype(Cat) */
+union_cat_subtype ::= "↑" "cat"
+
+/* A typed spell with one target, as selected for the per-legal-target copy. */
+/* @sem ObjectRef::Target{slot:@target(TargetSpec::TargetSpec{slot:@slot, kind:Object(_{kind:Spell, zones:[Stack]}), count:Exactly(Constant(1)), filter:AllOf([$copy_eligible_spell_filter, OnStack(SingleTarget)])}), index:0} */
+retarget_single_oracle_spell ::= "target" copy_eligible_spell_filter "spell" "that" "targets" "only" "a" "single" "permanent" "or" "player"
+
+copy_eligible_spell_filter ::= filter_phrase | copy_creature_spell_union
+
+/* @sem ObjectFilter::AnyOf([$noun_creature, $copy_noncreature_spell_type]) */
+copy_creature_spell_union ::= noun_creature "or" copy_noncreature_spell_type
+
+copy_noncreature_spell_type ::= spell_instant | spell_sorcery
+
+/* The stack object's controller and the population it targets are independent. */
+/* @sem ObjectFilter::AllOf([$modifier_opponent_controls, TargetsAny(Objects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$noun, $modifier_you_control])}))]) */
+counter_reactive_target_filter ::= modifier_opponent_controls "that" "targets" "a" noun modifier_you_control
+
+/* The minimum population can be specified independently of the chosen object. */
+/* @sem ObjectFilter::Property{property:$stat, test:NumberTest::Compare{comparison:Equal, value:Aggregate{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([@agree($noun, $plural_head), ControlledBy(OpponentsOf(AbilityController))])}, property:$stat, aggregation:Minimum}}} */
+least_stat_opponents_minimum ::= "a" noun "with" "the" "least" stat "among" plural_head "your" "opponents" "control"
+
+least_stat_opponents_choice ::= least_stat_opponents_population | least_stat_opponents_minimum

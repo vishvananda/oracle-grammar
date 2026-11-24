@@ -1,0 +1,827 @@
+{
+  "family": "retirement-876a067ee82091a5",
+  "cases": [
+    {
+      "name": "Possibility Storm",
+      "text": "Whenever a player casts a spell from their hand, that player exiles it, then exiles cards from the top of their library until they exile a card that shares a card type with it. That player may cast that card without paying its mana cost. Then they put all cards exiled with this enchantment on the bottom of their library in a random order.",
+      "types": [
+        "Enchantment"
+      ],
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "All"
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Hand",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "RevealUntil",
+                            "args": {
+                              "library": {
+                                "kind": "EventSubject"
+                              },
+                              "filter": {
+                                "kind": "Shares",
+                                "args": {
+                                  "property": "CardTypes",
+                                  "with": {
+                                    "kind": "EventSubject"
+                                  }
+                                }
+                              },
+                              "count": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "at_most": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Observed",
+                                "args": 1
+                              },
+                              "destination": {
+                                "Exile": {
+                                  "visibility": "FaceUp",
+                                  "arrival": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "EventSubject"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Query",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Matching",
+                                        "args": {
+                                          "objects": {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "After"
+                                            }
+                                          },
+                                          "filter": {
+                                            "kind": "Shares",
+                                            "args": {
+                                              "property": "CardTypes",
+                                              "with": {
+                                                "kind": "EventSubject"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 2,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "Library": {
+                            "position": "BottomRandom",
+                            "order": "DestinationDefault",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "exact": true,
+      "default": true
+    },
+    {
+      "name": "Synthetic Alpha",
+      "text": "Whenever a player casts a spell from your hand, that player exiles it, then exiles cards from the top of their library until they exile a card that shares a card type with it. That player may cast that card without paying its mana cost. Then they put all cards exiled with this enchantment on the bottom of their library in a random order.",
+      "reject": true
+    },
+    {
+      "name": "Synthetic Beta",
+      "text": "Whenever a player casts a spell from their hand, that player exiles it, then exiles cards from the top of their library until they exile a card that shares a card type with you. That player may cast that card without paying its mana cost. Then they put all cards exiled with this enchantment on the bottom of their library in a random order.",
+      "reject": true
+    },
+    {
+      "name": "Synthetic Gamma",
+      "text": "Whenever a player casts a spell from their hand, that player exiles it, then exiles cards from the top of their library until they exile a card that shares a card type with it. That player may cast that card without paying its mana cost. Then they put all cards exiled with this enchantment on the bottom of their library in a random order. Nonsense.",
+      "reject": true
+    },
+    {
+      "name": "Possibility Storm",
+      "text": "Whenever a player casts a spell from their graveyard, that player exiles it, then exiles cards from the top of their library until they exile a card that shares a card type with it. That player may cast that card without paying its mana cost. Then they put all cards exiled with this enchantment on the bottom of their library in a random order.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "All"
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Graveyard",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "RevealUntil",
+                            "args": {
+                              "library": {
+                                "kind": "EventSubject"
+                              },
+                              "filter": {
+                                "kind": "Shares",
+                                "args": {
+                                  "property": "CardTypes",
+                                  "with": {
+                                    "kind": "EventSubject"
+                                  }
+                                }
+                              },
+                              "count": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "at_most": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Observed",
+                                "args": 1
+                              },
+                              "destination": {
+                                "Exile": {
+                                  "visibility": "FaceUp",
+                                  "arrival": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "EventSubject"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Query",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Matching",
+                                        "args": {
+                                          "objects": {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "After"
+                                            }
+                                          },
+                                          "filter": {
+                                            "kind": "Shares",
+                                            "args": {
+                                              "property": "CardTypes",
+                                              "with": {
+                                                "kind": "EventSubject"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 2,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "Library": {
+                            "position": "BottomRandom",
+                            "order": "DestinationDefault",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    },
+    {
+      "name": "Possibility Storm",
+      "text": "Whenever a player casts a spell from their hand, that player exiles it, then exiles cards from the top of their library until they exile a card that shares a color with it. That player may cast that card without paying its mana cost. Then they put all cards exiled with this enchantment on the bottom of their library in a random order.",
+      "context": {
+        "supertypes": [],
+        "card_types": [
+          "Enchantment"
+        ],
+        "subtypes": [],
+        "mana_cost": [
+          {
+            "Generic": 3
+          },
+          {
+            "Color": "Red"
+          },
+          {
+            "Color": "Red"
+          }
+        ],
+        "color_indicator": [],
+        "power_toughness": null,
+        "loyalty": null,
+        "defense": null
+      },
+      "expected": [
+        {
+          "kind": "Triggered",
+          "args": {
+            "event": {
+              "Spell": {
+                "event": "Cast",
+                "players": {
+                  "kind": "All"
+                },
+                "spells": {
+                  "kind": "AllOf",
+                  "args": [
+                    {
+                      "kind": "Any"
+                    },
+                    {
+                      "kind": "Cast",
+                      "args": {
+                        "by": null,
+                        "from": {
+                          "Players": {
+                            "zone": "Hand",
+                            "players": {
+                              "kind": "One",
+                              "args": {
+                                "kind": "CasterOf",
+                                "args": {
+                                  "kind": "Candidate"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "intervening_if": null,
+            "limits": {
+              "per_turn": null,
+              "total": null
+            },
+            "announcement": {
+              "targets": [],
+              "modes": null
+            },
+            "body": {
+              "instructions": [
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 0,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "One",
+                          "args": {
+                            "kind": "EventSubject"
+                          }
+                        },
+                        "destination": {
+                          "Exile": {
+                            "visibility": "FaceUp",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                },
+                {
+                  "kind": "Group",
+                  "args": {
+                    "instructions": [
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 1,
+                          "operation": {
+                            "kind": "RevealUntil",
+                            "args": {
+                              "library": {
+                                "kind": "EventSubject"
+                              },
+                              "filter": {
+                                "kind": "Shares",
+                                "args": {
+                                  "property": "Colors",
+                                  "with": {
+                                    "kind": "EventSubject"
+                                  }
+                                }
+                              },
+                              "count": {
+                                "kind": "Constant",
+                                "args": 1
+                              },
+                              "at_most": null
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "kind": "Effect",
+                        "args": {
+                          "result": 2,
+                          "operation": {
+                            "kind": "Move",
+                            "args": {
+                              "objects": {
+                                "kind": "Observed",
+                                "args": 1
+                              },
+                              "destination": {
+                                "Exile": {
+                                  "visibility": "FaceUp",
+                                  "arrival": {
+                                    "counters": [],
+                                    "states": []
+                                  }
+                                }
+                              },
+                              "qualifiers": []
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "Optional",
+                  "args": {
+                    "decider": {
+                      "kind": "EventSubject"
+                    },
+                    "body": {
+                      "instructions": [
+                        {
+                          "kind": "Effect",
+                          "args": {
+                            "result": 3,
+                            "operation": {
+                              "kind": "PlayCards",
+                              "args": {
+                                "actor": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "EventSubject"
+                                  }
+                                },
+                                "action": "CastSpell",
+                                "cards": {
+                                  "kind": "One",
+                                  "args": {
+                                    "kind": "Query",
+                                    "args": {
+                                      "objects": {
+                                        "kind": "Matching",
+                                        "args": {
+                                          "objects": {
+                                            "kind": "Transition",
+                                            "args": {
+                                              "result": 2,
+                                              "phase": "After"
+                                            }
+                                          },
+                                          "filter": {
+                                            "kind": "Shares",
+                                            "args": {
+                                              "property": "Colors",
+                                              "with": {
+                                                "kind": "EventSubject"
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "index": 0
+                                    }
+                                  }
+                                },
+                                "count": {
+                                  "Exactly": {
+                                    "kind": "Constant",
+                                    "args": 1
+                                  }
+                                },
+                                "cost": "Free",
+                                "into_exile": false
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Effect",
+                  "args": {
+                    "result": 4,
+                    "operation": {
+                      "kind": "Move",
+                      "args": {
+                        "objects": {
+                          "kind": "InZone",
+                          "args": {
+                            "objects": {
+                              "kind": "Transition",
+                              "args": {
+                                "result": 2,
+                                "phase": "After"
+                              }
+                            },
+                            "zone": "Exile"
+                          }
+                        },
+                        "destination": {
+                          "Library": {
+                            "position": "BottomRandom",
+                            "order": "DestinationDefault",
+                            "arrival": {
+                              "counters": [],
+                              "states": []
+                            }
+                          }
+                        },
+                        "qualifiers": []
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "readings": null,
+      "exact": true,
+      "default": true,
+      "compositional": false
+    }
+  ]
+}

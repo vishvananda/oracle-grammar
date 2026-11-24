@@ -3984,3 +3984,19 @@ condition_event_spell_targets_only_source_creature ::= "that" "spell" "targets" 
 /* Unqualified counters include every kind on the referenced object. */
 /* @sem Condition::ObjectMatches{object:$object_ref, filter:Counters(_{comparison:GreaterOrEqual, value:$value})} */
 condition_there_are_any_counters_at_least ::= "there" "are" value "or" "more" "counters" "on" object_ref
+
+/* @sem ActivationLimits::ActivationLimits{condition:Compare{left:$value, test:NumberTest::Compare{comparison:GreaterOrEqual, value:$value_2}}} */
+activation_value_minimum ::= "activate" "only" "if" value "is" value "or" "greater"
+
+/* The entering subject remains on the battlefield and the controller's
+   named population is bounded independently of the event. */
+/* @sem Condition::AllOf([ObjectMatches{object:EventSubject, filter:InZone(Shared(Battlefield))}, Compare{left:CountObjects(Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([$named_plural_population, ControlledBy(One(AbilityController))])}), test:NumberTest::Compare{comparison:LessOrEqual, value:$number}}]) */
+shared_entry_named_count_condition ::= "it's" "on" "the" "battlefield" "and" "you" "control" number "or" "fewer" named_plural_population
+
+/* Within an attack-group trigger, count the attacking permanents at the stated defender. */
+/* @prefer always */
+/* @sem Condition::Compare{left:CountObjects(Matching{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:$attack_group_defender}, filter:Attacking}), test:$condition_at_least} */
+condition_attack_group_defender_count ::= condition_at_least "of" "those" "creatures" "are" attack_group_defender
+
+/* @sem ObjectFilter::AttackingDefender(PlayersAndPlaneswalkers(One(AbilityController))) */
+attack_group_defender ::= "attacking" "you" "and" "/" "or" "planeswalkers" "you" "control"

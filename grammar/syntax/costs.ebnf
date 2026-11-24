@@ -2935,3 +2935,16 @@ line_casting_tap_scaled_damage ::= "as" "an" "additional" "cost" "to" "cast" "th
 /* The second payment is the counter-removal producer measured by the body. */
 /* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_mana, $cost_remove_all_counters_from]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$damage_x_where_defined}]}} */
 activated_mana_removed_counter_damage ::= cost_mana "," "↑" cost_remove_all_counters_from ":" damage_x_where_defined "."
+
+/* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:$activation_value_minimum, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$affected_retained_creature_animation}]}} */
+activated_retained_creature_minimum ::= cost ":" affected_retained_creature_animation "." activation_value_minimum "."
+
+/* An attached object's mana cost and the granted holder's sacrifice stay distinct. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PayCost{player:AbilityController, cost:$attached_mana_payment, optional:true}}, If{condition:Not(PaymentChosen(@last_result)), then:_{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:One($payment_self_artifact)})}]}, otherwise:_{}}]} */
+attached_cost_sacrifice_program ::= "sacrifice" payment_self_artifact "unless" "you" "pay" attached_mana_payment "."
+
+/* @sem ObjectRef::@self */
+payment_self_artifact ::= self_artifact
+
+/* @sem Cost::Cost{parts:[ManaCostOf(AttachedTo(Source))]} */
+attached_mana_payment ::= "its" "mana" "cost"
