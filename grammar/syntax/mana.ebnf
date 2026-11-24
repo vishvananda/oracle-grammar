@@ -33,7 +33,7 @@ mana_clause_restricted ::= mana_clause "." mana_spending
    restriction, and the rest of the ability is its body. */
 instructions_mana_spent_trigger ::= instructions_mana_spent_active | instructions_mana_spent_passive | instructions_mana_spent_passive_program | instructions_mana_spent_commander_history
 
-mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat | mana_spend_only_countered | mana_spent_gives_riot | mana_spent_gives_uncounterable | mana_spend_x_cost | mana_spent_on_changes | mana_spent_counter
+mana_spending ::= mana_spend_only | mana_can_spend_only | mana_cannot_spend | mana_persists | mana_persists_combat | mana_spend_only_countered | mana_spent_gives_riot | mana_spent_gives_uncounterable | mana_spend_x_cost | mana_spent_on_changes | mana_spent_counter | mana_spent_commander_counted_entry
 /* @sem $mana_use */
 mana_spend_only ::= "spend" "this" "mana" "only" "to" mana_use
 /* @sem $mana_use */
@@ -727,3 +727,14 @@ unrestricted_different_colors_mana ::= value "mana" "of" "different" "colors"
 
 /* @sem Ability::Activated{origin:Ordinary, cost:$cost, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:$unrestricted_different_colors_mana}}]}} */
 activated_unrestricted_different_mana ::= cost ":" "add" unrestricted_different_colors_mana "."
+
+/* The paid-for commander and its recorded cast history are independently
+   represented; the counter type remains an editable entry operand. */
+/* @sem ManaUse::SpentGives{spells:AllOf([State(Commander), OwnedBy(One(AbilityController))]), effects:[$mana_commander_counted_entry]} */
+mana_spent_commander_counted_entry ::= "if" "you" "spend" "this" "mana" "to" "cast" "your" "commander" "," mana_commander_counted_entry
+
+/* @sem Operand::Term{family:EnterFlag, form:EntersWithNumberCounters, operands:[Number($mana_commander_cast_history), $entry_face_pt_counter]} */
+mana_commander_counted_entry ::= "it" "enters" "with" "a" "number" "of" "additional" entry_face_pt_counter "counters" "on" "it" "equal" "to" mana_commander_cast_history
+
+/* @sem Expr::EventHistory{event:Filtered{event:Spell{event:Cast, players:One(AbilityController), spells:State(Commander)}, condition:WasCastFrom{object:EventSubject, zone:Command}}, window:ThisGame, measure:Occurrences} */
+mana_commander_cast_history ::= "the" "number" "of" "times" "it's" "been" "cast" "from" "the" "command" "zone" "this" "game"

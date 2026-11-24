@@ -53,7 +53,7 @@ conditional_token_followups_one ::= conditional_token_followup
 conditional_token_followups_more ::= conditional_token_followup "." conditional_token_followups
 conditional_token_followups ::= conditional_token_gains_exile | conditional_token_grant_sacrifice | conditional_token_grant_exile | conditional_token_followups_one | conditional_token_followups_more
 
-conditional_token_followup ::= conditional_token_change | conditional_token_grant | conditional_token_cleanup
+conditional_token_followup ::= conditional_token_change | conditional_token_grant | conditional_token_cleanup | conditional_token_exile_named
 
 /* @sem Instruction::Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects($created_reference), changes:$changes, duration:$duration, evaluation:Snapshot}} */
 conditional_token_change ::= created_reference changes duration
@@ -168,7 +168,7 @@ token_named_each ::= ("a" | "an") token_named_recipe "token" "for" "each" count_
 /* @sem TokenSpec::TokenSpec{amount:$count_each_other, words:Rules, recipe:$token_named_recipe} */
 token_named_other_tapped ::= "a" "tapped" token_named_recipe "token" "for" "each" count_each_other
 
-token_recipe ::= named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors | token_recipe_basic_land_named | token_recipe_basic_land_named_plural | token_recipe_life_paid_entry | token_recipe_unlocked_doors | token_recipe_named_statless_with | token_recipe_statless_keyword_defining
+token_recipe ::= named_snow_artifact_recipe | token_recipe_rock_equipment | token_recipe_quoted_defining_offset | token_recipe_equal_history | token_recipe_post_colors | token_recipe_explicit_plural | token_recipe_history_max | token_recipe_base | token_recipe_with | token_recipe_explicit_name | token_recipe_explicit_name_with | token_recipe_all_colors | token_recipe_all_colors_with | token_recipe_named_all_colors_with | token_recipe_named_all_colors | token_recipe_basic_land_named | token_recipe_basic_land_named_plural | token_recipe_life_paid_entry | token_recipe_unlocked_doors | token_recipe_named_statless_with | token_recipe_statless_keyword_defining | token_recipe_equal_stats
 
 token_recipe_base ::= token_recipe_named_subtyped_land | token_recipe_statless_named | token_recipe_statless_named_plural | token_recipe_explicit_name | token_recipe_named | token_recipe_plain | token_recipe_no_subtype | token_recipe_statless | token_recipe_explicit_name_plural | token_recipe_explicit_plaguebearer
 
@@ -2400,3 +2400,56 @@ paired_quoted_tokens_program ::= "create" token_named "and" token_amount token_r
 
 /* @sem Ability::[@holder($static_spells_cost_less)] */
 paired_token_quoted_cost ::= '"' static_spells_cost_less '"'
+
+/* Independent expressions define the two token statistics. */
+/* @sem TokenRecipe::Defined(_{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$value, $value_2]}) */
+token_recipe_equal_stats ::= token_colors token_subtypes token_types "token" "with" "power" "equal" "to" value "and" "toughness" "equal" "to" value
+
+/* The exile and its consumer are kept together so the receipt cannot name an
+   unrelated previous operation. Token characteristics are independent operands. */
+/* @sem Instruction::[ForEachPlayer{players:All, binding:0, body:Program{instructions:[Effect{result:@mark, operation:Move{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:AllOf([CardType(Creature), ControlledBy(One(Bound(0)))])}, destination:Exile{visibility:FaceUp, arrival:ExileArrival{}}, qualifiers:[]}}]}}, Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:All, tokens:[TokenSpec{amount:CountObjects(Transition{result:@marked, phase:Before}), words:CreatingEffect, recipe:$token_recipe_plain}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})}] */
+each_exile_creatures_receipt_tokens ::= "each" "player" "exiles" "all" "creatures" "they" "control" "and" "creates" "X" token_recipe_plain "," "where" "X" "is" "the" "total" "power" "of" "the" "creatures" "they" "exiled" "this" "way"
+
+/* @sem Instruction::[...$each_exile_creatures_receipt_tokens, ...$instructions] */
+each_exile_creatures_receipt_tokens_followup ::= each_exile_creatures_receipt_tokens "." "then" instructions
+
+/* The named token refers to the creation in this payment branch. */
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_named_reference, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
+conditional_token_exile_named ::= "exile" created_named_reference "at" token_cleanup_event
+
+/* The captured amount supplies both statistics of the created token. */
+/* @sem TokenRecipe::Defined{name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[BoundValue(@marked), BoundValue(@marked)], abilities:$token_ability_description} */
+captured_stat_token_recipe ::= "X" "/" "X" token_colors token_subtypes token_types "token" token_ability_description
+
+/* A copied token's granted reduction belongs to the copy, not its creator. */
+/* @sem Ability::Static(_{kind:Ordinary, affected:Players(All), changes:[PlayerRule(ActivationCost{abilities:AllOf([AbilityOf(SameObject(Source)), OnStack(Keyword(Equip))]), change:Reduce($generic_reduction_symbols)})]}) */
+copied_equipment_equip_reduction ::= "this" "Equipment's" "equip" "abilities" "cost" generic_reduction_symbols "less" "to" "activate" "."
+
+/* @sem CopyException::AddAbilities([@scope($copied_equipment_equip_reduction)]) */
+copy_granted_equip_reduction ::= "it" "has" '"' copied_equipment_equip_reduction '"'
+
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[$copy_granted_equip_reduction]}} */
+token_copy_granted_equip ::= token_copy_single object_ref "," "except" copy_granted_equip_reduction
+
+/* The delayed instruction consumes the immediately preceding token creation. */
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@mark, operation:CreateTokens{players:One(AbilityController), tokens:[$token_copy_granted_equip], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}, Effect{result:@next, operation:CreateDelayedTrigger{event:Turn{point:UpkeepBegins, players:All}, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:@sacrificed_result(Operation::Sacrifice{players:One(AbilityController), objects:Created(@marked)})}]}}}]}} */
+triggered_copied_token_upkeep_sacrifice ::= event_clause "," "create" token_copy_granted_equip "sacrifice" "that" "token" "at" "the" "beginning" "of" "the" "next" "upkeep" "."
+
+/* A singular target payment supplies the copied card. Keep the payment,
+   its copy and the token cleanup in one scope so both receipts are proved. */
+/* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Move{selections:[_{objects:One($target_card_your_graveyard)}], destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[$paid_card_copy_creation, $paid_copy_cleanup]}, otherwise:Program{}}] */
+clause_exile_card_copy_cleanup ::= "you" "may" "exile" target_card_your_graveyard "." "if" "you" "do" "," paid_card_copy_creation "." paid_copy_cleanup
+
+/* @sem Instruction::Effect{result:@next, operation:@created_result(Operation::CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:Copy{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Performed, phase:After}, index:0}, exceptions:$copy_exceptions_plain}}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}})} */
+paid_card_copy_creation ::= "create" token_copy_single "that" "card" "," "except" copy_exceptions_plain
+
+/* @sem Instruction::Effect{result:@next, operation:CreateDelayedTrigger{event:$token_cleanup_event, start:Immediately, body:Program{instructions:[Effect{result:@next, operation:Move{objects:$created_ordinary_singular, destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}]}}} */
+paid_copy_cleanup ::= "exile" created_ordinary_singular "at" token_cleanup_event
+
+/* The plural token antecedent and both conditional branches share the same
+   current token operands, while retaining separate effect results. */
+/* @sem TokenSpec::TokenSpec{amount:$count, words:CreatingEffect, recipe:Defined{ name:FromSubtypes, colors:$token_colors, card_types:$token_types, subtypes:$token_subtypes, power_toughness:[$token_stat, $token_stat_2]}} */
+sneak_plural_token ::= count token_stat "/" token_stat token_colors token_subtypes token_types "tokens"
+
+/* @sem Ability::Spell{announcement:@announcement, body:Program{instructions:[If{condition:ObjectMatches{object:Source, filter:State(CostPaid(Sneak))}, then:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$sneak_plural_token], entry:BattlefieldArrival{tapped:true, counters:[], states:[Attacking{}]}}}]}, otherwise:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[$sneak_plural_token], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]}}]}} */
+spell_sneak_created_tokens ::= "create" sneak_plural_token "." "if" "this" "spell's" "sneak" "cost" "was" "paid" "," "they" "enter" "tapped" "and" "attacking" "."

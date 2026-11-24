@@ -2643,7 +2643,7 @@ activation_cost ::= activation_cost_standard | cost_pay_mana_or_words | cost_rea
 /* @sem Cost::Cost{parts:$activation_cost_parts} */
 activation_cost_standard ::= activation_cost_parts
 
-activation_cost_parts ::= activation_cost_one | activation_cost_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
+activation_cost_parts ::= activation_named_discard_sacrifice | activation_cost_one | activation_cost_more | cost_parts_and | cost_sacrifice_three | cost_remove_counters_and_sacrifice | cost_sacrifice_self_and_another | cost_sacrifice_self_and_one | cost_sacrifice_affected_and_many | cost_sacrifice_pair | cost_remove_counter_return | cost_remove_counters_return | cost_sacrifice_source_and_qualified | cost_sacrifice_two_and_self | cost_tap_controlled_and_sacrifice
 
 /* @sem CostPart::[$activation_cost_part] */
 activation_cost_one ::= activation_cost_part
@@ -3052,3 +3052,15 @@ cost_blight_return_enchantment ::= cost_blight "," "↑" "return" self_enchantme
 /* A mana payment and its stack-copy continuation share the payment receipt. */
 /* @sem Program::Program{instructions:[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:$pay_mana, optional:true}}, If{condition:PaymentChosen(@marked), then:$program_copy_targeting_ability, otherwise:Program{}}]} */
 optional_mana_payment_then_stack_copy ::= "you" "may" pay_mana "." "if" "you" "do" "," program_copy_targeting_ability
+
+/* An activation can resolve a conditionally executed program. */
+/* @sem Ability::Activated{origin:Ordinary, cost:$activation_cost, limits:ActivationLimits{}, announcement:@announcement, body:$conditional_resolution_program} */
+activated_conditional_resolution ::= activation_cost ":" conditional_resolution_program "."
+
+/* Named-discard activations may use the shared temporary player restrictions. */
+/* @sem Ability::Activated{origin:Ordinary, cost:Cost{parts:[$cost_discard_another_named]}, limits:ActivationLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$continuous_player_prohibition}]}} */
+named_discard_player_restriction_activation ::= cost_discard_another_named ":" continuous_player_prohibition "."
+
+/* Named discard followed by a separate permanent sacrifice payment. */
+/* @sem CostPart::[$cost_discard_another_named, $cost_sacrifice_many] */
+activation_named_discard_sacrifice ::= cost_discard_another_named "," "↑" cost_sacrifice_many

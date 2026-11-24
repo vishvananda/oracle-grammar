@@ -27,7 +27,7 @@ copy_exceptions_sentence ::= copy_exceptions_period | copy_exceptions_closed
 /* @sem $copy_exceptions_plain */
 copy_exceptions_period ::= copy_exceptions_plain "."
 
-copy_exceptions_plain ::= copy_legendary_named_types | copy_nonlegendary_artifact_subtype | copy_his_named_stats_keyword_current | copy_creature_stats_color_keyword | copy_stats_artifact_creature_keyword | copy_colored_stats_types | copy_nonlegendary_with_loyalty | copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain | copy_token_stats_ability | copy_food_ability | copy_exception_oxford_more | copy_exception_comma_more | copy_keyword_without_soulbond | copy_not_legendary_and_type | copy_nonlegendary_stats_types | copy_stats_added_creature_types | copy_added_colored_stats_types | copy_retained_color_stats_keywords
+copy_exceptions_plain ::= copy_legendary_named_types | copy_nonlegendary_artifact_subtype | copy_his_named_stats_keyword_current | copy_creature_stats_color_keyword | copy_stats_artifact_creature_keyword | copy_colored_stats_types | copy_nonlegendary_with_loyalty | copy_artifact_creature_stats_list | copy_keyword_current | copy_exception_plain_one | copy_exception_plain_more | copy_exception_quote_then_plain | copy_token_stats_ability | copy_food_ability | copy_exception_oxford_more | copy_exception_comma_more | copy_keyword_without_soulbond | copy_not_legendary_and_type | copy_nonlegendary_stats_types | copy_stats_added_creature_types | copy_added_colored_stats_types | copy_retained_color_stats_keywords | copy_keyword_mechanic
 
 /* @sem Vec<CopyException>::[$copy_exception_plain] */
 copy_exception_plain_one ::= copy_exception_plain
@@ -99,6 +99,7 @@ copy_named_name ::= ("its" | "his" | "her") "name" "is" referenced_card_name
 copy_current_payload ::= "this" "ability"
 /* @sem $copy_current_payload */
 copy_has_current ::= "it" "has" copy_current_payload
+/* @prefer always */
 /* @sem Vec<CopyException>::[$copy_added_keyword, $copy_current_payload] */
 copy_keyword_current ::= "it" "has" copy_added_keyword "and" copy_current_payload
 
@@ -231,7 +232,7 @@ copy_exception_oxford_more ::= copy_exception_plain "," "and" copy_exceptions_pl
 /* @sem CopyException::AddSupertypes([Legendary]) */
 copy_add_legendary_retained ::= "it's" "legendary" "in" "addition" "to" "its" "other" "types"
 
-entry_copy_actions ::= entry_copy_holder_stat_actions | entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_added_type_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color | entry_copy_conditional_counters_actions
+entry_copy_actions ::= entry_copy_holder_stat_actions | entry_copy_conditional_actions | entry_copy_plain_actions | entry_copy_added_type_actions | entry_copy_temporary_actions | entry_copy_controlled_counter_one | entry_copy_controlled_counter_many | entry_copy_creature_keep_color | entry_copy_artifact_keep_color | entry_copy_conditional_counters_actions | entry_copy_keyword_mechanic_actions
 
 /* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_objects, exceptions:$entry_copy_tail})}}] */
 entry_copy_plain_actions ::= "a" "copy" "of" entry_copy_objects entry_copy_tail
@@ -502,3 +503,12 @@ copy_granted_token_static ::= "it" "has" '"' "this" "token" static_changes "." '
 /* @sem Vec<CopyException>::[CopyException::AddSupertypes([Legendary]), CopyException::AddCreatureTypes($becomes_types), CopyException::SetName($referenced_card_name)] */
 /* @prefer always */
 copy_legendary_named_types ::= "it's" "a" "legendary" becomes_types "named" referenced_card_name
+
+/* Both abilities are copiable additions on the copied holder, with their own scopes. */
+/* @sem Vec<CopyException>::[CopyException::AddAbilities([@scope(Ability::Keyword($keyword_value))]), CopyException::AddAbilities([@scope($mechanic_bare)])] */
+copy_keyword_mechanic ::= "it" "has" keyword_value "and" mechanic_bare
+
+/* Keep the stated battlefield population on copies with two added abilities. */
+/* @prefer always */
+/* @sem Instruction::[Effect{result:@next, operation:ModifyEvent{change:Entry(CopyOf{objects:$entry_copy_battlefield_explicit, exceptions:$copy_keyword_mechanic})}}] */
+entry_copy_keyword_mechanic_actions ::= "a" "copy" "of" entry_copy_battlefield_explicit "," "except" copy_keyword_mechanic "."

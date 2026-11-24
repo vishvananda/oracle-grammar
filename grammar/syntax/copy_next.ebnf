@@ -393,3 +393,13 @@ mentioned_player_copy_targets ::= "may" "choose" "new" "targets" "for" "the" "co
 
 /* @sem Instruction::[Effect{result:@next, operation:CopyOnStack{actor:One($that_player_word), object:$object_ref, times:Constant(1), targets:$mentioned_player_copy_targets}}] */
 mentioned_player_copies_retarget ::= that_player_word "copies" object_ref "." "the" "player" mentioned_player_copy_targets
+
+/* Copying one referenced stack object carries the conditional ability on the copy. */
+/* @sem Operation::CopyOnStack{actor:One(AbilityController), object:$object_ref, times:Constant(1), targets:May, exceptions:[CopyException::IfPermanentSpell([CopyException::AddAbilities([Keyword($keyword_value)])])]} */
+copy_ref_permanent_keyword ::= "copy" object_ref "." "if" "you" "do" "," "you" "may" "choose" "new" "targets" "for" "the" "copy" "." "if" "the" "copy" "is" "a" "permanent" "spell" "," "it" "gains" keyword_value
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:PlayersDo{players:One(AbilityController), any_one:false, optional:true, once_each_turn:true, body:[Program(Program{instructions:[Effect{result:@next, operation:$copy_ref_permanent_keyword}]})], otherwise:[]}}]} */
+optional_copy_permanent_keyword_once ::= "you" "may" copy_ref_permanent_keyword "." "do" "this" "only" "once" "each" "turn" "."
+
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:$optional_copy_permanent_keyword_once} */
+triggered_optional_copy_permanent_keyword_once ::= event_clause "," optional_copy_permanent_keyword_once

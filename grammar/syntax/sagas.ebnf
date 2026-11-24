@@ -2,7 +2,7 @@
 /* @sem Ability::[Ability::Saga{chapters:$chapters}] */
 line_saga ::= chapters
 
-chapters ::= chapters_one | chapters_more
+chapters ::= chapters_flavored_next_cast | chapters_one | chapters_more
 
 chapters_one ::= chapter_first
 
@@ -15,7 +15,7 @@ chapter_tail ::= chapter_next_entry_then_transform | chapter | chapter_tail_more
 
 /* @sem Ability::[...$chapter, ...$chapter_tail] */
 chapter_tail_more ::= chapter NEWLINE chapter_tail
-chapter ::= chapter_2_paired_quoted_tokens | chapter_2_3_attack_cost | chapter_3_named_token_quote | chapter_2_3_4_5 | chapter_2_modal | chapter_3_modal | chapter_4_modal | chapter_5_modal | chapter_6_modal | chapter_2_3_modal | chapter_3_4_modal | chapter_4_5_modal | chapter_2_3_4_modal | chapter_3_4_5_modal | chapter_4_5_6_modal | chapter_2 | chapter_3 | chapter_4 | chapter_5 | chapter_6 | chapter_2_3 | chapter_3_4 | chapter_4_5 | chapter_2_3_4 | chapter_3_4_5 | chapter_4_5_6 | chapter_2_granted_activation | chapter_2_quoted_program | chapter_2_3_4_5_6
+chapter ::= chapter_2_paired_quoted_tokens | chapter_2_3_attack_cost | chapter_3_named_token_quote | chapter_2_3_4_5 | chapter_2_modal | chapter_3_modal | chapter_4_modal | chapter_5_modal | chapter_6_modal | chapter_2_3_modal | chapter_3_4_modal | chapter_4_5_modal | chapter_2_3_4_modal | chapter_3_4_5_modal | chapter_4_5_6_modal | chapter_2 | chapter_3 | chapter_4 | chapter_5 | chapter_6 | chapter_2_3 | chapter_3_4 | chapter_4_5 | chapter_2_3_4 | chapter_3_4_5 | chapter_4_5_6 | chapter_2_granted_activation | chapter_2_quoted_program | chapter_2_3_4_5_6 | chapter_5_flavored_counter_pump
 
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program})] */
 chapter_1 ::= "i" "—" chapter_program "."
@@ -48,6 +48,7 @@ chapter_3_4_5 ::= "III" "," "IV" "," "V" "—" chapter_program "."
 chapter_4_5_6 ::= "IV" "," "V" "," "VI" "—" chapter_program "."
 
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program}), @scope(Ability::Triggered{event:SagaChapter(4), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program})] */
+/* @prefer always */
 chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 
 /* These observed chapter flavor headings have no rules meaning. The Roman
@@ -273,6 +274,7 @@ chapter_linked_exile_cast_any_color ::= "until" "end" "of" "turn" "," "you" "may
 chapter_next_creature_entry_counter ::= "when" "you" "next" "cast" "a" "creature" "spell" this_duration "," "that" "creature" "enters" "with" "an" "additional" counter_kind "counter" "on" "it"
 
 /* Pair the independently parsed next-cast chapter with a transforming chapter. */
+/* @prefer always */
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_next_creature_entry_counter}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$saga_exile_return_transformed})] */
 chapter_next_entry_then_transform ::= "II" "—" chapter_next_creature_entry_counter "." NEWLINE "III" "—" saga_exile_return_transformed "."
 
@@ -558,3 +560,25 @@ chapter_brimstone_blink ::= "brimstone" "—" program_mana_source_counter_blink
 /* A final quoted ability closes the chapter sentence inside its quotation. */
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$paired_quoted_tokens_program})] */
 chapter_2_paired_quoted_tokens ::= "II" "—" paired_quoted_tokens_program
+
+/* Three independently parsed chapter programs with named presentation headings. */
+/* @prefer always */
+/* @sem Ability::[...$chapter_flavored_first, ...$chapter_flavored_next, ...$chapter_flavored_last] */
+chapters_flavored_next_cast ::= chapter_flavored_first NEWLINE chapter_flavored_next NEWLINE chapter_flavored_last
+
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$program})] */
+chapter_flavored_first ::= "i" "—" "crescent Fang" "—" program "."
+
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_next_creature_entry_counter})] */
+chapter_flavored_next ::= "II" "—" "heavenward Howl" "—" chapter_next_creature_entry_counter "."
+
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_flavored_condition_program})] */
+chapter_flavored_last ::= "III" "—" "ecliptic Growl" "—" chapter_flavored_condition_program "."
+
+/* @sem Program::Program{instructions:[@resolution(Instruction::If{condition:$control_greatest_power_post, then:Program{instructions:[Effect{result:@next, operation:@apply(PlayerSet::One(PlayerRef::AbilityController), $verb_operation_imperative)}]}, otherwise:Program{}})]} */
+chapter_flavored_condition_program ::= verb_operation_imperative "if" control_greatest_power_post
+
+/* The flavor heading is attached to this chapter wording, while its body is shared. */
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(5), limits:TriggerLimits{}, announcement:@announcement, body:$program_other_pump_each_counter})] */
+/* @prefer always */
+chapter_5_flavored_counter_pump ::= "V" "—" "ultimate End" "—" program_other_pump_each_counter "."
