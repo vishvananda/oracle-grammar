@@ -3913,7 +3913,7 @@ event_activation_opponent ::= "an" "opponent" "activates" activation_nonmana_abi
 
 activation_controller_keyword ::= activation_keyword_a | activation_keyword_an | activation_keyword_an_pair
 
-activation_nonmana_ability ::= activation_nonmana_unqualified | activation_nonmana_of_filter
+activation_nonmana_ability ::= activation_nonmana_unqualified | activation_nonmana_of_filter | activation_nonmana_of_vowel_filter
 
 /* @sem ObjectFilter::OnStack($activation_keyword_consonant) */
 activation_keyword_a ::= "a" activation_keyword_consonant "ability"
@@ -6901,6 +6901,7 @@ turn_optional_any_resource_draw ::= "at" turn_event "," optional_any_resource_dr
 /* @sem ObjectFilter::Not(OnStack(Mana)) */
 activation_nonmana_unqualified ::= "an" "ability" "that" "isn't" "a" "mana" "ability"
 
+/* @prefer always */
 /* @sem ObjectFilter::AllOf([AbilityOf($filter_phrase), Not(OnStack(Mana))]) */
 activation_nonmana_of_filter ::= "an" "ability" "of" "a" filter_phrase "that" "isn't" "a" "mana" "ability"
 
@@ -7148,3 +7149,48 @@ program_then_counter_threshold ::= operation "." "then" clause_counter_threshold
 
 /* @sem Ability::Triggered{event:$turn_event, limits:_{}, announcement:@announcement, body:$program_then_counter_threshold} */
 triggered_turn_then_counter_threshold ::= "at" turn_event "," program_then_counter_threshold
+
+/* The condition and entry modification share the triggering spell. */
+/* @sem Ability::Triggered{event:$cast_creature_snow_event, intervening_if:$spell_own_color_snow_spent, limits:TriggerLimits{}, announcement:@announcement, body:$cast_creature_entry_counter_program} */
+triggered_snow_spent_entry_counter ::= cast_creature_snow_event "," "if" spell_own_color_snow_spent "," cast_creature_entry_counter_program
+
+/* @sem EventSpec::Spell{event:Cast, players:One(AbilityController), spells:$additional_creature_spell_filter} */
+cast_creature_snow_event ::= "whenever" "you" "cast" "a" additional_creature_spell_filter "spell"
+
+/* @sem Ability::Triggered{event:$event_clause, limits:_{}, announcement:@announcement, body:_{instructions:[Effect{result:@next, operation:$graveyard_cards_perpetual}]}} */
+triggered_graveyard_cards_perpetual ::= event_clause "," graveyard_cards_perpetual "."
+
+/* A turn trigger can perform an operation before a resolution-time branch. */
+/* @sem Ability::Triggered{event:$turn_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$operation}, $resolution_if_otherwise]}} */
+turn_operation_resolution_branch ::= "at" turn_event "," operation "." resolution_if_otherwise
+
+/* @sem ObjectFilter::AllOf([AbilityOf($filter_phrase), Not(OnStack(Mana))]) */
+activation_nonmana_of_vowel_filter ::= "an" "ability" "of" "an" filter_phrase "that" "isn't" "a" "mana" "ability"
+
+/* The entrant's own power and toughness are compared, independently of its
+   controller and other characteristics. */
+/* @sem ObjectFilter::State(PowerEqualsToughness) */
+entry_equal_power_toughness ::= "with" "power" "equal" "to" "its" "toughness"
+
+/* @sem ObjectFilter::@and($filter_phrase, $modifier_you_control, $entry_equal_power_toughness) */
+entry_controlled_equal_stats ::= filter_phrase modifier_you_control entry_equal_power_toughness
+
+/* @sem EventSpec::ZoneChange{objects:$entry_controlled_equal_stats, to:Battlefield} */
+event_controlled_equal_stats_entry ::= "whenever" ("a" | "an") entry_controlled_equal_stats "enters"
+
+/* The controlled-entry normal form keeps the same subject and controller. */
+/* @sem EventSpec::Player{event:EntersUnderControl, players:All, objects:$entry_controlled_equal_stats} */
+event_controlled_equal_stats_entry_normalized ::= "whenever" ("a" | "an") entry_controlled_equal_stats "enters"
+
+/* Keep the payment and its event-bound card in one triggered ability. */
+/* @sem Ability::Triggered{event:$event_card_to_graveyard_opponent, limits:TriggerLimits{}, announcement:@announcement, body:$graveyard_event_paid_entry} */
+triggered_graveyard_event_paid_entry ::= "whenever" event_card_to_graveyard_opponent "," graveyard_event_paid_entry "."
+
+/* A past event-subject test can qualify a named-land return program. */
+/* @sem Ability::Triggered{event:$event_clause, intervening_if:$condition_she_was_kind, limits:TriggerLimits{}, announcement:@announcement, body:$program_return_tapped_named_land} */
+triggered_she_past_named_land_return ::= event_clause "," "if" condition_she_was_kind "," program_return_tapped_named_land
+
+/* The source's explicit return establishes the graveyard scope; the draw
+   ordinal and destination remain independent operands. */
+/* @sem Ability::Scoped{zones:[Graveyard], ability:@scope(Ability::Triggered{event:$collector_draw_event, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:$delayed_graveyard_self_move}]}})} */
+graveyard_ordinal_draw_self_return ::= "when" collector_draw_event "," delayed_graveyard_self_move "."

@@ -15,7 +15,7 @@ chapter_tail ::= chapter_next_entry_then_transform | chapter | chapter_tail_more
 
 /* @sem Ability::[...$chapter, ...$chapter_tail] */
 chapter_tail_more ::= chapter NEWLINE chapter_tail
-chapter ::= chapter_3_named_token_quote | chapter_2_3_4_5 | chapter_2_modal | chapter_3_modal | chapter_4_modal | chapter_5_modal | chapter_6_modal | chapter_2_3_modal | chapter_3_4_modal | chapter_4_5_modal | chapter_2_3_4_modal | chapter_3_4_5_modal | chapter_4_5_6_modal | chapter_2 | chapter_3 | chapter_4 | chapter_5 | chapter_6 | chapter_2_3 | chapter_3_4 | chapter_4_5 | chapter_2_3_4 | chapter_3_4_5 | chapter_4_5_6
+chapter ::= chapter_2_3_attack_cost | chapter_3_named_token_quote | chapter_2_3_4_5 | chapter_2_modal | chapter_3_modal | chapter_4_modal | chapter_5_modal | chapter_6_modal | chapter_2_3_modal | chapter_3_4_modal | chapter_4_5_modal | chapter_2_3_4_modal | chapter_3_4_5_modal | chapter_4_5_6_modal | chapter_2 | chapter_3 | chapter_4 | chapter_5 | chapter_6 | chapter_2_3 | chapter_3_4 | chapter_4_5 | chapter_2_3_4 | chapter_3_4_5 | chapter_4_5_6
 
 /* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(1), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_program})] */
 chapter_1 ::= "i" "—" chapter_program "."
@@ -52,7 +52,7 @@ chapter_1_2_3_4 ::= "i" "," "II" "," "III" "," "IV" "—" chapter_program "."
 /* These observed chapter flavor headings have no rules meaning. The Roman
    chapter list remains outside this wrapper and retains every trigger number.
    Unknown/mechanical headings are never discarded by dash syntax. */
-chapter_program ::= chapter_defined_token_damage | chapter_counter_creatures_one | chapter_counter_creatures_many | chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color | chapter_opponent_animation | chapter_created_token_keyword | chapter_destroy_transform
+chapter_program ::= chapter_defined_token_damage | chapter_counter_creatures_one | chapter_counter_creatures_many | chapter_repeat_mill_common_type | chapter_exile_copy_cards | chapter_draw_and_life | chapter_capped_return_type | chapter_each_target_counter | chapter_opponent_choice | program | chapter_flavor_program | chapter_counted_mana | chapter_opponent_graveyard_loss | chapter_target_block_ring | chapter_distribute_counters | ordered_opponent_permanent_exile | optional_opponent_draw_then_draw | saga_exile_return_transformed | chapter_controlled_plural_keyword | chapter_owned_cards_perpetual | chapter_seek_battlefield | chapter_mill_then_return | chapter_return_then_shuffle | chapter_exile_each_graveyard | chapter_lore_mana_linked_cast | chapter_optional_discard_draw_receipt | chapter_temporary_attack_pump | chapter_discard_investigate | chapter_draw_controlled_unowned | chapter_each_choose_destroy | chapter_exile_targets_gain_per_type | chapter_return_union_card_hand | chapter_domain_pump_keyword | chapter_players_get_counters | chapter_counter_total_tokens | chapter_controlled_either_counters | chapter_mill_then_exile_each_graveyard | chapter_linked_exile_cast_any_color | chapter_opponent_animation | chapter_created_token_keyword | chapter_destroy_transform | chapter_attack_you_cost | chapter_named_tokens_opponent_control_count
 
 /* @sem Program::Program{instructions:[Effect{result:@next, operation:$mana_add_counted}]} */
 chapter_counted_mana ::= mana_add_counted
@@ -313,3 +313,21 @@ chapter_destroy_transform ::= destroy "." saga_transform_instructions
 
 /* @sem Instruction::[Effect{result:@next, operation:Move{objects:One(Source), destination:Exile{visibility:FaceUp, arrival:ExileArrival{counters:[], states:[]}}, qualifiers:[]}}, Effect{result:@next, operation:Move{objects:@exile_followup(InZone{objects:One(Result{result:@prior, phase:After, index:0}), zone:Exile}), destination:Battlefield{controller:Player(AbilityController), arrival:BattlefieldArrival{tapped:false, counters:[], states:[Transformed]}}, qualifiers:[]}}] */
 saga_transform_instructions ::= "exile" "this" "Saga" "," "then" "return" "it" "to" "the" "battlefield" "transformed" "under" "your" "control"
+
+/* The attack cost is per declared attacker and retains its live population. */
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateContinuousEffect{source:Source, affected:Objects(@zone_card_members($affected)), changes:[Rule(CombatCost{action:Attack(Players(One(AbilityController))), payer:DeclaringPlayer, cost:$chapter_attack_payment})], duration:$duration, evaluation:LiveObjects}}]} */
+chapter_attack_you_cost ::= duration "," affected "can't" "attack" "you" "unless" "their" "controller" "pays" chapter_attack_payment
+
+/* @sem $cost */
+chapter_attack_payment ::= cost "for" "each" "of" "those" "creatures"
+
+/* @prefer always */
+/* @sem Ability::[@scope(Ability::Triggered{event:SagaChapter(2), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_attack_you_cost}), @scope(Ability::Triggered{event:SagaChapter(3), limits:TriggerLimits{}, announcement:@announcement, body:$chapter_attack_you_cost})] */
+chapter_2_3_attack_cost ::= "II" "," "III" "—" chapter_attack_you_cost "."
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[_{amount:$opponents_control_threshold_count, words:Rules, recipe:$token_named_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+chapter_named_tokens_opponent_control_count ::= "create" "X" token_named_recipe "tokens" "," "where" "X" "is" opponents_control_threshold_count
+
+/* The matching binding counts each opponent once, independent of creature count. */
+/* @sem Expr::CountPlayers(Intersection([OpponentsOf(AbilityController), Matching{binding:0, condition:Controls{player:Bound(0), filter:AllOf([$noun, Property{property:Power, test:Compare{comparison:GreaterOrEqual, value:$number_digits}}]), minimum:1}}])) */
+opponents_control_threshold_count ::= "the" "number" "of" "opponents" "who" "control" "a" noun "with" "power" number_digits "or" "greater"

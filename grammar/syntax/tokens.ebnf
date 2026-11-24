@@ -117,7 +117,7 @@ token_groups_tapped_more ::= token_group_tapped "," token_groups_tapped_tail
 
 token_group ::= named_legendary_equipment_token | token_named_created_history | token_defined_x_attacking_you | named_legendary_scoped_token | token_defined_x_where | token_walker_group | token_explicit_legendary | token_cherubael | token_hollow_sentinel | token_defined | token_defined_each | token_defined_equal | token_named | token_named_each | token_copy | token_legendary_named | token_defined_opponent_hand_count | token_devoured_power | token_named_equal | token_named_half_event_x | token_descents_group | token_defined_mana_each | token_defined_equal_after | token_defined_damage_x | token_defined_damage_x_quoted | named_legendary_defining_token | token_named_die_equal | token_named_equal_vote_total
 
-token_copy ::= token_copy_characteristics_it | token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card
+token_copy ::= token_copy_characteristics_it | token_copy_plural_dragon | token_copy_plain | token_copy_population | token_copy_modified | token_copy_exiled_plain | token_copy_exiled_singular | token_copy_exiled_plural | token_copy_commander | token_copy_modified_plural | token_copy_exiled_modified | token_copy_random_oracle | token_copy_random_mana_card | token_copy_characteristics
 
 /* @sem TokenSpec::TokenSpec{amount:$token_copy_quantity, words:CreatingEffect, recipe:Copy{object:$object_ref, exceptions:[]}} */
 token_copy_plain ::= token_copy_quantity object_ref
@@ -227,7 +227,7 @@ token_toxic ::= "toxic" number
 /* @sem Ability::@holder($token_ability_body) */
 token_quoted ::= '"' token_ability_body '"'
 
-token_ability_body ::= static_ability | max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword
+token_ability_body ::= token_entry_damage_quoted | static_ability | max_speed_ability | token_ability_sentence | keyword_ability | mined_ability | token_labelled_keyword
 
 /* A characteristic-defining ability here describes the token itself. */
 /* @sem Ability::Static{kind:CharacteristicDefining{contributes_to_color_identity:true}, affected:Objects(One(ObjectRef::Source)), changes:[Change::SetBasePowerToughness{power:$value, toughness:$value}]} */
@@ -450,7 +450,7 @@ token_recipe_all_colors ::= token_stat "/" token_stat token_subtypes token_types
 /* @sem CardType::[Enchantment, Artifact, Creature] */
 tt_enchantment_artifact_creature ::= "enchantment" "artifact" "creature"
 
-created_token_name ::= created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani
+created_token_name ::= created_name_replicated_ring | created_name_scrap | created_name_komas_coil | created_name_hornet | created_name_nalaar_aetherjet | created_name_ajanis_pridemate | created_name_minor_demon | created_name_kelp | created_name_ballistic_boulder | created_name_blue_horror | card_name_storm_crow | created_name_wood | created_name_wasp | created_name_butterfly | created_name_metallic_sliver | created_name_feather | card_name_kobolds_of_kher_keep | created_name_kobolds | created_name_carnivore | created_name_reliquary_dragon | created_name_wirefly | created_name_festering_goblin | created_name_moloid | created_name_spark_elemental | card_name_llanowar_elves | created_name_mark_of_rani | created_name_meteorite
 
 /* @sem String::'Wood' */
 created_name_wood ::= "Wood"
@@ -1813,3 +1813,52 @@ created_name_replicated_ring ::= "Replicated" "Ring"
 
 /* @sem TokenRecipe::Defined{name:Explicit($created_token_name), supertypes:[Snow], card_types:[Artifact], abilities:[$token_quoted]} */
 named_snow_artifact_recipe ::= "colorless" "snow" "artifact" "tokens" "named" created_token_name "with" token_quoted
+
+/* @sem TokenSpec::TokenSpec{amount:$token_copy_single, words:CreatingEffect, recipe:Copy{object:$that_noun, exceptions:$copy_token_characteristics}} */
+token_copy_characteristics ::= token_copy_single that_noun "," "except" copy_token_characteristics
+
+/* Explicitly named statless tokens can carry independently scoped abilities. */
+/* @sem TokenRecipe::Defined{name:Explicit($created_token_name), colors:$token_colors, card_types:$token_types, abilities:[$token_quoted, @holder($activated_ability)]} */
+token_recipe_named_statless ::= token_colors token_types "token" "named" created_token_name "with" token_quoted "and" '"' activated_ability '"'
+
+/* @sem String::'Meteorite' */
+created_name_meteorite ::= "Meteorite"
+
+/* The entering token is both the event subject and the damage source. */
+/* @sem Ability::Triggered{event:ZoneChange{objects:SameObject(Source), to:Battlefield}, limits:_{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:EventSubject, recipients:$recipients, amount:$number, preventable:true}}]}} */
+token_entry_damage_quoted ::= "when" "this" "token" "enters" "," "it" "deals" number "damage" "to" recipients
+
+/* The final quoted ability supplies the enclosing sentence's period. */
+/* @sem Ability::Triggered{event:$event_clause, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(AbilityController), tokens:[TokenSpec{amount:$token_amount, words:CreatingEffect, recipe:$token_recipe_named_statless}], entry:BattlefieldArrival{tapped:true, counters:[], states:[]}}}]}} */
+triggered_tapped_token_final_quote ::= event_clause "," "create" token_amount "tapped" token_recipe_named_statless
+
+/* A completed coin series supplies the quantity; the recipe remains independent. */
+/* @sem Expr::CountCoinOutcomes{source:CoinCountSource::Latest, outcome:Won} */
+coin_flips_won_count ::= "flip" "you" "won"
+
+/* @sem TokenRecipe::Copy{object:$object_ref, exceptions:[]} */
+counted_copy_recipe ::= "token" "that's" "a" "copy" "of" object_ref
+
+counted_coin_token_recipe ::= counted_copy_recipe | token_recipe
+
+/* @sem Operation::@created_result(Operation::CreateTokens{players:@subject, tokens:[TokenSpec{amount:$coin_flips_won_count, words:CreatingEffect, recipe:$counted_coin_token_recipe}], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}) */
+create_per_coin_won ::= "for" "each" coin_flips_won_count "," "create" "a" counted_coin_token_recipe
+
+/* A token's quoted rules use the token as holder, including its own controller. */
+/* @sem Ability::@holder(Ability::Static{kind:Ordinary, affected:Objects(One(Source)), changes:$rule_cant_block}) */
+quoted_token_cannot_block ::= '"' "this" "token" rule_cant_block '"'
+
+/* @sem Ability::@holder(Ability::Triggered{event:$turn_upkeep, limits:TriggerLimits{}, announcement:@announcement, body:Program{instructions:[Effect{result:@next, operation:DealDamage{source:Source, recipients:Players(One(AbilityController)), amount:$number_digits, preventable:true}}]}}) */
+quoted_token_upkeep_damage ::= '"' "at" turn_upkeep "," "this" "token" "deals" number_digits "damage" "to" "you" "." '"'
+
+/* @sem Ability::[$quoted_token_cannot_block, $quoted_token_upkeep_damage] */
+quoted_token_block_and_upkeep ::= quoted_token_cannot_block "and" quoted_token_upkeep_damage
+
+/* @sem TokenSpec::TokenSpec{amount:Constant(1), words:CreatingEffect, recipe:@token_abilities($singular_counted_token_recipe, $quoted_token_block_and_upkeep)} */
+token_with_block_and_upkeep ::= "a" singular_counted_token_recipe "with" quoted_token_block_and_upkeep
+
+/* @sem Program::Program{instructions:[Effect{result:@next, operation:CreateTokens{players:One(EventSubject), tokens:[$token_with_block_and_upkeep], entry:BattlefieldArrival{tapped:false, counters:[], states:[]}}}]} */
+damaged_player_creates_scoped_token ::= "that" "player" "creates" token_with_block_and_upkeep
+
+/* @sem Ability::Triggered{event:$event_combat_damage_player, limits:TriggerLimits{}, announcement:@announcement, body:$damaged_player_creates_scoped_token} */
+triggered_damage_player_creates_scoped_token ::= "whenever" event_combat_damage_player "," damaged_player_creates_scoped_token

@@ -6,7 +6,7 @@ mana_clause ::= mana_clause_plain | mana_clause_plain_you | mana_clause_optional
 mana_clause_plain ::= mana_clause_operation
 /* @sem Instruction::[Effect{result:@next, operation:$add_mana}] */
 mana_clause_plain_you ::= "you" add_mana
-mana_clause_operation ::= mana_add_for_target_cards | add_mana | add_mana_player | add_mana_any_combination | mana_add_counted | mana_add_counted_chosen
+mana_clause_operation ::= mana_add_equal_event_stat | mana_add_for_target_cards | add_mana | add_mana_player | add_mana_any_combination | mana_add_counted | mana_add_counted_chosen
 
 /* Count the cards in the targeted player's stated zone for each unit. */
 /* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$count_each_target_private_cards, production:$mana_for_each_existing, choice:Once}} */
@@ -465,6 +465,7 @@ activated_sacrifice_chosen_mana ::= "{" "T" "}" "," "↑" "sacrifice" "one" "or"
 
 /* The activation cost fixes the receipt's component and its sacrificed object.
    The mana and spending qualification remain independently composable. */
+/* @prefer always */
 /* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:ObjectProperty{object:Query{objects:CostObjects{payment:Activation, component:[1], view:Inputs, phase:Before}, index:0}, property:ManaValue, information:CurrentOrLastKnown}, production:$mana_production, choice:Once}} */
 mana_from_activation_artifact_cost ::= "add" "an" "amount" "of" mana_production "equal" "to" "the" "sacrificed" "artifact's" "mana" "value"
 
@@ -493,6 +494,7 @@ spent_spell_body ::= "copy" "that" "spell" "and" "you" "may" "choose" "new" "tar
 spells_exact_color_count ::= "spells" "with" "exactly" value "colors"
 
 /* A single creature payment and its property receipt are one contract. */
+/* @prefer always */
 /* @sem Instruction::[Effect{result:@mark, operation:PayCost{player:AbilityController, cost:Cost{parts:[Sacrifice{objects:Zone{scope:Shared(Battlefield), kind:Permanent, filter:@and(ObjectFilter::Not(ObjectFilter::SameObject(ObjectRef::Source)), $retirement_choice_creature_filter)}, choose:Exactly(Constant(1))}]}, optional:true}}, If{condition:PaymentChosen(@marked), then:Program{instructions:[Effect{result:@next, operation:AddMana{players:One(AbilityController), mana:Repeat{amount:ObjectProperty{object:Query{objects:CostObjects{payment:Resolution(@marked), component:[0], view:Inputs, phase:Before}, index:0}, property:$creature_stat, information:CurrentOrLastKnown}, production:$mana_production, choice:Once}, restriction:$mana_persists_combat}}]}, otherwise:Program{}}] */
 optional_other_creature_payment_mana ::= "you" "may" "sacrifice" "another" retirement_choice_creature_filter "." "if" "you" "do" "," "add" "an" "amount" "of" mana_production "equal" "to" "the" "sacrificed" "creature's" creature_stat "." mana_persists_combat
 
@@ -518,3 +520,10 @@ mana_use_later_atom ::= "to"? mana_use_atom
 
 /* @sem $mana_use_activate_one */
 mana_use_later_activate_one ::= "to" mana_use_activate_one
+
+/* An anaphoric stat remains bound to its actual antecedent. Restrict this
+   reusable phrase to stat wording; cost receipts need their own proof. */
+/* @sem Operation::AddMana{players:One(AbilityController), mana:Repeat{amount:$mana_equal_anaphoric_stat, production:$mana_production, choice:Once}} */
+mana_add_equal_event_stat ::= "add" "an" "amount" "of" mana_production "equal" "to" mana_equal_anaphoric_stat
+
+mana_equal_anaphoric_stat ::= value_power | value_toughness

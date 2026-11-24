@@ -2,7 +2,7 @@
    keeps the native absent amount; counted applications retain theirs. */
 keyword_action ::= forage_action | roll_composed_action | investigate_action | populate_action | open_attraction_action | time_travel_action | roll_die_action | additional_combat_phase | additional_combat_and_main_phase | become_monarch | take_initiative | ring_tempts_you | venture_into_dungeon | take_extra_turn | learn_action | end_the_turn | planeswalk_action | reverse_turn_order | amount_keyword_action | you_amount_keyword_action | object_keyword_action | group_keyword_action | skip_next_untap_step | roll_planar_die_action | additional_beginning_phase | additional_phase_after | skip_next_your_part | you_skip_next_your_part | game_outcome | become_day_action | become_night_action | controller_incubates_defined | double_unspent_mana
 
-investigate_action ::= investigate_for_each_controlled | investigate_for_population | investigate_for_life_loss | investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times
+investigate_action ::= investigate_for_each_controlled | investigate_for_population | investigate_for_life_loss | investigate_for_player_count | investigate_once | investigate_twice | investigate_number_times | investigate_that_many_times | investigate_for_population_plain
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{}} */
 investigate_once ::= "investigate"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:Constant(2)}} */
@@ -77,8 +77,9 @@ die_row_at_most ::= number "or" "less" "|" program_sentence
 /* @sem Program::Program{instructions:[...$die_table_head, If{condition:AllOf([Compare{left:Add([DieResult(@marked), $value]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number}}, Compare{left:Add([DieResult(@marked), $value]), test:NumberTest::Compare{comparison:LessOrEqual, value:$number_2}}]), then:$program_sentence, otherwise:_{}}, If{condition:Compare{left:Add([DieResult(@marked), $value]), test:NumberTest::Compare{comparison:GreaterOrEqual, value:$number_3}}, then:$program_sentence_2, otherwise:_{}}]} */
 program_sentence_added_die_table ::= die_table_head "and" "add" value "." NEWLINE number "―" number "|" program_sentence NEWLINE number "⁺" "|" program_sentence
 
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:Combat}} */
-additional_combat_phase ::= "after" "this" "phase" "," "there" "is" "an" "additional" "combat" "phase"
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:$current_combat_phase_reference}} */
+additional_combat_phase ::= "after" current_combat_phase_reference "," "there" "is" "an" "additional" "combat" "phase"
+/* @prefer always */
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:CombatAndMain}} */
 additional_combat_and_main_phase ::= "after" "this" "main" "phase" "," "there" "is" "an" "additional" "combat" "phase" "followed" "by" "an" "additional" "main" "phase"
     | "there" "is" "an" "additional" "combat" "phase" "after" "this" "phase" "," "followed" "by" "an" "additional" "main" "phase"
@@ -187,7 +188,7 @@ object_endures ::= object_ref "endures" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Saddle{object:$object_ref}} */
 object_becomes_saddled ::= object_ref "becomes" "saddled" "until" "end" "of" "turn"
 
-group_keyword_action ::= suspected_population_keyword | prior_group_phases_until | selected_any_keyword_action | selected_single_keyword_action | selected_group_keyword_action | goad_group_reference | goad_created_indefinitely | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions | shared_keyword_imperative | shared_opponent_keyword | shared_singular_keyword | detain_target_group | phase_out_chosen_population | each_phases_out | goad_named_for_object | phase_out_composed_population | goad_each_event_player | goad_each
+group_keyword_action ::= turn_target_group_face_down | suspected_population_keyword | prior_group_phases_until | selected_any_keyword_action | selected_single_keyword_action | selected_group_keyword_action | goad_group_reference | goad_created_indefinitely | goad_affected | affected_phase_out | affected_connive | affected_become_blocked | transform_all | each_explores | turn_all_face_down | detain_each | phase_in_filtered | phase_out_with_phasing | simultaneous_phase_actions | shared_keyword_imperative | shared_opponent_keyword | shared_singular_keyword | detain_target_group | phase_out_chosen_population | each_phases_out | goad_named_for_object | phase_out_composed_population | goad_each_event_player | goad_each
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::PhaseOut{}, objects:$affected} */
 affected_phase_out ::= affected "phase" "out"
 /* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::Connive, objects:$affected} */
@@ -364,6 +365,7 @@ each_phases_out ::= objects_each "phases" "out"
 goad_named_for_object ::= "goad" "all" filter_plural "with" "a" "name" "chosen" "for" object_ref
 
 /* The following phase sequence is shared by the two postposed forms. */
+/* @prefer always */
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::AdditionalPhase{phases:$postposed_phases}} */
 additional_phase_after ::= "there" "is" "an" "additional" postposed_phases
 
@@ -376,8 +378,8 @@ postposed_combat ::= "combat" "phase" "after" "this" "phase"
 postposed_combat_main ::= "combat" "phase" "after" "this" "phase" "followed" "by" "an" "additional" "main" "phase"
 
 /* Imperative and explicit-subject forms share the same turn-part operand. */
-/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Skip{part:$your_skipped_part}} */
-skip_next_your_part ::= "skip" "your" "next" your_skipped_part
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Skip{part:$your_skip_timing_part}} */
+skip_next_your_part ::= "skip" "your" your_skip_timing_part
 
 /* @sem $skip_next_your_part */
 you_skip_next_your_part ::= "you" skip_next_your_part
@@ -410,9 +412,8 @@ become_day_action ::= "it" "becomes" "day"
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::BecomeNight} */
 become_night_action ::= "it" "becomes" "night"
 
-/* Counted investigations share ordinary population and history operands. */
-/* @sem Expr::CountObjects($affected) */
-investigate_object_count ::= affected
+/* @sem Expr::CountObjects($investigate_count_population) */
+investigate_object_count ::= investigate_count_population
 
 /* @sem Expr::CountPlayers(Intersection([$players_singular, Matching{binding:0, condition:Compare{left:EventHistory{event:Player{event:LosesLife, players:One(Bound(0))}, window:ThisTurn, measure:Occurrences}, test:NumberTest::Compare{comparison:GreaterOrEqual, value:Constant(1)}}}])) */
 investigate_life_loss_count ::= players_singular "who" "lost" "life" "this" "turn"
@@ -562,7 +563,7 @@ discovers_third ::= "discovers" value
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Transform{object:Source}} */
 transform_source_him ::= "transform" "him"
 
-opponent_keyword_targets ::= opponent_distinct_targets | opponent_optional_singular_targets | opponent_optional_plural_targets
+opponent_keyword_targets ::= opponent_distinct_targets | opponent_optional_singular_targets | opponent_optional_plural_targets | opponent_optional_singular_player_targets | opponent_optional_plural_player_targets
 
 /* A defined quantity independently describes the number of intensifications. */
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Intensify{object:$object_ref, times:$intensify_defined_amount}} */
@@ -637,3 +638,31 @@ earthbend_plain_amount ::= value
 
 /* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Explore{object:$object_ref, times:$number}} */
 object_explores_number_times ::= object_ref "explores" number "times"
+
+/* Counted investigations share ordinary population and history operands. */
+investigate_count_population ::= affected | goaded_controlled_population
+
+/* @sem Operation::Keyword{actor:One(AbilityController), action:KeywordAction::Investigate{times:$investigate_object_count}} */
+investigate_for_population_plain ::= "investigate" "for" investigate_object_count
+
+your_skip_timing_part ::= your_next_skipped_part | your_draw_step_this_turn
+
+/* @prefer always */
+/* @sem $your_skipped_part */
+your_next_skipped_part ::= "next" your_skipped_part
+
+/* @sem $skipped_draw_step */
+your_draw_step_this_turn ::= skipped_draw_step "this" "turn"
+
+current_combat_phase_reference ::= implicit_combat_phase_reference | explicit_combat_phase_reference
+
+/* @prefer always */
+/* @sem AddedPhases::Combat */
+implicit_combat_phase_reference ::= "this" "phase"
+
+/* @sem AddedPhases::Combat */
+explicit_combat_phase_reference ::= "this" "combat" "phase"
+
+/* The target selection composes independently with the face-down action. */
+/* @sem Operation::KeywordEach{actor:One(AbilityController), action:ObjectKeywordAction::TurnFaceDown, objects:$target_group_with_keyword_other_than_holder} */
+turn_target_group_face_down ::= "turn" target_group_with_keyword_other_than_holder "face" "down"
